@@ -12,6 +12,8 @@ The problems faced by decentralized exchanges are:
 * Lack of advanced trading features, high-frequency trading, and bots.
 * Lack of proper decentralization and interoperability.
 
+To solve the above problems, our goal is to build a fully decentralized, peer-peer, cryptocurrency exchange for the Defi ecosystem in Substrate. The project envisages the creation of a fully decentralized platform for exchanging tokens in a peer-peer, trustless environment, that enables high-frequency trading, high-liquidity, and lightning-fast transaction speed for supporting Defi applications.
+
 In order to address the first problem, we needed to enable features that attract users into the exchange which includes a fast, responsive UI and trading features. It is mainly to attract day traders and retail investors who prefer centralized exchanges due to convenience and speed of execution. The block time of 3s given by the Babe/Grandpa consensus algorithm allows transaction speeds of up to 400/s under test conditions which is more than sufficient to compete with any centralized solutions in the market today. Please check our analysis [here](https://github.com/Gauthamastro/Exchange_Analytics.git).  Since Substrate allows the modular implementation of the consensus algorithm, we think a platform like a Substrate will support the future growth of the exchange by changing consensus to accommodate more transactions per second as better ones emerge.
 
 Secondly, the lack of liquidity is addressed by enabling,
@@ -21,8 +23,6 @@ Secondly, the lack of liquidity is addressed by enabling,
 3. Advanced trading features like stop limit, market limit, Stop loss, Fill/Kill, Post only, TWAP, etc.
 
 Thirdly, proper decentralization and Interoperability are achieved by having a parachain in Polkadot that brings in liquidity from other blockchains and also using ChainBridge protocol that connects directly to the Ethereum network. Hence, traders have two different mechanisms to bring in liquidity.
-
-To solve the above problems, our goal is to build a fully decentralized, peer-peer, cryptocurrency exchange for the Defi ecosystem in Substrate. The project envisages the creation of a fully decentralized platform for exchanging tokens in a peer-peer, trustless environment, that enables high-frequency trading, high-liquidity, and lightning-fast transaction speed for supporting Defi applications.
 
 The value we provide to the Substrate community is,
 
