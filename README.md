@@ -30,6 +30,8 @@ The value we provide to the Substrate community is,
 2. Traders can contribute their own custom trading algorithms by making use of market data provided by our full nodes.
 3. They get a decentralized trading platform to trade Polkadot & Ethereum tokens.
 4. This will be one of the first Decentralized exchanges to have High-Frequency Trading bot support using APIs directly from full nodes.
+## Documentation :books:
+For Tutorials, Documentation and API Reference please check this [page](https://github.com/Polkadex-Substrate/Documentation)
 ## Contribute :heart_eyes:
 We would love to work with anyone who can contribute their work and improve this project. The details will be shared soon.
 ## License :scroll:
