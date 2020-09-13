@@ -1,0 +1,1 @@
+./target/debug/node-template build-spec > customSpec.json

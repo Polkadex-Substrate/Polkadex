@@ -1,0 +1,17 @@
+version: "3.2"
+
+services:
+  dev:
+    container_name: node-dex
+    image: paritytech/ci-linux:production
+    working_dir: /var/www/node-dex
+    ports:
+      - "9944:9944"
+    environment:
+      - CARGO_HOME=/var/www/node-dex/.cargo
+    volumes:
+      - .:/var/www/node-dex
+      - type: bind
+        source: ./.local
+        target: /root/.local
+    command: bash -c "cargo build --release && ./target/release/node-dex --dev --ws-external"
