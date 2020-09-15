@@ -1,5 +1,6 @@
+![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
 # Polkadex
-Note: It is still a Work in Progress
+Note: It is still a WIP.
 ## What is Polkadex? :rocket:
 Polkadex is a Open Source, Decentralized Exchange Platform made using Substrate Blockchain Framework that provides traders with the centralized user experience.
 ## Why did we do this? :gift:
@@ -36,5 +37,3 @@ For Tutorials, Documentation and API Reference please check this [page](https://
 We would love to work with anyone who can contribute their work and improve this project. The details will be shared soon.
 ## License :scroll:
 Licensed Under [Apache 2.0](https://github.com/Polkadex-Substrate/Polkadex/blob/master/LICENSE)
-## Web3 Grants
-![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
