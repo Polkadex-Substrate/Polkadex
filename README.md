@@ -32,9 +32,9 @@ The value we provide to the Substrate community is,
 4. This will be one of the first Decentralized exchanges to have High-Frequency Trading bot support using APIs directly from full nodes.
 ## Documentation :books:
 For Tutorials, Documentation and API Reference please check this [page](https://github.com/Polkadex-Substrate/Documentation)
-## Web3 Grants
-![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
 ## Contribute :heart_eyes:
 We would love to work with anyone who can contribute their work and improve this project. The details will be shared soon.
 ## License :scroll:
 Licensed Under [Apache 2.0](https://github.com/Polkadex-Substrate/Polkadex/blob/master/LICENSE)
+## Web3 Grants
+![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
