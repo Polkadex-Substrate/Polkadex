@@ -34,8 +34,9 @@ pub use sp_runtime::BuildStorage;
 pub use pallet_staking::StakerStatus;
 
 use pallet_session::{historical as pallet_session_historical};
+
 pub use pallet_timestamp::Call as TimestampCall;
-// pub use pallet_balances::Call as BalancesCall;
+pub use pallet_balances::Call as BalancesCall;
 pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
 	construct_runtime, parameter_types, StorageValue,
@@ -46,8 +47,8 @@ pub use frame_support::{
 	},
 };
 
-/// Import the dex pallet.
-pub use dex;
+/// Import the template pallet.
+pub use template;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -100,8 +101,8 @@ pub mod opaque {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-dex"),
-	impl_name: create_runtime_str!("node-dex"),
+	spec_name: create_runtime_str!("node-template"),
+	impl_name: create_runtime_str!("node-template"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
@@ -109,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 1,
 };
 
-pub const MILLISECS_PER_BLOCK: u64 = 3000;
+pub const MILLISECS_PER_BLOCK: u64 = 6000;
 
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
@@ -135,7 +136,7 @@ pub fn native_version() -> NativeVersion {
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
 	/// We allow for 2 seconds of compute with a 6 second average block time.
-	pub const MaximumBlockWeight: Weight =  WEIGHT_PER_SECOND;
+	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	/// Assume 10% of weight for average on_initialize calls.
 	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
@@ -182,7 +183,7 @@ impl frame_system::Trait for Runtime {
 	/// logic of that extrinsic. (Signature verification, nonce increment, fee, etc...)
 	type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
 	/// The maximum weight that a single extrinsic of `Normal` dispatch class can have,
-	/// independent of the logic of that extrinsic. (Roughly max block weight - average on
+	/// idependent of the logic of that extrinsics. (Roughly max block weight - average on
 	/// initialize cost).
 	type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
 	/// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
@@ -284,7 +285,7 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-	type Currency = SpendingAssetCurrency<Self>;
+	type Currency = Balances;
 	type OnTransactionPayment = ();
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
@@ -299,20 +300,14 @@ impl pallet_sudo::Trait for Runtime {
 /// Struct that handles the conversion of Balance -> `u64`. This is used for staking's election
 /// calculation.
 use sp_runtime::traits::Convert;
-use pallet_generic_asset::{SpendingAssetCurrency, StakingAssetCurrency};
-use frame_support::traits::Currency;
-
 pub struct CurrencyToVoteHandler;
 
 impl CurrencyToVoteHandler {
-	fn factor() -> Balance {
-		let total_issuance: Balance = <pallet_generic_asset::StakingAssetCurrency<Runtime>>::total_issuance();
-		(total_issuance / u64::max_value() as Balance).max(1) }
+	fn factor() -> Balance { (Balances::total_issuance() / u64::max_value() as Balance).max(1) }
 }
 
 impl Convert<Balance, u64> for CurrencyToVoteHandler {
-	fn convert(x: Balance) -> u64 {
-		(x / Self::factor()) as u64 }
+	fn convert(x: Balance) -> u64 { (x / Self::factor()) as u64 }
 }
 
 impl Convert<u128, Balance> for CurrencyToVoteHandler {
@@ -364,7 +359,7 @@ parameter_types! {
 }
 
 impl pallet_staking::Trait for Runtime {
-	type Currency = StakingAssetCurrency<Self>;
+	type Currency = Balances;
 	type UnixTime = Timestamp;
 	type CurrencyToVote = CurrencyToVoteHandler;
 	type RewardRemainder = (); // Treasury
@@ -412,14 +407,10 @@ impl pallet_generic_asset::Trait for Runtime {
 	type AssetId = u32;
 	type Event = Event;
 }
-parameter_types! {
-pub const OrderBookRegistrationFee: u128 = 1_000_000_000_000;
-}
 
-/// Configure the pallet dex in pallets/dex.
-impl dex::Trait for Runtime {
+/// Configure the pallet template in pallets/template.
+impl template::Trait for Runtime {
 	type Event = Event;
-	type UNIT = OrderBookRegistrationFee;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -432,7 +423,6 @@ construct_runtime!(
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-		GenericAsset: pallet_generic_asset::{Module, Call, Storage, Config<T>, Event<T>},
 		Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
@@ -441,8 +431,9 @@ construct_runtime!(
 		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
 		Historical: pallet_session_historical::{Module},
-		// Include the custom logic from the dex pallet in the runtime.
-		DEX: dex::{Module, Call, Storage, Event<T>},
+		GenericAsset: pallet_generic_asset::{Module, Call, Storage, Config<T>, Event<T>},
+		// Include the custom logic from the template pallet in the runtime.
+		TemplateModule: template::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -645,12 +636,6 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
 			TransactionPayment::query_info(uxt, len)
-		}
-	}
-
-	impl dex::DexRuntimeApi<Block> for Runtime {
-		fn get_order_book(trading_pair: u32) -> dex::apis::OrderBookApi{
-			DEX::get_order_book(trading_pair)
 		}
 	}
 }
