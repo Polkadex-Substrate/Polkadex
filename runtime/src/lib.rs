@@ -285,7 +285,7 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-	type Currency = Balances;
+	type Currency = SpendingAssetCurrency<Self>;
 	type OnTransactionPayment = ();
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
@@ -300,10 +300,13 @@ impl pallet_sudo::Trait for Runtime {
 /// Struct that handles the conversion of Balance -> `u64`. This is used for staking's election
 /// calculation.
 use sp_runtime::traits::Convert;
+use pallet_generic_asset::{SpendingAssetCurrency, StakingAssetCurrency};
+use frame_support::traits::Currency;
+
 pub struct CurrencyToVoteHandler;
 
 impl CurrencyToVoteHandler {
-	fn factor() -> Balance { (Balances::total_issuance() / u64::max_value() as Balance).max(1) }
+	fn factor() -> Balance { (<pallet_generic_asset::StakingAssetCurrency<Runtime>>::total_issuance() / u64::max_value() as Balance).max(1) }
 }
 
 impl Convert<Balance, u64> for CurrencyToVoteHandler {
@@ -359,7 +362,7 @@ parameter_types! {
 }
 
 impl pallet_staking::Trait for Runtime {
-	type Currency = Balances;
+	type Currency = StakingAssetCurrency<Self>;
 	type UnixTime = Timestamp;
 	type CurrencyToVote = CurrencyToVoteHandler;
 	type RewardRemainder = (); // Treasury
@@ -408,9 +411,15 @@ impl pallet_generic_asset::Trait for Runtime {
 	type Event = Event;
 }
 
+parameter_types! {
+	/// Cost for Registering a Trading Pair
+	pub const TradingPairReservationFee: u128 = 1_000_000_000_000;
+}
+
 /// Configure the pallet template in pallets/template.
 impl template::Trait for Runtime {
 	type Event = Event;
+	type TradingPairReservationFee = TradingPairReservationFee;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
