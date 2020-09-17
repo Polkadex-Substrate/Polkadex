@@ -1,6 +1,6 @@
 use sp_core::{Pair, Public, sr25519};
 use node_template_runtime::{
-	AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
+	AccountId, BabeConfig,BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, SessionConfig, StakingConfig, StakerStatus,
 	opaque::SessionKeys, Balance, GenericAssetConfig
 };
@@ -139,6 +139,7 @@ fn testnet_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 	const STASH: Balance = 100;
+	const UNIT: u128 = 1_000_000_000_000;
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
 			// Add Wasm runtime to storage.
@@ -147,7 +148,7 @@ fn testnet_genesis(
 		}),
 		pallet_balances: Some(BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
-			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
+			balances: vec![],
 		}),
 		pallet_babe: Some(BabeConfig {
 			// authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
@@ -181,7 +182,7 @@ fn testnet_genesis(
 		}),
 		pallet_generic_asset: Some(GenericAssetConfig{
 			assets: vec![0],
-			initial_balance: 0,
+			initial_balance: 3*UNIT,
 			endowed_accounts: endowed_accounts
 				.clone().into_iter().map(Into::into).collect(),
 			next_asset_id: 1,
@@ -197,4 +198,3 @@ fn session_keys(
 ) -> SessionKeys {
 	SessionKeys { grandpa, babe  }
 }
-

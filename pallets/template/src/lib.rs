@@ -9,11 +9,13 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch}
 use frame_support::traits::Get;
 use frame_system::ensure_signed;
 use pallet_generic_asset::AssetIdProvider;
-use sp_arithmetic::FixedU128;
+use sp_arithmetic::{FixedU128, FixedPointNumber};
+use sp_arithmetic::traits::{CheckedMul, CheckedDiv, UniqueSaturatedFrom};
+use sp_runtime::traits::Hash;
 use sp_std::collections::vec_deque::VecDeque;
 use sp_std::str;
 use sp_std::vec::Vec;
-use sp_runtime::traits::Hash;
+use sp_std::convert::TryInto;
 
 #[test]
 mod mock;
@@ -50,6 +52,16 @@ decl_error! {
 		TradingPairIDExists,
 		/// Insufficent Balance to Execute
 		InsufficientAssetBalance,
+		/// Invalid Price or Quantity for a Limit Order
+		InvalidPriceOrQuantityLimit,
+		/// Invalid Price for a BidMarket Order
+		InvalidBidMarketPrice,
+		/// Invalid Quantity for a AskMarket Order
+		InvalidAskMarketQuantity,
+		/// TradingPair doesn't Exist
+		InvalidTradingPair,
+		/// Internal Error: Failed to Convert Balance to U128
+		InternalErrorU128Balance,
 	}
 }
 
@@ -69,6 +81,7 @@ decl_storage! {
 	// If the market data is returning None, then no trades were present for that trading in that block.
 	// TODO: Currently we store market data for all the blocks
 	MarketInfo get(fn get_marketdata): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) T::BlockNumber => Option<MarketData>;
+	Nonce: u128;
 	}
 }
 
@@ -91,7 +104,7 @@ decl_module! {
 		/// Registers a new trading pair in the system
 		#[weight = 10000]
 		pub fn register_new_orderbook(origin, quote_asset_id: u32, base_asset_id: u32) -> dispatch::DispatchResultWithPostInfo{
-		    let _trader = ensure_signed(origin)?;
+		    let trader = ensure_signed(origin)?;
 
 		    // If assets ids are same then it's error
 		    if &quote_asset_id == &base_asset_id {
@@ -105,7 +118,7 @@ decl_module! {
 		    }
 
 		    // The origin should reserve a certain amount of SpendingAssetCurrency for registering the pair
-		    if Self::reserve_balance_registration(&_trader){
+		    if Self::reserve_balance_registration(&trader){
 		        // Create the orderbook
 		        Self::create_order_book(quote_asset_id.into(),base_asset_id.into(),&trading_pair_id);
 		        Self::deposit_event(RawEvent::TradingPairCreated(trading_pair_id));
@@ -114,11 +127,19 @@ decl_module! {
 		        return Err(<Error<T>>::InsufficientAssetBalance.into());
 		    }
 	    }
+
+        /// Submits the given order for matching to engine.
+        #[weight = 10000]
+	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: FixedU128, quantity: FixedU128) -> dispatch::DispatchResultWithPostInfo{
+	        let trader = ensure_signed(origin)?;
+
+	        Self::execute_order(trader, order_type, trading_pair, price, quantity); // TODO: It may an error in which case take the fees else refund
+	        return Ok(Some(0).into());
+	    }
     }
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub enum OrderType {
     BidLimit,
     BidMarket,
@@ -127,7 +148,6 @@ pub enum OrderType {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Order<T> where T: Trait {
     id: T::Hash,
     trading_pair: T::Hash,
@@ -138,7 +158,6 @@ pub struct Order<T> where T: Trait {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Debug))]
 pub struct LinkedPriceLevel<T> where T: Trait {
     next: Option<FixedU128>,
     prev: Option<FixedU128>,
@@ -156,8 +175,8 @@ impl<T> Default for LinkedPriceLevel<T> where T: Trait {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Orderbook<T> where T: Trait {
+    trading_pair: T::Hash,
     base_asset_id: T::AssetId,
     quote_asset_id: T::AssetId,
     best_bid_price: FixedU128,
@@ -167,6 +186,7 @@ pub struct Orderbook<T> where T: Trait {
 impl<T> Default for Orderbook<T> where T: Trait {
     fn default() -> Self {
         Orderbook {
+            trading_pair: T::Hash::default(),
             base_asset_id: 0.into(),
             quote_asset_id: 0.into(),
             best_bid_price: FixedU128::from(0),
@@ -176,19 +196,18 @@ impl<T> Default for Orderbook<T> where T: Trait {
 }
 
 impl<T> Orderbook<T> where T: Trait {
-    fn new(base_asset_id: T::AssetId, quote_asset_id: T::AssetId) -> Self {
-
-        Orderbook{
+    fn new(base_asset_id: T::AssetId, quote_asset_id: T::AssetId, trading_pair: T::Hash) -> Self {
+        Orderbook {
+            trading_pair,
             base_asset_id,
             quote_asset_id,
             best_bid_price: FixedU128::from(0),
-            best_ask_price: FixedU128::from(0)
+            best_ask_price: FixedU128::from(0),
         }
     }
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Debug))]
 pub struct MarketData {
     // Lowest price at which the trade was executed in a block.
     low: FixedU128,
@@ -207,15 +226,165 @@ impl<T: Trait> Module<T> {
     }
 
     // Initializes a new Orderbook and stores it in the Orderbooks
-    fn create_order_book(quote_asset_id: T::AssetId, base_asset_id: T::AssetId, trading_pair_id: &T::Hash){
-        let orderbook = Orderbook::new(base_asset_id,quote_asset_id);
+    fn create_order_book(quote_asset_id: T::AssetId, base_asset_id: T::AssetId, trading_pair_id: &T::Hash) {
+        let orderbook = Orderbook::new(base_asset_id, quote_asset_id,trading_pair_id.clone());
         <Orderbooks<T>>::insert(trading_pair_id, orderbook);
-        <AsksLevels<T>>::insert(trading_pair_id,Vec::<FixedU128>::new());
-        <BidsLevels<T>>::insert(trading_pair_id,Vec::<FixedU128>::new());
+        <AsksLevels<T>>::insert(trading_pair_id, Vec::<FixedU128>::new());
+        <BidsLevels<T>>::insert(trading_pair_id, Vec::<FixedU128>::new());
     }
 
-    fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> T::Hash{
-        (quote_asset_id,base_asset_id).using_encoded(
-            <T as frame_system::Trait>::Hashing::hash)
+    // Creates a TradingPairID from both Asset IDs.
+    fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> T::Hash {
+        (quote_asset_id, base_asset_id).using_encoded(<T as frame_system::Trait>::Hashing::hash)
+    }
+
+    // Submits an order for execution
+    fn execute_order(trader: T::AccountId,
+                     order_type: OrderType,
+                     trading_pair: T::Hash,
+                     price: FixedU128,
+                     quantity: FixedU128) -> Option<Error<T>> {
+        let mut current_order = Order {
+            id: T::Hash::default(), // let's do the hashing after the checks.
+            trading_pair,
+            trader,
+            price,
+            quantity,
+            order_type,
+        };
+
+        match Self::basic_order_checks(&current_order){
+            Ok(orderbook) => {
+                let nonce = Nonce::get(); // To get some kind non user controllable randomness to order id
+                current_order.id = (trading_pair, current_order.trader.clone(), price, quantity, current_order.order_type.clone(), nonce)
+                    .using_encoded(<T as frame_system::Trait>::Hashing::hash);
+                Nonce::put(nonce + 1); // TODO: Check might overflow after a long time.
+
+                match current_order.order_type {
+                    OrderType::AskMarket | OrderType::BidMarket => {
+                        current_order = Self::consume_order(current_order);
+                    }
+                    OrderType::AskLimit | OrderType::BidLimit => {
+                        // Check if current can consume orders present in the system
+                        if (current_order.order_type == OrderType::BidLimit &&
+                            current_order.price >= orderbook.best_ask_price) |
+                            (current_order.order_type == OrderType::AskLimit &&
+                                current_order.price <= orderbook.best_bid_price) {
+
+                            // current_order can consume i.e. Market Taking order
+                            current_order = Self::consume_order(current_order);
+                            // Insert the remaining order in the order book
+                            current_order = Self::insert_order(current_order, orderbook);
+                        } else {
+                            // Current Order cannot be consumed i.e. Market Making order
+                            // Insert the remaining order in the order book
+                            current_order = Self::insert_order(current_order, orderbook)
+                        }
+                    }
+                }
+                // TODO: Finally emit the events about order execution
+                None
+            }
+            Err(err_value) => {
+                return Some(err_value)
+            }
+        }
+    }
+
+    // Inserts the given order into orderbook
+    fn insert_order(order: Order<T>,orderbook: Orderbook<T>)->Order<T>{
+        // TODO: Implement the logic for Inserting order to orderbook
+        order
+    }
+
+    fn consume_order(order: Order<T>) -> Order<T>{
+        // TODO: Implement the logic for consuming the order
+        order
+    }
+
+    // Checks all the basic checks
+    fn basic_order_checks(order: &Order<T>) -> Result<Orderbook<T>, Error<T>> {
+        match order.order_type {
+            OrderType::BidLimit | OrderType::AskLimit => {
+                if order.price <= FixedU128::from(0) || order.quantity <= FixedU128::from(0) {
+                    return Err(<Error<T>>::InvalidPriceOrQuantityLimit.into())
+                }
+            }
+            OrderType::BidMarket => {
+                if order.price <= FixedU128::from(0) {
+                    return Err(<Error<T>>::InvalidBidMarketPrice.into())
+                }
+            }
+            OrderType::AskMarket => {
+                if order.quantity <= FixedU128::from(0) {
+                    return Err(<Error<T>>::InvalidAskMarketQuantity.into())
+                }
+            }
+        }
+        if !<Orderbooks<T>>::contains_key(&order.trading_pair) {
+            return Err(<Error<T>>::InvalidTradingPair.into())
+        }
+        let orderbook: Orderbook<T> = <Orderbooks<T>>::get(&order.trading_pair);
+        match order.order_type {
+            OrderType::BidLimit => {
+                let base_balance = pallet_generic_asset::Module::<T>::free_balance(
+                    &orderbook.base_asset_id, &order.trader);
+                if let Some(base_balance_converted) = Self::convert_balance_to_fixed_u128(base_balance) {
+                    let trade_amount = order.price.checked_mul(&order.quantity).unwrap(); // TODO: This is bad!!
+                    if base_balance_converted >= trade_amount {
+                        Ok(orderbook)
+                    } else {
+                        Err(<Error<T>>::InsufficientAssetBalance.into())
+                    }
+                } else {
+                    Err(<Error<T>>::InternalErrorU128Balance.into())
+                }
+            }
+            OrderType::BidMarket => {
+                let base_balance = pallet_generic_asset::Module::<T>::free_balance(
+                    &orderbook.base_asset_id, &order.trader);
+                if let Some(base_balance_converted) = Self::convert_balance_to_fixed_u128(base_balance) {
+                    if base_balance_converted >= order.price {
+                        Ok(orderbook)
+                    } else {
+                        Err(<Error<T>>::InsufficientAssetBalance.into())
+                    }
+                } else {
+                    Err(<Error<T>>::InternalErrorU128Balance.into())
+                }
+            }
+            OrderType::AskMarket | OrderType::AskLimit => {
+                let quote_balance = pallet_generic_asset::Module::<T>::free_balance(
+                    &orderbook.quote_asset_id, &order.trader);
+                if let Some(quote_balance_converted) = Self::convert_balance_to_fixed_u128(quote_balance) {
+                    if quote_balance_converted >= order.quantity {
+                        Ok(orderbook)
+                    } else {
+                        Err(<Error<T>>::InsufficientAssetBalance.into())
+                    }
+                } else {
+                    Err(<Error<T>>::InternalErrorU128Balance.into())
+                }
+            }
+        }
+    }
+
+    // Converts Balance to FixedU128 representation
+    pub fn convert_balance_to_fixed_u128(x: T::Balance) -> Option<FixedU128> {
+        if let Some(y) = TryInto::<u128>::try_into(x).ok() {
+            FixedU128::from(y).checked_div(&FixedU128::from(1_000_000_000_000))
+        } else {
+            None
+        }
+    }
+
+    // Converts FixedU128 to Balance representation
+    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+            let balance_in_u128 = balance_in_fixed_u128.into_inner();
+            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+        } else {
+            None
+        }
     }
 }
