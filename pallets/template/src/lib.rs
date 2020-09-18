@@ -10,7 +10,7 @@ use frame_support::traits::Get;
 use frame_system::ensure_signed;
 use pallet_generic_asset::AssetIdProvider;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
-use sp_arithmetic::traits::{CheckedDiv, CheckedMul, UniqueSaturatedFrom, CheckedSub};
+use sp_arithmetic::traits::{CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
 use sp_runtime::traits::Hash;
 use sp_std::collections::vec_deque::VecDeque;
 use sp_std::convert::TryInto;
@@ -332,8 +332,12 @@ impl<T: Trait> Module<T> {
                         // NOTE: In asks_levels & bids_levels all items are unique.
                         asks_levels.remove(0);
                         // Write it back to storage.
-                        <AsksLevels<T>>::insert(&current_order.trading_pair,asks_levels);
+                        <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
 
+                        if linkedpricelevel.next.is_none() {
+                            // No more price levels available
+                            break;
+                        }
                         if current_order.price >= linkedpricelevel.next.unwrap() {
                             // In this case current_order.quantity is remaining and
                             // it can match with next price level in orderbook.
@@ -349,16 +353,127 @@ impl<T: Trait> Module<T> {
                         }
                     }
                 }
-                // Save Pricelevel back to storage
-                <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
-                return (current_order,orderbook)
+
+                if !linkedpricelevel.orders.is_empty() {
+                    // Save Pricelevel back to storage
+                    <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
+                }
+                return (current_order, orderbook);
             }
 
+            OrderType::BidMarket => {
+                // Incoming order is a Market buy order so it, trader whats to buy the quote_asset for
+                // current_order.price at Market price.
+
+                // We load the best_ask_price level and start to fill the order
+                let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_ask_price);
+                // We iterate until current_order is fulfilled or exhausts the Ask orders in the system.
+                while current_order.price > FixedU128::from(0) {
+                    if Some(counter_order) = linkedpricelevel.orders.pop_front() {
+                        (current_order, counter_order) = Self::do_asset_exchange_market(current_order,
+                                                                                        counter_order,
+                                                                                        orderbook.base_asset_id,
+                                                                                        orderbook.quote_asset_id)
+
+                        if counter_order.quantity > FixedU128::from(0) {
+                            // counter_order was not completely used so we store it back in the FIFO
+                            linkedpricelevel.orders.push_front(counter_order);
+                        }
+                    } else {
+                        // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
+                        // As no more orders are available in the linkedpricelevel.
+                        // we check if we can match with the next available level
+
+                        // As we consumed the linkedpricelevel completely remove that from asks_levels
+                        let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
+                        // asks_levels is already sorted and the best_ask_price should be the first item
+                        // so we don't need to sort it after we remove and simply remove it
+                        // NOTE: In asks_levels & bids_levels all items are unique.
+                        asks_levels.remove(0);
+                        // Write it back to storage.
+                        <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
+
+                        if linkedpricelevel.next.is_none() {
+                            // No more price levels available
+                            break;
+                        }
+
+                        orderbook.best_ask_price = linkedpricelevel.next.unwrap();
+                        linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.unwrap());
+                    }
+                }
+
+                if !linkedpricelevel.orders.is_empty() {
+                    // Save Pricelevel back to storage
+                    <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
+                }
+
+                return (current_order, orderbook);
+            }
             // TODO: Remaining patterns are not implemented yet
-            _ => {}
+            OrderType::AskLimit => {
+
+            }
+            OrderType::AskMarket => {
+
+            }
         }
 
         (current_order, orderbook)
+    }
+
+    fn do_asset_exchange_market(mut current_order: Order<T>, mut counter_order: Order<T>, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> (Order<T>, Order<T>) {
+        match current_order.order_type {
+            OrderType::BidMarket => {
+                let current_order_quantity = counter_order.price.checked_div(&current_order.price).unwrap();
+                if current_order_quantity <= counter_order.quantity {
+                    // We have enough quantity in the counter_order to fulfill current_order completely
+                    // Transfer the base asset
+                    Self::transfer_asset_market(base_assetid, current_order.price, &current_order.trader, &counter_order.trader);
+                    // Transfer the quote asset
+                    Self::transfer_asset(quote_assetid, current_order_quantity, &counter_order.trader, &current_order.trader);
+                    //Set current_order quantity to 0 and counter_order is reduced by fulfilled amount
+                    counter_order.quantity = counter_order.quantity.checked_sub(&current_order_quantity).unwrap();
+                    current_order.price = FixedU128::from(0);
+                } else {
+                    let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).unwrap();
+                    // Transfer the base asset
+                    Self::transfer_asset_market(base_assetid, trade_amount, &current_order.trader, &counter_order.trader);
+                    // Transfer the quote asset
+                    Self::transfer_asset(quote_assetid, counter_order.quantity, &counter_order.trader, &current_order.trader);
+                    // counter_order is set to 0 and current_order.price is reduced by fulfilled amount
+                    counter_order.quantity = FixedU128::from(0);
+                    current_order.price = current_order.price.checked_sub(&trade_amount).unwrap();
+                }
+            }
+            OrderType::AskMarket => {
+                if current_order.quantity <= counter_order.quantity {
+                    // We have enough quantity in the counter_order to fulfill current_order completely
+                    let trade_amount = counter_order.price.checked_mul(&current_order.quantity).unwrap();
+                    // Transfer the base asset
+                    Self::transfer_asset(base_assetid,trade_amount,&counter_order.trader,&current_order.trader);
+                    // Transfer the quote asset
+                    Self::transfer_asset_market(quote_assetid,current_order.quantity,&current_order.trader,&counter_order.trader);
+                    // current_order is set to 0 and counter_order is reduced by fulfilled amount
+                    counter_order.quantity = counter_order.quantity.checked_sub(&current_order.quantity).unwrap();
+                    current_order.quantity = FixedU128::from(0);
+                }else{
+                    // We have enough quantity in the counter_order to fulfill current_order completely
+                    let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).unwrap();
+                    // Transfer the base asset
+                    Self::transfer_asset(base_assetid,trade_amount,&counter_order.trader,&current_order.trader);
+                    // Transfer the quote asset
+                    Self::transfer_asset_market(quote_assetid,counter_order.quantity,&current_order.trader,&counter_order.trader);
+                    // counter_order is set to 0 and current_order is reduced by fulfilled amount
+                    current_order.quantity = current_order.quantity.checked_sub(&counter_order.quantity).unwrap();
+                    counter_order.quantity = FixedU128::from(0);
+                }
+            }
+            _ => {
+                // It won't execute.
+            }
+        }
+        (current_order, counter_order)
     }
     // It checks the if the counter_order.quantity has enough to fulfill current_order then exchanges
     // it after collecting fees and else if counter_order.quantity is less than current_order.quantity
@@ -367,30 +482,30 @@ impl<T: Trait> Module<T> {
     fn do_asset_exchange(mut current_order: Order<T>, mut counter_order: Order<T>, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> (Order<T>, Order<T>) {
         match current_order.order_type {
             OrderType::BidLimit => {
-                // The current order is trying to by the quote_asset
+                // The current order is trying to buy the quote_asset
                 if current_order.quantity <= counter_order.quantity {
                     // We have enough quantity in the counter_order to fulfill current_order completely
                     // Calculate the total cost in base asset for buying required amount
                     let trade_amount = current_order.price.checked_mul(&current_order.quantity).unwrap();
                     // Transfer the base asset
                     // AssetId, amount to send, from, to
-                    Self::transfer_asset(base_assetid,trade_amount,&current_order.trader,&counter_order.trader);
+                    Self::transfer_asset(base_assetid, trade_amount, &current_order.trader, &counter_order.trader);
                     // Transfer the quote asset
-                    Self::transfer_asset(quote_assetid,current_order.quantity,&counter_order.trader,&current_order.trader);
+                    Self::transfer_asset(quote_assetid, current_order.quantity, &counter_order.trader, &current_order.trader);
 
                     //Set Current order quantity to 0 and counter_order is subtracted.
                     counter_order.quantity = counter_order.quantity.checked_sub(&current_order.quantity).unwrap();
                     current_order.quantity = FixedU128::from(0);
-                    (current_order,counter_order)
-                }else{
+                    (current_order, counter_order)
+                } else {
                     // current_order is partially filled and counter_order is completely filled.
                     // Calculate the total cost in base asset for buying required amount
                     let trade_amount = current_order.price.checked_mul(&counter_order.quantity).unwrap();
                     // Transfer the base asset
                     // AssetId, amount to send, from, to
-                    Self::transfer_asset(base_assetid,trade_amount,&current_order.trader,&counter_order.trader);
+                    Self::transfer_asset(base_assetid, trade_amount, &current_order.trader, &counter_order.trader);
                     // Transfer the quote asset from counter_order to current_order's trader.
-                    Self::transfer_asset(quote_assetid,counter_order.quantity,&counter_order.trader,&current_order.trader);
+                    Self::transfer_asset(quote_assetid, counter_order.quantity, &counter_order.trader, &current_order.trader);
                     //Set counter_order quantity to 0 and current_order is subtracted.
                     current_order.quantity = current_order.quantity.checked_sub(&counter_order.quantity).unwrap();
                     counter_order.quantity = FixedU128::from(0);
@@ -405,12 +520,20 @@ impl<T: Trait> Module<T> {
     }
 
     // Transfers the balance of traders
-    fn transfer_asset(asset_id: T::AssetId,amount: FixedU128, from: &T::AccountId, to: &T::AssetId){
+    fn transfer_asset(asset_id: T::AssetId, amount: FixedU128, from: &T::AccountId, to: &T::AssetId) {
         let amount_balance = Self::convert_fixed_u128_to_balance(amount).unwrap();
         // Initially the balance was reserved so now it is unreserved and then transfer is made
         pallet_generic_asset::Module::<T>::unreserve(&asset_id, from, amount_balance);
         let result = pallet_generic_asset::Module::<T>::make_transfer(&asset_id, from, to,
-                                                                       amount_balance);
+                                                                      amount_balance);
+        // TODO: Make sure the result is ok
+    }
+
+    // Transfers the balance of traders
+    fn transfer_asset_market(asset_id: T::AssetId, amount: FixedU128, from: &T::AccountId, to: &T::AssetId) {
+        let amount_balance = Self::convert_fixed_u128_to_balance(amount).unwrap();
+        let result = pallet_generic_asset::Module::<T>::make_transfer(&asset_id, from, to,
+                                                                      amount_balance);
         // TODO: Make sure the result is ok
     }
 
