@@ -572,6 +572,7 @@ impl<T: Trait> Module<T> {
         }
         (current_order, counter_order)
     }
+
     // It checks the if the counter_order.quantity has enough to fulfill current_order then exchanges
     // it after collecting fees and else if counter_order.quantity is less than current_order.quantity
     // then exchange counter_order.quantity completely and return.
