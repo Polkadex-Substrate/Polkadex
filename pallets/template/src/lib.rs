@@ -373,7 +373,7 @@ impl<T: Trait> Module<T> {
                         (current_order, counter_order) = Self::do_asset_exchange_market(current_order,
                                                                                         counter_order,
                                                                                         orderbook.base_asset_id,
-                                                                                        orderbook.quote_asset_id)
+                                                                                        orderbook.quote_asset_id);
 
                         if counter_order.quantity > FixedU128::from(0) {
                             // counter_order was not completely used so we store it back in the FIFO
@@ -410,12 +410,109 @@ impl<T: Trait> Module<T> {
 
                 return (current_order, orderbook);
             }
-            // TODO: Remaining patterns are not implemented yet
+
             OrderType::AskLimit => {
+                // The incoming order is AskLimit and it will be able to match best_bid_price
+                // Hence, we load the corresponding LinkedPriceLevel of best_bid_price from storage and execute
 
+                // we want to match the orders until the current_price is greater than the bid_price
+                // or the current_order is fulfilled completely
+                let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_bid_price);
+                while current_order.quantity > FixedU128::from(0) {
+                    if Some(counter_order) = linkedpricelevel.orders.pop_front() {
+                        (current_order, counter_order) = Self::do_asset_exchange(current_order, // TODO: Rust Ownership issues
+                                                                                 counter_order,
+                                                                                 orderbook.base_asset_id,
+                                                                                 orderbook.quote_asset_id);
+                        if counter_order.quantity > FixedU128::from(0) {
+                            // counter_order was not completely used so we store it back in the FIFO
+                            linkedpricelevel.orders.push_front(counter_order);
+                        }
+                    } else {
+                        // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
+                        // As no more orders are available in the linkedpricelevel.
+                        // we check if we can match with the next available level
+
+                        // As we consumed the linkedpricelevel completely remove that from bids_levels
+                        let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
+                        // bids_levels is already sorted and the best_bid_price should be the first item
+                        // so we don't need to sort it after we remove and simply remove it
+                        // NOTE: In asks_levels & bids_levels all items are unique.
+                        bids_levels.remove(0);
+                        // Write it back to storage.
+                        <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
+
+                        if linkedpricelevel.next.is_none() {
+                            // No more price levels available
+                            break;
+                        }
+                        if current_order.price <= linkedpricelevel.next.unwrap() {
+                            // In this case current_order.quantity is remaining and
+                            // it can match with next price level in orderbook.
+
+                            // Last best_bid_price is consumed and doesn't exist anymore hence
+                            // we set new best_bid_price in orderbook.
+                            orderbook.best_bid_price = linkedpricelevel.next.unwrap();
+                            linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.unwrap());
+                        } else {
+                            // In this case, the current_order cannot match with the best_bid_price available
+                            // so let's break the while loop and return the current_order and orderbook
+                            break;
+                        }
+                    }
+                }
+
+                if !linkedpricelevel.orders.is_empty() {
+                    // Save Pricelevel back to storage
+                    <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
+                }
+                return (current_order, orderbook);
             }
-            OrderType::AskMarket => {
 
+            OrderType::AskMarket => {
+                // Incoming Order is a Market Sell, so trader wants to sell current_order.quantity
+                // at best possible price.
+                // We load the best_bid_price level and start to fill the order
+                let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_bid_price);
+                while current_order.quantity > FixedU128::from(0){
+                    if Some(counter_order) = linkedpricelevel.orders.pop_front() {
+                        (current_order, counter_order) = Self::do_asset_exchange_market(current_order,
+                                                                                        counter_order,
+                                                                                        orderbook.base_asset_id,
+                                                                                        orderbook.quote_asset_id);
+                        if counter_order.quantity > FixedU128::from(0) {
+                            // counter_order was not completely used so we store it back in the FIFO
+                            linkedpricelevel.orders.push_front(counter_order);
+                        }
+                    } else {
+                        // As no more orders are available in the linkedpricelevel.
+                        // we check if we can match with the next available level
+
+                        // As we consumed the linkedpricelevel completely remove that from bids_levels
+                        let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
+                        // bids_levels is already sorted and the best_bid_price should be the first item
+                        // so we don't need to sort it after we remove and simply remove it
+                        // NOTE: In asks_levels & bids_levels all items are unique.
+                        bids_levels.remove(0);
+                        // Write it back to storage.
+                        <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
+
+                        if linkedpricelevel.next.is_none() {
+                            // No more price levels available
+                            break;
+                        }
+
+                        orderbook.best_bid_price = linkedpricelevel.next.unwrap();
+                        linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.unwrap());
+                    }
+                }
+
+                if !linkedpricelevel.orders.is_empty() {
+                    // Save Pricelevel back to storage
+                    <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
+                }
+
+                return (current_order,orderbook);
             }
         }
 
