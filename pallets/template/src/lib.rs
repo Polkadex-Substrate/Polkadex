@@ -325,10 +325,14 @@ impl<T: Trait> Module<T> {
                         // As no more orders are available in the linkedpricelevel.
                         // we check if we can match with the next available level
 
+                        // 1@100, 3@101, 5@105, ...
+                        // [100,101,105...]
+                        // [100,101,105...
+
                         // As we consumed the linkedpricelevel completely remove that from asks_levels
                         let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
                         // asks_levels is already sorted and the best_ask_price should be the first item
-                        // so we don't need to sort it after we remove and simply remove it
+                        // so we don't need to sort it after we remove and simply remove the 0th index.
                         // NOTE: In asks_levels & bids_levels all items are unique.
                         asks_levels.remove(0);
                         // Write it back to storage.
@@ -338,6 +342,7 @@ impl<T: Trait> Module<T> {
                             // No more price levels available
                             break;
                         }
+
                         if current_order.price >= linkedpricelevel.next.unwrap() {
                             // In this case current_order.quantity is remaining and
                             // it can match with next price level in orderbook.
@@ -364,6 +369,7 @@ impl<T: Trait> Module<T> {
             OrderType::BidMarket => {
                 // Incoming order is a Market buy order so it, trader whats to buy the quote_asset for
                 // current_order.price at Market price.
+
 
                 // We load the best_ask_price level and start to fill the order
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_ask_price);
@@ -442,18 +448,18 @@ impl<T: Trait> Module<T> {
                         // Write it back to storage.
                         <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
 
-                        if linkedpricelevel.next.is_none() {
+                        if linkedpricelevel.prev.is_none() {
                             // No more price levels available
                             break;
                         }
-                        if current_order.price <= linkedpricelevel.next.unwrap() {
+                        if current_order.price <= linkedpricelevel.prev.unwrap() {
                             // In this case current_order.quantity is remaining and
                             // it can match with next price level in orderbook.
 
                             // Last best_bid_price is consumed and doesn't exist anymore hence
                             // we set new best_bid_price in orderbook.
-                            orderbook.best_bid_price = linkedpricelevel.next.unwrap();
-                            linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.unwrap());
+                            orderbook.best_bid_price = linkedpricelevel.prev.unwrap();
+                            linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.prev.unwrap());
                         } else {
                             // In this case, the current_order cannot match with the best_bid_price available
                             // so let's break the while loop and return the current_order and orderbook
@@ -497,13 +503,13 @@ impl<T: Trait> Module<T> {
                         // Write it back to storage.
                         <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
 
-                        if linkedpricelevel.next.is_none() {
+                        if linkedpricelevel.prev.is_none() {
                             // No more price levels available
                             break;
                         }
 
-                        orderbook.best_bid_price = linkedpricelevel.next.unwrap();
-                        linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.unwrap());
+                        orderbook.best_bid_price = linkedpricelevel.prev.unwrap();
+                        linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.prev.unwrap());
                     }
                 }
 
@@ -522,7 +528,8 @@ impl<T: Trait> Module<T> {
     fn do_asset_exchange_market(mut current_order: Order<T>, mut counter_order: Order<T>, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> (Order<T>, Order<T>) {
         match current_order.order_type {
             OrderType::BidMarket => {
-                let current_order_quantity = counter_order.price.checked_div(&current_order.price).unwrap();
+                let current_order_quantity = current_order.price.checked_div(&counter_order.price).unwrap();
+                // 100/5 = 20.
                 if current_order_quantity <= counter_order.quantity {
                     // We have enough quantity in the counter_order to fulfill current_order completely
                     // Transfer the base asset
@@ -580,6 +587,7 @@ impl<T: Trait> Module<T> {
     fn do_asset_exchange(mut current_order: Order<T>, mut counter_order: Order<T>, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> (Order<T>, Order<T>) {
         match current_order.order_type {
             OrderType::BidLimit => {
+                // BTC/USDT - quote/base
                 // The current order is trying to buy the quote_asset
                 if current_order.quantity <= counter_order.quantity {
                     // We have enough quantity in the counter_order to fulfill current_order completely
@@ -610,9 +618,12 @@ impl<T: Trait> Module<T> {
                     (current_order, counter_order)
                 }
             }
-            _ => {
+            OrderType::AskLimit => {
                 // TODO: I will implement other patterns later
                 (current_order, counter_order)
+            }
+            _ => {
+                // It will not execute
             }
         }
     }
