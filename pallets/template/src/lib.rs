@@ -825,7 +825,7 @@ impl<T: Trait> Module<T> {
                     Self::transfer_asset(base_assetid, trade_amount, &current_order.trader, &counter_order.trader);
                     // Transfer the quote asset
                     Self::transfer_asset(quote_assetid, current_order.quantity, &counter_order.trader, &current_order.trader);
-                    // Add the volume executed
+                    // Add the executed volume
                     market_data.volume = market_data.volume.checked_add(&trade_amount).unwrap();
                     //Set Current order quantity to 0 and counter_order is subtracted.
                     counter_order.quantity = counter_order.quantity.checked_sub(&current_order.quantity).unwrap();
