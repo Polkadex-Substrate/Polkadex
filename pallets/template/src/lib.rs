@@ -300,9 +300,11 @@ impl<T: Trait> Module<T> {
                     OrderType::AskLimit | OrderType::BidLimit => {
                         // Check if current can consume orders present in the system
                         if (current_order.order_type == OrderType::BidLimit &&
-                            current_order.price >= orderbook.best_ask_price) |
+                            current_order.price >= orderbook.best_ask_price &&
+                            orderbook.best_ask_price != FixedU128::from(0) )|
                             (current_order.order_type == OrderType::AskLimit &&
-                                current_order.price <= orderbook.best_bid_price) {
+                                current_order.price <= orderbook.best_bid_price &&
+                            orderbook.best_bid_price != FixedU128::from(0) ){
 
                             // current_order can consume i.e. Market Taking order
                             Self::consume_order(&mut current_order, &mut orderbook)?;
@@ -464,7 +466,7 @@ impl<T: Trait> Module<T> {
                             // As current_order has the best_bid price, we store that to best_bid_price
                             orderbook.best_bid_price = current_order.price;
                         }
-                        if index_at_which_we_should_insert == bids_levels.len() - 1 {
+                        if index_at_which_we_should_insert == bids_levels.len() - 1 && index_at_which_we_should_insert != 0 {
                             // First Case
                             let mut index_minus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &bids_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
@@ -574,7 +576,7 @@ impl<T: Trait> Module<T> {
                             // As current_order has the best_bid price, we store that to best_bid_price
                             orderbook.best_ask_price = current_order.price;
                         }
-                        if index_at_which_we_should_insert == asks_levels.len() - 1 {
+                        if index_at_which_we_should_insert == asks_levels.len() - 1 && index_at_which_we_should_insert != 0 {
                             // First Case
                             let mut index_minus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &asks_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
@@ -1056,9 +1058,9 @@ impl<T: Trait> Module<T> {
         };
 
         match Self::convert_balance_to_fixed_u128(balance) {
-            Some(converted_base_balance) if order.order_type == OrderType::BidLimit => Self::compare_balance(converted_base_balance, order, orderbook),
-            Some(converted_base_balance) if order.order_type == OrderType::BidMarket && converted_base_balance < order.price => Err(<Error<T>>::InsufficientAssetBalance.into()),
-            Some(converted_base_balance) if order.order_type == OrderType::AskLimit || order.order_type == OrderType::AskMarket && converted_base_balance < order.quantity => Err(<Error<T>>::InsufficientAssetBalance.into()),
+            Some(converted_balance) if order.order_type == OrderType::BidLimit => Self::compare_balance(converted_balance, order, orderbook),
+            Some(converted_balance) if order.order_type == OrderType::BidMarket && converted_balance < order.price => Err(<Error<T>>::InsufficientAssetBalance.into()),
+            Some(converted_balance) if order.order_type == OrderType::AskLimit || order.order_type == OrderType::AskMarket && converted_balance < order.quantity => Err(<Error<T>>::InsufficientAssetBalance.into()),
             Some(_) if order.order_type == OrderType::AskLimit => Self::reserve_user_balance(orderbook, order, order.quantity),
             Some(_) if order.order_type == OrderType::AskMarket => Ok(orderbook),
             Some(_) if order.order_type == OrderType::BidMarket => Ok(orderbook),
@@ -1066,10 +1068,10 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    fn compare_balance(converted_base_balance: FixedU128, order: &Order<T>, orderbook: Orderbook<T>) -> Result<Orderbook<T>, Error<T>> {
+    fn compare_balance(converted_balance: FixedU128, order: &Order<T>, orderbook: Orderbook<T>) -> Result<Orderbook<T>, Error<T>> {
         match order.price.checked_mul(&order.quantity) {
-            Some(trade_amount) if converted_base_balance < trade_amount => Err(<Error<T>>::InsufficientAssetBalance.into()),
-            Some(trade_amount) if converted_base_balance >= trade_amount => Self::reserve_user_balance(orderbook, order, trade_amount),
+            Some(trade_amount) if converted_balance < trade_amount => Err(<Error<T>>::InsufficientAssetBalance.into()),
+            Some(trade_amount) if converted_balance >= trade_amount => Self::reserve_user_balance(orderbook, order, trade_amount),
             _ => Err(<Error<T>>::InternalErrorU128Balance.into()),
         }
     }
