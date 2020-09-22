@@ -1,11 +1,11 @@
-use crate::{Module, Trait};
-use sp_core::H256;
 use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
-};
 use frame_system as system;
-use frame_system::Origin;
+use sp_core::H256;
+use sp_runtime::{
+    Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup},
+};
+
+use crate::{Module, Trait};
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -23,41 +23,51 @@ parameter_types! {
 }
 
 impl system::Trait for Test {
-	type BaseCallFilter = ();
-	type Origin = Origin<T>;
-	type Call = ();
-	type Index = u64;
-	type BlockNumber = u64;
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
-	type AccountId = u64;
-	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
-	type Event = ();
-	type BlockHashCount = BlockHashCount;
-	type MaximumBlockWeight = MaximumBlockWeight;
-	type DbWeight = ();
-	type BlockExecutionWeight = ();
-	type ExtrinsicBaseWeight = ();
-	type MaximumExtrinsicWeight = MaximumBlockWeight;
-	type MaximumBlockLength = MaximumBlockLength;
-	type AvailableBlockRatio = AvailableBlockRatio;
-	type Version = ();
-	type ModuleToIndex = ();
-	type AccountData = ();
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
+    type BaseCallFilter = ();
+    type Origin = Origin;
+    type Call = ();
+    type Index = u64;
+    type BlockNumber = u64;
+    type Hash = H256;
+    type Hashing = BlakeTwo256;
+    type AccountId = u64;
+    type Lookup = IdentityLookup<Self::AccountId>;
+    type Header = Header;
+    type Event = ();
+    type BlockHashCount = BlockHashCount;
+    type MaximumBlockWeight = MaximumBlockWeight;
+    type DbWeight = ();
+    type BlockExecutionWeight = ();
+    type ExtrinsicBaseWeight = ();
+    type MaximumExtrinsicWeight = MaximumBlockWeight;
+    type MaximumBlockLength = MaximumBlockLength;
+    type AvailableBlockRatio = AvailableBlockRatio;
+    type Version = ();
+    type ModuleToIndex = ();
+    type AccountData = ();
+    type OnNewAccount = ();
+    type OnKilledAccount = ();
+    type SystemWeightInfo = ();
+}
+
+parameter_types! {
+pub const TradingPairReservationFee: u128 = 1_000_000_000_000;
 }
 
 impl Trait for Test {
-	type Event = ();
-	type TradingPairReservationFee = ();
+    type Event = ();
+    type TradingPairReservationFee = TradingPairReservationFee;
 }
 
-pub type TemplateModule = Module<Test>;
+impl pallet_generic_asset::Trait for Test {
+    type Balance = u128;
+    type AssetId = u32;
+    type Event = ();
+}
+
+pub type DEXModule = Module<Test>;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+    system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }

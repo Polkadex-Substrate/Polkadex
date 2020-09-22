@@ -17,10 +17,10 @@ use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
 
-#[test]
+#[cfg(test)]
 mod mock;
 
-#[test]
+#[cfg(test)]
 mod tests;
 
 
@@ -136,7 +136,7 @@ decl_module! {
 		pub fn register_new_orderbook(origin, quote_asset_id: u32, base_asset_id: u32) -> dispatch::DispatchResultWithPostInfo{
 		    let trader = ensure_signed(origin)?;
 
-		    ensure!(&quote_asset_id == &base_asset_id, <Error<T>>::SameAssetIdsError);
+		    ensure!(!(&quote_asset_id == &base_asset_id), <Error<T>>::SameAssetIdsError);
 
 		    // Checks the tradingPair whether exists
 		    let trading_pair_id = Self::create_trading_pair_id(&quote_asset_id,&base_asset_id);
@@ -1195,5 +1195,12 @@ impl<T: Trait> Module<T> {
             <Orderbooks<T>>::insert(trading_pair,orderbook);
         }
         Ok(())
+    }
+
+
+    // Helper Functions
+    #[allow(dead_code)]
+    fn u32_to_asset_id(input: u32) -> T::AssetId {
+        input.into()
     }
 }
