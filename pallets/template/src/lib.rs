@@ -158,6 +158,14 @@ decl_module! {
 	        Self::execute_order(trader, order_type, trading_pair, price, quantity); // TODO: It may an error in which case take the fees else refund
 	        Ok(Some(0).into())
 	    }
+
+	    pub fn cancel_order(origin, order_id: T::Hash, order_type: OrderType, trading_pair: T::Hash, price: FixedU128, quantity: FixedU128) -> dispatch::DispatchResult {
+	        let trader = ensure_signed(origin)?;
+
+	        Self::cancel_order_from_orderbook(trader,order_id,order_type,trading_pair,price,quantity);
+
+	        Ok(Some(0).into())
+	    }
     }
 }
 
@@ -315,7 +323,6 @@ impl<T: Trait> Module<T> {
                     }
                 }
                 <Orderbooks<T>>::insert(&current_order.trading_pair, orderbook);
-                // TODO: Finally emit the events about order execution
                 match current_order.order_type {
                     OrderType::BidLimit | OrderType::AskLimit if current_order.quantity > FixedU128::from(0) => {
                         Self::deposit_event(RawEvent::NewLimitOrder(current_order.id,
@@ -579,7 +586,8 @@ impl<T: Trait> Module<T> {
         //         volume: FixedU128::from(0)
         //     }
         // }
-        match <MarketInfo<T>>::get(current_order.trading_pair, <frame_system::Module<T>>::block_number()) {
+        let current_block_number: T::BlockNumber = <frame_system::Module<T>>::block_number();
+        match <MarketInfo<T>>::get(current_order.trading_pair, current_block_number) {
             Some(_market_data) => {
                 market_data = _market_data;
             }
@@ -809,7 +817,7 @@ impl<T: Trait> Module<T> {
             }
         }
         // Write the market data back to storage
-        <MarketInfo<T>>::insert(&current_order.trading_pair, <frame_system::Module<T>>::block_number(), market_data);
+        <MarketInfo<T>>::insert(&current_order.trading_pair, current_block_number, market_data);
         Ok(())
     }
 
@@ -987,7 +995,6 @@ impl<T: Trait> Module<T> {
             Ok(_) => Ok(()),
             _ => Err(<Error<T>>::ErrorWhileTransferingAsset.into()),
         }
-        // TODO: Make sure the result is ok - DONE
     }
 
     // Transfers the balance of traders
@@ -998,7 +1005,6 @@ impl<T: Trait> Module<T> {
             Ok(_) => Ok(()),
             _ => Err(<Error<T>>::ErrorWhileTransferingAsset.into()),
         }
-        // TODO: Make sure the result is ok -DONE
     }
 
     // Checks all the basic checks
@@ -1096,5 +1102,10 @@ impl<T: Trait> Module<T> {
         } else {
             None
         }
+    }
+
+    // Cancels an existing active order
+    pub fn cancel_order_from_orderbook(trader: T::AccountId,order_id: T::Hash,order_type: OrderType,trading_pair: T::Hash,price: FixedU128,quantity: FixedU128){
+
     }
 }
