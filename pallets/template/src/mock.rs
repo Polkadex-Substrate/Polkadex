@@ -5,6 +5,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
 use frame_system as system;
+use frame_system::Origin;
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -23,7 +24,7 @@ parameter_types! {
 
 impl system::Trait for Test {
 	type BaseCallFilter = ();
-	type Origin = Origin;
+	type Origin = Origin<T>;
 	type Call = ();
 	type Index = u64;
 	type BlockNumber = u64;
@@ -51,6 +52,7 @@ impl system::Trait for Test {
 
 impl Trait for Test {
 	type Event = ();
+	type TradingPairReservationFee = ();
 }
 
 pub type TemplateModule = Module<Test>;
