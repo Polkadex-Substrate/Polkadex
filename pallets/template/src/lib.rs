@@ -49,6 +49,8 @@ decl_event!(
 		FilledMarketOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
 		/// Limit Order Fulfilled  [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
 		FulfilledLimitOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
+		/// Limit Order Partial Fill  [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
+		PartialFillLimitOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
 	}
 );
 
@@ -648,8 +650,13 @@ impl<T: Trait> Module<T> {
                                                 orderbook.quote_asset_id)?;
 
                         if counter_order.quantity > FixedU128::from(0) {
+                            // Emit events
+                            Self::emit_partial_fill(&counter_order, current_order.quantity);
                             // counter_order was not completely used so we store it back in the FIFO
                             linkedpricelevel.orders.push_front(counter_order);
+                        } else {
+                            // Emit events
+                            Self::emit_complete_fill(&counter_order,current_order.quantity);
                         }
                     } else {
                         // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
@@ -710,8 +717,13 @@ impl<T: Trait> Module<T> {
 
 
                         if counter_order.quantity > FixedU128::from(0) {
+                            // Emit events
+                            Self::emit_partial_fill(&counter_order, current_order.quantity);
                             // counter_order was not completely used so we store it back in the FIFO
                             linkedpricelevel.orders.push_front(counter_order);
+                        } else {
+                            // Emit events
+                            Self::emit_complete_fill(&counter_order,current_order.quantity);
                         }
                     } else {
                         // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
@@ -759,8 +771,13 @@ impl<T: Trait> Module<T> {
                                                 orderbook.quote_asset_id)?;
 
                         if counter_order.quantity > FixedU128::from(0) {
+                            // Emit events
+                            Self::emit_partial_fill(&counter_order, current_order.quantity);
                             // counter_order was not completely used so we store it back in the FIFO
                             linkedpricelevel.orders.push_front(counter_order);
+                        } else {
+                            // Emit events
+                            Self::emit_complete_fill(&counter_order,current_order.quantity);
                         }
                     } else {
                         // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
@@ -816,8 +833,13 @@ impl<T: Trait> Module<T> {
                                                        orderbook.quote_asset_id)?;
 
                         if counter_order.quantity > FixedU128::from(0) {
+                            // Emit events
+                            Self::emit_partial_fill(&counter_order, current_order.quantity);
                             // counter_order was not completely used so we store it back in the FIFO
                             linkedpricelevel.orders.push_front(counter_order);
+                        } else {
+                            // Emit events
+                            Self::emit_complete_fill(&counter_order,current_order.quantity);
                         }
                     } else {
                         // As no more orders are available in the linkedpricelevel.
@@ -1060,7 +1082,7 @@ impl<T: Trait> Module<T> {
         match Self::convert_balance_to_fixed_u128(balance) {
             Some(converted_balance) if order.order_type == OrderType::BidLimit => Self::compare_balance(converted_balance, order, orderbook),
             Some(converted_balance) if order.order_type == OrderType::BidMarket && converted_balance < order.price => Err(<Error<T>>::InsufficientAssetBalance.into()),
-            Some(converted_balance) if order.order_type == OrderType::AskLimit || order.order_type == OrderType::AskMarket && converted_balance < order.quantity => Err(<Error<T>>::InsufficientAssetBalance.into()),
+            Some(converted_balance) if (order.order_type == OrderType::AskLimit || order.order_type == OrderType::AskMarket) && converted_balance < order.quantity => Err(<Error<T>>::InsufficientAssetBalance.into()),
             Some(_) if order.order_type == OrderType::AskLimit => Self::reserve_user_balance(orderbook, order, order.quantity),
             Some(_) if order.order_type == OrderType::AskMarket => Ok(orderbook),
             Some(_) if order.order_type == OrderType::BidMarket => Ok(orderbook),
@@ -1108,6 +1130,24 @@ impl<T: Trait> Module<T> {
         } else {
             None
         }
+    }
+
+    pub fn emit_partial_fill(order: &Order<T>,filled_amount: FixedU128){
+        Self::deposit_event(RawEvent::PartialFillLimitOrder(order.id,
+                                                            order.trading_pair,
+                                                            order.order_type.clone(),
+                                                            order.price,
+                                                            filled_amount,
+                                                            order.trader.clone()));
+    }
+
+    pub fn emit_complete_fill(order: &Order<T>, filled_amount: FixedU128){
+        Self::deposit_event(RawEvent::FulfilledLimitOrder(order.id,
+                                                          order.trading_pair,
+                                                          order.order_type.clone(),
+                                                          order.price,
+                                                          filled_amount,
+                                                          order.trader.clone()));
     }
 
     // Cancels an existing active order
