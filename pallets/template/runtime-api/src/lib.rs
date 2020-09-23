@@ -4,6 +4,7 @@
 
 use sp_arithmetic::FixedU128;
 use sp_core::H256;
+use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {
 	pub trait DexStorageApi {

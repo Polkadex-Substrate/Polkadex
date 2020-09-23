@@ -25,7 +25,7 @@ use frame_system::{EnsureRoot};
 use sp_runtime::transaction_validity::{ TransactionPriority};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
-
+use sp_arithmetic::FixedU128;
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -638,13 +638,10 @@ impl_runtime_apis! {
 		}
 	}
 
-		//     impl ..DexStorageApi<Block> for Runtime { //TODO 
-	// 	fn get_ask_level(trading_pair: has) -> Vec<FixedU128> { // ?
-	// 		// This Runtime API calls into a specific pallet. Calling a pallet is a common
-	// 		// design pattern. You can see most other APIs in this file do the same.
-	// 		// It is also possible to write your logic right here in the runtime
-	// 		// amalgamator file
-	// 		TemplateModule::get_ask_level(trading_pair :has)
-	// 	}
-	// }
+	impl runtime_api::DexStorageApi<Block> for Runtime {
+		fn get_ask_level(trading_pair: Hash) -> Vec<FixedU128> {
+
+			TemplateModule::get_ask_level(trading_pair :Hash)
+		}
+	}
 }

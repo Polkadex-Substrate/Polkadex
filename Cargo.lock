@@ -3447,8 +3447,10 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
+ "runtime-api",
  "serde",
  "sp-api 2.0.0-rc6",
+ "sp-arithmetic 2.0.0-rc6",
  "sp-block-builder",
  "sp-consensus-babe",
  "sp-core 2.0.0-rc6",
@@ -4831,7 +4833,7 @@ dependencies = [
  "sp-api 2.0.0",
  "sp-arithmetic 2.0.0-rc6",
  "sp-core 2.0.0-rc6",
- "sp-runtime 2.0.0-rc6",
+ "sp-std 2.0.0-rc6",
 ]
 
 [[package]]
