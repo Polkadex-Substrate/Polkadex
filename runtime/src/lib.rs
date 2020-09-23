@@ -637,4 +637,14 @@ impl_runtime_apis! {
 			TransactionPayment::query_info(uxt, len)
 		}
 	}
+
+		//     impl ..DexStorageApi<Block> for Runtime { //TODO 
+	// 	fn get_ask_level(trading_pair: has) -> Vec<FixedU128> { // ?
+	// 		// This Runtime API calls into a specific pallet. Calling a pallet is a common
+	// 		// design pattern. You can see most other APIs in this file do the same.
+	// 		// It is also possible to write your logic right here in the runtime
+	// 		// amalgamator file
+	// 		TemplateModule::get_ask_level(trading_pair :has)
+	// 	}
+	// }
 }

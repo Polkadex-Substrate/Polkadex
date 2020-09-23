@@ -252,6 +252,12 @@ pub struct MarketData {
 }
 
 impl<T: Trait> Module<T> {
+    pub fn get_ask_level(trading_pair: T::Hash) -> Vec<FixedU128> {
+        <AsksLevels<T>>::get(trading_pair)
+    }
+}
+
+impl<T: Trait> Module<T> {
     // Reserves TradingPairReservationFee (defined in configuration trait) balance of SpendingAssetCurrency
     fn reserve_balance_registration(origin: &<T as frame_system::Trait>::AccountId) -> bool {
         pallet_generic_asset::Module::<T>::reserve(
