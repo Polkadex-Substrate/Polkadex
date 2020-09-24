@@ -641,7 +641,7 @@ impl_runtime_apis! {
 	impl runtime_api::DexStorageApi<Block> for Runtime {
 		fn get_ask_level(trading_pair: Hash) -> Vec<FixedU128> {
 
-			TemplateModule::get_ask_level(trading_pair :Hash)
+			TemplateModule::get_ask_level(trading_pair)
 		}
 	}
 }
