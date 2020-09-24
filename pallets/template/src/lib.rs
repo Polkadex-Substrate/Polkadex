@@ -309,10 +309,10 @@ impl<T: Trait> Module<T> {
                         // Check if current can consume orders present in the system
                         if (current_order.order_type == OrderType::BidLimit &&
                             current_order.price >= orderbook.best_ask_price &&
-                            orderbook.best_ask_price != FixedU128::from(0) )|
+                            orderbook.best_ask_price != FixedU128::from(0)) ||
                             (current_order.order_type == OrderType::AskLimit &&
                                 current_order.price <= orderbook.best_bid_price &&
-                            orderbook.best_bid_price != FixedU128::from(0) ){
+                                orderbook.best_bid_price != FixedU128::from(0)) {
 
                             // current_order can consume i.e. Market Taking order
                             Self::consume_order(&mut current_order, &mut orderbook)?;
@@ -545,7 +545,7 @@ impl<T: Trait> Module<T> {
                                                      current_linkedpricelevel);
                         }
 
-                        if index_at_which_we_should_insert == 0 && !asks_levels.is_empty(){
+                        if index_at_which_we_should_insert == 0 && asks_levels.len() > 1 {
                             // Second Case
                             let mut index_plus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &asks_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
@@ -567,7 +567,7 @@ impl<T: Trait> Module<T> {
                             // As current_order has the best_bid price, we store that to best_bid_price
                             orderbook.best_ask_price = current_order.price;
                         }
-                        if index_at_which_we_should_insert == 0 && asks_levels.is_empty() {
+                        if index_at_which_we_should_insert == 0 && asks_levels.len() == 1 {
                             // Third Case
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
                                 next: None,
@@ -662,7 +662,7 @@ impl<T: Trait> Module<T> {
                             linkedpricelevel.orders.push_front(counter_order);
                         } else {
                             // Emit events
-                            Self::emit_complete_fill(&counter_order,current_order.quantity);
+                            Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
                         // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
@@ -702,6 +702,28 @@ impl<T: Trait> Module<T> {
                 if !linkedpricelevel.orders.is_empty() {
                     // Save Pricelevel back to storage
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
+                } else {
+                    // As we consumed the linkedpricelevel completely remove that from asks_levels
+                    let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
+                    // asks_levels is already sorted and the best_ask_price should be the first item
+                    // so we don't need to sort it after we remove and simply remove it
+                    // NOTE: In asks_levels & bids_levels all items are unique.
+                    asks_levels.remove(0);
+                    // Update the Orderbook
+                    if asks_levels.len() == 0 {
+                        orderbook.best_ask_price = FixedU128::from(0);
+                    } else {
+                        match asks_levels.get(0) {
+                            Some(best_price) => {
+                                orderbook.best_ask_price = *best_price;
+                            }
+                            None => {
+                                orderbook.best_ask_price = FixedU128::from(0);
+                            }
+                        }
+                    }
+                    // Write it back to storage.
+                    <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
                 }
             }
 
@@ -729,7 +751,7 @@ impl<T: Trait> Module<T> {
                             linkedpricelevel.orders.push_front(counter_order);
                         } else {
                             // Emit events
-                            Self::emit_complete_fill(&counter_order,current_order.quantity);
+                            Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
                         // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
@@ -783,7 +805,7 @@ impl<T: Trait> Module<T> {
                             linkedpricelevel.orders.push_front(counter_order);
                         } else {
                             // Emit events
-                            Self::emit_complete_fill(&counter_order,current_order.quantity);
+                            Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
                         // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
@@ -822,6 +844,28 @@ impl<T: Trait> Module<T> {
                 if !linkedpricelevel.orders.is_empty() {
                     // Save Pricelevel back to storage
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
+                } else {
+                    // As we consumed the linkedpricelevel completely remove that from bids_levels
+                    let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
+                    // bids_levels is already sorted and the best_bid_price should be the last item
+                    // so we don't need to sort it after we remove and simply remove it
+                    // NOTE: In asks_levels & bids_levels all items are unique.
+                    bids_levels.remove(bids_levels.len() - 1);
+                    // Update the Orderbook
+                    if bids_levels.len() == 0 {
+                        orderbook.best_bid_price = FixedU128::from(0);
+                    } else {
+                        match bids_levels.get(bids_levels.len() - 1) {
+                            Some(best_price) => {
+                                orderbook.best_bid_price = *best_price;
+                            }
+                            None => {
+                                orderbook.best_bid_price = FixedU128::from(0);
+                            }
+                        }
+                    }
+                    // Write it back to storage.
+                    <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
                 }
             }
 
@@ -845,7 +889,7 @@ impl<T: Trait> Module<T> {
                             linkedpricelevel.orders.push_front(counter_order);
                         } else {
                             // Emit events
-                            Self::emit_complete_fill(&counter_order,current_order.quantity);
+                            Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
                         // As no more orders are available in the linkedpricelevel.
@@ -873,6 +917,28 @@ impl<T: Trait> Module<T> {
                 if !linkedpricelevel.orders.is_empty() {
                     // Save Pricelevel back to storage
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
+                } else {
+                    // As we consumed the linkedpricelevel completely remove that from bids_levels
+                    let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
+                    // bids_levels is already sorted and the best_bid_price should be the first item
+                    // so we don't need to sort it after we remove and simply remove it
+                    // NOTE: In asks_levels & bids_levels all items are unique.
+                    bids_levels.remove(bids_levels.len() - 1);
+                    // Update the Orderbook
+                    if bids_levels.len() == 0 {
+                        orderbook.best_bid_price = FixedU128::from(0);
+                    } else {
+                        match bids_levels.get(bids_levels.len() - 1) {
+                            Some(best_price) => {
+                                orderbook.best_bid_price = *best_price;
+                            }
+                            None => {
+                                orderbook.best_bid_price = FixedU128::from(0);
+                            }
+                        }
+                    }
+                    // Write it back to storage.
+                    <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
                 }
             }
         }
@@ -1138,7 +1204,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    pub fn emit_partial_fill(order: &Order<T>,filled_amount: FixedU128){
+    pub fn emit_partial_fill(order: &Order<T>, filled_amount: FixedU128) {
         Self::deposit_event(RawEvent::PartialFillLimitOrder(order.id,
                                                             order.trading_pair,
                                                             order.order_type.clone(),
@@ -1147,7 +1213,7 @@ impl<T: Trait> Module<T> {
                                                             order.trader.clone()));
     }
 
-    pub fn emit_complete_fill(order: &Order<T>, filled_amount: FixedU128){
+    pub fn emit_complete_fill(order: &Order<T>, filled_amount: FixedU128) {
         Self::deposit_event(RawEvent::FulfilledLimitOrder(order.id,
                                                           order.trading_pair,
                                                           order.order_type.clone(),
@@ -1167,13 +1233,13 @@ impl<T: Trait> Module<T> {
         let mut match_flag = false;
         // TODO: Can we define removed_order like in the comments?
         // let removed_order: Order<T>;
-        let mut removed_order: Order<T> = Order{
+        let mut removed_order: Order<T> = Order {
             id: Default::default(),
             trading_pair: Default::default(),
             trader: Default::default(),
             price: Default::default(),
             quantity: Default::default(),
-            order_type: OrderType::BidLimit
+            order_type: OrderType::BidLimit,
         };
         // TODO: Can we optimize this iteration? or even completely remove it?
         for order in current_linkedpricelevel.orders.iter() {
@@ -1220,7 +1286,7 @@ impl<T: Trait> Module<T> {
             // Write it back
             <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.unwrap(), prev_linkedpricelevel);
         }
-        if current_linkedpricelevel.prev.is_none() && current_linkedpricelevel.next.is_some(){
+        if current_linkedpricelevel.prev.is_none() && current_linkedpricelevel.next.is_some() {
             let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.unwrap());
 
             // Fix the broken linkedlist
@@ -1232,15 +1298,15 @@ impl<T: Trait> Module<T> {
             // Update the orderbook
             let mut orderbook: Orderbook<T> = <Orderbooks<T>>::get(trading_pair);
             // Update the best_bid_price if applicable
-            if removed_order.order_type == OrderType::BidLimit && price == orderbook.best_bid_price{
+            if removed_order.order_type == OrderType::BidLimit && price == orderbook.best_bid_price {
                 orderbook.best_bid_price = current_linkedpricelevel.next.unwrap();
             }
             // Update the best_ask_price if applicable
-            if removed_order.order_type == OrderType::AskLimit && price == orderbook.best_ask_price{
+            if removed_order.order_type == OrderType::AskLimit && price == orderbook.best_ask_price {
                 orderbook.best_ask_price = current_linkedpricelevel.next.unwrap();
             }
             // Write orderbook back to storage
-            <Orderbooks<T>>::insert(trading_pair,orderbook);
+            <Orderbooks<T>>::insert(trading_pair, orderbook);
         }
         Ok(())
     }

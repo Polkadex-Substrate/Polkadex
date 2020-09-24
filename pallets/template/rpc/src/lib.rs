@@ -13,7 +13,7 @@ use sp_std::vec::Vec;
 
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
-    #[rpc(name = "sumStorage_getSum")]
+    #[rpc(name = "Dex_get_ask_level")]
     fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: [u8;32]) -> Result<Vec<FixedU128>>;
 }
 
