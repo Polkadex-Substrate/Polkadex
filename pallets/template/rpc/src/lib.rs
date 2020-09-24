@@ -13,8 +13,8 @@ use sp_std::vec::Vec;
 
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
-    #[rpc(name = "Dex_get_ask_level")]
-    fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: [u8;32]) -> Result<Vec<FixedU128>>;
+    #[rpc(name = "get_ask_level")]
+    fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
 }
 
 /// A struct that implements the `SumStorageApi`.
@@ -60,14 +60,14 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         C: HeaderBackend<Block>,
         C::Api: DexStorageRuntimeApi<Block>,
 {
-    fn get_ask_level(&self, at: Option<<Block as BlockT>::Hash>, trading_pair: [u8;32]) -> Result<Vec<FixedU128>> {
+    fn get_ask_level(&self, at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(||
             // If the block hash is not supplied assume the best block.
             self.client.info().best_hash));
 
-        let hash_trading_pair = H256::from(trading_pair);
-        let runtime_api_result = api.get_ask_level(&at, hash_trading_pair);
+        // let hash_trading_pair = H256::from(trading_pair);
+        let runtime_api_result = api.get_ask_level(&at, trading_pair);
         runtime_api_result.map_err(|e| RpcError {
             code: ErrorCode::ServerError(9876), // No real reason for this value
             message: "Something wrong".into(),
