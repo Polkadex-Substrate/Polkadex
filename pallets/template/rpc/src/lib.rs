@@ -62,9 +62,9 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
 {
     fn get_ask_level(&self, at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(||
-            // If the block hash is not supplied assume the best block.
-            self.client.info().best_hash));
+        let at = BlockId::hash(
+            // Always take the best block hash for this RPC
+            self.client.info().best_hash);
 
         // let hash_trading_pair = H256::from(trading_pair);
         let runtime_api_result = api.get_ask_level(&at, trading_pair);
