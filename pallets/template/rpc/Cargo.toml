@@ -12,13 +12,31 @@ jsonrpc-core = "14.0.3"
 jsonrpc-core-client = "14.0.3"
 jsonrpc-derive = "14.0.3"
 serde = { version = "1.0.101", features = ["derive"], optional = true }
-
-sp-rpc = { version = '2.0.0-rc6', default-features = false}
-sp-runtime = { version = '2.0.0-rc6', default-features = false}
-sp-blockchain = { version = '2.0.0-rc6', default-features = false}
-sp-api = { version = '2.0.0-rc6', default-features = false }
-
 runtime-api = { default-features = false, path = "../runtime-api" }
+
+[dependencies.sp-rpc]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-runtime]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-blockchain]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-api]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
 
 [dependencies.sp-arithmetic]
 default-features = false
