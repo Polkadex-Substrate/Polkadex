@@ -144,6 +144,8 @@ structopt = '0.3.8'
 jsonrpc-core-client = "14.0.3"
 jsonrpc-derive = "14.0.3"
 rpc = { path = "../pallets/template/rpc" }
+runtime-api = { path = "../pallets/template/runtime-api" }
+#runtime = { path = "../runtime/" }
 
 [build-dependencies.substrate-build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'

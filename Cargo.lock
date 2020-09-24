@@ -3402,6 +3402,7 @@ dependencies = [
  "node-template-runtime",
  "pallet-transaction-payment-rpc",
  "rpc",
+ "runtime-api",
  "sc-basic-authorship",
  "sc-cli",
  "sc-client-api",
