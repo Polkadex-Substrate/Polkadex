@@ -15,6 +15,7 @@ targets = ['x86_64-unknown-linux-gnu']
 [[bin]]
 name = 'node-template'
 
+
 [dependencies.node-template-runtime]
 path = '../runtime'
 version = '2.0.0-rc6'
@@ -140,6 +141,9 @@ version = '2.0.0-rc6'
 [dependencies]
 jsonrpc-core = '14.0.3'
 structopt = '0.3.8'
+jsonrpc-core-client = "14.0.3"
+jsonrpc-derive = "14.0.3"
+rpc = { path = "../pallets/template/rpc" }
 
 [build-dependencies.substrate-build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'

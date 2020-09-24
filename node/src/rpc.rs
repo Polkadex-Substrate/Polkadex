@@ -47,6 +47,14 @@ pub fn create_full<C, P>(
 		deny_unsafe,
 	} = deps;
 
+	io.extend_with(crate::silly_rpc::SillyRpc::to_delegate(
+		crate::silly_rpc::Silly {},
+	));
+
+	io.extend_with(rpc::DexStorageApi::to_delegate(
+		rpc::DexStorage::new(client),
+	));
+
 	io.extend_with(
 		SystemApi::to_delegate(FullSystem::new(client.clone(), pool, deny_unsafe))
 	);

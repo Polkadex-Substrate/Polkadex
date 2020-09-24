@@ -132,6 +132,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
+//	let (command_sink, commands_stream) = futures::channel::mpsc::channel(1000);
 
 	let rpc_extensions_builder = {
 		let client = client.clone();
@@ -142,6 +143,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 				client: client.clone(),
 				pool: pool.clone(),
 				deny_unsafe,
+//				command_sink: command_sink.clone(),// TODO :-Command Sink
 			};
 
 			crate::rpc::create_full(deps)
