@@ -15,6 +15,9 @@ use sp_std::vec::Vec;
 pub trait DexStorageApi<BlockHash> {
     #[rpc(name = "get_ask_level")]
     fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
+
+    #[rpc(name = "get_bid_level")]
+    fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
 }
 
 /// A struct that implements the `SumStorageApi`.
@@ -68,6 +71,21 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
 
         // let hash_trading_pair = H256::from(trading_pair);
         let runtime_api_result = api.get_ask_level(&at, trading_pair);
+        runtime_api_result.map_err(|e| RpcError {
+            code: ErrorCode::ServerError(9876), // No real reason for this value
+            message: "Something wrong".into(),
+            data: Some(format!("{:?}", e).into()),
+        })
+    }
+
+    fn get_bid_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(
+            // Always take the best block hash for this RPC
+            self.client.info().best_hash);
+
+        // let hash_trading_pair = H256::from(trading_pair);
+        let runtime_api_result = api.get_bid_level(&at, trading_pair);
         runtime_api_result.map_err(|e| RpcError {
             code: ErrorCode::ServerError(9876), // No real reason for this value
             message: "Something wrong".into(),

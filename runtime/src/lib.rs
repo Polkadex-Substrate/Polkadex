@@ -643,5 +643,10 @@ impl_runtime_apis! {
 
 			TemplateModule::get_ask_level(trading_pair)
 		}
+
+		fn get_bid_level(trading_pair: Hash) -> Vec<FixedU128> {
+
+			TemplateModule::get_bid_level(trading_pair)
+		}
 	}
 }

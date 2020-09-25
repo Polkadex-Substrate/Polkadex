@@ -256,6 +256,10 @@ impl<T: Trait> Module<T> {
     pub fn get_ask_level(trading_pair: T::Hash) -> Vec<FixedU128> {
         <AsksLevels<T>>::get(trading_pair)
     }
+
+    pub fn get_bid_level(trading_pair: T::Hash) -> Vec<FixedU128> {
+        <BidsLevels<T>>::get(trading_pair)
+    }
 }
 
 impl<T: Trait> Module<T> {
@@ -1185,7 +1189,7 @@ impl<T: Trait> Module<T> {
             Some(converted_balance) if order.order_type == OrderType::BidMarket && converted_balance < order.price => Err(<Error<T>>::InsufficientAssetBalance.into()),
             Some(converted_balance) if (order.order_type == OrderType::AskLimit || order.order_type == OrderType::AskMarket) && converted_balance < order.quantity => Err(<Error<T>>::InsufficientAssetBalance.into()),
             Some(_) if order.order_type == OrderType::AskLimit => Self::reserve_user_balance(orderbook, order, order.quantity),
-            Some(_) if order.order_type == cAskMarket => Ok(orderbook),
+            Some(_) if order.order_type == OrderType::AskMarket => Ok(orderbook),
             Some(_) if order.order_type == OrderType::BidMarket => Ok(orderbook),
             _ => Err(<Error<T>>::InternalErrorU128Balance.into()),
         }
