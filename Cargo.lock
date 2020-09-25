@@ -4836,6 +4836,7 @@ dependencies = [
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
+ "pallet-template",
  "parity-scale-codec",
  "runtime-api",
  "serde",
@@ -4852,6 +4853,7 @@ dependencies = [
 name = "runtime-api"
 version = "0.1.0"
 dependencies = [
+ "pallet-template",
  "serde_json",
  "sp-api",
  "sp-arithmetic",

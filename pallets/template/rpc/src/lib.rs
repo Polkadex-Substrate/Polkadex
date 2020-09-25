@@ -10,14 +10,19 @@ use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 use sp_arithmetic::FixedU128;
 use sp_core::H256;
 use sp_std::vec::Vec;
+use pallet_template::LinkedPriceLevel;
+use pallet_template::Trait;
 
 #[rpc]
-pub trait DexStorageApi<BlockHash> {
+pub trait DexStorageApi<BlockHash,K> where K:Trait {
     #[rpc(name = "get_ask_level")]
     fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
 
     #[rpc(name = "get_bid_level")]
     fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
+
+    #[rpc(name = "get_price_level")]
+    fn get_price_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevel<K>>>;
 }
 
 /// A struct that implements the `SumStorageApi`.
@@ -55,13 +60,14 @@ impl<C, M> DexStorage<C, M> {
 // 	}
 // }
 
-impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
+impl<C, Block, K> DexStorageApi<<Block as BlockT>::Hash, K > for DexStorage<C, Block>
     where
         Block: BlockT,
         C: Send + Sync + 'static,
         C: ProvideRuntimeApi<Block>,
         C: HeaderBackend<Block>,
-        C::Api: DexStorageRuntimeApi<Block>,
+        K: Trait,
+        C::Api: DexStorageRuntimeApi<Block, K>,
 {
     fn get_ask_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
         let api = self.client.runtime_api();
@@ -92,4 +98,20 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
             data: Some(format!("{:?}", e).into()),
         })
     }
+
+    fn get_price_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevel<K>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(
+            // Always take the best block hash for this RPC
+            self.client.info().best_hash);
+
+        // let hash_trading_pair = H256::from(trading_pair);
+        let runtime_api_result = api.get_price_level(&at, trading_pair);
+        runtime_api_result.map_err(|e| RpcError {
+            code: ErrorCode::ServerError(9876), // No real reason for this value
+            message: "Something wrong".into(),
+            data: Some(format!("{:?}", e).into()),
+        })
+    }
+
 }

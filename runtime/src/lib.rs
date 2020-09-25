@@ -648,5 +648,9 @@ impl_runtime_apis! {
 
 			TemplateModule::get_bid_level(trading_pair)
 		}
+
+		fn get_price_level(trading_pair: T::Hash) -> Vec<TemplateModule::LinkedPriceLevel<T>> {
+		    TemplateModule::get_price_level(trading_pair)
+		}
 	}
 }

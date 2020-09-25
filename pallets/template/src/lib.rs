@@ -17,6 +17,8 @@ use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
 //use crate::OrderType::{AskLimit, BidLimit};
+use sp_runtime::Deserialize;
+use sp_runtime::Serialize;
 
 #[cfg(test)]
 mod mock;
@@ -260,6 +262,13 @@ impl<T: Trait> Module<T> {
     pub fn get_bid_level(trading_pair: T::Hash) -> Vec<FixedU128> {
         <BidsLevels<T>>::get(trading_pair)
     }
+
+    pub fn get_price_level(trading_pair: T::Hash) -> Vec<LinkedPriceLevel<T>> {
+        <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect()
+
+
+    }
+
 }
 
 impl<T: Trait> Module<T> {
