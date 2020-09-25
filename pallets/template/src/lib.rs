@@ -301,7 +301,11 @@ impl<T: Trait> Module<T> {
                 Nonce::put(nonce + 1); // TODO: It might overflow after a long time.
 
                 match current_order.order_type {
-                    OrderType::AskMarket | OrderType::BidMarket => {
+                    OrderType::AskMarket if orderbook.best_bid_price != FixedU128::from(0) => {
+                        Self::consume_order(&mut current_order, &mut orderbook)?;
+                    }
+
+                    OrderType::BidMarket if orderbook.best_ask_price != FixedU128::from(0) => {
                         Self::consume_order(&mut current_order, &mut orderbook)?;
                     }
 
@@ -328,6 +332,9 @@ impl<T: Trait> Module<T> {
                             // Insert the order in the order book
                             Self::insert_order(&current_order, &mut orderbook)?;
                         }
+                    }
+                    _ => {
+
                     }
                 }
                 <Orderbooks<T>>::insert(&current_order.trading_pair, orderbook);
@@ -707,7 +714,6 @@ impl<T: Trait> Module<T> {
                     let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
                     // asks_levels is already sorted and the best_ask_price should be the first item
                     // so we don't need to sort it after we remove and simply remove it
-                    // NOTE: In asks_levels & bids_levels all items are unique.
                     asks_levels.remove(0);
                     // Update the Orderbook
                     if asks_levels.len() == 0 {
@@ -780,6 +786,27 @@ impl<T: Trait> Module<T> {
                 if !linkedpricelevel.orders.is_empty() {
                     // Save Pricelevel back to storage
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
+                } else {
+                    // As we consumed the linkedpricelevel completely remove that from asks_levels
+                    let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
+                    // asks_levels is already sorted and the best_ask_price should be the first item
+                    // so we don't need to sort it after we remove and simply remove it
+                    asks_levels.remove(0);
+                    // Update the Orderbook
+                    if asks_levels.len() == 0 {
+                        orderbook.best_ask_price = FixedU128::from(0);
+                    } else {
+                        match asks_levels.get(0) {
+                            Some(best_price) => {
+                                orderbook.best_ask_price = *best_price;
+                            }
+                            None => {
+                                orderbook.best_ask_price = FixedU128::from(0);
+                            }
+                        }
+                    }
+                    // Write it back to storage.
+                    <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
                 }
             }
 
@@ -792,7 +819,7 @@ impl<T: Trait> Module<T> {
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_bid_price);
                 while current_order.quantity > FixedU128::from(0) {
                     if let Some(mut counter_order) = linkedpricelevel.orders.pop_front() {
-                        Self::do_asset_exchange(current_order, // TODO: Rust Ownership issues
+                        Self::do_asset_exchange(current_order,
                                                 &mut counter_order,
                                                 &mut market_data,
                                                 orderbook.base_asset_id,
@@ -849,8 +876,9 @@ impl<T: Trait> Module<T> {
                     let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                     // bids_levels is already sorted and the best_bid_price should be the last item
                     // so we don't need to sort it after we remove and simply remove it
-                    // NOTE: In asks_levels & bids_levels all items are unique.
-                    bids_levels.remove(bids_levels.len() - 1);
+                    if bids_levels.len() != 0 {
+                        bids_levels.remove(bids_levels.len() - 1);
+                    }
                     // Update the Orderbook
                     if bids_levels.len() == 0 {
                         orderbook.best_bid_price = FixedU128::from(0);
@@ -922,8 +950,9 @@ impl<T: Trait> Module<T> {
                     let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                     // bids_levels is already sorted and the best_bid_price should be the first item
                     // so we don't need to sort it after we remove and simply remove it
-                    // NOTE: In asks_levels & bids_levels all items are unique.
-                    bids_levels.remove(bids_levels.len() - 1);
+                    if bids_levels.len() != 0 {
+                        bids_levels.remove(bids_levels.len() - 1);
+                    }
                     // Update the Orderbook
                     if bids_levels.len() == 0 {
                         orderbook.best_bid_price = FixedU128::from(0);
@@ -1140,8 +1169,7 @@ impl<T: Trait> Module<T> {
             OrderType::BidMarket if order.price <= FixedU128::from(0) => Err(<Error<T>>::InvalidBidMarketPrice.into()),
             OrderType::BidMarket | OrderType::BidLimit => Self::check_bid(order),
             OrderType::AskMarket if order.quantity <= FixedU128::from(0) => Err(<Error<T>>::InvalidAskMarketQuantity.into()),
-            OrderType::AskLimit => Self::check_bid(order),
-            _ => Err(<Error<T>>::InternalErrorU128Balance.into()),
+            OrderType::AskMarket | OrderType::AskLimit => Self::check_bid(order),
         }
     }
     fn check_bid(order: &Order<T>) -> Result<Orderbook<T>, Error<T>> {
@@ -1171,6 +1199,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn reserve_user_balance(orderbook: Orderbook<T>, order: &Order<T>, amount: FixedU128) -> Result<Orderbook<T>, Error<T>> {
+        // TODO: Based on BidLimit or AskLimit we need to change between orderbook.base_asset_id & orderbook.quote_asset_id respectively
         match Self::convert_fixed_u128_to_balance(amount) {
             Some(balance) => {
                 match pallet_generic_asset::Module::<T>::reserve(
