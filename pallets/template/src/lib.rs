@@ -16,6 +16,7 @@ use sp_std::collections::vec_deque::VecDeque;
 use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
+//use crate::OrderType::{AskLimit, BidLimit};
 
 #[cfg(test)]
 mod mock;
@@ -1167,12 +1168,12 @@ impl<T: Trait> Module<T> {
         match order.order_type {
             OrderType::BidLimit | OrderType::AskLimit if order.price <= FixedU128::from(0) || order.quantity <= FixedU128::from(0) => Err(<Error<T>>::InvalidPriceOrQuantityLimit.into()),
             OrderType::BidMarket if order.price <= FixedU128::from(0) => Err(<Error<T>>::InvalidBidMarketPrice.into()),
-            OrderType::BidMarket | OrderType::BidLimit => Self::check_bid(order),
+            OrderType::BidMarket | OrderType::BidLimit => Self::check_order(order),
             OrderType::AskMarket if order.quantity <= FixedU128::from(0) => Err(<Error<T>>::InvalidAskMarketQuantity.into()),
-            OrderType::AskMarket | OrderType::AskLimit => Self::check_bid(order),
+            OrderType::AskMarket | OrderType::AskLimit => Self::check_order(order),
         }
     }
-    fn check_bid(order: &Order<T>) -> Result<Orderbook<T>, Error<T>> {
+    fn check_order(order: &Order<T>) -> Result<Orderbook<T>, Error<T>> {
         let orderbook: Orderbook<T> = <Orderbooks<T>>::get(&order.trading_pair);
         let balance: <T>::Balance = match order.order_type {
             OrderType::BidLimit | OrderType::BidMarket => pallet_generic_asset::Module::<T>::free_balance(&orderbook.base_asset_id, &order.trader),
@@ -1184,7 +1185,7 @@ impl<T: Trait> Module<T> {
             Some(converted_balance) if order.order_type == OrderType::BidMarket && converted_balance < order.price => Err(<Error<T>>::InsufficientAssetBalance.into()),
             Some(converted_balance) if (order.order_type == OrderType::AskLimit || order.order_type == OrderType::AskMarket) && converted_balance < order.quantity => Err(<Error<T>>::InsufficientAssetBalance.into()),
             Some(_) if order.order_type == OrderType::AskLimit => Self::reserve_user_balance(orderbook, order, order.quantity),
-            Some(_) if order.order_type == OrderType::AskMarket => Ok(orderbook),
+            Some(_) if order.order_type == cAskMarket => Ok(orderbook),
             Some(_) if order.order_type == OrderType::BidMarket => Ok(orderbook),
             _ => Err(<Error<T>>::InternalErrorU128Balance.into()),
         }
@@ -1200,10 +1201,12 @@ impl<T: Trait> Module<T> {
 
     fn reserve_user_balance(orderbook: Orderbook<T>, order: &Order<T>, amount: FixedU128) -> Result<Orderbook<T>, Error<T>> {
         // TODO: Based on BidLimit or AskLimit we need to change between orderbook.base_asset_id & orderbook.quote_asset_id respectively
+        let asset_id = if order.order_type == OrderType::AskLimit {&orderbook.quote_asset_id} else {&orderbook.base_asset_id} ;
+
         match Self::convert_fixed_u128_to_balance(amount) {
-            Some(balance) => {
+            Some(balance)  => {
                 match pallet_generic_asset::Module::<T>::reserve(
-                    &orderbook.base_asset_id, &order.trader,
+                    asset_id, &order.trader,
                     balance) {
                     Ok(_) => Ok(orderbook),
                     _ => Err(<Error<T>>::ReserveAmountFailed.into()),
@@ -1211,6 +1214,8 @@ impl<T: Trait> Module<T> {
             }
 
             None => Err(<Error<T>>::InternalErrorU128Balance.into()),
+
+
         }
     }
 
