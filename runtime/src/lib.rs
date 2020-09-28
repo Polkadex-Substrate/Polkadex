@@ -641,11 +641,10 @@ impl_runtime_apis! {
 	}
 
 
-	impl<Block,K> runtime_api::DexStorageApi<<Block as BlockT>::Hash, K> for Runtime
-	where
-	   K: Trait,
+	impl<Block, K> runtime_api::DexStorageApi<<Block as BlockT>::Hash,K> for Runtime
+	where K: template::Trait
 	{
-		fn get_price_level(trading_pair: Hash) -> TemplateModule::LinkedPriceLevelRpc<K> {
+		fn get_price_level(trading_pair: Hash) -> template::LinkedPriceLevelRpc<Runtime> {
 		    TemplateModule::get_price_level(trading_pair)
 		}
 	 }
