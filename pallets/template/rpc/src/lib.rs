@@ -21,8 +21,8 @@ pub trait DexStorageApi<BlockHash,K> where K:Trait {
     #[rpc(name = "get_bid_level")]
     fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
 
-    #[rpc(name = "get_price_level")]
-    fn get_price_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevel<K>>>;
+    // #[rpc(name = "get_price_level")]
+    // fn get_price_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevel<K>>>;
 }
 
 /// A struct that implements the `SumStorageApi`.
@@ -99,19 +99,19 @@ impl<C, Block, K> DexStorageApi<<Block as BlockT>::Hash, K > for DexStorage<C, B
         })
     }
 
-    fn get_price_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevel<K>>> {
-        let api = self.client.runtime_api();
-        let at = BlockId::hash(
-            // Always take the best block hash for this RPC
-            self.client.info().best_hash);
-
-        // let hash_trading_pair = H256::from(trading_pair);
-        let runtime_api_result = api.get_price_level(&at, trading_pair);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
-    }
+    // fn get_price_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevel<K>>> {
+    //     let api = self.client.runtime_api();
+    //     let at = BlockId::hash(
+    //         // Always take the best block hash for this RPC
+    //         self.client.info().best_hash);
+    //
+    //     // let hash_trading_pair = H256::from(trading_pair);
+    //     let runtime_api_result = api.get_price_level(&at, trading_pair);
+    //     runtime_api_result.map_err(|e| RpcError {
+    //         code: ErrorCode::ServerError(9876), // No real reason for this value
+    //         message: "Something wrong".into(),
+    //         data: Some(format!("{:?}", e).into()),
+    //     })
+    // }
 
 }

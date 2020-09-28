@@ -17,9 +17,10 @@ use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
 //use crate::OrderType::{AskLimit, BidLimit};
-use sp_runtime::Deserialize;
-use sp_runtime::Serialize;
-
+//use sp_core::crypto::{AccountId32, Ss58Codec};
+use serde::Serialize as Ser;
+use serde::Deserialize as Der;
+//use sp_core::H256;
 #[cfg(test)]
 mod mock;
 
@@ -140,6 +141,7 @@ decl_module! {
 		#[weight = 10000]
 		pub fn register_new_orderbook(origin, quote_asset_id: u32, base_asset_id: u32) -> dispatch::DispatchResultWithPostInfo{
 		    let trader = ensure_signed(origin)?;
+		    let a =
 
 		    ensure!(!(&quote_asset_id == &base_asset_id), <Error<T>>::SameAssetIdsError);
 
@@ -158,7 +160,7 @@ decl_module! {
         #[weight = 10000]
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: FixedU128, quantity: FixedU128) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
-
+   //         let account: AccountId32 = AccountId32::from(trader);
 	        Self::execute_order(trader, order_type, trading_pair, price, quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Some(0).into())
 	    }
@@ -183,6 +185,13 @@ pub enum OrderType {
     AskLimit,
     AskMarket,
 }
+#[derive(Ser, Der)]
+pub enum OrderTypeRPC {
+    BidLimit,
+    BidMarket,
+    AskLimit,
+    AskMarket,
+}
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Order<T> where T: Trait {
@@ -193,13 +202,50 @@ pub struct Order<T> where T: Trait {
     quantity: FixedU128,
     order_type: OrderType,
 }
+impl<T> Order<T> where T: Trait  {
+    fn convert(self) -> Order4RPC<T> {
+        Order4RPC{
+            id : self.clone().id,
+            trading_pair : self.clone().trading_pair,
+            trader: self.clone().trader,
+            price: Self::convert_fixed_u128_to_balance(self.price).unwrap(),
+            quantity: Self::convert_fixed_u128_to_balance(self.quantity).unwrap(),
+            order_type: OrderTypeRPC::BidLimit,
+        }
+    }
 
+    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+            let balance_in_u128 = balance_in_fixed_u128.into_inner();
+            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+        } else {
+            None
+        }
+    }
+}
+#[derive(Ser, Der)]
+pub struct Order4RPC<T> where T: Trait{
+    id: T::Hash,
+    trading_pair: T::Hash,
+    trader: T::AccountId,
+    price: T::Balance,
+    quantity: T::Balance,
+    order_type: OrderTypeRPC,
+}
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct LinkedPriceLevel<T> where T: Trait {
     next: Option<FixedU128>,
     prev: Option<FixedU128>,
     orders: VecDeque<Order<T>>,
 }
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq)]
+pub struct LinkedPriceLevelNew<T> where T: Trait {
+    next: FixedU128,
+    prev: FixedU128,
+    orders: VecDeque<Order<T>>,
+}
+
 
 impl<T> Default for LinkedPriceLevel<T> where T: Trait {
     fn default() -> Self {
@@ -263,10 +309,9 @@ impl<T: Trait> Module<T> {
         <BidsLevels<T>>::get(trading_pair)
     }
 
-    pub fn get_price_level(trading_pair: T::Hash) -> Vec<LinkedPriceLevel<T>> {
-        <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect()
-
-
+    pub fn get_price_level(trading_pair: T::Hash) -> LinkedPriceLevel<T> {
+        let temp: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
+        temp[0].clone()
     }
 
 }

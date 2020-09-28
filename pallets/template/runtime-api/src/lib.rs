@@ -15,6 +15,6 @@ sp_api::decl_runtime_apis! {
 
 		fn get_bid_level(trading_pair: H256) -> Vec<FixedU128>;
 
-		fn get_price_level(trading_pair: H256) -> Vec<LinkedPriceLevel<K>>;
+		fn get_price_level(trading_pair: H256) -> LinkedPriceLevel<K>;
 	}
 }
