@@ -18,7 +18,8 @@ use sp_std::str;
 use sp_std::vec::Vec;
 //use crate::OrderType::{AskLimit, BidLimit};
 //use sp_core::crypto::{AccountId32, Ss58Codec};
-use alt_serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 
 //use sp_core::H256;
 #[cfg(test)]
@@ -185,8 +186,10 @@ pub enum OrderType {
     AskLimit,
     AskMarket,
 }
-#[serde(crate = "alt_serde")]
-#[derive(Deserialize, Serialize, Encode, Decode)]
+
+// #[serde(crate = "alt_serde")]
+#[derive(Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OrderTypeRPC {
     BidLimit,
     BidMarket,
@@ -224,8 +227,10 @@ pub struct Order<T> where T: Trait {
 //         }
 //     }
 // }
-#[serde(crate = "alt_serde")]
-#[derive(Deserialize, Serialize, Encode, Decode)]
+
+// #[serde(crate = "alt_serde")]
+#[derive(Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Order4RPC<T> where T: Trait{
     id: T::Hash,
     trading_pair: T::Hash,
@@ -267,13 +272,15 @@ pub struct LinkedPriceLevel<T> where T: Trait {
 //
 // }
 
-#[serde(crate = "alt_serde")]
-#[derive(Deserialize, Serialize, Encode, Decode)]
+// #[serde(crate = "alt_serde")]
+#[derive(Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LinkedPriceLevelRpc<T> where T: Trait {
     next: T::Balance,
     prev: T::Balance,
     orders: Vec<Order4RPC<T>>,
 }
+
 
 
 impl<T> Default for LinkedPriceLevel<T> where T: Trait {
