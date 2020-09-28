@@ -16,7 +16,8 @@ use sp_std::collections::vec_deque::VecDeque;
 use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
-//use crate::OrderType::{AskLimit, BidLimit};
+use crate::OrderType::{AskLimit, BidLimit};
+
 //use sp_core::crypto::{AccountId32, Ss58Codec};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -206,27 +207,27 @@ pub struct Order<T> where T: Trait {
     quantity: FixedU128,
     order_type: OrderType,
 }
-// impl<T> Order<T> where T: Trait  {
-//     pub fn convert(self) -> Order4RPC<T> {
-//         Order4RPC{
-//             id : self.clone().id,
-//             trading_pair : self.clone().trading_pair,
-//             trader: self.clone().trader,
-//             price: Self::convert_fixed_u128_to_balance(self.price).unwrap(),
-//             quantity: Self::convert_fixed_u128_to_balance(self.quantity).unwrap(),
-//             order_type: OrderTypeRPC::BidLimit,
-//         }
-//     }
-//
-//     pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
-//         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-//             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-//             Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
-//         } else {
-//             None
-//         }
-//     }
-// }
+impl<T> Order<T> where T: Trait  {
+    pub fn convert(self) -> Order4RPC<T> {
+        Order4RPC{
+            id : self.clone().id,
+            trading_pair : self.clone().trading_pair,
+            trader: self.clone().trader,
+            price: Self::convert_fixed_u128_to_balance(self.price).unwrap(),
+            quantity: Self::convert_fixed_u128_to_balance(self.quantity).unwrap(),
+            order_type: OrderTypeRPC::BidLimit,
+        }
+    }
+
+    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+            let balance_in_u128 = balance_in_fixed_u128.into_inner();
+            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+        } else {
+            None
+        }
+    }
+}
 
 // #[serde(crate = "alt_serde")]
 #[derive(Encode, Decode)]
@@ -245,32 +246,32 @@ pub struct LinkedPriceLevel<T> where T: Trait {
     prev: Option<FixedU128>,
     orders: VecDeque<Order<T>>,
 }
-// impl<T> LinkedPriceLevel<T> where T:Trait{
-//
-//     fn covert(self) -> LinkedPriceLevelRpc<T> {
-//         LinkedPriceLevelRpc {
-//             next: Self::convert_fixed_u128_to_balance(self.next.unwrap()).unwrap(),
-//             prev: Self::convert_fixed_u128_to_balance(self.prev.unwrap()).unwrap(),
-//             orders: Self::cov_de_vec(self.clone().orders),
-//         }
-//     }
-//
-//     fn cov_de_vec (temp:VecDeque<Order<T>>) -> Vec<Order4RPC<T>> {
-//
-//         let temp3:Vec<Order4RPC<T>> = temp.into_iter().map(|element: Order<T>| element.convert()).collect();
-//         temp3
-//     }
-//
-//     fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
-//         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-//             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-//             Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
-//         } else {
-//             None
-//         }
-//     }
-//
-// }
+impl<T> LinkedPriceLevel<T> where T:Trait{
+
+    fn covert(self) -> LinkedPriceLevelRpc<T> {
+        LinkedPriceLevelRpc {
+            next: Self::convert_fixed_u128_to_balance(self.next.unwrap()).unwrap(),
+            prev: Self::convert_fixed_u128_to_balance(self.prev.unwrap()).unwrap(),
+            orders: Self::cov_de_vec(self.clone().orders),
+        }
+    }
+
+    fn cov_de_vec (temp:VecDeque<Order<T>>) -> Vec<Order4RPC<T>> {
+
+        let temp3:Vec<Order4RPC<T>> = temp.into_iter().map(|element: Order<T>| element.convert()).collect();
+        temp3
+    }
+
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+            let balance_in_u128 = balance_in_fixed_u128.into_inner();
+            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+        } else {
+            None
+        }
+    }
+
+}
 
 // #[serde(crate = "alt_serde")]
 #[derive(Encode, Decode)]
@@ -345,9 +346,10 @@ impl<T: Trait> Module<T> {
         <BidsLevels<T>>::get(trading_pair)
     }
 
-    pub fn get_price_level(trading_pair: T::Hash) -> LinkedPriceLevel<T> {
+    pub fn get_price_level(trading_pair: T::Hash) -> Vec<LinkedPriceLevelRpc<T>> {
         let temp: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
-        temp[0].clone()
+        let temp2:Vec<LinkedPriceLevelRpc<T>> = temp.into_iter().map(|element| element.covert()).collect();
+        temp2
     }
 
 }

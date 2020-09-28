@@ -21,6 +21,7 @@ use sp_runtime::curve::PiecewiseLinear;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
+
 use frame_system::{EnsureRoot};
 use sp_runtime::transaction_validity::{ TransactionPriority};
 #[cfg(feature = "std")]
@@ -49,6 +50,7 @@ pub use frame_support::{
 
 /// Import the template pallet.
 pub use template;
+use template::Trait;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -638,19 +640,14 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl runtime_api::DexStorageApi<Block> for Runtime {
-		fn get_ask_level(trading_pair: Hash) -> Vec<FixedU128> {
 
-			TemplateModule::get_ask_level(trading_pair)
+	impl<Block,K> runtime_api::DexStorageApi<<Block as BlockT>::Hash, K> for Runtime
+	where
+	   K: Trait,
+	{
+		fn get_price_level(trading_pair: Hash) -> TemplateModule::LinkedPriceLevelRpc<K> {
+		    TemplateModule::get_price_level(trading_pair)
 		}
-
-		fn get_bid_level(trading_pair: Hash) -> Vec<FixedU128> {
-
-			TemplateModule::get_bid_level(trading_pair)
-		}
-
-	// 	fn get_price_level(trading_pair: T::Hash) -> TemplateModule::LinkedPriceLevel<T> {
-	// 	    TemplateModule::get_price_level(trading_pair)
-	// 	}
 	 }
+
 }
