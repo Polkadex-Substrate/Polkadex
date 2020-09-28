@@ -149,6 +149,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "alt_serde"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03beeddedd09889b96def26f78ba46e34ffd9bdaaa33b2c980cbaa1d0e762686"
+dependencies = [
+ "alt_serde_derive",
+]
+
+[[package]]
+name = "alt_serde_derive"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6757ed5faa82ccfbfa1837cd7a7a2e1bdb634236f21fa74d6c5c5736152838a1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "ansi_term"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3803,12 +3823,12 @@ dependencies = [
 name = "pallet-template"
 version = "2.0.0-rc6"
 dependencies = [
+ "alt_serde",
  "compare",
  "frame-support",
  "frame-system",
  "pallet-generic-asset",
  "parity-scale-codec",
- "serde",
  "sp-arithmetic",
  "sp-core",
  "sp-io",

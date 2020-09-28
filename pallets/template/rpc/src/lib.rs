@@ -14,7 +14,7 @@ use pallet_template::LinkedPriceLevel;
 use pallet_template::Trait;
 
 #[rpc]
-pub trait DexStorageApi<BlockHash,K> where K:Trait {
+pub trait DexStorageApi<BlockHash> {
     #[rpc(name = "get_ask_level")]
     fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
 
@@ -60,14 +60,14 @@ impl<C, M> DexStorage<C, M> {
 // 	}
 // }
 
-impl<C, Block, K> DexStorageApi<<Block as BlockT>::Hash, K > for DexStorage<C, Block>
+impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
     where
         Block: BlockT,
         C: Send + Sync + 'static,
         C: ProvideRuntimeApi<Block>,
         C: HeaderBackend<Block>,
-        K: Trait,
-        C::Api: DexStorageRuntimeApi<Block, K>,
+     //   K: Trait,
+        C::Api: DexStorageRuntimeApi<Block>,
 {
     fn get_ask_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
         let api = self.client.runtime_api();

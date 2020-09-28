@@ -18,8 +18,8 @@ use sp_std::str;
 use sp_std::vec::Vec;
 //use crate::OrderType::{AskLimit, BidLimit};
 //use sp_core::crypto::{AccountId32, Ss58Codec};
-use serde::Serialize as Ser;
-use serde::Deserialize as Der;
+use alt_serde::{Deserialize, Serialize};
+
 //use sp_core::H256;
 #[cfg(test)]
 mod mock;
@@ -185,7 +185,8 @@ pub enum OrderType {
     AskLimit,
     AskMarket,
 }
-#[derive(Ser, Der)]
+#[serde(crate = "alt_serde")]
+#[derive(Deserialize, Serialize, Encode, Decode)]
 pub enum OrderTypeRPC {
     BidLimit,
     BidMarket,
@@ -202,28 +203,29 @@ pub struct Order<T> where T: Trait {
     quantity: FixedU128,
     order_type: OrderType,
 }
-impl<T> Order<T> where T: Trait  {
-    fn convert(self) -> Order4RPC<T> {
-        Order4RPC{
-            id : self.clone().id,
-            trading_pair : self.clone().trading_pair,
-            trader: self.clone().trader,
-            price: Self::convert_fixed_u128_to_balance(self.price).unwrap(),
-            quantity: Self::convert_fixed_u128_to_balance(self.quantity).unwrap(),
-            order_type: OrderTypeRPC::BidLimit,
-        }
-    }
-
-    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
-        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-            let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
-        } else {
-            None
-        }
-    }
-}
-#[derive(Ser, Der)]
+// impl<T> Order<T> where T: Trait  {
+//     pub fn convert(self) -> Order4RPC<T> {
+//         Order4RPC{
+//             id : self.clone().id,
+//             trading_pair : self.clone().trading_pair,
+//             trader: self.clone().trader,
+//             price: Self::convert_fixed_u128_to_balance(self.price).unwrap(),
+//             quantity: Self::convert_fixed_u128_to_balance(self.quantity).unwrap(),
+//             order_type: OrderTypeRPC::BidLimit,
+//         }
+//     }
+//
+//     pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+//         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+//             let balance_in_u128 = balance_in_fixed_u128.into_inner();
+//             Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+//         } else {
+//             None
+//         }
+//     }
+// }
+#[serde(crate = "alt_serde")]
+#[derive(Deserialize, Serialize, Encode, Decode)]
 pub struct Order4RPC<T> where T: Trait{
     id: T::Hash,
     trading_pair: T::Hash,
@@ -238,12 +240,39 @@ pub struct LinkedPriceLevel<T> where T: Trait {
     prev: Option<FixedU128>,
     orders: VecDeque<Order<T>>,
 }
+// impl<T> LinkedPriceLevel<T> where T:Trait{
+//
+//     fn covert(self) -> LinkedPriceLevelRpc<T> {
+//         LinkedPriceLevelRpc {
+//             next: Self::convert_fixed_u128_to_balance(self.next.unwrap()).unwrap(),
+//             prev: Self::convert_fixed_u128_to_balance(self.prev.unwrap()).unwrap(),
+//             orders: Self::cov_de_vec(self.clone().orders),
+//         }
+//     }
+//
+//     fn cov_de_vec (temp:VecDeque<Order<T>>) -> Vec<Order4RPC<T>> {
+//
+//         let temp3:Vec<Order4RPC<T>> = temp.into_iter().map(|element: Order<T>| element.convert()).collect();
+//         temp3
+//     }
+//
+//     fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+//         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+//             let balance_in_u128 = balance_in_fixed_u128.into_inner();
+//             Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+//         } else {
+//             None
+//         }
+//     }
+//
+// }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq)]
-pub struct LinkedPriceLevelNew<T> where T: Trait {
-    next: FixedU128,
-    prev: FixedU128,
-    orders: VecDeque<Order<T>>,
+#[serde(crate = "alt_serde")]
+#[derive(Deserialize, Serialize, Encode, Decode)]
+pub struct LinkedPriceLevelRpc<T> where T: Trait {
+    next: T::Balance,
+    prev: T::Balance,
+    orders: Vec<Order4RPC<T>>,
 }
 
 

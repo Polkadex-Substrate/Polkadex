@@ -10,11 +10,11 @@ use pallet_template::Trait;
 
 
 sp_api::decl_runtime_apis! {
-	pub trait DexStorageApi<K> where K:Trait {
+	pub trait DexStorageApi {
 		fn get_ask_level(trading_pair: H256) -> Vec<FixedU128>;
 
 		fn get_bid_level(trading_pair: H256) -> Vec<FixedU128>;
 
-		fn get_price_level(trading_pair: H256) -> LinkedPriceLevel<K>;
+		// fn get_price_level(trading_pair: H256) -> LinkedPriceLevel<K>;
 	}
 }

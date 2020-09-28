@@ -13,7 +13,7 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 compare = "0.1.0"
-serde = { version = "1.0", features = ["derive"] }
+alt_serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dependencies.sp-std]
 default-features = false
