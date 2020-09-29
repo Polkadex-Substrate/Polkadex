@@ -16,6 +16,8 @@ use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor, Saturating, OpaqueKeys,
 };
 use sp_api::impl_runtime_apis;
+use template::MarketDataRpc;
+
 // use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::curve::PiecewiseLinear;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
@@ -35,6 +37,7 @@ pub use sp_runtime::BuildStorage;
 pub use pallet_staking::StakerStatus;
 
 use pallet_session::{historical as pallet_session_historical};
+use template::OrderbookRpc;
 
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -50,7 +53,7 @@ pub use frame_support::{
 
 /// Import the template pallet.
 pub use template;
-use template::Trait;
+use template::LinkedPriceLevelRpc;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -641,12 +644,33 @@ impl_runtime_apis! {
 	}
 
 
-	impl<Block, K> runtime_api::DexStorageApi<<Block as BlockT>::Hash,K> for Runtime
-	where K: template::Trait
-	{
-		fn get_price_level(trading_pair: Hash) -> template::LinkedPriceLevelRpc<Runtime> {
+	impl runtime_api::DexStorageApi<Block> for Runtime{
+
+	    fn get_ask_level(trading_pair: Hash) -> Vec<FixedU128> {
+
+			TemplateModule::get_ask_level(trading_pair)
+		}
+
+		fn get_bid_level(trading_pair: Hash) -> Vec<FixedU128> {
+
+			TemplateModule::get_bid_level(trading_pair)
+		}
+
+		fn get_price_level(trading_pair: Hash) -> Vec<LinkedPriceLevelRpc> {
 		    TemplateModule::get_price_level(trading_pair)
 		}
+		fn get_orderbook(trading_pair: Hash) -> OrderbookRpc {
+		    TemplateModule::get_orderbook(trading_pair)
+		}
+
+		fn get_all_orderbook() -> Vec<OrderbookRpc> {
+		    TemplateModule::get_all_orderbook()
+		}
+
+		fn get_market_info(trading_pair: Hash,blocknum: u32) -> MarketDataRpc {
+		    TemplateModule::get_market_info(trading_pair,blocknum)
+		}
+
 	 }
 
 }

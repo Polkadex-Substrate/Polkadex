@@ -9,18 +9,21 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch,
 use frame_support::traits::Get;
 use frame_system::ensure_signed;
 use pallet_generic_asset::AssetIdProvider;
+//use sp_core::crypto::{AccountId32, Ss58Codec};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
+use sp_core::H256;
+use sp_runtime::DispatchError;
 use sp_runtime::traits::Hash;
 use sp_std::collections::vec_deque::VecDeque;
 use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
-use crate::OrderType::{AskLimit, BidLimit};
 
-//use sp_core::crypto::{AccountId32, Ss58Codec};
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+
+use crate::OrderType::{AskLimit, BidLimit};
 
 //use sp_core::H256;
 #[cfg(test)]
@@ -181,6 +184,7 @@ decl_module! {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OrderType {
     BidLimit,
     BidMarket,
@@ -189,14 +193,7 @@ pub enum OrderType {
 }
 
 // #[serde(crate = "alt_serde")]
-#[derive(Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum OrderTypeRPC {
-    BidLimit,
-    BidMarket,
-    AskLimit,
-    AskMarket,
-}
+
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Order<T> where T: Trait {
@@ -207,22 +204,33 @@ pub struct Order<T> where T: Trait {
     quantity: FixedU128,
     order_type: OrderType,
 }
-impl<T> Order<T> where T: Trait  {
-    pub fn convert(self) -> Order4RPC<T> {
-        Order4RPC{
-            id : self.clone().id,
-            trading_pair : self.clone().trading_pair,
-            trader: self.clone().trader,
+
+impl<T> Order<T> where T: Trait {
+    pub fn convert(self) -> Order4RPC {
+        Order4RPC {
+            id: Self::account_to_bytes(&self.id).unwrap(),
+            trading_pair: Self::account_to_bytes(&self.trading_pair).unwrap(),
+            trader: Self::account_to_bytes(&self.trader).unwrap(),
             price: Self::convert_fixed_u128_to_balance(self.price).unwrap(),
             quantity: Self::convert_fixed_u128_to_balance(self.quantity).unwrap(),
-            order_type: OrderTypeRPC::BidLimit,
+            order_type: self.order_type,
         }
     }
 
-    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+    fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], DispatchError>
+        where AccountId: Encode,
+    {
+        let account_vec = account.encode();
+        ensure!(account_vec.len() == 32, "AccountId must be 32 bytes.");
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(&account_vec);
+        Ok(bytes)
+    }
+
+    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+            Some(balance_in_u128)
         } else {
             None
         }
@@ -230,25 +238,26 @@ impl<T> Order<T> where T: Trait  {
 }
 
 // #[serde(crate = "alt_serde")]
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct Order4RPC<T> where T: Trait{
-    id: T::Hash,
-    trading_pair: T::Hash,
-    trader: T::AccountId,
-    price: T::Balance,
-    quantity: T::Balance,
-    order_type: OrderTypeRPC,
+pub struct Order4RPC {
+    id: [u8; 32],
+    trading_pair: [u8; 32],
+    trader: [u8; 32],
+    price: u128,
+    quantity: u128,
+    order_type: OrderType,
 }
+
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct LinkedPriceLevel<T> where T: Trait {
     next: Option<FixedU128>,
     prev: Option<FixedU128>,
     orders: VecDeque<Order<T>>,
 }
-impl<T> LinkedPriceLevel<T> where T:Trait{
 
-    fn covert(self) -> LinkedPriceLevelRpc<T> {
+impl<T> LinkedPriceLevel<T> where T: Trait {
+    fn covert(self) -> LinkedPriceLevelRpc {
         LinkedPriceLevelRpc {
             next: Self::convert_fixed_u128_to_balance(self.next.unwrap()).unwrap(),
             prev: Self::convert_fixed_u128_to_balance(self.prev.unwrap()).unwrap(),
@@ -256,32 +265,29 @@ impl<T> LinkedPriceLevel<T> where T:Trait{
         }
     }
 
-    fn cov_de_vec (temp:VecDeque<Order<T>>) -> Vec<Order4RPC<T>> {
-
-        let temp3:Vec<Order4RPC<T>> = temp.into_iter().map(|element: Order<T>| element.convert()).collect();
+    fn cov_de_vec(temp: VecDeque<Order<T>>) -> Vec<Order4RPC> {
+        let temp3: Vec<Order4RPC> = temp.into_iter().map(|element: Order<T>| element.convert()).collect();
         temp3
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
+            Some(balance_in_u128)
         } else {
             None
         }
     }
-
 }
 
 // #[serde(crate = "alt_serde")]
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct LinkedPriceLevelRpc<T> where T: Trait {
-    next: T::Balance,
-    prev: T::Balance,
-    orders: Vec<Order4RPC<T>>,
+pub struct LinkedPriceLevelRpc {
+    next: u128,
+    prev: u128,
+    orders: Vec<Order4RPC>,
 }
-
 
 
 impl<T> Default for LinkedPriceLevel<T> where T: Trait {
@@ -294,13 +300,45 @@ impl<T> Default for LinkedPriceLevel<T> where T: Trait {
     }
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct Orderbook<T> where T: Trait {
     trading_pair: T::Hash,
     base_asset_id: T::AssetId,
     quote_asset_id: T::AssetId,
     best_bid_price: FixedU128,
     best_ask_price: FixedU128,
+}
+
+impl<T> Orderbook<T> where T: Trait {
+    fn convert(self) -> OrderbookRpc {
+        OrderbookRpc {
+            trading_pair: Self::account_to_bytes(&self.trading_pair).unwrap(),
+            base_asset_id : TryInto::<u32>::try_into(self.base_asset_id).ok().unwrap(),
+            quote_asset_id : TryInto::<u32>::try_into(self.quote_asset_id).ok().unwrap(),
+            best_bid_price : Self::convert_fixed_u128_to_balance(self.best_bid_price).unwrap(),
+            best_ask_price : Self::convert_fixed_u128_to_balance(self.best_ask_price).unwrap(),
+        }
+    }
+
+    fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], DispatchError>
+        where AccountId: Encode,
+    {
+        let account_vec = account.encode();
+        ensure!(account_vec.len() == 32, "AccountId must be 32 bytes.");
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(&account_vec);
+        Ok(bytes)
+    }
+
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
+        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+            let balance_in_u128 = balance_in_fixed_u128.into_inner();
+            Some(balance_in_u128)
+        } else {
+            None
+        }
+    }
+
 }
 
 impl<T> Default for Orderbook<T> where T: Trait {
@@ -326,6 +364,16 @@ impl<T> Orderbook<T> where T: Trait {
         }
     }
 }
+#[derive(Encode, Decode, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct OrderbookRpc {
+    trading_pair: [u8; 32],
+    base_asset_id: u32,
+    quote_asset_id: u32,
+    best_bid_price: u128,
+    best_ask_price: u128,
+}
+
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct MarketData {
@@ -337,6 +385,34 @@ pub struct MarketData {
     volume: FixedU128,
 }
 
+impl MarketData {
+    fn convert (self) -> MarketDataRpc {
+        MarketDataRpc {
+            low: Self::convert_fixed_u128_to_balance(self.low).unwrap(),
+            high: Self::convert_fixed_u128_to_balance(self.high).unwrap(),
+            volume: Self::convert_fixed_u128_to_balance(self.volume).unwrap(),
+        }
+
+    }
+
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
+        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
+            let balance_in_u128 = balance_in_fixed_u128.into_inner();
+            Some(balance_in_u128)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct MarketDataRpc {
+    low: u128,
+    high: u128,
+    volume: u128,
+}
+
 impl<T: Trait> Module<T> {
     pub fn get_ask_level(trading_pair: T::Hash) -> Vec<FixedU128> {
         <AsksLevels<T>>::get(trading_pair)
@@ -346,12 +422,32 @@ impl<T: Trait> Module<T> {
         <BidsLevels<T>>::get(trading_pair)
     }
 
-    pub fn get_price_level(trading_pair: T::Hash) -> Vec<LinkedPriceLevelRpc<T>> {
+    pub fn get_price_level(trading_pair: T::Hash) -> Vec<LinkedPriceLevelRpc> {
         let temp: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
-        let temp2:Vec<LinkedPriceLevelRpc<T>> = temp.into_iter().map(|element| element.covert()).collect();
+        let temp2: Vec<LinkedPriceLevelRpc> = temp.into_iter().map(|element| element.covert()).collect();
         temp2
     }
 
+    pub fn get_orderbook(trading_pair: T::Hash) -> OrderbookRpc {
+        let orderbook = <Orderbooks<T>>::get(trading_pair);
+
+        orderbook.convert()
+    }
+
+    pub fn get_all_orderbook() -> Vec<OrderbookRpc> {
+        let orderbook:Vec<OrderbookRpc> = <Orderbooks<T>>::iter().map(|(_key, value)| value).map(|orderbook| orderbook.convert()).collect();
+        orderbook
+    }
+
+    pub fn get_market_info(trading_pair: T::Hash,blocknum: u32) -> MarketDataRpc {
+        let blocknum = Self::u32_to_blocknum(blocknum);
+        let temp = <MarketInfo<T>>::get(trading_pair, blocknum);
+        temp.unwrap().convert()
+    }
+
+    pub fn u32_to_blocknum(input: u32) -> T::BlockNumber {
+        input.into()
+    }
 }
 
 impl<T: Trait> Module<T> {
@@ -430,9 +526,7 @@ impl<T: Trait> Module<T> {
                             Self::insert_order(&current_order, &mut orderbook)?;
                         }
                     }
-                    _ => {
-
-                    }
+                    _ => {}
                 }
                 <Orderbooks<T>>::insert(&current_order.trading_pair, orderbook);
                 match current_order.order_type {
@@ -1297,10 +1391,10 @@ impl<T: Trait> Module<T> {
 
     fn reserve_user_balance(orderbook: Orderbook<T>, order: &Order<T>, amount: FixedU128) -> Result<Orderbook<T>, Error<T>> {
         // TODO: Based on BidLimit or AskLimit we need to change between orderbook.base_asset_id & orderbook.quote_asset_id respectively
-        let asset_id = if order.order_type == OrderType::AskLimit {&orderbook.quote_asset_id} else {&orderbook.base_asset_id} ;
+        let asset_id = if order.order_type == OrderType::AskLimit { &orderbook.quote_asset_id } else { &orderbook.base_asset_id };
 
         match Self::convert_fixed_u128_to_balance(amount) {
-            Some(balance)  => {
+            Some(balance) => {
                 match pallet_generic_asset::Module::<T>::reserve(
                     asset_id, &order.trader,
                     balance) {
@@ -1310,8 +1404,6 @@ impl<T: Trait> Module<T> {
             }
 
             None => Err(<Error<T>>::InternalErrorU128Balance.into()),
-
-
         }
     }
 
