@@ -195,6 +195,16 @@ pub enum OrderType {
 // #[serde(crate = "alt_serde")]
 
 
+// #[serde(crate = "alt_serde")]
+#[derive(Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum OrderTypeRPC {
+    BidLimit,
+    BidMarket,
+    AskLimit,
+    AskMarket,
+}
+
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Order<T> where T: Trait {
     id: T::Hash,
