@@ -21,7 +21,8 @@ use sp_std::collections::vec_deque::VecDeque;
 use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
-
+#[cfg(feature = "std")]
+use jsonrpc_core::{Error as RpcError, ErrorCode, Result as ResultRpc};
 
 use crate::OrderType::{AskLimit, BidLimit};
 
@@ -146,7 +147,7 @@ decl_module! {
 		#[weight = 10000]
 		pub fn register_new_orderbook(origin, quote_asset_id: u32, base_asset_id: u32) -> dispatch::DispatchResultWithPostInfo{
 		    let trader = ensure_signed(origin)?;
-		    let a =
+
 
 		    ensure!(!(&quote_asset_id == &base_asset_id), <Error<T>>::SameAssetIdsError);
 
@@ -197,7 +198,14 @@ pub enum OrderType {
 }
 
 // #[serde(crate = "alt_serde")]
-
+#[derive(Encode, Decode, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum ErrorRpc {
+    IdMustBe32Byte,
+    Fixedu128tou128conversionFailed,
+    AssetIdConversionFailed,
+    NoElementFound,
+}
 
 // #[serde(crate = "alt_serde")]
 #[derive(Encode, Decode)]
@@ -220,22 +228,23 @@ pub struct Order<T> where T: Trait {
 }
 
 impl<T> Order<T> where T: Trait {
-    pub fn convert(self) -> Order4RPC {
-        Order4RPC {
-            id: Self::account_to_bytes(&self.id).unwrap(),
-            trading_pair: Self::account_to_bytes(&self.trading_pair).unwrap(),
-            trader: Self::account_to_bytes(&self.trader).unwrap(),
-            price: Self::convert_fixed_u128_to_balance(self.price).unwrap(),
-            quantity: Self::convert_fixed_u128_to_balance(self.quantity).unwrap(),
+    pub fn convert(self) -> Result<Order4RPC,ErrorRpc> {
+        let order = Order4RPC {
+            id: Self::account_to_bytes(&self.id)?,
+            trading_pair: Self::account_to_bytes(&self.trading_pair)?,
+            trader: Self::account_to_bytes(&self.trader)?,
+            price: Self::convert_fixed_u128_to_balance(self.price).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            quantity: Self::convert_fixed_u128_to_balance(self.quantity).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             order_type: self.order_type,
-        }
+        };
+        Ok(order)
     }
 
-    fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], DispatchError>
+    fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], ErrorRpc>
         where AccountId: Encode,
     {
         let account_vec = account.encode();
-        ensure!(account_vec.len() == 32, "AccountId must be 32 bytes.");
+        ensure!(account_vec.len() == 32, ErrorRpc::IdMustBe32Byte);
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(&account_vec);
         Ok(bytes)
@@ -271,17 +280,22 @@ pub struct LinkedPriceLevel<T> where T: Trait {
 }
 
 impl<T> LinkedPriceLevel<T> where T: Trait {
-    fn covert(self) -> LinkedPriceLevelRpc {
-        LinkedPriceLevelRpc {
-            next: Self::convert_fixed_u128_to_balance(self.next.unwrap()).unwrap(),
-            prev: Self::convert_fixed_u128_to_balance(self.prev.unwrap()).unwrap(),
-            orders: Self::cov_de_vec(self.clone().orders),
-        }
+    fn convert(self) -> Result<LinkedPriceLevelRpc, ErrorRpc> {
+        let linked_pirce_level = LinkedPriceLevelRpc {
+            next: Self::convert_fixed_u128_to_balance(self.next.ok_or(ErrorRpc::NoElementFound)?).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            prev: Self::convert_fixed_u128_to_balance(self.prev.ok_or(ErrorRpc::NoElementFound)?).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            orders: Self::cov_de_vec(self.clone().orders)?,
+        };
+        Ok(linked_pirce_level)
     }
 
-    fn cov_de_vec(temp: VecDeque<Order<T>>) -> Vec<Order4RPC> {
-        let temp3: Vec<Order4RPC> = temp.into_iter().map(|element: Order<T>| element.convert()).collect();
-        temp3
+    fn cov_de_vec(temp: VecDeque<Order<T>>) -> Result<Vec<Order4RPC>, ErrorRpc> {
+
+        let mut temp3:Vec<Order4RPC> = Vec::new();
+        for element in temp {
+           temp3.push(element.convert()?)
+        };
+        Ok(temp3)
     }
 
     fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
@@ -324,21 +338,22 @@ pub struct Orderbook<T> where T: Trait {
 }
 
 impl<T> Orderbook<T> where T: Trait {
-    fn convert(self) -> OrderbookRpc {
-        OrderbookRpc {
-            trading_pair: Self::account_to_bytes(&self.trading_pair).unwrap(),
-            base_asset_id : TryInto::<u32>::try_into(self.base_asset_id).ok().unwrap(),
-            quote_asset_id : TryInto::<u32>::try_into(self.quote_asset_id).ok().unwrap(),
-            best_bid_price : Self::convert_fixed_u128_to_balance(self.best_bid_price).unwrap(),
-            best_ask_price : Self::convert_fixed_u128_to_balance(self.best_ask_price).unwrap(),
-        }
+    fn convert(self) -> Result<OrderbookRpc,ErrorRpc> {
+        let orderbook =OrderbookRpc {
+            trading_pair: Self::account_to_bytes(&self.trading_pair)?,
+            base_asset_id : TryInto::<u32>::try_into(self.base_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
+            quote_asset_id : TryInto::<u32>::try_into(self.quote_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
+            best_bid_price : Self::convert_fixed_u128_to_balance(self.best_bid_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
+            best_ask_price : Self::convert_fixed_u128_to_balance(self.best_ask_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
+        };
+        Ok(orderbook)
     }
 
-    fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], DispatchError>
+    fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], ErrorRpc>
         where AccountId: Encode,
     {
         let account_vec = account.encode();
-        ensure!(account_vec.len() == 32, "AccountId must be 32 bytes.");
+        ensure!(account_vec.len() == 32, ErrorRpc::IdMustBe32Byte);
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(&account_vec);
         Ok(bytes)
@@ -400,12 +415,13 @@ pub struct MarketData {
 }
 
 impl MarketData {
-    fn convert (self) -> MarketDataRpc {
-        MarketDataRpc {
-            low: Self::convert_fixed_u128_to_balance(self.low).unwrap(),
-            high: Self::convert_fixed_u128_to_balance(self.high).unwrap(),
-            volume: Self::convert_fixed_u128_to_balance(self.volume).unwrap(),
-        }
+    fn convert (self) -> Result<MarketDataRpc,ErrorRpc> {
+        let market_data = MarketDataRpc {
+            low: Self::convert_fixed_u128_to_balance(self.low).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            high: Self::convert_fixed_u128_to_balance(self.high).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            volume: Self::convert_fixed_u128_to_balance(self.volume).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+        };
+        Ok(market_data)
 
     }
 
@@ -428,35 +444,46 @@ pub struct MarketDataRpc {
 }
 
 impl<T: Trait> Module<T> {
-    pub fn get_ask_level(trading_pair: T::Hash) -> Vec<FixedU128> {
-        <AsksLevels<T>>::get(trading_pair)
+    pub fn get_ask_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+        let ask_level = <AsksLevels<T>>::get(trading_pair);
+        Ok(ask_level)
+
     }
 
-    pub fn get_bid_level(trading_pair: T::Hash) -> Vec<FixedU128> {
-        <BidsLevels<T>>::get(trading_pair)
+    pub fn get_bid_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
+        let bid_level = <BidsLevels<T>>::get(trading_pair);
+        Ok(bid_level)
     }
 
-    pub fn get_price_level(trading_pair: T::Hash) -> Vec<LinkedPriceLevelRpc> {
-        let temp: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
-        let temp2: Vec<LinkedPriceLevelRpc> = temp.into_iter().map(|element| element.covert()).collect();
-        temp2
+    pub fn get_price_level(trading_pair: T::Hash) -> Result<Vec<LinkedPriceLevelRpc>, ErrorRpc> {
+        let price_level: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
+        //let temp2: Vec<LinkedPriceLevelRpc> = temp.into_iter().map(|element| element.covert()).collect();
+        let mut price_level_rpc:Vec<LinkedPriceLevelRpc> = Vec::new();
+        for element in price_level {
+            price_level_rpc.push(element.convert()?)
+        }
+        Ok(price_level_rpc)
     }
 
-    pub fn get_orderbook(trading_pair: T::Hash) -> OrderbookRpc {
+    pub fn get_orderbook(trading_pair: T::Hash) -> Result<OrderbookRpc, ErrorRpc> {
         let orderbook = <Orderbooks<T>>::get(trading_pair);
-
-        orderbook.convert()
+        let orderbook_rpc = orderbook.convert()?;
+        Ok(orderbook_rpc)
     }
 
-    pub fn get_all_orderbook() -> Vec<OrderbookRpc> {
-        let orderbook:Vec<OrderbookRpc> = <Orderbooks<T>>::iter().map(|(_key, value)| value).map(|orderbook| orderbook.convert()).collect();
-        orderbook
+    pub fn get_all_orderbook() -> Result<Vec<OrderbookRpc>, ErrorRpc> {
+        let orderbook:Vec<Orderbook<T>> = <Orderbooks<T>>::iter().map(|(_key, value)| value).collect();
+        let mut orderbook_rpc:Vec<OrderbookRpc> = Vec::new();
+        for element in orderbook {
+            orderbook_rpc.push(element.convert()?)
+        }
+        Ok(orderbook_rpc)
     }
 
-    pub fn get_market_info(trading_pair: T::Hash,blocknum: u32) -> MarketDataRpc {
+    pub fn get_market_info(trading_pair: T::Hash,blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
         let blocknum = Self::u32_to_blocknum(blocknum);
         let temp = <MarketInfo<T>>::get(trading_pair, blocknum);
-        temp.unwrap().convert()
+        temp.ok_or(ErrorRpc::NoElementFound)?.convert()
     }
 
     pub fn u32_to_blocknum(input: u32) -> T::BlockNumber {
@@ -1480,7 +1507,7 @@ impl<T: Trait> Module<T> {
         // TODO: Can we optimize this iteration? or even completely remove it?
         for order in current_linkedpricelevel.orders.iter() {
             if order.id == order_id {
-                removed_order = current_linkedpricelevel.orders.remove(index).unwrap();
+                removed_order = current_linkedpricelevel.orders.remove(index).unwrap(); // later
                 match_flag = true;
                 break;
             }
@@ -1501,45 +1528,45 @@ impl<T: Trait> Module<T> {
         // make sure the linkedlist is not broken when this linked item was removed so modify the next and prev members accordingly.
         // Also check if the it is the best_bid_price or best_ask_price if so modify that too.
         if current_linkedpricelevel.prev.is_some() && current_linkedpricelevel.next.is_some() {
-            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.unwrap());
-            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.unwrap());
+            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.unwrap()); //later
+            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.unwrap()); //later
 
             // Fix the broken linkedlist
             prev_linkedpricelevel.next = current_linkedpricelevel.next;
             next_linkedpricelevel.prev = current_linkedpricelevel.prev;
 
             // Write it back
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.unwrap(), prev_linkedpricelevel);
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.unwrap(), next_linkedpricelevel);
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.unwrap(), prev_linkedpricelevel); //later
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.unwrap(), next_linkedpricelevel); //later
         }
 
         if current_linkedpricelevel.prev.is_some() && current_linkedpricelevel.next.is_none() {
-            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.unwrap());
+            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.unwrap()); //later
 
             // Fix the broken linkedlist
             prev_linkedpricelevel.next = None;
 
             // Write it back
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.unwrap(), prev_linkedpricelevel);
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.unwrap(), prev_linkedpricelevel); //later
         }
         if current_linkedpricelevel.prev.is_none() && current_linkedpricelevel.next.is_some() {
-            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.unwrap());
+            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.unwrap()); //later
 
             // Fix the broken linkedlist
             next_linkedpricelevel.prev = None;
 
             // Write it back
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.unwrap(), next_linkedpricelevel);
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.unwrap(), next_linkedpricelevel); //later
 
             // Update the orderbook
             let mut orderbook: Orderbook<T> = <Orderbooks<T>>::get(trading_pair);
             // Update the best_bid_price if applicable
             if removed_order.order_type == OrderType::BidLimit && price == orderbook.best_bid_price {
-                orderbook.best_bid_price = current_linkedpricelevel.next.unwrap();
+                orderbook.best_bid_price = current_linkedpricelevel.next.unwrap();   //later
             }
             // Update the best_ask_price if applicable
             if removed_order.order_type == OrderType::AskLimit && price == orderbook.best_ask_price {
-                orderbook.best_ask_price = current_linkedpricelevel.next.unwrap();
+                orderbook.best_ask_price = current_linkedpricelevel.next.unwrap();  //later
             }
             // Write orderbook back to storage
             <Orderbooks<T>>::insert(trading_pair, orderbook);

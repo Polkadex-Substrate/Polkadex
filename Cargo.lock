@@ -3806,6 +3806,7 @@ dependencies = [
  "compare",
  "frame-support",
  "frame-system",
+ "jsonrpc-core",
  "pallet-generic-asset",
  "parity-scale-codec",
  "serde",
