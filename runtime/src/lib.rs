@@ -17,7 +17,7 @@ use sp_runtime::traits::{
 };
 use sp_api::impl_runtime_apis;
 use template::MarketDataRpc;
-
+use template::ErrorRpc;
 // use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::curve::PiecewiseLinear;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
@@ -646,28 +646,28 @@ impl_runtime_apis! {
 
 	impl runtime_api::DexStorageApi<Block> for Runtime{
 
-	    fn get_ask_level(trading_pair: Hash) -> Vec<FixedU128> {
+	    fn get_ask_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
 
 			TemplateModule::get_ask_level(trading_pair)
 		}
 
-		fn get_bid_level(trading_pair: Hash) -> Vec<FixedU128> {
+		fn get_bid_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
 
 			TemplateModule::get_bid_level(trading_pair)
 		}
 
-		fn get_price_level(trading_pair: Hash) -> Vec<LinkedPriceLevelRpc> {
+		fn get_price_level(trading_pair: Hash) -> Result<Vec<LinkedPriceLevelRpc>,ErrorRpc> {
 		    TemplateModule::get_price_level(trading_pair)
 		}
-		fn get_orderbook(trading_pair: Hash) -> OrderbookRpc {
+		fn get_orderbook(trading_pair: Hash) -> Result<OrderbookRpc, ErrorRpc> {
 		    TemplateModule::get_orderbook(trading_pair)
 		}
 
-		fn get_all_orderbook() -> Vec<OrderbookRpc> {
+		fn get_all_orderbook() -> Result<Vec<OrderbookRpc>, ErrorRpc> {
 		    TemplateModule::get_all_orderbook()
 		}
 
-		fn get_market_info(trading_pair: Hash,blocknum: u32) -> MarketDataRpc {
+		fn get_market_info(trading_pair: Hash,blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
 		    TemplateModule::get_market_info(trading_pair,blocknum)
 		}
 

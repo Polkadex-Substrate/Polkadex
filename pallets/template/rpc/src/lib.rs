@@ -10,7 +10,7 @@ use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 use sp_arithmetic::FixedU128;
 use sp_core::H256;
 use sp_std::vec::Vec;
-use pallet_template::{LinkedPriceLevelRpc, OrderbookRpc, MarketDataRpc};
+use pallet_template::{LinkedPriceLevelRpc, OrderbookRpc, MarketDataRpc, ErrorRpc};
 use pallet_template::Trait;
 
 #[rpc]
@@ -53,21 +53,35 @@ impl<C, M> DexStorage<C, M> {
 }
 
 /// Error type of this RPC api.
-// pub enum Error {
-// 	/// The transaction was not decodable.
-// 	DecodeError,
-// 	/// The call to runtime failed.
-// 	RuntimeError,
-// }
-//
-// impl From<Error> for i64 {
-// 	fn from(e: Error) -> i64 {
-// 		match e {
-// 			Error::RuntimeError => 1,
-// 			Error::DecodeError => 2,
-// 		}
-// 	}
-// }
+pub struct ErrorConvert;
+
+impl ErrorConvert{
+    fn covert_to_rpc_error (error_type: ErrorRpc) -> RpcError {
+        match error_type {
+            ErrorRpc::IdMustBe32Byte => RpcError {
+                code: ErrorCode::ServerError(1000), // No real reason for this value
+                message: "IdMustBe32Byte".into(),
+                data: Some(format!("{:?}", error_type).into()),
+            },
+            ErrorRpc::AssetIdConversionFailed => RpcError {
+                code: ErrorCode::ServerError(100), // No real reason for this value
+                message: "AssetIdConversionFailed".into(),
+                data: Some(format!("{:?}", error_type).into()),
+            },
+            ErrorRpc::Fixedu128tou128conversionFailed => RpcError {
+                code: ErrorCode::ServerError(9876), // No real reason for this value
+                message: "Fixedu128tou128conversionFailed".into(),
+                data: Some(format!("{:?}", error_type).into()),
+            },
+            ErrorRpc::NoElementFound => RpcError {
+                code: ErrorCode::ServerError(9876), // No real reason for this value
+                message: "NoElementFound".into(),
+                data: Some(format!("{:?}", error_type).into()),
+            },
+        }
+    }
+}
+
 
 impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
     where
@@ -86,11 +100,27 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
 
         // let hash_trading_pair = H256::from(trading_pair);
         let runtime_api_result = api.get_ask_level(&at, trading_pair);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+        let temp = match runtime_api_result {
+            Ok(x) => match x{
+                Ok(z) => Ok(z),
+                Err(x) => Err(x),
+            }
+            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+        };
+        temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
+
+        // match runtime_api_result {
+        //     Ok(x) => match x {
+        //         Ok(y) => Ok(y),
+        //         _ =>
+        //     },
+        //     Err(e) => RpcError {
+        //             code: ErrorCode::ServerError(9876), // No real reason for this value
+        //             message: "Something wrong".into(),
+        //             data: Some(format!("{:?}", e).into()),
+        //         }
+        // }
+
     }
 
     fn get_bid_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
@@ -101,11 +131,15 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
 
         // let hash_trading_pair = H256::from(trading_pair);
         let runtime_api_result = api.get_bid_level(&at, trading_pair);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+
+        let temp = match runtime_api_result {
+            Ok(x) => match x{
+                Ok(z) => Ok(z),
+                Err(x) => Err(x),
+            }
+            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+        };
+        temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
     fn get_price_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevelRpc>> {
@@ -116,11 +150,14 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
 
         // let hash_trading_pair = H256::from(trading_pair);
         let runtime_api_result = api.get_price_level(&at, trading_pair);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+        let temp = match runtime_api_result {
+            Ok(x) => match x{
+                Ok(z) => Ok(z),
+                Err(x) => Err(x),
+            }
+            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+        };
+        temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
     fn get_orderbook(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<OrderbookRpc> {
@@ -131,11 +168,14 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
 
         // let hash_trading_pair = H256::from(trading_pair);
         let runtime_api_result = api.get_orderbook(&at, trading_pair);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+        let temp = match runtime_api_result {
+            Ok(x) => match x{
+                Ok(z) => Ok(z),
+                Err(x) => Err(x),
+            }
+            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+        };
+        temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
     fn get_all_orderbook(&self, _at: Option<<Block as BlockT>::Hash>) -> Result<Vec<OrderbookRpc>> {
@@ -146,11 +186,14 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
 
         // let hash_trading_pair = H256::from(trading_pair);
         let runtime_api_result = api.get_all_orderbook(&at);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+        let temp = match runtime_api_result {
+            Ok(x) => match x{
+                Ok(z) => Ok(z),
+                Err(x) => Err(x),
+            }
+            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+        };
+        temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
     fn get_market_info(&self, at: Option<<Block as BlockT>::Hash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc> {
@@ -160,11 +203,14 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
             self.client.info().best_hash);
 
         let runtime_api_result = api.get_market_info(&at, trading_pair, blocknum);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+        let temp = match runtime_api_result {
+            Ok(x) => match x{
+                Ok(z) => Ok(z),
+                Err(x) => Err(x),
+            }
+            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+        };
+        temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
 
     }
 
