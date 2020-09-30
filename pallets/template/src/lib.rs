@@ -165,7 +165,11 @@ decl_module! {
         #[weight = 10000]
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: FixedU128, quantity: FixedU128) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
-   //         let account: AccountId32 = AccountId32::from(trader);
+            //let account: AccountId32 = AccountId32::from(trader);
+            // TODO: Add a upper bound
+            if price < 1000000.into() || quantity < 1000000.into(){
+            // TODO: Emit Error for Price or Quantity too low @Krishna
+            }
 	        Self::execute_order(trader, order_type, trading_pair, price, quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Some(0).into())
 	    }
@@ -855,6 +859,7 @@ impl<T: Trait> Module<T> {
                 // we want to match the orders until the current_price is less than the ask_price
                 // or the current_order is fulfilled completely
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_ask_price);
+                let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
                 while current_order.quantity > FixedU128::from(0) {
                     if let Some(mut counter_order) = linkedpricelevel.orders.pop_front() {
                         Self::do_asset_exchange(current_order,
@@ -878,13 +883,12 @@ impl<T: Trait> Module<T> {
                         // we check if we can match with the next available level
 
                         // As we consumed the linkedpricelevel completely remove that from asks_levels
-                        let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
+
                         // asks_levels is already sorted and the best_ask_price should be the first item
                         // so we don't need to sort it after we remove and simply remove the 0th index.
                         // NOTE: In asks_levels & bids_levels all items are unique.
                         asks_levels.remove(0);
-                        // Write it back to storage.
-                        <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
+
 
                         if linkedpricelevel.next.is_none() {
                             // No more price levels available
@@ -912,7 +916,7 @@ impl<T: Trait> Module<T> {
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
                 } else {
                     // As we consumed the linkedpricelevel completely remove that from asks_levels
-                    let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
+
                     // asks_levels is already sorted and the best_ask_price should be the first item
                     // so we don't need to sort it after we remove and simply remove it
                     asks_levels.remove(0);
@@ -929,9 +933,10 @@ impl<T: Trait> Module<T> {
                             }
                         }
                     }
-                    // Write it back to storage.
-                    <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
                 }
+
+                // Write it back to storage.
+                <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
             }
 
             OrderType::BidMarket => {
@@ -941,6 +946,7 @@ impl<T: Trait> Module<T> {
 
                 // We load the best_ask_price level and start to fill the order
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_ask_price);
+                let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
                 // We iterate until current_order is fulfilled or exhausts the Ask orders in the system.
                 while current_order.price > FixedU128::from(0) {
                     if let Some(mut counter_order) = linkedpricelevel.orders.pop_front() {
@@ -966,13 +972,12 @@ impl<T: Trait> Module<T> {
                         // we check if we can match with the next available level
 
                         // As we consumed the linkedpricelevel completely remove that from asks_levels
-                        let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
+
                         // asks_levels is already sorted and the best_ask_price should be the first item
                         // so we don't need to sort it after we remove and simply remove it
                         // NOTE: In asks_levels & bids_levels all items are unique.
                         asks_levels.remove(0);
-                        // Write it back to storage.
-                        <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
+
 
                         if linkedpricelevel.next.is_none() {
                             // No more price levels available
@@ -989,7 +994,6 @@ impl<T: Trait> Module<T> {
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
                 } else {
                     // As we consumed the linkedpricelevel completely remove that from asks_levels
-                    let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
                     // asks_levels is already sorted and the best_ask_price should be the first item
                     // so we don't need to sort it after we remove and simply remove it
                     asks_levels.remove(0);
@@ -1006,9 +1010,11 @@ impl<T: Trait> Module<T> {
                             }
                         }
                     }
-                    // Write it back to storage.
-                    <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
+
                 }
+
+                // Write it back to storage.
+                <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
             }
 
             OrderType::AskLimit => {
@@ -1018,6 +1024,7 @@ impl<T: Trait> Module<T> {
                 // we want to match the orders until the current_price is greater than the bid_price
                 // or the current_order is fulfilled completely
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_bid_price);
+                let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                 while current_order.quantity > FixedU128::from(0) {
                     if let Some(mut counter_order) = linkedpricelevel.orders.pop_front() {
                         Self::do_asset_exchange(current_order,
@@ -1041,26 +1048,25 @@ impl<T: Trait> Module<T> {
                         // we check if we can match with the next available level
 
                         // As we consumed the linkedpricelevel completely remove that from bids_levels
-                        let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
+
                         // bids_levels is already sorted and the best_bid_price should be the first item
                         // so we don't need to sort it after we remove and simply remove it
                         // NOTE: In asks_levels & bids_levels all items are unique.
                         bids_levels.remove(bids_levels.len() - 1);
-                        // Write it back to storage.
-                        <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
 
-                        if linkedpricelevel.prev.is_none() {
+
+                        if linkedpricelevel.next.is_none() {
                             // No more price levels available
                             break;
                         }
-                        if current_order.price <= linkedpricelevel.prev.ok_or(Error::<T>::NoElementFound.into())? {
+                        if current_order.price <= linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())? {
                             // In this case current_order.quantity is remaining and
                             // it can match with next price level in orderbook.
 
                             // Last best_bid_price is consumed and doesn't exist anymore hence
                             // we set new best_bid_price in orderbook.
-                            orderbook.best_bid_price = linkedpricelevel.prev.ok_or(Error::<T>::NoElementFound.into())?;
-                            linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.prev.ok_or(Error::<T>::NoElementFound.into())?);
+                            orderbook.best_bid_price = linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?;
+                            linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?);
                         } else {
                             // In this case, the current_order cannot match with the best_bid_price available
                             // so let's break the while loop and return the current_order and orderbook
@@ -1074,7 +1080,6 @@ impl<T: Trait> Module<T> {
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
                 } else {
                     // As we consumed the linkedpricelevel completely remove that from bids_levels
-                    let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                     // bids_levels is already sorted and the best_bid_price should be the last item
                     // so we don't need to sort it after we remove and simply remove it
                     if bids_levels.len() != 0 {
@@ -1093,9 +1098,10 @@ impl<T: Trait> Module<T> {
                             }
                         }
                     }
-                    // Write it back to storage.
-                    <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
                 }
+
+                // Write it back to storage.
+                <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
             }
 
             OrderType::AskMarket => {
@@ -1103,6 +1109,7 @@ impl<T: Trait> Module<T> {
                 // at best possible price.
                 // We load the best_bid_price level and start to fill the order
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_bid_price);
+                let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                 while current_order.quantity > FixedU128::from(0) {
                     if let Some(mut counter_order) = linkedpricelevel.orders.pop_front() {
                         Self::do_asset_exchange_market(current_order,
@@ -1125,21 +1132,18 @@ impl<T: Trait> Module<T> {
                         // we check if we can match with the next available level
 
                         // As we consumed the linkedpricelevel completely remove that from bids_levels
-                        let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                         // bids_levels is already sorted and the best_bid_price should be the first item
                         // so we don't need to sort it after we remove and simply remove it
                         // NOTE: In asks_levels & bids_levels all items are unique.
                         bids_levels.remove(bids_levels.len() - 1);
-                        // Write it back to storage.
-                        <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
 
-                        if linkedpricelevel.prev.is_none() {
+                        if linkedpricelevel.next.is_none() {
                             // No more price levels available
                             break;
                         }
 
-                        orderbook.best_bid_price = linkedpricelevel.prev.ok_or(Error::<T>::NoElementFound.into())?;
-                        linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.prev.ok_or(Error::<T>::NoElementFound.into())?);
+                        orderbook.best_bid_price = linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?;
+                        linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?);
                     }
                 }
 
@@ -1148,7 +1152,6 @@ impl<T: Trait> Module<T> {
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
                 } else {
                     // As we consumed the linkedpricelevel completely remove that from bids_levels
-                    let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                     // bids_levels is already sorted and the best_bid_price should be the first item
                     // so we don't need to sort it after we remove and simply remove it
                     if bids_levels.len() != 0 {
@@ -1167,9 +1170,10 @@ impl<T: Trait> Module<T> {
                             }
                         }
                     }
-                    // Write it back to storage.
-                    <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
                 }
+
+                // Write it back to storage.
+                <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
             }
         }
         // Write the market data back to storage
