@@ -4,6 +4,8 @@ panic = 'unwind'
 [workspace]
 members = [
     'node',
-    'pallets/dex',
+    'pallets/template',
     'runtime',
+    'pallets/template/runtime-api',
+
 ]

@@ -7,13 +7,12 @@
 
 use std::sync::Arc;
 
-use node_polkadex_runtime::{opaque::Block, AccountId, Balance, Index};
+use node_template_runtime::{opaque::Block, AccountId, Balance, Index};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
 use sp_block_builder::BlockBuilder;
 pub use sc_rpc_api::DenyUnsafe;
 use sp_transaction_pool::TransactionPool;
-use dex_rpc;
 
 
 /// Full client dependencies.
@@ -36,6 +35,7 @@ pub fn create_full<C, P>(
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
+	C::Api: runtime_api::DexStorageApi<Block>,
 	P: TransactionPool + 'static,
 {
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
@@ -48,6 +48,14 @@ pub fn create_full<C, P>(
 		deny_unsafe,
 	} = deps;
 
+	io.extend_with(crate::silly_rpc::SillyRpc::to_delegate(
+		crate::silly_rpc::Silly {},
+	));
+
+	io.extend_with(rpc::DexStorageApi::to_delegate(
+		rpc::DexStorage::new(client.clone()),
+	));
+
 	io.extend_with(
 		SystemApi::to_delegate(FullSystem::new(client.clone(), pool, deny_unsafe))
 	);
@@ -55,11 +63,6 @@ pub fn create_full<C, P>(
 	io.extend_with(
 		TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone()))
 	);
-
-	//	TODO: Implement this RPC. There is some error
-	// io.extend_with(dex_rpc::DexApi::to_delegate(
-	// 	dex_rpc::DEX::new(client),
-	// ));
 
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed

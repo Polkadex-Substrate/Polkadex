@@ -1,5 +1,5 @@
 use sp_core::{Pair, Public, sr25519};
-use node_polkadex_runtime::{
+use node_template_runtime::{
 	AccountId, BabeConfig,BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, SessionConfig, StakingConfig, StakerStatus,
 	opaque::SessionKeys, Balance, GenericAssetConfig
@@ -198,4 +198,3 @@ fn session_keys(
 ) -> SessionKeys {
 	SessionKeys { grandpa, babe  }
 }
-

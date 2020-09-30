@@ -16,16 +16,19 @@ use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor, Saturating, OpaqueKeys,
 };
 use sp_api::impl_runtime_apis;
+use template::MarketDataRpc;
+
 // use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::curve::PiecewiseLinear;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
+
 use frame_system::{EnsureRoot};
 use sp_runtime::transaction_validity::{ TransactionPriority};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
-
+use sp_arithmetic::FixedU128;
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -34,8 +37,10 @@ pub use sp_runtime::BuildStorage;
 pub use pallet_staking::StakerStatus;
 
 use pallet_session::{historical as pallet_session_historical};
+use template::OrderbookRpc;
+
 pub use pallet_timestamp::Call as TimestampCall;
-// pub use pallet_balances::Call as BalancesCall;
+pub use pallet_balances::Call as BalancesCall;
 pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
 	construct_runtime, parameter_types, StorageValue,
@@ -46,8 +51,9 @@ pub use frame_support::{
 	},
 };
 
-/// Import the dex pallet.
-pub use dex;
+/// Import the template pallet.
+pub use template;
+use template::LinkedPriceLevelRpc;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -100,8 +106,8 @@ pub mod opaque {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-dex"),
-	impl_name: create_runtime_str!("node-dex"),
+	spec_name: create_runtime_str!("node-template"),
+	impl_name: create_runtime_str!("node-template"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
@@ -134,8 +140,8 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
-	/// We allow for 2 seconds of compute with a 6 second average block time.
-	pub const MaximumBlockWeight: Weight =  WEIGHT_PER_SECOND;
+	/// We allow for 1 seconds of compute with a 3 second average block time.
+	pub const MaximumBlockWeight: Weight = WEIGHT_PER_SECOND;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	/// Assume 10% of weight for average on_initialize calls.
 	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
@@ -182,7 +188,7 @@ impl frame_system::Trait for Runtime {
 	/// logic of that extrinsic. (Signature verification, nonce increment, fee, etc...)
 	type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
 	/// The maximum weight that a single extrinsic of `Normal` dispatch class can have,
-	/// independent of the logic of that extrinsic. (Roughly max block weight - average on
+	/// idependent of the logic of that extrinsics. (Roughly max block weight - average on
 	/// initialize cost).
 	type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
 	/// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
@@ -305,14 +311,11 @@ use frame_support::traits::Currency;
 pub struct CurrencyToVoteHandler;
 
 impl CurrencyToVoteHandler {
-	fn factor() -> Balance {
-		let total_issuance: Balance = <pallet_generic_asset::StakingAssetCurrency<Runtime>>::total_issuance();
-		(total_issuance / u64::max_value() as Balance).max(1) }
+	fn factor() -> Balance { (<pallet_generic_asset::StakingAssetCurrency<Runtime>>::total_issuance() / u64::max_value() as Balance).max(1) }
 }
 
 impl Convert<Balance, u64> for CurrencyToVoteHandler {
-	fn convert(x: Balance) -> u64 {
-		(x / Self::factor()) as u64 }
+	fn convert(x: Balance) -> u64 { (x / Self::factor()) as u64 }
 }
 
 impl Convert<u128, Balance> for CurrencyToVoteHandler {
@@ -412,14 +415,16 @@ impl pallet_generic_asset::Trait for Runtime {
 	type AssetId = u32;
 	type Event = Event;
 }
+
 parameter_types! {
-pub const OrderBookRegistrationFee: u128 = 1_000_000_000_000;
+	/// Cost for Registering a Trading Pair
+	pub const TradingPairReservationFee: u128 = 1_000_000_000_000;
 }
 
-/// Configure the pallet dex in pallets/dex.
-impl dex::Trait for Runtime {
+/// Configure the pallet template in pallets/template.
+impl template::Trait for Runtime {
 	type Event = Event;
-	type UNIT = OrderBookRegistrationFee;
+	type TradingPairReservationFee = TradingPairReservationFee;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -432,17 +437,17 @@ construct_runtime!(
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-		GenericAsset: pallet_generic_asset::{Module, Call, Storage, Config<T>, Event<T>},
 		Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+		GenericAsset: pallet_generic_asset::{Module, Call, Storage, Config<T>, Event<T>},
 		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
 		Historical: pallet_session_historical::{Module},
-		// Include the custom logic from the dex pallet in the runtime.
-		DEX: dex::{Module, Call, Storage, Event<T>},
+		// Include the custom logic from the template pallet in the runtime.
+		TemplateModule: template::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -539,16 +544,6 @@ impl_runtime_apis! {
 			Executive::offchain_worker(header)
 		}
 	}
-
-	// impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-	// 	fn slot_duration() -> u64 {
-	// 		Aura::slot_duration()
-	// 	}
-	//
-	// 	fn authorities() -> Vec<AuraId> {
-	// 		Aura::authorities()
-	// 	}
-	// }
 
 	impl sp_consensus_babe::BabeApi<Block> for Runtime {
 		fn configuration() -> sp_consensus_babe::BabeGenesisConfiguration {
@@ -648,9 +643,34 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl dex::DexRuntimeApi<Block> for Runtime {
-		fn get_order_book(trading_pair: u32) -> dex::apis::OrderBookApi{
-			DEX::get_order_book(trading_pair)
+
+	impl runtime_api::DexStorageApi<Block> for Runtime{
+
+	    fn get_ask_level(trading_pair: Hash) -> Vec<FixedU128> {
+
+			TemplateModule::get_ask_level(trading_pair)
 		}
-	}
+
+		fn get_bid_level(trading_pair: Hash) -> Vec<FixedU128> {
+
+			TemplateModule::get_bid_level(trading_pair)
+		}
+
+		fn get_price_level(trading_pair: Hash) -> Vec<LinkedPriceLevelRpc> {
+		    TemplateModule::get_price_level(trading_pair)
+		}
+		fn get_orderbook(trading_pair: Hash) -> OrderbookRpc {
+		    TemplateModule::get_orderbook(trading_pair)
+		}
+
+		fn get_all_orderbook() -> Vec<OrderbookRpc> {
+		    TemplateModule::get_all_orderbook()
+		}
+
+		fn get_market_info(trading_pair: Hash,blocknum: u32) -> MarketDataRpc {
+		    TemplateModule::get_market_info(trading_pair,blocknum)
+		}
+
+	 }
+
 }

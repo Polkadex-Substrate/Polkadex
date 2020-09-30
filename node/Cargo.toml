@@ -1,11 +1,11 @@
 [package]
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
 build = 'build.rs'
-description = 'A Polkadex node.'
+description = 'A fresh FRAME-based Substrate node, ready for hacking.'
 edition = '2018'
 homepage = 'https://substrate.dev'
 license = 'Unlicense'
-name = 'node-polkadex'
+name = 'node-template'
 repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
 version = '2.0.0-rc6'
 
@@ -13,13 +13,10 @@ version = '2.0.0-rc6'
 targets = ['x86_64-unknown-linux-gnu']
 
 [[bin]]
-name = 'node-polkadex'
+name = 'node-template'
 
-[dependencies.dex-rpc]
-path = '../pallets/dex/rpc'
-version = "0.1.0"
 
-[dependencies.node-polkadex-runtime]
+[dependencies.node-template-runtime]
 path = '../runtime'
 version = '2.0.0-rc6'
 
@@ -144,6 +141,11 @@ version = '2.0.0-rc6'
 [dependencies]
 jsonrpc-core = '14.0.3'
 structopt = '0.3.8'
+jsonrpc-core-client = "14.0.3"
+jsonrpc-derive = "14.0.3"
+rpc = { path = "../pallets/template/rpc" }
+runtime-api = { path = "../pallets/template/runtime-api" }
+#runtime = { path = "../runtime/" }
 
 [build-dependencies.substrate-build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'

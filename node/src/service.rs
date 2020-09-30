@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use node_polkadex_runtime::{self, opaque::Block, RuntimeApi};
+use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
@@ -14,8 +14,8 @@ use sc_finality_grandpa::{FinalityProofProvider as GrandpaFinalityProofProvider,
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
-	node_polkadex_runtime::api::dispatch,
-	node_polkadex_runtime::native_version,
+	node_template_runtime::api::dispatch,
+	node_template_runtime::native_version,
 );
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
@@ -132,6 +132,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
+//	let (command_sink, commands_stream) = futures::channel::mpsc::channel(1000);
 
 	let rpc_extensions_builder = {
 		let client = client.clone();
@@ -142,6 +143,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 				client: client.clone(),
 				pool: pool.clone(),
 				deny_unsafe,
+//				command_sink: command_sink.clone(),// TODO :-Command Sink
 			};
 
 			crate::rpc::create_full(deps)
