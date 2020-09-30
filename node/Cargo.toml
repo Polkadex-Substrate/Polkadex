@@ -1,22 +1,22 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['Polkadex Team https://github.com/Polkadex-Substrate/Polkadex']
 build = 'build.rs'
-description = 'A fresh FRAME-based Substrate node, ready for hacking.'
+description = 'Polkadex: Orderbook based Decentralized Chain'
 edition = '2018'
-homepage = 'https://substrate.dev'
-license = 'Unlicense'
-name = 'node-template'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+homepage = 'https://github.com/Polkadex-Substrate/Polkadex'
+license = 'Apache 2.0'
+name = 'node-polkadex'
+repository = 'https://github.com/Polkadex-Substrate/Polkadex'
 version = '2.0.0-rc6'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [[bin]]
-name = 'node-template'
+name = 'node-polkadex'
 
 
-[dependencies.node-template-runtime]
+[dependencies.node-polkadex-runtime]
 path = '../runtime'
 version = '2.0.0-rc6'
 
@@ -143,8 +143,8 @@ jsonrpc-core = '14.0.3'
 structopt = '0.3.8'
 jsonrpc-core-client = "14.0.3"
 jsonrpc-derive = "14.0.3"
-rpc = { path = "../pallets/template/rpc" }
-runtime-api = { path = "../pallets/template/runtime-api" }
+rpc = { path = "../pallets/polkadex/rpc" }
+runtime-api = { path = "../pallets/polkadex/runtime-api" }
 #runtime = { path = "../runtime/" }
 
 [build-dependencies.substrate-build-script-utils]

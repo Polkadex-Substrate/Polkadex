@@ -1,11 +1,11 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
-description = 'FRAME pallet template for defining custom runtime logic.'
+authors = ['Polkadex Team <https://github.com/Polkadex-Substrate/Polkadex']
+description = 'Polkadex: Orderbook based Trading Chain Node.'
 edition = '2018'
-homepage = 'https://substrate.dev'
+homepage = 'https://github.com/Polkadex-Substrate/Polkadex'
 license = 'Unlicense'
-name = 'pallet-template'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+name = 'pallet-polkadex'
+repository = 'https://github.com/Polkadex-Substrate/Polkadex'
 version = '2.0.0-rc6'
 
 [package.metadata.docs.rs]

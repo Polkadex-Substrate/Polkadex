@@ -16,8 +16,8 @@ use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor, Saturating, OpaqueKeys,
 };
 use sp_api::impl_runtime_apis;
-use template::MarketDataRpc;
-use template::ErrorRpc;
+use polkadex::MarketDataRpc;
+use polkadex::ErrorRpc;
 // use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::curve::PiecewiseLinear;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
@@ -37,7 +37,7 @@ pub use sp_runtime::BuildStorage;
 pub use pallet_staking::StakerStatus;
 
 use pallet_session::{historical as pallet_session_historical};
-use template::OrderbookRpc;
+use polkadex::OrderbookRpc;
 
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -51,9 +51,9 @@ pub use frame_support::{
 	},
 };
 
-/// Import the template pallet.
-pub use template;
-use template::LinkedPriceLevelRpc;
+/// Import the polkadex pallet.
+pub use polkadex;
+use polkadex::LinkedPriceLevelRpc;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -106,8 +106,8 @@ pub mod opaque {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-template"),
-	impl_name: create_runtime_str!("node-template"),
+	spec_name: create_runtime_str!("node-polkadex"),
+	impl_name: create_runtime_str!("node-polkadex"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
@@ -421,8 +421,8 @@ parameter_types! {
 	pub const TradingPairReservationFee: u128 = 1_000_000_000_000;
 }
 
-/// Configure the pallet template in pallets/template.
-impl template::Trait for Runtime {
+/// Configure the pallet polkadex in pallets/polkadex.
+impl polkadex::Trait for Runtime {
 	type Event = Event;
 	type TradingPairReservationFee = TradingPairReservationFee;
 }
@@ -446,8 +446,8 @@ construct_runtime!(
 		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
 		Historical: pallet_session_historical::{Module},
-		// Include the custom logic from the template pallet in the runtime.
-		TemplateModule: template::{Module, Call, Storage, Event<T>},
+		// Include the custom logic from the polkadex pallet in the runtime.
+		Polkadex: polkadex::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -648,27 +648,27 @@ impl_runtime_apis! {
 
 	    fn get_ask_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
 
-			TemplateModule::get_ask_level(trading_pair)
+			Polkadex::get_ask_level(trading_pair)
 		}
 
 		fn get_bid_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
 
-			TemplateModule::get_bid_level(trading_pair)
+			Polkadex::get_bid_level(trading_pair)
 		}
 
 		fn get_price_level(trading_pair: Hash) -> Result<Vec<LinkedPriceLevelRpc>,ErrorRpc> {
-		    TemplateModule::get_price_level(trading_pair)
+		    Polkadex::get_price_level(trading_pair)
 		}
 		fn get_orderbook(trading_pair: Hash) -> Result<OrderbookRpc, ErrorRpc> {
-		    TemplateModule::get_orderbook(trading_pair)
+		    Polkadex::get_orderbook(trading_pair)
 		}
 
 		fn get_all_orderbook() -> Result<Vec<OrderbookRpc>, ErrorRpc> {
-		    TemplateModule::get_all_orderbook()
+		    Polkadex::get_all_orderbook()
 		}
 
 		fn get_market_info(trading_pair: Hash,blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
-		    TemplateModule::get_market_info(trading_pair,blocknum)
+		    Polkadex::get_market_info(trading_pair,blocknum)
 		}
 
 	 }

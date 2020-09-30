@@ -3393,13 +3393,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-template"
+name = "node-polkadex"
 version = "2.0.0-rc6"
 dependencies = [
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
- "node-template-runtime",
+ "node-polkadex-runtime",
  "pallet-transaction-payment-rpc",
  "rpc",
  "runtime-api",
@@ -3430,7 +3430,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-template-runtime"
+name = "node-polkadex-runtime"
 version = "2.0.0-rc6"
 dependencies = [
  "frame-executive",
@@ -3441,12 +3441,12 @@ dependencies = [
  "pallet-balances",
  "pallet-generic-asset",
  "pallet-grandpa",
+ "pallet-polkadex",
  "pallet-randomness-collective-flip",
  "pallet-session",
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
- "pallet-template",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -3722,6 +3722,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-polkadex"
+version = "2.0.0-rc6"
+dependencies = [
+ "compare",
+ "frame-support",
+ "frame-system",
+ "jsonrpc-core",
+ "pallet-generic-asset",
+ "parity-scale-codec",
+ "serde",
+ "serde_json",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-randomness-collective-flip"
 version = "2.0.0-rc6"
 source = "git+https://github.com/paritytech/substrate.git?tag=v2.0.0-rc6#be8bb186d87b9d2b47a2907c9b51ae1e252362c3"
@@ -3794,25 +3813,6 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-template"
-version = "2.0.0-rc6"
-dependencies = [
- "compare",
- "frame-support",
- "frame-system",
- "jsonrpc-core",
- "pallet-generic-asset",
- "parity-scale-codec",
- "serde",
- "serde_json",
- "sp-arithmetic",
- "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -4838,7 +4838,7 @@ dependencies = [
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
- "pallet-template",
+ "pallet-polkadex",
  "parity-scale-codec",
  "runtime-api",
  "serde",
@@ -4855,7 +4855,7 @@ dependencies = [
 name = "runtime-api"
 version = "0.1.0"
 dependencies = [
- "pallet-template",
+ "pallet-polkadex",
  "serde_json",
  "sp-api",
  "sp-arithmetic",

@@ -1,14 +1,14 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['Polkadex Team ']
 edition = '2018'
-homepage = 'https://substrate.dev'
-license = 'Unlicense'
-name = 'node-template-runtime'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+homepage = 'https://github.com/Polkadex-Substrate/Polkadex'
+license = 'Apache 2.0'
+name = 'node-polkadex-runtime'
+repository = 'https://github.com/Polkadex-Substrate/Polkadex'
 version = '2.0.0-rc6'
 #
 [dependencies]
-runtime-api = { default-features = false, path = "../pallets/template/runtime-api" }
+runtime-api = { default-features = false, path = "../pallets/polkadex/runtime-api" }
 
 
 [package.metadata.docs.rs]
@@ -201,10 +201,10 @@ git = 'https://github.com/paritytech/substrate.git'
 tag = 'v2.0.0-rc6'
 version = '2.0.0-rc6'
 
-[dependencies.template]
+[dependencies.polkadex]
 default-features = false
-package = 'pallet-template'
-path = '../pallets/template'
+package = 'pallet-polkadex'
+path = '../pallets/polkadex'
 version = '2.0.0-rc6'
 
 [features]
@@ -239,7 +239,7 @@ std = [
     'sp-std/std',
     'sp-transaction-pool/std',
     'sp-version/std',
-    'template/std',
+    'polkadex/std',
 ]
 
 [build-dependencies.wasm-builder-runner]

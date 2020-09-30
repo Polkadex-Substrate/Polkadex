@@ -1,7 +1,7 @@
 [package]
 name = "rpc"
 version = "0.1.0"
-authors = ["ksr30 <krishna.singh9926@gmail.com>"]
+authors = ["Polkadex Team"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,7 +13,7 @@ jsonrpc-core-client = "14.0.3"
 jsonrpc-derive = "14.0.3"
 serde = { version = "1.0.101", features = ["derive"], optional = true }
 runtime-api = { default-features = false, path = "../runtime-api" }
-pallet-template = { default-features = false, path = "../" }
+pallet-polkadex = { default-features = false, path = "../" }
 
 [dependencies.sp-rpc]
 default-features = false

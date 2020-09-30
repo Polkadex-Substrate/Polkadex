@@ -10,8 +10,8 @@ use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 use sp_arithmetic::FixedU128;
 use sp_core::H256;
 use sp_std::vec::Vec;
-use pallet_template::{LinkedPriceLevelRpc, OrderbookRpc, MarketDataRpc, ErrorRpc};
-use pallet_template::Trait;
+use pallet_polkadex::{LinkedPriceLevelRpc, OrderbookRpc, MarketDataRpc, ErrorRpc};
+use pallet_polkadex::Trait;
 
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
