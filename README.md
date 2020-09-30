@@ -1,6 +1,5 @@
-![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
-# Polkadex
-Note: It is still a WIP.
+
+![Logo](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/Logo.svg)
 ## What is Polkadex? :rocket:
 Polkadex is a Open Source, Decentralized Exchange Platform made using Substrate Blockchain Framework that provides traders with the centralized user experience.
 ## Why did we do this? :gift:
@@ -31,6 +30,7 @@ The value we provide to the Substrate community is,
 2. Traders can contribute their own custom trading algorithms by making use of market data provided by our full nodes.
 3. They get a decentralized trading platform to trade Polkadot & Ethereum tokens.
 4. This will be one of the first Decentralized exchanges to have High-Frequency Trading bot support using APIs directly from full nodes.
+![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
 ## Documentation :books:
 For Tutorials, Documentation and API Reference please check this [page](https://github.com/Polkadex-Substrate/Documentation)
 ## Contribute :heart_eyes:
