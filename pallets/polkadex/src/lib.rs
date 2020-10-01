@@ -8,12 +8,14 @@ use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
 use frame_support::traits::Get;
 use frame_system::ensure_signed;
+#[cfg(feature = "std")]
+use hex::decode;
+#[cfg(feature = "std")]
+use jsonrpc_core::{Error as RpcError, ErrorCode, Result as ResultRpc};
 use pallet_generic_asset::AssetIdProvider;
 //use sp_core::crypto::{AccountId32, Ss58Codec};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "std")]
-use hex::decode;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
 use sp_core::H256;
@@ -21,14 +23,10 @@ use sp_runtime::DispatchError;
 use sp_runtime::traits::Hash;
 use sp_std::collections::vec_deque::VecDeque;
 use sp_std::convert::TryInto;
-use sp_std::str;
-use sp_std::vec::Vec;
-#[cfg(feature = "std")]
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result as ResultRpc};
 #[cfg(feature = "std")]
 use sp_std::fmt::format;
-
-
+use sp_std::str;
+use sp_std::vec::Vec;
 
 use crate::OrderType::{AskLimit, BidLimit};
 
@@ -128,7 +126,7 @@ decl_storage! {
 	// Store MarketData of TradingPairs
 	// If the market data is returning None, then no trades were present for that trading in that block.
 	// TODO: Currently we store market data for all the blocks
-	MarketInfo get(fn get_marketdata): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) T::BlockNumber => Option<MarketData>;
+	MarketInfo get(fn get_marketdata): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) T::BlockNumber => MarketData;
 	Nonce: u128;
 	}
 }
@@ -237,7 +235,7 @@ pub struct Order<T> where T: Trait {
 }
 
 impl<T> Order<T> where T: Trait {
-    pub fn convert(self) -> Result<Order4RPC,ErrorRpc> {
+    pub fn convert(self) -> Result<Order4RPC, ErrorRpc> {
         let order = Order4RPC {
             id: Self::account_to_bytes(&self.id)?,
             trading_pair: Self::account_to_bytes(&self.trading_pair)?,
@@ -299,10 +297,9 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
     }
 
     fn cov_de_vec(temp: VecDeque<Order<T>>) -> Result<Vec<Order4RPC>, ErrorRpc> {
-
-        let mut temp3:Vec<Order4RPC> = Vec::new();
+        let mut temp3: Vec<Order4RPC> = Vec::new();
         for element in temp {
-           temp3.push(element.convert()?)
+            temp3.push(element.convert()?)
         };
         Ok(temp3)
     }
@@ -349,13 +346,13 @@ pub struct Orderbook<T> where T: Trait {
 }
 
 impl<T> Orderbook<T> where T: Trait {
-    fn convert(self) -> Result<OrderbookRpc,ErrorRpc> {
-        let orderbook =OrderbookRpc {
+    fn convert(self) -> Result<OrderbookRpc, ErrorRpc> {
+        let orderbook = OrderbookRpc {
             trading_pair: Self::account_to_bytes(&self.trading_pair)?,
-            base_asset_id : TryInto::<u32>::try_into(self.base_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
-            quote_asset_id : TryInto::<u32>::try_into(self.quote_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
-            best_bid_price : Self::convert_fixed_u128_to_balance(self.best_bid_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
-            best_ask_price : Self::convert_fixed_u128_to_balance(self.best_ask_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
+            base_asset_id: TryInto::<u32>::try_into(self.base_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
+            quote_asset_id: TryInto::<u32>::try_into(self.quote_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
+            best_bid_price: Self::convert_fixed_u128_to_balance(self.best_bid_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
+            best_ask_price: Self::convert_fixed_u128_to_balance(self.best_ask_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
         };
         Ok(orderbook)
     }
@@ -378,7 +375,6 @@ impl<T> Orderbook<T> where T: Trait {
             None
         }
     }
-
 }
 
 impl<T> Default for Orderbook<T> where T: Trait {
@@ -404,6 +400,7 @@ impl<T> Orderbook<T> where T: Trait {
         }
     }
 }
+
 #[derive(Encode, Decode, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct OrderbookRpc {
@@ -426,22 +423,31 @@ pub struct MarketData {
 }
 
 impl MarketData {
-    fn convert (self) -> Result<MarketDataRpc,ErrorRpc> {
+    fn convert(self) -> Result<MarketDataRpc, ErrorRpc> {
         let market_data = MarketDataRpc {
             low: Self::convert_fixed_u128_to_balance(self.low).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             high: Self::convert_fixed_u128_to_balance(self.high).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             volume: Self::convert_fixed_u128_to_balance(self.volume).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
         };
         Ok(market_data)
-
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128)
+            Some(balance_in_u128.encode())
         } else {
             None
+        }
+    }
+}
+
+impl Default for MarketData {
+    fn default() -> Self {
+        MarketData {
+            low: FixedU128::from(0),
+            high: FixedU128::from(0),
+            volume: FixedU128::from(0),
         }
     }
 }
@@ -449,16 +455,15 @@ impl MarketData {
 #[derive(Encode, Decode, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct MarketDataRpc {
-    low: u128,
-    high: u128,
-    volume: u128,
+    low: Vec<u8>,
+    high: Vec<u8>,
+    volume: Vec<u8>,
 }
 
 impl<T: Trait> Module<T> {
-    pub fn get_ask_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+    pub fn get_ask_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
         let ask_level = <AsksLevels<T>>::get(trading_pair);
         Ok(ask_level)
-
     }
 
     pub fn get_bid_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
@@ -469,7 +474,7 @@ impl<T: Trait> Module<T> {
     pub fn get_price_level(trading_pair: T::Hash) -> Result<Vec<LinkedPriceLevelRpc>, ErrorRpc> {
         let price_level: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
         //let temp2: Vec<LinkedPriceLevelRpc> = temp.into_iter().map(|element| element.covert()).collect();
-        let mut price_level_rpc:Vec<LinkedPriceLevelRpc> = Vec::new();
+        let mut price_level_rpc: Vec<LinkedPriceLevelRpc> = Vec::new();
         for element in price_level {
             price_level_rpc.push(element.convert()?)
         }
@@ -483,18 +488,22 @@ impl<T: Trait> Module<T> {
     }
 
     pub fn get_all_orderbook() -> Result<Vec<OrderbookRpc>, ErrorRpc> {
-        let orderbook:Vec<Orderbook<T>> = <Orderbooks<T>>::iter().map(|(_key, value)| value).collect();
-        let mut orderbook_rpc:Vec<OrderbookRpc> = Vec::new();
+        let orderbook: Vec<Orderbook<T>> = <Orderbooks<T>>::iter().map(|(_key, value)| value).collect();
+        let mut orderbook_rpc: Vec<OrderbookRpc> = Vec::new();
         for element in orderbook {
             orderbook_rpc.push(element.convert()?)
         }
         Ok(orderbook_rpc)
     }
 
-    pub fn get_market_info(trading_pair: T::Hash,blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
+    pub fn get_market_info(trading_pair: T::Hash, blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
         let blocknum = Self::u32_to_blocknum(blocknum);
-        let temp = <MarketInfo<T>>::get(trading_pair, blocknum);
-        temp.ok_or(ErrorRpc::NoElementFound)?.convert()
+        if <MarketInfo<T>>::contains_key(trading_pair, blocknum) {
+            let temp: MarketData = <MarketInfo<T>>::get(trading_pair, blocknum);
+            temp.convert()
+        } else {
+            Err(ErrorRpc::NoElementFound)
+        }
     }
 
     pub fn u32_to_blocknum(input: u32) -> T::BlockNumber {
@@ -861,30 +870,17 @@ impl<T: Trait> Module<T> {
 
     fn consume_order(current_order: &mut Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
         let mut market_data: MarketData;
-        // TODO: Not sure what will be the return value of get() given below for keys that doesn't exist.
-        // TODO: Currently I am assuming it will be None and not Some("default value of MarketData")
-        // if <MarketInfo<T>>::contains_key(&current_order.trading_pair, <frame_system::Module<T>>::block_number()) {
-        //     market_data = <MarketInfo<T>>::get(&current_order.trading_pair, <frame_system::Module<T>>::block_number())
-        // } else {
-        //     market_data = MarketData{
-        //         low: FixedU128::from(0),
-        //         high: FixedU128::from(0),
-        //         volume: FixedU128::from(0)
-        //     }
-        // }
         let current_block_number: T::BlockNumber = <frame_system::Module<T>>::block_number();
-        match <MarketInfo<T>>::get(current_order.trading_pair, current_block_number) {
-            Some(_market_data) => {
-                market_data = _market_data;
-            }
-            None => {
-                market_data = MarketData {
-                    low: FixedU128::from(0),
-                    high: FixedU128::from(0),
-                    volume: FixedU128::from(0),
-                }
+        if <MarketInfo<T>>::contains_key(&current_order.trading_pair, current_block_number) {
+            market_data = <MarketInfo<T>>::get(&current_order.trading_pair, <frame_system::Module<T>>::block_number())
+        } else {
+            market_data = MarketData {
+                low: FixedU128::from(0),
+                high: FixedU128::from(0),
+                volume: FixedU128::from(0),
             }
         }
+
         match current_order.order_type {
             OrderType::BidLimit => {
                 // The incoming order is BidLimit and it will be able to match best_ask_price
@@ -1042,7 +1038,6 @@ impl<T: Trait> Module<T> {
                             }
                         }
                     }
-
                 }
 
                 // Write it back to storage.
