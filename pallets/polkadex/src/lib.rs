@@ -173,8 +173,8 @@ decl_module! {
             if price < 1000000.into() || quantity < 1000000.into(){
             // TODO: Emit Error for Price or Quantity too low @Krishna
             }
-            let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap()
-            let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).unwrap()
+            let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap();
+            let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).unwrap();
 	        Self::execute_order(trader, order_type, trading_pair, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Some(0).into())
 	    }
@@ -186,7 +186,7 @@ decl_module! {
 	        let trader = ensure_signed(origin)?;
 
 	        ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
-	        let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap()
+	        let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap();
 	        Self::cancel_order_from_orderbook(trader,order_id,trading_pair,converted_price)?;
 	        Ok(Some(0).into())
 	    }
