@@ -12,6 +12,8 @@ use pallet_generic_asset::AssetIdProvider;
 //use sp_core::crypto::{AccountId32, Ss58Codec};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
+use hex::decode;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
 use sp_core::H256;
@@ -25,6 +27,8 @@ use sp_std::vec::Vec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result as ResultRpc};
 #[cfg(feature = "std")]
 use sp_std::fmt::format;
+
+
 
 use crate::OrderType::{AskLimit, BidLimit};
 
@@ -255,10 +259,10 @@ impl<T> Order<T> where T: Trait {
         Ok(bytes)
     }
 
-    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
+    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128)
+            Some(balance_in_u128.encode())
         } else {
             None
         }
@@ -272,8 +276,8 @@ pub struct Order4RPC {
     id: [u8; 32],
     trading_pair: [u8; 32],
     trader: [u8; 32],
-    price: u128,
-    quantity: u128,
+    price: Vec<u8>,
+    quantity: Vec<u8>,
     order_type: OrderType,
 }
 
@@ -303,10 +307,12 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
         Ok(temp3)
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128)
+
+            let hex_vec: Vec<u8> = balance_in_u128.encode();
+            Some(hex_vec)
         } else {
             None
         }
@@ -317,8 +323,8 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
 #[derive(Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LinkedPriceLevelRpc {
-    next: u128,
-    prev: u128,
+    next: Vec<u8>,
+    prev: Vec<u8>,
     orders: Vec<Order4RPC>,
 }
 
@@ -364,10 +370,10 @@ impl<T> Orderbook<T> where T: Trait {
         Ok(bytes)
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128)
+            Some(balance_in_u128.encode())
         } else {
             None
         }
@@ -404,8 +410,8 @@ pub struct OrderbookRpc {
     trading_pair: [u8; 32],
     base_asset_id: u32,
     quote_asset_id: u32,
-    best_bid_price: u128,
-    best_ask_price: u128,
+    best_bid_price: Vec<u8>,
+    best_ask_price: Vec<u8>,
 }
 
 
