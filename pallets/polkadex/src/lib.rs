@@ -25,6 +25,8 @@ use sp_std::str;
 use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result as ResultRpc};
+#[cfg(feature = "std")]
+use sp_std::fmt::format;
 
 
 
@@ -168,25 +170,28 @@ decl_module! {
 
         /// Submits the given order for matching to engine.
         #[weight = 10000]
-	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: FixedU128, quantity: FixedU128) -> dispatch::DispatchResultWithPostInfo{
+	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
-            //let account: AccountId32 = AccountId32::from(trader);
+
             // TODO: Add a upper bound
             if price < 1000000.into() || quantity < 1000000.into(){
             // TODO: Emit Error for Price or Quantity too low @Krishna
             }
-	        Self::execute_order(trader, order_type, trading_pair, price, quantity)?; // TODO: It maybe an error in which case take the fees else refund
+            let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap();
+            let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).unwrap();
+	        Self::execute_order(trader, order_type, trading_pair, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Some(0).into())
 	    }
 
 
 	    /// Cancels the order
 	    #[weight = 10000]
-	    pub fn cancel_order(origin, order_id: T::Hash, trading_pair: T::Hash, price: FixedU128) -> dispatch::DispatchResultWithPostInfo {
+	    pub fn cancel_order(origin, order_id: T::Hash, trading_pair: T::Hash, price: T::Balance) -> dispatch::DispatchResultWithPostInfo {
 	        let trader = ensure_signed(origin)?;
 
 	        ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
-	        Self::cancel_order_from_orderbook(trader,order_id,trading_pair,price)?;
+	        let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap();
+	        Self::cancel_order_from_orderbook(trader,order_id,trading_pair,converted_price)?;
 	        Ok(Some(0).into())
 	    }
     }
