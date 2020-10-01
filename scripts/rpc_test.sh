@@ -2,7 +2,29 @@ curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d  
      "jsonrpc":"2.0",
       "id":1,
       "method":"get_ask_level",
-      "params": ["0xd8deac0ac38775e23437bde7db118437d8e002292327829d772ba4b4c3e0a3","0x6087240931c736c98ccb5748ffe8b0a946fb1bb382db195ad826ec3e060db3d8"]
+      "params": ["0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9","0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9"]
     }'
-#    params: [Blockhash,TradingPair]
-#  The params given here must be replaced
+curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d   '{
+     "jsonrpc":"2.0",
+      "id":1,
+      "method":"get_bid_level",
+      "params": ["0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9","0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9"]
+    }'
+curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d   '{
+     "jsonrpc":"2.0",
+      "id":1,
+      "method":"get_orderbook",
+      "params": ["0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9","0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9"]
+    }'
+curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d   '{
+     "jsonrpc":"2.0",
+      "id":1,
+      "method":"get_market_info",
+      "params": ["0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9","0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9",354]
+    }'
+curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d   '{
+     "jsonrpc":"2.0",
+      "id":1,
+      "method":"get_all_orderbook",
+      "params": ["0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9"]
+    }'

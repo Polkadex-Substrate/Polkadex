@@ -146,8 +146,8 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
-		// TODO: Note for enabling feeless trades use dispatch::DispatchResultWithPostInfo
-		// TODO: then in the Ok(()) replace it with Ok(Some(0).into()) to make it fee-less
+		// Note for enabling feeless trades use dispatch::DispatchResultWithPostInfo
+		// then in the Ok(()) replace it with Ok(Some(0).into()) to make it fee-less
 
 		/// Registers a new trading pair in the system
 		#[weight = 10000]
@@ -642,10 +642,6 @@ impl<T: Trait> Module<T> {
 
     // Inserts the given order into orderbook
     fn insert_order(current_order: &Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
-        // TODO: bids_levels should be sorted in descending order  FIX-look
-        // TODO: asks_levels should be sorted in ascending order FIX-look
-        // TODO: The logic given below is assuming that 0th index of bids_levels is highest bid price &
-        // TODO: 0th index of asks_levels is lowest ask price.
         match current_order.order_type {
             OrderType::BidLimit => {
                 // bids_levels contains the sorted pricelevels
@@ -916,7 +912,6 @@ impl<T: Trait> Module<T> {
                             Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
-                        // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
                         // As no more orders are available in the linkedpricelevel.
                         // we check if we can match with the next available level
 
@@ -1005,7 +1000,6 @@ impl<T: Trait> Module<T> {
                             Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
-                        // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
                         // As no more orders are available in the linkedpricelevel.
                         // we check if we can match with the next available level
 
@@ -1081,7 +1075,6 @@ impl<T: Trait> Module<T> {
                             Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
-                        // TODO: Check: Not sure if "no orders remaining" is the only case that will trigger this branch
                         // As no more orders are available in the linkedpricelevel.
                         // we check if we can match with the next available level
 
