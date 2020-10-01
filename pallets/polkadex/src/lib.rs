@@ -12,6 +12,8 @@ use pallet_generic_asset::AssetIdProvider;
 //use sp_core::crypto::{AccountId32, Ss58Codec};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
+use hex::decode;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
 use sp_core::H256;
@@ -23,6 +25,8 @@ use sp_std::str;
 use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result as ResultRpc};
+
+
 
 use crate::OrderType::{AskLimit, BidLimit};
 
@@ -301,6 +305,8 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
     fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
+
+            let hex_string: String = hex::encode(balance_in_u128.to_be_bytes());
             Some(balance_in_u128)
         } else {
             None
