@@ -11,7 +11,6 @@ use sp_arithmetic::FixedU128;
 use sp_core::H256;
 use sp_std::vec::Vec;
 use pallet_polkadex::{LinkedPriceLevelRpc, OrderbookRpc, MarketDataRpc, ErrorRpc};
-use pallet_polkadex::Trait;
 
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
@@ -196,7 +195,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
-    fn get_market_info(&self, at: Option<<Block as BlockT>::Hash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc> {
+    fn get_market_info(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             // Always take the best block hash for this RPC

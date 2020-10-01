@@ -5,32 +5,16 @@ use codec::{Decode, Encode};
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
-use frame_support::traits::Get;
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::Get};
 use frame_system::ensure_signed;
-#[cfg(feature = "std")]
-use hex::decode;
-#[cfg(feature = "std")]
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result as ResultRpc};
 use pallet_generic_asset::AssetIdProvider;
-//use sp_core::crypto::{AccountId32, Ss58Codec};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
-use sp_core::H256;
-use sp_runtime::DispatchError;
 use sp_runtime::traits::Hash;
-use sp_std::collections::vec_deque::VecDeque;
-use sp_std::convert::TryInto;
-#[cfg(feature = "std")]
-use sp_std::fmt::format;
-use sp_std::str;
-use sp_std::vec::Vec;
+use sp_std::{collections::vec_deque::VecDeque,convert::TryInto,str,vec::Vec};
 
-use crate::OrderType::{AskLimit, BidLimit};
-
-//use sp_core::H256;
 #[cfg(test)]
 mod mock;
 
