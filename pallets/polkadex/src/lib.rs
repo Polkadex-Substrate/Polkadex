@@ -10,7 +10,7 @@ use frame_system::ensure_signed;
 use pallet_generic_asset::AssetIdProvider;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::{FixedU128, FixedPointNumber};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
 use sp_runtime::traits::Hash;
 use sp_std::{collections::vec_deque::VecDeque,convert::TryInto,str,vec::Vec};
@@ -1555,12 +1555,5 @@ impl<T: Trait> Module<T> {
             <Orderbooks<T>>::insert(trading_pair, orderbook);
         }
         Ok(())
-    }
-
-
-    // Helper Functions
-    #[allow(dead_code)]
-    fn u32_to_asset_id(input: u32) -> T::AssetId {
-        input.into()
     }
 }
