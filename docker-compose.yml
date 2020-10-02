@@ -1,4 +1,4 @@
-version: "3.2"
+version: "3.8"
 
 services:
   dev:
@@ -6,7 +6,7 @@ services:
     image: paritytech/ci-linux:production
     working_dir: /var/www/node-polkadex
     ports:
-      - "9944:9944"
+      - "127.0.0.1:9944:9944"
     environment:
       - CARGO_HOME=/var/www/node-polkadex/.cargo
     volumes:
@@ -15,3 +15,10 @@ services:
         source: ./.local
         target: /root/.local
     command: bash -c "cargo build --release && ./target/release/node-polkadex --dev --ws-external"
+    
+  test:
+    container_name: node-test
+    build: tests/
+    depends_on:
+      - dev
+    network_mode: "host"
