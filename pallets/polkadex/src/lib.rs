@@ -1,34 +1,32 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// https://substrate.dev/docs/en/knowledgebase/runtime/frame
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
+use frame_support::traits::Get;
 
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::Get};
 use frame_system::ensure_signed;
 use pallet_generic_asset::AssetIdProvider;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::{FixedU128, FixedPointNumber};
+use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
 use sp_runtime::traits::Hash;
-use sp_std::{collections::vec_deque::VecDeque,convert::TryInto,str,vec::Vec};
+use sp_std::collections::vec_deque::VecDeque;
+use sp_std::convert::TryInto;
+use sp_std::str;
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
 
 
-/// Configure the pallet by specifying the parameters and types on which it depends.
-/// pallet_generic_asset::Trait bounds this DEX pallet with pallet_generic_asset. DEX is available
-/// only for runtimes that also install pallet_generic_asset.
+
 pub trait Trait: frame_system::Trait + pallet_generic_asset::Trait {
-    /// Because this pallet emits events, it depends on the runtime's definition of an event.
+
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
-    /// Amount in SpendingAssetCurrency that must reserved to register a tradingPair
+
     type TradingPairReservationFee: Get<<Self as pallet_generic_asset::Trait>::Balance>;
 }
 
@@ -92,7 +90,9 @@ decl_error! {
 		/// TradingPair mismatch
 		TradingPairMismatch,
 		/// Invalid OrderID
-		InvalidOrderID
+		InvalidOrderID,
+		///Price or Quantity too low
+		PriceOrQuantityTooLow,
 	}
 }
 
@@ -117,21 +117,27 @@ decl_storage! {
 
 
 
-// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-// These functions materialize as "extrinsics", which are often compared to transactions.
-// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
+
 decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-		// Errors must be initialized if they are used by the pallet.
+
 		type Error = Error<T>;
 
-		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
-		// Note for enabling feeless trades use dispatch::DispatchResultWithPostInfo
-		// then in the Ok(()) replace it with Ok(Some(0).into()) to make it fee-less
+        /// This method registers new Trading Pair in the system.
+        /// # Arguments
+        ///
+        /// * `origin` - This contains the detail of Origin from where Transaction originated.
+        ///
+        /// * `quote_asset_id` - Id of Counter Asset (Used to determine value of Base Asset).
+        ///
+        /// * `base_asset_id` - Id of Base Asset (Used for transactions).
+        ///
+        /// # Return
+        ///
+        ///  This function returns a status that, new Trading Pair is successfully registered or not.
 
-		/// Registers a new trading pair in the system
 		#[weight = 10000]
 		pub fn register_new_orderbook(origin, quote_asset_id: u32, base_asset_id: u32) -> dispatch::DispatchResultWithPostInfo{
 		    let trader = ensure_signed(origin)?;
@@ -150,29 +156,58 @@ decl_module! {
 		    Ok(Some(0).into())
 	    }
 
-        /// Submits the given order for matching to engine.
+
+        /// This method submits a new order in the System.
+        /// # Arguments
+        ///
+        /// * `origin` - This contains the detail of Origin from where Transaction originated.
+        ///
+        /// * `order_type` - Type of Order. (BidLimit, BidMarket, AskLimit, AskMarket)
+        ///
+        /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
+        ///
+        /// * `price` - Price provided by Trader.
+        ///
+        /// * `quantity` - Quantity provided by Trader.
+        ///
+        /// # Return
+        ///
+        ///  This function returns a status that, new Order is successfully created or not.
         #[weight = 10000]
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
 
             // TODO: Add a upper bound
-            if price < 1000000.into() || quantity < 1000000.into(){
-            // TODO: Emit Error for Price or Quantity too low @Krishna
-            }
-            let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap();
-            let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).unwrap();
+
+            ensure!(price > 1000000.into() || quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+            let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
+
+            let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 	        Self::execute_order(trader, order_type, trading_pair, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Some(0).into())
 	    }
 
 
-	    /// Cancels the order
+        /// This method cancels a order in the System.
+        /// # Arguments
+        ///
+        /// * `origin` - This contains the detail of Origin from where Transaction originated.
+        ///
+        /// * `order_type` - Type of Order. (BidLimit, BidMarket, AskLimit, AskMarket)
+        ///
+        /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
+        ///
+        /// * `price` - Price provided by Trader.
+        ///
+        /// # Return
+        ///
+        ///  This function returns a status that, given Order is successfully canceled or not.
 	    #[weight = 10000]
 	    pub fn cancel_order(origin, order_id: T::Hash, trading_pair: T::Hash, price: T::Balance) -> dispatch::DispatchResultWithPostInfo {
 	        let trader = ensure_signed(origin)?;
 
 	        ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
-	        let converted_price = Self::convert_balance_to_fixed_u128(price).unwrap();
+	        let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 	        Self::cancel_order_from_orderbook(trader,order_id,trading_pair,converted_price)?;
 	        Ok(Some(0).into())
 	    }
@@ -188,7 +223,6 @@ pub enum OrderType {
     AskMarket,
 }
 
-// #[serde(crate = "alt_serde")]
 #[derive(Encode, Decode, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum ErrorRpc {
@@ -198,7 +232,6 @@ pub enum ErrorRpc {
     NoElementFound,
 }
 
-// #[serde(crate = "alt_serde")]
 #[derive(Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OrderTypeRPC {
@@ -251,7 +284,6 @@ impl<T> Order<T> where T: Trait {
     }
 }
 
-// #[serde(crate = "alt_serde")]
 #[derive(Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Order4RPC {
@@ -300,7 +332,6 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
     }
 }
 
-// #[serde(crate = "alt_serde")]
 #[derive(Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LinkedPriceLevelRpc {
@@ -445,16 +476,44 @@ pub struct MarketDataRpc {
 }
 
 impl<T: Trait> Module<T> {
+
+    /// This is a helper function for "Get Ask Level API".
+    /// # Arguments
+    ///
+    /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
+    ///
+    /// # Return
+    ///
+    ///  This function returns List of Ask Level otherwise Related Error.
+
     pub fn get_ask_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
         let ask_level = <AsksLevels<T>>::get(trading_pair);
         Ok(ask_level)
     }
 
+    /// This is a helper function for "Get Bid Level API".
+    ///
+    /// # Arguments
+    ///
+    /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
+    ///
+    /// # Return
+    ///
+    ///  This function returns List of Bid Level otherwise Related Error.
     pub fn get_bid_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
         let bid_level = <BidsLevels<T>>::get(trading_pair);
         Ok(bid_level)
     }
 
+    /// This is a helper function for "Get Price Level API".
+    ///
+    /// # Arguments
+    ///
+    /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
+    ///
+    /// # Return
+    ///
+    ///  This function returns List of Price Level otherwise Related Error.
     pub fn get_price_level(trading_pair: T::Hash) -> Result<Vec<LinkedPriceLevelRpc>, ErrorRpc> {
         let price_level: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
         //let temp2: Vec<LinkedPriceLevelRpc> = temp.into_iter().map(|element| element.covert()).collect();
@@ -465,12 +524,28 @@ impl<T: Trait> Module<T> {
         Ok(price_level_rpc)
     }
 
+    /// This is a helper function for "Get Orderbook API".
+    ///
+    /// # Arguments
+    ///
+    /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
+    ///
+    /// # Return
+    ///
+    ///  This function returns Requested Orderbook otherwise Related Error.
     pub fn get_orderbook(trading_pair: T::Hash) -> Result<OrderbookRpc, ErrorRpc> {
         let orderbook = <Orderbooks<T>>::get(trading_pair);
         let orderbook_rpc = orderbook.convert()?;
         Ok(orderbook_rpc)
     }
 
+    /// This is a helper function for "Get All Orderbook API".
+    ///
+    /// # Arguments
+    ///
+    /// # Return
+    ///
+    ///  This function returns all Orderbooks otherwise Related Error.
     pub fn get_all_orderbook() -> Result<Vec<OrderbookRpc>, ErrorRpc> {
         let orderbook: Vec<Orderbook<T>> = <Orderbooks<T>>::iter().map(|(_key, value)| value).collect();
         let mut orderbook_rpc: Vec<OrderbookRpc> = Vec::new();
@@ -479,6 +554,14 @@ impl<T: Trait> Module<T> {
         }
         Ok(orderbook_rpc)
     }
+
+    /// This is a helper function for "Get All Orderbook API".
+    ///
+    /// # Arguments
+    ///
+    /// # Return
+    ///
+    ///  This function returns all Orderbooks otherwise Related Error.
 
     pub fn get_market_info(trading_pair: T::Hash, blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
         let blocknum = Self::u32_to_blocknum(blocknum);
@@ -496,14 +579,14 @@ impl<T: Trait> Module<T> {
 }
 
 impl<T: Trait> Module<T> {
-    // Reserves TradingPairReservationFee (defined in configuration trait) balance of SpendingAssetCurrency
+    /// Reserves TradingPairReservationFee (defined in configuration trait) balance of SpendingAssetCurrency
     fn reserve_balance_registration(origin: &<T as frame_system::Trait>::AccountId) -> bool {
         pallet_generic_asset::Module::<T>::reserve(
             &pallet_generic_asset::SpendingAssetIdProvider::<T>::asset_id(),
             origin, <T as Trait>::TradingPairReservationFee::get()).is_ok()
     }
 
-    // Initializes a new Orderbook and stores it in the Orderbooks
+    /// Initializes a new Orderbook and stores it in the Orderbooks
     fn create_order_book(quote_asset_id: T::AssetId, base_asset_id: T::AssetId, trading_pair_id: &T::Hash) {
         let orderbook = Orderbook::new(base_asset_id, quote_asset_id, trading_pair_id.clone());
         <Orderbooks<T>>::insert(trading_pair_id, orderbook);
@@ -511,19 +594,19 @@ impl<T: Trait> Module<T> {
         <BidsLevels<T>>::insert(trading_pair_id, Vec::<FixedU128>::new());
     }
 
-    // Creates a TradingPairID from both Asset IDs.
+    /// Creates a TradingPairID from both Asset IDs.
     fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> T::Hash {
         (quote_asset_id, base_asset_id).using_encoded(<T as frame_system::Trait>::Hashing::hash)
     }
 
-    // Submits an order for execution
+    /// Submits an order for execution.
     fn execute_order(trader: T::AccountId,
                      order_type: OrderType,
                      trading_pair: T::Hash,
                      price: FixedU128,
                      quantity: FixedU128) -> Result<(), Error<T>> {
         let mut current_order = Order {
-            id: T::Hash::default(), // let's do the hashing after the checks.
+            id: T::Hash::default(),
             trading_pair,
             trader,
             price,
@@ -536,7 +619,7 @@ impl<T: Trait> Module<T> {
                 let nonce = Nonce::get(); // To get some kind non user controllable randomness to order id
                 current_order.id = (trading_pair, current_order.trader.clone(), price, quantity, current_order.order_type.clone(), nonce)
                     .using_encoded(<T as frame_system::Trait>::Hashing::hash);
-                Nonce::put(nonce + 1); // TODO: It might overflow after a long time.
+                Nonce::put(nonce + 1);
 
                 match current_order.order_type {
                     OrderType::AskMarket if orderbook.best_bid_price != FixedU128::from(0) => {
@@ -548,7 +631,7 @@ impl<T: Trait> Module<T> {
                     }
 
                     OrderType::AskLimit | OrderType::BidLimit => {
-                        // Check if current can consume orders present in the system
+
                         if (current_order.order_type == OrderType::BidLimit &&
                             current_order.price >= orderbook.best_ask_price &&
                             orderbook.best_ask_price != FixedU128::from(0)) ||
@@ -556,18 +639,17 @@ impl<T: Trait> Module<T> {
                                 current_order.price <= orderbook.best_bid_price &&
                                 orderbook.best_bid_price != FixedU128::from(0)) {
 
-                            // current_order can consume i.e. Market Taking order
+
                             Self::consume_order(&mut current_order, &mut orderbook)?;
 
 
-                            // If current_order has quantity remaining to fulfil, insert it
+
                             if current_order.quantity > FixedU128::from(0) {
-                                // Insert the remaining order in the order book
+
                                 Self::insert_order(&current_order, &mut orderbook)?;
                             }
                         } else {
-                            // Current Order cannot be consumed i.e. Market Making order
-                            // Insert the order in the order book
+
                             Self::insert_order(&current_order, &mut orderbook)?;
                         }
                     }
@@ -623,9 +705,7 @@ impl<T: Trait> Module<T> {
                                                                         current_order.quantity,
                                                                         current_order.trader));
                     }
-                    _ => {
-                        // This branch will not execute
-                    }
+                    _ => {}
                 }
                 Ok(())
             }
@@ -633,31 +713,27 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    // Inserts the given order into orderbook
+    /// Inserts the given order into orderbook.
     fn insert_order(current_order: &Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
+
         match current_order.order_type {
             OrderType::BidLimit => {
-                // bids_levels contains the sorted pricelevels
+
                 let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                 match bids_levels.binary_search(&current_order.price) {
                     Ok(_) => {
-                        // current_order.price is already there in the system
-                        // so we just need to insert into it's linkedpricelevel FIFO.
+
                         let mut linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &current_order.price);
                         linked_pricelevel.orders.push_back(current_order.clone());
-                        // Write it back to storage
+
                         <PriceLevels<T>>::insert(&current_order.trading_pair, &current_order.price, linked_pricelevel)
-                        // Access there is not new price level creation, there is won't be any change to orderbook's best prices
+
                     }
                     Err(index_at_which_we_should_insert) => {
                         bids_levels.insert(index_at_which_we_should_insert, current_order.price);
-                        // Here there can be four cases,
-                        // 1. when current_order is the last item in the bids_levels
-                        // 2. when current_order is the first item in the bids_levels and bids_level was not empty
-                        // 3. when current_order is the first item in the bids_levels and bids_level was empty
-                        // 4. when current_order is inserted in between two other items in bids_levels
+
                         if index_at_which_we_should_insert != 0 && index_at_which_we_should_insert != bids_levels.len() - 1 {
-                            // Fourth case
+
                             let mut index_minus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &bids_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut index_plus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &bids_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
@@ -669,7 +745,7 @@ impl<T: Trait> Module<T> {
                             index_plus1_linkedpricelevel.next = Some(current_order.price);
                             current_linkedpricelevel.orders.push_back(current_order.clone());
 
-                            // All the value updates are done. Write it back to storage.
+
                             <PriceLevels<T>>::insert(&current_order.trading_pair,
                                                      &bids_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?,
                                                      index_minus1_linkedpricelevel);
@@ -682,7 +758,7 @@ impl<T: Trait> Module<T> {
                         }
 
                         if index_at_which_we_should_insert == 0 && bids_levels.len() > 1 {
-                            // Second Case
+
                             let mut index_plus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &bids_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
                                 next: None,
@@ -691,7 +767,7 @@ impl<T: Trait> Module<T> {
                             };
                             index_plus1_linkedpricelevel.next = Some(current_order.price);
                             current_linkedpricelevel.orders.push_back(current_order.clone());
-                            // All the value updates are done. Write it back to storage.
+
                             <PriceLevels<T>>::insert(&current_order.trading_pair,
                                                      &bids_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?,
                                                      index_plus1_linkedpricelevel);
@@ -699,7 +775,7 @@ impl<T: Trait> Module<T> {
                                                      &current_order.price,
                                                      current_linkedpricelevel);
                         } else if index_at_which_we_should_insert == 0 && bids_levels.len() == 1 {
-                            // Third Case
+
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
                                 next: None,
                                 prev: None,
@@ -710,11 +786,11 @@ impl<T: Trait> Module<T> {
                                                      &current_order.price,
                                                      current_linkedpricelevel);
 
-                            // As current_order has the best_bid price, we store that to best_bid_price
+
                             orderbook.best_bid_price = current_order.price;
                         }
                         if index_at_which_we_should_insert == bids_levels.len() - 1 && index_at_which_we_should_insert != 0 {
-                            // First Case
+
                             let mut index_minus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &bids_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
                                 next: Some(*bids_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?),
@@ -724,7 +800,7 @@ impl<T: Trait> Module<T> {
                             index_minus1_linkedpricelevel.prev = Some(current_order.price);
 
                             current_linkedpricelevel.orders.push_back(current_order.clone());
-                            // All the value updates are done. Write it back to storage.
+
                             <PriceLevels<T>>::insert(&current_order.trading_pair,
                                                      &bids_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?,
                                                      index_minus1_linkedpricelevel);
@@ -732,7 +808,7 @@ impl<T: Trait> Module<T> {
                                                      &current_order.price,
                                                      current_linkedpricelevel);
 
-                            // As current_order has the best_bid price, we store that to best_bid_price
+
                             orderbook.best_bid_price = current_order.price;
                         }
                     }
@@ -740,27 +816,22 @@ impl<T: Trait> Module<T> {
                 <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
             }
             OrderType::AskLimit => {
-                // asks_levels contains the sorted pricelevels
+
                 let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
                 match asks_levels.binary_search(&current_order.price) {
                     Ok(_) => {
-                        // current_order.price is already there in the system
-                        // so we just need to insert into it's linkedpricelevel FIFO.
+
                         let mut linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &current_order.price);
                         linked_pricelevel.orders.push_back(current_order.clone());
-                        // Write it back to storage
+
                         <PriceLevels<T>>::insert(&current_order.trading_pair, &current_order.price, linked_pricelevel)
-                        // Access there is not new price level creation, there is won't be any change to orderbook's best prices
+
                     }
                     Err(index_at_which_we_should_insert) => {
                         asks_levels.insert(index_at_which_we_should_insert, current_order.price);
-                        // Here there can be four cases,
-                        // 1. when current_order is the last item in the asks_levels
-                        // 2. when current_order is the first item in the asks_levels
-                        // 3. when current_order is the first item and the only item in asks_levels
-                        // 4. when current_order is inserted in between two other items in asks_levels
+
                         if index_at_which_we_should_insert != 0 && index_at_which_we_should_insert != asks_levels.len() - 1 {
-                            // Fourth case
+
                             let mut index_minus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &asks_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut index_plus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &asks_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
@@ -772,7 +843,7 @@ impl<T: Trait> Module<T> {
                             index_plus1_linkedpricelevel.prev = Some(current_order.price);
                             current_linkedpricelevel.orders.push_back(current_order.clone());
 
-                            // All the value updates are done. Write it back to storage.
+
                             <PriceLevels<T>>::insert(&current_order.trading_pair,
                                                      &asks_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?,
                                                      index_minus1_linkedpricelevel);
@@ -785,7 +856,7 @@ impl<T: Trait> Module<T> {
                         }
 
                         if index_at_which_we_should_insert == 0 && asks_levels.len() > 1 {
-                            // Second Case
+
                             let mut index_plus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &asks_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
                                 next: Some(*asks_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?),
@@ -795,7 +866,7 @@ impl<T: Trait> Module<T> {
                             index_plus1_linkedpricelevel.prev = Some(current_order.price);
 
                             current_linkedpricelevel.orders.push_back(current_order.clone());
-                            // All the value updates are done. Write it back to storage.
+
                             <PriceLevels<T>>::insert(&current_order.trading_pair,
                                                      &asks_levels.get(index_at_which_we_should_insert + 1).ok_or(Error::<T>::NoElementFound.into())?,
                                                      index_plus1_linkedpricelevel);
@@ -803,11 +874,11 @@ impl<T: Trait> Module<T> {
                                                      &current_order.price,
                                                      current_linkedpricelevel);
 
-                            // As current_order has the best_bid price, we store that to best_bid_price
+
                             orderbook.best_ask_price = current_order.price;
                         }
                         if index_at_which_we_should_insert == 0 && asks_levels.len() == 1 {
-                            // Third Case
+
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
                                 next: None,
                                 prev: None,
@@ -816,15 +887,14 @@ impl<T: Trait> Module<T> {
 
                             current_linkedpricelevel.orders.push_back(current_order.clone());
 
-                            // Write it back to storage
                             <PriceLevels<T>>::insert(&current_order.trading_pair,
                                                      &current_order.price,
                                                      current_linkedpricelevel);
-                            // As current_order has the best_bid price, we store that to best_bid_price
+
                             orderbook.best_ask_price = current_order.price;
                         }
                         if index_at_which_we_should_insert == asks_levels.len() - 1 && index_at_which_we_should_insert != 0 {
-                            // First Case
+
                             let mut index_minus1_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &asks_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?);
                             let mut current_linkedpricelevel: LinkedPriceLevel<T> = LinkedPriceLevel {
                                 next: None,
@@ -833,7 +903,7 @@ impl<T: Trait> Module<T> {
                             };
                             index_minus1_linkedpricelevel.next = Some(current_order.price);
                             current_linkedpricelevel.orders.push_back(current_order.clone());
-                            // All the value updates are done. Write it back to storage.
+
                             <PriceLevels<T>>::insert(&current_order.trading_pair,
                                                      &asks_levels.get(index_at_which_we_should_insert - 1).ok_or(Error::<T>::NoElementFound.into())?,
                                                      index_minus1_linkedpricelevel);
@@ -846,14 +916,15 @@ impl<T: Trait> Module<T> {
                 <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
             }
             _ => {
-                // It will never execute
+
             }
         }
         Ok(())
     }
-
+    /// TODO
     fn consume_order(current_order: &mut Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
         let mut market_data: MarketData;
+
         let current_block_number: T::BlockNumber = <frame_system::Module<T>>::block_number();
         if <MarketInfo<T>>::contains_key(&current_order.trading_pair, current_block_number) {
             market_data = <MarketInfo<T>>::get(&current_order.trading_pair, <frame_system::Module<T>>::block_number())
@@ -867,11 +938,7 @@ impl<T: Trait> Module<T> {
 
         match current_order.order_type {
             OrderType::BidLimit => {
-                // The incoming order is BidLimit and it will be able to match best_ask_price
-                // Hence, we load the corresponding LinkedPriceLevel of best_ask_price from storage and execute
 
-                // we want to match the orders until the current_price is less than the ask_price
-                // or the current_order is fulfilled completely
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_ask_price);
                 let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
                 while current_order.quantity > FixedU128::from(0) {
@@ -883,57 +950,42 @@ impl<T: Trait> Module<T> {
                                                 orderbook.quote_asset_id)?;
 
                         if counter_order.quantity > FixedU128::from(0) {
-                            // Emit events
+
                             Self::emit_partial_fill(&counter_order, current_order.quantity);
-                            // counter_order was not completely used so we store it back in the FIFO
+
                             linkedpricelevel.orders.push_front(counter_order);
                         } else {
-                            // Emit events
+
                             Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
-                        // As no more orders are available in the linkedpricelevel.
-                        // we check if we can match with the next available level
 
-                        // As we consumed the linkedpricelevel completely remove that from asks_levels
-
-                        // asks_levels is already sorted and the best_ask_price should be the first item
-                        // so we don't need to sort it after we remove and simply remove the 0th index.
-                        // NOTE: In asks_levels & bids_levels all items are unique.
                         asks_levels.remove(0);
 
 
                         if linkedpricelevel.next.is_none() {
-                            // No more price levels available
+
                             break;
                         }
 
                         if current_order.price >= linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())? {
-                            // In this case current_order.quantity is remaining and
-                            // it can match with next price level in orderbook.
 
-                            // Last best_ask_price is consumed and doesn't exist anymore hence
-                            // we set new best_ask_price in orderbook.
                             orderbook.best_ask_price = linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?;
                             linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?);
                         } else {
-                            // In this case, the current_order cannot match with the best_ask_price available
-                            // so let's break the while loop and return the current_order and orderbook
+
                             break;
                         }
                     }
                 }
 
                 if !linkedpricelevel.orders.is_empty() {
-                    // Save Pricelevel back to storage
+
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
                 } else {
-                    // As we consumed the linkedpricelevel completely remove that from asks_levels
 
-                    // asks_levels is already sorted and the best_ask_price should be the first item
-                    // so we don't need to sort it after we remove and simply remove it
                     asks_levels.remove(0);
-                    // Update the Orderbook
+
                     if asks_levels.len() == 0 {
                         orderbook.best_ask_price = FixedU128::from(0);
                     } else {
@@ -948,19 +1000,14 @@ impl<T: Trait> Module<T> {
                     }
                 }
 
-                // Write it back to storage.
+
                 <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
             }
 
             OrderType::BidMarket => {
-                // Incoming order is a Market buy order so it, trader whats to buy the quote_asset for
-                // current_order.price at Market price.
 
-
-                // We load the best_ask_price level and start to fill the order
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_ask_price);
                 let mut asks_levels: Vec<FixedU128> = <AsksLevels<T>>::get(&current_order.trading_pair);
-                // We iterate until current_order is fulfilled or exhausts the Ask orders in the system.
                 while current_order.price > FixedU128::from(0) {
                     if let Some(mut counter_order) = linkedpricelevel.orders.pop_front() {
                         Self::do_asset_exchange_market(current_order,
@@ -980,19 +1027,11 @@ impl<T: Trait> Module<T> {
                             Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
-                        // As no more orders are available in the linkedpricelevel.
-                        // we check if we can match with the next available level
 
-                        // As we consumed the linkedpricelevel completely remove that from asks_levels
-
-                        // asks_levels is already sorted and the best_ask_price should be the first item
-                        // so we don't need to sort it after we remove and simply remove it
-                        // NOTE: In asks_levels & bids_levels all items are unique.
                         asks_levels.remove(0);
 
 
                         if linkedpricelevel.next.is_none() {
-                            // No more price levels available
                             break;
                         }
 
@@ -1002,14 +1041,12 @@ impl<T: Trait> Module<T> {
                 }
 
                 if !linkedpricelevel.orders.is_empty() {
-                    // Save Pricelevel back to storage
+
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
                 } else {
-                    // As we consumed the linkedpricelevel completely remove that from asks_levels
-                    // asks_levels is already sorted and the best_ask_price should be the first item
-                    // so we don't need to sort it after we remove and simply remove it
+
                     asks_levels.remove(0);
-                    // Update the Orderbook
+
                     if asks_levels.len() == 0 {
                         orderbook.best_ask_price = FixedU128::from(0);
                     } else {
@@ -1024,16 +1061,12 @@ impl<T: Trait> Module<T> {
                     }
                 }
 
-                // Write it back to storage.
+
                 <AsksLevels<T>>::insert(&current_order.trading_pair, asks_levels);
             }
 
             OrderType::AskLimit => {
-                // The incoming order is AskLimit and it will be able to match best_bid_price
-                // Hence, we load the corresponding LinkedPriceLevel of best_bid_price from storage and execute
 
-                // we want to match the orders until the current_price is greater than the bid_price
-                // or the current_order is fulfilled completely
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_bid_price);
                 let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                 while current_order.quantity > FixedU128::from(0) {
@@ -1045,57 +1078,43 @@ impl<T: Trait> Module<T> {
                                                 orderbook.quote_asset_id)?;
 
                         if counter_order.quantity > FixedU128::from(0) {
-                            // Emit events
+
                             Self::emit_partial_fill(&counter_order, current_order.quantity);
-                            // counter_order was not completely used so we store it back in the FIFO
+
                             linkedpricelevel.orders.push_front(counter_order);
                         } else {
-                            // Emit events
+
                             Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
-                        // As no more orders are available in the linkedpricelevel.
-                        // we check if we can match with the next available level
 
-                        // As we consumed the linkedpricelevel completely remove that from bids_levels
-
-                        // bids_levels is already sorted and the best_bid_price should be the first item
-                        // so we don't need to sort it after we remove and simply remove it
-                        // NOTE: In asks_levels & bids_levels all items are unique.
                         bids_levels.remove(bids_levels.len() - 1);
 
 
                         if linkedpricelevel.next.is_none() {
-                            // No more price levels available
+
                             break;
                         }
                         if current_order.price <= linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())? {
-                            // In this case current_order.quantity is remaining and
-                            // it can match with next price level in orderbook.
 
-                            // Last best_bid_price is consumed and doesn't exist anymore hence
-                            // we set new best_bid_price in orderbook.
                             orderbook.best_bid_price = linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?;
                             linkedpricelevel = <PriceLevels<T>>::take(&current_order.trading_pair, linkedpricelevel.next.ok_or(Error::<T>::NoElementFound.into())?);
                         } else {
-                            // In this case, the current_order cannot match with the best_bid_price available
-                            // so let's break the while loop and return the current_order and orderbook
+
                             break;
                         }
                     }
                 }
 
                 if !linkedpricelevel.orders.is_empty() {
-                    // Save Pricelevel back to storage
+
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
                 } else {
-                    // As we consumed the linkedpricelevel completely remove that from bids_levels
-                    // bids_levels is already sorted and the best_bid_price should be the last item
-                    // so we don't need to sort it after we remove and simply remove it
+
                     if bids_levels.len() != 0 {
                         bids_levels.remove(bids_levels.len() - 1);
                     }
-                    // Update the Orderbook
+
                     if bids_levels.len() == 0 {
                         orderbook.best_bid_price = FixedU128::from(0);
                     } else {
@@ -1110,14 +1129,12 @@ impl<T: Trait> Module<T> {
                     }
                 }
 
-                // Write it back to storage.
+
                 <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
             }
 
             OrderType::AskMarket => {
-                // Incoming Order is a Market Sell, so trader wants to sell current_order.quantity
-                // at best possible price.
-                // We load the best_bid_price level and start to fill the order
+
                 let mut linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(&current_order.trading_pair, &orderbook.best_bid_price);
                 let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                 while current_order.quantity > FixedU128::from(0) {
@@ -1129,26 +1146,20 @@ impl<T: Trait> Module<T> {
                                                        orderbook.quote_asset_id)?;
 
                         if counter_order.quantity > FixedU128::from(0) {
-                            // Emit events
+
                             Self::emit_partial_fill(&counter_order, current_order.quantity);
-                            // counter_order was not completely used so we store it back in the FIFO
+
                             linkedpricelevel.orders.push_front(counter_order);
                         } else {
-                            // Emit events
+
                             Self::emit_complete_fill(&counter_order, current_order.quantity);
                         }
                     } else {
-                        // As no more orders are available in the linkedpricelevel.
-                        // we check if we can match with the next available level
 
-                        // As we consumed the linkedpricelevel completely remove that from bids_levels
-                        // bids_levels is already sorted and the best_bid_price should be the first item
-                        // so we don't need to sort it after we remove and simply remove it
-                        // NOTE: In asks_levels & bids_levels all items are unique.
                         bids_levels.remove(bids_levels.len() - 1);
 
                         if linkedpricelevel.next.is_none() {
-                            // No more price levels available
+
                             break;
                         }
 
@@ -1158,16 +1169,14 @@ impl<T: Trait> Module<T> {
                 }
 
                 if !linkedpricelevel.orders.is_empty() {
-                    // Save Pricelevel back to storage
+
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_bid_price, linkedpricelevel);
                 } else {
-                    // As we consumed the linkedpricelevel completely remove that from bids_levels
-                    // bids_levels is already sorted and the best_bid_price should be the first item
-                    // so we don't need to sort it after we remove and simply remove it
+
                     if bids_levels.len() != 0 {
                         bids_levels.remove(bids_levels.len() - 1);
                     }
-                    // Update the Orderbook
+
                     if bids_levels.len() == 0 {
                         orderbook.best_bid_price = FixedU128::from(0);
                     } else {
@@ -1182,15 +1191,15 @@ impl<T: Trait> Module<T> {
                     }
                 }
 
-                // Write it back to storage.
+
                 <BidsLevels<T>>::insert(&current_order.trading_pair, bids_levels);
             }
         }
-        // Write the market data back to storage
+
         <MarketInfo<T>>::insert(&current_order.trading_pair, current_block_number, market_data);
         Ok(())
     }
-
+    ///TODO
     fn do_asset_exchange_market(current_order: &mut Order<T>, counter_order: &mut Order<T>, market_data: &mut MarketData, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> Result<(), Error<T>> {
         if market_data.low == FixedU128::from(0) {
             market_data.low = counter_order.price
@@ -1207,69 +1216,65 @@ impl<T: Trait> Module<T> {
         match current_order.order_type {
             OrderType::BidMarket => {
                 let current_order_quantity = current_order.price.checked_div(&counter_order.price).ok_or(Error::<T>::DivUnderflowOrOverflow.into())?;
-                // 100/5 = 20.
+
                 if current_order_quantity <= counter_order.quantity {
-                    // We have enough quantity in the counter_order to fulfill current_order completely
-                    // Transfer the base asset
+
                     Self::transfer_asset_market(base_assetid, current_order.price, &current_order.trader, &counter_order.trader)?;
-                    // Transfer the quote asset
+
                     Self::transfer_asset(quote_assetid, current_order_quantity, &counter_order.trader, &current_order.trader)?;
-                    // Add the volume executed
+
                     market_data.volume = market_data.volume.checked_add(&current_order.price).ok_or(Error::<T>::AddUnderflowOrOverflow.into())?;
-                    //Set current_order quantity to 0 and counter_order is reduced by fulfilled amount
+
                     counter_order.quantity = counter_order.quantity.checked_sub(&current_order_quantity).ok_or(Error::<T>::SubUnderflowOrOverflow.into())?;
                     current_order.price = FixedU128::from(0);
                 } else {
                     let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).ok_or(Error::<T>::MulUnderflowOrOverflow.into())?;
-                    // Transfer the base asset
+
                     Self::transfer_asset_market(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
-                    // Transfer the quote asset
+
                     Self::transfer_asset(quote_assetid, counter_order.quantity, &counter_order.trader, &current_order.trader)?;
-                    // Add the volume executed
+
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(Error::<T>::AddUnderflowOrOverflow.into())?;
-                    // counter_order is set to 0 and current_order.price is reduced by fulfilled amount
+
                     counter_order.quantity = FixedU128::from(0);
                     current_order.price = current_order.price.checked_sub(&trade_amount).ok_or(Error::<T>::SubUnderflowOrOverflow.into())?;
                 }
             }
             OrderType::AskMarket => {
                 if current_order.quantity <= counter_order.quantity {
-                    // We have enough quantity in the counter_order to fulfill current_order completely
+
                     let trade_amount = counter_order.price.checked_mul(&current_order.quantity).ok_or(Error::<T>::MulUnderflowOrOverflow.into())?;
-                    // Transfer the base asset
+
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
-                    // Transfer the quote asset
+
                     Self::transfer_asset_market(quote_assetid, current_order.quantity, &current_order.trader, &counter_order.trader)?;
-                    // Add the volume executed
+
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(Error::<T>::AddUnderflowOrOverflow.into())?;
-                    // current_order is set to 0 and counter_order is reduced by fulfilled amount
+
                     counter_order.quantity = counter_order.quantity.checked_sub(&current_order.quantity).ok_or(Error::<T>::SubUnderflowOrOverflow.into())?;
                     current_order.quantity = FixedU128::from(0);
                 } else {
-                    // We have enough quantity in the counter_order to fulfill current_order completely
+
                     let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).ok_or(Error::<T>::MulUnderflowOrOverflow.into())?;
-                    // Transfer the base asset
+
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
-                    // Transfer the quote asset
+
                     Self::transfer_asset_market(quote_assetid, counter_order.quantity, &current_order.trader, &counter_order.trader)?;
-                    // Add the volume executed
+
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(Error::<T>::AddUnderflowOrOverflow.into())?;
-                    // counter_order is set to 0 and current_order is reduced by fulfilled amount
+
                     current_order.quantity = current_order.quantity.checked_sub(&counter_order.quantity).ok_or(Error::<T>::SubUnderflowOrOverflow.into())?;
                     counter_order.quantity = FixedU128::from(0);
                 }
             }
             _ => {
-                // It won't execute.
+
             }
         }
         Ok(())
     }
 
-    // It checks the if the counter_order.quantity has enough to fulfill current_order then exchanges
-    // it after collecting fees and else if counter_order.quantity is less than current_order.quantity
-    // then exchange counter_order.quantity completely and return.
-    // current_order.quantity is modified to new value.
+    ///TODO
     fn do_asset_exchange(current_order: &mut Order<T>, counter_order: &mut Order<T>, market_data: &mut MarketData, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> Result<(), Error<T>> {
         if market_data.low == FixedU128::from(0) {
             market_data.low = counter_order.price
@@ -1285,66 +1290,54 @@ impl<T: Trait> Module<T> {
         }
         match current_order.order_type {
             OrderType::BidLimit => {
-                // BTC/USDT - quote/base
-                // The current order is trying to buy the quote_asset
+
                 if current_order.quantity <= counter_order.quantity {
-                    // We have enough quantity in the counter_order to fulfill current_order completely
-                    // Calculate the total cost in base asset for buying required amount
+
                     let trade_amount = current_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
-                    // Transfer the base asset
-                    // AssetId, amount to send, from, to
+
                     Self::transfer_asset(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
-                    // Transfer the quote asset
+
                     Self::transfer_asset(quote_assetid, current_order.quantity, &counter_order.trader, &current_order.trader)?;
-                    // Add the executed volume
+
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(<Error<T>>::AddUnderflowOrOverflow.into())?;
-                    //Set Current order quantity to 0 and counter_order is subtracted.
+
                     counter_order.quantity = counter_order.quantity.checked_sub(&current_order.quantity).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
                     current_order.quantity = FixedU128::from(0);
                 } else {
-                    // current_order is partially filled and counter_order is completely filled.
-                    // Calculate the total cost in base asset for buying required amount
+
                     let trade_amount = current_order.price.checked_mul(&counter_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
-                    // Transfer the base asset
-                    // AssetId, amount to send, from, to
+
                     Self::transfer_asset(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
-                    // Transfer the quote asset from counter_order to current_order's trader.
+
                     Self::transfer_asset(quote_assetid, counter_order.quantity, &counter_order.trader, &current_order.trader)?;
-                    // Add the volume executed
+
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
-                    //Set counter_order quantity to 0 and current_order is subtracted.
                     current_order.quantity = current_order.quantity.checked_sub(&counter_order.quantity).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
                     counter_order.quantity = FixedU128::from(0);
                 }
             }
             OrderType::AskLimit => {
-                // The current order is trying to sell the quote_asset
                 if current_order.quantity <= counter_order.quantity {
-                    // We have enough quantity in the counter_order to fulfill current_order completely
-                    // Calculate the total cost in base asset for selling the required amount
+
                     let trade_amount = counter_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
-                    // Transfer the base asset
-                    // AssetId, amount to send, from, to
+
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
-                    // Transfer the quote asset
+
                     Self::transfer_asset(quote_assetid, current_order.quantity, &current_order.trader, &counter_order.trader)?;
-                    // Add the volume executed
+
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(<Error<T>>::AddUnderflowOrOverflow.into())?;
-                    //Set Current order quantity to 0 and counter_order is subtracted.
+
                     counter_order.quantity = counter_order.quantity.checked_sub(&current_order.quantity).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
                     current_order.quantity = FixedU128::from(0);
                 } else {
-                    // current_order is partially filled and counter_order is completely filled.
-                    // Calculate the total cost in base asset for selling the required amount
+
                     let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
-                    // Transfer the base asset
-                    // AssetId, amount to send, from, to
+
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
-                    // Transfer the quote asset from counter_order to current_order's trader.
+
                     Self::transfer_asset(quote_assetid, counter_order.quantity, &current_order.trader, &counter_order.trader)?;
-                    // Add the volume executed
+
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(<Error<T>>::AddUnderflowOrOverflow.into())?;
-                    //Set counter_order quantity to 0 and current_order is subtracted.
                     current_order.quantity = current_order.quantity.checked_sub(&counter_order.quantity).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
                     counter_order.quantity = FixedU128::from(0);
                 }
@@ -1355,10 +1348,10 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    // Transfers the balance of traders
+    /// Transfers the balance of traders
     fn transfer_asset(asset_id: T::AssetId, amount: FixedU128, from: &T::AccountId, to: &T::AccountId) -> Result<(), Error<T>> {
         let amount_balance = Self::convert_fixed_u128_to_balance(amount).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
-        // Initially the balance was reserved so now it is unreserved and then transfer is made
+
         pallet_generic_asset::Module::<T>::unreserve(&asset_id, from, amount_balance);
         match pallet_generic_asset::Module::<T>::make_transfer(&asset_id, from, to,
                                                                amount_balance) {
@@ -1367,7 +1360,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    // Transfers the balance of traders
+    /// Transfers the balance of traders
     fn transfer_asset_market(asset_id: T::AssetId, amount: FixedU128, from: &T::AccountId, to: &T::AccountId) -> Result<(), Error<T>> {
         let amount_balance = Self::convert_fixed_u128_to_balance(amount).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
         match pallet_generic_asset::Module::<T>::make_transfer(&asset_id, from, to,
@@ -1377,7 +1370,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    // Checks all the basic checks
+    /// Checks all the basic checks
     fn basic_order_checks(order: &Order<T>) -> Result<Orderbook<T>, Error<T>> {
         match order.order_type {
             OrderType::BidLimit | OrderType::AskLimit if order.price <= FixedU128::from(0) || order.quantity <= FixedU128::from(0) => Err(<Error<T>>::InvalidPriceOrQuantityLimit.into()),
@@ -1387,6 +1380,7 @@ impl<T: Trait> Module<T> {
             OrderType::AskMarket | OrderType::AskLimit => Self::check_order(order),
         }
     }
+    /// Helper function for basic_order_check
     fn check_order(order: &Order<T>) -> Result<Orderbook<T>, Error<T>> {
         let orderbook: Orderbook<T> = <Orderbooks<T>>::get(&order.trading_pair);
         let balance: <T>::Balance = match order.order_type {
@@ -1404,7 +1398,7 @@ impl<T: Trait> Module<T> {
             _ => Err(<Error<T>>::InternalErrorU128Balance.into()),
         }
     }
-
+    /// Helper function for basic_order_check
     fn compare_balance(converted_balance: FixedU128, order: &Order<T>, orderbook: Orderbook<T>) -> Result<Orderbook<T>, Error<T>> {
         match order.price.checked_mul(&order.quantity) {
             Some(trade_amount) if converted_balance < trade_amount => Err(<Error<T>>::InsufficientAssetBalance.into()),
@@ -1412,7 +1406,7 @@ impl<T: Trait> Module<T> {
             _ => Err(<Error<T>>::InternalErrorU128Balance.into()),
         }
     }
-
+    /// Helper function for basic_order_check
     fn reserve_user_balance(orderbook: Orderbook<T>, order: &Order<T>, amount: FixedU128) -> Result<Orderbook<T>, Error<T>> {
         // TODO: Based on BidLimit or AskLimit we need to change between orderbook.base_asset_id & orderbook.quote_asset_id respectively
         let asset_id = if order.order_type == OrderType::AskLimit { &orderbook.quote_asset_id } else { &orderbook.base_asset_id };
@@ -1431,7 +1425,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    // Converts Balance to FixedU128 representation
+    /// Converts Balance to FixedU128 representation
     pub fn convert_balance_to_fixed_u128(x: T::Balance) -> Option<FixedU128> {
         if let Some(y) = TryInto::<u128>::try_into(x).ok() {
             FixedU128::from(y).checked_div(&FixedU128::from(1_000_000_000_000))
@@ -1440,7 +1434,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    // Converts FixedU128 to Balance representation
+    /// Converts FixedU128 to Balance representation
     pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<T::Balance> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
@@ -1450,6 +1444,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    /// Function for emitting event.
     pub fn emit_partial_fill(order: &Order<T>, filled_amount: FixedU128) {
         Self::deposit_event(RawEvent::PartialFillLimitOrder(order.id,
                                                             order.trading_pair,
@@ -1459,6 +1454,7 @@ impl<T: Trait> Module<T> {
                                                             order.trader.clone()));
     }
 
+    /// Function for emitting event.
     pub fn emit_complete_fill(order: &Order<T>, filled_amount: FixedU128) {
         Self::deposit_event(RawEvent::FulfilledLimitOrder(order.id,
                                                           order.trading_pair,
@@ -1468,7 +1464,7 @@ impl<T: Trait> Module<T> {
                                                           order.trader.clone()));
     }
 
-    // Cancels an existing active order
+    /// Cancels an existing active order
     pub fn cancel_order_from_orderbook(trader: T::AccountId, order_id: T::Hash, trading_pair: T::Hash, price: FixedU128) -> Result<(), Error<T>> {
         // There are two situations we get the LinkedPriceLevel delete the order from that FIFO
         // FIFO can be empty after this operation so we delete the LinkedPriceLevel and modify the
@@ -1490,7 +1486,7 @@ impl<T: Trait> Module<T> {
         // TODO: Can we optimize this iteration? or even completely remove it?
         for order in current_linkedpricelevel.orders.iter() {
             if order.id == order_id {
-                removed_order = current_linkedpricelevel.orders.remove(index).unwrap(); // later
+                removed_order = current_linkedpricelevel.orders.remove(index).ok_or(<Error<T>>::NoElementFound.into())?; // later
                 match_flag = true;
                 break;
             }
@@ -1511,45 +1507,45 @@ impl<T: Trait> Module<T> {
         // make sure the linkedlist is not broken when this linked item was removed so modify the next and prev members accordingly.
         // Also check if the it is the best_bid_price or best_ask_price if so modify that too.
         if current_linkedpricelevel.prev.is_some() && current_linkedpricelevel.next.is_some() {
-            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.unwrap()); //later
-            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.unwrap()); //later
+            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.ok_or(<Error<T>>::NoElementFound.into())?); //later
+            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.ok_or(<Error<T>>::NoElementFound.into())?); //later
 
             // Fix the broken linkedlist
             prev_linkedpricelevel.next = current_linkedpricelevel.next;
             next_linkedpricelevel.prev = current_linkedpricelevel.prev;
 
             // Write it back
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.unwrap(), prev_linkedpricelevel); //later
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.unwrap(), next_linkedpricelevel); //later
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.ok_or(<Error<T>>::NoElementFound.into())?, prev_linkedpricelevel); //later
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.ok_or(<Error<T>>::NoElementFound.into())?, next_linkedpricelevel); //later
         }
 
         if current_linkedpricelevel.prev.is_some() && current_linkedpricelevel.next.is_none() {
-            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.unwrap()); //later
+            let mut prev_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.prev.ok_or(<Error<T>>::NoElementFound.into())?); //later
 
             // Fix the broken linkedlist
             prev_linkedpricelevel.next = None;
 
             // Write it back
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.unwrap(), prev_linkedpricelevel); //later
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.prev.ok_or(<Error<T>>::NoElementFound.into())?, prev_linkedpricelevel); //later
         }
         if current_linkedpricelevel.prev.is_none() && current_linkedpricelevel.next.is_some() {
-            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.unwrap()); //later
+            let mut next_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(trading_pair, current_linkedpricelevel.next.ok_or(<Error<T>>::NoElementFound.into())?); //later
 
             // Fix the broken linkedlist
             next_linkedpricelevel.prev = None;
 
             // Write it back
-            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.unwrap(), next_linkedpricelevel); //later
+            <PriceLevels<T>>::insert(trading_pair, current_linkedpricelevel.next.ok_or(<Error<T>>::NoElementFound.into())?, next_linkedpricelevel); //later
 
             // Update the orderbook
             let mut orderbook: Orderbook<T> = <Orderbooks<T>>::get(trading_pair);
             // Update the best_bid_price if applicable
             if removed_order.order_type == OrderType::BidLimit && price == orderbook.best_bid_price {
-                orderbook.best_bid_price = current_linkedpricelevel.next.unwrap();   //later
+                orderbook.best_bid_price = current_linkedpricelevel.next.ok_or(<Error<T>>::NoElementFound.into())?;   //later
             }
             // Update the best_ask_price if applicable
             if removed_order.order_type == OrderType::AskLimit && price == orderbook.best_ask_price {
-                orderbook.best_ask_price = current_linkedpricelevel.next.unwrap();  //later
+                orderbook.best_ask_price = current_linkedpricelevel.next.ok_or(<Error<T>>::NoElementFound.into())?;  //later
             }
             // Write orderbook back to storage
             <Orderbooks<T>>::insert(trading_pair, orderbook);
