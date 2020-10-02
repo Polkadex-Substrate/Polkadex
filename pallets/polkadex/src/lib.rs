@@ -130,9 +130,9 @@ decl_module! {
         ///
         /// * `origin` - This contains the detail of Origin from where Transaction originated.
         ///
-        /// * `quote_asset_id` - Id of Counter Asset (Used to determine value of Base Asset).
+        /// * `quote_asset_id` - pallet_generic_asset AssetId of Counter Asset .
         ///
-        /// * `base_asset_id` - Id of Base Asset (Used for transactions).
+        /// * `base_asset_id` - pallet_generic_asset AssetId Base Asset.
         ///
         /// # Return
         ///
@@ -166,9 +166,9 @@ decl_module! {
         ///
         /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
         ///
-        /// * `price` - Price provided by Trader.
+        /// * `price` - Price provided by Trader in base_asset.
         ///
-        /// * `quantity` - Quantity provided by Trader.
+        /// * `quantity` - Quantity provided by Trader in quote_asset.
         ///
         /// # Return
         ///
@@ -197,7 +197,7 @@ decl_module! {
         ///
         /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
         ///
-        /// * `price` - Price provided by Trader.
+        /// * `price` - Price provided by Trader in base_asset.
         ///
         /// # Return
         ///
@@ -921,7 +921,7 @@ impl<T: Trait> Module<T> {
         }
         Ok(())
     }
-    /// TODO
+    /// The incoming order is matched against existing orders from orderbook
     fn consume_order(current_order: &mut Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
         let mut market_data: MarketData;
 
@@ -1199,7 +1199,7 @@ impl<T: Trait> Module<T> {
         <MarketInfo<T>>::insert(&current_order.trading_pair, current_block_number, market_data);
         Ok(())
     }
-    ///TODO
+    /// Function un-reserves and transfers assets balances between traders
     fn do_asset_exchange_market(current_order: &mut Order<T>, counter_order: &mut Order<T>, market_data: &mut MarketData, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> Result<(), Error<T>> {
         if market_data.low == FixedU128::from(0) {
             market_data.low = counter_order.price
@@ -1274,7 +1274,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    ///TODO
+    /// Function un-reserves and transfers assets balances between traders
     fn do_asset_exchange(current_order: &mut Order<T>, counter_order: &mut Order<T>, market_data: &mut MarketData, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> Result<(), Error<T>> {
         if market_data.low == FixedU128::from(0) {
             market_data.low = counter_order.price
