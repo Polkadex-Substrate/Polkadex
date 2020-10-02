@@ -16,9 +16,9 @@ services:
         target: /root/.local
     command: bash -c "cargo build --release && ./target/release/node-polkadex --dev --ws-external"
     
-  test:
-    container_name: node-test
-    build: tests/
-    depends_on:
-      - dev
-    network_mode: "host"
+#  test:
+#    container_name: node-test
+#    build: tests/
+#    depends_on:
+#      - dev
+#    network_mode: "host"
