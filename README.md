@@ -31,6 +31,11 @@ The value we provide to the Substrate community is,
 3. They get a decentralized trading platform to trade Polkadot & Ethereum tokens.
 4. This will be one of the first Decentralized exchanges to have High-Frequency Trading bot support using APIs directly from full nodes.
 ![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
+## Run the node :dancer:
+You need to have docker installed to run Polkadex. Use the command given below.
+```
+docker-compose up
+```
 ## Documentation :books:
 For Tutorials, Documentation and API Reference please check this [page](https://github.com/Polkadex-Substrate/Documentation)
 ## Contribute :heart_eyes:
