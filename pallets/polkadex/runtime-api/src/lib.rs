@@ -9,8 +9,7 @@ use pallet_polkadex::LinkedPriceLevelRpc;
 use pallet_polkadex::MarketDataRpc;
 use pallet_polkadex::OrderbookRpc;
 use pallet_polkadex::ErrorRpc;
-use pallet_polkadex::Trait;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+
 
 
 sp_api::decl_runtime_apis!{

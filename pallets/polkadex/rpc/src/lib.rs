@@ -11,7 +11,6 @@ use sp_arithmetic::FixedU128;
 use sp_core::H256;
 use sp_std::vec::Vec;
 use pallet_polkadex::{LinkedPriceLevelRpc, OrderbookRpc, MarketDataRpc, ErrorRpc};
-use pallet_polkadex::Trait;
 
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
@@ -95,17 +94,15 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
     fn get_ask_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
-            // Always take the best block hash for this RPC
-            self.client.info().best_hash);
 
-        // let hash_trading_pair = H256::from(trading_pair);
+            self.client.info().best_hash);
         let runtime_api_result = api.get_ask_level(&at, trading_pair);
         let temp = match runtime_api_result {
             Ok(x) => match x{
                 Ok(z) => Ok(z),
                 Err(x) => Err(x),
             }
-            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+            Err(_) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
         };
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
 
@@ -137,7 +134,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
                 Ok(z) => Ok(z),
                 Err(x) => Err(x),
             }
-            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+            Err(_) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
         };
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
@@ -155,7 +152,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
                 Ok(z) => Ok(z),
                 Err(x) => Err(x),
             }
-            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+            Err(_) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
         };
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
@@ -173,7 +170,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
                 Ok(z) => Ok(z),
                 Err(x) => Err(x),
             }
-            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+            Err(_) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
         };
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
@@ -191,12 +188,12 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
                 Ok(z) => Ok(z),
                 Err(x) => Err(x),
             }
-            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+            Err(_) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
         };
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
-    fn get_market_info(&self, at: Option<<Block as BlockT>::Hash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc> {
+    fn get_market_info(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             // Always take the best block hash for this RPC
@@ -208,7 +205,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
                 Ok(z) => Ok(z),
                 Err(x) => Err(x),
             }
-            Err(x) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
+            Err(_) => Err(ErrorRpc::Fixedu128tou128conversionFailed), // change
         };
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
 
