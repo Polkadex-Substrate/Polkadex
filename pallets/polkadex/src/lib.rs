@@ -3,6 +3,7 @@
 use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
 use frame_support::traits::Get;
+
 use frame_system::ensure_signed;
 use pallet_generic_asset::AssetIdProvider;
 #[cfg(feature = "std")]
@@ -14,6 +15,7 @@ use sp_std::collections::vec_deque::VecDeque;
 use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
+
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -108,7 +110,7 @@ decl_storage! {
 	// Store MarketData of TradingPairs
 	// If the market data is returning None, then no trades were present for that trading in that block.
 	// TODO: Currently we store market data for all the blocks
-	MarketInfo get(fn get_marketdata): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) T::BlockNumber => Option<MarketData>;
+	MarketInfo get(fn get_marketdata): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) T::BlockNumber => MarketData;
 	Nonce: u128;
 	}
 }
@@ -135,6 +137,7 @@ decl_module! {
         /// # Return
         ///
         ///  This function returns a status that, new Trading Pair is successfully registered or not.
+
 		#[weight = 10000]
 		pub fn register_new_orderbook(origin, quote_asset_id: u32, base_asset_id: u32) -> dispatch::DispatchResultWithPostInfo{
 		    let trader = ensure_signed(origin)?;
@@ -444,12 +447,22 @@ impl MarketData {
         Ok(market_data)
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<u128> {
+    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
         if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
             let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128)
+            Some(balance_in_u128.encode())
         } else {
             None
+        }
+    }
+}
+
+impl Default for MarketData {
+    fn default() -> Self {
+        MarketData {
+            low: FixedU128::from(0),
+            high: FixedU128::from(0),
+            volume: FixedU128::from(0),
         }
     }
 }
@@ -457,9 +470,9 @@ impl MarketData {
 #[derive(Encode, Decode, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct MarketDataRpc {
-    low: u128,
-    high: u128,
-    volume: u128,
+    low: Vec<u8>,
+    high: Vec<u8>,
+    volume: Vec<u8>,
 }
 
 impl<T: Trait> Module<T> {
@@ -472,6 +485,7 @@ impl<T: Trait> Module<T> {
     /// # Return
     ///
     ///  This function returns List of Ask Level otherwise Related Error.
+
     pub fn get_ask_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
         let ask_level = <AsksLevels<T>>::get(trading_pair);
         Ok(ask_level)
@@ -548,10 +562,15 @@ impl<T: Trait> Module<T> {
     /// # Return
     ///
     ///  This function returns all Orderbooks otherwise Related Error.
+
     pub fn get_market_info(trading_pair: T::Hash, blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
         let blocknum = Self::u32_to_blocknum(blocknum);
-        let temp = <MarketInfo<T>>::get(trading_pair, blocknum);
-        temp.ok_or(ErrorRpc::NoElementFound)?.convert()
+        if <MarketInfo<T>>::contains_key(trading_pair, blocknum) {
+            let temp: MarketData = <MarketInfo<T>>::get(trading_pair, blocknum);
+            temp.convert()
+        } else {
+            Err(ErrorRpc::NoElementFound)
+        }
     }
 
     pub fn u32_to_blocknum(input: u32) -> T::BlockNumber {
@@ -907,18 +926,16 @@ impl<T: Trait> Module<T> {
         let mut market_data: MarketData;
 
         let current_block_number: T::BlockNumber = <frame_system::Module<T>>::block_number();
-        match <MarketInfo<T>>::get(current_order.trading_pair, current_block_number) {
-            Some(_market_data) => {
-                market_data = _market_data;
-            }
-            None => {
-                market_data = MarketData {
-                    low: FixedU128::from(0),
-                    high: FixedU128::from(0),
-                    volume: FixedU128::from(0),
-                }
+        if <MarketInfo<T>>::contains_key(&current_order.trading_pair, current_block_number) {
+            market_data = <MarketInfo<T>>::get(&current_order.trading_pair, <frame_system::Module<T>>::block_number())
+        } else {
+            market_data = MarketData {
+                low: FixedU128::from(0),
+                high: FixedU128::from(0),
+                volume: FixedU128::from(0),
             }
         }
+
         match current_order.order_type {
             OrderType::BidLimit => {
 
