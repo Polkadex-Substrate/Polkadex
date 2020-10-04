@@ -48,9 +48,6 @@ pub fn create_full<C, P>(
 		deny_unsafe,
 	} = deps;
 
-	io.extend_with(crate::silly_rpc::SillyRpc::to_delegate(
-		crate::silly_rpc::Silly {},
-	));
 
 	io.extend_with(rpc::DexStorageApi::to_delegate(
 		rpc::DexStorage::new(client.clone()),
@@ -64,10 +61,7 @@ pub fn create_full<C, P>(
 		TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone()))
 	);
 
-	// Extend this RPC with a custom API by using the following syntax.
-	// `YourRpcStruct` should have a reference to a client, which is needed
-	// to call into the runtime.
-	// `io.extend_with(YourRpcTrait::to_delegate(YourRpcStruct::new(ReferenceToClient, ...)));`
+
 
 	io
 }
