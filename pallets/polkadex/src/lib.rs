@@ -144,6 +144,9 @@ decl_module! {
 		    // Checks the tradingPair whether exists
 		    let trading_pair_id = Self::create_trading_pair_id(&quote_asset_id,&base_asset_id);
 		    ensure!(!<Orderbooks<T>>::contains_key(&trading_pair_id), <Error<T>>::TradingPairIDExists);
+		    // BTC/ETH and ETH/BTC are considered the same market
+		    let trading_pair_id_rev =  Self::create_trading_pair_id(&base_asset_id,&quote_asset_id);
+		    ensure!(!<Orderbooks<T>>::contains_key(&trading_pair_id_rev), <Error<T>>::TradingPairIDExists);
 
 		    // The origin should reserve a certain amount of SpendingAssetCurrency for registering the pair
 		    ensure!(Self::reserve_balance_registration(&trader), <Error<T>>::InsufficientAssetBalance);
