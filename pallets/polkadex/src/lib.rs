@@ -87,6 +87,8 @@ decl_error! {
 		InvalidOrderID,
 		///Price or Quantity too low
 		PriceOrQuantityTooLow,
+		/// OverFlow Error - Price or Quantity value is too high
+		OverFlowError,
 	}
 }
 
@@ -176,9 +178,10 @@ decl_module! {
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
 
-            // TODO: Add a upper bound
-
-            ensure!(price > 1000000.into() || quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+            ensure!(price.checked_mul(&quantity).is_some(),<Error<T>>::OverFlowError);
+            if order_type == OrderType::BidLimit || order_type == OrderType::AskLimit{
+                ensure!(price > 1000000.into() && quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+            }
             let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 
             let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).ok_or(<Error<T>>::InternalErrorU128Balance)?;

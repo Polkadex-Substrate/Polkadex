@@ -1,11 +1,11 @@
 use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
-use sp_runtime::{
-    Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup},
-};
+use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}};
+use pallet_generic_asset;
 
 use crate::{Module, Trait};
+
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -66,8 +66,22 @@ impl pallet_generic_asset::Trait for Test {
 }
 
 pub type DEXModule = Module<Test>;
-
+type System = frame_system::Module<Test>;
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+    let endowed_accounts: Vec<u64> = vec![1,2];
+    const UNIT: u128 = 1_000_000_000_000;
+    let mut genesis = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    pallet_generic_asset::GenesisConfig::<Test>{
+        assets: vec![0],
+        initial_balance: 3*UNIT,
+        endowed_accounts: endowed_accounts
+            .clone().into_iter().map(Into::into).collect(),
+        next_asset_id: 1,
+        staking_asset_id: 0,
+        spending_asset_id: 0
+    }.assimilate_storage(&mut genesis).unwrap();
+    let mut ext = sp_io::TestExternalities::new(genesis);
+    ext.execute_with(|| System::set_block_number(1));
+    ext
 }
