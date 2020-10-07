@@ -33,11 +33,12 @@ fn setup_balances_test(){
 #[test]
 fn check_trading_engine(){
     new_test_ext().execute_with(|| {
-        setup_balances();
+
         let alice: u64 = 1;
         let bob: u64 = 2;
         let trading_pair = create_trading_pair_id(&2,&1);
-
+        // Creates two assets using Alice's and Bob's Accounts.
+        setup_balances();
         assert_ok!(DEXModule::register_new_orderbook(Origin::signed(alice),2,1));
         // Place some random buy orders from Alice
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,820*UNIT,(2*UNIT)/10));
