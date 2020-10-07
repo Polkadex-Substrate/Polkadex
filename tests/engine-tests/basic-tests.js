@@ -124,10 +124,4 @@ async function temp() {
             console.log("BOB-RESERVED-BALANCE-TEST: Passed")
         }
     })
-    // Test #4 NOTE: MarketData can be retrieved for each block.
-    // await api.query.polkadex.marketInfo(tradingPairID,27, (marketData)=>{
-    //     console.log(marketData.low.toString())
-    //     console.log(marketData.high.toString())
-    //     console.log(marketData.volume.toString())
-    // })
 }

@@ -87,6 +87,8 @@ decl_error! {
 		InvalidOrderID,
 		///Price or Quantity too low
 		PriceOrQuantityTooLow,
+		/// OverFlow Error - Price or Quantity value is too high
+		OverFlowError,
 	}
 }
 
@@ -176,9 +178,19 @@ decl_module! {
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
 
-            // TODO: Add a upper bound
-
-            ensure!(price > 1000000.into() || quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+            ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
+            ensure!(price.checked_mul(&quantity).is_some(),<Error<T>>::OverFlowError);
+            match order_type {
+                OrderType::BidLimit | OrderType::AskLimit => {
+                    ensure!(price > 1000000.into() && quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                },
+                OrderType::BidMarket => {
+                    ensure!(price > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                },
+                OrderType::AskMarket => {
+                    ensure!(quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                }
+            }
             let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 
             let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).ok_or(<Error<T>>::InternalErrorU128Balance)?;
@@ -192,7 +204,7 @@ decl_module! {
         ///
         /// * `origin` - This contains the detail of Origin from where Transaction originated.
         ///
-        /// * `order_type` - Type of Order. (BidLimit, BidMarket, AskLimit, AskMarket)
+        /// * `order_id` - Id of Order
         ///
         /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
         ///
