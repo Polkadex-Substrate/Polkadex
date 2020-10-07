@@ -178,9 +178,18 @@ decl_module! {
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
 
+            ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
             ensure!(price.checked_mul(&quantity).is_some(),<Error<T>>::OverFlowError);
-            if order_type == OrderType::BidLimit || order_type == OrderType::AskLimit{
-                ensure!(price > 1000000.into() && quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+            match order_type {
+                OrderType::BidLimit | OrderType::AskLimit => {
+                    ensure!(price > 1000000.into() && quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                },
+                OrderType::BidMarket => {
+                    ensure!(price > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                },
+                OrderType::AskMarket => {
+                    ensure!(quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                }
             }
             let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 
@@ -195,7 +204,7 @@ decl_module! {
         ///
         /// * `origin` - This contains the detail of Origin from where Transaction originated.
         ///
-        /// * `order_type` - Type of Order. (BidLimit, BidMarket, AskLimit, AskMarket)
+        /// * `order_id` - Id of Order
         ///
         /// * `trading_pair` - Id of Trading Pair (quote_asset/base_asset).
         ///
