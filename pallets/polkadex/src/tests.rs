@@ -1,6 +1,5 @@
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
-use frame_system::ensure_signed;
 use sp_runtime::traits::Hash;
 
 use crate::{Error, LinkedPriceLevel, mock::*, mock};
@@ -10,6 +9,10 @@ use super::*;
 
 const UNIT: u128 = 1_000_000_000_000;
 
+
+// Creates two token assets for trading
+// Alice - Token #1 - 1000 Units
+// Bob - Token #2 - 1 Unit.
 fn setup_balances() {
     let alice: u64 = 1;
     let bob: u64 = 2;
@@ -34,6 +37,7 @@ fn setup_balances_test() {
     });
 }
 
+// Executes some pre-defined trades and checks if the order book state is as expected.
 #[test]
 fn check_trading_engine() {
     new_test_ext().execute_with(|| {
@@ -75,7 +79,7 @@ fn check_trading_engine() {
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), ((UNIT / 1000000) * 599934));
     });
 }
-
+// Trying to execute orders with price and quantity values that can underflow or overflow.
 #[test]
 fn correct_error_for_low_price_or_quantity() {
     new_test_ext().execute_with(|| {
@@ -97,6 +101,7 @@ fn correct_error_for_low_price_or_quantity() {
     });
 }
 
+// Executing order with trading pair that is not yet registered.
 #[test]
 fn correct_error_for_invalid_trading_pair() {
     new_test_ext().execute_with(|| {
@@ -109,7 +114,7 @@ fn correct_error_for_invalid_trading_pair() {
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,UNIT,UNIT),Error::<Test>::InvalidTradingPair);
     });
 }
-
+// The trader that creates a new trading pair doesn't have enough SpendingCurrency to reserve
 #[test]
 fn correct_error_for_insufficient_balance_to_register_trading_pair() {
     new_test_ext().execute_with(|| {
@@ -118,6 +123,7 @@ fn correct_error_for_insufficient_balance_to_register_trading_pair() {
     });
 }
 
+// Trying to register already existing trading pairs or assets
 #[test]
 fn correct_error_for_registering_same_trading_pair() {
     new_test_ext().execute_with(|| {
@@ -130,6 +136,7 @@ fn correct_error_for_registering_same_trading_pair() {
     });
 }
 
+// Trying to cancel orders in the system
 #[test]
 fn check_cancel_order() {
     new_test_ext().execute_with(|| {
