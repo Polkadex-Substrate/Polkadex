@@ -1230,20 +1230,22 @@ impl<T: Trait> Module<T> {
 
     /// Function un-reserves and transfers assets balances between traders
     fn do_asset_exchange(current_order: &mut Order<T>, counter_order: &mut Order<T>, market_data: &mut MarketData, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> Result<(), Error<T>> {
-        if market_data.low == FixedU128::from(0) {
-            market_data.low = counter_order.price
-        }
-        if market_data.high == FixedU128::from(0) {
-            market_data.high = counter_order.price
-        }
-        if market_data.high < counter_order.price {
-            market_data.high = counter_order.price
-        }
-        if market_data.low > counter_order.price {
-            market_data.low = counter_order.price
-        }
+
         match current_order.order_type {
+
             OrderType::BidLimit => {
+                if market_data.low == FixedU128::from(0) {
+                    market_data.low = current_order.price
+                }
+                if market_data.high == FixedU128::from(0) {
+                    market_data.high = current_order.price
+                }
+                if market_data.high < current_order.price {
+                    market_data.high = current_order.price
+                }
+                if market_data.low > current_order.price {
+                    market_data.low = current_order.price
+                }
                 if current_order.quantity <= counter_order.quantity {
                     let trade_amount = current_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
@@ -1268,6 +1270,18 @@ impl<T: Trait> Module<T> {
                 }
             }
             OrderType::AskLimit => {
+                if market_data.low == FixedU128::from(0) {
+                    market_data.low = counter_order.price
+                }
+                if market_data.high == FixedU128::from(0) {
+                    market_data.high = counter_order.price
+                }
+                if market_data.high < counter_order.price {
+                    market_data.high = counter_order.price
+                }
+                if market_data.low > counter_order.price {
+                    market_data.low = counter_order.price
+                }
                 if current_order.quantity <= counter_order.quantity {
                     let trade_amount = counter_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
