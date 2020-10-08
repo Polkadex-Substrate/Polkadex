@@ -963,11 +963,11 @@ impl<T: Trait> Module<T> {
                 if !linkedpricelevel.orders.is_empty() {
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
                 } else {
-                    asks_levels.remove(0);
 
                     if asks_levels.len() == 0 {
                         orderbook.best_ask_price = FixedU128::from(0);
                     } else {
+                        asks_levels.remove(0);
                         match asks_levels.get(0) {
                             Some(best_price) => {
                                 orderbook.best_ask_price = *best_price;
@@ -1020,11 +1020,11 @@ impl<T: Trait> Module<T> {
                 if !linkedpricelevel.orders.is_empty() {
                     <PriceLevels<T>>::insert(&current_order.trading_pair, &orderbook.best_ask_price, linkedpricelevel);
                 } else {
-                    asks_levels.remove(0);
 
                     if asks_levels.len() == 0 {
                         orderbook.best_ask_price = FixedU128::from(0);
                     } else {
+                        asks_levels.remove(0);
                         match asks_levels.get(0) {
                             Some(best_price) => {
                                 orderbook.best_ask_price = *best_price;
