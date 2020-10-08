@@ -1,4 +1,3 @@
-
 ![Logo](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/Logo.svg)
 ## What is Polkadex? :rocket:
 Polkadex is a Open Source, Decentralized Exchange Platform made using Substrate Blockchain Framework that provides traders with the centralized user experience.
