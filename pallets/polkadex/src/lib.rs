@@ -439,7 +439,7 @@ pub struct OrderbookRpc {
 }
 
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct MarketData {
     // Lowest price at which the trade was executed in a block.
     low: FixedU128,
@@ -447,6 +447,10 @@ pub struct MarketData {
     high: FixedU128,
     // Total volume traded in a block.
     volume: FixedU128,
+    // Opening price for this block.
+    open: FixedU128,
+    // Closing price for this block.
+    close: FixedU128
 }
 
 impl MarketData {
@@ -455,6 +459,8 @@ impl MarketData {
             low: Self::convert_fixed_u128_to_balance(self.low).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             high: Self::convert_fixed_u128_to_balance(self.high).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             volume: Self::convert_fixed_u128_to_balance(self.volume).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            open: Self::convert_fixed_u128_to_balance(self.open).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            close: Self::convert_fixed_u128_to_balance(self.close).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?
         };
         Ok(market_data)
     }
@@ -475,6 +481,8 @@ impl Default for MarketData {
             low: FixedU128::from(0),
             high: FixedU128::from(0),
             volume: FixedU128::from(0),
+            open: FixedU128::from(0),
+            close: FixedU128::from(0)
         }
     }
 }
@@ -485,6 +493,8 @@ pub struct MarketDataRpc {
     low: Vec<u8>,
     high: Vec<u8>,
     volume: Vec<u8>,
+    open: Vec<u8>,
+    close: Vec<u8>
 }
 
 impl<T: Trait> Module<T> {
@@ -921,6 +931,8 @@ impl<T: Trait> Module<T> {
                 low: FixedU128::from(0),
                 high: FixedU128::from(0),
                 volume: FixedU128::from(0),
+                open: FixedU128::from(0),
+                close: FixedU128::from(0)
             }
         }
 
@@ -1161,17 +1173,21 @@ impl<T: Trait> Module<T> {
     /// Function un-reserves and transfers assets balances between traders
     fn do_asset_exchange_market(current_order: &mut Order<T>, counter_order: &mut Order<T>, market_data: &mut MarketData, base_assetid: T::AssetId, quote_assetid: T::AssetId) -> Result<(), Error<T>> {
         if market_data.low == FixedU128::from(0) {
-            market_data.low = counter_order.price
+            market_data.low = counter_order.price;
         }
         if market_data.high == FixedU128::from(0) {
-            market_data.high = counter_order.price
+            market_data.high = counter_order.price;
         }
         if market_data.high < counter_order.price {
-            market_data.high = counter_order.price
+            market_data.high = counter_order.price;
         }
         if market_data.low > counter_order.price {
-            market_data.low = counter_order.price
+            market_data.low = counter_order.price;
         }
+        if market_data.open == FixedU128::from(0){
+            market_data.open = counter_order.price;
+        }
+        market_data.close = counter_order.price;
         match current_order.order_type {
             OrderType::BidMarket => {
                 let current_order_quantity = current_order.price.checked_div(&counter_order.price).ok_or(Error::<T>::DivUnderflowOrOverflow.into())?;
@@ -1246,6 +1262,10 @@ impl<T: Trait> Module<T> {
                 if market_data.low > current_order.price {
                     market_data.low = current_order.price
                 }
+                if market_data.open == FixedU128::from(0){
+                    market_data.open = current_order.price;
+                }
+                market_data.close = current_order.price;
                 if current_order.quantity <= counter_order.quantity {
                     let trade_amount = current_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
@@ -1282,6 +1302,10 @@ impl<T: Trait> Module<T> {
                 if market_data.low > counter_order.price {
                     market_data.low = counter_order.price
                 }
+                if market_data.open == FixedU128::from(0){
+                    market_data.open = counter_order.price;
+                }
+                market_data.close = counter_order.price;
                 if current_order.quantity <= counter_order.quantity {
                     let trade_amount = counter_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
@@ -1305,7 +1329,6 @@ impl<T: Trait> Module<T> {
                     counter_order.quantity = FixedU128::from(0);
                 }
             }
-
             _ => {}
         }
         Ok(())
