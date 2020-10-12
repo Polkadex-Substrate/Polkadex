@@ -2,6 +2,7 @@ language: rust
 rust:
   - nightly-2020-09-28
 cache: cargo
+sudo: false
 branches:
   only:
     - master
