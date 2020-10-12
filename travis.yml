@@ -1,0 +1,12 @@
+language: rust
+rust:
+  - nightly-2020-09-28
+before_cache:
+  - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-09-28
+cache: cargo
+branches:
+  only:
+    - master
+script:
+  - cargo build --verbose --workspace
+  - cargo test --verbose --workspace
