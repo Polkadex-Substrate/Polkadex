@@ -9,6 +9,7 @@ use super::*;
 
 const UNIT: u128 = 1_000_000_000_000;
 
+type System = frame_system::Module<Test>;
 
 // Creates two token assets for trading
 // Alice - Token #1 - 1000 Units
@@ -156,6 +157,86 @@ fn check_cancel_order() {
     });
 }
 
+// Checks if the market data collection
+#[test]
+fn check_market_data(){
+    new_test_ext().execute_with(|| {
+        let alice: u64 = 1;
+        let bob: u64 = 2;
+        let trading_pair = create_trading_pair_id(&2, &1);
+        // Creates two assets using Alice's and Bob's Accounts.
+        setup_balances();
+        assert_ok!(DEXModule::register_new_orderbook(Origin::signed(alice),2,1));
+        // Place some random buy orders from Alice
+        // Place some random buy orders from Alice
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,820*UNIT,(2*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,800*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,850*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,840*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,900*UNIT,(1*UNIT)/10));
+        // Place some random sell limit orders from Bob
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1075*UNIT,(2*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1100*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1060*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1040*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1000*UNIT,(1*UNIT)/10));
+        // Place some random market orders
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/100)*5,0));
+        let mut market_data: MarketData = <MarketInfo<Test>>::get(trading_pair,System::block_number());
+        assert_eq!(market_data,MarketData{
+            low: FixedU128::from(1000),
+            high: FixedU128::from(1000),
+            volume: FixedU128::from_fraction(0.05),
+            open: FixedU128::from(1000),
+            close: FixedU128::from(1000)
+        });
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*5));
+        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
+        assert_eq!(market_data,MarketData{
+            low: FixedU128::from(900),
+            high: FixedU128::from(1000),
+            volume: FixedU128::from_fraction(4.55),
+            open: FixedU128::from(1000),
+            close: FixedU128::from(900)
+        });
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/1000)*16,0));
+        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
+        assert_eq!(market_data,MarketData{
+            low: FixedU128::from(900),
+            high: FixedU128::from(1000),
+            volume: FixedU128::from_fraction(4.566),
+            open: FixedU128::from(1000),
+            close: FixedU128::from(1000)
+        });
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*16));
+        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
+        assert_eq!(market_data,MarketData{
+            low: FixedU128::from(900),
+            high: FixedU128::from(1000),
+            volume: FixedU128::from_fraction(18.966),
+            open: FixedU128::from(1000),
+            close: FixedU128::from(900)
+        });
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,850*UNIT,(80*UNIT)/1000));
+        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
+        assert_eq!(market_data,MarketData{
+            low: FixedU128::from(850),
+            high: FixedU128::from(1000),
+            volume: FixedU128::from_fraction(90.916),
+            open: FixedU128::from(1000),
+            close: FixedU128::from(850)
+        });
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,1040*UNIT,UNIT/10));
+        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
+        assert_eq!(market_data,MarketData{
+            low: FixedU128::from(850),
+            high: FixedU128::from(1040),
+            volume: FixedU128::from_fraction(194.916),
+            open: FixedU128::from(1000),
+            close: FixedU128::from(1040)
+        });
+    });
+}
 
 fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> <mock::Test as frame_system::Trait>::Hash {
     (quote_asset_id, base_asset_id).using_encoded(<Test as frame_system::Trait>::Hashing::hash)
