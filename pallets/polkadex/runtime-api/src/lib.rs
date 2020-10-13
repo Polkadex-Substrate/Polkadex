@@ -5,10 +5,10 @@
 use sp_arithmetic::FixedU128;
 use sp_core::H256;
 use sp_std::vec::Vec;
-use pallet_polkadex::LinkedPriceLevelRpc;
-use pallet_polkadex::MarketDataRpc;
-use pallet_polkadex::OrderbookRpc;
-use pallet_polkadex::ErrorRpc;
+use pallet_polkadex::data_structure_rpc::LinkedPriceLevelRpc;
+use pallet_polkadex::data_structure_rpc::MarketDataRpc;
+use pallet_polkadex::data_structure_rpc::OrderbookRpc;
+use pallet_polkadex::data_structure_rpc::ErrorRpc;
 
 
 

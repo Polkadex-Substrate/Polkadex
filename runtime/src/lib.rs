@@ -16,8 +16,8 @@ use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor, Saturating, OpaqueKeys,
 };
 use sp_api::impl_runtime_apis;
-use polkadex::MarketDataRpc;
-use polkadex::ErrorRpc;
+use polkadex::data_structure_rpc::MarketDataRpc;
+use polkadex::data_structure_rpc::ErrorRpc;
 // use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::curve::PiecewiseLinear;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
@@ -37,7 +37,7 @@ pub use sp_runtime::BuildStorage;
 pub use pallet_staking::StakerStatus;
 
 use pallet_session::{historical as pallet_session_historical};
-use polkadex::OrderbookRpc;
+use polkadex::data_structure_rpc::OrderbookRpc;
 
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -53,7 +53,7 @@ pub use frame_support::{
 
 /// Import the polkadex pallet.
 pub use polkadex;
-use polkadex::LinkedPriceLevelRpc;
+use polkadex::data_structure_rpc::LinkedPriceLevelRpc;
 
 /// An index to a block.
 pub type BlockNumber = u32;
