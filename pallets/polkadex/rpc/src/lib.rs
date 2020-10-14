@@ -11,7 +11,7 @@ use sp_core::H256;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use sp_std::vec::Vec;
 
-use pallet_polkadex::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc};
+use pallet_polkadex::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc};
 use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 
 #[rpc]
