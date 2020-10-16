@@ -1,1 +1,1 @@
-../target/release/node-polkadex --chain customSpecRaw.json --dave --port 30334 --ws-port 9945 --rpc-port 9934 --node-key 00000000000000000000000000000000000000000000000000000000000007 --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+../target/release/node-polkadex --chain customSpecRaw.json --dave --port 30334 --ws-port 9945 --rpc-port 9934 --node-key 0000000000000000000000000000000000000000000000000000000000000003 --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
