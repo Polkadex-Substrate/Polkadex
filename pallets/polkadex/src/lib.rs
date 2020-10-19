@@ -15,11 +15,13 @@ use sp_std::vec::Vec;
 
 use crate::data_structure::{LinkedPriceLevel, MarketData, Order, Orderbook, OrderType};
 use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc};
+use frame_support::weights::Pays;
 
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
+
 pub mod data_structure;
 pub mod data_structure_rpc;
 
@@ -198,7 +200,7 @@ decl_module! {
 
             let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 	        Self::execute_order(trader, order_type, trading_pair, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
-	        Ok(Some(0).into())
+	        Ok(Pays::No.into())
 	    }
 
 
@@ -223,7 +225,7 @@ decl_module! {
 	        ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
 	        let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 	        Self::cancel_order_from_orderbook(trader,order_id,trading_pair,converted_price)?;
-	        Ok(Some(0).into())
+	        Ok(Pays::No.into())
 	    }
     }
 }
