@@ -62,22 +62,22 @@ fn check_trading_engine() {
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1000*UNIT,(1*UNIT)/10));
         // Place some random market orders
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/100)*5,0));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*5));
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/1000)*16,0));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*16));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*5));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/100)*16,0));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*16));
         // Read the block chain state for verifying
         // Balances of Token #1 for Alice
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), ((UNIT / 1000) * 496934));
-        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), ((UNIT / 10) * 4841));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), ((UNIT / 1000) * 282400));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), ((UNIT / 1000) * 319600));
         // Balances of Token #2 for Alice
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), ((UNIT / 1000000) * 21066));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), ((UNIT / 1000000) * 420000));
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &alice), 0);
         // Balances of Token #1 for Bob
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &bob), ((UNIT / 1000) * 18966));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &bob), ((UNIT / 1000) * 398000));
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &bob), 0);
         // Balances of Token #2 for Bob
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), ((UNIT / 1000) * 379));
-        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), ((UNIT / 1000000) * 599934));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), ((UNIT / 1000000) * 190000));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), ((UNIT / 1000000) * 390000));
     });
 }
 // Trying to execute orders with price and quantity values that can underflow or overflow.
