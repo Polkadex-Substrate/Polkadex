@@ -58,7 +58,10 @@ async function polkadex_market_data() {
             "MarketData": {
                 "low": "FixedU128",
                 "high": "FixedU128",
-                "volume": "FixedU128"
+                "volume": "FixedU128",
+                "open": "FixedU128",
+                "close": "FixedU128"
+
             },
             "LinkedPriceLevel": {
                 "next": "Option<FixedU128>",
@@ -102,7 +105,7 @@ async function polkadex_market_data() {
     let bob_nonce = 1;
     binance.websockets.trades(['ETHBTC'], (trades) => {
         let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
-        console.info(symbol+" trade update. price: "+price+", quantity: "+quantity+", BUY: "+maker);
+        // console.info(symbol+" trade update. price: "+price+", quantity: "+quantity+", BUY: "+maker);
         if(maker === true){
             api.tx.polkadex.submitOrder("BidLimit", tradingPairID, (parseFloat(price) * UNIT),
                     (parseFloat(quantity) * UNIT)).signAndSend(alice, {nonce: alice_nonce});
