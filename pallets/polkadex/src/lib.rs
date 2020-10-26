@@ -3,6 +3,7 @@
 use codec::Encode;
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
 use frame_support::traits::Get;
+use frame_support::weights::Pays;
 use frame_system::ensure_signed;
 use pallet_generic_asset::AssetIdProvider;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
@@ -15,7 +16,6 @@ use sp_std::vec::Vec;
 
 use crate::data_structure::{LinkedPriceLevel, MarketData, Order, Orderbook, OrderType};
 use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc};
-use frame_support::weights::Pays;
 
 #[cfg(test)]
 mod mock;

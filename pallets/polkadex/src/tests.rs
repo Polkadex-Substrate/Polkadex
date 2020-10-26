@@ -18,7 +18,7 @@ fn setup_balances() {
     let alice: u64 = 1;
     let bob: u64 = 2;
     let options_alice = pallet_generic_asset::AssetOptions::<u128, u64> {
-        initial_issuance: 1000 * UNIT,
+        initial_issuance: 10000 * UNIT,
         permissions: Default::default(),
     };
     // Creates first asset to alice's account
@@ -61,7 +61,7 @@ fn check_trading_engine() {
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1040*UNIT,(1*UNIT)/10));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1000*UNIT,(1*UNIT)/10));
         // Place some random market orders
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/100)*5,0));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/1)*500,0));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*5));
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/1000)*16,0));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*16));
