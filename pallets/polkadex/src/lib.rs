@@ -180,7 +180,7 @@ decl_module! {
         ///
         ///  This function returns a status that, new Order is successfully created or not.
         #[weight = 10000]
-	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash, price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
+	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash,  price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
 
             ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);

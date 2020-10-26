@@ -1,3 +1,14 @@
+// IMPORTANT NOTE
+// This is a simple tutorial that shows how to retrieve market data from Polkadex nodes in real time
+// These data can be used to do technical analysis off-chain and place trades accordingly.
+// The given example uses trades from ETH/BTC market of Binance Public API to simulate trades. Binance API was not chosen on
+// endorse them but only as an example, It should only be treated as a quick and dirty solution to simulate real trades.
+
+// Polkadex team is not associated with Binance in any way.
+
+
+
+
 // Import
 const {ApiPromise, WsProvider, Keyring} = require('@polkadot/api');
 // Crypto promise, package used by keyring internally
@@ -83,6 +94,7 @@ async function polkadex_market_data() {
 
     const tradingPairID = "0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9";
     const UNIT = 1000000000000;
+    const total_issuance = 1000*UNIT;
     const FixedU128_denominator = 1000000000000000000;
     let options = {
         permissions: {
@@ -92,9 +104,9 @@ async function polkadex_market_data() {
         }
     }
     // Create first token - Say USDT
-    await api.tx.genericAsset.create([1000 * UNIT, options]).signAndSend(alice, {nonce: 0});
+    await api.tx.genericAsset.create([total_issuance, options]).signAndSend(alice, {nonce: 0});
     // Create second token - Say BTC
-    await api.tx.genericAsset.create([1000 * UNIT, options]).signAndSend(bob, {nonce: 0});
+    await api.tx.genericAsset.create([total_issuance, options]).signAndSend(bob, {nonce: 0});
     // Note token created first has Token ID as 1 and second token has ID 2.
     // Create the tradingPair BTC/USDT - (2,1)
     await api.tx.polkadex.registerNewOrderbook(2, 1).signAndSend(alice, {nonce: 1});
