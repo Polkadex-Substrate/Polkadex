@@ -73,12 +73,14 @@ fn check_trading_engine() {
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8200*UNIT,(14*UNIT)/100));
         // Read the block chain state for verifying
         // Balances of Token #1 for Alice
+        // If buyer protection enabled, Token #1 free balance for Alice = 795
         assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), ((UNIT / 1000) * 789000));
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), ((UNIT / 1000) * 1620000));
         // Balances of Token #2 for Alice
         assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), (80*UNIT)/100);
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &alice), 0);
         // Balances of Token #1 for Bob
+        // If buyer protection enabled, Token #1 free balance for Bob = 7585
         assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &bob), 7591*UNIT);
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &bob), 0);
         // Balances of Token #2 for Bob
