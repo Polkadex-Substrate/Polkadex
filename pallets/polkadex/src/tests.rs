@@ -242,7 +242,7 @@ fn check_market_data(){
         assert_eq!(market_data,MarketData{
             low: FixedU128::from(850),
             high: FixedU128::from(1040),
-            volume: FixedU128::from_fraction(194.916),
+            volume: FixedU128::from_fraction(190.91864),
             open: FixedU128::from(1000),
             close: FixedU128::from(1040)
         });
