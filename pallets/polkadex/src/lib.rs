@@ -983,23 +983,23 @@ impl<T: Trait> Module<T> {
         match current_order.order_type {
             OrderType::BidLimit => {
                 if market_data.low == FixedU128::from(0) {
-                    market_data.low = current_order.price
+                    market_data.low = counter_order.price
                 }
                 if market_data.high == FixedU128::from(0) {
-                    market_data.high = current_order.price
+                    market_data.high = counter_order.price
                 }
-                if market_data.high < current_order.price {
-                    market_data.high = current_order.price
+                if market_data.high < counter_order.price {
+                    market_data.high = counter_order.price
                 }
-                if market_data.low > current_order.price {
-                    market_data.low = current_order.price
+                if market_data.low > counter_order.price {
+                    market_data.low = counter_order.price
                 }
                 if market_data.open == FixedU128::from(0) {
-                    market_data.open = current_order.price;
+                    market_data.open = counter_order.price;
                 }
-                market_data.close = current_order.price;
+                market_data.close = counter_order.price;
                 if current_order.quantity <= counter_order.quantity {
-                    let trade_amount = current_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
+                    let trade_amount = counter_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
                     Self::transfer_asset(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
 
@@ -1010,7 +1010,7 @@ impl<T: Trait> Module<T> {
                     counter_order.quantity = counter_order.quantity.checked_sub(&current_order.quantity).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
                     current_order.quantity = FixedU128::from(0);
                 } else {
-                    let trade_amount = current_order.price.checked_mul(&counter_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
+                    let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
                     Self::transfer_asset(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
 
