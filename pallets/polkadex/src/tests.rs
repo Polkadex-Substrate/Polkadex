@@ -60,12 +60,27 @@ fn check_trading_engine() {
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10600*UNIT,(1*UNIT)/10));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10400*UNIT,(1*UNIT)/10));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10000*UNIT,(1*UNIT)/10));
-        // Place some random market orders
 
+        // Balances of Token #1 for Alice
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), (UNIT*4970));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), (UNIT * 5030));
+        // Balances of Token #2 for Bob
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), (UNIT/10)*4);
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), (UNIT/10)*6);
+
+        // Place some random market orders
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,500*UNIT,0));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*5));
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,1646*UNIT,0));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*16));
+
+        // Balances of Token #1 for Alice
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), (UNIT*2824));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), (UNIT * 3196));
+        // Balances of Token #2 for Bob
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), (UNIT/100)*19);
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), (UNIT/100)*39);
+
         // Partial limit orders for Alice ( Token1 ) and Bob ( Token 2)
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10600*UNIT,(5*UNIT)/100));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8400*UNIT,(5*UNIT)/100));
