@@ -61,6 +61,7 @@ fn check_trading_engine() {
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10400*UNIT,(1*UNIT)/10));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10000*UNIT,(1*UNIT)/10));
         // Place some random market orders
+
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,500*UNIT,0));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*5));
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,1646*UNIT,0));
@@ -71,6 +72,7 @@ fn check_trading_engine() {
         // Full+half queue limit orders for Alice ( Token1 ) and Bob ( Token 2)
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10750*UNIT,(14*UNIT)/100));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8200*UNIT,(14*UNIT)/100));
+      
         // Read the block chain state for verifying
         // Balances of Token #1 for Alice
         // If buyer protection enabled, Token #1 free balance for Alice = 795
