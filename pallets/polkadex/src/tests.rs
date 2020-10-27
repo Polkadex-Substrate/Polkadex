@@ -12,7 +12,7 @@ const UNIT: u128 = 1_000_000_000_000;
 type System = frame_system::Module<Test>;
 
 // Creates two token assets for trading
-// Alice - Token #1 - 1000 Units
+// Alice - Token #1 - 10000 Units
 // Bob - Token #2 - 1 Unit.
 fn setup_balances() {
     let alice: u64 = 1;
@@ -24,7 +24,7 @@ fn setup_balances() {
     // Creates first asset to alice's account
     assert_ok!(pallet_generic_asset::Module::<Test>::create_asset(None,Some(alice),options_alice));
     let options_bob = pallet_generic_asset::AssetOptions::<u128, u64> {
-        initial_issuance: UNIT,
+        initial_issuance: 1 * UNIT,
         permissions: Default::default(),
     };
     // Creates second asset to bob's account
@@ -49,35 +49,46 @@ fn check_trading_engine() {
         setup_balances();
         assert_ok!(DEXModule::register_new_orderbook(Origin::signed(alice),2,1));
         // Place some random buy orders from Alice
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,820*UNIT,(2*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,800*UNIT,(1*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,850*UNIT,(1*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,840*UNIT,(1*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,900*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,8200*UNIT,(2*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,8000*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,8500*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,8400*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,9000*UNIT,(1*UNIT)/10));
         // Place some random sell limit orders from Bob
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1075*UNIT,(2*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1100*UNIT,(1*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1060*UNIT,(1*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1040*UNIT,(1*UNIT)/10));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1000*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10750*UNIT,(2*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,11000*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10600*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10400*UNIT,(1*UNIT)/10));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10000*UNIT,(1*UNIT)/10));
         // Place some random market orders
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/1)*500,0));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*5));
-        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/1000)*16,0));
-        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*16));
+
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,500*UNIT,0));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*5));
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,1646*UNIT,0));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*16));
+        // Partial limit orders for Alice ( Token1 ) and Bob ( Token 2)
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10600*UNIT,(5*UNIT)/100));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8400*UNIT,(5*UNIT)/100));
+        // Full+half queue limit orders for Alice ( Token1 ) and Bob ( Token 2)
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10750*UNIT,(14*UNIT)/100));
+        assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8200*UNIT,(14*UNIT)/100));
+      
         // Read the block chain state for verifying
         // Balances of Token #1 for Alice
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), ((UNIT / 1000) * 496934));
-        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), ((UNIT / 10) * 4841));
+        // If buyer protection enabled, Token #1 free balance for Alice = 795
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), ((UNIT / 1000) * 795000));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), ((UNIT / 1000) * 1620000));
         // Balances of Token #2 for Alice
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), ((UNIT / 1000000) * 21066));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), (80*UNIT)/100);
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &alice), 0);
         // Balances of Token #1 for Bob
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &bob), ((UNIT / 1000) * 18966));
+        // If buyer protection enabled, Token #1 free balance for Bob = 7585
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &bob), 7585*UNIT);
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &bob), 0);
         // Balances of Token #2 for Bob
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), ((UNIT / 1000) * 379));
-        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), ((UNIT / 1000000) * 599934));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), ((UNIT / 1000) * 0));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), ((UNIT / 1000) * 200));
+
     });
 }
 // Trying to execute orders with price and quantity values that can underflow or overflow.
