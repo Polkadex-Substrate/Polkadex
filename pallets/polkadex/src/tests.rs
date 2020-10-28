@@ -87,31 +87,23 @@ fn check_trading_engine() {
 
         // TODO: Just for checking orderbook state
         let orderbook: Orderbook<Test> = <Orderbooks<Test>>::get(trading_pair);
-        // let asks_levels: Vec<FixedU128> = <AsksLevels<Test>>::get(trading_pair);
-        // for price in asks_levels {
-        //     println!("Available Asks Levels are: {}", price);
-        // }
-        println!("Before Best Ask Price: {}", orderbook.best_ask_price);
         let best_ask_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_ask_price);
-        println!("Before Quantity at best ask price level: {}", calculate_quantity(best_ask_pricelevel.clone()));
+        assert_eq!(orderbook.best_ask_price,FixedU128::from(10600));
+        assert_eq!(calculate_quantity(best_ask_pricelevel.clone()),FixedU128::from_fraction(0.04));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice),2294*UNIT);
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob),(14*UNIT)/100);
 
-        println!("Before Alice USD balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&1, &alice));
-        println!("Before Bob BTC balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&2, &bob));
         // Full+half queue limit orders for Alice ( Token1 ) and Bob ( Token 2)
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10750*UNIT,(14*UNIT)/100));
         // TODO: This is where the problem is
         // TODO: Just for checking orderbook state
         let orderbook: Orderbook<Test> = <Orderbooks<Test>>::get(trading_pair);
-
-        println!("After Best Ask Price: {}", orderbook.best_ask_price);
         let best_ask_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_ask_price);
-        println!("After Quantity at best ask price level: {}", calculate_quantity(best_ask_pricelevel.clone()));
-        // let asks_levels: Vec<FixedU128> = <AsksLevels<Test>>::get(trading_pair);
-        // for price in asks_levels {
-        //     println!("Available Asks Levels are: {}", price);
-        // }
-        println!("After Alice USD balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&1, &alice));
-        println!("After Bob BTC balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&2, &bob));
+        assert_eq!(orderbook.best_ask_price,FixedU128::from(10750));
+        assert_eq!(calculate_quantity(best_ask_pricelevel.clone()),FixedU128::from_fraction(0.1));
+
+        println!("After Alice USD free balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&1, &alice));
+        println!("After Bob BTC free balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&2, &bob));
 
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8200*UNIT,(14*UNIT)/100));
 
@@ -120,8 +112,8 @@ fn check_trading_engine() {
         // Balances of Token #1 for Alice
         // If buyer protection enabled, Token #1 free balance for Alice = 795
         // TODO: For some weird reason this is not working.
-        // assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), (UNIT * 795));
-        // assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), (UNIT * 1620));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), (UNIT * 795));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), (UNIT * 1620));
         // Balances of Token #2 for Alice
         assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), (80 * UNIT) / 100);
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &alice), 0);
