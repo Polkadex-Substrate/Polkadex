@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Encode;
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, debug};
 use frame_support::traits::Get;
 use frame_support::weights::Pays;
 use frame_system::ensure_signed;
@@ -245,6 +245,7 @@ impl<T: Trait> Module<T> {
 
     pub fn get_ask_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
         let ask_level = <AsksLevels<T>>::get(trading_pair);
+
         Ok(ask_level)
     }
 
