@@ -87,27 +87,31 @@ fn check_trading_engine() {
 
         // TODO: Just for checking orderbook state
         let orderbook: Orderbook<Test> = <Orderbooks<Test>>::get(trading_pair);
-        // println!("Before Best Bid Price: {}", orderbook.best_bid_price);
-        // let best_bid_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_bid_price);
-        // println!("Before Quantity at best bid price level: {}", calculate_quantity(best_bid_pricelevel.clone()));
+        // let asks_levels: Vec<FixedU128> = <AsksLevels<Test>>::get(trading_pair);
+        // for price in asks_levels {
+        //     println!("Available Asks Levels are: {}", price);
+        // }
         println!("Before Best Ask Price: {}", orderbook.best_ask_price);
         let best_ask_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_ask_price);
         println!("Before Quantity at best ask price level: {}", calculate_quantity(best_ask_pricelevel.clone()));
 
+        println!("Before Alice USD balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&1, &alice));
+        println!("Before Bob BTC balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&2, &bob));
         // Full+half queue limit orders for Alice ( Token1 ) and Bob ( Token 2)
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10750*UNIT,(14*UNIT)/100));
         // TODO: This is where the problem is
         // TODO: Just for checking orderbook state
         let orderbook: Orderbook<Test> = <Orderbooks<Test>>::get(trading_pair);
-        // println!("After Best Bid Price: {}", orderbook.best_bid_price);
-        // let best_bid_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_bid_price);
-        // println!("After Quantity at best bid price level: {}", calculate_quantity(best_bid_pricelevel.clone()));
+
         println!("After Best Ask Price: {}", orderbook.best_ask_price);
         let best_ask_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_ask_price);
         println!("After Quantity at best ask price level: {}", calculate_quantity(best_ask_pricelevel.clone()));
-
-        println!("Alice USD balance: {}",pallet_generic_asset::Module::<Test>::free_balance(&1, &alice));
-        println!("Bob BTC balance: {}",pallet_generic_asset::Module::<Test>::free_balance(&2, &bob));
+        // let asks_levels: Vec<FixedU128> = <AsksLevels<Test>>::get(trading_pair);
+        // for price in asks_levels {
+        //     println!("Available Asks Levels are: {}", price);
+        // }
+        println!("After Alice USD balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&1, &alice));
+        println!("After Bob BTC balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&2, &bob));
 
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8200*UNIT,(14*UNIT)/100));
 
