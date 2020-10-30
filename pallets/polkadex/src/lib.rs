@@ -274,7 +274,7 @@ impl<T: Trait> Module<T> {
     ///  This function returns List of Price Level otherwise Related Error.
     pub fn get_price_level(trading_pair: T::Hash) -> Result<Vec<LinkedPriceLevelRpc>, ErrorRpc> {
         let price_level: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
-        //let temp2: Vec<LinkedPriceLevelRpc> = temp.into_iter().map(|element| element.covert()).collect();
+
         let mut price_level_rpc: Vec<LinkedPriceLevelRpc> = Vec::new();
         for element in price_level {
             price_level_rpc.push(element.convert()?)
@@ -469,8 +469,8 @@ impl<T: Trait> Module<T> {
     fn insert_order(current_order: &Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
         match current_order.order_type {
             OrderType::BidLimit => {
-                let temp = current_order.price.checked_mul(&current_order.quantity).ok_or(Error::<T>::NoElementFound.into())?;
-                Self::reserve_user_balance(orderbook, current_order, temp)?;
+                let balance:FixedU128 = current_order.price.checked_mul(&current_order.quantity).ok_or(Error::<T>::NoElementFound.into())?;
+                Self::reserve_user_balance(orderbook, current_order, balance)?;
                 let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                 match bids_levels.binary_search(&current_order.price) {
                     Ok(_) => {
@@ -931,7 +931,7 @@ impl<T: Trait> Module<T> {
                 let current_order_quantity = current_order.price.checked_div(&counter_order.price).ok_or(Error::<T>::DivUnderflowOrOverflow.into())?;
 
                 if current_order_quantity <= counter_order.quantity {
-                    Self::transfer_asset_market(base_assetid, current_order.price, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(base_assetid, current_order.price, &current_order.trader, &counter_order.trader)?;
 
                     Self::transfer_asset(quote_assetid, current_order_quantity, &counter_order.trader, &current_order.trader)?;
 
@@ -942,7 +942,7 @@ impl<T: Trait> Module<T> {
                 } else {
                     let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).ok_or(Error::<T>::MulUnderflowOrOverflow.into())?;
 
-                    Self::transfer_asset_market(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
 
                     Self::transfer_asset(quote_assetid, counter_order.quantity, &counter_order.trader, &current_order.trader)?;
 
@@ -958,7 +958,7 @@ impl<T: Trait> Module<T> {
 
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
 
-                    Self::transfer_asset_market(quote_assetid, current_order.quantity, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(quote_assetid, current_order.quantity, &current_order.trader, &counter_order.trader)?;
 
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(Error::<T>::AddUnderflowOrOverflow.into())?;
 
@@ -969,7 +969,7 @@ impl<T: Trait> Module<T> {
 
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
 
-                    Self::transfer_asset_market(quote_assetid, counter_order.quantity, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(quote_assetid, counter_order.quantity, &current_order.trader, &counter_order.trader)?;
 
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(Error::<T>::AddUnderflowOrOverflow.into())?;
 
@@ -1005,7 +1005,7 @@ impl<T: Trait> Module<T> {
                 if current_order.quantity <= counter_order.quantity {
                     let trade_amount = counter_order.price.checked_mul(&current_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
-                    Self::transfer_asset_market(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
 
                     Self::transfer_asset(quote_assetid, current_order.quantity, &counter_order.trader, &current_order.trader)?;
 
@@ -1016,7 +1016,7 @@ impl<T: Trait> Module<T> {
                 } else {
                     let trade_amount = counter_order.price.checked_mul(&counter_order.quantity).ok_or(<Error<T>>::MulUnderflowOrOverflow.into())?;
 
-                    Self::transfer_asset_market(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(base_assetid, trade_amount, &current_order.trader, &counter_order.trader)?;
 
                     Self::transfer_asset(quote_assetid, counter_order.quantity, &counter_order.trader, &current_order.trader)?;
 
@@ -1047,7 +1047,7 @@ impl<T: Trait> Module<T> {
 
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
 
-                    Self::transfer_asset_market(quote_assetid, current_order.quantity, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(quote_assetid, current_order.quantity, &current_order.trader, &counter_order.trader)?;
 
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(<Error<T>>::AddUnderflowOrOverflow.into())?;
 
@@ -1058,7 +1058,7 @@ impl<T: Trait> Module<T> {
 
                     Self::transfer_asset(base_assetid, trade_amount, &counter_order.trader, &current_order.trader)?;
 
-                    Self::transfer_asset_market(quote_assetid, counter_order.quantity, &current_order.trader, &counter_order.trader)?;
+                    Self::transfer_asset_current(quote_assetid, counter_order.quantity, &current_order.trader, &counter_order.trader)?;
 
                     market_data.volume = market_data.volume.checked_add(&trade_amount).ok_or(<Error<T>>::AddUnderflowOrOverflow.into())?;
                     current_order.quantity = current_order.quantity.checked_sub(&counter_order.quantity).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
@@ -1083,7 +1083,7 @@ impl<T: Trait> Module<T> {
     }
 
     /// Transfers the balance of traders
-    fn transfer_asset_market(asset_id: T::AssetId, amount: FixedU128, from: &T::AccountId, to: &T::AccountId) -> Result<(), Error<T>> {
+    fn transfer_asset_current(asset_id: T::AssetId, amount: FixedU128, from: &T::AccountId, to: &T::AccountId) -> Result<(), Error<T>> {
         let amount_balance = Self::convert_fixed_u128_to_balance(amount).ok_or(<Error<T>>::SubUnderflowOrOverflow.into())?;
         match pallet_generic_asset::Module::<T>::make_transfer(&asset_id, from, to,
                                                                amount_balance) {
