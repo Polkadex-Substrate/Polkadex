@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Encode;
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, debug};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
 use frame_support::traits::Get;
 use frame_support::weights::Pays;
 use frame_system::ensure_signed;
@@ -1094,7 +1094,6 @@ impl<T: Trait> Module<T> {
 
     /// Checks all the basic checks
     fn basic_order_checks(order: &Order<T>) -> Result<Orderbook<T>, Error<T>> {
-        let orderbook: Orderbook<T> = <Orderbooks<T>>::get(&order.trading_pair);
         match order.order_type {
             OrderType::BidLimit | OrderType::AskLimit if order.price <= FixedU128::from(0) || order.quantity <= FixedU128::from(0) => Err(<Error<T>>::InvalidPriceOrQuantityLimit.into()),
             OrderType::BidMarket if order.price <= FixedU128::from(0) => Err(<Error<T>>::InvalidBidMarketPrice.into()),
@@ -1115,7 +1114,7 @@ impl<T: Trait> Module<T> {
 
         match Self::convert_balance_to_fixed_u128(balance) {
             Some(converted_balance) if order.order_type == OrderType::BidLimit => {
-                Self::compare_balance(converted_balance, order,& orderbook)?;
+                Self::compare_balance(converted_balance, order)?;
                 Ok(orderbook)
             }
             Some(converted_balance) if order.order_type == OrderType::BidMarket && converted_balance < order.price => Err(<Error<T>>::InsufficientAssetBalance.into()),
@@ -1128,7 +1127,7 @@ impl<T: Trait> Module<T> {
         }
     }
     /// Helper function for basic_order_check
-    fn compare_balance(converted_balance: FixedU128, order: &Order<T>, orderbook:& Orderbook<T>) -> Result<(), Error<T>> {
+    fn compare_balance(converted_balance: FixedU128, order: &Order<T>) -> Result<(), Error<T>> {
         match order.price.checked_mul(&order.quantity) {
             Some(trade_amount) if converted_balance < trade_amount => Err(<Error<T>>::InsufficientAssetBalance.into()),
             Some(trade_amount) if converted_balance >= trade_amount => Ok(()),
