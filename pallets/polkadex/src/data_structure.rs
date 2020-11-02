@@ -23,7 +23,7 @@ pub enum OrderType {
     AskMarket,
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct Order<T> where T: Trait {
     pub id: T::Hash,
     pub trading_pair: T::Hash,
@@ -66,7 +66,7 @@ impl<T> Order<T> where T: Trait {
     }
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct LinkedPriceLevel<T> where T: Trait {
     pub next: Option<FixedU128>,
     pub prev: Option<FixedU128>,

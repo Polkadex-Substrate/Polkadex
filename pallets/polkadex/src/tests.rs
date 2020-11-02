@@ -38,7 +38,7 @@ fn setup_balances_test() {
     });
 }
 
-// Executes some pre-defined trades and checks if the order book state is as expected.
+//Executes some pre-defined trades and checks if the order book state is as expected.
 #[test]
 fn check_trading_engine() {
     new_test_ext().execute_with(|| {
@@ -60,37 +60,73 @@ fn check_trading_engine() {
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10600*UNIT,(1*UNIT)/10));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10400*UNIT,(1*UNIT)/10));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,10000*UNIT,(1*UNIT)/10));
-        // Place some random market orders
 
+        // Balances of Token #1 for Alice
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), (UNIT * 4970));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), (UNIT * 5030));
+        // Balances of Token #2 for Bob
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), (UNIT / 10) * 4);
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), (UNIT / 10) * 6);
+
+        // Place some random market orders
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,500*UNIT,0));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*5));
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,1646*UNIT,0));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/100)*16));
+
+        // Balances of Token #1 for Alice
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), (UNIT * 2824));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), (UNIT * 3196));
+        // Balances of Token #2 for Bob
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), (UNIT / 100) * 19);
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), (UNIT / 100) * 39);
+
         // Partial limit orders for Alice ( Token1 ) and Bob ( Token 2)
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10600*UNIT,(5*UNIT)/100));
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8400*UNIT,(5*UNIT)/100));
+
+        // TODO: Just for checking orderbook state
+        let orderbook: Orderbook<Test> = <Orderbooks<Test>>::get(trading_pair);
+        let best_ask_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_ask_price);
+        assert_eq!(orderbook.best_ask_price,FixedU128::from(10600));
+        assert_eq!(calculate_quantity(best_ask_pricelevel.clone()),FixedU128::from_fraction(0.04));
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice),2294*UNIT);
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob),(14*UNIT)/100);
+
         // Full+half queue limit orders for Alice ( Token1 ) and Bob ( Token 2)
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,10750*UNIT,(14*UNIT)/100));
+        // TODO: This is where the problem is
+        // TODO: Just for checking orderbook state
+        let orderbook: Orderbook<Test> = <Orderbooks<Test>>::get(trading_pair);
+        let best_ask_pricelevel: LinkedPriceLevel<Test> = <PriceLevels<Test>>::get(trading_pair, orderbook.best_ask_price);
+        assert_eq!(orderbook.best_ask_price,FixedU128::from(10750));
+        assert_eq!(calculate_quantity(best_ask_pricelevel.clone()),FixedU128::from_fraction(0.1));
+
+        println!("After Alice USD free balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&1, &alice));
+        println!("After Bob BTC free balance: {}", pallet_generic_asset::Module::<Test>::free_balance(&2, &bob));
+
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,8200*UNIT,(14*UNIT)/100));
-      
+
         // Read the block chain state for verifying
+
         // Balances of Token #1 for Alice
         // If buyer protection enabled, Token #1 free balance for Alice = 795
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), ((UNIT / 1000) * 795000));
-        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), ((UNIT / 1000) * 1620000));
+        // TODO: For some weird reason this is not working.
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &alice), (UNIT * 795));
+        assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &alice), (UNIT * 1620));
         // Balances of Token #2 for Alice
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), (80*UNIT)/100);
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &alice), (80 * UNIT) / 100);
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &alice), 0);
         // Balances of Token #1 for Bob
         // If buyer protection enabled, Token #1 free balance for Bob = 7585
-        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &bob), 7585*UNIT);
+        assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&1, &bob), 7585 * UNIT);
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&1, &bob), 0);
         // Balances of Token #2 for Bob
         assert_eq!(pallet_generic_asset::Module::<Test>::free_balance(&2, &bob), ((UNIT / 1000) * 0));
         assert_eq!(pallet_generic_asset::Module::<Test>::reserved_balance(&2, &bob), ((UNIT / 1000) * 200));
-
     });
 }
+
 // Trying to execute orders with price and quantity values that can underflow or overflow.
 #[test]
 fn correct_error_for_low_price_or_quantity() {
@@ -126,6 +162,7 @@ fn correct_error_for_invalid_trading_pair() {
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,UNIT,UNIT),Error::<Test>::InvalidTradingPair);
     });
 }
+
 // The trader that creates a new trading pair doesn't have enough SpendingCurrency to reserve
 #[test]
 fn correct_error_for_insufficient_balance_to_register_trading_pair() {
@@ -168,9 +205,9 @@ fn check_cancel_order() {
     });
 }
 
-// Checks if the market data collection
+// // Checks if the market data collection
 #[test]
-fn check_market_data(){
+fn check_market_data() {
     new_test_ext().execute_with(|| {
         let alice: u64 = 1;
         let bob: u64 = 2;
@@ -193,64 +230,72 @@ fn check_market_data(){
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,1000*UNIT,(1*UNIT)/10));
         // Place some random market orders
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/100)*5,0));
-        let mut market_data: MarketData = <MarketInfo<Test>>::get(trading_pair,System::block_number());
-        assert_eq!(market_data,MarketData{
+        let mut market_data: MarketData = <MarketInfo<Test>>::get(trading_pair, System::block_number());
+        assert_eq!(market_data, MarketData {
             low: FixedU128::from(1000),
             high: FixedU128::from(1000),
             volume: FixedU128::from_fraction(0.05),
             open: FixedU128::from(1000),
-            close: FixedU128::from(1000)
+            close: FixedU128::from(1000),
         });
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*5));
-        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
-        assert_eq!(market_data,MarketData{
+        market_data = <MarketInfo<Test>>::get(trading_pair, System::block_number());
+        assert_eq!(market_data, MarketData {
             low: FixedU128::from(900),
             high: FixedU128::from(1000),
             volume: FixedU128::from_fraction(4.55),
             open: FixedU128::from(1000),
-            close: FixedU128::from(900)
+            close: FixedU128::from(900),
         });
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidMarket,trading_pair,(UNIT/1000)*16,0));
-        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
-        assert_eq!(market_data,MarketData{
+        market_data = <MarketInfo<Test>>::get(trading_pair, System::block_number());
+        assert_eq!(market_data, MarketData {
             low: FixedU128::from(900),
             high: FixedU128::from(1000),
             volume: FixedU128::from_fraction(4.566),
             open: FixedU128::from(1000),
-            close: FixedU128::from(1000)
+            close: FixedU128::from(1000),
         });
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskMarket,trading_pair,0,(UNIT/1000)*16));
-        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
-        assert_eq!(market_data,MarketData{
+        market_data = <MarketInfo<Test>>::get(trading_pair, System::block_number());
+        assert_eq!(market_data, MarketData {
             low: FixedU128::from(900),
             high: FixedU128::from(1000),
             volume: FixedU128::from_fraction(18.966),
             open: FixedU128::from(1000),
-            close: FixedU128::from(900)
+            close: FixedU128::from(900),
         });
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),AskLimit,trading_pair,850*UNIT,(80*UNIT)/1000));
-        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
-        assert_eq!(market_data,MarketData{
+        market_data = <MarketInfo<Test>>::get(trading_pair, System::block_number());
+        assert_eq!(market_data, MarketData {
             low: FixedU128::from(850),
             high: FixedU128::from(1000),
             volume: FixedU128::from_fraction(90.916),
             open: FixedU128::from(1000),
-            close: FixedU128::from(850)
+            close: FixedU128::from(850),
         });
         assert_ok!(DEXModule::submit_order(Origin::signed(alice),BidLimit,trading_pair,1040*UNIT,UNIT/10));
-        market_data = <MarketInfo<Test>>::get(trading_pair,System::block_number());
-        assert_eq!(market_data,MarketData{
+        market_data = <MarketInfo<Test>>::get(trading_pair, System::block_number());
+        assert_eq!(market_data, MarketData {
             low: FixedU128::from(850),
             high: FixedU128::from(1040),
             volume: FixedU128::from_fraction(190.91864),
             open: FixedU128::from(1000),
-            close: FixedU128::from(1040)
+            close: FixedU128::from(1040),
         });
     });
 }
+
 
 fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> <mock::Test as frame_system::Trait>::Hash {
     (quote_asset_id, base_asset_id).using_encoded(<Test as frame_system::Trait>::Hashing::hash)
 }
 
+fn calculate_quantity(mut pricelevel: LinkedPriceLevel<Test>) -> FixedU128 {
+    let mut total_quantity = FixedU128::from(0);
+    while let Some(order) = pricelevel.orders.pop_back() {
+        total_quantity = total_quantity.checked_add(&order.quantity).unwrap()
+    }
+    total_quantity
+}
 
