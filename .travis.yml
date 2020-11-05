@@ -9,5 +9,4 @@ branches:
 before_script:
   - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-09-28
 script:
-  - cargo build --verbose
   - cargo test --verbose
