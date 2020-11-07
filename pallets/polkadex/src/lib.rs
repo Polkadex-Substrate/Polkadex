@@ -397,7 +397,6 @@ impl<T: Trait> Module<T> {
                                 orderbook.best_bid_price != FixedU128::from(0)) {
                             Self::consume_order(&mut current_order, &mut orderbook)?;
 
-
                             if current_order.quantity > FixedU128::from(0) {
                                 Self::insert_order(&current_order, &mut orderbook)?;
                             }

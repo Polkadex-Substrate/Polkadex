@@ -25,16 +25,6 @@ const binance = new Binance().options({
 const wsProvider = new WsProvider('ws://0.0.0.0:9944');
 polkadex_market_data().then();
 
-// Calculate a simple moving average for every block
-let starting_block = 0;
-let prices_sum = 0;
-function calculate_SMA(price,block_number){
-    if (starting_block ===0){
-        starting_block = block_number
-    }
-    prices_sum = prices_sum + price
-    return (prices_sum/(block_number-starting_block))
-}
 
 async function polkadex_market_data() {
     // Wait for the promise to resolve, async WASM or `cryptoWaitReady().then(() => { ... })`
@@ -87,7 +77,20 @@ async function polkadex_market_data() {
                 "best_ask_price": "FixedU128"
             },
             "LookupSource": "AccountId",
-            "Address": "AccountId"
+            "Address": "AccountId",
+            "LinkedPriceLevelRpc": {
+                "next": "Vec<u8>",
+                "prev": "Vec<u8>",
+                "orders": "Vec<Order4RPC>"
+            },
+            "Order4RPC": {
+                "id": "[u8;32]",
+                "trading_pair": "[u8;32]",
+                "trader": "[u8;32]",
+                "price": "Vec<u8>",
+                "quantity": "Vec<u8>",
+                "order_type": "OrderType"
+            }
         },
     });
 
@@ -95,7 +98,6 @@ async function polkadex_market_data() {
     const tradingPairID = "0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9";
     const UNIT = 1000000000000;
     const total_issuance = 1000*UNIT;
-    const FixedU128_denominator = 1000000000000000000;
     let options = {
         permissions: {
             update: null,
@@ -129,14 +131,4 @@ async function polkadex_market_data() {
         }
     });
 
-
-    // Now there are some trades executing in the system so now let's listen for market data updates from Polkadex
-    api.derive.chain.subscribeNewHeads((header) => {
-        api.query.polkadex.marketInfo(tradingPairID, header.number).then(market_data => {
-            console.log(` BlockNumber: ${header.number} Low: ${market_data.low / FixedU128_denominator} High: ${market_data.high / FixedU128_denominator} Volume: ${market_data.volume / FixedU128_denominator} Open: ${market_data.open / FixedU128_denominator} Close: ${market_data.close / FixedU128_denominator}`);
-            console.log(` Simple Moving Average (High Price) for every block: ${calculate_SMA((market_data.high / FixedU128_denominator),header.number)}`);
-            // Similarly based on this method, developers can retrieve the market data from Polkadex full nodes, perform analytics
-            // and place trades according to market trends
-        });
-    });
 }
