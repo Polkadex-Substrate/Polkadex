@@ -28,8 +28,8 @@ pub struct Order<T> where T: Trait {
     pub id: T::Hash,
     pub trading_pair: T::Hash,
     pub trader: T::AccountId,
-    pub price: FixedU128,
-    pub quantity: FixedU128,
+    pub price: u128,
+    pub quantity: u128,
     pub order_type: OrderType,
 }
 
@@ -39,8 +39,8 @@ impl<T> Order<T> where T: Trait {
             id: Self::account_to_bytes(&self.id)?,
             trading_pair: Self::account_to_bytes(&self.trading_pair)?,
             trader: Self::account_to_bytes(&self.trader)?,
-            price: Self::convert_fixed_u128_to_balance(self.price).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
-            quantity: Self::convert_fixed_u128_to_balance(self.quantity).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            price: Self::u128_to_vec(self.price).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            quantity: Self::u128_to_vec(self.quantity).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             order_type: self.order_type,
         };
         Ok(order)
@@ -55,29 +55,26 @@ impl<T> Order<T> where T: Trait {
         bytes.copy_from_slice(&account_vec);
         Ok(bytes)
     }
+// TODO [Doubt] @Krishna Gautham please have a look ; Check if encode thow any error if not remove option
 
-    pub fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
-        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-            let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128.encode())
-        } else {
-            None
-        }
+
+    pub fn u128_to_vec(x: u128) -> Option<Vec<u8>> {
+        Some(x.encode())
     }
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct LinkedPriceLevel<T> where T: Trait {
-    pub next: Option<FixedU128>,
-    pub prev: Option<FixedU128>,
+    pub next: Option<u128>,
+    pub prev: Option<u128>,
     pub orders: VecDeque<Order<T>>,
 }
 
 impl<T> LinkedPriceLevel<T> where T: Trait {
     pub fn convert(self) -> Result<LinkedPriceLevelRpc, ErrorRpc> {
         let linked_pirce_level = LinkedPriceLevelRpc {
-            next: Self::convert_fixed_u128_to_balance(self.next.ok_or(ErrorRpc::NoElementFound)?).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
-            prev: Self::convert_fixed_u128_to_balance(self.prev.ok_or(ErrorRpc::NoElementFound)?).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            next: Self::u128_to_vec(self.next.ok_or(ErrorRpc::NoElementFound)?).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            prev: Self::u128_to_vec(self.prev.ok_or(ErrorRpc::NoElementFound)?).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             orders: Self::cov_de_vec(self.clone().orders)?,
         };
         Ok(linked_pirce_level)
@@ -91,15 +88,9 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
         Ok(temp3)
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
-        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-            let balance_in_u128 = balance_in_fixed_u128.into_inner();
-
-            let hex_vec: Vec<u8> = balance_in_u128.encode();
-            Some(hex_vec)
-        } else {
-            None
-        }
+    // TODO [Doubt] @Krishna Gautham please have a look
+    pub fn u128_to_vec(x: u128) -> Option<Vec<u8>> {
+        Some(x.encode())
     }
 }
 
@@ -118,8 +109,8 @@ pub struct Orderbook<T> where T: Trait {
     pub trading_pair: T::Hash,
     pub base_asset_id: T::AssetId,
     pub quote_asset_id: T::AssetId,
-    pub best_bid_price: FixedU128,
-    pub best_ask_price: FixedU128,
+    pub best_bid_price: u128,
+    pub best_ask_price: u128,
 }
 
 impl<T> Orderbook<T> where T: Trait {
@@ -128,8 +119,8 @@ impl<T> Orderbook<T> where T: Trait {
             trading_pair: Self::account_to_bytes(&self.trading_pair)?,
             base_asset_id: TryInto::<u32>::try_into(self.base_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
             quote_asset_id: TryInto::<u32>::try_into(self.quote_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
-            best_bid_price: Self::convert_fixed_u128_to_balance(self.best_bid_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
-            best_ask_price: Self::convert_fixed_u128_to_balance(self.best_ask_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
+            best_bid_price: Self::u128_to_vec(self.best_bid_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
+            best_ask_price: Self::u128_to_vec(self.best_ask_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
         };
         Ok(orderbook)
     }
@@ -144,13 +135,8 @@ impl<T> Orderbook<T> where T: Trait {
         Ok(bytes)
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
-        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-            let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128.encode())
-        } else {
-            None
-        }
+    pub fn u128_to_vec(x: u128) -> Option<Vec<u8>> {
+        Some(x.encode())
     }
 }
 
@@ -160,8 +146,8 @@ impl<T> Default for Orderbook<T> where T: Trait {
             trading_pair: T::Hash::default(),
             base_asset_id: 0.into(),
             quote_asset_id: 0.into(),
-            best_bid_price: FixedU128::from(0),
-            best_ask_price: FixedU128::from(0),
+            best_bid_price: 0u128,
+            best_ask_price: 0u128,
         }
     }
 }
@@ -172,8 +158,8 @@ impl<T> Orderbook<T> where T: Trait {
             trading_pair,
             base_asset_id,
             quote_asset_id,
-            best_bid_price: FixedU128::from(0),
-            best_ask_price: FixedU128::from(0),
+            best_bid_price: 0u128,
+            best_ask_price: 0u128,
         }
     }
 }
@@ -181,47 +167,42 @@ impl<T> Orderbook<T> where T: Trait {
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct MarketData {
     // Lowest price at which the trade was executed in a block.
-    pub low: FixedU128,
+    pub low: u128,
     // Highest price at which the trade was executed in a block.
-    pub high: FixedU128,
+    pub high: u128,
     // Total volume traded in a block.
-    pub volume: FixedU128,
+    pub volume: u128,
     // Opening price for this block.
-    pub open: FixedU128,
+    pub open: u128,
     // Closing price for this block.
-    pub close: FixedU128,
+    pub close: u128,
 }
 
 impl MarketData {
     pub fn convert(self) -> Result<MarketDataRpc, ErrorRpc> {
         let market_data = MarketDataRpc {
-            low: Self::convert_fixed_u128_to_balance(self.low).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
-            high: Self::convert_fixed_u128_to_balance(self.high).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
-            volume: Self::convert_fixed_u128_to_balance(self.volume).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
-            open: Self::convert_fixed_u128_to_balance(self.open).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
-            close: Self::convert_fixed_u128_to_balance(self.close).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            low: Self::u128_to_vec(self.low).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            high: Self::u128_to_vec(self.high).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            volume: Self::u128_to_vec(self.volume).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            open: Self::u128_to_vec(self.open).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
+            close: Self::u128_to_vec(self.close).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
         };
         Ok(market_data)
     }
 
-    fn convert_fixed_u128_to_balance(x: FixedU128) -> Option<Vec<u8>> {
-        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-            let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(balance_in_u128.encode())
-        } else {
-            None
-        }
+    pub fn u128_to_vec(x: u128) -> Option<Vec<u8>> {
+        Some(x.encode())
     }
 }
 
 impl Default for MarketData {
     fn default() -> Self {
         MarketData {
-            low: FixedU128::from(0),
-            high: FixedU128::from(0),
-            volume: FixedU128::from(0),
-            open: FixedU128::from(0),
-            close: FixedU128::from(0),
+            low: 0u128,
+            high: 0u128,
+            volume: 0u128,
+            open: 0u128,
+            close: 0u128,
         }
     }
 }

@@ -10,17 +10,16 @@ use sp_blockchain::HeaderBackend;
 use sp_core::H256;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use sp_std::vec::Vec;
-
 use pallet_polkadex::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc};
 use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
     #[rpc(name = "get_ask_level")]
-    fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
+    fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<u128>>;
 
     #[rpc(name = "get_bid_level")]
-    fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
+    fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<u128>>;
 
     #[rpc(name = "get_price_level")]
     fn get_price_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevelRpc>>;
@@ -95,7 +94,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         C: HeaderBackend<Block>,
         C::Api: DexStorageRuntimeApi<Block>,
 {
-    fn get_ask_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
+    fn get_ask_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<u128>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             self.client.info().best_hash);
@@ -110,7 +109,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
-    fn get_bid_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
+    fn get_bid_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<u128>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             self.client.info().best_hash);

@@ -248,7 +248,7 @@ impl pallet_grandpa::Trait for Runtime {
 	type KeyOwnerProofSystem = ();
 
 	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+	<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
 	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
@@ -627,7 +627,7 @@ impl_runtime_apis! {
 			None
 		}
 	}
-	
+
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
 		fn account_nonce(account: AccountId) -> Index {
 			System::account_nonce(account)
@@ -646,12 +646,12 @@ impl_runtime_apis! {
 
 	impl runtime_api::DexStorageApi<Block> for Runtime{
 
-	    fn get_ask_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+	    fn get_ask_level(trading_pair: Hash) -> Result<Vec<u128>,ErrorRpc> {
 
 			Polkadex::get_ask_level(trading_pair)
 		}
 
-		fn get_bid_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+		fn get_bid_level(trading_pair: Hash) -> Result<Vec<u128>,ErrorRpc> {
 
 			Polkadex::get_bid_level(trading_pair)
 		}
