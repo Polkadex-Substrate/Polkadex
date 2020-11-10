@@ -198,9 +198,6 @@ decl_module! {
                     ensure!(quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
                 }
             }
-            // let converted_price: u128 = Self::convert_balance_to_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
-            //
-            // let converted_quantity: u128 = Self::convert_balance_to_u128(quantity).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 	        Self::execute_order(trader, order_type, trading_pair, price, quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Pays::No.into())
 	    }
