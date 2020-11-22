@@ -16,25 +16,25 @@ use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
-    #[rpc(name = "get_ask_level")]
+    #[rpc(name = "polkadex_getAskLevel")]
     fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
 
-    #[rpc(name = "get_bid_level")]
+    #[rpc(name = "polkadex_getBidLevel")]
     fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
 
-    #[rpc(name = "get_price_level")]
+    #[rpc(name = "polkadex_getPriceLevel")]
     fn get_price_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevelRpc>>;
 
-    #[rpc(name = "get_orderbook")]
+    #[rpc(name = "polkadex_getOrderbook")]
     fn get_orderbook(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<OrderbookRpc>;
 
-    #[rpc(name = "get_all_orderbook")]
+    #[rpc(name = "polkadex_getAllOrderbook")]
     fn get_all_orderbook(&self, at: Option<BlockHash>) -> Result<Vec<OrderbookRpc>>;
 
-    #[rpc(name = "get_market_info")]
+    #[rpc(name = "polkadex_getMarketInfo")]
     fn get_market_info(&self, at: Option<BlockHash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc>;
 
-    #[rpc(name = "get_orderbook_updates")]
+    #[rpc(name = "polkadex_getOrderbookUpdates")]
     fn get_orderbook_updates(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<OrderbookUpdates>;
 }
 
