@@ -11,7 +11,7 @@ use sp_core::H256;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use sp_std::vec::Vec;
 
-use pallet_polkadex::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc};
+use pallet_polkadex::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc, OrderbookUpdates};
 use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 
 #[rpc]
@@ -33,6 +33,9 @@ pub trait DexStorageApi<BlockHash> {
 
     #[rpc(name = "get_market_info")]
     fn get_market_info(&self, at: Option<BlockHash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc>;
+
+    #[rpc(name = "get_orderbook_updates")]
+    fn get_orderbook_updates(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<OrderbookUpdates>;
 }
 
 /// A struct that implements the `DexStorageApi`.
@@ -188,6 +191,20 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
             self.client.info().best_hash);
 
         let runtime_api_result = api.get_market_info(&at, trading_pair, blocknum);
+        let temp = match runtime_api_result {
+            Ok(x) => match x {
+                Ok(z) => Ok(z),
+                Err(x) => Err(x),
+            }
+            Err(_) => Err(ErrorRpc::ServerErrorWhileCallingAPI),
+        };
+        temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
+    }
+
+    fn get_orderbook_updates(&self, _: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<OrderbookUpdates> {
+        let api = self.client.runtime_api();
+
+        let runtime_api_result = api.get_orderbook_updates(&BlockId::hash(self.client.info().best_hash),trading_pair);
         let temp = match runtime_api_result {
             Ok(x) => match x {
                 Ok(z) => Ok(z),

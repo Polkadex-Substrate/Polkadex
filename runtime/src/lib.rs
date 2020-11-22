@@ -54,6 +54,7 @@ pub use frame_support::{
 /// Import the polkadex pallet.
 pub use polkadex;
 use polkadex::data_structure_rpc::LinkedPriceLevelRpc;
+use polkadex::data_structure_rpc::OrderbookUpdates;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -669,6 +670,10 @@ impl_runtime_apis! {
 
 		fn get_market_info(trading_pair: Hash,blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
 		    Polkadex::get_market_info(trading_pair,blocknum)
+		}
+
+		fn get_orderbook_updates(trading_pair: Hash)-> Result<OrderbookUpdates, ErrorRpc>{
+			Polkadex::get_orderbook_updates(trading_pair)
 		}
 
 	 }
