@@ -337,15 +337,15 @@ impl<T: Trait> Module<T> {
     }
 
     pub fn get_orderbook_updates(trading_pair: T::Hash) -> Result<OrderbookUpdates, ErrorRpc> {
-        if <Orderbooks<T>>::contains_key(trading_pair) {
-            let orderbook: Orderbook<T> = <Orderbooks<T>>::get(trading_pair);
+        if <Orderbooks<T>>::contains_key(&trading_pair) {
+            let orderbook: Orderbook<T> = <Orderbooks<T>>::get(&trading_pair);
             let mut asks = Vec::<FrontendPricelevel>::new();
             let mut counter = 1;
-            let mut ask_price = orderbook.best_ask_price.clone();
+            let mut ask_price = orderbook.best_ask_price;
             while counter <= 10 {
-                let linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&orderbook.trading_pair, &ask_price.clone());
+                let linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&orderbook.trading_pair, &ask_price);
                 let mut level: FrontendPricelevel = FrontendPricelevel {
-                    price: ask_price.clone(),
+                    price: ask_price,
                     quantity: FixedU128::zero(),
                 };
 
@@ -363,11 +363,11 @@ impl<T: Trait> Module<T> {
 
             let mut bids = Vec::<FrontendPricelevel>::new();
             counter = 1;
-            let mut bid_price = orderbook.best_bid_price.clone();
+            let mut bid_price = orderbook.best_bid_price;
             while counter <= 10 {
-                let linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&orderbook.trading_pair, &bid_price.clone());
+                let linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&orderbook.trading_pair, &bid_price);
                 let mut level: FrontendPricelevel = FrontendPricelevel {
-                    price: bid_price.clone(),
+                    price: bid_price,
                     quantity: FixedU128::zero(),
                 };
 
