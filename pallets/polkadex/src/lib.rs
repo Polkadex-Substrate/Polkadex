@@ -15,7 +15,8 @@ use sp_std::str;
 use sp_std::vec::Vec;
 
 use crate::data_structure::{LinkedPriceLevel, MarketData, Order, Orderbook, OrderType};
-use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc};
+use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc, OrderbookUpdates, FrontendPricelevel};
+use sp_std::ops::Add;
 
 #[cfg(test)]
 mod mock;
@@ -334,6 +335,60 @@ impl<T: Trait> Module<T> {
     pub fn u32_to_blocknum(input: u32) -> T::BlockNumber {
         input.into()
     }
+
+    pub fn get_orderbook_updates(trading_pair: T::Hash) -> Result<OrderbookUpdates, ErrorRpc> {
+        if <Orderbooks<T>>::contains_key(&trading_pair) {
+            let orderbook: Orderbook<T> = <Orderbooks<T>>::get(&trading_pair);
+            let mut asks = Vec::<FrontendPricelevel>::new();
+            let mut counter = 1;
+            let mut ask_price = orderbook.best_ask_price;
+            while counter <= 10 {
+                let linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&orderbook.trading_pair, &ask_price);
+                let mut level: FrontendPricelevel = FrontendPricelevel {
+                    price: ask_price,
+                    quantity: FixedU128::zero(),
+                };
+
+                for order in linkedpricelevel.orders {
+                    level.quantity = level.quantity.add(order.quantity)
+                }
+                asks.push(level);
+                if let Some(next_price) = linkedpricelevel.next {
+                    counter = counter + 1;
+                    ask_price = next_price
+                } else {
+                    break;
+                }
+            }
+
+            let mut bids = Vec::<FrontendPricelevel>::new();
+            counter = 1;
+            let mut bid_price = orderbook.best_bid_price;
+            while counter <= 10 {
+                let linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&orderbook.trading_pair, &bid_price);
+                let mut level: FrontendPricelevel = FrontendPricelevel {
+                    price: bid_price,
+                    quantity: FixedU128::zero(),
+                };
+
+                for order in linkedpricelevel.orders {
+                    level.quantity = level.quantity.add(order.quantity)
+                }
+                bids.push(level);
+                if let Some(next_price) = linkedpricelevel.next {
+                    counter = counter + 1;
+                    bid_price = next_price
+                } else {
+                    break;
+                }
+            }
+
+            Ok(OrderbookUpdates { bids, asks })
+        } else {
+            Err(ErrorRpc::NoElementFound)
+        }
+    }
+
 }
 
 impl<T: Trait> Module<T> {
@@ -469,7 +524,7 @@ impl<T: Trait> Module<T> {
     fn insert_order(current_order: &Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
         match current_order.order_type {
             OrderType::BidLimit => {
-                let balance:FixedU128 = current_order.price.checked_mul(&current_order.quantity).ok_or(Error::<T>::NoElementFound.into())?;
+                let balance: FixedU128 = current_order.price.checked_mul(&current_order.quantity).ok_or(Error::<T>::NoElementFound.into())?;
                 Self::reserve_user_balance(orderbook, current_order, balance)?;
                 let mut bids_levels: Vec<FixedU128> = <BidsLevels<T>>::get(&current_order.trading_pair);
                 match bids_levels.binary_search(&current_order.price) {
@@ -1101,7 +1156,6 @@ impl<T: Trait> Module<T> {
 
             OrderType::AskMarket if order.quantity <= FixedU128::from(0) => Err(<Error<T>>::InvalidAskMarketQuantity.into()),
             OrderType::AskMarket | OrderType::AskLimit => Self::check_order(order),
-
         }
     }
     /// Helper function for basic_order_check
@@ -1135,7 +1189,7 @@ impl<T: Trait> Module<T> {
         }
     }
     /// Helper function for basic_order_check
-    fn reserve_user_balance(orderbook:& Orderbook<T>, order: &Order<T>, amount: FixedU128) -> Result<(), Error<T>> {
+    fn reserve_user_balance(orderbook: &Orderbook<T>, order: &Order<T>, amount: FixedU128) -> Result<(), Error<T>> {
         // TODO: Based on BidLimit or AskLimit we need to change between orderbook.base_asset_id & orderbook.quote_asset_id respectively
         let asset_id = if order.order_type == OrderType::AskLimit { &orderbook.quote_asset_id } else { &orderbook.base_asset_id };
 

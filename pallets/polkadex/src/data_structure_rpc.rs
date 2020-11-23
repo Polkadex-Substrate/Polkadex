@@ -7,6 +7,7 @@ use sp_std::str;
 use sp_std::vec::Vec;
 
 use crate::data_structure::OrderType;
+use sp_arithmetic::FixedU128;
 
 #[derive(Encode, Decode, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -68,4 +69,18 @@ pub struct MarketDataRpc {
     pub volume: Vec<u8>,
     pub open: Vec<u8>,
     pub close: Vec<u8>,
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct OrderbookUpdates{
+    pub bids: Vec<FrontendPricelevel>,
+    pub asks: Vec<FrontendPricelevel>
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct FrontendPricelevel {
+    pub price: FixedU128,
+    pub quantity: FixedU128
 }
