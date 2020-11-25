@@ -28,16 +28,15 @@ version = '2.0.0'
 git = 'https://github.com/paritytech/substrate.git'
 version = '0.8.0'
 
-[dependencies.sc-cli]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
 [dependencies.sc-client-api]
 git = 'https://github.com/paritytech/substrate.git'
 version = '2.0.0'
 
 [dependencies.sc-consensus]
+git = 'https://github.com/paritytech/substrate.git'
+version = '0.8.0'
+
+[dependencies.sc-consensus-slots]
 git = 'https://github.com/paritytech/substrate.git'
 version = '0.8.0'
 
@@ -115,14 +114,23 @@ version = '2.0.0'
 git = 'https://github.com/paritytech/substrate.git'
 version = '2.0.0'
 
+[dependencies.frame-benchmarking]
+git = 'https://github.com/paritytech/substrate.git'
+version = '2.0.0'
+
+[dependencies.frame-benchmarking-cli]
+git = 'https://github.com/paritytech/substrate.git'
+version = '2.0.0'
+
+
 [dependencies]
-jsonrpc-core = '14.0.3'
+jsonrpc-core = '15.0.0'
 structopt = '0.3.8'
-jsonrpc-core-client = "14.0.3"
-jsonrpc-derive = "14.0.3"
+sc-cli = { features = ['wasmtime'], version = '0.8.0' }
+
 rpc = { path = "../pallets/polkadex/rpc" }
 runtime-api = { path = "../pallets/polkadex/runtime-api" }
-#runtime = { path = "../runtime/" }
+
 
 [build-dependencies.substrate-build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'
