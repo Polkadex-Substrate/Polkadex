@@ -6,7 +6,7 @@ homepage = 'https://github.com/Polkadex-Substrate/Polkadex'
 license = 'Unlicense'
 name = 'pallet-polkadex'
 repository = 'https://github.com/Polkadex-Substrate/Polkadex'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -23,20 +23,17 @@ hex = {version = "0.4.2", default-features = false}
 [dependencies.sp-std]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-arithmetic]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.codec]
 default-features = false
@@ -47,38 +44,31 @@ version = '1.3.4'
 [dependencies.frame-support]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.frame-system]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.pallet-generic-asset]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+git = 'https://github.com/Gauthamastro/generic_asset.git'
 
 [dependencies.sp-core]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-io] #change
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dev-dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [features]
 default = ['std']
