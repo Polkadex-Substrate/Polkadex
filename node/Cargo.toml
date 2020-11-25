@@ -122,11 +122,14 @@ version = '2.0.0'
 git = 'https://github.com/paritytech/substrate.git'
 version = '2.0.0'
 
+[dependencies.sc-cli]
+git = 'https://github.com/paritytech/substrate.git'
+features = ['wasmtime']
+version = '0.8.0'
 
 [dependencies]
 jsonrpc-core = '15.0.0'
 structopt = '0.3.8'
-sc-cli = { features = ['wasmtime'], version = '0.8.0' }
 
 rpc = { path = "../pallets/polkadex/rpc" }
 runtime-api = { path = "../pallets/polkadex/runtime-api" }
