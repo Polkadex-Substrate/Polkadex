@@ -7,8 +7,8 @@ sudo ln -s /snap/bin/certbot /usr/bin/certbot
 sudo apt-get install python3-pip -y
 pip3 install certbot-dns-route53
 certbot plugins
-export AWS_ACCESS_KEY_ID=AKIA4YH4SYRFKJCLGD5X
-export AWS_SECRET_ACCESS_KEY=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
+export AWS_ACCESS_KEY_ID=<INSERT_AWS_ACCESS_KEY_ID>
+export AWS_SECRET_ACCESS_KEY=<INSERT_AWS_SECRET_ACCESS_KEY>
 certbot certonly -n --agree-tos --email business@polkadex.trade -d cloud.polkadex.trade --dns-route53 --preferred-challenges=dns --logs-dir /tmp/letsencrypt --config-dir ~/local/letsencrypt --work-dir /tmp/letsencrypt
 
 
