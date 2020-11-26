@@ -42,7 +42,7 @@ impl system::Trait for Test {
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
     type Version = ();
-    type ModuleToIndex = ();
+    type PalletInfo = ();
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -58,11 +58,15 @@ impl Trait for Test {
     type TradingPairReservationFee = TradingPairReservationFee;
 }
 
+parameter_types! {
+pub const MaxLocks: u32 = 10;
+}
 
 impl pallet_generic_asset::Trait for Test {
     type Balance = u128;
     type AssetId = u32;
     type Event = ();
+    type MaxLocks = MaxLocks;
 }
 
 pub type DEXModule = Module<Test>;

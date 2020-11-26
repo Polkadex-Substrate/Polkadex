@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "1.3.4" }
-jsonrpc-core = "14.0.3"
-jsonrpc-core-client = "14.0.3"
-jsonrpc-derive = "14.0.3"
+jsonrpc-core = "15.0.0"
+jsonrpc-core-client = "15.0.0"
+jsonrpc-derive = "15.0.0"
 serde = { version = "1.0.101", features = ["derive"], optional = true }
 runtime-api = { default-features = false, path = "../runtime-api" }
 pallet-polkadex = { default-features = false, path = "../" }
@@ -18,41 +18,34 @@ pallet-polkadex = { default-features = false, path = "../" }
 [dependencies.sp-rpc]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-blockchain]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-arithmetic]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-std]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
 
 [dependencies.sp-core]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+version = '2.0.0'
