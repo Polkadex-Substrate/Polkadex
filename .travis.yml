@@ -2,7 +2,6 @@ language: rust
 os: linux
 rust:
   - nightly-2020-09-28
-cache: cargo
 branches:
   only:
     - master
