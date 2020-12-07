@@ -36,17 +36,17 @@ decl_event!(
 	pub enum Event<T> where Hash = <T as frame_system::Trait>::Hash,
 	                        AccountId = <T as frame_system::Trait>::AccountId{
 		/// New Trading pair is created [TradingPairHash]
-		TradingPairCreated(Hash),
+		TradingPairCreated(Hash,Hash),
 		/// New Limit Order Created [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
-		NewLimitOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
+		NewLimitOrder(Hash,Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
 		/// Market Order - Unfilled [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
-		UnfilledMarketOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
+		UnfilledMarketOrder(Hash,Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
 		/// Market Order - Filled [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
-		FilledMarketOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
+		FilledMarketOrder(Hash,Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
 		/// Limit Order Fulfilled  [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
-		FulfilledLimitOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
+		FulfilledLimitOrder(Hash,Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
 		/// Limit Order Partial Fill  [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
-		PartialFillLimitOrder(Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
+		PartialFillLimitOrder(Hash,Hash,Hash,OrderType,FixedU128,FixedU128,AccountId),
 	}
 );
 
@@ -103,17 +103,17 @@ decl_storage! {
 	trait Store for Module<T: Trait> as DEXModule {
 
 	/// Stores all the different price levels for all the trading pairs in a DoubleMap.
-	PriceLevels get(fn get_pricelevels): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) FixedU128 => LinkedPriceLevel<T>;
+	PriceLevels get(fn get_pricelevels): double_map hasher(twox_64_concat) (T::Hash,T::Hash), hasher(blake2_128_concat) FixedU128 => LinkedPriceLevel<T>;
 
 	/// Stores all the different active ask and bid levels in the system as a sorted vector mapped to it's TradingPair.
-	AsksLevels get(fn get_askslevels): map hasher(identity) T::Hash => Vec<FixedU128>;
-	BidsLevels get(fn get_bidslevels): map hasher(identity) T::Hash => Vec<FixedU128>;
+	AsksLevels get(fn get_askslevels): map hasher(twox_64_concat) (T::Hash,T::Hash) => Vec<FixedU128>;
+	BidsLevels get(fn get_bidslevels): map hasher(twox_64_concat) (T::Hash,T::Hash) => Vec<FixedU128>;
 
 	/// Stores the Orderbook struct for all available trading pairs.
-	Orderbooks get(fn get_orderbooks): map hasher(identity) T::Hash => Orderbook<T>;
+	Orderbooks get(fn get_orderbooks): map hasher(twox_64_concat) (T::Hash,T::Hash) => Orderbook<T>;
 
 	/// Store MarketData of TradingPairs
-	MarketInfo get(fn get_marketdata): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) T::BlockNumber => MarketData;
+	MarketInfo get(fn get_marketdata): double_map hasher(twox_64_concat) (T::Hash,T::Hash), hasher(blake2_128_concat) T::BlockNumber => MarketData;
 	Nonce: u128;
 	}
 }
@@ -157,8 +157,8 @@ decl_module! {
 
 		    // The origin should reserve a certain amount of SpendingAssetCurrency for registering the pair
 		    ensure!(Self::reserve_balance_registration(&trader), <Error<T>>::InsufficientAssetBalance);
-		    Self::create_order_book(quote_asset_id.into(),base_asset_id.into(),&trading_pair_id);
-		    Self::deposit_event(RawEvent::TradingPairCreated(trading_pair_id));
+		    Self::create_order_book(quote_asset_id.into(),base_asset_id.into(),trading_pair_id);
+		    Self::deposit_event(RawEvent::TradingPairCreated(trading_pair_id.0, trading_pair_id.1));
 		    Ok(Some(0).into())
 	    }
 
@@ -180,7 +180,7 @@ decl_module! {
         ///
         ///  This function returns a status that, new Order is successfully created or not.
         #[weight = 10000]
-	    pub fn submit_order(origin, order_type: OrderType, trading_pair: T::Hash,  price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
+	    pub fn submit_order(origin, order_type: OrderType, trading_pair: (T::Hash, T::Hash),  price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
 
             ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
@@ -219,7 +219,7 @@ decl_module! {
         ///
         ///  This function returns a status that, given Order is successfully canceled or not.
 	    #[weight = 10000]
-	    pub fn cancel_order(origin, order_id: T::Hash, trading_pair: T::Hash, price: T::Balance) -> dispatch::DispatchResultWithPostInfo {
+	    pub fn cancel_order(origin, order_id: T::Hash, trading_pair: (T::Hash, T::Hash), price: T::Balance) -> dispatch::DispatchResultWithPostInfo {
 	        let trader = ensure_signed(origin)?;
 
 	        ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
@@ -243,7 +243,7 @@ impl<T: Trait> Module<T> {
     ///
     ///  This function returns List of Ask Level otherwise Related Error.
 
-    pub fn get_ask_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
+    pub fn get_ask_level(trading_pair: (T::Hash,T::Hash)) -> Result<Vec<FixedU128>, ErrorRpc> {
         let ask_level = <AsksLevels<T>>::get(trading_pair);
 
         Ok(ask_level)
@@ -258,7 +258,7 @@ impl<T: Trait> Module<T> {
     /// # Return
     ///
     ///  This function returns List of Bid Level otherwise Related Error.
-    pub fn get_bid_level(trading_pair: T::Hash) -> Result<Vec<FixedU128>, ErrorRpc> {
+    pub fn get_bid_level(trading_pair: (T::Hash,T::Hash)) -> Result<Vec<FixedU128>, ErrorRpc> {
         let bid_level = <BidsLevels<T>>::get(trading_pair);
         Ok(bid_level)
     }
@@ -272,7 +272,7 @@ impl<T: Trait> Module<T> {
     /// # Return
     ///
     ///  This function returns List of Price Level otherwise Related Error.
-    pub fn get_price_level(trading_pair: T::Hash) -> Result<Vec<LinkedPriceLevelRpc>, ErrorRpc> {
+    pub fn get_price_level(trading_pair: (T::Hash,T::Hash)) -> Result<Vec<LinkedPriceLevelRpc>, ErrorRpc> {
         let price_level: Vec<LinkedPriceLevel<T>> = <PriceLevels<T>>::iter_prefix_values(&trading_pair).collect();
 
         let mut price_level_rpc: Vec<LinkedPriceLevelRpc> = Vec::new();
@@ -291,7 +291,7 @@ impl<T: Trait> Module<T> {
     /// # Return
     ///
     ///  This function returns Requested Orderbook otherwise Related Error.
-    pub fn get_orderbook(trading_pair: T::Hash) -> Result<OrderbookRpc, ErrorRpc> {
+    pub fn get_orderbook(trading_pair: (T::Hash,T::Hash)) -> Result<OrderbookRpc, ErrorRpc> {
         let orderbook = <Orderbooks<T>>::get(trading_pair);
         let orderbook_rpc = orderbook.convert()?;
         Ok(orderbook_rpc)
@@ -321,7 +321,7 @@ impl<T: Trait> Module<T> {
     ///
     ///  This function returns all Orderbooks otherwise Related Error.
 
-    pub fn get_market_info(trading_pair: T::Hash, blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
+    pub fn get_market_info(trading_pair: (T::Hash,T::Hash), blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
         let blocknum = Self::u32_to_blocknum(blocknum);
         if <MarketInfo<T>>::contains_key(trading_pair, blocknum) {
             let temp: MarketData = <MarketInfo<T>>::get(trading_pair, blocknum);
@@ -345,7 +345,7 @@ impl<T: Trait> Module<T> {
     }
 
     /// Initializes a new Orderbook and stores it in the Orderbooks
-    fn create_order_book(quote_asset_id: T::AssetId, base_asset_id: T::AssetId, trading_pair_id: &T::Hash) {
+    fn create_order_book(quote_asset_id: T::AssetId, base_asset_id: T::AssetId, trading_pair_id: (T::Hash,T::Hash)) {
         let orderbook = Orderbook::new(base_asset_id, quote_asset_id, trading_pair_id.clone());
         <Orderbooks<T>>::insert(trading_pair_id, orderbook);
         <AsksLevels<T>>::insert(trading_pair_id, Vec::<FixedU128>::new());
@@ -353,14 +353,16 @@ impl<T: Trait> Module<T> {
     }
 
     /// Creates a TradingPairID from both Asset IDs.
-    fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> T::Hash {
-        (quote_asset_id, base_asset_id).using_encoded(<T as frame_system::Trait>::Hashing::hash)
+    fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> (T::Hash, T::Hash) {
+        let hash1 = (quote_asset_id).using_encoded(<T as frame_system::Trait>::Hashing::hash);
+        let hash2 = (base_asset_id).using_encoded(<T as frame_system::Trait>::Hashing::hash);
+        (hash1, hash2)
     }
 
     /// Submits an order for execution.
     fn execute_order(trader: T::AccountId,
                      order_type: OrderType,
-                     trading_pair: T::Hash,
+                     trading_pair: (T::Hash, T::Hash),
                      price: FixedU128,
                      quantity: FixedU128) -> Result<(), Error<T>> {
         let mut current_order = Order {
@@ -410,7 +412,8 @@ impl<T: Trait> Module<T> {
                 match current_order.order_type {
                     OrderType::BidLimit | OrderType::AskLimit if current_order.quantity > FixedU128::from(0) => {
                         Self::deposit_event(RawEvent::NewLimitOrder(current_order.id,
-                                                                    current_order.trading_pair,
+                                                                    current_order.trading_pair.0,
+                                                                    current_order.trading_pair.1,
                                                                     current_order.order_type,
                                                                     current_order.price,
                                                                     current_order.quantity,
@@ -418,7 +421,8 @@ impl<T: Trait> Module<T> {
                     }
                     OrderType::BidMarket if current_order.price > FixedU128::from(0) => {
                         Self::deposit_event(RawEvent::UnfilledMarketOrder(current_order.id,
-                                                                          current_order.trading_pair,
+                                                                          current_order.trading_pair.0,
+                                                                          current_order.trading_pair.1,
                                                                           current_order.order_type,
                                                                           current_order.price,
                                                                           current_order.quantity,
@@ -426,7 +430,8 @@ impl<T: Trait> Module<T> {
                     }
                     OrderType::AskMarket if current_order.quantity > FixedU128::from(0) => {
                         Self::deposit_event(RawEvent::UnfilledMarketOrder(current_order.id,
-                                                                          current_order.trading_pair,
+                                                                          current_order.trading_pair.0,
+                                                                          current_order.trading_pair.1,
                                                                           current_order.order_type,
                                                                           current_order.price,
                                                                           current_order.quantity,
@@ -434,7 +439,8 @@ impl<T: Trait> Module<T> {
                     }
                     OrderType::BidLimit | OrderType::AskLimit if current_order.quantity == FixedU128::from(0) => {
                         Self::deposit_event(RawEvent::FulfilledLimitOrder(current_order.id,
-                                                                          current_order.trading_pair,
+                                                                          current_order.trading_pair.0,
+                                                                          current_order.trading_pair.1,
                                                                           current_order.order_type,
                                                                           current_order.price,
                                                                           current_order.quantity,
@@ -442,7 +448,8 @@ impl<T: Trait> Module<T> {
                     }
                     OrderType::BidMarket if current_order.price == FixedU128::from(0) => {
                         Self::deposit_event(RawEvent::FilledMarketOrder(current_order.id,
-                                                                        current_order.trading_pair,
+                                                                        current_order.trading_pair.0,
+                                                                        current_order.trading_pair.1,
                                                                         current_order.order_type,
                                                                         current_order.price,
                                                                         current_order.quantity,
@@ -450,7 +457,8 @@ impl<T: Trait> Module<T> {
                     }
                     OrderType::AskMarket if current_order.quantity == FixedU128::from(0) => {
                         Self::deposit_event(RawEvent::FilledMarketOrder(current_order.id,
-                                                                        current_order.trading_pair,
+                                                                        current_order.trading_pair.0,
+                                                                        current_order.trading_pair.1,
                                                                         current_order.order_type,
                                                                         current_order.price,
                                                                         current_order.quantity,
@@ -1174,7 +1182,8 @@ impl<T: Trait> Module<T> {
     /// Function for emitting event.
     pub fn emit_partial_fill(order: &Order<T>, filled_amount: FixedU128) {
         Self::deposit_event(RawEvent::PartialFillLimitOrder(order.id,
-                                                            order.trading_pair,
+                                                            order.trading_pair.0,
+                                                            order.trading_pair.1,
                                                             order.order_type.clone(),
                                                             order.price,
                                                             filled_amount,
@@ -1184,7 +1193,8 @@ impl<T: Trait> Module<T> {
     /// Function for emitting event.
     pub fn emit_complete_fill(order: &Order<T>, filled_amount: FixedU128) {
         Self::deposit_event(RawEvent::FulfilledLimitOrder(order.id,
-                                                          order.trading_pair,
+                                                          order.trading_pair.0,
+                                                          order.trading_pair.1,
                                                           order.order_type.clone(),
                                                           order.price,
                                                           filled_amount,
@@ -1192,7 +1202,7 @@ impl<T: Trait> Module<T> {
     }
 
     /// Cancels an existing active order
-    pub fn cancel_order_from_orderbook(trader: T::AccountId, order_id: T::Hash, trading_pair: T::Hash, price: FixedU128) -> Result<(), Error<T>> {
+    pub fn cancel_order_from_orderbook(trader: T::AccountId, order_id: T::Hash, trading_pair: (T::Hash, T::Hash), price: FixedU128) -> Result<(), Error<T>> {
         let mut current_linkedpricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::take(trading_pair, price);
         let mut index = 0;
         let mut match_flag = false;

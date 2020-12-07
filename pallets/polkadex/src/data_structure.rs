@@ -26,7 +26,7 @@ pub enum OrderType {
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct Order<T> where T: Trait {
     pub id: T::Hash,
-    pub trading_pair: T::Hash,
+    pub trading_pair: (T::Hash, T::Hash),
     pub trader: T::AccountId,
     pub price: FixedU128,
     pub quantity: FixedU128,
@@ -37,7 +37,7 @@ impl<T> Order<T> where T: Trait {
     pub fn convert(self) -> Result<Order4RPC, ErrorRpc> {
         let order = Order4RPC {
             id: Self::account_to_bytes(&self.id)?,
-            trading_pair: Self::account_to_bytes(&self.trading_pair)?,
+            trading_pair: Self::hash_to_bytes(self.trading_pair)?,
             trader: Self::account_to_bytes(&self.trader)?,
             price: Self::convert_fixed_u128_to_balance(self.price).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
             quantity: Self::convert_fixed_u128_to_balance(self.quantity).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
@@ -45,6 +45,20 @@ impl<T> Order<T> where T: Trait {
         };
         Ok(order)
     }
+    fn hash_to_bytes<AccountId>(account: (AccountId, AccountId)) -> Result<([u8; 32],[u8; 32]), ErrorRpc>
+        where AccountId: Encode,
+    {
+        let hash1 = account.0.encode();
+        let hash2 = account.1.encode();
+        ensure!(hash1.len() == 32 && hash2.len() == 32, ErrorRpc::IdMustBe32Byte);
+        let mut bytes1 = [0u8; 32];
+        let mut bytes2 = [0u8; 32];
+        bytes1.copy_from_slice(&hash1);
+        bytes2.copy_from_slice(&hash2);
+        Ok((bytes1, bytes2))
+    }
+
+
 
     fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], ErrorRpc>
         where AccountId: Encode,
@@ -115,7 +129,7 @@ impl<T> Default for LinkedPriceLevel<T> where T: Trait {
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct Orderbook<T> where T: Trait {
-    pub trading_pair: T::Hash,
+    pub trading_pair: (T::Hash, T::Hash),
     pub base_asset_id: T::AssetId,
     pub quote_asset_id: T::AssetId,
     pub best_bid_price: FixedU128,
@@ -125,13 +139,26 @@ pub struct Orderbook<T> where T: Trait {
 impl<T> Orderbook<T> where T: Trait {
     pub fn convert(self) -> Result<OrderbookRpc, ErrorRpc> {
         let orderbook = OrderbookRpc {
-            trading_pair: Self::account_to_bytes(&self.trading_pair)?,
+            trading_pair: Self::hash_to_bytes(self.trading_pair)?,
             base_asset_id: TryInto::<u32>::try_into(self.base_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
             quote_asset_id: TryInto::<u32>::try_into(self.quote_asset_id).ok().ok_or(ErrorRpc::AssetIdConversionFailed)?,
             best_bid_price: Self::convert_fixed_u128_to_balance(self.best_bid_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
             best_ask_price: Self::convert_fixed_u128_to_balance(self.best_ask_price).ok_or(ErrorRpc::IdMustBe32Byte)?,
         };
         Ok(orderbook)
+    }
+
+    fn hash_to_bytes<AccountId>(account: (AccountId, AccountId)) -> Result<([u8; 32],[u8; 32]), ErrorRpc>
+        where AccountId: Encode,
+    {
+        let hash1 = account.0.encode();
+        let hash2 = account.1.encode();
+        ensure!(hash1.len() == 32 && hash2.len() == 32, ErrorRpc::IdMustBe32Byte);
+        let mut bytes1 = [0u8; 32];
+        let mut bytes2 = [0u8; 32];
+        bytes1.copy_from_slice(&hash1);
+        bytes2.copy_from_slice(&hash2);
+        Ok((bytes1, bytes2))
     }
 
     fn account_to_bytes<AccountId>(account: &AccountId) -> Result<[u8; 32], ErrorRpc>
@@ -157,7 +184,7 @@ impl<T> Orderbook<T> where T: Trait {
 impl<T> Default for Orderbook<T> where T: Trait {
     fn default() -> Self {
         Orderbook {
-            trading_pair: T::Hash::default(),
+            trading_pair: (T::Hash::default(), T::Hash::default()),
             base_asset_id: 0.into(),
             quote_asset_id: 0.into(),
             best_bid_price: FixedU128::from(0),
@@ -167,7 +194,7 @@ impl<T> Default for Orderbook<T> where T: Trait {
 }
 
 impl<T> Orderbook<T> where T: Trait {
-    pub fn new(base_asset_id: T::AssetId, quote_asset_id: T::AssetId, trading_pair: T::Hash) -> Self {
+    pub fn new(base_asset_id: T::AssetId, quote_asset_id: T::AssetId, trading_pair: (T::Hash, T::Hash)) -> Self {
         Orderbook {
             trading_pair,
             base_asset_id,

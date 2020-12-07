@@ -17,22 +17,22 @@ use runtime_api::DexStorageApi as DexStorageRuntimeApi;
 #[rpc]
 pub trait DexStorageApi<BlockHash> {
     #[rpc(name = "get_ask_level")]
-    fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
+    fn get_ask_level(&self, at: Option<BlockHash>, trading_pair: (H256,H256)) -> Result<Vec<FixedU128>>;
 
     #[rpc(name = "get_bid_level")]
-    fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<FixedU128>>;
+    fn get_bid_level(&self, at: Option<BlockHash>, trading_pair: (H256,H256)) -> Result<Vec<FixedU128>>;
 
     #[rpc(name = "get_price_level")]
-    fn get_price_level(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevelRpc>>;
+    fn get_price_level(&self, at: Option<BlockHash>, trading_pair: (H256,H256)) -> Result<Vec<LinkedPriceLevelRpc>>;
 
     #[rpc(name = "get_orderbook")]
-    fn get_orderbook(&self, at: Option<BlockHash>, trading_pair: H256) -> Result<OrderbookRpc>;
+    fn get_orderbook(&self, at: Option<BlockHash>, trading_pair: (H256,H256)) -> Result<OrderbookRpc>;
 
     #[rpc(name = "get_all_orderbook")]
     fn get_all_orderbook(&self, at: Option<BlockHash>) -> Result<Vec<OrderbookRpc>>;
 
     #[rpc(name = "get_market_info")]
-    fn get_market_info(&self, at: Option<BlockHash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc>;
+    fn get_market_info(&self, at: Option<BlockHash>, trading_pair: (H256,H256), blocknum: u32) -> Result<MarketDataRpc>;
 }
 
 /// A struct that implements the `DexStorageApi`.
@@ -95,7 +95,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         C: HeaderBackend<Block>,
         C::Api: DexStorageRuntimeApi<Block>,
 {
-    fn get_ask_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
+    fn get_ask_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: (H256,H256)) -> Result<Vec<FixedU128>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             self.client.info().best_hash);
@@ -110,7 +110,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
-    fn get_bid_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<FixedU128>> {
+    fn get_bid_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: (H256,H256)) -> Result<Vec<FixedU128>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             self.client.info().best_hash);
@@ -127,7 +127,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
-    fn get_price_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<Vec<LinkedPriceLevelRpc>> {
+    fn get_price_level(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: (H256,H256)) -> Result<Vec<LinkedPriceLevelRpc>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
 
@@ -145,7 +145,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
-    fn get_orderbook(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256) -> Result<OrderbookRpc> {
+    fn get_orderbook(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: (H256,H256)) -> Result<OrderbookRpc> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             // Always take the best block hash for this RPC
@@ -181,7 +181,7 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
         temp.map_err(|e| ErrorConvert::covert_to_rpc_error(e))
     }
 
-    fn get_market_info(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc> {
+    fn get_market_info(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: (H256,H256), blocknum: u32) -> Result<MarketDataRpc> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             // Always take the best block hash for this RPC

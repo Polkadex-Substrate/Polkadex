@@ -32,7 +32,7 @@ pub enum OrderTypeRPC {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Order4RPC {
     pub id: [u8; 32],
-    pub trading_pair: [u8; 32],
+    pub trading_pair: ([u8; 32],[u8; 32]),
     pub trader: [u8; 32],
     pub price: Vec<u8>,
     pub quantity: Vec<u8>,
@@ -52,7 +52,7 @@ pub struct LinkedPriceLevelRpc {
 #[derive(Encode, Decode, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct OrderbookRpc {
-    pub trading_pair: [u8; 32],
+    pub trading_pair: ([u8; 32], [u8; 32]),
     pub base_asset_id: u32,
     pub quote_asset_id: u32,
     pub best_bid_price: Vec<u8>,
