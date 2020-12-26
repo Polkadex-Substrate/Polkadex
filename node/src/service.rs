@@ -215,12 +215,6 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 			"grandpa-voter",
 			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?
 		);
-	} else {
-		sc_finality_grandpa::setup_disabled_grandpa(
-			// client,
-			// &inherent_data_providers,
-			network,
-		)?;
 	}
 
 	network_starter.start_network();

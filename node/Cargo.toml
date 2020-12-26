@@ -7,7 +7,7 @@ homepage = 'https://github.com/Polkadex-Substrate/Polkadex'
 license = 'Apache 2.0'
 name = 'node-polkadex'
 repository = 'https://github.com/Polkadex-Substrate/Polkadex'
-version = '2.0.0'
+version = "2.0.0"
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -15,126 +15,38 @@ targets = ['x86_64-unknown-linux-gnu']
 [[bin]]
 name = 'node-polkadex'
 
-
-[dependencies.node-polkadex-runtime]
-path = '../runtime'
-version = '2.0.0'
-
-[dependencies.pallet-transaction-payment-rpc]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sc-basic-authorship]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-client-api]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sc-consensus]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-consensus-slots]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-consensus-babe]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-executor]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-finality-grandpa]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-rpc]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sc-rpc-api]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-service]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sc-transaction-pool]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-api]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-block-builder]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-blockchain]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-consensus]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sp-consensus-babe]
-git = 'https://github.com/paritytech/substrate.git'
-version = '0.8.0'
-
-[dependencies.sp-core]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-finality-grandpa]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-inherents]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-runtime]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-transaction-pool]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.substrate-frame-rpc-system]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.frame-benchmarking]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.frame-benchmarking-cli]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sc-cli]
-git = 'https://github.com/paritytech/substrate.git'
-features = ['wasmtime']
-version = '0.8.0'
-
 [dependencies]
 jsonrpc-core = '15.0.0'
 structopt = '0.3.8'
+rpc = { path = "../pallets/polkadex/rpc", version = "0.1.0" }
+runtime-api = { path = "../pallets/polkadex/runtime-api", version = "0.1.0" }
+node-polkadex-runtime = { path = "../runtime", version = "2.0.0" }
+pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-basic-authorship = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-client-api = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-consensus = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-consensus-slots = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-consensus-babe = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-executor = { git = 'https://github.com/paritytech/substrate.git', branch = "master", features = ['wasmtime'] }
+sc-finality-grandpa = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-rpc = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-rpc-api = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-service = { git = 'https://github.com/paritytech/substrate.git', branch = "master", features = ['wasmtime'] }
+sc-transaction-pool = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-api = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-block-builder = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-blockchain = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-consensus = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-consensus-babe = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-core = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-finality-grandpa = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-inherents = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-runtime = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sp-transaction-pool = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+substrate-frame-rpc-system = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-cli = { git = 'https://github.com/paritytech/substrate.git', features = ['wasmtime'], branch = "master" }
 
-rpc = { path = "../pallets/polkadex/rpc" }
-runtime-api = { path = "../pallets/polkadex/runtime-api" }
-
-
-[build-dependencies.substrate-build-script-utils]
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
+[build-dependencies]
+substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "master" }
