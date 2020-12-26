@@ -19,7 +19,7 @@ use crate::{chain_spec, service};
 use crate::cli::{Cli, Subcommand};
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
-use node_polkadex_runtime::Block;
+use polkadex_mainnet_runtime::Block;
 
 
 impl SubstrateCli for Cli {
@@ -58,7 +58,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&node_polkadex_runtime::VERSION
+		&polkadex_mainnet_runtime::VERSION
 	}
 }
 
