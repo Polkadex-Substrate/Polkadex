@@ -16,8 +16,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install nightly
-      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-09-28
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2020-09-28
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
     - name: Build
       run: cargo build --verbose
     - name: Run tests
