@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install nightly
+      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-09-28
     - name: Build
       run: cargo build --verbose
     - name: Run tests
