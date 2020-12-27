@@ -32,6 +32,7 @@ frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', bran
 frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 sc-basic-authorship = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+sc-keystore = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 sc-cli = { features = ['wasmtime'], git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 sc-client-api = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 sc-consensus = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
