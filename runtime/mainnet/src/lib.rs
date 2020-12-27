@@ -553,6 +553,10 @@ impl_runtime_apis! {
 			}
 		}
 
+		fn current_epoch() -> sp_consensus_babe::Epoch {
+			Babe::current_epoch()
+		}
+
 		fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
 			Babe::current_epoch_start()
 		}
