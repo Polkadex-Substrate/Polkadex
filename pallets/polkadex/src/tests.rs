@@ -381,8 +381,8 @@ fn check_market_data() {
 }
 
 
-fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> <mock::Test as frame_system::Trait>::Hash {
-    (quote_asset_id, base_asset_id).using_encoded(<Test as frame_system::Trait>::Hashing::hash)
+fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> <mock::Test as frame_system::Config>::Hash {
+    (quote_asset_id, base_asset_id).using_encoded(<Test as frame_system::Config>::Hashing::hash)
 }
 
 fn calculate_quantity(mut pricelevel: LinkedPriceLevel<Test>) -> FixedU128 {

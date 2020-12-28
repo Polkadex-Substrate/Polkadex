@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use node_polkadex_runtime::{self, opaque::Block, RuntimeApi};
+use polkadex_mainnet_runtime::{self, opaque::Block, RuntimeApi};
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
@@ -14,8 +14,8 @@ use sc_finality_grandpa::{FinalityProofProvider as GrandpaFinalityProofProvider,
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
-	node_polkadex_runtime::api::dispatch,
-	node_polkadex_runtime::native_version,
+	polkadex_mainnet_runtime::api::dispatch,
+	polkadex_mainnet_runtime::native_version,
 );
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
@@ -215,12 +215,6 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 			"grandpa-voter",
 			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?
 		);
-	} else {
-		sc_finality_grandpa::setup_disabled_grandpa(
-			// client,
-			// &inherent_data_providers,
-			network,
-		)?;
 	}
 
 	network_starter.start_network();

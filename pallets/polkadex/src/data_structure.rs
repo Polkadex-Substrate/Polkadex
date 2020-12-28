@@ -12,7 +12,7 @@ use sp_std::str;
 use sp_std::vec::Vec;
 
 use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, Order4RPC, OrderbookRpc};
-use crate::Trait;
+use crate::Config;
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -24,7 +24,7 @@ pub enum OrderType {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
-pub struct Order<T> where T: Trait {
+pub struct Order<T> where T: Config {
     pub id: T::Hash,
     pub trading_pair: T::Hash,
     pub trader: T::AccountId,
@@ -33,7 +33,7 @@ pub struct Order<T> where T: Trait {
     pub order_type: OrderType,
 }
 
-impl<T> Order<T> where T: Trait {
+impl<T> Order<T> where T: Config {
     pub fn convert(self) -> Result<Order4RPC, ErrorRpc> {
         let order = Order4RPC {
             id: Self::account_to_bytes(&self.id)?,
@@ -67,13 +67,13 @@ impl<T> Order<T> where T: Trait {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
-pub struct LinkedPriceLevel<T> where T: Trait {
+pub struct LinkedPriceLevel<T> where T: Config {
     pub next: Option<FixedU128>,
     pub prev: Option<FixedU128>,
     pub orders: VecDeque<Order<T>>,
 }
 
-impl<T> LinkedPriceLevel<T> where T: Trait {
+impl<T> LinkedPriceLevel<T> where T: Config {
     pub fn convert(self) -> Result<LinkedPriceLevelRpc, ErrorRpc> {
         let linked_pirce_level = LinkedPriceLevelRpc {
             next: Self::convert_fixed_u128_to_balance(self.next.ok_or(ErrorRpc::NoElementFound)?).ok_or(ErrorRpc::Fixedu128tou128conversionFailed)?,
@@ -103,7 +103,7 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
     }
 }
 
-impl<T> Default for LinkedPriceLevel<T> where T: Trait {
+impl<T> Default for LinkedPriceLevel<T> where T: Config {
     fn default() -> Self {
         LinkedPriceLevel {
             next: None,
@@ -114,7 +114,7 @@ impl<T> Default for LinkedPriceLevel<T> where T: Trait {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
-pub struct Orderbook<T> where T: Trait {
+pub struct Orderbook<T> where T: Config {
     pub trading_pair: T::Hash,
     pub base_asset_id: T::AssetId,
     pub quote_asset_id: T::AssetId,
@@ -122,7 +122,7 @@ pub struct Orderbook<T> where T: Trait {
     pub best_ask_price: FixedU128,
 }
 
-impl<T> Orderbook<T> where T: Trait {
+impl<T> Orderbook<T> where T: Config {
     pub fn convert(self) -> Result<OrderbookRpc, ErrorRpc> {
         let orderbook = OrderbookRpc {
             trading_pair: Self::account_to_bytes(&self.trading_pair)?,
@@ -154,7 +154,7 @@ impl<T> Orderbook<T> where T: Trait {
     }
 }
 
-impl<T> Default for Orderbook<T> where T: Trait {
+impl<T> Default for Orderbook<T> where T: Config {
     fn default() -> Self {
         Orderbook {
             trading_pair: T::Hash::default(),
@@ -166,7 +166,7 @@ impl<T> Default for Orderbook<T> where T: Trait {
     }
 }
 
-impl<T> Orderbook<T> where T: Trait {
+impl<T> Orderbook<T> where T: Config {
     pub fn new(base_asset_id: T::AssetId, quote_asset_id: T::AssetId, trading_pair: T::Hash) -> Self {
         Orderbook {
             trading_pair,

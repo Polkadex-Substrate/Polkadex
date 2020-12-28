@@ -15,37 +15,10 @@ serde = { version = "1.0.101", features = ["derive"], optional = true }
 runtime-api = { default-features = false, path = "../runtime-api" }
 pallet-polkadex = { default-features = false, path = "../" }
 
-[dependencies.sp-rpc]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-runtime]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-blockchain]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-api]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-arithmetic]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-std]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
-
-[dependencies.sp-core]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-version = '2.0.0'
+sp-rpc = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+sp-runtime = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+sp-blockchain = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+sp-api = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+sp-arithmetic = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+sp-std = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+sp-core = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }

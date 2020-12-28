@@ -27,15 +27,15 @@ pub mod data_structure;
 pub mod data_structure_rpc;
 
 
-pub trait Trait: frame_system::Trait + pallet_generic_asset::Trait {
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+pub trait Config: frame_system::Config + pallet_generic_asset::Config {
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
-    type TradingPairReservationFee: Get<<Self as pallet_generic_asset::Trait>::Balance>;
+    type TradingPairReservationFee: Get<<Self as pallet_generic_asset::Config>::Balance>;
 }
 
 decl_event!(
-	pub enum Event<T> where Hash = <T as frame_system::Trait>::Hash,
-	                        AccountId = <T as frame_system::Trait>::AccountId{
+	pub enum Event<T> where Hash = <T as frame_system::Config>::Hash,
+	                        AccountId = <T as frame_system::Config>::AccountId{
 		/// New Trading pair is created [TradingPairHash]
 		TradingPairCreated(Hash),
 		/// New Limit Order Created [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
@@ -52,7 +52,7 @@ decl_event!(
 );
 
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Transaction contained Same AssetID for both base and quote.
 		SameAssetIdsError,
 		/// TradingPair already exists in the system
@@ -101,7 +101,7 @@ decl_error! {
 
 decl_storage! {
 
-	trait Store for Module<T: Trait> as DEXModule {
+	trait Store for Module<T: Config> as DEXModule {
 
 	/// Stores all the different price levels for all the trading pairs in a DoubleMap.
 	PriceLevels get(fn get_pricelevels): double_map hasher(identity) T::Hash, hasher(blake2_128_concat) FixedU128 => LinkedPriceLevel<T>;
@@ -123,7 +123,7 @@ decl_storage! {
 
 
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 
 		type Error = Error<T>;
 
@@ -234,7 +234,7 @@ decl_module! {
 
 
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// This is a helper function for "Get Ask Level API".
     /// # Arguments
     ///
@@ -391,12 +391,12 @@ impl<T: Trait> Module<T> {
 
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// Reserves TradingPairReservationFee (defined in configuration trait) balance of SpendingAssetCurrency
-    fn reserve_balance_registration(origin: &<T as frame_system::Trait>::AccountId) -> bool {
+    fn reserve_balance_registration(origin: &<T as frame_system::Config>::AccountId) -> bool {
         pallet_generic_asset::Module::<T>::reserve(
             &pallet_generic_asset::SpendingAssetIdProvider::<T>::asset_id(),
-            origin, <T as Trait>::TradingPairReservationFee::get()).is_ok()
+            origin, <T as Config>::TradingPairReservationFee::get()).is_ok()
     }
 
     /// Initializes a new Orderbook and stores it in the Orderbooks
@@ -409,7 +409,7 @@ impl<T: Trait> Module<T> {
 
     /// Creates a TradingPairID from both Asset IDs.
     fn create_trading_pair_id(quote_asset_id: &u32, base_asset_id: &u32) -> T::Hash {
-        (quote_asset_id, base_asset_id).using_encoded(<T as frame_system::Trait>::Hashing::hash)
+        (quote_asset_id, base_asset_id).using_encoded(<T as frame_system::Config>::Hashing::hash)
     }
 
     /// Submits an order for execution.
@@ -431,7 +431,7 @@ impl<T: Trait> Module<T> {
             Ok(mut orderbook) => {
                 let nonce = Nonce::get(); // To get some kind non user controllable randomness to order id
                 current_order.id = (trading_pair, current_order.trader.clone(), price, quantity, current_order.order_type.clone(), nonce)
-                    .using_encoded(<T as frame_system::Trait>::Hashing::hash);
+                    .using_encoded(<T as frame_system::Config>::Hashing::hash);
                 Nonce::put(nonce + 1);
 
                 match current_order.order_type {

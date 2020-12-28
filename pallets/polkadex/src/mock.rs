@@ -4,7 +4,8 @@ use pallet_generic_asset;
 use sp_core::H256;
 use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}};
 
-use crate::{Module, Trait};
+use crate::{Module, Config};
+use frame_system::limits::{BlockLength, BlockWeights};
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -16,12 +17,10 @@ impl_outer_origin! {
 pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub const MaximumBlockWeight: Weight = 1024;
-	pub const MaximumBlockLength: u32 = 2 * 1024;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
     type BaseCallFilter = ();
     type Origin = Origin;
     type Call = ();
@@ -34,26 +33,22 @@ impl system::Trait for Test {
     type Header = Header;
     type Event = ();
     type BlockHashCount = BlockHashCount;
-    type MaximumBlockWeight = MaximumBlockWeight;
     type DbWeight = ();
-    type BlockExecutionWeight = ();
-    type ExtrinsicBaseWeight = ();
-    type MaximumExtrinsicWeight = MaximumBlockWeight;
-    type MaximumBlockLength = MaximumBlockLength;
-    type AvailableBlockRatio = AvailableBlockRatio;
     type Version = ();
     type PalletInfo = ();
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
+    type BlockWeights = ();
+    type BlockLength = ();
 }
 
 parameter_types! {
 pub const TradingPairReservationFee: u128 = 1_000_000_000_000;
 }
 
-impl Trait for Test {
+impl Config for Test {
     type Event = ();
     type TradingPairReservationFee = TradingPairReservationFee;
 }
@@ -62,7 +57,7 @@ parameter_types! {
 pub const MaxLocks: u32 = 10;
 }
 
-impl pallet_generic_asset::Trait for Test {
+impl pallet_generic_asset::Config for Test {
     type Balance = u128;
     type AssetId = u32;
     type Event = ();
