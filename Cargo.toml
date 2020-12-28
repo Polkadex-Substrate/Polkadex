@@ -5,10 +5,8 @@ panic = 'unwind'
 members = [
     'node/mainnet',
     'node/testnet',
-
     'runtime/mainnet',
     'runtime/testnet',
-
     'pallets/polkadex',
 ]
 
