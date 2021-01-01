@@ -8,5 +8,9 @@ members = [
     'runtime/mainnet',
     'runtime/testnet',
     'pallets/polkadex',
+    'pallets/polkadex-engine',
+    'pallets/polkadex-custom-assets',
+    'pallets/polkadex-identity-pallet',
+    'pallets/polkadex-uniswap',
 ]
 
