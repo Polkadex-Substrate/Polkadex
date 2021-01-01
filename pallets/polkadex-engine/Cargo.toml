@@ -4,7 +4,7 @@ description = 'Polkadex: Orderbook based Trading Chain Node.'
 edition = '2018'
 homepage = 'https://github.com/Polkadex-Substrate/Polkadex'
 license = 'Unlicense'
-name = 'pallet-polkadex'
+name = 'polkadex-engine'
 repository = 'https://github.com/Polkadex-Substrate/Polkadex'
 version = '2.0.0'
 
@@ -16,11 +16,11 @@ serde_json = "1.0.41"
 
 [dependencies]
 compare = "0.1.0"
-serde = { version = "1.0.101", default-features = false, features = ["derive"], optional= true }
+serde = { version = "1.0.101", default-features = false, features = ["derive"], optional = true }
 jsonrpc-core = "14.0.3"
-hex = {version = "0.4.2", default-features = false}
-polkadex-custom-assets = {path =" ../polkadex-custom-assets", default-features = false}
-polkadex-swap-engine ={default-features = false , path = " ../polkadex-uniswap"}
+hex = { version = "0.4.2", default-features = false }
+polkadex-custom-assets = { path = "../polkadex-custom-assets", default-features = false }
+polkadex-swap-engine = { path = "../polkadex-uniswap", default-features = false }
 sp-std = { default-features = false, version = '2.0.0' }
 sp-runtime = { default-features = false, version = '2.0.0' }
 sp-arithmetic = { default-features = false, version = '2.0.0' }

@@ -1,5 +1,5 @@
 [package]
-name = "runtime-api"
+name = "engine-runtime-api"
 version = "0.1.0"
 authors = ["Polkadex Team"]
 edition = "2018"

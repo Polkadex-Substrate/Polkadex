@@ -20,7 +20,7 @@ frame-system = { default-features = false, version = '2.0.0' }
 sp-runtime = { default-features = false, version = '2.0.0' }
 sp-arithmetic = { default-features = false, version = '2.0.0' }
 sp-core = { default-features = false, version = '2.0.0' }
-polkadex-custom-assets = { path = "../polkadex-custom-assets" default-features = false}
+polkadex-custom-assets = { path = "../polkadex-custom-assets", default-features = false}
 [dev-dependencies]
 sp-io = { default-features = false, version = '2.0.0' }
 sp-runtime = { default-features = false, version = '2.0.0' }

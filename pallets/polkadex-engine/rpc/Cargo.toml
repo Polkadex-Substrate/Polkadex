@@ -1,5 +1,5 @@
 [package]
-name = "rpc"
+name = "engine-rpc"
 version = "0.1.0"
 authors = ["Polkadex Team"]
 edition = "2018"
@@ -12,8 +12,8 @@ jsonrpc-core = "15.0.0"
 jsonrpc-core-client = "15.0.0"
 jsonrpc-derive = "15.0.0"
 serde = { version = "1.0.101", features = ["derive"], optional = true }
-runtime-api = { default-features = false, path = "../runtime-api" }
-pallet-polkadex = { default-features = false, path = "../" }
+runtime-api = { package="engine-runtime-api", default-features = false, path = "../runtime-api" }
+pallet-polkadex = { default-features = false, path = "../", package="polkadex-engine" }
 sp-rpc = {version = '2.0.0', default-features = false}
 sp-runtime = {version = '2.0.0', default-features = false}
 sp-blockchain = {version = '2.0.0', default-features = false}
