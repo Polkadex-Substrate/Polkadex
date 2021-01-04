@@ -173,9 +173,6 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, ensure_root};
 
-mod mock;
-mod tests;
-
 pub use self::imbalances::{NegativeImbalance, PositiveImbalance};
 
 pub trait Config: frame_system::Config {
