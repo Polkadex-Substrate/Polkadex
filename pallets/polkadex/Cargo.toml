@@ -16,7 +16,7 @@ compare = "0.1.0"
 serde = { version = "1.0.101", default-features = false, features = ["derive"], optional = true }
 jsonrpc-core = "14.0.3"
 hex = { version = "0.4.2", default-features = false }
-pallet-generic-asset = { git = 'https://github.com/Gauthamastro/generic_asset.git', branch = 'master', default-features = false }
+pallet-generic-asset = { path = "../generic_asset" , default-features = false }
 sp-std = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-runtime = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-arithmetic = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }

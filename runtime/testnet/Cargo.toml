@@ -24,7 +24,7 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 # local dependencies
 runtime-api = { default-features = false, path = "../../pallets/polkadex/runtime-api" }
 pallet-polkadex = { path = '../../pallets/polkadex', default-features = false, version = '2.0.0' }
-pallet-generic-asset = { default-features = false, git = 'https://github.com/Gauthamastro/generic_asset.git', branch = "master" }
+pallet-generic-asset = { path = "../../pallets/generic_asset" , default-features = false }
 
 # Substrate dependencies
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false, optional = true }

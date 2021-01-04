@@ -42,7 +42,7 @@ pallet-staking = { git = 'https://github.com/paritytech/substrate.git', branch =
 pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-session = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false, features = ['historical'] }
 sp-staking = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
-pallet-generic-asset = { default-features = false, git = 'https://github.com/Gauthamastro/generic_asset.git', branch = "master" }
+pallet-generic-asset =  { path = "../../pallets/generic_asset" , default-features = false }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 [dependencies.codec]
