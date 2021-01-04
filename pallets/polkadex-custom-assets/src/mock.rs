@@ -69,6 +69,19 @@ impl AssetIdProvider for Test {
 }
 
 parameter_types! {
+    pub const MaxSubAccounts: u32 = 10;
+    pub const MaxRegistrars: u32 = 10;
+}
+
+impl pallet_idenity::Trait for Test {
+    type Event = ();
+    type MaxSubAccounts = MaxSubAccounts;
+    type MaxRegistrars= MaxRegistrars;
+
+
+}
+
+parameter_types! {
 pub const maxLocks: u32 = 10;
 pub const existentialDeposit: u128 = 1;
 }

@@ -20,6 +20,7 @@ frame-system = { default-features = false, version = '2.0.0' }
 sp-runtime = { default-features = false, version = '2.0.0' }
 sp-arithmetic = { default-features = false, version = '2.0.0' }
 sp-core = { default-features = false, version = '2.0.0' }
+pallet-idenity = {default-features = false, path = "../polkadex-identity-pallet"}
 polkadex-custom-assets = { path = "../polkadex-custom-assets", default-features = false}
 [dev-dependencies]
 sp-io = { default-features = false, version = '2.0.0' }
@@ -31,4 +32,5 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
+    'pallet-idenity/std'
 ]

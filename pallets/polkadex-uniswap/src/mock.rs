@@ -5,6 +5,7 @@ use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill
 use frame_system as system;
 
 
+
 impl_outer_origin! {
 	pub enum Origin for Test {}
 }
@@ -51,9 +52,24 @@ impl system::Trait for Test {
 parameter_types! {
     pub const TradingPathLimit: usize = 10;
 }
+
+
 impl Trait for Test {
     type Event = ();
     type TradingPathLimit = TradingPathLimit;
+}
+
+parameter_types! {
+    pub const MaxSubAccounts: u32 = 10;
+    pub const MaxRegistrars: u32 = 10;
+}
+
+impl pallet_idenity::Trait for Test {
+    type Event = ();
+    type MaxSubAccounts = MaxSubAccounts;
+    type MaxRegistrars= MaxRegistrars;
+
+
 }
 parameter_types! {
     pub const MaxLocks: u32 = 10;
