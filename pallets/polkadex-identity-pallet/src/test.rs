@@ -45,7 +45,7 @@ fn check_provide_judgement_trader () {
         assert!(TemplateModule::is_registrar(accountid_registrar));
         // Provide judgement for given account id
         assert_ok!(TemplateModule::provide_judgement_trader(Origin::signed(accountid_registrar), accountid_trader,judgement));
-        assert_eq!(TemplateModule::check_account_status(accountid_trader), Judgement::KnownGood);
+        assert_eq!(TemplateModule::check_account_status(&accountid_trader), Judgement::KnownGood);
 
         // Provided account Id Registrar is not of Registrar
         let false_registrar = 4;
@@ -107,12 +107,12 @@ fn check_freeze_account() {
         // Freeze new account id
         let new_accountid:u64 = 8;
         assert_ok!(TemplateModule::freeze_account(Origin::signed(accountid_registrar), new_accountid));
-        assert_eq!(TemplateModule::check_account_status(new_accountid), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&new_accountid), Judgement::Freeze);
 
         // Freeze already added account Id
         let accountid_trader:u64 =  1;
         assert_ok!(TemplateModule::freeze_account(Origin::signed(accountid_registrar), accountid_trader));
-        assert_eq!(TemplateModule::check_account_status(accountid_trader), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&accountid_trader), Judgement::Freeze);
 
     });
 
@@ -126,9 +126,9 @@ fn check_freeze_account() {
         TemplateModule::add_sub_account(Origin::signed(accountid_trader), first_sub_accountid);
         TemplateModule::add_sub_account(Origin::signed(accountid_trader), second_sub_accountid);
         assert_ok!(TemplateModule::freeze_account(Origin::signed(accountid_registrar), accountid_trader));
-        assert_eq!(TemplateModule::check_account_status(accountid_trader), Judgement::Freeze);
-        assert_eq!(TemplateModule::check_account_status(first_sub_accountid), Judgement::Freeze);
-        assert_eq!(TemplateModule::check_account_status(second_sub_accountid), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&accountid_trader), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&first_sub_accountid), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&second_sub_accountid), Judgement::Freeze);
 
     });
 
@@ -142,9 +142,9 @@ fn check_freeze_account() {
         TemplateModule::add_sub_account(Origin::signed(accountid_trader), first_sub_accountid);
         TemplateModule::add_sub_account(Origin::signed(accountid_trader), second_sub_accountid);
         assert_ok!(TemplateModule::freeze_account(Origin::signed(accountid_registrar), first_sub_accountid));
-        assert_eq!(TemplateModule::check_account_status(first_sub_accountid), Judgement::Freeze);
-        assert_eq!(TemplateModule::check_account_status(second_sub_accountid), Judgement::Freeze);
-        assert_eq!(TemplateModule::check_account_status(accountid_trader), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&first_sub_accountid), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&second_sub_accountid), Judgement::Freeze);
+        assert_eq!(TemplateModule::check_account_status(&accountid_trader), Judgement::Freeze);
     });
 
 
