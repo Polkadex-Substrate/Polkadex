@@ -1,8 +1,9 @@
-use crate::{Module, Trait};
+use crate::{Module, Config};
 use sp_core::H256;
 use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
 use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill};
 use frame_system as system;
+use frame_system::limits::{BlockLength, BlockWeights};
 
 
 
@@ -21,8 +22,10 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
     type BaseCallFilter = ();
+    type BlockWeights = ();
+    type BlockLength = ();
     type Origin = Origin;
     type Call = ();
     type Index = u64;
@@ -34,13 +37,7 @@ impl system::Trait for Test {
     type Header = Header;
     type Event = ();
     type BlockHashCount = BlockHashCount;
-    type MaximumBlockWeight = MaximumBlockWeight;
     type DbWeight = ();
-    type BlockExecutionWeight = ();
-    type ExtrinsicBaseWeight = ();
-    type MaximumExtrinsicWeight = MaximumBlockWeight;
-    type MaximumBlockLength = MaximumBlockLength;
-    type AvailableBlockRatio = AvailableBlockRatio;
     type Version = ();
     type PalletInfo = ();
     type AccountData = ();
@@ -54,7 +51,7 @@ parameter_types! {
 }
 
 
-impl Trait for Test {
+impl Config for Test {
     type Event = ();
     type TradingPathLimit = TradingPathLimit;
 }
@@ -64,7 +61,7 @@ parameter_types! {
     pub const MaxRegistrars: u32 = 10;
 }
 
-impl pallet_idenity::Trait for Test {
+impl pallet_idenity::Config for Test {
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars= MaxRegistrars;
@@ -76,7 +73,7 @@ parameter_types! {
     pub const ExistentialDeposit: u128 = 10;
 }
 
-impl polkadex_custom_assets::Trait for Test{
+impl polkadex_custom_assets::Config for Test{
     type Event = ();
     type Balance = u128;
     type MaxLocks = MaxLocks;

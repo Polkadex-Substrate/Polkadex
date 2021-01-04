@@ -3,7 +3,7 @@
 use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter};
 use frame_support::sp_std::fmt::Debug;
-use frame_support::traits::{BalanceStatus, Currency, ExistenceRequirement, Get, Imbalance, LockableCurrency, LockIdentifier, ReservableCurrency, SignedImbalance, TryDrop, WithdrawReason, WithdrawReasons};
+use frame_support::traits::{BalanceStatus, Currency, ExistenceRequirement, Get, Imbalance, LockableCurrency, LockIdentifier, ReservableCurrency, SignedImbalance, TryDrop, WithdrawReasons};
 use frame_system::{self as system, ensure_signed, ensure_root};
 use sp_arithmetic::{FixedPointNumber, FixedU128, traits::CheckedDiv};
 use sp_arithmetic::traits::{AtLeast32BitUnsigned, Saturating, UniqueSaturatedFrom, UniqueSaturatedInto};
@@ -28,9 +28,9 @@ mod imbalances;
 
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Trait: frame_system::Trait + pallet_idenity::Trait {
+pub trait Config: frame_system::Config + pallet_idenity::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
     /// Defines how balance is represented to users
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize + sp_runtime::FixedPointOperand + sp_runtime::traits::Saturating;
@@ -54,9 +54,9 @@ pub enum Reasons {
 
 impl From<WithdrawReasons> for Reasons {
     fn from(r: WithdrawReasons) -> Reasons {
-        if r == WithdrawReasons::from(WithdrawReason::TransactionPayment) {
+        if r == WithdrawReasons::from(WithdrawReasons::TRANSACTION_PAYMENT) {
             Reasons::Fee
-        } else if r.contains(WithdrawReason::TransactionPayment) {
+        } else if r.contains(WithdrawReasons::TRANSACTION_PAYMENT) {
             Reasons::All
         } else {
             Reasons::Misc
@@ -112,7 +112,7 @@ pub trait AssetIdProvider {
 
 pub struct PolkadexNativeAssetIdProvider<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Trait> AssetIdProvider for PolkadexNativeAssetIdProvider<T> {
+impl<T: Config> AssetIdProvider for PolkadexNativeAssetIdProvider<T> {
     type AssetId = T::Hash;
     fn asset_id() -> Self::AssetId {
         <Module<T>>::native_asset_id()
@@ -129,14 +129,14 @@ pub enum Permissions {
 }
 
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Debug)]
-pub struct AssetInfo<T> where T: Trait {
+pub struct AssetInfo<T> where T: Config {
     total_issuance: FixedU128,
     issuer: T::AccountId,
     permissions: Permissions,
     existential_deposit: FixedU128,
 }
 
-impl<T> Default for AssetInfo<T> where T: Trait {
+impl<T> Default for AssetInfo<T> where T: Config {
     fn default() -> Self {
         AssetInfo {
             total_issuance: FixedU128::from(0),
@@ -151,16 +151,16 @@ impl<T> Default for AssetInfo<T> where T: Trait {
 pub struct AssetCurrency<T, U>(sp_std::marker::PhantomData<T>, sp_std::marker::PhantomData<U>);
 
 // TODO 2 methods left
-impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, U>
+impl<T, U> Currency<<T as frame_system::Config>::AccountId> for AssetCurrency<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     type Balance = T::Balance;
     type PositiveImbalance = PositiveImbalance<T, U>;
     type NegativeImbalance = NegativeImbalance<T, U>;
 
-    fn total_balance(who: &<T as frame_system::Trait>::AccountId) -> Self::Balance {
+    fn total_balance(who: &<T as frame_system::Config>::AccountId) -> Self::Balance {
         let account_data: AccountData = <Balance<T>>::get(U::asset_id(), who);
         // let total: FixedU128 = account_data.free_balance.saturating_add(
         //   account_data.reserved_balance);
@@ -168,7 +168,7 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
         <Module<T>>::convert_fixedU128_to_balance(total)
     }
 
-    fn can_slash(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> bool {
+    fn can_slash(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> bool {
         let converted_value: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(value);
         let account_data: AccountData = <Balance<T>>::get(U::asset_id(), who);
         account_data.free_balance >= converted_value
@@ -211,12 +211,12 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
         NegativeImbalance::new(amount)
     }
 
-    fn free_balance(who: &<T as frame_system::Trait>::AccountId) -> Self::Balance {
+    fn free_balance(who: &<T as frame_system::Config>::AccountId) -> Self::Balance {
         let account_data: AccountData = <Balance<T>>::get(U::asset_id(), who);
         <Module<T>>::convert_fixedU128_to_balance(account_data.free_balance)
     }
 
-    fn ensure_can_withdraw(who: &<T as frame_system::Trait>::AccountId, amount: Self::Balance, reasons: WithdrawReasons, new_balance: Self::Balance) -> DispatchResult {
+    fn ensure_can_withdraw(who: &<T as frame_system::Config>::AccountId, amount: Self::Balance, reasons: WithdrawReasons, new_balance: Self::Balance) -> DispatchResult {
         // TODO: Check for freeze flag in identity pallet .
         // TODO: Check if given amount is okay under given KYC status.
         // TODO: Also check for locks in this pallet
@@ -228,7 +228,7 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
         Ok(())
     }
 
-    fn transfer(source: &<T as frame_system::Trait>::AccountId, dest: &<T as frame_system::Trait>::AccountId, value: Self::Balance, existence_requirement: ExistenceRequirement) -> DispatchResult {
+    fn transfer(source: &<T as frame_system::Config>::AccountId, dest: &<T as frame_system::Config>::AccountId, value: Self::Balance, existence_requirement: ExistenceRequirement) -> DispatchResult {
         if value.is_zero() || source == dest { return Ok(()); }
         match <Module<T>>::transfer(source, dest, U::asset_id(), &value, existence_requirement) {
             Ok(()) => Ok(()),
@@ -236,7 +236,7 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
         }
     }
     // TODO [Feature] @Krishna Deduct amount from free balance and return
-    fn slash(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> (Self::NegativeImbalance, Self::Balance) {
+    fn slash(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> (Self::NegativeImbalance, Self::Balance) {
         if value.is_zero() { return (NegativeImbalance::zero(), Zero::zero()); }
         let value: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(value);
         let mut amount_left: FixedU128 = FixedU128::from(0);
@@ -261,7 +261,7 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
     }
     // TODO [Feature] Mint Balance to free balance of who
     // TODO [Research] If who is not there then will it bloat KV database?
-    fn deposit_into_existing(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> Result<Self::PositiveImbalance, DispatchError> {
+    fn deposit_into_existing(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> Result<Self::PositiveImbalance, DispatchError> {
         ensure!(<Balance<T>>::contains_key(U::asset_id(), &who), Error::<T>::AccountNotFound);
         let value: FixedU128= <Module<T>>::convert_balance_to_fixedU128(value);
         <Balance<T>>::try_mutate(U::asset_id(), who, |ref mut account_data: &mut AccountData| {
@@ -273,7 +273,7 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
     // TODO [Feature] @Krishna
     // TODO [Doubt] Misc and free_frozen value
 // TODO [Doubt] @Krishna Ask Gautham about new account
-    fn deposit_creating(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> Self::PositiveImbalance {
+    fn deposit_creating(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> Self::PositiveImbalance {
         if value.is_zero() { return Self::PositiveImbalance::zero(); }
         let value: FixedU128= <Module<T>>::convert_balance_to_fixedU128(value);
         if <Balance<T>>::contains_key(U::asset_id(), &who) {
@@ -295,11 +295,11 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
         }
     }
 
-    fn withdraw(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance, reasons: WithdrawReasons, liveness: ExistenceRequirement) -> Result<Self::NegativeImbalance, DispatchError> {
+    fn withdraw(who: &<T as frame_system::Config>::AccountId, value: Self::Balance, reasons: WithdrawReasons, liveness: ExistenceRequirement) -> Result<Self::NegativeImbalance, DispatchError> {
         unimplemented!()
     }
 // TODO look again later
-    fn make_free_balance_be(who: &<T as frame_system::Trait>::AccountId, balance: Self::Balance) -> SignedImbalance<Self::Balance, Self::PositiveImbalance> {
+    fn make_free_balance_be(who: &<T as frame_system::Config>::AccountId, balance: Self::Balance) -> SignedImbalance<Self::Balance, Self::PositiveImbalance> {
         let account: AccountData = <Balance<T>>::get(U::asset_id(), who);
         let balance: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(balance);
         let original = account.free_balance;
@@ -319,18 +319,18 @@ impl<T, U> Currency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, 
 }
 
 
-impl<T, U> ReservableCurrency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, U>
+impl<T, U> ReservableCurrency<<T as frame_system::Config>::AccountId> for AssetCurrency<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
-    fn can_reserve(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> bool {
+    fn can_reserve(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> bool {
         let value: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(value);
         let account_data: AccountData = <Balance<T>>::get(U::asset_id(), who);
         account_data.free_balance >= value
     }
 
-    fn slash_reserved(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> (Self::NegativeImbalance, Self::Balance) {
+    fn slash_reserved(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> (Self::NegativeImbalance, Self::Balance) {
         if value.is_zero() { return (NegativeImbalance::zero(), Zero::zero()); }
         let value: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(value);
         let mut amount_to_return: FixedU128 = FixedU128::from(0);
@@ -345,12 +345,12 @@ impl<T, U> ReservableCurrency<<T as frame_system::Trait>::AccountId> for AssetCu
         (NegativeImbalance::new(value - amount_to_return), amount_to_return)
     }
 
-    fn reserved_balance(who: &<T as frame_system::Trait>::AccountId) -> Self::Balance {
+    fn reserved_balance(who: &<T as frame_system::Config>::AccountId) -> Self::Balance {
         let account_data: AccountData = <Balance<T>>::get(U::asset_id(), who);
         <Module<T>>::convert_fixedU128_to_balance(account_data.reserved_balance)
     }
 
-    fn reserve(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> DispatchResult {
+    fn reserve(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> DispatchResult {
         if value.is_zero() { return Ok(()); }
         let value: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(value);
         <Balance<T>>::try_mutate(U::asset_id(), who, |ref mut account_data: &mut AccountData| {
@@ -360,7 +360,7 @@ impl<T, U> ReservableCurrency<<T as frame_system::Trait>::AccountId> for AssetCu
         })
     }
 // TODO [Not Implemented] If the remaining reserved balance is less than ExistentialDeposit, it will invoke on_reserved_too_low and could reap the account.
-    fn unreserve(who: &<T as frame_system::Trait>::AccountId, value: Self::Balance) -> Self::Balance {
+    fn unreserve(who: &<T as frame_system::Config>::AccountId, value: Self::Balance) -> Self::Balance {
         if value.is_zero() { return value; }
         let value: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(value);
         let mut amount_to_return: FixedU128 = FixedU128::from(0);
@@ -380,7 +380,7 @@ impl<T, U> ReservableCurrency<<T as frame_system::Trait>::AccountId> for AssetCu
         amount_to_return
     }
 
-    fn repatriate_reserved(slashed: &<T as frame_system::Trait>::AccountId, beneficiary: &<T as frame_system::Trait>::AccountId, value: Self::Balance, status: BalanceStatus) -> Result<Self::Balance, DispatchError> {
+    fn repatriate_reserved(slashed: &<T as frame_system::Config>::AccountId, beneficiary: &<T as frame_system::Config>::AccountId, value: Self::Balance, status: BalanceStatus) -> Result<Self::Balance, DispatchError> {
         ensure!(<Balance<T>>::contains_key(U::asset_id(), beneficiary), Error::<T>::AddUnderflowOrOverflow); //change
         let value: FixedU128 = <Module<T>>::convert_balance_to_fixedU128(value);
         let mut balance_to_return: FixedU128 = FixedU128::from(0);
@@ -414,9 +414,9 @@ pub struct BalanceLock<Balance> {
     pub reasons: Reasons,
 }
 
-impl<T, U> LockableCurrency<<T as frame_system::Trait>::AccountId> for AssetCurrency<T, U>
+impl<T, U> LockableCurrency<<T as frame_system::Config>::AccountId> for AssetCurrency<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     type Moment = T::BlockNumber;
@@ -430,7 +430,7 @@ impl<T, U> LockableCurrency<<T as frame_system::Trait>::AccountId> for AssetCurr
         amount: T::Balance,
         reasons: WithdrawReasons,
     ) {
-        if amount.is_zero() || reasons.is_none() { return; }
+        if amount.is_zero() { return; }
 
         let mut new_lock = Some(BalanceLock { id, amount, reasons: reasons.into() });
         let mut locks = Module::<T>::locks(who).into_iter()
@@ -450,7 +450,7 @@ impl<T, U> LockableCurrency<<T as frame_system::Trait>::AccountId> for AssetCurr
         amount: T::Balance,
         reasons: WithdrawReasons,
     ) {
-        if amount.is_zero() || reasons.is_none() { return; }
+        if amount.is_zero() { return; }
 
         let mut new_lock = Some(BalanceLock { id, amount, reasons: reasons.into() });
         let mut locks = Module::<T>::locks(who).into_iter().filter_map(|l: BalanceLock<T::Balance>|
@@ -483,7 +483,7 @@ impl<T, U> LockableCurrency<<T as frame_system::Trait>::AccountId> for AssetCurr
 
 
 decl_storage! {
-	trait Store for Module<T: Trait> as PolkadexCustomAssets {
+	trait Store for Module<T: Config> as PolkadexCustomAssets {
         pub Balance get(fn get_free_balance): double_map hasher(blake2_128_concat) T::Hash, hasher(blake2_128_concat) T::AccountId => AccountData;
 
 
@@ -531,9 +531,9 @@ decl_storage! {
 
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId,
-	                        AssetID = <T as frame_system::Trait>::Hash,
-	                        Balance = <T as Trait>::Balance
+	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId,
+	                        AssetID = <T as frame_system::Config>::Hash,
+	                        Balance = <T as Config>::Balance
 	                        {
 		/// Asset Transferred [AssetId, From, To, Amount]
 		Transferred(AssetID,AccountId,AccountId,Balance),
@@ -544,7 +544,7 @@ decl_event!(
 
 // Errors inform users that something went wrong.
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Not enough balance.
 		InsufficientBalance,
 		/// Balance overflowed during transfer.
@@ -580,7 +580,7 @@ decl_error! {
 
 decl_module! {
 
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
 
@@ -623,7 +623,7 @@ decl_module! {
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     // TODO [Doubt] @Krishna
     /// This functions is used to create a new asset in the system. if issuer is one of the registrars
     /// then it's permission level is FoundationLevel, if issuer is Polkadex Bridgeing pallet's account
@@ -637,7 +637,7 @@ impl<T: Trait> Module<T> {
         let existential_deposit = Self::convert_balance_to_fixedU128(existential_deposit);
         let permission_of_issuer = Self::get_permission(&issuer);
         let nonce = Nonce::get(); // TODO: A better way to introduce randomness
-        let asset_id = (nonce, issuer.clone(), total_issuance.clone()).using_encoded(<T as frame_system::Trait>::Hashing::hash);
+        let asset_id = (nonce, issuer.clone(), total_issuance.clone()).using_encoded(<T as frame_system::Config>::Hashing::hash);
         ensure!(!<Assets<T>>::contains_key(asset_id), Error::<T>::AssetIdInUse);
         let asset_info = AssetInfo {
             total_issuance,

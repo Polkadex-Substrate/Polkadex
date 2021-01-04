@@ -7,6 +7,7 @@ use sp_runtime::traits::{Hash, Verify, IdentifyAccount};
 use crate::{Module, Trait, AssetCurrency, AssetIdProvider};
 use super::*;
 use sp_runtime::app_crypto::sr25519;
+use frame_system::limits::{BlockLength, BlockWeights};
 
 
 impl_outer_origin! {
@@ -27,7 +28,7 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
     type BaseCallFilter = ();
     type Origin = Origin;
     type Call = ();
@@ -40,19 +41,15 @@ impl system::Trait for Test {
     type Header = Header;
     type Event = ();
     type BlockHashCount = BlockHashCount;
-    type MaximumBlockWeight = MaximumBlockWeight;
     type DbWeight = ();
-    type BlockExecutionWeight = ();
-    type ExtrinsicBaseWeight = ();
-    type MaximumExtrinsicWeight = MaximumBlockWeight;
-    type MaximumBlockLength = MaximumBlockLength;
-    type AvailableBlockRatio = AvailableBlockRatio;
     type Version = ();
     type PalletInfo = ();
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
+    type BlockWeights = ();
+    type BlockLength = ();
 }
 // parameter_types! {
 //     pub const AssetId: T::Hash = H256::random();
@@ -73,7 +70,7 @@ parameter_types! {
     pub const MaxRegistrars: u32 = 10;
 }
 
-impl pallet_idenity::Trait for Test {
+impl pallet_idenity::Config for Test {
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars= MaxRegistrars;
@@ -86,7 +83,7 @@ pub const maxLocks: u32 = 10;
 pub const existentialDeposit: u128 = 1;
 }
 
-impl Trait for Test {
+impl Config for Test {
     type Event = ();
     type Balance = u128;
     type MaxLocks = maxLocks;

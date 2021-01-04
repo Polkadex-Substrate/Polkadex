@@ -19,9 +19,9 @@ pub type RegistrarIndex = u32;
 
 pub struct FreezeAccount;
 
-pub trait Trait: frame_system::Trait {
+pub trait Config: frame_system::Config {
     /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
     /// The maximum number of sub-accounts allowed per identified account.
     type MaxSubAccounts: Get<u32>;
@@ -57,7 +57,7 @@ impl Default for Judgement {
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as TemplateMo {
+	trait Store for Module<T: Config> as TemplateMo {
 
 		pub IdentityOf get(fn identity):
 			map hasher(blake2_128_concat) T::AccountId => Judgement;
@@ -75,7 +75,7 @@ decl_storage! {
 }
 // TODO :- Remove unused variants
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
+	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
 		/// A name was set or reset (which will remove all judgements). \[who\]
 		IdentitySet(AccountId),
 		/// A name was cleared, and the given balance returned. \[who, deposit\]
@@ -109,7 +109,7 @@ decl_event!(
 
 decl_error! {
 	/// Error for the identity module.
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Too many subs-accounts.
 		TooManySubAccounts,
 		/// Account isn't found.
@@ -161,7 +161,7 @@ decl_error! {
 }
 
 decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         type Error = Error<T>;
         fn deposit_event() = default;
         const MaxSubAccounts: u32 = T::MaxSubAccounts::get();
@@ -280,7 +280,7 @@ decl_module! {
 
 
 // TODO :- Test this
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     pub fn check_account_status(account: &T::AccountId) -> Judgement {
         <IdentityOf<T>>::get(account)
     }

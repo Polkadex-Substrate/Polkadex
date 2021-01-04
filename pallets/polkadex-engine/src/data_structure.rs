@@ -13,7 +13,7 @@ use sp_std::vec::Vec;
 
 
 use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, Order4RPC, OrderbookRpc};
-use crate::Trait;
+use crate::Config;
 use sp_runtime::DispatchResult;
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug,Copy)]
@@ -40,7 +40,7 @@ impl OrderType {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug,Copy)]
-pub struct Order<T> where T: Trait {
+pub struct Order<T> where T: Config {
     pub id: T::Hash,
     pub trading_pair: (T::Hash, T::Hash),
     pub trader: T::AccountId,
@@ -49,7 +49,7 @@ pub struct Order<T> where T: Trait {
     pub order_type: OrderType,
 }
 
-impl<T> Order<T> where T: Trait {
+impl<T> Order<T> where T: Config {
     #[cfg(not(tarpaulin_include))]
     pub fn convert(self) -> Result<Order4RPC, ErrorRpc> {
         let order = Order4RPC {
@@ -100,13 +100,13 @@ impl<T> Order<T> where T: Trait {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
-pub struct LinkedPriceLevel<T> where T: Trait {
+pub struct LinkedPriceLevel<T> where T: Config {
     pub next: Option<FixedU128>,
     pub prev: Option<FixedU128>,
     pub orders: VecDeque<Order<T>>,
 }
 
-impl<T> LinkedPriceLevel<T> where T: Trait {
+impl<T> LinkedPriceLevel<T> where T: Config {
     #[cfg(not(tarpaulin_include))]
     pub fn convert(self) -> Result<LinkedPriceLevelRpc, ErrorRpc> {
         let linked_pirce_level = LinkedPriceLevelRpc {
@@ -139,7 +139,7 @@ impl<T> LinkedPriceLevel<T> where T: Trait {
     }
 }
 
-impl<T> Default for LinkedPriceLevel<T> where T: Trait {
+impl<T> Default for LinkedPriceLevel<T> where T: Config {
     #[cfg(not(tarpaulin_include))]
     fn default() -> Self {
         LinkedPriceLevel {
@@ -151,7 +151,7 @@ impl<T> Default for LinkedPriceLevel<T> where T: Trait {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug,Copy)]
-pub struct Orderbook<T> where T: Trait {
+pub struct Orderbook<T> where T: Config {
     pub trading_pair: (T::Hash, T::Hash),
     pub base_asset_id: T::Hash,
     pub quote_asset_id: T::Hash,
@@ -159,7 +159,7 @@ pub struct Orderbook<T> where T: Trait {
     pub best_ask_price: FixedU128,
 }
 
-impl<T> Orderbook<T> where T: Trait {
+impl<T> Orderbook<T> where T: Config {
     #[cfg(not(tarpaulin_include))]
     pub fn convert(self) -> Result<OrderbookRpc, ErrorRpc> {
         let orderbook = OrderbookRpc {
@@ -208,7 +208,7 @@ impl<T> Orderbook<T> where T: Trait {
     }
 }
 
-impl<T> Default for Orderbook<T> where T: Trait {
+impl<T> Default for Orderbook<T> where T: Config {
     #[cfg(not(tarpaulin_include))]
     fn default() -> Self {
         Orderbook {
@@ -221,7 +221,7 @@ impl<T> Default for Orderbook<T> where T: Trait {
     }
 }
 
-impl<T> Orderbook<T> where T: Trait {
+impl<T> Orderbook<T> where T: Config {
     #[cfg(not(tarpaulin_include))]
     pub fn new(base_asset_id: T::Hash, quote_asset_id: T::Hash, trading_pair: (T::Hash,T::Hash)) -> Self {
         Orderbook {

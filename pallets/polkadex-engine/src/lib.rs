@@ -29,17 +29,17 @@ pub mod data_structure;
 pub mod data_structure_rpc;
 
 
-pub trait Trait: frame_system::Trait + polkadex_custom_assets::Trait + polkadex_swap_engine::Trait {
+pub trait Config: frame_system::Config + polkadex_custom_assets::Config + polkadex_swap_engine::Config {
     /// Substrate Specific type used for events
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
     /// The registration fee used for listing a new trading pair
-    type TradingPairReservationFee: Get<<Self as polkadex_custom_assets::Trait>::Balance>;
+    type TradingPairReservationFee: Get<<Self as polkadex_custom_assets::Config>::Balance>;
 }
 
 decl_event!(
-	pub enum Event<T> where Hash = <T as frame_system::Trait>::Hash,
-	                        AccountId = <T as frame_system::Trait>::AccountId{
+	pub enum Event<T> where Hash = <T as frame_system::Config>::Hash,
+	                        AccountId = <T as frame_system::Config>::AccountId{
 		/// New Trading pair is created [TradingPairHash]
 		TradingPairCreated(Hash, Hash),
 		/// New Limit Order Created [OrderId,TradingPairID,OrderType,Price,Quantity,Trader]
@@ -56,7 +56,7 @@ decl_event!(
 );
 
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Transaction contained Same AssetID for both base and quote.
 		SameAssetIdsError,
 		/// TradingPair already exists in the system
@@ -115,7 +115,7 @@ decl_error! {
 
 decl_storage! {
 
-	trait Store for Module<T: Trait> as DEXModule {
+	trait Store for Module<T: Config> as DEXModule {
 
 	/// Stores all the different price levels for all the trading pairs in a DoubleMap.
 	PriceLevels get(fn get_pricelevels): double_map hasher(twox_64_concat) (T::Hash,T::Hash), hasher(blake2_128_concat) FixedU128 => LinkedPriceLevel<T>;
@@ -137,7 +137,7 @@ decl_storage! {
 
 
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 
 		type Error = Error<T>;
 
@@ -169,7 +169,7 @@ decl_module! {
 		    ensure!(!<Orderbooks<T>>::contains_key(&trading_pair_id), <Error<T>>::TradingPairIDExists);
 
 		    // Check Polkadex free balance
-		    ensure!(polkadex_custom_assets::Module::<T>::free_balance(&trader,native_currency) >= <T as Trait>::TradingPairReservationFee::get(), <Error<T>>::InsufficientPolkadexBalance);
+		    ensure!(polkadex_custom_assets::Module::<T>::free_balance(&trader,native_currency) >= <T as Config>::TradingPairReservationFee::get(), <Error<T>>::InsufficientPolkadexBalance);
 		    ensure!(polkadex_custom_assets::Module::<T>::free_balance(&trader,quote_asset_id) >= new_token_deposit, <Error<T>>::InsufficientAssetBalance);
 
 		    ensure!(Self::register_on_uniswap_with_polkadex(&trader, trading_pair_id, new_token_deposit), <Error<T>>::UniswapRegistrationFailed);
@@ -193,7 +193,7 @@ decl_module! {
 		    ensure!(<Orderbooks<T>>::contains_key(Self::get_pair(base_asset_id,native_currency)), <Error<T>>::CorrespondingPolkadexMarketNotAvailable);
 
 		    // Check Polkadex free balance
-		    ensure!(polkadex_custom_assets::Module::<T>::free_balance(&trader,native_currency) >= <T as Trait>::TradingPairReservationFee::get(), <Error<T>>::InsufficientPolkadexBalance);
+		    ensure!(polkadex_custom_assets::Module::<T>::free_balance(&trader,native_currency) >= <T as Config>::TradingPairReservationFee::get(), <Error<T>>::InsufficientPolkadexBalance);
 		    ensure!(polkadex_custom_assets::Module::<T>::free_balance(&trader,quote_asset_id) >= quote_token_deposit, <Error<T>>::InsufficientAssetBalance);
 		    ensure!(polkadex_custom_assets::Module::<T>::free_balance(&trader,base_asset_id) >= base_token_deposit, <Error<T>>::InsufficientAssetBalance);
 
@@ -275,7 +275,7 @@ decl_module! {
 
 
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// This is a helper function for "Get Ask Level API".
     /// # Arguments
     ///
@@ -432,26 +432,26 @@ impl<T: Trait> Module<T> {
 }
 
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// Registers a new uniswap pool with Polkadex as one of the asset
-    fn register_on_uniswap_with_polkadex(trader: &<T as frame_system::Trait>::AccountId, trading_pair: (T::Hash, T::Hash), new_currency_deposit: T::Balance) -> bool {
+    fn register_on_uniswap_with_polkadex(trader: &<T as frame_system::Config>::AccountId, trading_pair: (T::Hash, T::Hash), new_currency_deposit: T::Balance) -> bool {
         if trading_pair.0 == polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id() {
             polkadex_swap_engine::Module::<T>::do_register_swap_pair(trader,
                                                                      trading_pair.0,
                                                                      trading_pair.1,
-                                                                     <T as Trait>::TradingPairReservationFee::get(),
+                                                                     <T as Config>::TradingPairReservationFee::get(),
                                                                      new_currency_deposit).is_ok()
         } else {
             polkadex_swap_engine::Module::<T>::do_register_swap_pair(trader,
                                                                      trading_pair.0,
                                                                      trading_pair.1,
                                                                      new_currency_deposit,
-                                                                     <T as Trait>::TradingPairReservationFee::get()).is_ok()
+                                                                     <T as Config>::TradingPairReservationFee::get()).is_ok()
         }
     }
 
     /// Registers a new uniswap pool
-    fn register_on_uniswap(trader: &<T as frame_system::Trait>::AccountId, quote_asset_id: T::Hash, quote_token_deposit: T::Balance, base_asset_id: T::Hash, base_token_deposit: T::Balance) -> bool {
+    fn register_on_uniswap(trader: &<T as frame_system::Config>::AccountId, quote_asset_id: T::Hash, quote_token_deposit: T::Balance, base_asset_id: T::Hash, base_token_deposit: T::Balance) -> bool {
         let trading_pair = Self::get_pair(quote_asset_id, base_asset_id);
         if trading_pair.0 == base_asset_id {
             polkadex_swap_engine::Module::<T>::do_register_swap_pair(trader,
@@ -469,10 +469,10 @@ impl<T: Trait> Module<T> {
     }
 
     /// Reserves TradingPairReservationFee (defined in configuration trait) balance of SpendingAssetCurrency
-    fn reserve_balance_registration(origin: &<T as frame_system::Trait>::AccountId) -> bool {
+    fn reserve_balance_registration(origin: &<T as frame_system::Config>::AccountId) -> bool {
         polkadex_custom_assets::Module::<T>::reserve(
             origin, polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id()
-            , <T as Trait>::TradingPairReservationFee::get()).is_ok()
+            , <T as Config>::TradingPairReservationFee::get()).is_ok()
     }
 
     /// Initializes a new Orderbook and stores it in the Orderbooks
@@ -485,7 +485,7 @@ impl<T: Trait> Module<T> {
 
     /// Creates a TradingPairID from both Asset IDs.
     fn create_trading_pair_id(quote_asset_id: &T::Hash, base_asset_id: &T::Hash) -> T::Hash {
-        (quote_asset_id, base_asset_id).using_encoded(<T as frame_system::Trait>::Hashing::hash)
+        (quote_asset_id, base_asset_id).using_encoded(<T as frame_system::Config>::Hashing::hash)
     }
 
     /// Submits an order for execution.
@@ -507,7 +507,7 @@ impl<T: Trait> Module<T> {
             Ok(mut orderbook) => {
                 let nonce = Nonce::get(); // To get some kind non user controllable randomness to order id
                 current_order.id = (trading_pair, current_order.trader.clone(), price, quantity, current_order.order_type.clone(), nonce)
-                    .using_encoded(<T as frame_system::Trait>::Hashing::hash);
+                    .using_encoded(<T as frame_system::Config>::Hashing::hash);
                 Nonce::put(nonce + 1);
 
                 match current_order.order_type {

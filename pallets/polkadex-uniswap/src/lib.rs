@@ -24,9 +24,9 @@ mod mock;
 mod tests;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Trait: frame_system::Trait + polkadex_custom_assets::Trait {
+pub trait Config: frame_system::Config + polkadex_custom_assets::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// Maximum Trading Path limit
     type TradingPathLimit: Get<usize>;
 }
@@ -35,7 +35,7 @@ pub trait Trait: frame_system::Trait + polkadex_custom_assets::Trait {
 
 decl_storage! {
 
-	trait Store for Module<T: Trait> as PolkadexSwapEngine {
+	trait Store for Module<T: Config> as PolkadexSwapEngine {
 	    /// Liquidity pool for specific pair(a tuple consisting of two sorted AssetIds).
 		/// (AssetID, AssetID) -> (Amount_0, Amount_1, Total LPShares)
 		LiquidityPool get(fn liquidity_pool): map hasher(twox_64_concat) (T::Hash,T::Hash) => (FixedU128, FixedU128, FixedU128);
@@ -48,8 +48,8 @@ decl_storage! {
 
 decl_event!(
 	pub enum Event<T> where
-		<T as frame_system::Trait>::AccountId,
-		AssetId = <T as frame_system::Trait>::Hash
+		<T as frame_system::Config>::AccountId,
+		AssetId = <T as frame_system::Config>::Hash
 	{
 		/// Add liquidity success. \[who, currency_id_0, pool_0_increment, currency_id_1, pool_1_increment, share_increment\]
 		AddLiquidity(AccountId, AssetId, FixedU128, AssetId, FixedU128, FixedU128),
@@ -62,7 +62,7 @@ decl_event!(
 
 decl_error! {
 	/// Error for dex module.
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Not the enable trading pair
 		TradingPairNotAllowed,
 		/// The increment of liquidity is invalid
@@ -95,7 +95,7 @@ decl_error! {
 }
 
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
 
@@ -222,7 +222,7 @@ decl_module! {
 }
 
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// Stores all the assets related to Swap
     pub fn get_wallet_account() -> T::AccountId {
         ModuleId(*b"pswapacc").into_account()
