@@ -134,7 +134,7 @@ fn check_freeze_account() {
 
     // Send sub account to freeze it and all associated account ids.
     new_test_ext().execute_with(|| {
-       setup();
+        setup();
         let accountid_registrar: u64 = 2;
         let accountid_trader: u64 = 1;
         let first_sub_accountid:u64 = 10;

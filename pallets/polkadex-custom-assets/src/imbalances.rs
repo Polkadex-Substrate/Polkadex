@@ -2,20 +2,20 @@ use super::{
     AssetIdProvider, Imbalance, result, Saturating, TryDrop, Zero,
 };
 use super::mem;
-use super::Trait;
+use super::Config;
 
 /// Opaque, move-only struct with private fields that serves as a token denoting that
             /// funds have been created without any equal and opposite accounting.
 #[must_use]
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct PositiveImbalance<T: Trait, U: AssetIdProvider<AssetId=T::Hash>>(
+pub struct PositiveImbalance<T: Config, U: AssetIdProvider<AssetId=T::Hash>>(
     T::Balance,
     sp_std::marker::PhantomData<U>,
 );
 
 impl<T, U> PositiveImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     pub fn new(amount: T::Balance) -> Self {
@@ -27,14 +27,14 @@ impl<T, U> PositiveImbalance<T, U>
 /// funds have been destroyed without any equal and opposite accounting.
 #[must_use]
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct NegativeImbalance<T: Trait, U: AssetIdProvider<AssetId=T::Hash>>(
+pub struct NegativeImbalance<T: Config, U: AssetIdProvider<AssetId=T::Hash>>(
     T::Balance,
     sp_std::marker::PhantomData<U>,
 );
 
 impl<T, U> NegativeImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     pub fn new(amount: T::Balance) -> Self {
@@ -44,7 +44,7 @@ impl<T, U> NegativeImbalance<T, U>
 
 impl<T, U> TryDrop for PositiveImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     fn try_drop(self) -> result::Result<(), Self> {
@@ -54,7 +54,7 @@ impl<T, U> TryDrop for PositiveImbalance<T, U>
 
 impl<T, U> Imbalance<T::Balance> for PositiveImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     type Opposite = NegativeImbalance<T, U>;
@@ -103,7 +103,7 @@ impl<T, U> Imbalance<T::Balance> for PositiveImbalance<T, U>
 
 impl<T, U> TryDrop for NegativeImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     fn try_drop(self) -> result::Result<(), Self> {
@@ -113,7 +113,7 @@ impl<T, U> TryDrop for NegativeImbalance<T, U>
 
 impl<T, U> Imbalance<T::Balance> for NegativeImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     type Opposite = PositiveImbalance<T, U>;
@@ -163,7 +163,7 @@ impl<T, U> Imbalance<T::Balance> for NegativeImbalance<T, U>
 // TODO: Elevatedtrait is not implemented here.
 impl<T, U> Drop for PositiveImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     /// Basic drop handler will just square up the total issuance.
@@ -175,7 +175,7 @@ impl<T, U> Drop for PositiveImbalance<T, U>
 
 impl<T, U> Drop for NegativeImbalance<T, U>
     where
-        T: Trait,
+        T: Config,
         U: AssetIdProvider<AssetId=T::Hash>,
 {
     /// Basic drop handler will just square up the total issuance.

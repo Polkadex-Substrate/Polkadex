@@ -4,8 +4,9 @@ use polkadex_custom_assets;
 use sp_core::H256;
 use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}};
 
-use crate::{Module, Trait};
+use crate::{Module, Config};
 use polkadex_swap_engine::Event;
+use frame_system::limits::{BlockLength, BlockWeights};
 
 impl_outer_origin! {
 	pub enum Origin for TestRuntime {}
@@ -22,7 +23,7 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
-impl system::Trait for TestRuntime {
+impl system::Config for TestRuntime {
     type BaseCallFilter = ();
     type Origin = Origin;
     type Call = ();
@@ -35,30 +36,38 @@ impl system::Trait for TestRuntime {
     type Header = Header;
     type Event = ();
     type BlockHashCount = BlockHashCount;
-    type MaximumBlockWeight = MaximumBlockWeight;
     type DbWeight = ();
-    type BlockExecutionWeight = ();
-    type ExtrinsicBaseWeight = ();
-    type MaximumExtrinsicWeight = MaximumBlockWeight;
-    type MaximumBlockLength = MaximumBlockLength;
-    type AvailableBlockRatio = AvailableBlockRatio;
     type Version = ();
     type PalletInfo = ();
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
+    type BlockWeights = ();
+    type BlockLength = ();
+    type SS58Prefix = ();
 }
 const UNIT: u128 = 1_000_000_000_000;
 parameter_types! {
 pub const TradingPairReservationFee: u128 = 1*UNIT;
 }
 
-impl Trait for TestRuntime {
+impl Config for TestRuntime {
     type Event = ();
     type TradingPairReservationFee = TradingPairReservationFee;
 }
 
+
+parameter_types! {
+    pub const MaxSubAccounts: u32 = 10;
+    pub const MaxRegistrars: u32 = 10;
+}
+
+impl pallet_idenity::Config for TestRuntime {
+    type Event = ();
+    type MaxSubAccounts = MaxSubAccounts;
+    type MaxRegistrars= MaxRegistrars;
+}
 
 
 parameter_types! {
@@ -66,17 +75,18 @@ pub const MaxLocks: u32 = 10;
 pub const ExistentialDeposit: u128 = 0;
 }
 
-impl polkadex_custom_assets::Trait for TestRuntime {
+impl polkadex_custom_assets::Config for TestRuntime {
     type Event = ();
     type Balance = u128;
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
 }
+
 parameter_types! {
 pub const TradingPathLimit: usize = 6;
 }
 
-impl polkadex_swap_engine::Trait for TestRuntime {
+impl polkadex_swap_engine::Config for TestRuntime {
     type Event = ();
     type TradingPathLimit = TradingPathLimit;
 }

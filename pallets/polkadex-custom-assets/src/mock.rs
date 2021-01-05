@@ -4,9 +4,10 @@ use sp_core::{H256, Public, Pair};
 use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}, MultiSignature};
 use codec::Encode;
 use sp_runtime::traits::{Hash, Verify, IdentifyAccount};
-use crate::{Module, Trait, AssetCurrency, AssetIdProvider};
+use crate::{Module, Config, AssetCurrency, AssetIdProvider};
 use super::*;
 use sp_runtime::app_crypto::sr25519;
+use frame_system::limits::{BlockLength, BlockWeights};
 
 
 impl_outer_origin! {
@@ -27,7 +28,7 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
     type BaseCallFilter = ();
     type Origin = Origin;
     type Call = ();
@@ -40,19 +41,16 @@ impl system::Trait for Test {
     type Header = Header;
     type Event = ();
     type BlockHashCount = BlockHashCount;
-    type MaximumBlockWeight = MaximumBlockWeight;
     type DbWeight = ();
-    type BlockExecutionWeight = ();
-    type ExtrinsicBaseWeight = ();
-    type MaximumExtrinsicWeight = MaximumBlockWeight;
-    type MaximumBlockLength = MaximumBlockLength;
-    type AvailableBlockRatio = AvailableBlockRatio;
     type Version = ();
     type PalletInfo = ();
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
+    type BlockWeights = ();
+    type BlockLength = ();
+    type SS58Prefix = ();
 }
 // parameter_types! {
 //     pub const AssetId: T::Hash = H256::random();
@@ -63,7 +61,7 @@ impl AssetIdProvider for Test {
 
 
     fn asset_id() -> Self::AssetId {
-        let asset_id: H256 = ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let asset_id: H256 = ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         asset_id
     }
 }
@@ -73,7 +71,9 @@ parameter_types! {
     pub const MaxRegistrars: u32 = 10;
 }
 
-impl pallet_idenity::Trait for Test {
+
+impl pallet_idenity::Config for Test {
+
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars= MaxRegistrars;
@@ -86,7 +86,7 @@ pub const maxLocks: u32 = 10;
 pub const existentialDeposit: u128 = 1;
 }
 
-impl Trait for Test {
+impl Config for Test {
     type Event = ();
     type Balance = u128;
     type MaxLocks = maxLocks;
@@ -108,7 +108,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         assets: vec![native_asset],
         native_asset
     }.assimilate_storage(&mut t)
-     .unwrap();
+        .unwrap();
 
     t.into()
 }

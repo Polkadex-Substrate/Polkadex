@@ -165,6 +165,8 @@ impl frame_system::Config for Runtime {
 	type Index = Index;
 	/// The index type for blocks.
 	type BlockNumber = BlockNumber;
+	/// SS58
+	type SS58Prefix = ();
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
