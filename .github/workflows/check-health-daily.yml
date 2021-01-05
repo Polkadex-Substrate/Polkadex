@@ -2,7 +2,7 @@ name: Check Health of Polkadex
 
 on:
   schedule:
-    - cron: "* * * * *"
+    - cron: '* * * * *'
 
 env:
   CARGO_TERM_COLOR: always
