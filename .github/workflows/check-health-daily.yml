@@ -23,10 +23,6 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy
-    - name: Check Build status
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
     - name: Create issue using REST API
       run: |
         curl --request POST \
