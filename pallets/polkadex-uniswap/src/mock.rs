@@ -7,6 +7,7 @@ use frame_system::limits::{BlockLength, BlockWeights};
 
 
 
+
 impl_outer_origin! {
 	pub enum Origin for Test {}
 }
@@ -52,7 +53,9 @@ parameter_types! {
 }
 
 
+
 impl Config for Test {
+
     type Event = ();
     type TradingPathLimit = TradingPathLimit;
 }
@@ -62,7 +65,9 @@ parameter_types! {
     pub const MaxRegistrars: u32 = 10;
 }
 
+
 impl pallet_idenity::Config for Test {
+
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars= MaxRegistrars;
