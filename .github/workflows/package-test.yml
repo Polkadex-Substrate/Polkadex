@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master, develop ]
   pull_request:
-    branches: [ master, develop, feature/34-updated-polkadex ]
+    branches: [ master, develop ]
 
 env:
   CARGO_TERM_COLOR: always
