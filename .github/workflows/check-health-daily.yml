@@ -1,8 +1,10 @@
 name: Check Health of Polkadex
 
 on:
-  schedule:
-    - cron: '* * * * *'
+  push:
+    branches: [ master, develop, feature/44-action-implementation ]
+  pull_request:
+    branches: [ master, develop ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -25,3 +27,13 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Create issue using REST API
+      run: |
+        curl --request POST \
+        --url https://api.github.com/repos/${{ github.repository }}/issues \
+        --header 'authorization: Bearer ${{ secrets.POLKADEX }}' \
+        --header 'content-type: application/json' \
+        --data '{
+          "title": "Automated issue for commit: ${{ github.sha }}",
+          "body": "This issue was automatically created by the GitHub Action workflow **${{ github.workflow }}**. \n\n The commit hash was: _${{ github.sha }}_."
+          }'
