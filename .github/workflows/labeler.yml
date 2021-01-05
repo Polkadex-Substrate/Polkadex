@@ -1,23 +1,11 @@
-node-mainnet:
-  - node/mainnet/*
+name: "Pull Request Labeler"
+on:
+  - pull_request_target
 
-node-testnet:
-  - node/testnet/*
-
-runtime-mainnet:
-  - runtime/mainnet/*
-
-runtime-testnet:
-  - runtime/testnet/*
-
-pallet-engine-old:
-  - pallets/polkadex/*
-
-pallet-custom-assets:
-  - pallets/polkadex-custom-assets/*
-pallet-identity:
-  - pallets/polkadex-identity-pallet/*
-pallet-uniswap:
-  - pallets/polkadex-uniswap/*
-pallet-engine:
-  - pallets/polkadex-engine/*
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@main
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
