@@ -1,0 +1,34 @@
+name: Package-Test
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install nightly
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2020-09-28
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+    - name: Test Polkadex-engine pallet
+      run: cargo test -p polkadex-engine --verbose
+    - name: Test Polkadex-custom-assets pallet
+      run: cargo test -p polkadex-custom-assets --verbose
+    - name: Test Identity pallet  
+      run: cargo test -p pallet-idenity --verbose
+    - name: Test Polkadex-uniswap Pallet
+      run: cargo test -p polkadex-swap-engine --verbose
+

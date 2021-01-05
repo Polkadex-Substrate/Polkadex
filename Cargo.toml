@@ -5,10 +5,14 @@ panic = 'unwind'
 members = [
     'node/mainnet',
     'node/testnet',
-
     'runtime/mainnet',
     'runtime/testnet',
-
     'pallets/polkadex',
+    'pallets/polkadex-engine',
+    'pallets/polkadex-custom-assets',
+    'pallets/polkadex-identity-pallet',
+    'pallets/polkadex-uniswap',
 ]
+
+
 
