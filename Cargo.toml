@@ -3,6 +3,7 @@ panic = 'unwind'
 
 [workspace]
 members = [
+    'bin/polkadex',
     'node/mainnet',
     'node/testnet',
     'runtime/mainnet',
