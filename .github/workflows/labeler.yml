@@ -20,4 +20,4 @@ pallet-identity:
 pallet-uniswap:
   - pallets/polkadex-uniswap/*
 pallet-engine:
-  - pallets/polkadex-engine
+  - pallets/polkadex-engine/*
