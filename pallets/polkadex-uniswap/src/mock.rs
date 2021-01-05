@@ -44,6 +44,7 @@ impl system::Config for Test {
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
+    type SS58Prefix = ();
 }
 
 parameter_types! {
@@ -86,5 +87,3 @@ pub type PolkadexSwapEngine = Module<Test>;
 pub fn new_test_ext() -> sp_io::TestExternalities {
     system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
-
-

@@ -4,7 +4,7 @@ use sp_core::{H256, Public, Pair};
 use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}, MultiSignature};
 use codec::Encode;
 use sp_runtime::traits::{Hash, Verify, IdentifyAccount};
-use crate::{Module, Trait, AssetCurrency, AssetIdProvider};
+use crate::{Module, Config, AssetCurrency, AssetIdProvider};
 use super::*;
 use sp_runtime::app_crypto::sr25519;
 use frame_system::limits::{BlockLength, BlockWeights};
@@ -50,6 +50,7 @@ impl system::Config for Test {
     type SystemWeightInfo = ();
     type BlockWeights = ();
     type BlockLength = ();
+    type SS58Prefix = ();
 }
 // parameter_types! {
 //     pub const AssetId: T::Hash = H256::random();
@@ -60,7 +61,7 @@ impl AssetIdProvider for Test {
 
 
     fn asset_id() -> Self::AssetId {
-        let asset_id: H256 = ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let asset_id: H256 = ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         asset_id
     }
 }
@@ -105,7 +106,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         assets: vec![native_asset],
         native_asset
     }.assimilate_storage(&mut t)
-     .unwrap();
+        .unwrap();
 
     t.into()
 }

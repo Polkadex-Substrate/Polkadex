@@ -4,7 +4,7 @@ use polkadex_custom_assets;
 use sp_core::H256;
 use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}};
 
-use crate::{Module, Trait};
+use crate::{Module, Config};
 use polkadex_swap_engine::Event;
 use frame_system::limits::{BlockLength, BlockWeights};
 
@@ -45,6 +45,7 @@ impl system::Config for TestRuntime {
     type SystemWeightInfo = ();
     type BlockWeights = ();
     type BlockLength = ();
+    type SS58Prefix = ();
 }
 const UNIT: u128 = 1_000_000_000_000;
 parameter_types! {
@@ -56,6 +57,17 @@ impl Config for TestRuntime {
     type TradingPairReservationFee = TradingPairReservationFee;
 }
 
+
+parameter_types! {
+    pub const MaxSubAccounts: u32 = 10;
+    pub const MaxRegistrars: u32 = 10;
+}
+
+impl pallet_idenity::Config for TestRuntime {
+    type Event = ();
+    type MaxSubAccounts = MaxSubAccounts;
+    type MaxRegistrars= MaxRegistrars;
+}
 
 
 parameter_types! {
@@ -69,6 +81,7 @@ impl polkadex_custom_assets::Config for TestRuntime {
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
 }
+
 parameter_types! {
 pub const TradingPathLimit: usize = 6;
 }

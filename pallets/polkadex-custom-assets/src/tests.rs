@@ -12,7 +12,7 @@ use super::*;
 const UNIT: u128 = 1_000_000_000_000;
 
 fn setup_native() {
-    let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+    let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
     let system: u64 = 0;
 
     let asset_info: AssetInfo<Test> =  AssetInfo{
@@ -36,7 +36,7 @@ fn setup_native() {
 }
 
 fn setup_asset_pallet() {
-    let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+    let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Config>::Hashing::hash);
     let user: u64 = 0;
 
     let asset_info: AssetInfo<Test> =  AssetInfo{
@@ -91,7 +91,7 @@ fn test_currency_trait_implementation () {
     new_test_ext().execute_with(|| {
         setup_native();
         let alice: u64 = 1;
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_eq!(Native::burn(250u128*UNIT), PositiveImbalance::new(106u128*UNIT)); //@Gautham check this
         let assert_info: AssetInfo<Test> = <Assets<Test>>::get(&native_asset);
         assert_eq!(assert_info.total_issuance, FixedU128::from(0));
@@ -102,7 +102,7 @@ fn test_currency_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::issue(250u128*UNIT), NegativeImbalance::new(250u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let assert_info: AssetInfo<Test> = <Assets<Test>>::get(&native_asset);
         assert_eq!(assert_info.total_issuance, FixedU128::from(356));
     });
@@ -112,7 +112,7 @@ fn test_currency_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::slash(&alice, 50u128*UNIT), (NegativeImbalance::new(50u128*UNIT), 0u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.free_balance, FixedU128::from(50));
         assert_eq!(balance_info.reserved_balance, FixedU128::from(4));
@@ -123,7 +123,7 @@ fn test_currency_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::slash(&alice, 102u128*UNIT), (NegativeImbalance::new(102u128*UNIT), 0u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.free_balance, FixedU128::from(0));
         assert_eq!(balance_info.reserved_balance, FixedU128::from(2));
@@ -134,7 +134,7 @@ fn test_currency_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::slash(&alice, 104u128*UNIT), (NegativeImbalance::new(104u128*UNIT), 0u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.free_balance, FixedU128::from(0));
         assert_eq!(balance_info.reserved_balance, FixedU128::from(0));
@@ -145,12 +145,12 @@ fn test_currency_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::deposit_creating(&alice, 100u128*UNIT), PositiveImbalance::new(100u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.free_balance, FixedU128::from(200));
         let bob: u64 = 2;
         assert_eq!(Native::deposit_creating(&bob, 100u128*UNIT), PositiveImbalance::new(100u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &bob);
         assert_eq!(balance_info.free_balance, FixedU128::from(100));
     });
@@ -160,7 +160,7 @@ fn test_currency_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::deposit_into_existing(&alice, 100u128*UNIT), Ok(PositiveImbalance::new(100u128*UNIT)));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.free_balance, FixedU128::from(200));
         let wrong_id: u64 = 2;
@@ -183,7 +183,7 @@ fn test_reserve_trait_implementation () {
         assert_eq!(Native::reserved_balance(&alice), 4u128*UNIT);
         // Reserve less then free balance
         assert_ok!(Native::reserve(&alice, 50u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.reserved_balance, FixedU128::from(54));
         // Reserve more then free balance
@@ -191,7 +191,7 @@ fn test_reserve_trait_implementation () {
         // Unreserve more then free balance
 
         assert_eq!(Native::unreserve(&alice, 500u128*UNIT), (500u128 - 54u128)*UNIT);
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.reserved_balance, FixedU128::from(0));
 
@@ -204,7 +204,7 @@ fn test_reserve_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let account_data: AccountData = AccountData{
             free_balance: FixedU128::from(1000),
             reserved_balance: FixedU128::from(44),
@@ -222,7 +222,7 @@ fn test_reserve_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let account_data: AccountData = AccountData{
             free_balance: FixedU128::from(1000),
             reserved_balance: FixedU128::from(44),
@@ -240,7 +240,7 @@ fn test_reserve_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let account_data: AccountData = AccountData{
             free_balance: FixedU128::from(1000),
             reserved_balance: FixedU128::from(44),
@@ -258,7 +258,7 @@ fn test_reserve_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::slash_reserved(&alice, 1u128*UNIT), (NegativeImbalance::new(1u128*UNIT), 0u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.reserved_balance, FixedU128::from(3));
     });
@@ -268,7 +268,7 @@ fn test_reserve_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::slash_reserved(&alice, 8u128*UNIT), (NegativeImbalance::new(4u128*UNIT), 4u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.reserved_balance, FixedU128::from(0));
     });
@@ -278,7 +278,7 @@ fn test_reserve_trait_implementation () {
         setup_native();
         let alice: u64 = 1;
         assert_eq!(Native::slash_reserved(&alice, 4u128*UNIT), (NegativeImbalance::new(4u128*UNIT), 0u128*UNIT));
-        let native_asset =  ("Native").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
         assert_eq!(balance_info.reserved_balance, FixedU128::from(0));
     });
@@ -289,7 +289,7 @@ fn test_module_methods_implementation () {
     // Check for reserve
     new_test_ext().execute_with(|| {
         setup_asset_pallet();
-        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let alice: u64 = 1;
         assert_ok!(PolkadexCustomAssetsModule::reserve(&alice, sample_asset, 80u128*UNIT));
         let alice_balance: AccountData = <Balance<Test>>::get(&sample_asset, &alice);
@@ -299,14 +299,14 @@ fn test_module_methods_implementation () {
     // Check for underflow - reserve
     new_test_ext().execute_with(|| {
         setup_asset_pallet();
-        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let alice: u64 = 1;
         assert_noop!(PolkadexCustomAssetsModule::reserve(&alice, sample_asset, 120u128*UNIT), Error::<Test>::SubUnderflowOrOverflow);
         // Wrong Account Id
         let wrong_id: u64 =2;
         assert_noop!(PolkadexCustomAssetsModule::reserve(&wrong_id, sample_asset, 500u128*UNIT), Error::<Test>::AccountNotFound);
         // Wrong Asset Id
-        let wrong_asset =  ("Wrong").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let wrong_asset =  ("Wrong").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_noop!(PolkadexCustomAssetsModule::reserve(&alice, wrong_asset, 500u128*UNIT), Error::<Test>::AccountNotFound);
 
     });
@@ -314,7 +314,7 @@ fn test_module_methods_implementation () {
     // Check for unreserve
     new_test_ext().execute_with(|| {
         setup_asset_pallet();
-        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let alice: u64 = 1;
         assert_ok!(PolkadexCustomAssetsModule::unreserve(&alice, sample_asset, 2u128*UNIT));
         let alice_balance: AccountData = <Balance<Test>>::get(&sample_asset, &alice);
@@ -324,7 +324,7 @@ fn test_module_methods_implementation () {
         let wrong_id: u64 =2;
         assert_noop!(PolkadexCustomAssetsModule::unreserve(&wrong_id, sample_asset, 500u128*UNIT), Error::<Test>::AccountNotFound);
         // Wrong Asset Id
-        let wrong_asset =  ("Wrong").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let wrong_asset =  ("Wrong").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_noop!(PolkadexCustomAssetsModule::unreserve(&alice, wrong_asset, 500u128*UNIT), Error::<Test>::AccountNotFound);
 
     });
@@ -332,7 +332,7 @@ fn test_module_methods_implementation () {
     // Check for underflow - unreserve
     new_test_ext().execute_with(|| {
         setup_asset_pallet();
-        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let alice: u64 = 1;
         assert_noop!(PolkadexCustomAssetsModule::unreserve(&alice, sample_asset, 120u128*UNIT), Error::<Test>::SubUnderflowOrOverflow);
     });
@@ -340,7 +340,7 @@ fn test_module_methods_implementation () {
     // Check for free balance
     new_test_ext().execute_with(|| {
         setup_asset_pallet();
-        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let alice: u64 = 1;
         assert_eq!(PolkadexCustomAssetsModule::free_balance(&alice, sample_asset), 100u128*UNIT);
         // Wrong account id
@@ -351,7 +351,7 @@ fn test_module_methods_implementation () {
     // Check for Reserved Balance
     new_test_ext().execute_with(|| {
         setup_asset_pallet();
-        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let sample_asset =  ("Sample").using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let alice: u64 = 1;
         assert_eq!(PolkadexCustomAssetsModule::reserved_balance(&alice, sample_asset), 4u128*UNIT);
         // Wrong account id

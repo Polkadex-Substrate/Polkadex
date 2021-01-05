@@ -14,11 +14,11 @@ type System = frame_system::Module<TestRuntime>;
 fn setup_creates_asset_ids() {
     let alice: u64 = 1;
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::create_token(Origin::signed(alice), 10*UNIT, 0)); // TODO: Modify token asset id generation to take BABE randomness.
-    let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+    let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<TestRuntime>::free_balance(&alice, quote_asset_id), 10*UNIT);
 
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::create_token(Origin::signed(alice), 10*UNIT, 0));
-    let base_asset_id = (1 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+    let base_asset_id = (1 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<TestRuntime>::free_balance(&alice, base_asset_id), 10*UNIT);
 
     assert_ok!(DEXModule::register_new_orderbook_with_polkadex(Origin::signed(alice), quote_asset_id, UNIT));
@@ -31,8 +31,8 @@ fn check_for_trading_pair_registration() {
     new_test_ext().execute_with(|| {
         setup_creates_asset_ids();
         let alice: u64 = 1;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
 
         //Same Asset Id
         assert_noop!(DEXModule::register_new_orderbook(Origin::signed(alice),quote_asset_id,UNIT,quote_asset_id, UNIT), Error::<TestRuntime>::SameAssetIdsError);
@@ -59,14 +59,14 @@ fn setup_register_new_orderbook() {
     // Alice has 0 base and 3 quote units
     let alice: u64 = 1;
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::create_token(Origin::signed(alice), 3*UNIT, 0));
-    let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+    let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<TestRuntime>::free_balance(&alice, quote_asset_id), 3*UNIT);
 
     // Bob has 10000 base units and 0 quote units
     // Alice has 2 base units and 3 quote units
     let bob: u64 = 2;
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::create_token(Origin::signed(bob), 10000*UNIT, 0));
-    let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+    let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<TestRuntime>::free_balance(&bob, base_asset_id), 10000*UNIT);
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::mint_token(bob, &alice, base_asset_id, 2*UNIT));
 
@@ -88,14 +88,14 @@ fn setup_new_orderbook_for_uniswap_testing() {
     // Alice has 0 base and 3 quote units
     let alice: u64 = 1;
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::create_token(Origin::signed(alice), 3*UNIT, 0));
-    let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+    let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<TestRuntime>::free_balance(&alice, quote_asset_id), 3*UNIT);
 
     // Bob has 10000 base units and 0 quote units
     // Alice has 2 base units and 3 quote units
     let bob: u64 = 2;
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::create_token(Origin::signed(bob), 10000*UNIT, 0));
-    let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+    let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<TestRuntime>::free_balance(&bob, base_asset_id), 10000*UNIT);
     assert_ok!(polkadex_custom_assets::Module::<TestRuntime>::mint_token(bob, &alice, base_asset_id, 2*UNIT));
 
@@ -124,8 +124,8 @@ fn check_for_different_order_types() {
         setup_register_new_orderbook();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
 
         // COMPLETE ORDER
@@ -146,8 +146,8 @@ fn check_for_different_order_types() {
         setup_register_new_orderbook();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
 
         assert_ok!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidLimitMM,trading_pair,8200*UNIT,(2*UNIT)/10));
@@ -215,8 +215,8 @@ fn check_for_different_order_types() {
         setup_register_new_orderbook();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidLimitMM,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimitMM,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
@@ -225,7 +225,7 @@ fn check_for_different_order_types() {
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidLimitMM,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimitMM,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
 
-        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::BidLimitMM,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimitMM,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
     });
@@ -235,8 +235,8 @@ fn check_for_different_order_types() {
         setup_register_new_orderbook();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
 
         // COMPLETE ORDER
@@ -264,8 +264,8 @@ fn check_for_different_order_types() {
         setup_register_new_orderbook();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidLimitMMOnly,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimitMMOnly,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
@@ -274,7 +274,7 @@ fn check_for_different_order_types() {
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidLimitMMOnly,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimitMMOnly,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
 
-        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::BidLimitMMOnly,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimitMMOnly,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
     });
@@ -284,8 +284,8 @@ fn check_for_different_order_types() {
         setup_register_new_orderbook();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidMarket,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskMarket,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
@@ -294,7 +294,7 @@ fn check_for_different_order_types() {
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidMarket,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskMarket,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
 
-        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::BidMarket,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskMarket,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
     });
@@ -304,8 +304,8 @@ fn check_for_different_order_types() {
         setup_register_new_orderbook();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidLimit,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimit,trading_pair,8200,(2)/10), <Error<TestRuntime>>::PriceOrQuantityTooLow);
@@ -314,7 +314,7 @@ fn check_for_different_order_types() {
         assert_noop!(DEXModule::submit_order(Origin::signed(bob),OrderType::BidLimit,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimit,trading_pair,price,quantity),Error::<TestRuntime>::OverFlowError);
 
-        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let wrong_asset_id = (2 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000 * UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::BidLimit,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
         assert_noop!(DEXModule::submit_order(Origin::signed(alice),OrderType::AskLimit,(quote_asset_id, wrong_asset_id),UNIT,UNIT),Error::<TestRuntime>::InvalidTradingPair);
     });
@@ -327,8 +327,8 @@ fn check_for_ask_and_bid_limit() {
         setup_new_orderbook_for_uniswap_testing();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
-        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Trait>::Hashing::hash);
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(3*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, bob.clone(), DEXModule::convert_balance_to_fixed_u128(10000*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let trading_pair = (quote_asset_id, base_asset_id);
         // COMPLETE ORDER
 

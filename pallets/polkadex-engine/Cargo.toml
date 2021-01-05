@@ -28,7 +28,7 @@ frame-support = { git = 'https://github.com/paritytech/substrate.git', branch = 
 frame-system = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-core = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-io = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
-
+pallet-idenity = {default-features = false, path = "../polkadex-identity-pallet"}
 
 [dependencies.codec]
 default-features = false

@@ -12,23 +12,23 @@ const UNIT: u128 = 1_000_000_000_000;
 fn init_storage_asset() {
     let alice: u64 = 1;
     assert_ok!(polkadex_custom_assets::Module::<Test>::create_token(Origin::signed(alice), 10*UNIT, 0));
-    let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+    let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<Test>::free_balance(&alice, first_asset_id), 10*UNIT);
 
     assert_ok!(polkadex_custom_assets::Module::<Test>::create_token(Origin::signed(alice),10*UNIT, 0));
-    let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+    let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<Test>::free_balance(&alice, second_asset_id), 10*UNIT);
 
     assert_ok!(polkadex_custom_assets::Module::<Test>::create_token(Origin::signed(alice),10*UNIT, 0));
-    let second_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+    let second_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<Test>::free_balance(&alice, second_asset_id), 10*UNIT);
 
     assert_ok!(polkadex_custom_assets::Module::<Test>::create_token(Origin::signed(alice),10*UNIT, 0));
-    let second_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+    let second_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<Test>::free_balance(&alice, second_asset_id), 10*UNIT);
 
     assert_ok!(polkadex_custom_assets::Module::<Test>::create_token(Origin::signed(alice),10*UNIT, 0));
-    let second_asset_id = (4 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+    let second_asset_id = (4 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
     assert_eq!(polkadex_custom_assets::Module::<Test>::free_balance(&alice, second_asset_id), 10*UNIT);
 
 }
@@ -64,8 +64,8 @@ pub fn test_register_swap_pair () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, UNIT, 2*UNIT));
         let liquidity_pool: (FixedU128, FixedU128, FixedU128)  = <LiquidityPool<Test>>::get((second_asset_id, first_asset_id));
         let liquidity_pool_holdings: FixedU128 = <LiquidityPoolHoldings<Test>>::get((alice, (second_asset_id, first_asset_id)));
@@ -79,10 +79,10 @@ pub fn test_register_swap_pair () {
 
     //Test Errors
     new_test_ext().execute_with(|| {
-       init_storage_asset();
+        init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
 
         //InsufficientLiquidity
         assert_noop!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 0u128, 200u128), <Error<Test>>::InsufficientLiquidity);
@@ -104,10 +104,10 @@ pub fn test_swap_with_exact_supply () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
 
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, second_asset_id, third_asset_id, 2*UNIT, 2*UNIT));
@@ -136,10 +136,10 @@ pub fn test_swap_with_exact_supply () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let path = vec![second_asset_id, third_asset_id, fourth_asset_id];
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, second_asset_id, third_asset_id, 2*UNIT, 2*UNIT));
@@ -151,7 +151,7 @@ pub fn test_swap_with_exact_supply () {
         assert_noop!(PolkadexSwapEngine::swap_with_exact_supply(Origin::signed(alice), path, 8*UNIT, UNIT/5), <Error<Test>>::InvalidTradingPathLength);
 
         // TradingPairNotAllowed
-        let fifth_asset_id = (4 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let fifth_asset_id = (4 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, fifth_asset_id, 2*UNIT, 2*UNIT));
         let path = vec![first_asset_id,second_asset_id, third_asset_id, fourth_asset_id, fifth_asset_id];
         assert_noop!(PolkadexSwapEngine::do_swap_with_exact_supply(&alice, &path, 8*UNIT, UNIT/5, None), <Error<Test>>::TradingPairNotAllowed);
@@ -161,10 +161,10 @@ pub fn test_swap_with_exact_supply () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
 
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, second_asset_id, third_asset_id, UNIT/9, UNIT/9));
@@ -181,10 +181,10 @@ pub fn test_swap_with_exact_target () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10 * UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
 
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, second_asset_id, third_asset_id, 2*UNIT, 2*UNIT));
@@ -208,10 +208,10 @@ pub fn test_swap_with_exact_target () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         let path = vec![second_asset_id, third_asset_id, fourth_asset_id];
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, second_asset_id, third_asset_id, 2*UNIT, 2*UNIT));
@@ -223,7 +223,7 @@ pub fn test_swap_with_exact_target () {
         assert_noop!(PolkadexSwapEngine::swap_with_exact_target(Origin::signed(alice), path, 8*UNIT, UNIT/5), <Error<Test>>::InvalidTradingPathLength);
 
         // TradingPairNotAllowed
-        let fifth_asset_id = (4 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let fifth_asset_id = (4 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, fifth_asset_id, 2*UNIT, 2*UNIT));
         let path = vec![first_asset_id,second_asset_id, third_asset_id, fourth_asset_id, fifth_asset_id];
         assert_noop!(PolkadexSwapEngine::swap_with_exact_target(Origin::signed(alice), path, 8*UNIT, UNIT/5), <Error<Test>>::TradingPairNotAllowed);
@@ -234,10 +234,10 @@ pub fn test_swap_with_exact_target () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let third_asset_id = (2 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let fourth_asset_id = (3 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
 
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, second_asset_id, third_asset_id, UNIT/9, UNIT/9));
@@ -255,8 +255,8 @@ pub fn test_add_liqudity () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
 
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         let liquidity_pool_holdings_12_before: FixedU128 = <LiquidityPoolHoldings<Test>>::get((alice, (second_asset_id, first_asset_id)));
@@ -273,8 +273,8 @@ pub fn test_add_liqudity () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_noop!(PolkadexSwapEngine::add_liquidity(Origin::signed(alice), second_asset_id, first_asset_id, UNIT, 0), <Error<Test>>::ProvidedAmountIsZero);
         assert_noop!(PolkadexSwapEngine::add_liquidity(Origin::signed(alice), second_asset_id, first_asset_id, 0, 0), <Error<Test>>::ProvidedAmountIsZero);
@@ -290,8 +290,8 @@ pub fn test_remove_liqudity () {
     new_test_ext().execute_with(|| {
         init_storage_asset();
         let alice: u64 = 1;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         let liquidity_pool_holdings_12: FixedU128 = <LiquidityPoolHoldings<Test>>::get((alice, (second_asset_id, first_asset_id)));
         // Check free balance
@@ -310,8 +310,8 @@ pub fn test_remove_liqudity () {
         init_storage_asset();
         let alice: u64 = 1;
         let bob: u64 = 2;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         assert_noop!(PolkadexSwapEngine::remove_liquidity(Origin::signed(alice), first_asset_id, second_asset_id, 3*UNIT), <Error<Test>>::LowShare);
         // Wrong Party
@@ -325,8 +325,8 @@ pub fn test_orderbook_functions () {
         init_storage_asset();
         let alice: u64 = 1;
         let _bob: u64 = 2;
-        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
-        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Trait>::Hashing::hash);
+        let first_asset_id = (0 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let second_asset_id = (1 as u64, alice.clone(), PolkadexSwapEngine::convert_balance_to_fixedU128(10*UNIT).unwrap()).using_encoded(<Test as frame_system::Config>::Hashing::hash);
         assert_ok!(PolkadexSwapEngine::do_register_swap_pair(&alice, first_asset_id, second_asset_id, 2*UNIT, 2*UNIT));
         // Check for best deal
         // Argument Provided :- max-supply:- 1*UNIT and min-target 1*UNIT -> It should return none
@@ -362,16 +362,3 @@ pub fn test_orderbook_functions () {
     //
     // });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

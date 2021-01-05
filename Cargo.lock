@@ -4461,6 +4461,7 @@ dependencies = [
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "hex",
  "jsonrpc-core 14.2.0",
+ "pallet-idenity",
  "parity-scale-codec",
  "polkadex-custom-assets",
  "polkadex-swap-engine",
