@@ -1,0 +1,34 @@
+name: Check Health of Polkadex
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2020-09-28
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+    - name: Create issue using REST API
+      if: failure()
+      run: |
+        curl --request POST \
+        --url https://api.github.com/repos/${{ github.repository }}/issues \
+        --header 'authorization: Bearer ${{ secrets.POLKADEX }}' \
+        --header 'content-type: application/json' \
+        --data '{
+          "title": "Build failing",
+          "body": "Polkadex build is failing. Please look into it."
+          }'
