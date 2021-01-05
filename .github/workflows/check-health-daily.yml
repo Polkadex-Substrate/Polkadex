@@ -1,0 +1,27 @@
+name: Check Health of Polkadex
+
+on:
+  schedule:
+    - cron: "1 * * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2020-09-28
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+    - name: Check Build status
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
