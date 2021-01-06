@@ -4437,6 +4437,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "feb3b2b1033b8a60b4da6ee470325f887758c95d5320f52f9ce0df055a55940e"
 
 [[package]]
+name = "polkadex"
+version = "2.0.0"
+dependencies = [
+ "pallet-idenity",
+ "pallet-polkadex",
+ "polkadex-custom-assets",
+ "polkadex-engine",
+ "polkadex-mainnet",
+ "polkadex-mainnet-runtime",
+ "polkadex-swap-engine",
+ "polkadex-testnet",
+ "polkadex-testnet-runtime",
+]
+
+[[package]]
 name = "polkadex-custom-assets"
 version = "1.0.0"
 dependencies = [
