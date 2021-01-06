@@ -10,6 +10,7 @@ polkadex-mainnet = { path = "../../node/mainnet", optional = true }
 polkadex-mainnet-runtime = { path = "../../runtime/mainnet", optional = true }
 polkadex-testnet = { path = "../../node/testnet", optional = true }
 polkadex-testnet-runtime = { path = "../../runtime/testnet", optional = true }
+pallet-generic-asset = { path = "../../pallets/generic_asset", optional = true }
 pallet-polkadex = { path = "../../pallets/polkadex", optional = true }
 polkadex-engine = { path = "../../pallets/polkadex-engine", optional = true }
 polkadex-custom-assets = { path = "../../pallets/polkadex-custom-assets", optional = true }
@@ -18,11 +19,8 @@ polkadex-swap-engine = { path = "../../pallets/polkadex-uniswap", optional = tru
 
 [features]
 common = [
+    "pallet-generic-asset",
     "pallet-polkadex",
-    "polkadex-engine",
-    "polkadex-custom-assets",
-    "pallet-idenity",
-    "polkadex-swap-engine",
 ]
 mainnet = [
     "common",
