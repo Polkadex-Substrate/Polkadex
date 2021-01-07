@@ -8,7 +8,6 @@ members = [
     'node/testnet',
     'runtime/mainnet',
     'runtime/testnet',
-    'pallets/generic_asset',
     'pallets/polkadex',
     'pallets/polkadex-engine',
     'pallets/polkadex-custom-assets',
