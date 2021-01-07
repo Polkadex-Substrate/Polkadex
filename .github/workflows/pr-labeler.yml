@@ -1,14 +1,17 @@
-name: PR-Labeler
-on:
-  pull_request:
-    branches: [ master, develop ]
+bug: node/mainnet/*
 
-jobs:
-  label:
-    runs-on: ubuntu-latest
+bug: node/testnet/*
 
-    steps:
-      - uses: actions/labeler@v2
-        with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
-          configuration-path: .github/all-labels.yml
+bug: runtime/mainnet/*
+
+bug: runtime/testnet/*
+
+bug: pallets/polkadex/*
+
+bug: pallets/polkadex-custom-assets/*
+
+bug: pallets/polkadex-identity-pallet/*
+
+bug: pallets/polkadex-uniswap/*
+
+bug: pallets/polkadex-engine/*
