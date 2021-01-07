@@ -16,3 +16,4 @@ Cargo.lock
 .idea
 
 pallets/polkadex/.idea
+.cargo/
