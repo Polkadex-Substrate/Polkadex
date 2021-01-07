@@ -1,23 +1,23 @@
-node-mainnet:
+bug:
   - node/mainnet/*
 
-node-testnet:
+bug:
   - node/testnet/*
 
-runtime-mainnet:
+bug:
   - runtime/mainnet/*
 
-runtime-testnet:
+bug:
   - runtime/testnet/*
 
-pallet-engine-old:
+bug:
   - pallets/polkadex/*
 
-pallet-custom-assets:
+bug:
   - pallets/polkadex-custom-assets/*
-pallet-identity:
+bug:
   - pallets/polkadex-identity-pallet/*
-pallet-uniswap:
+bug:
   - pallets/polkadex-uniswap/*
-pallet-engine:
+bug:
   - pallets/polkadex-engine/*
