@@ -37,7 +37,7 @@ frame-system-benchmarking = { git = 'https://github.com/paritytech/substrate.git
 frame-system-rpc-runtime-api = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-aura = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-balances = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
-pallet-collective = { version = "2.0.0", default-features = false }
+pallet-collective = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-grandpa = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-randomness-collective-flip = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-sudo = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
