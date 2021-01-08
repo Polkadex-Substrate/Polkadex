@@ -6,7 +6,7 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-pallet-polkadex = { default-features = false, path = "../" }
+pallet-polkadex = { package = 'polkadex-engine',default-features = false, path = "../" }
 sp-api = {git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false}
 sp-runtime = {git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false}
 sp-arithmetic = {git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false}
