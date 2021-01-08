@@ -14,5 +14,5 @@ Cargo.lock
 .local
 
 .idea
-
+.cargo/
 pallets/polkadex/.idea
