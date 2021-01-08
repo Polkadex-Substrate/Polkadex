@@ -559,6 +559,10 @@ impl_runtime_apis! {
 			Babe::current_epoch()
 		}
 
+		fn next_epoch() -> sp_consensus_babe::Epoch {
+			Babe::next_epoch()
+		}
+
 		fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
 			Babe::current_epoch_start()
 		}
