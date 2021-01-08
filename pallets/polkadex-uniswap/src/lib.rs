@@ -42,7 +42,7 @@ decl_storage! {
 		/// LPShare holdings
 		LiquidityPoolHoldings get(fn holdings): map hasher(identity) (T::AccountId,(T::Hash,T::Hash)) => FixedU128;
 		/// Swapping Fee
-		SwappingFee: FixedU128 = FixedU128::from_fraction(0.003);
+		SwappingFee: FixedU128 = FixedU128::from(3)/FixedU128::from(1000);
 	}
 }
 
@@ -304,7 +304,7 @@ impl<T: Config> Module<T> {
             FixedU128::zero()
         } else {
             let swap_fee: FixedU128 = SwappingFee::get();
-            let fee_term: FixedU128 = FixedU128::from_fraction(1.0).saturating_sub(swap_fee);
+            let fee_term: FixedU128 = FixedU128::from(1)/FixedU128::from(10).saturating_sub(swap_fee);
 
             let fee_reduced_supply_amount: FixedU128 = supply_amount.saturating_mul(fee_term);
 
@@ -327,7 +327,7 @@ impl<T: Config> Module<T> {
         } else {
             let swap_fee: FixedU128 = SwappingFee::get();
             let numerator: FixedU128 = target_amount.saturating_mul(supply_pool);
-            let fee_term: FixedU128 = FixedU128::from_fraction(1.0).saturating_sub(swap_fee);
+            let fee_term: FixedU128 = FixedU128::from(1)/FixedU128::from(10).saturating_sub(swap_fee);
             let sub: FixedU128 = target_pool.saturating_sub(target_amount);
             let denominator: FixedU128 = sub.saturating_mul(fee_term);
 
