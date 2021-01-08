@@ -128,7 +128,7 @@ decl_storage! {
 	Orderbooks get(fn get_orderbooks): map hasher(twox_64_concat) (T::Hash,T::Hash) => Orderbook<T>;
 
 	/// Store MarketData of TradingPairs
-	MarketInfo get(fn get_marketdata): double_map hasher(twox_64_concat) (T::Hash,T::Hash), hasher(blake2_128_concat) T::BlockNumber => MarketData;
+	MarketInfo get(fn get_marketdata): map hasher(twox_64_concat) (T::Hash,T::Hash) => MarketData;
 	Nonce: u128;
 	}
 }
@@ -363,18 +363,13 @@ impl<T: Config> Module<T> {
     ///
     ///  This function returns all Orderbooks otherwise Related Error.
 
-    pub fn get_market_info(trading_pair: (T::Hash, T::Hash), blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
-        let blocknum = Self::u32_to_blocknum(blocknum);
-        if <MarketInfo<T>>::contains_key(trading_pair, blocknum) {
-            let temp: MarketData = <MarketInfo<T>>::get(trading_pair, blocknum);
+    pub fn get_market_info(trading_pair: (T::Hash, T::Hash)) -> Result<MarketDataRpc, ErrorRpc> {
+        if <MarketInfo<T>>::contains_key(trading_pair) {
+            let temp: MarketData = <MarketInfo<T>>::get(trading_pair);
             temp.convert()
         } else {
             Err(ErrorRpc::NoElementFound)
         }
-    }
-
-    pub fn u32_to_blocknum(input: u32) -> T::BlockNumber {
-        input.into()
     }
 
     pub fn get_orderbook_updates(trading_pair: (T::Hash, T::Hash)) -> Result<OrderbookUpdates, ErrorRpc> {
@@ -852,9 +847,8 @@ impl<T: Config> Module<T> {
     fn consume_order(current_order: &mut Order<T>, orderbook: &mut Orderbook<T>) -> Result<(), Error<T>> {
         let mut market_data: MarketData;
 
-        let current_block_number: T::BlockNumber = <frame_system::Module<T>>::block_number();
-        if <MarketInfo<T>>::contains_key(&current_order.trading_pair, current_block_number) {
-            market_data = <MarketInfo<T>>::get(&current_order.trading_pair, <frame_system::Module<T>>::block_number())
+        if <MarketInfo<T>>::contains_key(&current_order.trading_pair) {
+            market_data = <MarketInfo<T>>::get(&current_order.trading_pair)
         } else {
             market_data = MarketData {
                 low: FixedU128::from(0),
@@ -1095,7 +1089,7 @@ impl<T: Config> Module<T> {
             OrderType::AskLimitMMOnly | OrderType::BidLimitMMOnly => {}
         }
 
-        <MarketInfo<T>>::insert(&current_order.trading_pair, current_block_number, market_data);
+        <MarketInfo<T>>::insert(&current_order.trading_pair, market_data);
         Ok(())
     }
     /// Function un-reserves and transfers assets balances between traders
