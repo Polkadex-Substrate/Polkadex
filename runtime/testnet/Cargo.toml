@@ -25,7 +25,7 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 runtime-api = { package = 'engine-runtime-api',default-features = false, path = "../../pallets/polkadex-engine/runtime-api" }
 pallet-polkadex = { package = 'polkadex-engine' , path = '../../pallets/polkadex-engine', default-features = false }
 polkadex-custom-assets = { path = '../../pallets/polkadex-custom-assets', default-features = false }
-#polkadex-swap-engine = { path = '../../pallets/polkadex-uniswap', default-features = false }
+polkadex-swap-engine = { path = '../../pallets/polkadex-uniswap', default-features = false }
 pallet-idenity = { path = '../../pallets/polkadex-identity-pallet', default-features = false }
 
 # Substrate dependencies
@@ -98,6 +98,6 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     'polkadex-custom-assets/std',
-    #'polkadex-swap-engine/std',
+    'polkadex-swap-engine/std',
     'pallet-idenity/std'
 ]
