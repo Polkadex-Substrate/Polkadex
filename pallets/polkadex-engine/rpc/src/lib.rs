@@ -32,7 +32,7 @@ pub trait DexStorageApi<BlockHash> {
     fn get_all_orderbook(&self, at: Option<BlockHash>) -> Result<Vec<OrderbookRpc>>;
 
     #[rpc(name = "polkadex_getMarketInfo")]
-    fn get_market_info(&self, at: Option<BlockHash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc>;
+    fn get_market_info(&self, at: Option<BlockHash>, trading_pair: (H256,H256), blocknum: u32) -> Result<MarketDataRpc>;
 
     #[rpc(name = "polkadex_getOrderbookUpdates")]
     fn get_orderbook_updates(&self, at: Option<BlockHash>, trading_pair: (H256,H256)) -> Result<OrderbookUpdates>;

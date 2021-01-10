@@ -25,8 +25,8 @@ structopt = '0.3.8'
 
 # local dependencies
 polkadex-testnet-runtime = { path = '../../runtime/testnet', version = '2.0.0' }
-runtime-api = { default-features = false, path = "../../pallets/polkadex/runtime-api" }
-rpc = { path = "../../pallets/polkadex/rpc" }
+engine-runtime-api = { default-features = false, path = "../../pallets/polkadex-engine/runtime-api" }
+engine-rpc = { path = "../../pallets/polkadex-engine/rpc" }
 # Substrate dependencies
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
