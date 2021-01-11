@@ -327,7 +327,7 @@ impl<T: Config> Module<T> {
         } else {
             let swap_fee: FixedU128 = SwappingFee::get();
             let numerator: FixedU128 = target_amount.saturating_mul(supply_pool);
-            let fee_term: FixedU128 = FixedU128::from(1)/FixedU128::from(10).saturating_sub(swap_fee);
+            let fee_term: FixedU128 = FixedU128::from(1).saturating_sub(swap_fee);
             let sub: FixedU128 = target_pool.saturating_sub(target_amount);
             let denominator: FixedU128 = sub.saturating_mul(fee_term);
 
