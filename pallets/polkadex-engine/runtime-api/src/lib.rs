@@ -26,7 +26,7 @@ sp_api::decl_runtime_apis!{
 
 	    fn get_all_orderbook() -> Result<Vec<OrderbookRpc>, ErrorRpc>;
 
-        fn get_market_info(trading_pair: (H256,H256),blocknum: u32) -> Result<MarketDataRpc, ErrorRpc>;
+        fn get_market_info(trading_pair: (H256,H256)) -> Result<MarketDataRpc, ErrorRpc>;
 
         fn get_orderbook_updates(trading_pair: (H256,H256)) -> Result<OrderbookUpdates,ErrorRpc>;
 

@@ -502,8 +502,8 @@ impl_runtime_apis! {
 		    Polkadex::get_all_orderbook()
 		}
 
-		fn get_market_info(trading_pair: (Hash,Hash),blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
-		    Polkadex::get_market_info(trading_pair,blocknum)
+		fn get_market_info(trading_pair: (Hash,Hash)) -> Result<MarketDataRpc, ErrorRpc> {
+		    Polkadex::get_market_info(trading_pair)
 		}
 
 		fn get_orderbook_updates(trading_pair: (Hash,Hash))-> Result<OrderbookUpdates, ErrorRpc>{
