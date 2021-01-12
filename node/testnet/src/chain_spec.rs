@@ -165,11 +165,11 @@ fn testnet_genesis(
 			key: root_key,
 		}),
 		polkadex_custom_assets: Some(CustomAssetConfig{
-			assets: vec![H256::zero()],
+			assets: vec![H256::random()],
 			initial_balance: FixedU128::from(UNIT*UNIT),  // TODO Change values accordingly
 			endowed_accounts: endowed_accounts
 				.clone().into_iter().map(Into::into).collect(),
-			native_asset: H256::zero()
+			native_asset: H256::random()
 		})
 	}
 }
