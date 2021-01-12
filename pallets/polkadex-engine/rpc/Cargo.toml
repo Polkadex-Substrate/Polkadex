@@ -12,7 +12,7 @@ jsonrpc-core = "15.0.0"
 jsonrpc-core-client = "15.0.0"
 jsonrpc-derive = "15.0.0"
 serde = { version = "1.0.101", features = ["derive"], optional = true }
-runtime-api = { package="engine-runtime-api", default-features = false, path = "../runtime-api" }
+runtime-api = { package="engine-runtime-api", path = "../runtime-api" }
 pallet-polkadex = { default-features = false, path = "../", package="polkadex-engine" }
 sp-rpc = {git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false}
 sp-runtime = {git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false}

@@ -23,6 +23,10 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy
+    - name: Build Mainnet
+      run: cargo build --manifest-path bin/polkadex/Cargo.toml --features mainnet
+    - name: Build Testnet
+      run: cargo build --manifest-path bin/polkadex/Cargo.toml --features testnet
     - name: Test Polkadex-engine pallet
       run: cargo test -p polkadex-engine --verbose
     - name: Test Polkadex-custom-assets pallet
@@ -31,4 +35,5 @@ jobs:
       run: cargo test -p pallet-idenity --verbose
     - name: Test Polkadex-uniswap Pallet
       run: cargo test -p polkadex-swap-engine --verbose
+
 

@@ -1,13 +1,15 @@
 use sp_core::{Pair, Public, sr25519};
 use polkadex_testnet_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-	SudoConfig, SystemConfig, WASM_BINARY, Signature , GenericAssetConfig
+	SudoConfig, SystemConfig, WASM_BINARY, Signature , CustomAssetConfig
 };
+use sp_runtime::FixedU128;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
 use polkadex_testnet_runtime::Balance;
+use sp_runtime::testing::H256;
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -162,14 +164,12 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			key: root_key,
 		}),
-		pallet_generic_asset: Some(GenericAssetConfig{
-			assets: vec![0],
-			initial_balance: UNIT*UNIT,
+		polkadex_custom_assets: Some(CustomAssetConfig{
+			assets: vec![H256::random()],
+			initial_balance: FixedU128::from(UNIT*UNIT),  // TODO Change values accordingly
 			endowed_accounts: endowed_accounts
 				.clone().into_iter().map(Into::into).collect(),
-			next_asset_id: 1,
-			staking_asset_id: 0,
-			spending_asset_id: 0
+			native_asset: H256::random()
 		})
 	}
 }

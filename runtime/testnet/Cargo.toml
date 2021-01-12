@@ -22,9 +22,11 @@ version = '1.3.4'
 hex-literal = { optional = true, version = '0.3.1' }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 # local dependencies
-runtime-api = { default-features = false, path = "../../pallets/polkadex/runtime-api" }
-pallet-polkadex = { path = '../../pallets/polkadex', default-features = false, version = '2.0.0' }
-pallet-generic-asset = { path = "../../pallets/generic_asset" , default-features = false }
+runtime-api = { package = 'engine-runtime-api',default-features = false, path = "../../pallets/polkadex-engine/runtime-api" }
+pallet-polkadex = { package = 'polkadex-engine' , path = '../../pallets/polkadex-engine', default-features = false }
+polkadex-custom-assets = { path = '../../pallets/polkadex-custom-assets', default-features = false }
+polkadex-swap-engine = { path = '../../pallets/polkadex-uniswap', default-features = false }
+pallet-idenity = { path = '../../pallets/polkadex-identity-pallet', default-features = false }
 
 # Substrate dependencies
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false, optional = true }
@@ -95,5 +97,7 @@ std = [
     'sp-std/std',
     'sp-transaction-pool/std',
     'sp-version/std',
-    'pallet-generic-asset/std'
+    'polkadex-custom-assets/std',
+    'polkadex-swap-engine/std',
+    'pallet-idenity/std'
 ]

@@ -15,7 +15,6 @@ enumflags2 = { version = "0.6.2" }
 sp-std = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-io = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-runtime = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
-frame-benchmarking = { version = "2.0.0", default-features = false, optional = true }
 frame-support = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false  }
 frame-system = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 
@@ -31,9 +30,8 @@ std = [
     "sp-std/std",
     "sp-io/std",
     "sp-runtime/std",
-    "frame-benchmarking/std",
     "frame-support/std",
     "frame-system/std",
 ]
-runtime-benchmarks = ["frame-benchmarking"]
+
 

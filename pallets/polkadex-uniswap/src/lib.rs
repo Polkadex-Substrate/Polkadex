@@ -10,7 +10,7 @@ use frame_support::traits::{ExistenceRequirement, Get};
 use frame_system::ensure_signed;
 use sp_arithmetic::FixedPointNumber;
 use sp_arithmetic::traits::{CheckedDiv, CheckedMul, UniqueSaturatedFrom};
-
+use sp_std::vec::Vec;
 use sp_runtime::{FixedU128, ModuleId};
 use sp_std::vec;
 use sp_runtime::traits::{AccountIdConversion, Saturating, Zero};
@@ -42,7 +42,7 @@ decl_storage! {
 		/// LPShare holdings
 		LiquidityPoolHoldings get(fn holdings): map hasher(identity) (T::AccountId,(T::Hash,T::Hash)) => FixedU128;
 		/// Swapping Fee
-		SwappingFee: FixedU128 = FixedU128::from_fraction(0.003);
+		SwappingFee: FixedU128 = FixedU128::from(3)/FixedU128::from(1000);
 	}
 }
 
@@ -304,7 +304,7 @@ impl<T: Config> Module<T> {
             FixedU128::zero()
         } else {
             let swap_fee: FixedU128 = SwappingFee::get();
-            let fee_term: FixedU128 = FixedU128::from_fraction(1.0).saturating_sub(swap_fee);
+            let fee_term: FixedU128 = FixedU128::from(1).saturating_sub(swap_fee);
 
             let fee_reduced_supply_amount: FixedU128 = supply_amount.saturating_mul(fee_term);
 
@@ -327,7 +327,7 @@ impl<T: Config> Module<T> {
         } else {
             let swap_fee: FixedU128 = SwappingFee::get();
             let numerator: FixedU128 = target_amount.saturating_mul(supply_pool);
-            let fee_term: FixedU128 = FixedU128::from_fraction(1.0).saturating_sub(swap_fee);
+            let fee_term: FixedU128 = FixedU128::from(1).saturating_sub(swap_fee);
             let sub: FixedU128 = target_pool.saturating_sub(target_amount);
             let denominator: FixedU128 = sub.saturating_mul(fee_term);
 
@@ -567,7 +567,7 @@ impl<T: Config> Module<T> {
         let path = vec![trading_pair.0, trading_pair.1];
         let target = Self::get_target_amounts(&path, max_supply, None).ok();
         let target_vector = &target.clone().unwrap(); // TODO: Remove unwrap
-        println!("{:?} < {:?}", min_target, target_vector[target_vector.len() - 1]);
+
 
         match target {
             Some(target_vector) => {
@@ -582,7 +582,7 @@ impl<T: Config> Module<T> {
     }
     /// Executes given deal.
     fn execute_deal(who: &T::AccountId, optimal_deal: (FixedU128, FixedU128), trading_pair: (T::Hash, T::Hash)) -> bool {
-        println!("hello execute");
+
         let path = vec![trading_pair.0, trading_pair.1];
 
         match Self::do_swap_with_exact_supply_fixedu128(&who, &path, optimal_deal.0, optimal_deal.1, None) {
@@ -605,7 +605,6 @@ impl<T: Config> Module<T> {
             Some(optimal_deal) => Self::execute_deal(who, optimal_deal, path),
             None => false,
         };
-        println!("{:?}", temp);
         temp
     }
 }
