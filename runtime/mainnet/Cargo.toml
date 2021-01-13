@@ -12,8 +12,6 @@ version = '2.0.0'
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-runtime-api = { default-features = false, path = "../../pallets/polkadex/runtime-api" }
-polkadex = { default-features = false, package = 'pallet-polkadex', path = '../../pallets/polkadex', version = '2.0.0' }
 frame-executive = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-arithmetic = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 frame-support = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
@@ -42,8 +40,14 @@ pallet-staking = { git = 'https://github.com/paritytech/substrate.git', branch =
 pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-session = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false, features = ['historical'] }
 sp-staking = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
-pallet-generic-asset =  { path = "../../pallets/generic_asset" , default-features = false }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
+
+# Local Dependecies
+runtime-api = { package = 'engine-runtime-api',default-features = false, path = "../../pallets/polkadex-engine/runtime-api" }
+polkadex = { package = 'polkadex-engine' , path = '../../pallets/polkadex-engine', default-features = false }
+polkadex-custom-assets = { path = '../../pallets/polkadex-custom-assets', default-features = false }
+polkadex-swap-engine = { path = '../../pallets/polkadex-uniswap', default-features = false }
+pallet-idenity = { path = '../../pallets/polkadex-identity-pallet', default-features = false }
 
 [dependencies.codec]
 default-features = false
@@ -66,7 +70,6 @@ std = [
     'pallet-sudo/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment/std',
-    'pallet-generic-asset/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'serde',
     'sp-api/std',
@@ -84,6 +87,9 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     'polkadex/std',
+    'polkadex-custom-assets/std',
+    'polkadex-swap-engine/std',
+    'pallet-idenity/std'
 ]
 
 [build-dependencies]
