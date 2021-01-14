@@ -7,13 +7,20 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_std::prelude::*;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use frame_system::{
+	EnsureRoot, EnsureOneOf,
+};
+use sp_core::{
+	crypto::KeyTypeId,
+	u32_trait::{_1, _2, _3, _5},
+	OpaqueMetadata,
+};
 use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
-	transaction_validity::{TransactionValidity, TransactionSource},
+	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, ModuleId, MultiSignature,
+	Percent, transaction_validity::{TransactionValidity, TransactionSource},
 };
 use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor, Saturating,
+	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -37,7 +44,6 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 	},
 };
-
 /// Import the template pallet.
 pub use pallet_polkadex;
 use pallet_polkadex::data_structure_rpc::LinkedPriceLevelRpc;
@@ -115,6 +121,11 @@ pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
+
+// Currencies
+pub const MILLICENTS: Balance = 1_000_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS;
+pub const DOLLARS: Balance = 100 * CENTS;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -243,7 +254,7 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<SpendingAssetCurrency<Self>,()>;
+	type OnChargeTransaction = CurrencyAdapter<NativeAssetCurrency<Self>, ()>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
@@ -265,16 +276,107 @@ impl pallet_polkadex::Config for Runtime {
 	type TradingPairReservationFee = TradingPairReservationFee;
 }
 
-impl pallet_generic_asset::Config for Runtime {
-	type Balance = Balance;
-	type AssetId = u32;
+impl polkadex_custom_assets::Config for Runtime {
 	type Event = Event;
+	type Balance = Balance;
 	type MaxLocks = MaxLocks;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
-use pallet_generic_asset::{SpendingAssetCurrency, StakingAssetCurrency};
-use frame_system::limits::{BlockLength, BlockWeights};
+parameter_types! {
+    pub const TradingPathLimit: usize = 10;
+}
+
+impl polkadex_swap_engine::Config for Runtime {
+	type Event = Event;
+	type TradingPathLimit = TradingPathLimit;
+}
+
+parameter_types! {
+    pub const MaxSubAccounts: u32 = 10;
+    pub const MaxRegistrars: u32 = 10;
+}
+
+impl pallet_idenity::Config for Runtime {
+	type Event = Event;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxRegistrars = MaxRegistrars;
+}
+parameter_types! {
+	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+	pub const CouncilMaxProposals: u32 = 100;
+	pub const CouncilMaxMembers: u32 = 100;
+}
+
+type CouncilCollective = pallet_collective::Instance1;
+impl pallet_collective::Config<CouncilCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = CouncilMotionDuration;
+	type MaxProposals = CouncilMaxProposals;
+	type MaxMembers = CouncilMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBondMinimum: Balance = 1 * DOLLARS;
+	pub const SpendPeriod: BlockNumber = 1 * DAYS;
+	pub const Burn: Permill = Permill::from_percent(50);
+	pub const TipCountdown: BlockNumber = 1 * DAYS;
+	pub const TipFindersFee: Percent = Percent::from_percent(20);
+	pub const TipReportDepositBase: Balance = 1 * DOLLARS;
+	pub const DataDepositPerByte: Balance = 1 * CENTS;
+	pub const BountyDepositBase: Balance = 1 * DOLLARS;
+	pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+	pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
+	pub const MaximumReasonLength: u32 = 16384;
+	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+	pub const BountyValueMinimum: Balance = 5 * DOLLARS;
+}
+
+impl pallet_treasury::Config for Runtime {
+	type ModuleId = TreasuryModuleId;
+	type Currency = NativeAssetCurrency<Self>;
+	type ApproveOrigin = EnsureOneOf<
+		AccountId,
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>
+	>;
+	type RejectOrigin = EnsureOneOf<
+		AccountId,
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
+	>;
+	type Event = Event;
+	type OnSlash = ();
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type SpendPeriod = SpendPeriod;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type SpendFunds = Bounties;
+	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_bounties::Config for Runtime {
+	type Event = Event;
+	type BountyDepositBase = BountyDepositBase;
+	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
+	type BountyUpdatePeriod = BountyUpdatePeriod;
+	type BountyCuratorDeposit = BountyCuratorDeposit;
+	type BountyValueMinimum = BountyValueMinimum;
+	type DataDepositPerByte = DataDepositPerByte;
+	type MaximumReasonLength = MaximumReasonLength;
+	type WeightInfo = pallet_bounties::weights::SubstrateWeight<Runtime>;
+}
+
+use polkadex_custom_assets::NativeAssetCurrency;
 use pallet_transaction_payment::CurrencyAdapter;
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -290,9 +392,14 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		GenericAsset: pallet_generic_asset::{Module, Call, Storage, Config<T>, Event<T>},
+		CustomAsset: polkadex_custom_assets::{Module, Call, Storage, Config<T>, Event<T>},
+        PolkadexUniswap: polkadex_swap_engine::{Module, Call, Storage, Event<T>},
+        PolkadexIdentity: pallet_idenity::{Module, Call, Storage, Event<T>},
 		// Include the custom logic from the template pallet in the runtime.
 		Polkadex: pallet_polkadex::{Module, Call, Storage, Event<T>},
+		Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+		Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+		Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -455,20 +562,20 @@ impl_runtime_apis! {
 
 	impl runtime_api::DexStorageApi<Block> for Runtime{
 
-	    fn get_ask_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+	    fn get_ask_level(trading_pair: (Hash,Hash)) -> Result<Vec<FixedU128>,ErrorRpc> {
 
 			Polkadex::get_ask_level(trading_pair)
 		}
 
-		fn get_bid_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+		fn get_bid_level(trading_pair: (Hash,Hash)) -> Result<Vec<FixedU128>,ErrorRpc> {
 
 			Polkadex::get_bid_level(trading_pair)
 		}
 
-		fn get_price_level(trading_pair: Hash) -> Result<Vec<LinkedPriceLevelRpc>,ErrorRpc> {
+		fn get_price_level(trading_pair: (Hash,Hash)) -> Result<Vec<LinkedPriceLevelRpc>,ErrorRpc> {
 		    Polkadex::get_price_level(trading_pair)
 		}
-		fn get_orderbook(trading_pair: Hash) -> Result<OrderbookRpc, ErrorRpc> {
+		fn get_orderbook(trading_pair: (Hash,Hash)) -> Result<OrderbookRpc, ErrorRpc> {
 		    Polkadex::get_orderbook(trading_pair)
 		}
 
@@ -476,11 +583,11 @@ impl_runtime_apis! {
 		    Polkadex::get_all_orderbook()
 		}
 
-		fn get_market_info(trading_pair: Hash,blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
-		    Polkadex::get_market_info(trading_pair,blocknum)
+		fn get_market_info(trading_pair: (Hash,Hash)) -> Result<MarketDataRpc, ErrorRpc> {
+		    Polkadex::get_market_info(trading_pair)
 		}
 
-		fn get_orderbook_updates(trading_pair: Hash)-> Result<OrderbookUpdates, ErrorRpc>{
+		fn get_orderbook_updates(trading_pair: (Hash,Hash))-> Result<OrderbookUpdates, ErrorRpc>{
 			Polkadex::get_orderbook_updates(trading_pair)
 		}
 
@@ -514,7 +621,10 @@ impl_runtime_apis! {
 
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
+			add_benchmark!(params, batches, pallet_bounties, Bounties);
+			add_benchmark!(params, batches, pallet_collective, Council);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			add_benchmark!(params, batches, pallet_treasury, Treasury);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

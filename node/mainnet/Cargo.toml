@@ -18,8 +18,8 @@ name = 'polkadex-mainnet'
 [dependencies]
 jsonrpc-core = '15.0.0'
 structopt = '0.3.8'
-rpc = { path = "../../pallets/polkadex/rpc", version = "0.1.0" }
-runtime-api = { path = "../../pallets/polkadex/runtime-api", version = "0.1.0" }
+engine-rpc = { path = "../../pallets/polkadex-engine/rpc" }
+engine-runtime-api = { default-features = false, path = "../../pallets/polkadex-engine/runtime-api" }
 polkadex-mainnet-runtime = { path = "../../runtime/mainnet", version = "2.0.0" }
 pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 sc-basic-authorship = { git = 'https://github.com/paritytech/substrate.git', branch = "master" }

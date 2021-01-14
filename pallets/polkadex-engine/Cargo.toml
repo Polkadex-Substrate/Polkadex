@@ -45,6 +45,10 @@ std = [
     'frame-system/std',
     'polkadex-swap-engine/std',
     'sp-io/std',
+    'sp-arithmetic/std',
+    'sp-runtime/std',
+    'sp-std/std',
     'polkadex-custom-assets/std',
     'sp-core/std',
+    'pallet-idenity/std'
 ]

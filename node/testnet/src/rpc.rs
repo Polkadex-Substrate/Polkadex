@@ -35,7 +35,7 @@ pub fn create_full<C, P>(
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
-	C::Api: runtime_api::DexStorageApi<Block>,
+	C::Api: engine_runtime_api::DexStorageApi<Block>,
 	P: TransactionPool + 'static,
 {
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
@@ -48,8 +48,8 @@ pub fn create_full<C, P>(
 		deny_unsafe,
 	} = deps;
 
-	io.extend_with(rpc::DexStorageApi::to_delegate(
-		rpc::DexStorage::new(client.clone()),
+	io.extend_with(engine_rpc::DexStorageApi::to_delegate(
+		engine_rpc::DexStorage::new(client.clone()),
 	));
 
 	io.extend_with(

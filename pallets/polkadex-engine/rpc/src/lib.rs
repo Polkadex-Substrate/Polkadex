@@ -32,7 +32,7 @@ pub trait DexStorageApi<BlockHash> {
     fn get_all_orderbook(&self, at: Option<BlockHash>) -> Result<Vec<OrderbookRpc>>;
 
     #[rpc(name = "polkadex_getMarketInfo")]
-    fn get_market_info(&self, at: Option<BlockHash>, trading_pair: H256, blocknum: u32) -> Result<MarketDataRpc>;
+    fn get_market_info(&self, at: Option<BlockHash>, trading_pair: (H256,H256)) -> Result<MarketDataRpc>;
 
     #[rpc(name = "polkadex_getOrderbookUpdates")]
     fn get_orderbook_updates(&self, at: Option<BlockHash>, trading_pair: (H256,H256)) -> Result<OrderbookUpdates>;
@@ -192,13 +192,13 @@ impl<C, Block> DexStorageApi<<Block as BlockT>::Hash> for DexStorage<C, Block>
     }
 
     #[cfg(not(tarpaulin_include))]
-    fn get_market_info(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: (H256,H256), blocknum: u32) -> Result<MarketDataRpc> {
+    fn get_market_info(&self, _at: Option<<Block as BlockT>::Hash>, trading_pair: (H256,H256)) -> Result<MarketDataRpc> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(
             // Always take the best block hash for this RPC
             self.client.info().best_hash);
 
-        let runtime_api_result = api.get_market_info(&at, trading_pair, blocknum);
+        let runtime_api_result = api.get_market_info(&at, trading_pair);
         let temp = match runtime_api_result {
             Ok(x) => match x {
                 Ok(z) => Ok(z),

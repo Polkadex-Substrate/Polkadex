@@ -295,7 +295,7 @@ parameter_types! {
 // }
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<SpendingAssetCurrency<Self>, ()>;
+	type OnChargeTransaction = CurrencyAdapter<NativeAssetCurrency<Self>, ()>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
@@ -308,7 +308,7 @@ impl pallet_sudo::Config for Runtime {
 
 /// Struct that handles the conversion of Balance -> `u64`. This is used for staking's election
 /// calculation.
-use pallet_generic_asset::{SpendingAssetCurrency, StakingAssetCurrency};
+use polkadex_custom_assets::NativeAssetCurrency;
 use pallet_transaction_payment::CurrencyAdapter;
 use frame_system::limits::{BlockLength, BlockWeights};
 
@@ -358,7 +358,7 @@ parameter_types! {
 }
 
 impl pallet_staking::Config for Runtime {
-	type Currency = StakingAssetCurrency<Self>;
+	type Currency = NativeAssetCurrency<Self>;
 	type UnixTime = Timestamp;
 	type CurrencyToVote = U128CurrencyToVote;
 	type RewardRemainder = (); // Treasury
@@ -389,6 +389,28 @@ impl pallet_staking::Config for Runtime {
 }
 
 parameter_types! {
+    pub const TradingPathLimit: usize = 10;
+}
+
+impl polkadex_swap_engine::Config for Runtime {
+	type Event = Event;
+	type TradingPathLimit = TradingPathLimit;
+}
+
+parameter_types! {
+    pub const MaxSubAccounts: u32 = 10;
+    pub const MaxRegistrars: u32 = 10;
+}
+
+impl pallet_idenity::Config for Runtime {
+	type Event = Event;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxRegistrars = MaxRegistrars;
+}
+
+
+
+parameter_types! {
 	// pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
 	// pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
 	/// We prioritize im-online heartbeats over election solution submission.
@@ -402,11 +424,11 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
 	type OverarchingCall = Call;
 }
 
-impl pallet_generic_asset::Config for Runtime {
-	type Balance = Balance;
-	type AssetId = u32;
+impl polkadex_custom_assets::Config for Runtime {
 	type Event = Event;
+	type Balance = Balance;
 	type MaxLocks = MaxLocks;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 parameter_types! {
@@ -435,12 +457,14 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		GenericAsset: pallet_generic_asset::{Module, Call, Storage, Config<T>, Event<T>},
+		CustomAsset: polkadex_custom_assets::{Module, Call, Storage, Config<T>, Event<T>},
 		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
 		Historical: pallet_session_historical::{Module},
 		// Include the custom logic from the polkadex pallet in the runtime.
 		Polkadex: polkadex::{Module, Call, Storage, Event<T>},
+		PolkadexUniswap: polkadex_swap_engine::{Module, Call, Storage, Event<T>},
+        PolkadexIdentity: pallet_idenity::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -559,6 +583,10 @@ impl_runtime_apis! {
 			Babe::current_epoch()
 		}
 
+		fn next_epoch() -> sp_consensus_babe::Epoch {
+			Babe::next_epoch()
+		}
+
 		fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
 			Babe::current_epoch_start()
 		}
@@ -643,20 +671,20 @@ impl_runtime_apis! {
 
 	impl runtime_api::DexStorageApi<Block> for Runtime{
 
-	    fn get_ask_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+	    fn get_ask_level(trading_pair: (Hash,Hash)) -> Result<Vec<FixedU128>,ErrorRpc> {
 
 			Polkadex::get_ask_level(trading_pair)
 		}
 
-		fn get_bid_level(trading_pair: Hash) -> Result<Vec<FixedU128>,ErrorRpc> {
+		fn get_bid_level(trading_pair: (Hash,Hash)) -> Result<Vec<FixedU128>,ErrorRpc> {
 
 			Polkadex::get_bid_level(trading_pair)
 		}
 
-		fn get_price_level(trading_pair: Hash) -> Result<Vec<LinkedPriceLevelRpc>,ErrorRpc> {
+		fn get_price_level(trading_pair: (Hash,Hash)) -> Result<Vec<LinkedPriceLevelRpc>,ErrorRpc> {
 		    Polkadex::get_price_level(trading_pair)
 		}
-		fn get_orderbook(trading_pair: Hash) -> Result<OrderbookRpc, ErrorRpc> {
+		fn get_orderbook(trading_pair: (Hash,Hash)) -> Result<OrderbookRpc, ErrorRpc> {
 		    Polkadex::get_orderbook(trading_pair)
 		}
 
@@ -664,11 +692,11 @@ impl_runtime_apis! {
 		    Polkadex::get_all_orderbook()
 		}
 
-		fn get_market_info(trading_pair: Hash,blocknum: u32) -> Result<MarketDataRpc, ErrorRpc> {
-		    Polkadex::get_market_info(trading_pair,blocknum)
+		fn get_market_info(trading_pair: (Hash,Hash)) -> Result<MarketDataRpc, ErrorRpc> {
+		    Polkadex::get_market_info(trading_pair)
 		}
 
-		fn get_orderbook_updates(trading_pair: Hash)-> Result<OrderbookUpdates, ErrorRpc>{
+		fn get_orderbook_updates(trading_pair: (Hash,Hash))-> Result<OrderbookUpdates, ErrorRpc>{
 			Polkadex::get_orderbook_updates(trading_pair)
 		}
 
