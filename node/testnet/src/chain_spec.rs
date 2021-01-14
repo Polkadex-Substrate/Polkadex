@@ -1,6 +1,6 @@
 use sp_core::{Pair, Public, sr25519};
 use polkadex_testnet_runtime::{
-	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
+	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, CouncilConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature , CustomAssetConfig
 };
 use sp_runtime::FixedU128;
@@ -160,6 +160,8 @@ fn testnet_genesis(
 		pallet_grandpa: Some(GrandpaConfig {
 			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
 		}),
+		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_treasury: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
