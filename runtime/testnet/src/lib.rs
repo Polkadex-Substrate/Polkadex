@@ -340,7 +340,7 @@ parameter_types! {
 
 impl pallet_treasury::Config for Runtime {
 	type ModuleId = TreasuryModuleId;
-	type Currency = Balances;
+	type Currency = NativeAssetCurrency<Self>;
 	type ApproveOrigin = EnsureOneOf<
 		AccountId,
 		EnsureRoot<AccountId>,
