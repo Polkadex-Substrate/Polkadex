@@ -285,6 +285,7 @@ impl polkadex_custom_assets::Config for Runtime {
 
 parameter_types! {
     pub const TradingPathLimit: usize = 10;
+
 }
 
 impl polkadex_swap_engine::Config for Runtime {
@@ -319,6 +320,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
+
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
