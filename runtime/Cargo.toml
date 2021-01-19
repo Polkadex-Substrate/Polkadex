@@ -42,7 +42,9 @@ pallet-session = { git = 'https://github.com/paritytech/substrate.git', branch =
 sp-staking = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-authority-discovery = { version = "2.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 pallet-authority-discovery = { version = "2.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+pallet-im-online = { version = "2.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
+
 
 
 # Local Dependecies
@@ -82,6 +84,7 @@ std = [
     'sp-inherents/std',
     'sp-offchain/std',
     'sp-runtime/std',
+    "pallet-im-online/std",
     'sp-session/std',
     'sp-staking/std',
     'pallet-staking/std',

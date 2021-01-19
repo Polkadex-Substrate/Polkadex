@@ -2,7 +2,7 @@ use sp_core::{Pair, Public, sr25519};
 use node_runtime::{
     AccountId, BabeConfig,BalancesConfig, GenesisConfig, GrandpaConfig,
     SudoConfig, SystemConfig, WASM_BINARY, Signature, SessionConfig, StakingConfig, StakerStatus,
-    opaque::SessionKeys, Balance, CustomAssetConfig, AuthorityDiscoveryConfig
+    opaque::SessionKeys, Balance, CustomAssetConfig, AuthorityDiscoveryConfig, ImOnlineConfig
 };
 // use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_babe::{AuthorityId as BabeId};
@@ -37,12 +37,13 @@ pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
 }
 
 /// Generate an Babe authority key.
-pub fn authority_keys_from_seed(s: &str) -> (BabeId, GrandpaId, AccountId, AccountId,AuthorityDiscoveryId,) {
+pub fn authority_keys_from_seed(s: &str) -> (BabeId, GrandpaId, AccountId, AccountId,ImOnlineId,AuthorityDiscoveryId,) {
     (
         get_from_seed::<BabeId>(s),
         get_from_seed::<GrandpaId>(s),
         get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", s)),
         get_account_id_from_seed::<sr25519::Public>(s),
+        get_from_seed::<ImOnlineId>(s),
         get_from_seed::<AuthorityDiscoveryId>(s),
     )
 }
@@ -166,6 +167,9 @@ fn testnet_genesis(
             // authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
             authorities: vec![],
         }),
+        pallet_im_online: Some(ImOnlineConfig {
+            keys: vec![],
+        }),
         pallet_grandpa: Some(GrandpaConfig {
             // authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
             authorities: vec![],
@@ -179,7 +183,8 @@ fn testnet_genesis(
                 (x.2.clone(), x.2.clone(), session_keys(
                     x.1.clone(),
                     x.0.clone(),
-                    x.4.clone()
+                    x.4.clone(),
+                    x.5.clone()
                 ))
             }).collect::<Vec<_>>(),
         }),
@@ -209,7 +214,8 @@ fn testnet_genesis(
 fn session_keys(
     grandpa: GrandpaId,
     babe: BabeId,
+    im_online: ImOnlineId,
     authority_discovery: AuthorityDiscoveryId,
 ) -> SessionKeys {
-    SessionKeys { grandpa, babe, authority_discovery  }
+    SessionKeys { grandpa, babe,im_online, authority_discovery  }
 }
