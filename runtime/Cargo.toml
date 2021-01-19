@@ -40,6 +40,8 @@ pallet-staking = { git = 'https://github.com/paritytech/substrate.git', branch =
 pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 pallet-session = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false, features = ['historical'] }
 sp-staking = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+sp-authority-discovery = { version = "2.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+pallet-authority-discovery = { version = "2.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 
@@ -90,6 +92,8 @@ std = [
     'polkadex/std',
     'polkadex-custom-assets/std',
     'polkadex-swap-engine/std',
+    "pallet-authority-discovery/std",
+    'sp-authority-discovery/std',
     'pallet-idenity/std'
 ]
 

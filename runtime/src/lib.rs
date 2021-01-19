@@ -12,6 +12,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
 	transaction_validity::{TransactionValidity, TransactionSource},
 };
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor, Saturating, OpaqueKeys,
 };
@@ -102,6 +103,7 @@ pub mod opaque {
 		pub struct SessionKeys {
 			pub babe: Babe,
 			pub grandpa: Grandpa,
+			pub authority_discovery: AuthorityDiscovery,
 		}
 	}
 }
@@ -226,6 +228,8 @@ impl pallet_babe::Config for Runtime {
 	type HandleEquivocation = (); // pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences>;
 	type WeightInfo = ();
 }
+
+impl pallet_authority_discovery::Config for Runtime {}
 
 impl pallet_grandpa::Config for Runtime {
 	type Event = Event;
@@ -460,6 +464,7 @@ construct_runtime!(
 		CustomAsset: polkadex_custom_assets::{Module, Call, Storage, Config<T>, Event<T>},
 		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+		AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
 		Historical: pallet_session_historical::{Module},
 		// Include the custom logic from the polkadex pallet in the runtime.
 		Polkadex: polkadex::{Module, Call, Storage, Event<T>},
@@ -553,6 +558,12 @@ impl_runtime_apis! {
 			tx: <Block as BlockT>::Extrinsic,
 		) -> TransactionValidity {
 			Executive::validate_transaction(source, tx)
+		}
+	}
+
+	impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
+		fn authorities() -> Vec<AuthorityDiscoveryId> {
+			AuthorityDiscovery::authorities()
 		}
 	}
 
