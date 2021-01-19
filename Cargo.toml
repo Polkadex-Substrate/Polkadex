@@ -1,0 +1,15 @@
+
+[profile.release]
+panic = 'unwind'
+
+[workspace]
+members = [
+    'cli',
+    'executor',
+    'runtime',
+    'pallets/polkadex',
+    'pallets/polkadex-engine',
+    'pallets/polkadex-custom-assets',
+    'pallets/polkadex-identity-pallet',
+    'pallets/polkadex-uniswap',
+]
