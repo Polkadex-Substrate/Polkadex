@@ -310,7 +310,7 @@ pub fn testnet_genesis(
 
         polkadex_custom_assets: Some(CustomAssetConfig{
             assets: vec![id],
-            initial_balance: FixedU128::from(UNIT*UNIT),  // TODO Change values accordingly
+            initial_balance: FixedU128::from(UNIT),  // TODO Change values accordingly
             endowed_accounts: endowed_accounts
                 .clone().into_iter().map(Into::into).collect(),
             native_asset: id

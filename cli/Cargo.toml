@@ -117,3 +117,40 @@ nix = "0.17"
 serde_json = "1.0"
 regex = "1"
 platforms = "0.2.1"
+
+[build-dependencies]
+structopt = { version = "0.3.8", optional = true }
+node-inspect = { version = "0.8.0", optional = true, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+frame-benchmarking-cli = { version = "2.0.0", optional = true, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+substrate-build-script-utils = { version = "2.0.0", optional = true, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+substrate-frame-cli = { version = "2.0.0", optional = true, git = 'https://github.com/paritytech/substrate.git', branch = "master" }
+
+
+[build-dependencies.sc-cli]
+version = "0.8.0"
+package = "sc-cli"
+git = 'https://github.com/paritytech/substrate.git'
+branch = "master"
+optional = true
+
+[features]
+default = [ "cli" ]
+browser = [
+    "browser-utils",
+    "wasm-bindgen",
+    "wasm-bindgen-futures",
+]
+cli = [
+    "node-executor/wasmi-errno",
+    "node-inspect",
+    "sc-cli",
+    "frame-benchmarking-cli",
+    "substrate-frame-cli",
+    "sc-service/db",
+    "structopt",
+    "substrate-build-script-utils",
+]
+runtime-benchmarks = [
+    "node-runtime/runtime-benchmarks",
+    "frame-benchmarking-cli",
+]
