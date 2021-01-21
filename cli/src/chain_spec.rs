@@ -224,6 +224,7 @@ pub fn testnet_genesis(
     const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
     const STASH: Balance = ENDOWMENT / 1000;
     const UNIT: u128 = 1_000_000_000_000;
+    let id = H256::random();
 
     GenesisConfig {
         frame_system: Some(SystemConfig {
@@ -306,12 +307,13 @@ pub fn testnet_genesis(
             max_members: 999,
         }),
         pallet_vesting: Some(Default::default()),
+
         polkadex_custom_assets: Some(CustomAssetConfig{
-            assets: vec![H256::random()],
+            assets: vec![id],
             initial_balance: FixedU128::from(UNIT*UNIT),  // TODO Change values accordingly
             endowed_accounts: endowed_accounts
                 .clone().into_iter().map(Into::into).collect(),
-            native_asset: H256::random()
+            native_asset: id
         })
     }
 }
