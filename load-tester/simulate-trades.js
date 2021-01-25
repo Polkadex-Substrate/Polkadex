@@ -98,8 +98,30 @@ async function polkadex_market_data() {
                 "price": "FixedU128",
                 "quantity": "FixedU128"
             },
-            "LookupSource": "AccountId",
-            "Address": "AccountId"
+            "Permissions": {
+                "_enum": [
+                    "SystemLevel",
+                    "FoundationLevel",
+                    "UserLevel"
+                ]
+            },
+            "AssetInfo": {
+                "total_issuance": "FixedU128",
+                "issuer":"AccountId",
+                "permissions":"Permissions",
+                "existential_deposit": "FixedU128"
+            },
+            "AssetID": "H256",
+            "Judgement": {
+                "_enum": [
+                    "Reasonable",
+                    "KnownGood",
+                    "OutOfDate",
+                    "PolkadexFoundationAccount",
+                    "Default",
+                    "Freeze",
+                ]
+            },
         },
         rpc: {
             polkadex: {
@@ -192,10 +214,33 @@ async function polkadex_market_data() {
             burn: null
         }
     }
+
     // Create first token - Say USDT
-    await api.tx.genericAsset.create([total_issuance, options]).signAndSend(alice, {nonce: 0});
+    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0});
     // Create second token - Say BTC
-    await api.tx.genericAsset.create([total_issuance, options]).signAndSend(alice, {nonce: 1});
+    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 1});
+
+    // NOTE: This can be used later to get AssetID for the created tokens which can be used to send as params for registerNewOrderbook.
+    api.query.system.events((events) => {
+        console.log(`\nReceived ${events.length} events:`);
+
+        // Loop through the Vec<EventRecord>
+        events.forEach((record) => {
+            // Extract the phase, event and the event types
+            const { event, phase } = record;
+            const types = event.typeDef;
+
+            // Show what we are busy with
+            console.log(`\t${event.section}:${event.method}:: (phase=${phase.toString()})`);
+            console.log(`\t\t${event.meta.documentation.toString()}`);
+
+            // Loop through each of the parameters, displaying the type and data
+            event.data.forEach((data, index) => {
+                console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+            });
+        });
+    });
+
     // Note token created first has Token ID as 1 and second token has ID 2.
     // Create the tradingPair BTC/USDT - (2,1)
     await api.tx.polkadex.registerNewOrderbook(2, 1).signAndSend(alice, {nonce: 2});
