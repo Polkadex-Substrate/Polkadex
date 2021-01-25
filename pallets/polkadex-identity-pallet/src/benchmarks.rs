@@ -8,3 +8,26 @@ use frame_benchmarking::{benchmarks, TrackedStorageKey, account};
 use sp_core::H256;
 const SEED: u32 = 0;
 
+benchmarks! {
+	_ {}
+
+	add_registrar {
+		let account_id = account("registrar", 0, SEED);
+	}: _(RawOrigin::Root, account_id)
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::{new_test_ext, Test};
+    use frame_support::assert_ok;
+
+    #[test]
+    fn test_benchmarks() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(test_benchmark_add_registrar::<Test>());
+        });
+    }
+}
+
