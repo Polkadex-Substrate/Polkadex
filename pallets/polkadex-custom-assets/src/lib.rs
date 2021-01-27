@@ -296,7 +296,22 @@ impl<T, U> Currency<<T as frame_system::Config>::AccountId> for AssetCurrency<T,
     }
 
     fn withdraw(who: &<T as frame_system::Config>::AccountId, value: Self::Balance, reasons: WithdrawReasons, liveness: ExistenceRequirement) -> Result<Self::NegativeImbalance, DispatchError> {
-        unimplemented!()
+        if value.is_zero() { return Ok(NegativeImbalance::zero()); }
+        let fixed_value: FixedU128= <Module<T>>::convert_balance_to_fixedU128(value);
+        <Balance<T>>::try_mutate(U::asset_id(), who, |ref mut account_data: &mut AccountData| {
+
+            let fixed_new_free_account = account_data.free_balance.checked_sub(&fixed_value).ok_or(Error::<T>::InsufficientBalance)?;
+            let new_free_account = <Module<T>>::convert_fixedU128_to_balance(fixed_new_free_account);
+            let ed = <Module<T>>::convert_balance_to_fixedU128(T::ExistentialDeposit::get());
+            let would_be_dead = fixed_new_free_account + account_data.reserved_balance < ed;
+            let would_kill = would_be_dead && account_data.free_balance + account_data.reserved_balance >= ed;
+            ensure!(liveness == ExistenceRequirement::AllowDeath || !would_kill, Error::<T>::KeepAlive);
+            Self::ensure_can_withdraw(who, value, reasons, new_free_account)?;
+            account_data.free_balance = fixed_new_free_account;
+            Ok(NegativeImbalance::new(value))
+
+        })
+
     }
 // TODO look again later
     fn make_free_balance_be(who: &<T as frame_system::Config>::AccountId, balance: Self::Balance) -> SignedImbalance<Self::Balance, Self::PositiveImbalance> {
@@ -575,6 +590,7 @@ decl_error! {
 		KeepAlive,
 		/// AccountFrozenOrOutdated
 		AccountFrozenOrOutdated
+
 	}
 }
 
