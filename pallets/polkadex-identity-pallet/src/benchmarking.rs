@@ -5,11 +5,10 @@ use sp_std::prelude::*;
 use frame_system::RawOrigin;
 use frame_support::{ensure, traits::OnFinalize,};
 use frame_benchmarking::{benchmarks, TrackedStorageKey, account};
-use sp_core::H256;
+
 const SEED: u32 = 0;
 
 benchmarks! {
-	_ {}
 
 	add_registrar {
 		let account_id = account("registrar", 0, SEED);
@@ -20,7 +19,7 @@ benchmarks! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::{new_test_ext, Test};
+    use crate::mock::{new_test_ext, Test};
     use frame_support::assert_ok;
 
     #[test]

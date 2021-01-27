@@ -59,7 +59,7 @@ impl Config for Test {
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars = MaxRegistrars;
-
+    type WeightInfo = ();
 }
 
 

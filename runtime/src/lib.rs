@@ -1011,6 +1011,7 @@ impl pallet_idenity::Config for Runtime {
 	type Event = Event;
 	type MaxSubAccounts = MaxSubAccountsPolkadex;
 	type MaxRegistrars = MaxRegistrarsPolkadex;
+	type WeightInfo = pallet_idenity::weights::SubstrateWeight<Runtime>;
 }
 
 impl polkadex_custom_assets::Config for Runtime {
@@ -1399,6 +1400,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
 			add_benchmark!(params, batches, pallet_grandpa, Grandpa);
 			add_benchmark!(params, batches, pallet_identity, Identity);
+			add_benchmark!(params, batches, pallet_idenity, PolkadexIdentity);
 			add_benchmark!(params, batches, pallet_im_online, ImOnline);
 			add_benchmark!(params, batches, pallet_indices, Indices);
 			add_benchmark!(params, batches, pallet_lottery, Lottery);
