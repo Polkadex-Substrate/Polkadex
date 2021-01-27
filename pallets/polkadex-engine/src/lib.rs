@@ -10,7 +10,7 @@ use sp_runtime::traits::Hash;
 use sp_std::collections::vec_deque::VecDeque;
 
 use sp_std::ops::Add;
-use frame_support::traits::{Get, ExistenceRequirement};
+use frame_support::traits::{Get, ExistenceRequirement, Randomness};
 use sp_std::convert::TryInto;
 use sp_std::str;
 use sp_std::vec::Vec;
@@ -501,7 +501,7 @@ impl<T: Config> Module<T> {
         match Self::basic_order_checks(&current_order) {
             Ok(mut orderbook) => {
                 let nonce = Nonce::get(); // To get some kind non user controllable randomness to order id
-                current_order.id = (trading_pair, current_order.trader.clone(), price, quantity, current_order.order_type.clone(), nonce)
+                current_order.id = (trading_pair, current_order.trader.clone(), price, quantity, current_order.order_type.clone(), <pallet_randomness_collective_flip::Module<T> as Randomness<T::Hash>>::random_seed(),nonce)
                     .using_encoded(<T as frame_system::Config>::Hashing::hash);
                 Nonce::put(nonce + 1);
 
