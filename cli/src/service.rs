@@ -97,7 +97,6 @@ pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponen
             grandpa::FinalityProofProvider::new_for_service(backend.clone(), Some(shared_authority_set.clone()));
 
 
-
         let babe_config = babe_link.config().clone();
         let shared_epoch_changes = babe_link.epoch_changes().clone();
 
