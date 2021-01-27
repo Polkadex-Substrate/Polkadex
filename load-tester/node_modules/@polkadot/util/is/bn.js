@@ -1,0 +1,32 @@
+"use strict";
+
+var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.isBn = isBn;
+
+var _bn = _interopRequireDefault(require("bn.js"));
+
+// Copyright 2017-2021 @polkadot/util authors & contributors
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * @name isBn
+ * @summary Tests for a `BN` object instance.
+ * @description
+ * Checks to see if the input object is an instance of `BN` (bn.js).
+ * @example
+ * <BR>
+ *
+ * ```javascript
+ * import BN from 'bn.js';
+ * import { isBn } from '@polkadot/util';
+ *
+ * console.log('isBn', isBn(new BN(1))); // => true
+ * ```
+ */
+function isBn(value) {
+  return _bn.default.isBN(value);
+}

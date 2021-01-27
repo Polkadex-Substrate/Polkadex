@@ -1,0 +1,30 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.decodeU8a = decodeU8a;
+
+// Copyright 2017-2021 @polkadot/types authors & contributors
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Given an u8a, and an array of Type constructors, decode the u8a against the
+ * types, and return an array of decoded values.
+ *
+ * @param u8a - The u8a to decode.
+ * @param types - The array of Constructor to decode the U8a against.
+ */
+function decodeU8a(registry, u8a, _types) {
+  const types = Array.isArray(_types) ? _types : Object.values(_types);
+  const result = [];
+  let offset = 0;
+
+  for (let i = 0; i < types.length; i++) {
+    const value = new types[i](registry, u8a.subarray(offset));
+    result.push(value);
+    offset += value.encodedLength;
+  }
+
+  return result;
+}

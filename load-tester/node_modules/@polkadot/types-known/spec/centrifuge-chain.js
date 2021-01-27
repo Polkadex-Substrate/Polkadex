@@ -1,0 +1,91 @@
+"use strict";
+
+var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/defineProperty"));
+
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { (0, _defineProperty2.default)(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
+
+// Copyright 2017-2021 @polkadot/types-known authors & contributors
+// SPDX-License-Identifier: Apache-2.0
+
+/* eslint-disable sort-keys */
+const sharedTypes = {
+  // substrate
+  AccountInfo: 'AccountInfoWithRefCount',
+  Address: 'LookupSource',
+  LookupSource: 'IndicesLookupSource',
+  Multiplier: 'Fixed64',
+  // Anchor
+  AnchorData: {
+    anchoredBlock: 'u64',
+    docRoot: 'H256',
+    id: 'H256'
+  },
+  PreCommitData: {
+    expirationBlock: 'u64',
+    identity: 'H256',
+    signingRoot: 'H256'
+  },
+  // Fees
+  Fee: {
+    key: 'Hash',
+    price: 'Balance'
+  },
+  // MultiAccount
+  MultiAccountData: {
+    deposit: 'Balance',
+    depositor: 'AccountId',
+    signatories: 'Vec<AccountId>',
+    threshold: 'u16'
+  },
+  // Bridge
+  ChainId: 'u8',
+  DepositNonce: 'u64',
+  ResourceId: '[u8; 32]',
+  'chainbridge::ChainId': 'u8',
+  // NFT
+  RegistryId: 'H160',
+  TokenId: 'U256',
+  AssetId: {
+    registryId: 'RegistryId',
+    tokenId: 'TokenId'
+  },
+  AssetInfo: {
+    metadata: 'Bytes'
+  },
+  MintInfo: {
+    anchorId: 'Hash',
+    proofs: 'Vec<ProofMint>',
+    staticHashes: '[Hash; 3]'
+  },
+  Proof: {
+    leafHash: 'H256',
+    sortedHashes: 'H256'
+  },
+  ProofMint: {
+    hashes: 'Vec<Hash>',
+    property: 'Bytes',
+    salt: '[u8; 32]',
+    value: 'Bytes'
+  },
+  RegistryInfo: {
+    fields: 'Vec<Bytes>',
+    ownerCanBurn: 'bool'
+  }
+};
+const versioned = [{
+  minmax: [240, undefined],
+  types: _objectSpread(_objectSpread({}, sharedTypes), {}, {
+    RefCount: 'RefCountTo259'
+  })
+}];
+var _default = versioned;
+exports.default = _default;
