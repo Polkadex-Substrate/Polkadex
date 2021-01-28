@@ -3,10 +3,7 @@
 // These data can be used to do technical analysis off-chain and place trades accordingly.
 // The given example uses trades from ETH/BTC market of Binance Public API to simulate trades. Binance API was not chosen on
 // endorse them but only as an example, It should only be treated as a quick and dirty solution to simulate real trades.
-
 // Polkadex team is not associated with Binance in any way.
-
-
 // Import
 const {ApiPromise, WsProvider, Keyring} = require('@polkadot/api');
 // Crypto promise, package used by keyring internally
@@ -18,16 +15,11 @@ const binance = new Binance().options({
     APIKEY: '<key>',
     APISECRET: '<secret>'
 });
-
-
 const wsProvider = new WsProvider('ws://localhost:9944');
 polkadex_market_data().then();
-
-
 async function polkadex_market_data() {
     // Wait for the promise to resolve, async WASM or `cryptoWaitReady().then(() => { ... })`
     await cryptoWaitReady();
-
     // Create a keyring instance
     const keyring = new Keyring({type: 'sr25519'});
     // The create new instance of Alice
@@ -64,7 +56,6 @@ async function polkadex_market_data() {
                 "volume": "FixedU128",
                 "open": "FixedU128",
                 "close": "FixedU128"
-
             },
             "LinkedPriceLevel": {
                 "next": "Option<FixedU128>",
@@ -202,8 +193,6 @@ async function polkadex_market_data() {
         },
         provider: wsProvider
     });
-
-
     const tradingPairID = "0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9";
     const UNIT = new BN(1000000000000,10);
     const total_issuance = UNIT.mul(UNIT);
@@ -214,10 +203,8 @@ async function polkadex_market_data() {
             burn: null
         }
     }
-
     // Create first token - Say USDT
-    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0});
-    // Create second token - Say BTC
-    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 1});
-
+    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0}, (status)=>{
+        console.log(status.toHuman());
+    });
 }
