@@ -205,7 +205,7 @@ decl_module! {
     /// # Return
     ///
     /// This function returns a status that, judgement is successfully passed or not.
-    #[weight = 10_000]
+    #[weight = T::WeightInfo::provide_judgement_trader()]
     fn provide_judgement_trader(origin,target: T::AccountId,judgement: Judgement) -> DispatchResult {
 		    let registrar = ensure_signed(origin)?;
 		    ensure!(<Registrars<T>>::contains_key(&registrar), Error::<T>::SenderIsNotRegistrar); // Check for the existance
@@ -227,7 +227,7 @@ decl_module! {
 	/// # Return
 	///
 	/// This function returns a status that, sub account is successfully added or not.
-	#[weight = 1000]
+	#[weight = T::WeightInfo::add_sub_account(T::MaxSubAccounts::get())]
 	fn add_sub_account(origin, sub_account: T::AccountId) -> DispatchResult {
 	    let master_account = ensure_signed(origin)?;
 	    ensure!(IdentityOf::<T>::contains_key(&master_account), Error::<T>::NoIdentity);
