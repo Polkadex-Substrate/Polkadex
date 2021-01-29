@@ -14,7 +14,7 @@ use sp_std::vec::Vec;
 
 use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, Order4RPC, OrderbookRpc};
 use crate::Config;
-use sp_runtime::DispatchResult;
+use sp_runtime::{DispatchResult, transaction_validity::InvalidTransaction};
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug,Copy)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

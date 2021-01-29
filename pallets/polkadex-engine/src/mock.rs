@@ -1,4 +1,4 @@
-use frame_support::{impl_outer_origin, parameter_types, weights::Weight, sp_io};
+use frame_support::{impl_outer_origin, impl_outer_dispatch,parameter_types, weights::Weight, sp_io};
 use frame_system as system;
 use polkadex_custom_assets;
 use sp_core::H256;
@@ -11,6 +11,14 @@ use frame_system::limits::{BlockLength, BlockWeights};
 impl_outer_origin! {
 	pub enum Origin for TestRuntime {}
 }
+
+impl_outer_dispatch! {
+		pub enum OuterCall for TestRuntime where origin: Origin {
+			self::DEXModule,
+		}
+	}
+
+
 
 // Configure a mock runtime to test the pallet.
 
@@ -26,7 +34,7 @@ parameter_types! {
 impl system::Config for TestRuntime {
     type BaseCallFilter = ();
     type Origin = Origin;
-    type Call = ();
+    type Call = OuterCall;
     type Index = u64;
     type BlockNumber = u64;
     type Hash = H256;

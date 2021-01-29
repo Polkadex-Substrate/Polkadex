@@ -399,4 +399,16 @@ fn calculate_quantity(mut pricelevel: LinkedPriceLevel<TestRuntime>) -> FixedU12
     }
     total_quantity
 }
-//
+
+// Test SignedExtension
+
+#[test]
+fn test_extrinsics() {
+    new_test_ext().execute_with(|| {
+        setup_creates_asset_ids();
+        let alice: u64 = 1;
+        let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let base_asset_id = (1 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+        let call = <Call<TestRuntime>>::submit_order(OrderType::AskLimitMMOnly,(quote_asset_id, base_asset_id),UNIT/2,UNIT/2);
+    });
+}
