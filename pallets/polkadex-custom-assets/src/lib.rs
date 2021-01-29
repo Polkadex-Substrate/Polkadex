@@ -311,6 +311,7 @@ impl<T, U> Currency<<T as frame_system::Config>::AccountId> for AssetCurrency<T,
             Ok(NegativeImbalance::new(value))
 
         })
+
     }
 // TODO look again later
     fn make_free_balance_be(who: &<T as frame_system::Config>::AccountId, balance: Self::Balance) -> SignedImbalance<Self::Balance, Self::PositiveImbalance> {
@@ -589,6 +590,7 @@ decl_error! {
 		KeepAlive,
 		/// AccountFrozenOrOutdated
 		AccountFrozenOrOutdated
+
 	}
 }
 
