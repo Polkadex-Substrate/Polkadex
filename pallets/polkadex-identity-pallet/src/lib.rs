@@ -253,7 +253,7 @@ decl_module! {
     /// # Return
     ///
     /// This function returns a status that, given account is successfully frozen or not.
-	#[weight = 1000]
+	#[weight = T::WeightInfo::freeze_account(T::MaxSubAccounts::get())]
 	fn freeze_account(origin, target: T::AccountId) -> DispatchResult {
 			let registrar = ensure_signed(origin)?;
 		    ensure!(<Registrars<T>>::contains_key(&registrar), Error::<T>::GivenAccountNotRegistarar); // Check for the existance

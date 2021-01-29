@@ -12,6 +12,7 @@ fn add_sub_accounts<T: Config>(who: &T::AccountId, s: u32) -> Result<Vec<T::Acco
     for i in 0..s {
         let sub_account: T::AccountId = account("sub", i, SEED);
         subs.push(sub_account.clone());
+        <IdentityOf<T>>::insert(&sub_account, Judgement::Default);
     }
     <SubsOf<T>>::insert(who, subs.clone());
     Ok(subs)
@@ -50,12 +51,25 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 		let _ = add_sub_accounts::<T>(&caller, s)?;
 		let sub = account("new_sub", 0, SEED);
-        <IdentityOf<T>>::insert(&caller, Judgement::Reasonable);
+        <IdentityOf<T>>::insert(&caller, Judgement::Default);
 		ensure!(SubsOf::<T>::get(&caller).len() as u32 == s, "Subs not set.");
 	}: _(RawOrigin::Signed(caller.clone()), sub)
 	verify {
 		ensure!(SubsOf::<T>::get(&caller).len() as u32 == s + 1, "Subs not added.");
 		assert_last_event::<T>(Event::<T>::SubIdentityAdded.into());
+	}
+
+	freeze_account {
+	    let s in 1 .. T::MaxSubAccounts::get() - 1;
+	    let caller: T::AccountId = whitelisted_caller();
+        Identity::<T>::add_registrar(RawOrigin::Root.into(), caller.clone())?;
+        let sub: T::AccountId = account("new_sub", 0, SEED);
+        <IdentityOf<T>>::insert(&sub, Judgement::Default);
+        let _ = add_sub_accounts::<T>(&sub, s)?;
+
+	}: _(RawOrigin::Signed(caller.clone()), sub)
+	verify {
+		assert_last_event::<T>(Event::<T>::SubAccountFrozen.into());
 	}
 
 }
@@ -72,6 +86,7 @@ mod tests {
             assert_ok!(test_benchmark_add_registrar::<Test>());
             assert_ok!(test_benchmark_provide_judgement_trader::<Test>());
             assert_ok!(test_benchmark_add_sub_account::<Test>());
+            assert_ok!(test_benchmark_freeze_account::<Test>());
         });
     }
 }
