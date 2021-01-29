@@ -3,10 +3,7 @@
 // These data can be used to do technical analysis off-chain and place trades accordingly.
 // The given example uses trades from ETH/BTC market of Binance Public API to simulate trades. Binance API was not chosen on
 // endorse them but only as an example, It should only be treated as a quick and dirty solution to simulate real trades.
-
 // Polkadex team is not associated with Binance in any way.
-
-
 // Import
 const {ApiPromise, WsProvider, Keyring} = require('@polkadot/api');
 // Crypto promise, package used by keyring internally
@@ -18,16 +15,11 @@ const binance = new Binance().options({
     APIKEY: '<key>',
     APISECRET: '<secret>'
 });
-
-
 const wsProvider = new WsProvider('ws://localhost:9944');
 polkadex_market_data().then();
-
-
 async function polkadex_market_data() {
     // Wait for the promise to resolve, async WASM or `cryptoWaitReady().then(() => { ... })`
     await cryptoWaitReady();
-
     // Create a keyring instance
     const keyring = new Keyring({type: 'sr25519'});
     // The create new instance of Alice
@@ -64,7 +56,6 @@ async function polkadex_market_data() {
                 "volume": "FixedU128",
                 "open": "FixedU128",
                 "close": "FixedU128"
-
             },
             "LinkedPriceLevel": {
                 "next": "Option<FixedU128>",
@@ -202,8 +193,6 @@ async function polkadex_market_data() {
         },
         provider: wsProvider
     });
-
-
     const tradingPairID = "0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9";
     const UNIT = new BN(1000000000000,10);
     const total_issuance = UNIT.mul(UNIT);
@@ -214,61 +203,8 @@ async function polkadex_market_data() {
             burn: null
         }
     }
-
     // Create first token - Say USDT
-    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0});
-    // Create second token - Say BTC
-    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 1});
-
-    // NOTE: This can be used later to get AssetID for the created tokens which can be used to send as params for registerNewOrderbook.
-    api.query.system.events((events) => {
-        console.log(`\nReceived ${events.length} events:`);
-
-        // Loop through the Vec<EventRecord>
-        events.forEach((record) => {
-            // Extract the phase, event and the event types
-            const { event, phase } = record;
-            const types = event.typeDef;
-
-            // Show what we are busy with
-            console.log(`\t${event.section}:${event.method}:: (phase=${phase.toString()})`);
-            console.log(`\t\t${event.meta.documentation.toString()}`);
-
-            // Loop through each of the parameters, displaying the type and data
-            event.data.forEach((data, index) => {
-                console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
-            });
-        });
+    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0}, (status)=>{
+        console.log(status.toHuman());
     });
-
-    // Note token created first has Token ID as 1 and second token has ID 2.
-    // Create the tradingPair BTC/USDT - (2,1)
-    await api.tx.polkadex.registerNewOrderbook(2, 1).signAndSend(alice, {nonce: 2});
-
-    // Let's simulate some traders
-    let alice_nonce = 3;
-
-    binance.websockets.trades(['BTCUSDT'], (trades) => {
-        let {e: eventType, E: eventTime, s: symbol, p: price, q: quantity, m: maker, a: tradeId} = trades;
-        // console.info(symbol+" trade update. price: "+price+", quantity: "+quantity+", BUY: "+maker);
-
-        let price_converted = new BN(cleanString((parseFloat(price) * UNIT).toString()),10);
-        let quantity_converted =new BN(cleanString((parseFloat(quantity) * UNIT).toString()),10);
-        if (maker === true) {
-            api.tx.polkadex.submitOrder("BidLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
-            alice_nonce = alice_nonce + 1;
-        } else {
-            api.tx.polkadex.submitOrder("AskLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
-            alice_nonce = alice_nonce + 1;
-        }
-    });
-}
-
-function cleanString(value) {
-    let pos = value.indexOf(".");
-    if (pos === -1 ){
-        return value
-    }else{
-        return value.substring(0,pos)
-    }
 }

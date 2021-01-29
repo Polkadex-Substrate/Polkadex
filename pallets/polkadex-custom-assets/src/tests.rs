@@ -180,7 +180,6 @@ fn test_currency_trait_implementation () {
         assert_noop!(Native::withdraw(&alice, 500u128 * UNIT, WithdrawReasons::TRANSACTION_PAYMENT, ExistenceRequirement::AllowDeath), Error::<Test>::InsufficientBalance);
     });
 
-
 }
 
 #[test]
