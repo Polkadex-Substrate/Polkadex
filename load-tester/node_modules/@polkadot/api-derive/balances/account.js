@@ -1,0 +1,97 @@
+"use strict";
+
+var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.account = account;
+
+var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/defineProperty"));
+
+var _util = require("@polkadot/util");
+
+var _xRxjs = require("@polkadot/x-rxjs");
+
+var _operators = require("@polkadot/x-rxjs/operators");
+
+var _util2 = require("../util");
+
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { (0, _defineProperty2.default)(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
+
+function getBalance(api, [freeBalance, reservedBalance, frozenFee, frozenMisc]) {
+  return {
+    freeBalance,
+    frozenFee,
+    frozenMisc,
+    reservedBalance,
+    votingBalance: api.registry.createType('Balance', freeBalance.toBn())
+  };
+}
+
+function calcBalances(api, [accountId, [accountNonce, balances]]) {
+  const primary = balances[0];
+  (0, _util.assert)(primary, 'No balances retrieved for account');
+  return _objectSpread({
+    accountId,
+    accountNonce,
+    additional: balances.filter((_, index) => index !== 0).map(b => getBalance(api, b))
+  }, getBalance(api, primary));
+} // old
+
+
+function queryBalancesFree(api, accountId) {
+  return api.queryMulti([[api.query.balances.freeBalance, accountId], [api.query.balances.reservedBalance, accountId], [api.query.system.accountNonce, accountId]]).pipe((0, _operators.map)(([freeBalance, reservedBalance, accountNonce]) => [accountNonce, [[freeBalance, reservedBalance, api.registry.createType('Balance'), api.registry.createType('Balance')]]]));
+}
+
+function queryBalancesAccount(api, accountId, modules = ['balances']) {
+  const balances = modules.map(m => [api.query[m].account, accountId]);
+
+  const extract = data => data.map(({
+    feeFrozen,
+    free,
+    miscFrozen,
+    reserved
+  }) => [free, reserved, feeFrozen, miscFrozen]);
+
+  return (0, _util.isFunction)(api.query.system.account) ? api.queryMulti([[api.query.system.account, accountId], ...balances]).pipe((0, _operators.map)(([{
+    nonce
+  }, ...balances]) => [nonce, extract(balances)])) : api.queryMulti([[api.query.system.accountNonce, accountId], ...balances]).pipe((0, _operators.map)(([nonce, ...balances]) => [nonce, extract(balances)]));
+}
+
+function queryCurrent(api, accountId) {
+  // AccountInfo is current, support old, eg. Edgeware
+  return api.query.system.account(accountId).pipe((0, _operators.map)(infoOrTuple => {
+    const {
+      feeFrozen,
+      free,
+      miscFrozen,
+      reserved
+    } = infoOrTuple.nonce ? infoOrTuple.data : infoOrTuple[1];
+    const accountNonce = infoOrTuple.nonce || infoOrTuple[0];
+    return [accountNonce, [[free, reserved, feeFrozen, miscFrozen]]];
+  }));
+}
+/**
+ * @name account
+ * @param {( AccountIndex | AccountId | Address | string )} address - An accounts Id in different formats.
+ * @returns An object containing the results of various balance queries
+ * @example
+ * <BR>
+ *
+ * ```javascript
+ * const ALICE = 'F7Hs';
+ *
+ * api.derive.balances.all(ALICE, ({ accountId, lockedBalance }) => {
+ *   console.log(`The account ${accountId} has a locked balance ${lockedBalance} units.`);
+ * });
+ * ```
+ */
+
+
+function account(instanceId, api) {
+  const balanceInstances = api.registry.getModuleInstances(api.runtimeVersion.specName.toString(), 'balances');
+  return (0, _util2.memo)(instanceId, address => api.derive.accounts.accountId(address).pipe((0, _operators.switchMap)(accountId => accountId ? (0, _xRxjs.combineLatest)([(0, _xRxjs.of)(accountId), balanceInstances ? queryBalancesAccount(api, accountId, balanceInstances) : (0, _util.isFunction)(api.query.system.account) ? queryCurrent(api, accountId) : (0, _util.isFunction)(api.query.balances.account) ? queryBalancesAccount(api, accountId) : queryBalancesFree(api, accountId)]) : (0, _xRxjs.of)([api.registry.createType('AccountId'), [api.registry.createType('Index'), [[api.registry.createType('Balance'), api.registry.createType('Balance'), api.registry.createType('Balance'), api.registry.createType('Balance')]]]])), (0, _operators.map)(result => calcBalances(api, result))));
+}

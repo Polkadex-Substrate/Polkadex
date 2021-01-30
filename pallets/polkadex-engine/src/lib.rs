@@ -225,7 +225,7 @@ decl_module! {
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: (T::Hash, T::Hash),  price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
             let trading_pair_id = Self::get_pair(trading_pair.0, trading_pair.1);
-            ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
+            ensure!(<Orderbooks<T>>::contains_key(&trading_pair_id), <Error<T>>::InvalidTradingPair);
             ensure!(price.checked_mul(&quantity).is_some(),<Error<T>>::OverFlowError);
             match order_type {
                 OrderType::BidLimit | OrderType::AskLimit | OrderType::AskLimitMM | OrderType::BidLimitMM | OrderType::AskLimitMMOnly | OrderType::BidLimitMMOnly => {
@@ -241,7 +241,7 @@ decl_module! {
             let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 
             let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).ok_or(<Error<T>>::InternalErrorU128Balance)?;
-	        Self::execute_order(trader, order_type, trading_pair, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
+	        Self::execute_order(trader, order_type, trading_pair_id, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Pays::No.into())
 	    }
 

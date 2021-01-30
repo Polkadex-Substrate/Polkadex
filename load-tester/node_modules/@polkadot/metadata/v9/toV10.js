@@ -1,0 +1,72 @@
+"use strict";
+
+var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.toV10 = toV10;
+
+var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/defineProperty"));
+
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { (0, _defineProperty2.default)(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
+
+// Copyright 2017-2021 @polkadot/metadata authors & contributors
+// SPDX-License-Identifier: Apache-2.0
+// migrate a storage hasher type
+// see https://github.com/paritytech/substrate/pull/4462
+
+/** @internal */
+function createStorageHasher(registry, hasher) {
+  // Blake2_128_Concat has been added at index 2, so we increment all the
+  // indexes greater than 2
+  if (hasher.toNumber() >= 2) {
+    return registry.createType('StorageHasherV10', hasher.toNumber() + 1);
+  }
+
+  return registry.createType('StorageHasherV10', hasher);
+}
+/** @internal */
+
+
+function createStorageType(registry, entryType) {
+  if (entryType.isMap) {
+    return [_objectSpread(_objectSpread({}, entryType.asMap), {}, {
+      hasher: createStorageHasher(registry, entryType.asMap.hasher)
+    }), 1];
+  }
+
+  if (entryType.isDoubleMap) {
+    return [_objectSpread(_objectSpread({}, entryType.asDoubleMap), {}, {
+      hasher: createStorageHasher(registry, entryType.asDoubleMap.hasher),
+      key2Hasher: createStorageHasher(registry, entryType.asDoubleMap.key2Hasher)
+    }), 2];
+  }
+
+  return [entryType.asPlain, 0];
+}
+/** @internal */
+
+
+function convertModule(registry, mod) {
+  const storage = mod.storage.unwrapOr(null);
+  return registry.createType('ModuleMetadataV10', _objectSpread(_objectSpread({}, mod), {}, {
+    storage: storage ? _objectSpread(_objectSpread({}, storage), {}, {
+      items: storage.items.map(item => _objectSpread(_objectSpread({}, item), {}, {
+        type: registry.createType('StorageEntryTypeV10', ...createStorageType(registry, item.type))
+      }))
+    }) : null
+  }));
+}
+/** @internal */
+
+
+function toV10(registry, {
+  modules
+}) {
+  return registry.createType('MetadataV10', {
+    modules: modules.map(mod => convertModule(registry, mod))
+  });
+}

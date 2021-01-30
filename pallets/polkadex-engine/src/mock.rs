@@ -99,10 +99,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let endowed_accounts: Vec<u64> = vec![1, 2];
     const UNIT: u128 = 1_000_000_000_000;
     let mut genesis = system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+    let temp = H256::from_low_u64_be(8u64);
+    let temp2 = H256::from_low_u64_be(10u64);
     polkadex_custom_assets::GenesisConfig::<TestRuntime> {
         native_asset: H256::zero(),
-        assets: vec![H256::zero()],
-        initial_balance: DEXModule::convert_balance_to_fixed_u128(10 * UNIT).unwrap(),
+        assets: vec![H256::zero(), temp, temp2],
+        initial_balance: DEXModule::convert_balance_to_fixed_u128(1000 * UNIT).unwrap(),
         endowed_accounts: endowed_accounts
             .clone().into_iter().map(Into::into).collect(),
     }.assimilate_storage(&mut genesis).unwrap();

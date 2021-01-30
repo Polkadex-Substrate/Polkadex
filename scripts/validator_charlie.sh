@@ -8,4 +8,4 @@
   --rpc-port 9934 \
   --validator \
   --node-key 0000000000000000000000000000000000000000000000000000000000000003 \
-  --bootnodes /ip4/3.18.111.13/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+  --bootnodes /ip4/18.217.129.225/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
