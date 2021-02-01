@@ -1,6 +1,7 @@
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::traits::Hash;
+use sp_core::H256;
 
 use crate::{Error, LinkedPriceLevel, mock::*, mock};
 
@@ -27,12 +28,37 @@ fn setup_creates_asset_ids() {
 }
 
 #[test]
+fn check_for_trading_pair_registration_new() {
+    new_test_ext().execute_with(|| {
+        let quote_asset_id = H256::from_low_u64_be(8u64);
+        let base_asset_id = H256::from_low_u64_be(10u64);
+        let alice: u64 = 1;
+
+        // Best Case :- Registration Successful
+        assert_ok!(DEXModule::register_new_orderbook_with_polkadex(Origin::signed(alice),quote_asset_id, UNIT));
+        assert_ok!(DEXModule::register_new_orderbook_with_polkadex(Origin::signed(alice),base_asset_id, UNIT));
+        assert_ok!(DEXModule::register_new_orderbook(Origin::signed(alice),quote_asset_id, UNIT, base_asset_id, UNIT));
+        let trading_pair_id = DEXModule::get_pair(quote_asset_id, base_asset_id);
+        let expcted_orderbook:Orderbook<TestRuntime> = Orderbook::new(trading_pair_id.1, trading_pair_id.0, trading_pair_id);
+        let actual_orderbook: Orderbook<TestRuntime> = <Orderbooks<TestRuntime>>::get((base_asset_id,quote_asset_id));
+        assert_eq!(expcted_orderbook, actual_orderbook);
+
+        assert_ok!(DEXModule::submit_order(Origin::signed(alice),OrderType::BidLimitMM,trading_pair_id,8*UNIT,(2*UNIT)/10));
+
+
+
+
+    });
+}
+
+#[test]
 fn check_for_trading_pair_registration() {
     new_test_ext().execute_with(|| {
         setup_creates_asset_ids();
         let alice: u64 = 1;
         let quote_asset_id = (0 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
         let base_asset_id = (1 as u64, alice.clone(), DEXModule::convert_balance_to_fixed_u128(10*UNIT).unwrap()).using_encoded(<TestRuntime as frame_system::Config>::Hashing::hash);
+
 
         //Same Asset Id
         assert_noop!(DEXModule::register_new_orderbook(Origin::signed(alice),quote_asset_id,UNIT,quote_asset_id, UNIT), Error::<TestRuntime>::SameAssetIdsError);

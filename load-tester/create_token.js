@@ -193,9 +193,9 @@ async function polkadex_market_data() {
         },
         provider: wsProvider
     });
-    const tradingPairID = ("0xaa5315d47da7df5bb1579821f99a3d261132f292dc44a3e63872984b55f9455f","0x0d055519a22af35714d47c10df796bbbbcc3ad9e58e2406244089e9d8152bdd1");
+    const tradingPairID = "0xf28a3c76161b8d5723b6b8b092695f418037c747faa2ad8bc33d8871f720aac9";
     const UNIT = new BN(1000000000000,10);
-    const total_issuance = UNIT.mul(UNIT);
+    const total_issuance = 100000000000;
     let options = {
         permissions: {
             update: null,
@@ -203,36 +203,36 @@ async function polkadex_market_data() {
             burn: null
         }
     }
-    // Create first token - Say USDT
-await api.tx.polkadex.registerNewOrderbookWithPolkadex("0xaa5315d47da7df5bb1579821f99a3d261132f292dc44a3e63872984b55f9455f", 1).signAndSend(alice, {nonce: 2});
-await api.tx.polkadex.registerNewOrderbookWithPolkadex("0x0d055519a22af35714d47c10df796bbbbcc3ad9e58e2406244089e9d8152bdd1", 1).signAndSend(alice, {nonce: 3});
-await api.tx.polkadex.registerNewOrderbook("0xaa5315d47da7df5bb1579821f99a3d261132f292dc44a3e63872984b55f9455f", 1, "0x0d055519a22af35714d47c10df796bbbbcc3ad9e58e2406244089e9d8152bdd1", 1).signAndSend(alice, {nonce: 4});
 
-    // Let's simulate some traders
-//    let alice_nonce = 5;
-//
-//    binance.websockets.trades(['BTCUSDT'], (trades) => {
-//        let {e: eventType, E: eventTime, s: symbol, p: price, q: quantity, m: maker, a: tradeId} = trades;
-//        // console.info(symbol+" trade update. price: "+price+", quantity: "+quantity+", BUY: "+maker);
-//
-//        let price_converted = new BN(cleanString((parseFloat(price) * UNIT).toString()),10);
-//        let quantity_converted =new BN(cleanString((parseFloat(quantity) * UNIT).toString()),10);
-//        if (maker === true) {
-//            api.tx.polkadex.submitOrder("BidLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
-//            alice_nonce = alice_nonce + 1;
-//        } else {
-//            api.tx.polkadex.submitOrder("AskLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
-//            alice_nonce = alice_nonce + 1;
-//        }
-//    });
+
+    api.query.system.events((events) => {
+        console.log(`\nReceived ${events.length} events:`);
+
+        // Loop through the Vec<EventRecord>
+        events.forEach((record) => {
+          // Extract the phase, event and the event types
+          const { event, phase } = record;
+          const types = event.typeDef;
+
+
+
+          // Show what we are busy with
+          console.log(`\t${event.section}:${event.method}:: (phase=${phase.toString()})`);
+          console.log(`\t\t${event.meta.documentation.toString()}`);
+
+          // Loop through each of the parameters, displaying the type and data
+          event.data.forEach((data, index) => {
+            console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+          });
+        });
+      });
+
+      // Create first token - Say USDT
+          await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0}, (status)=>{
+              console.log(status.status.toHuman());
+
+          });
+          await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 1}, (status)=>{
+                  console.log(status.status.toHuman());
+          });
 }
-
-function cleanString(value) {
-    let pos = value.indexOf(".");
-    if (pos === -1 ){
-        return value
-    }else{
-        return value.substring(0,pos)
-    }
-}
-
