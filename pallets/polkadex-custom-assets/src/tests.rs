@@ -167,6 +167,18 @@ fn test_currency_trait_implementation () {
         assert_noop!(Native::deposit_into_existing(&wrong_id, 100u128*UNIT), Error::<Test>::AccountNotFound);
     });
 
+    // Test Withdraw
+    new_test_ext().execute_with(|| {
+        setup_native();
+        let alice: u64 = 1;
+        assert_eq!(Native::withdraw(&alice, 5u128 * UNIT, WithdrawReasons::TRANSACTION_PAYMENT, ExistenceRequirement::AllowDeath), Ok(NegativeImbalance::new(5u128*UNIT)));
+        let native_asset =  ("Native").using_encoded(<Test as frame_system::Config>::Hashing::hash);
+        let balance_info: AccountData = <Balance<Test>>::get(&native_asset, &alice);
+        assert_eq!(balance_info.free_balance, FixedU128::from(95));
+
+        // Test Error
+        assert_noop!(Native::withdraw(&alice, 500u128 * UNIT, WithdrawReasons::TRANSACTION_PAYMENT, ExistenceRequirement::AllowDeath), Error::<Test>::InsufficientBalance);
+    });
 
 }
 

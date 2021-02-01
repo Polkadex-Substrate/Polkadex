@@ -1,4 +1,5 @@
-../target/release/node-polkadex \
+../target/release/substrate purge-chain --base-path /tmp/alice --chain local
+../target/release/substrate \
   --base-path /tmp/alice \
   --chain customSpecRaw.json \
   --alice \
