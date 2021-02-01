@@ -14,6 +14,9 @@ use sp_std::prelude::*;
 mod mock;
 #[cfg(test)]
 mod test;
+mod benchmarking;
+pub mod weights;
+pub use weights::WeightInfo;
 
 pub type RegistrarIndex = u32;
 
@@ -29,6 +32,9 @@ pub trait Config: frame_system::Config {
     /// Maxmimum number of registrars allowed in the system. Needed to bound the complexity
     /// of, e.g., updating judgements.
     type MaxRegistrars: Get<u32>;
+
+    /// Weight information for extrinsics in this pallet.
+    type WeightInfo: WeightInfo;
 }
 
 #[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug)]
@@ -177,7 +183,7 @@ decl_module! {
     /// # Return
     ///
     /// This function returns a status that, new Registrar is added or not.
-    #[weight = 10_000]
+    #[weight = T::WeightInfo::add_registrar()]
     fn add_registrar(origin, account: T::AccountId) -> DispatchResult {
         let _root_user = ensure_root(origin)?;
         ensure!(!<Registrars<T>>::contains_key(&account), Error::<T>::RegistrarAlreadyPresent); // Check for the existance
@@ -199,7 +205,7 @@ decl_module! {
     /// # Return
     ///
     /// This function returns a status that, judgement is successfully passed or not.
-    #[weight = 10_000]
+    #[weight = T::WeightInfo::provide_judgement_trader()]
     fn provide_judgement_trader(origin,target: T::AccountId,judgement: Judgement) -> DispatchResult {
 		    let registrar = ensure_signed(origin)?;
 		    ensure!(<Registrars<T>>::contains_key(&registrar), Error::<T>::SenderIsNotRegistrar); // Check for the existance
@@ -221,7 +227,7 @@ decl_module! {
 	/// # Return
 	///
 	/// This function returns a status that, sub account is successfully added or not.
-	#[weight = 1000]
+	#[weight = T::WeightInfo::add_sub_account(T::MaxSubAccounts::get())]
 	fn add_sub_account(origin, sub_account: T::AccountId) -> DispatchResult {
 	    let master_account = ensure_signed(origin)?;
 	    ensure!(IdentityOf::<T>::contains_key(&master_account), Error::<T>::NoIdentity);
@@ -247,7 +253,7 @@ decl_module! {
     /// # Return
     ///
     /// This function returns a status that, given account is successfully frozen or not.
-	#[weight = 1000]
+	#[weight = T::WeightInfo::freeze_account(T::MaxSubAccounts::get())]
 	fn freeze_account(origin, target: T::AccountId) -> DispatchResult {
 			let registrar = ensure_signed(origin)?;
 		    ensure!(<Registrars<T>>::contains_key(&registrar), Error::<T>::GivenAccountNotRegistarar); // Check for the existance
