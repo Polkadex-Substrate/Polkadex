@@ -6,7 +6,6 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
 use frame_system as system;
-use frame_system::limits::{BlockLength, BlockWeights};
 
 
 impl_outer_origin! {
@@ -59,7 +58,7 @@ impl Config for Test {
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars = MaxRegistrars;
-
+    type WeightInfo = ();
 }
 
 
