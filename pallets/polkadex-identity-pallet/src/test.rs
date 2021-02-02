@@ -2,7 +2,8 @@ use crate::{Error, mock::*, Judgement};
 
 use frame_support::{assert_ok, assert_noop};
 use super::*;
-
+use sp_core::H256;
+use frame_support::weights::DispatchInfo;
 
 
 type System = frame_system::Module<Test>;
@@ -151,8 +152,40 @@ fn check_freeze_account() {
 #[test]
 fn signed_ext_identity_works() {
 
-    // register_new_orderbook_with_polkadex testing
+    // add_registrar testing
     new_test_ext().execute_with(|| {
 
+        // Error:- Registrar already present. Error(9)
+        let registrar: u64 = 5;
+        let judgement = Judgement::PolkadexFoundationAccount;
+        <Registrars<Test>>::insert(&registrar, judgement);
+        let call = <Call<Test>>::add_registrar(registrar).into();
+        let info = DispatchInfo::default();
+        assert_noop!(PolkadexData::<Test>(PhantomData).validate(&1, &call, &info, 150), InvalidTransaction::Custom(9));
+
+        // Best Case
+        let registrar: u64 = 6;
+        let judgement = Judgement::PolkadexFoundationAccount;
+        let call = <Call<Test>>::add_registrar(registrar).into();
+        let info = DispatchInfo::default();
+        assert_ok!(PolkadexData::<Test>(PhantomData).validate(&1, &call, &info, 150));
+    });
+
+    // provide_judgement_trader
+    new_test_ext().execute_with(|| {
+        let registrar: u64 = 5;
+        let judgement = Judgement::PolkadexFoundationAccount;
+        <Registrars<Test>>::insert(&registrar, judgement);
+
+        // Sender not Registrar
+        let call = <Call<Test>>::provide_judgement_trader(2u64, Judgement::KnownGood).into();
+        let info = DispatchInfo::default();
+        assert_noop!(PolkadexData::<Test>(PhantomData).validate(&1, &call, &info, 150), InvalidTransaction::Custom(10));
+
+    });
+
+    // add_sub_account
+    new_test_ext().execute_with(|| {
+        <IdentityOf<T>>::insert(&target, judgement);
     });
 }
