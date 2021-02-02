@@ -228,7 +228,7 @@ decl_module! {
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: (T::Hash, T::Hash),  price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
             let trading_pair_id = Self::get_pair(trading_pair.0, trading_pair.1);
-            ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
+            ensure!(<Orderbooks<T>>::contains_key(&trading_pair_id), <Error<T>>::InvalidTradingPair);
             ensure!(price.checked_mul(&quantity).is_some(),<Error<T>>::OverFlowError);
             match order_type {
                 OrderType::BidLimit | OrderType::AskLimit | OrderType::AskLimitMM | OrderType::BidLimitMM | OrderType::AskLimitMMOnly | OrderType::BidLimitMMOnly => {
@@ -244,7 +244,7 @@ decl_module! {
             let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 
             let converted_quantity = Self::convert_balance_to_fixed_u128(quantity).ok_or(<Error<T>>::InternalErrorU128Balance)?;
-	        Self::execute_order(trader, order_type, trading_pair, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
+	        Self::execute_order(trader, order_type, trading_pair_id, converted_price, converted_quantity)?; // TODO: It maybe an error in which case take the fees else refund
 	        Ok(Pays::No.into())
 	    }
 
@@ -266,7 +266,7 @@ decl_module! {
 	    #[weight = 10000]
 	    pub fn cancel_order(origin, order_id: T::Hash, trading_pair: (T::Hash, T::Hash), price: T::Balance) -> dispatch::DispatchResultWithPostInfo {
 	        let trader = ensure_signed(origin)?;
-
+            let trading_pair = Self::get_pair(trading_pair.0, trading_pair.1);
 	        ensure!(<Orderbooks<T>>::contains_key(&trading_pair), <Error<T>>::InvalidTradingPair);
 	        let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
 	        Self::cancel_order_from_orderbook(trader,order_id,trading_pair,converted_price)?;
@@ -1481,25 +1481,25 @@ impl<T: Config + Send + Sync> PolkadexData<T> {
     }
 
     pub fn check_bid_type_order (who: &T::AccountId,trading_pair: (T::Hash, T::Hash), price: &T::Balance, quantity: &T::Balance) -> Result<(), TransactionValidityError> {
-        ensure!(*price > 1000000.into() && *quantity > 1000000.into(), InvalidTransaction::Custom(1));
+        ensure!(*price > 1000000.into() && *quantity > 1000000.into(), InvalidTransaction::Custom(8));
         let balance = polkadex_custom_assets::Module::<T>::free_balance(who, trading_pair.1);
-        ensure!(balance >= (*price)*(*quantity), InvalidTransaction::Custom(2));
+        ensure!(balance >= (*price)*(*quantity), InvalidTransaction::Custom(5));
         Ok(())
     }
 
     pub fn check_ask_type_order (who: &T::AccountId, trading_pair: (T::Hash, T::Hash), quantity: &T::Balance) -> Result<(), TransactionValidityError> {
-        ensure!(*quantity > 1000000.into(), InvalidTransaction::Custom(3));
+        ensure!(*quantity > 1000000.into(), InvalidTransaction::Custom(8));
         let balance = polkadex_custom_assets::Module::<T>::free_balance(who, trading_pair.0);
-        ensure!(balance >= *quantity, InvalidTransaction::Custom(4));
+        ensure!(balance >= *quantity, InvalidTransaction::Custom(5));
         let mut valid_tx = ValidTransaction::default();
         valid_tx.priority = Bounded::max_value();
         Ok(())
     }
 
     pub fn check_bid_market (who: &T::AccountId, trading_pair: (T::Hash, T::Hash), price: &T::Balance) -> Result<(), TransactionValidityError> {
-        ensure!(*price > 1000000.into(), InvalidTransaction::Custom(5));
+        ensure!(*price > 1000000.into(), InvalidTransaction::Custom(8));
         let balance = polkadex_custom_assets::Module::<T>::free_balance(who, trading_pair.1);
-        ensure!(balance >= *price, InvalidTransaction::Custom(6));
+        ensure!(balance >= *price, InvalidTransaction::Custom(5));
         let mut valid_tx = ValidTransaction::default();
         valid_tx.priority = Bounded::max_value();
         Ok(())
@@ -1525,7 +1525,7 @@ impl<T: Config + Send + Sync> SignedExtension for PolkadexData<T>
         who: &Self::AccountId,
         call: &Self::Call,
         _info: &DispatchInfoOf<Self::Call>,
-        len: usize,
+        _len: usize,
     ) -> TransactionValidity {
         // if the transaction is too big, just drop it.
 
@@ -1534,7 +1534,7 @@ impl<T: Config + Send + Sync> SignedExtension for PolkadexData<T>
             Some(Call::submit_order(order_type,trading_pair,price,quantity)) => {
 
                 let trading_pair_id = <Module<T>>::get_pair(trading_pair.0, trading_pair.1);
-                ensure!(<Orderbooks<T>>::contains_key(&trading_pair), InvalidTransaction::Custom(1));
+                ensure!(<Orderbooks<T>>::contains_key(&trading_pair_id), InvalidTransaction::Custom(7));
 
                 match order_type {
                     OrderType::BidLimit | OrderType::BidLimitMM | OrderType::BidLimitMMOnly =>  Self::check_bid_type_order(who,trading_pair_id, price, quantity)?,
@@ -1549,11 +1549,11 @@ impl<T: Config + Send + Sync> SignedExtension for PolkadexData<T>
             Some(Call::register_new_orderbook_with_polkadex(quote_asset, deposit)) => {
 
                 let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
-                ensure!(!(quote_asset == &native_currency), InvalidTransaction::Custom(9));
+                ensure!(!(quote_asset == &native_currency), InvalidTransaction::Custom(6));
                 let trading_pair_id = <Module<T>>::get_pair(*quote_asset, native_currency);
-                ensure!(!<Orderbooks<T>>::contains_key(&trading_pair_id), InvalidTransaction::Custom(9));
-                ensure!(polkadex_custom_assets::Module::<T>::free_balance(who,native_currency) >= <T as Config>::TradingPairReservationFee::get(), InvalidTransaction::Custom(9));
-                ensure!(polkadex_custom_assets::Module::<T>::free_balance(who,*quote_asset) >= *deposit, InvalidTransaction::Custom(9));
+                ensure!(!<Orderbooks<T>>::contains_key(&trading_pair_id), InvalidTransaction::Custom(2));
+                ensure!(polkadex_custom_assets::Module::<T>::free_balance(who,native_currency) >= <T as Config>::TradingPairReservationFee::get(), InvalidTransaction::Custom(5));
+                ensure!(polkadex_custom_assets::Module::<T>::free_balance(who,*quote_asset) >= *deposit, InvalidTransaction::Custom(5));
                 let mut valid_tx = ValidTransaction::default();
                 valid_tx.priority = Bounded::max_value();
                 Ok(valid_tx)
@@ -1562,15 +1562,15 @@ impl<T: Config + Send + Sync> SignedExtension for PolkadexData<T>
             Some(Call::register_new_orderbook(quote_asset_id, quote_token_deposit, base_asset_id, base_token_deposit)) => {
 
                 let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
-                ensure!(!(&quote_asset_id == &base_asset_id), InvalidTransaction::Custom(9));
+                ensure!(!(&quote_asset_id == &base_asset_id), InvalidTransaction::Custom(1));
                 let trading_pair_id = <Module<T>>::get_pair(*quote_asset_id, *base_asset_id);
-                ensure!(!<Orderbooks<T>>::contains_key(&trading_pair_id), InvalidTransaction::Custom(9));
-                ensure!(<Orderbooks<T>>::contains_key(<Module<T>>::get_pair(*quote_asset_id,native_currency)), InvalidTransaction::Custom(9));
-                ensure!(<Orderbooks<T>>::contains_key(<Module<T>>::get_pair(*base_asset_id,native_currency)), InvalidTransaction::Custom(9));
+                ensure!(!<Orderbooks<T>>::contains_key(&trading_pair_id), InvalidTransaction::Custom(2));
+                ensure!(<Orderbooks<T>>::contains_key(<Module<T>>::get_pair(*quote_asset_id,native_currency)), InvalidTransaction::Custom(7));
+                ensure!(<Orderbooks<T>>::contains_key(<Module<T>>::get_pair(*base_asset_id,native_currency)), InvalidTransaction::Custom(7));
 
                 ensure!(polkadex_custom_assets::Module::<T>::free_balance(&who,native_currency) >= <T as Config>::TradingPairReservationFee::get(), InvalidTransaction::Custom(9));
-                ensure!(polkadex_custom_assets::Module::<T>::free_balance(&who,*quote_asset_id) >= *quote_token_deposit, InvalidTransaction::Custom(9));
-                ensure!(polkadex_custom_assets::Module::<T>::free_balance(&who,*base_asset_id) >= *base_token_deposit, InvalidTransaction::Custom(9));
+                ensure!(polkadex_custom_assets::Module::<T>::free_balance(&who,*quote_asset_id) >= *quote_token_deposit, InvalidTransaction::Custom(5));
+                ensure!(polkadex_custom_assets::Module::<T>::free_balance(&who,*base_asset_id) >= *base_token_deposit, InvalidTransaction::Custom(5));
                 let mut valid_tx = ValidTransaction::default();
                 valid_tx.priority = Bounded::max_value();
                 Ok(valid_tx)
@@ -1578,7 +1578,7 @@ impl<T: Config + Send + Sync> SignedExtension for PolkadexData<T>
             }
             Some(Call::cancel_order(order_id, trading_pair, price)) => {
                 let trading_pair_id = <Module<T>>::get_pair(trading_pair.0, trading_pair.1);
-                ensure!(<Orderbooks<T>>::contains_key(&trading_pair), InvalidTransaction::Custom(9));
+                ensure!(<Orderbooks<T>>::contains_key(&trading_pair_id), InvalidTransaction::Custom(8));
                 let mut valid_tx = ValidTransaction::default();
                 valid_tx.priority = Bounded::max_value();
                 Ok(valid_tx)
