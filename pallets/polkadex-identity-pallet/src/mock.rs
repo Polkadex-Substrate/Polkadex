@@ -1,7 +1,7 @@
 
 use crate::{Module, Config};
 use sp_core::H256;
-use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
+use frame_support::{impl_outer_origin, parameter_types, weights::Weight, impl_outer_dispatch};
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
@@ -10,8 +10,14 @@ use frame_system::limits::{BlockLength, BlockWeights};
 
 
 impl_outer_origin! {
-	pub enum Origin for Test {}
+	pub enum Origin for Test where system = frame_system {}
 }
+
+impl_outer_dispatch! {
+		pub enum OuterCall for Test where origin: Origin {
+			self::IdentityModule,
+		}
+	}
 
 // Configure a mock runtime to test the pallet.
 
@@ -29,7 +35,7 @@ impl system::Config for Test {
     type BlockWeights = ();
     type BlockLength = ();
     type Origin = Origin;
-    type Call = ();
+    type Call = OuterCall;
     type Index = u64;
     type BlockNumber = u64;
     type Hash = H256;
@@ -62,9 +68,7 @@ impl Config for Test {
 
 }
 
-
-
-pub type TemplateModule = Module<Test>;
+pub type IdentityModule = Module<Test>;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

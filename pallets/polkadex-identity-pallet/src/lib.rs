@@ -4,11 +4,14 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     ensure,
-    traits::Get,
+    traits::{Get, IsSubType},
 };
 use frame_system::{ensure_root, ensure_signed};
-use sp_runtime::{DispatchResult, RuntimeDebug};
+use sp_runtime::{DispatchResult, RuntimeDebug, traits::{SignedExtension, DispatchInfoOf, Bounded}};
 use sp_std::prelude::*;
+use sp_runtime::transaction_validity::{TransactionValidityError,TransactionValidity ,ValidTransaction, InvalidTransaction};
+use sp_std::marker::PhantomData;
+
 
 #[cfg(test)]
 mod mock;
@@ -203,8 +206,11 @@ decl_module! {
     fn provide_judgement_trader(origin,target: T::AccountId,judgement: Judgement) -> DispatchResult {
 		    let registrar = ensure_signed(origin)?;
 		    ensure!(<Registrars<T>>::contains_key(&registrar), Error::<T>::SenderIsNotRegistrar); // Check for the existance
-		    ensure!(!SuperOf::<T>::contains_key(&target), Error::<T>::GivenAccountIsSubAccount);
-			ensure!(!<IdentityOf<T>>::contains_key(&target), Error::<T>::IdentityAlreadyPresent); // Already present
+		    let target = if SuperOf::<T>::contains_key(&target) {
+		        <SuperOf<T>>::get(&target)
+		    } else {
+		        target
+		    };
 			// Sub key already allocated
 			<IdentityOf<T>>::insert(&target, judgement);
 			Self::deposit_event(RawEvent::JudgementGiven(target));
@@ -287,6 +293,68 @@ impl<T: Config> Module<T> {
 
     pub fn is_registrar(account: T::AccountId) -> bool {
         <Registrars<T>>::contains_key(&account)
+    }
+}
+
+#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+pub struct PolkadexData<T: Config + Send + Sync>(PhantomData<T>);
+
+impl<T: Config + Send + Sync> sp_std::fmt::Debug for PolkadexData<T> {
+    fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+        write!(f, "WatchDummy")
+    }
+}
+
+impl<T: Config + Send + Sync> PolkadexData<T> {
+    pub fn new() -> Self {
+        Self(sp_std::marker::PhantomData)
+    }
+}
+
+impl<T: Config + Send + Sync> SignedExtension for PolkadexData<T>
+    where
+        <T as frame_system::Config>::Call: IsSubType<Call<T>>,
+{
+    const IDENTIFIER: &'static str = "Polkadex";
+    type AccountId = T::AccountId;
+    type Call = <T as frame_system::Config>::Call;
+    type AdditionalSigned = ();
+    type Pre = ();
+
+    fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> {
+        Ok(())
+    }
+
+    fn validate(
+        &self,
+        who: &Self::AccountId,
+        call: &Self::Call,
+        _info: &DispatchInfoOf<Self::Call>,
+        _len: usize,
+    ) -> TransactionValidity {
+        match call.is_sub_type() {
+            Some(Call::add_registrar(account)) => {
+                ensure!(!<Registrars<T>>::contains_key(&account), InvalidTransaction::Custom(9)); // Check for the existance
+                let mut valid_tx = ValidTransaction::default();
+                valid_tx.priority = Bounded::max_value();
+                Ok(valid_tx)
+            }
+
+            Some(Call::provide_judgement_trader(_, _)) => {
+                ensure!(<Registrars<T>>::contains_key(who), InvalidTransaction::Custom(10));
+                let mut valid_tx = ValidTransaction::default();
+                valid_tx.priority = Bounded::max_value();
+                Ok(valid_tx)
+            }
+            Some(Call::add_sub_account(sub_account)) => {
+                ensure!(IdentityOf::<T>::contains_key(who), InvalidTransaction::Custom(11));
+                ensure!(!SuperOf::<T>::contains_key(sub_account), InvalidTransaction::Custom(12));
+                let mut valid_tx = ValidTransaction::default();
+                valid_tx.priority = Bounded::max_value();
+                Ok(valid_tx)
+            }
+            _ => Ok(Default::default()),
+        }
     }
 }
 
