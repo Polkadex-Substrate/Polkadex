@@ -17,6 +17,7 @@ const binance = new Binance().options({
 });
 const wsProvider = new WsProvider('ws://localhost:9944');
 polkadex_market_data().then();
+
 async function polkadex_market_data() {
     // Wait for the promise to resolve, async WASM or `cryptoWaitReady().then(() => { ... })`
     await cryptoWaitReady();
@@ -31,18 +32,22 @@ async function polkadex_market_data() {
                     "BidLimit",
                     "BidMarket",
                     "AskLimit",
-                    "AskMarket"
+                    "AskMarket",
+                    "BidLimitMM",
+                    "AskLimitMM",
+                    "BidLimitMMOnly",
+                    "AskLimitMMOnly",
                 ]
             },
             "Order": {
                 "id": "Hash",
-                "trading_pair": "Hash",
+                "trading_pair": ["Hash","Hash"],
                 "trader": "AccountId",
                 "price": "FixedU128",
                 "quantity": "FixedU128",
                 "order_type": "OrderType"
             },
-            "Order4RPC":{
+            "Order4RPC": {
                 "id": "[u8;32]",
                 "trading_pair": "[u8;32]",
                 "trader": "[u8;32]",
@@ -62,19 +67,19 @@ async function polkadex_market_data() {
                 "prev": "Option<FixedU128>",
                 "orders": "Vec<Order>"
             },
-            "LinkedPriceLevelRpc":{
+            "LinkedPriceLevelRpc": {
                 "next": "Vec<u8>",
                 "prev": "Vec<u8>",
                 "orders": "Vec<Order4RPC>"
             },
             "Orderbook": {
-                "trading_pair": "Hash",
+                "trading_pair": ["Hash","Hash"],
                 "base_asset_id": "u32",
                 "quote_asset_id": "u32",
                 "best_bid_price": "FixedU128",
                 "best_ask_price": "FixedU128"
             },
-            "OrderbookRPC":{
+            "OrderbookRPC": {
                 "trading_pair": "[u8;32]",
                 "base_asset_id": "u32",
                 "quote_asset_id": "u32",
@@ -98,8 +103,8 @@ async function polkadex_market_data() {
             },
             "AssetInfo": {
                 "total_issuance": "FixedU128",
-                "issuer":"AccountId",
-                "permissions":"Permissions",
+                "issuer": "AccountId",
+                "permissions": "Permissions",
                 "existential_deposit": "FixedU128"
             },
             "AssetID": "H256",
@@ -193,46 +198,109 @@ async function polkadex_market_data() {
         },
         provider: wsProvider
     });
-    const tradingPairID = ("0xaa5315d47da7df5bb1579821f99a3d261132f292dc44a3e63872984b55f9455f","0x0d055519a22af35714d47c10df796bbbbcc3ad9e58e2406244089e9d8152bdd1");
-    const UNIT = new BN(1000000000000,10);
-    const total_issuance = UNIT.mul(UNIT);
-    let options = {
-        permissions: {
-            update: null,
-            mint: null,
-            burn: null
-        }
-    }
-    // Create first token - Say USDT
-await api.tx.polkadex.registerNewOrderbookWithPolkadex("0xaa5315d47da7df5bb1579821f99a3d261132f292dc44a3e63872984b55f9455f", 1).signAndSend(alice, {nonce: 2});
-await api.tx.polkadex.registerNewOrderbookWithPolkadex("0x0d055519a22af35714d47c10df796bbbbcc3ad9e58e2406244089e9d8152bdd1", 1).signAndSend(alice, {nonce: 3});
-await api.tx.polkadex.registerNewOrderbook("0xaa5315d47da7df5bb1579821f99a3d261132f292dc44a3e63872984b55f9455f", 1, "0x0d055519a22af35714d47c10df796bbbbcc3ad9e58e2406244089e9d8152bdd1", 1).signAndSend(alice, {nonce: 4});
 
-    // Let's simulate some traders
-//    let alice_nonce = 5;
-//
-//    binance.websockets.trades(['BTCUSDT'], (trades) => {
-//        let {e: eventType, E: eventTime, s: symbol, p: price, q: quantity, m: maker, a: tradeId} = trades;
-//        // console.info(symbol+" trade update. price: "+price+", quantity: "+quantity+", BUY: "+maker);
-//
-//        let price_converted = new BN(cleanString((parseFloat(price) * UNIT).toString()),10);
-//        let quantity_converted =new BN(cleanString((parseFloat(quantity) * UNIT).toString()),10);
-//        if (maker === true) {
-//            api.tx.polkadex.submitOrder("BidLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
-//            alice_nonce = alice_nonce + 1;
-//        } else {
-//            api.tx.polkadex.submitOrder("AskLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
-//            alice_nonce = alice_nonce + 1;
-//        }
-//    });
+    const UNIT = new BN(1000000000000, 10);
+    const total_issuance = UNIT.mul(UNIT);
+
+    let tradingPairID = ["", ""]
+
+    const unsub = await api.query.system.events((events) => {
+        // Loop through the Vec<EventRecord>
+        events.forEach((record) => {
+            // Extract the phase, event and the event types
+            const {event, phase} = record;
+            const types = event.typeDef;
+
+            // Loop through each of the parameters, displaying the type and data
+            event.data.forEach((data, index) => {
+                if (types[index].type === "AssetID") {
+                    if (tradingPairID[0] === "") {
+                        tradingPairID[0] = data.toString()
+                        // console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+                    } else {
+                        if (tradingPairID[0] > data.toString()) {
+                            tradingPairID[1] = data.toString()
+                        } else {
+                            tradingPairID[1] = tradingPairID[0]
+                            tradingPairID[0] = data.toString()
+                        }
+                        // console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+                        unsub();
+                    }
+
+                }
+            });
+
+
+        });
+    });
+
+    // Create first token - Say USDT
+    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0}, (status) => {
+        // console.log(status.status.toHuman());
+
+    });
+    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 1}, (status) => {
+        // console.log(status.status.toHuman());
+    });
+
+    let tradingPairPromise = new Promise((resolve, reject) => {
+        let repeater = setInterval(() => {
+            // console.log("Checking for TradingPair")
+            // console.log("TradingPair #1", tradingPairID[0])
+            // console.log("TradingPair #2", tradingPairID[1])
+            if (tradingPairID[0] !== "" && tradingPairID[1] !== "") {
+                if (tradingPairID[0] !== tradingPairID[1]) {
+                    resolve()
+                    clearInterval(repeater)
+                }
+            }
+        }, 1000)
+    })
+
+    tradingPairPromise.then(() => {
+        // Create first token - Say USDT
+        api.tx.polkadex.registerNewOrderbookWithPolkadex(tradingPairID[0], 1).signAndSend(alice, {nonce: 2}).then(() => {
+            api.tx.polkadex.registerNewOrderbookWithPolkadex(tradingPairID[1], 1).signAndSend(alice, {nonce: 3}).then(() => {
+                api.tx.polkadex.registerNewOrderbook(tradingPairID[0], 1, tradingPairID[1], 1).signAndSend(alice, {nonce: 4}).then(() => {
+                    // Let's simulate some traders
+                    let alice_nonce = 5;
+
+                    binance.websockets.trades(['BTCUSDT'], (trades) => {
+                        let {
+                            e: eventType,
+                            E: eventTime,
+                            s: symbol,
+                            p: price,
+                            q: quantity,
+                            m: maker,
+                            a: tradeId
+                        } = trades;
+                        // console.info(symbol+" trade update. price: "+price+", quantity: "+quantity+", BUY: "+maker);
+
+                        let price_converted = new BN(cleanString((parseFloat(price) * UNIT).toString()), 10);
+                        let quantity_converted = new BN(cleanString((parseFloat(quantity) * UNIT).toString()), 10);
+                        if (maker === true) {
+                            api.tx.polkadex.submitOrder("BidLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
+                            alice_nonce = alice_nonce + 1;
+                        } else {
+                            api.tx.polkadex.submitOrder("AskLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
+                            alice_nonce = alice_nonce + 1;
+                        }
+                    });
+                });
+            });
+        });
+    })
 }
+
 
 function cleanString(value) {
     let pos = value.indexOf(".");
-    if (pos === -1 ){
+    if (pos === -1) {
         return value
-    }else{
-        return value.substring(0,pos)
+    } else {
+        return value.substring(0, pos)
     }
 }
 
