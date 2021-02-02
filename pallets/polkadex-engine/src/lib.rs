@@ -2,28 +2,28 @@
 
 use codec::Encode;
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure};
+use frame_support::traits::{ExistenceRequirement, Get, Randomness};
 use frame_support::weights::Pays;
 use frame_system::ensure_signed;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_arithmetic::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, UniqueSaturatedFrom};
 use sp_runtime::traits::Hash;
 use sp_std::collections::vec_deque::VecDeque;
-
-use sp_std::ops::Add;
-use frame_support::traits::{Get, ExistenceRequirement, Randomness};
 use sp_std::convert::TryInto;
+use sp_std::ops::Add;
 use sp_std::str;
 use sp_std::vec::Vec;
 
-use crate::data_structure::{LinkedPriceLevel, MarketData, Order, Orderbook, OrderType};
-use crate::data_structure_rpc::{ErrorRpc, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc, OrderbookUpdates, FrontendPricelevel};
 use polkadex_custom_assets::AssetIdProvider;
-use frame_support::dispatch::DispatchResult;
+
+use crate::data_structure::{LinkedPriceLevel, MarketData, Order, Orderbook, OrderType};
+use crate::data_structure_rpc::{ErrorRpc, FrontendPricelevel, LinkedPriceLevelRpc, MarketDataRpc, OrderbookRpc, OrderbookUpdates};
 
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
+mod benchmarking;
 
 pub mod data_structure;
 pub mod data_structure_rpc;

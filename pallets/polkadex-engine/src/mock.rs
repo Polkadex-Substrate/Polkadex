@@ -1,21 +1,22 @@
-use frame_support::{impl_outer_origin, parameter_types, weights::Weight, sp_io};
+use frame_support::{impl_outer_origin, parameter_types, sp_io, weights::Weight};
 use frame_system as system;
-use polkadex_custom_assets;
+use frame_system::limits::{BlockLength, BlockWeights};
 use sp_core::H256;
 use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}};
 
-use crate::{Module, Config};
+use polkadex_custom_assets;
 use polkadex_swap_engine::Event;
-use frame_system::limits::{BlockLength, BlockWeights};
+
+use crate::{Config, Module};
 
 impl_outer_origin! {
-	pub enum Origin for TestRuntime {}
+	pub enum Origin for Test {}
 }
 
 // Configure a mock runtime to test the pallet.
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct TestRuntime;
+pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const MaximumBlockWeight: Weight = 1024;
@@ -23,7 +24,7 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
-impl system::Config for TestRuntime {
+impl system::Config for Test {
     type BaseCallFilter = ();
     type Origin = Origin;
     type Call = ();
@@ -52,7 +53,7 @@ parameter_types! {
 pub const TradingPairReservationFee: u128 = 1*UNIT;
 }
 
-impl Config for TestRuntime {
+impl Config for Test {
     type Event = ();
     type TradingPairReservationFee = TradingPairReservationFee;
 }
@@ -63,10 +64,11 @@ parameter_types! {
     pub const MaxRegistrars: u32 = 10;
 }
 
-impl pallet_idenity::Config for TestRuntime {
+impl pallet_idenity::Config for Test {
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars= MaxRegistrars;
+    type WeightInfo = ();
 }
 
 
@@ -75,7 +77,7 @@ pub const MaxLocks: u32 = 10;
 pub const ExistentialDeposit: u128 = 0;
 }
 
-impl polkadex_custom_assets::Config for TestRuntime {
+impl polkadex_custom_assets::Config for Test {
     type Event = ();
     type Balance = u128;
     type MaxLocks = MaxLocks;
@@ -86,22 +88,22 @@ parameter_types! {
 pub const TradingPathLimit: usize = 6;
 }
 
-impl polkadex_swap_engine::Config for TestRuntime {
+impl polkadex_swap_engine::Config for Test {
     type Event = ();
     type TradingPathLimit = TradingPathLimit;
 }
 
-pub type DEXModule = Module<TestRuntime>;
-type System = frame_system::Module<TestRuntime>;
+pub type DEXModule = Module<Test>;
+type System = frame_system::Module<Test>;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let endowed_accounts: Vec<u64> = vec![1, 2];
     const UNIT: u128 = 1_000_000_000_000;
-    let mut genesis = system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+    let mut genesis = system::GenesisConfig::default().build_storage::<Test>().unwrap();
     let temp = H256::from_low_u64_be(8u64);
     let temp2 = H256::from_low_u64_be(10u64);
-    polkadex_custom_assets::GenesisConfig::<TestRuntime> {
+    polkadex_custom_assets::GenesisConfig::<Test> {
         native_asset: H256::zero(),
         assets: vec![H256::zero(), temp, temp2],
         initial_balance: DEXModule::convert_balance_to_fixed_u128(1000 * UNIT).unwrap(),

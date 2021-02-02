@@ -7,7 +7,6 @@ members = [
     'cli',
     'executor',
     'runtime',
-    'pallets/polkadex',
     'pallets/polkadex-engine',
     'pallets/polkadex-custom-assets',
     'pallets/polkadex-identity-pallet',
