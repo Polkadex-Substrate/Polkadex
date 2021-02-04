@@ -901,5 +901,13 @@ impl<T: Config> Module<T> {
         // unimplemented!()
         Permissions::SystemLevel
     }
+
+    pub fn get_asset_id() -> Vec<T::Hash> {
+       <Assets<T>>::iter().map(|(key, _value)| key).collect()
+    }
+
+    pub fn get_account_id() -> Vec<T::AccountId> {
+        <Balance<T>>::iter().map(|(key1, key2, _value)| key2).collect()
+    }
 }
 
