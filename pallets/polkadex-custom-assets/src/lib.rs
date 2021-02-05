@@ -902,12 +902,14 @@ impl<T: Config> Module<T> {
         Permissions::SystemLevel
     }
 
-    pub fn get_asset_id() -> Vec<T::Hash> {
-       <Assets<T>>::iter().map(|(key, _value)| key).collect()
+    pub fn get_asset_id() -> T::Hash {
+       let hash_vec: Vec<T::Hash> = <Assets<T>>::iter().map(|(key, _value)| key).collect();
+        hash_vec[2]
     }
 
-    pub fn get_account_id() -> Vec<T::AccountId> {
-        <Balance<T>>::iter().map(|(key1, key2, _value)| key2).collect()
+    pub fn get_account_id() -> T::AccountId {
+        let account_vec: Vec<T::AccountId>= <Balance<T>>::iter().map(|(key1, key2, _value)| key2).collect();
+        account_vec[0].clone()
     }
 }
 
