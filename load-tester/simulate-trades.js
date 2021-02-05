@@ -25,6 +25,7 @@ async function polkadex_market_data() {
     const keyring = new Keyring({type: 'sr25519'});
     // The create new instance of Alice
     const alice = keyring.addFromUri('//Alice', {name: 'Alice default'});
+    const bob = keyring.addFromUri('//Bob', {name: 'Alice default'})
     const api = await ApiPromise.create({
         types: {
             "OrderType": {
@@ -281,10 +282,10 @@ async function polkadex_market_data() {
                         let price_converted = new BN(cleanString((parseFloat(price) * UNIT).toString()), 10);
                         let quantity_converted = new BN(cleanString((parseFloat(quantity) * UNIT).toString()), 10);
                         if (maker === true) {
-                            api.tx.polkadex.submitOrder("BidLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
+                            api.tx.balances.transfer(bob, 123).signAndSend(alice, {nonce: alice_nonce});
                             alice_nonce = alice_nonce + 1;
                         } else {
-                            api.tx.polkadex.submitOrder("AskLimit", tradingPairID, price_converted, quantity_converted).signAndSend(alice, {nonce: alice_nonce});
+                            api.tx.balances.transfer(bob, 123).signAndSend(alice, {nonce: alice_nonce});
                             alice_nonce = alice_nonce + 1;
                         }
                     });
