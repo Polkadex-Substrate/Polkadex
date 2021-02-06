@@ -37,6 +37,17 @@ benchmarks! {
 		assert_last_event::<T>(Event::<T>::TradingPairCreated(trading_pair_id.0, trading_pair_id.1).into());
 	}
 
+	register_new_orderbook {
+	    let caller: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
+		let quote_asset_id = set_up_asset_id_token::<T>(caller.clone(), T::Balance::from(10*UNIT), T::Balance::from(0));
+		let base_caller: T::AccountId = whitelisted_caller();
+		let base_asset_id = set_up_asset_id_token::<T>(base_caller, T::Balance::from(10*UNIT), T::Balance::from(1));
+		/* let caller: T::AccountId = whitelisted_caller();
+		 let amount = T::Balance::from(100u32);
+        let quote_asset_id = T::Hashing::hash_of(&(0 as u64, caller.clone(), amount.clone()));*/
+
+	}: _(RawOrigin::Signed(caller), quote_asset_id.clone(), T::Balance::from(UNIT), base_asset_id.clone(), T::Balance::from(UNIT))
+
 }
 
 #[cfg(test)]
@@ -49,6 +60,9 @@ mod tests {
     fn test_benchmarks() {
         new_test_ext().execute_with(|| {
             assert_ok!(test_benchmark_register_new_orderbook_with_polkadex::<Test>());
+        });
+        new_test_ext().execute_with(|| {
+            assert_ok!(test_benchmark_register_new_orderbook::<Test>());
         });
     }
 }
