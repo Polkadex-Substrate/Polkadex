@@ -203,27 +203,10 @@ async function polkadex_market_data() {
     });
 
     let alice_nonce = 0;
-    binance.websockets.trades(['BTCUSDT'], (trades) => {
-                        let {
-                            e: eventType,
-                            E: eventTime,
-                            s: symbol,
-                            p: price,
-                            q: quantity,
-                            m: maker,
-                            a: tradeId
-                        } = trades;
-                        // console.info(symbol+" trade update. price: "+price+", quantity: "+quantity+", BUY: "+maker);
-
-                        let price_converted = new BN(cleanString((parseFloat(price) * UNIT).toString()), 10);
-                        let quantity_converted = new BN(cleanString((parseFloat(quantity) * UNIT).toString()), 10);
-                        if (maker === true) {
-                            api.tx.balances.transfer(bob.address, 123).signAndSend(alice, {nonce: alice_nonce});
-                            alice_nonce = alice_nonce + 1;
-                        } else {
-                            api.tx.balances.transfer(bob.address, 123).signAndSend(alice, {nonce: alice_nonce});
-                            alice_nonce = alice_nonce + 1;
-                        }
-                    });
+    binance.websockets.trades(['BTCUSDT'], (trade) => {
+                       api.tx.balances.transfer(bob.address, 123).signAndSend(alice, {nonce: alice_nonce});
+                       alice_nonce = alice_nonce + 1;
+                        
+    });
 }
 
