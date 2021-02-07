@@ -206,7 +206,7 @@ async function polkadex_market_data() {
     const total_issuance = UNIT.mul(UNIT);
 
     let tradingPairID = ["", ""]
-
+    
 //     const unsub = await api.query.system.events((events) => {
 //         // Loop through the Vec<EventRecord>
 //         events.forEach((record) => {
@@ -274,7 +274,7 @@ async function polkadex_market_data() {
 //             });
 //         });
 //     })
-    
+    let alice_nonce = 0;
     binance.websockets.trades(['BTCUSDT'], (trades) => {
                         let {
                             e: eventType,
