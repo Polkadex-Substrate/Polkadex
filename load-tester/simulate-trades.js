@@ -205,69 +205,75 @@ async function polkadex_market_data() {
 
     let tradingPairID = ["", ""]
 
-    const unsub = await api.query.system.events((events) => {
-        // Loop through the Vec<EventRecord>
-        events.forEach((record) => {
-            // Extract the phase, event and the event types
-            const {event, phase} = record;
-            const types = event.typeDef;
+//     const unsub = await api.query.system.events((events) => {
+//         // Loop through the Vec<EventRecord>
+//         events.forEach((record) => {
+//             // Extract the phase, event and the event types
+//             const {event, phase} = record;
+//             const types = event.typeDef;
 
-            // Loop through each of the parameters, displaying the type and data
-            event.data.forEach((data, index) => {
-                if (types[index].type === "AssetID") {
-                    if (tradingPairID[0] === "") {
-                        tradingPairID[0] = data.toString()
-                        // console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
-                    } else {
-                        if (tradingPairID[0] > data.toString()) {
-                            tradingPairID[1] = data.toString()
-                        } else {
-                            tradingPairID[1] = tradingPairID[0]
-                            tradingPairID[0] = data.toString()
-                        }
-                        // console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
-                        unsub();
-                    }
+//             // Loop through each of the parameters, displaying the type and data
+//             event.data.forEach((data, index) => {
+//                 if (types[index].type === "AssetID") {
+//                     if (tradingPairID[0] === "") {
+//                         tradingPairID[0] = data.toString()
+//                         // console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+//                     } else {
+//                         if (tradingPairID[0] > data.toString()) {
+//                             tradingPairID[1] = data.toString()
+//                         } else {
+//                             tradingPairID[1] = tradingPairID[0]
+//                             tradingPairID[0] = data.toString()
+//                         }
+//                         // console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+//                         unsub();
+//                     }
 
-                }
-            });
+//                 }
+//             });
 
 
-        });
-    });
+//         });
+//     });
 
-    // Create first token - Say USDT
-    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0}, (status) => {
-        // console.log(status.status.toHuman());
+//     // Create first token - Say USDT
+//     await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 0}, (status) => {
+//         // console.log(status.status.toHuman());
 
-    });
-    await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 1}, (status) => {
-        // console.log(status.status.toHuman());
-    });
+//     });
+//     await api.tx.customAsset.createToken(total_issuance, 0).signAndSend(alice, {nonce: 1}, (status) => {
+//         // console.log(status.status.toHuman());
+//     });
 
-    let tradingPairPromise = new Promise((resolve, reject) => {
-        let repeater = setInterval(() => {
-            // console.log("Checking for TradingPair")
-            // console.log("TradingPair #1", tradingPairID[0])
-            // console.log("TradingPair #2", tradingPairID[1])
-            if (tradingPairID[0] !== "" && tradingPairID[1] !== "") {
-                if (tradingPairID[0] !== tradingPairID[1]) {
-                    resolve()
-                    clearInterval(repeater)
-                }
-            }
-        }, 1000)
-    })
+//     let tradingPairPromise = new Promise((resolve, reject) => {
+//         let repeater = setInterval(() => {
+//             // console.log("Checking for TradingPair")
+//             // console.log("TradingPair #1", tradingPairID[0])
+//             // console.log("TradingPair #2", tradingPairID[1])
+//             if (tradingPairID[0] !== "" && tradingPairID[1] !== "") {
+//                 if (tradingPairID[0] !== tradingPairID[1]) {
+//                     resolve()
+//                     clearInterval(repeater)
+//                 }
+//             }
+//         }, 1000)
+//     })
 
-    tradingPairPromise.then(() => {
-        // Create first token - Say USDT
-        api.tx.polkadex.registerNewOrderbookWithPolkadex(tradingPairID[0], 1).signAndSend(alice, {nonce: 2}).then(() => {
-            api.tx.polkadex.registerNewOrderbookWithPolkadex(tradingPairID[1], 1).signAndSend(alice, {nonce: 3}).then(() => {
-                api.tx.polkadex.registerNewOrderbook(tradingPairID[0], 1, tradingPairID[1], 1).signAndSend(alice, {nonce: 4}).then(() => {
-                    // Let's simulate some traders
-                    let alice_nonce = 5;
+//     tradingPairPromise.then(() => {
+//         // Create first token - Say USDT
+//         api.tx.polkadex.registerNewOrderbookWithPolkadex(tradingPairID[0], 1).signAndSend(alice, {nonce: 2}).then(() => {
+//             api.tx.polkadex.registerNewOrderbookWithPolkadex(tradingPairID[1], 1).signAndSend(alice, {nonce: 3}).then(() => {
+//                 api.tx.polkadex.registerNewOrderbook(tradingPairID[0], 1, tradingPairID[1], 1).signAndSend(alice, {nonce: 4}).then(() => {
+//                     // Let's simulate some traders
+//                     let alice_nonce = 5;
 
-                    binance.websockets.trades(['BTCUSDT'], (trades) => {
+                   
+//                 });
+//             });
+//         });
+//     })
+    
+    binance.websockets.trades(['BTCUSDT'], (trades) => {
                         let {
                             e: eventType,
                             E: eventTime,
@@ -289,12 +295,9 @@ async function polkadex_market_data() {
                             alice_nonce = alice_nonce + 1;
                         }
                     });
-                });
-            });
-        });
-    })
 }
 
+    
 
 function cleanString(value) {
     let pos = value.indexOf(".");
