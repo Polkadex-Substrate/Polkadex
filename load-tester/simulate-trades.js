@@ -119,6 +119,8 @@ async function polkadex_market_data() {
                     "Freeze",
                 ]
             },
+            "LookupSource": "AccountId",
+            "Address": "AccountId"
         },
         rpc: {
             polkadex: {
@@ -288,10 +290,10 @@ async function polkadex_market_data() {
                         let price_converted = new BN(cleanString((parseFloat(price) * UNIT).toString()), 10);
                         let quantity_converted = new BN(cleanString((parseFloat(quantity) * UNIT).toString()), 10);
                         if (maker === true) {
-                            api.tx.balances.transfer(bob, 123).signAndSend(alice, {nonce: alice_nonce});
+                            api.tx.balances.transfer(bob.address, 123).signAndSend(alice, {nonce: alice_nonce});
                             alice_nonce = alice_nonce + 1;
                         } else {
-                            api.tx.balances.transfer(bob, 123).signAndSend(alice, {nonce: alice_nonce});
+                            api.tx.balances.transfer(bob.address, 123).signAndSend(alice, {nonce: alice_nonce});
                             alice_nonce = alice_nonce + 1;
                         }
                     });
