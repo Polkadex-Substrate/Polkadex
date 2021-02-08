@@ -72,6 +72,16 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller), OrderType::BidMarket, (quote_asset_id.clone(),
 	native_currency.clone()), T::Balance::from(1000 * UNIT), T::Balance::from(1000 * UNIT))
 
+	cancel_order {
+	    let caller: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
+	    let quote_asset_id = set_up_asset_id_token::<T>(caller.clone(), T::Balance::from(10*UNIT), T::Balance::from(0));
+	    let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
+	    let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
+		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
+
+	}: _(RawOrigin::Signed(caller), T::Hash::default(), (quote_asset_id.clone(),
+	native_currency.clone()), T::Balance::from(1000 * UNIT))
+
 }
 
 #[cfg(test)]
@@ -90,6 +100,9 @@ mod tests {
         });
         new_test_ext().execute_with(|| {
             assert_ok!(test_benchmark_submit_order::<Test>());
+        });
+        new_test_ext().execute_with(|| {
+            assert_ok!(test_benchmark_cancel_order::<Test>());
         });
     }
 }
