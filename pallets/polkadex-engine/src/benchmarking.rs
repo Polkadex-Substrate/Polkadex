@@ -6,7 +6,9 @@ use frame_support::ensure;
 use frame_system::{EventRecord, RawOrigin};
 use frame_support::traits::Box;
 use crate::Module as Polkadex;
+use polkadex_custom_assets::Balance;
 
+use sp_core::H256;
 use super::*;
 const UNIT: u32 = 1_000_000;
 
@@ -40,13 +42,27 @@ benchmarks! {
 	register_new_orderbook {
 	    let caller: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
 		let quote_asset_id = set_up_asset_id_token::<T>(caller.clone(), T::Balance::from(10*UNIT), T::Balance::from(0));
-		let base_caller: T::AccountId = whitelisted_caller();
-		let base_asset_id = set_up_asset_id_token::<T>(base_caller, T::Balance::from(10*UNIT), T::Balance::from(1));
-		/* let caller: T::AccountId = whitelisted_caller();
-		 let amount = T::Balance::from(100u32);
-        let quote_asset_id = T::Hashing::hash_of(&(0 as u64, caller.clone(), amount.clone()));*/
+		let alice: u64 = 1;
+		let base_asset_id = T::Hashing::hash_of(&(1 as u64, alice.clone(),T::Balance::from(10*UNIT)));
+		let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
+		let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency);
+		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
+		let trading_pair_id2 = Polkadex::<T>::get_pair(base_asset_id.clone(), native_currency);
+		Polkadex::<T>::create_order_book(trading_pair_id2.0, trading_pair_id2.1, trading_pair_id2);
+        let trading_pair_id = Polkadex::<T>::get_pair(quote_asset_id.clone(), base_asset_id.clone());
+		let account_data = polkadex_custom_assets::AccountData {
+	        free_balance: Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1000 * UNIT)).unwrap(),
+	        reserved_balance: FixedU128::from(0),
+	        misc_frozen: FixedU128::from(0),
+	        fee_frozen: FixedU128::from(0),
+	    };
+
+	   <Balance<T>>::insert(&base_asset_id.clone(), &caller.clone(), &account_data);
 
 	}: _(RawOrigin::Signed(caller), quote_asset_id.clone(), T::Balance::from(UNIT), base_asset_id.clone(), T::Balance::from(UNIT))
+	verify {
+		assert_last_event::<T>(Event::<T>::TradingPairCreated(trading_pair_id.0, trading_pair_id.1).into());
+	}
 
 }
 
