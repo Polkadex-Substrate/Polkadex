@@ -10,6 +10,7 @@ use polkadex_custom_assets::Balance;
 
 use sp_core::H256;
 use super::*;
+
 const UNIT: u32 = 1_000_000;
 
 fn set_up_asset_id_token<T: Config>(who: T::AccountId,
@@ -69,7 +70,20 @@ benchmarks! {
 		let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
 		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
 
-	}: _(RawOrigin::Signed(caller), OrderType::BidMarket, (quote_asset_id.clone(),
+		let price_levels: u32 = 5001;
+		let orders_per_level: u32 = 1001;
+		let order_amount: FixedU128 = FixedU128::from(100);
+		// caller2 is another account with sufficient balance
+		for price in 1..price_levels{
+		    for order in 1..orders_per_level{
+		    Polkadex::<T>::execute_order(caller2, OrderType::AskLimit,trading_pair_id1,FixedU128::from(price), order_amount);
+		    }
+		}
+		// Now we have 5000 sell price levels with about 1000 sell orders at each level.
+		// the combined total of (1*1000,2*1000,....,5000*1000) worth of sell orders
+		// the Bidlimit order needs to have a price = 5000 and quantity = 1000*5000 to consume all these sell orders together
+		// This is the worst case scenario of this order.
+	}: _(RawOrigin::Signed(caller), OrderType::BidLimit, (quote_asset_id.clone(),
 	native_currency.clone()), T::Balance::from(1000 * UNIT), T::Balance::from(1000 * UNIT))
 
 	cancel_order {
