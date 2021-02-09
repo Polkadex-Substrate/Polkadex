@@ -78,9 +78,24 @@ benchmarks! {
 	    let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
 	    let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
 		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
+		let order_id = T::Hashing::hash_of(&(100 as u64));
+		let price = T::Balance::from(1000 * UNIT);
+		let current_order = Order{
+		    id: order_id.clone(),
+            trading_pair: trading_pair_id1,
+            trader: caller.clone(),
+            price: Polkadex::<T>::convert_balance_to_fixed_u128(price.clone()).unwrap(),
+            quantity: FixedU128::from(100),
+            order_type: OrderType::BidLimit,
+		};
+		let mut order_book = Polkadex::<T>::get_orderbooks(trading_pair_id1.clone());
+		let mut linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &current_order.price);
+        linked_pricelevel.orders.push_back(current_order.clone());
 
-	}: _(RawOrigin::Signed(caller), T::Hash::default(), (quote_asset_id.clone(),
-	native_currency.clone()), T::Balance::from(1000 * UNIT))
+        <PriceLevels<T>>::insert(&current_order.trading_pair, &current_order.price, linked_pricelevel);
+
+	}: _(RawOrigin::Signed(caller), order_id, (quote_asset_id.clone(),
+	native_currency.clone()), price)
 
 }
 
