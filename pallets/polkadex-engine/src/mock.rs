@@ -1,22 +1,29 @@
-use frame_support::{impl_outer_origin, parameter_types, sp_io, weights::Weight};
+use crate as polkadex;
+use frame_support::{parameter_types, sp_io, weights::Weight};
 use frame_system as system;
 use frame_system::limits::{BlockLength, BlockWeights};
 use sp_core::H256;
 use sp_runtime::{Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup}};
 
-use polkadex_custom_assets;
-use polkadex_swap_engine::Event;
-
 use crate::{Config, Module};
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-// Configure a mock runtime to test the pallet.
+frame_support::construct_runtime!(
+	pub enum Test where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: system::{Module, Call, Config, Storage, Event<T>},
+		Polkadex: polkadex::{Module, Call, Storage, Event<T>},
+		PolkadexUniswap: polkadex_swap_engine::{Module, Call, Storage, Event<T>},
+		PolkadexIdentity: pallet_idenity::{Module, Call, Storage, Event<T>},
+		CustomAsset: polkadex_custom_assets::{Module, Call, Storage, Config<T>, Event<T>},
+	}
+);
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const MaximumBlockWeight: Weight = 1024;
@@ -27,7 +34,7 @@ parameter_types! {
 impl system::Config for Test {
     type BaseCallFilter = ();
     type Origin = Origin;
-    type Call = ();
+    type Call = Call;
     type Index = u64;
     type BlockNumber = u64;
     type Hash = H256;
@@ -35,11 +42,11 @@ impl system::Config for Test {
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
-    type Event = ();
+    type Event = Event;
     type BlockHashCount = BlockHashCount;
     type DbWeight = ();
     type Version = ();
-    type PalletInfo = ();
+    type PalletInfo = PalletInfo;
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -49,12 +56,13 @@ impl system::Config for Test {
     type SS58Prefix = ();
 }
 const UNIT: u128 = 1_000_000_000_000;
+
 parameter_types! {
-pub const TradingPairReservationFee: u128 = 1*UNIT;
+    pub const TradingPairReservationFee: u128 = 1*UNIT;
 }
 
 impl Config for Test {
-    type Event = ();
+    type Event = Event;
     type TradingPairReservationFee = TradingPairReservationFee;
 }
 
@@ -65,7 +73,7 @@ parameter_types! {
 }
 
 impl pallet_idenity::Config for Test {
-    type Event = ();
+    type Event = Event;
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars= MaxRegistrars;
     type WeightInfo = ();
@@ -78,7 +86,7 @@ pub const ExistentialDeposit: u128 = 0;
 }
 
 impl polkadex_custom_assets::Config for Test {
-    type Event = ();
+    type Event = Event;
     type Balance = u128;
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
@@ -89,13 +97,11 @@ pub const TradingPathLimit: usize = 6;
 }
 
 impl polkadex_swap_engine::Config for Test {
-    type Event = ();
+    type Event = Event;
     type TradingPathLimit = TradingPathLimit;
 }
 
 pub type DEXModule = Module<Test>;
-type System = frame_system::Module<Test>;
-
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let endowed_accounts: Vec<u64> = vec![1, 2];

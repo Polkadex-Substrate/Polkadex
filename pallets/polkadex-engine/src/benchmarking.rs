@@ -7,17 +7,41 @@ use frame_system::{EventRecord, RawOrigin};
 use frame_support::traits::Box;
 use crate::Module as Polkadex;
 use polkadex_custom_assets::Balance;
-
+use sp_std::vec::Vec;
 use sp_core::H256;
 use super::*;
+use sp_std::prelude::*;
 
 const UNIT: u32 = 1_000_000;
 
-fn set_up_asset_id_token<T: Config>(who: T::AccountId,
-                                    total_issuance: T::Balance,
-                                    minimum_deposit: T::Balance) -> T::Hash {
-    polkadex_custom_assets::Module::<T>::create_token(RawOrigin::Signed(who).into(), total_issuance, minimum_deposit);
-    polkadex_custom_assets::Module::<T>::get_asset_id()
+fn set_up_asset_id_token<T: Config>() -> (T::AccountId, T::Hash) {
+    let who: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
+    polkadex_custom_assets::Module::<T>::create_token(RawOrigin::Signed(who.clone()).into(), T::Balance::from(10*UNIT), T::Balance::from(0));
+    (who, polkadex_custom_assets::Module::<T>::get_asset_id())
+}
+
+fn set_account_with_fund<T: Config>(sender: T::AccountId) -> (T::Hash) {
+    let base_asset_id: T::Hash = T::Hashing::hash_of(&(1 as u64, sender.clone(),T::Balance::from(10*UNIT)));
+    let account_data = polkadex_custom_assets::AccountData {
+        free_balance: Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1000 * UNIT)).unwrap(),
+        reserved_balance: FixedU128::from(0),
+        misc_frozen: FixedU128::from(0),
+        fee_frozen: FixedU128::from(0),
+    };
+    <Balance<T>>::insert(&base_asset_id.clone(), &sender.clone(), &account_data);
+    base_asset_id
+}
+
+fn set_up_bulk_order<T: Config>(sender: T::AccountId, trading_pair: (T::Hash, T::Hash)) {
+    let price_levels: u32 = 5001;
+    let orders_per_level: u32 = 1001;
+    let order_amount: FixedU128 = FixedU128::from(100);
+    for price in 1..price_levels{
+        for order in 1..orders_per_level{
+            Polkadex::<T>::execute_order(sender.clone(),
+                                         OrderType::AskLimit,trading_pair,Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(price * 1000)).unwrap(), order_amount);
+        }
+    }
 }
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
@@ -30,8 +54,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 
 benchmarks! {
     register_new_orderbook_with_polkadex {
-		let caller: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
-		let quote_asset_id = set_up_asset_id_token::<T>(caller.clone(), T::Balance::from(10*UNIT), T::Balance::from(0));
+		let (caller, quote_asset_id): (T::AccountId, T::Hash) = set_up_asset_id_token::<T>();
         let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
 		let trading_pair_id = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency);
 
@@ -41,82 +64,50 @@ benchmarks! {
 	}
 
 	register_new_orderbook {
-	    let caller: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
-		let quote_asset_id = set_up_asset_id_token::<T>(caller.clone(), T::Balance::from(10*UNIT), T::Balance::from(0));
-		let alice: u64 = 1;
-		let base_asset_id = T::Hashing::hash_of(&(1 as u64, alice.clone(),T::Balance::from(10*UNIT)));
+	    let (caller, quote_asset_id): (T::AccountId, T::Hash) = set_up_asset_id_token::<T>();
+		let base_asset_id: T::Hash = set_account_with_fund::<T>(caller.clone());
 		let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
 		let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency);
 		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
 		let trading_pair_id2 = Polkadex::<T>::get_pair(base_asset_id.clone(), native_currency);
 		Polkadex::<T>::create_order_book(trading_pair_id2.0, trading_pair_id2.1, trading_pair_id2);
         let trading_pair_id = Polkadex::<T>::get_pair(quote_asset_id.clone(), base_asset_id.clone());
-		let account_data = polkadex_custom_assets::AccountData {
-	        free_balance: Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1000 * UNIT)).unwrap(),
-	        reserved_balance: FixedU128::from(0),
-	        misc_frozen: FixedU128::from(0),
-	        fee_frozen: FixedU128::from(0),
-	    };
-	   <Balance<T>>::insert(&base_asset_id.clone(), &caller.clone(), &account_data);
+
 	}: _(RawOrigin::Signed(caller), quote_asset_id.clone(), T::Balance::from(UNIT), base_asset_id.clone(), T::Balance::from(UNIT))
 	verify {
 		assert_last_event::<T>(Event::<T>::TradingPairCreated(trading_pair_id.0, trading_pair_id.1).into());
 	}
 
 	submit_order {
-	    let caller: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
-	    let quote_asset_id = set_up_asset_id_token::<T>(caller.clone(), T::Balance::from(10*UNIT), T::Balance::from(0));
+	    let (caller, quote_asset_id): (T::AccountId, T::Hash) = set_up_asset_id_token::<T>();
 	    let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
 		let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
 		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
-
-		let price_levels: u32 = 5001;
-		let orders_per_level: u32 = 1001;
-		let order_amount: FixedU128 = FixedU128::from(100);
-		// caller2 is another account with sufficient balance
-		for price in 1..price_levels{
-		    for order in 1..orders_per_level{
-		    Polkadex::<T>::execute_order(caller2, OrderType::AskLimit,trading_pair_id1,FixedU128::from(price), order_amount);
-		    }
-		}
-		// Now we have 5000 sell price levels with about 1000 sell orders at each level.
-		// the combined total of (1*1000,2*1000,....,5000*1000) worth of sell orders
-		// the Bidlimit order needs to have a price = 5000 and quantity = 1000*5000 to consume all these sell orders together
-		// This is the worst case scenario of this order.
+		let caller2: T::AccountId = whitelisted_caller();
+        let base_asset_id = set_account_with_fund::<T>(caller2.clone());
+	    let trading_pair_id2 = Polkadex::<T>::get_pair(base_asset_id.clone(), native_currency.clone());
+		set_up_bulk_order::<T>(caller2, trading_pair_id2);
 	}: _(RawOrigin::Signed(caller), OrderType::BidLimit, (quote_asset_id.clone(),
-	native_currency.clone()), T::Balance::from(1000 * UNIT), T::Balance::from(1000 * UNIT))
+	native_currency.clone()), T::Balance::from(1000 * 5000), T::Balance::from(1000 * 5000))
 
 	cancel_order {
-	    let caller: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
-	    let quote_asset_id = set_up_asset_id_token::<T>(caller.clone(), T::Balance::from(10*UNIT), T::Balance::from(0));
+	    let (caller, quote_asset_id): (T::AccountId, T::Hash) = set_up_asset_id_token::<T>();
 	    let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
 	    let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
 		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
-		let order_id = T::Hashing::hash_of(&(100 as u64));
-		let price = T::Balance::from(1000 * UNIT);
-		let current_order = Order{
-		    id: order_id.clone(),
-            trading_pair: trading_pair_id1,
-            trader: caller.clone(),
-            price: Polkadex::<T>::convert_balance_to_fixed_u128(price.clone()).unwrap(),
-            quantity: FixedU128::from(100),
-            order_type: OrderType::BidLimit,
-		};
-		let mut order_book = Polkadex::<T>::get_orderbooks(trading_pair_id1.clone());
-		let mut linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&current_order.trading_pair, &current_order.price);
-        linked_pricelevel.orders.push_back(current_order.clone());
+        set_up_bulk_order::<T>(caller.clone(), trading_pair_id1);
+        let linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&trading_pair_id1, &Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(4999)).unwrap());
+        let order: Order<T> = linked_pricelevel.orders[4000].clone();
 
-        <PriceLevels<T>>::insert(&current_order.trading_pair, &current_order.price, linked_pricelevel);
-
-	}: _(RawOrigin::Signed(caller), order_id, (quote_asset_id.clone(),
-	native_currency.clone()), price)
+	}: _(RawOrigin::Signed(caller), order.id, (quote_asset_id.clone(),
+	native_currency.clone()), T::Balance::from(5000))
 
 }
 
 #[cfg(test)]
 mod tests {
     use frame_support::assert_ok;
-    use crate::mock::{new_test_ext, Test};
+    use crate::mock::*;
     use super::*;
 
     #[test]
