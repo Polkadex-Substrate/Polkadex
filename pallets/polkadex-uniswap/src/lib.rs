@@ -566,8 +566,6 @@ impl<T: Config> Module<T> {
     fn give_best_deal(max_supply: FixedU128, min_target: FixedU128, trading_pair: (T::Hash, T::Hash)) -> Option<(FixedU128, FixedU128)> {
         let path = vec![trading_pair.0, trading_pair.1];
         let target = Self::get_target_amounts(&path, max_supply, None).ok();
-        let target_vector = &target.clone().unwrap(); // TODO: Remove unwrap
-
 
         match target {
             Some(target_vector) => {

@@ -13,6 +13,8 @@ use super::*;
 use sp_std::prelude::*;
 
 const UNIT: u32 = 1_000_000;
+const PRICE_LEVEL: u32 = 51;
+const ORDERS_PER_LEVEL: u32 = 11;
 
 fn set_up_asset_id_token<T: Config>() -> (T::AccountId, T::Hash) {
     let who: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
@@ -20,10 +22,10 @@ fn set_up_asset_id_token<T: Config>() -> (T::AccountId, T::Hash) {
     (who, polkadex_custom_assets::Module::<T>::get_asset_id())
 }
 
-fn set_account_with_fund<T: Config>(sender: T::AccountId) -> (T::Hash) {
+fn set_account_with_fund<T: Config>(sender: T::AccountId) -> T::Hash {
     let base_asset_id: T::Hash = T::Hashing::hash_of(&(1 as u64, sender.clone(),T::Balance::from(10*UNIT)));
     let account_data = polkadex_custom_assets::AccountData {
-        free_balance: Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1000 * UNIT)).unwrap(),
+        free_balance: Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1000000)).unwrap(),
         reserved_balance: FixedU128::from(0),
         misc_frozen: FixedU128::from(0),
         fee_frozen: FixedU128::from(0),
@@ -33,13 +35,13 @@ fn set_account_with_fund<T: Config>(sender: T::AccountId) -> (T::Hash) {
 }
 
 fn set_up_bulk_order<T: Config>(sender: T::AccountId, trading_pair: (T::Hash, T::Hash)) {
-    let price_levels: u32 = 5001;
-    let orders_per_level: u32 = 1001;
-    let order_amount: FixedU128 = FixedU128::from(100);
-    for price in 1..price_levels{
-        for order in 1..orders_per_level{
+    for price in 1..PRICE_LEVEL{
+        for order in 1..ORDERS_PER_LEVEL{
+            //assert_eq!(true, false);
             Polkadex::<T>::execute_order(sender.clone(),
-                                         OrderType::AskLimit,trading_pair,Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(price * 1000)).unwrap(), order_amount);
+                                         OrderType::AskLimit, trading_pair,
+                                         Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(price)).unwrap(),
+                                         Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(order)).unwrap());
         }
     }
 }
@@ -86,22 +88,38 @@ benchmarks! {
 		let caller2: T::AccountId = whitelisted_caller();
         let base_asset_id = set_account_with_fund::<T>(caller2.clone());
 	    let trading_pair_id2 = Polkadex::<T>::get_pair(base_asset_id.clone(), native_currency.clone());
+	    Polkadex::<T>::create_order_book(trading_pair_id2.0, trading_pair_id2.1, trading_pair_id2);
+		ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == 0, ".Price Levels are already set.");
 		set_up_bulk_order::<T>(caller2, trading_pair_id2);
-	}: _(RawOrigin::Signed(caller), OrderType::BidLimit, (quote_asset_id.clone(),
+		ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == PRICE_LEVEL as usize -1, ".Price Levels are not set.");
+	}: _(RawOrigin::Signed(caller), OrderType::AskLimit, (quote_asset_id.clone(),
 	native_currency.clone()), T::Balance::from(1000 * 5000), T::Balance::from(1000 * 5000))
+	verify {
+        ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len()
+        == PRICE_LEVEL as usize, "Price Levels are not set.");
+     }
 
 	cancel_order {
 	    let (caller, quote_asset_id): (T::AccountId, T::Hash) = set_up_asset_id_token::<T>();
 	    let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
 	    let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
 		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
+		ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == 0, ".Price Levels are already set.");
         set_up_bulk_order::<T>(caller.clone(), trading_pair_id1);
-        let linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&trading_pair_id1, &Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(4999)).unwrap());
-        let order: Order<T> = linked_pricelevel.orders[4000].clone();
+		ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len()
+		== PRICE_LEVEL as usize -1, ".Price Levels are already set.");
 
-	}: _(RawOrigin::Signed(caller), order.id, (quote_asset_id.clone(),
-	native_currency.clone()), T::Balance::from(5000))
+        let linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&trading_pair_id1, &Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1)).unwrap());
+        let order: Order<T> = linked_pricelevel.orders[(ORDERS_PER_LEVEL-2).try_into().unwrap()].clone();
+         assert_eq!(linked_pricelevel.orders.len(), ORDERS_PER_LEVEL as usize -1);
 
+	}: _(RawOrigin::Signed(caller), order.id, trading_pair_id1, Polkadex::<T>::convert_fixed_u128_to_balance(order.price).unwrap())
+    verify {
+        ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len()
+        == PRICE_LEVEL as usize -1, "Price Levels are not set.");
+        let linked_pricelevel: LinkedPriceLevel<T> = <PriceLevels<T>>::get(&trading_pair_id1, &Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1)).unwrap());
+        ensure!(linked_pricelevel.orders.len() == ORDERS_PER_LEVEL as usize -2, "Order has not been cancelled");
+     }
 }
 
 #[cfg(test)]
