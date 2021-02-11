@@ -5,6 +5,7 @@ use frame_system::{EventRecord, RawOrigin};
 use frame_support::ensure;
 use frame_benchmarking::{benchmarks, account, whitelisted_caller};
 use crate::Module as Identity;
+
 const SEED: u32 = 0;
 
 fn add_sub_accounts<T: Config>(who: &T::AccountId, s: u32) -> Result<Vec<T::AccountId>, &'static str> {

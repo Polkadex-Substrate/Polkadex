@@ -5,7 +5,7 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch,
 use frame_support::dispatch::DispatchResult;
 
 use frame_support::sp_std::convert::TryInto;
-
+use sp_runtime::traits::Hash;
 use frame_support::traits::{ExistenceRequirement, Get};
 use frame_system::ensure_signed;
 use sp_arithmetic::FixedPointNumber;
@@ -22,6 +22,8 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
+
+mod benchmarking;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config + polkadex_custom_assets::Config {
@@ -51,12 +53,22 @@ decl_event!(
 		<T as frame_system::Config>::AccountId,
 		AssetId = <T as frame_system::Config>::Hash
 	{
+	    /// Registered New Swap Pair
+	    RegisteredNewSwapPair(AssetId, AssetId),
 		/// Add liquidity success. \[who, currency_id_0, pool_0_increment, currency_id_1, pool_1_increment, share_increment\]
 		AddLiquidity(AccountId, AssetId, FixedU128, AssetId, FixedU128, FixedU128),
 		/// Remove liquidity from the trading pool success. \[who, currency_id_0, pool_0_decrement, currency_id_1, pool_1_decrement, share_decrement\]
 		RemoveLiquidity(AccountId, AssetId, FixedU128, AssetId, FixedU128, FixedU128),
 		/// Use supply currency to swap target currency. \[trader, trading_path, supply_currency_amount, target_currency_amount\]
 		Swap(AccountId, Vec<AssetId>, FixedU128, FixedU128),
+		/// SwapedWithExactSupply
+		SwapedWithExactSupply(AccountId, Vec<AssetId>),
+		/// SwapedWithExactTarget
+		SwapedWithExactTarget(AccountId, Vec<AssetId>),
+		/// LiqudityAdded
+		LiqudityAdded(AccountId, AssetId, AssetId),
+		/// LiqudityRemoved
+		LiqudityRemoved(AccountId, AssetId, AssetId),
 	}
 );
 
@@ -127,6 +139,7 @@ decl_module! {
                                     currency_id_b_amount: T::Balance) -> dispatch::DispatchResult{
              let who = ensure_signed(origin)?;
              Self::do_register_swap_pair(&who,currency_id_a,currency_id_b,currency_id_a_amount,currency_id_b_amount)?;
+             Self::deposit_event(RawEvent::RegisteredNewSwapPair(currency_id_a, currency_id_b));
              Ok(())
         }
 
@@ -149,6 +162,7 @@ decl_module! {
 		pub fn swap_with_exact_supply(origin, path: Vec<T::Hash>, #[compact] supply_amount: T::Balance, #[compact] min_target_amount: T::Balance) -> dispatch::DispatchResult{
 				let who = ensure_signed(origin)?;
 				Self::do_swap_with_exact_supply(&who, &path, supply_amount, min_target_amount,None)?;
+				Self::deposit_event(RawEvent::SwapedWithExactSupply(who, path));
 				Ok(())
 		}
 
@@ -168,9 +182,10 @@ decl_module! {
         ///  This function returns a status that, new Swap successfully happened or not.
 		#[weight = 10000]
 		pub fn swap_with_exact_target(origin, path: Vec<T::Hash>, #[compact] target_amount: T::Balance, #[compact] max_supply_amount: T::Balance) -> dispatch::DispatchResult{
-				let who = ensure_signed(origin)?;
-				Self::do_swap_with_exact_target(&who, &path, target_amount, max_supply_amount,None)?;
-				Ok(())
+			let who = ensure_signed(origin)?;
+			Self::do_swap_with_exact_target(&who, &path, target_amount, max_supply_amount,None)?;
+			Self::deposit_event(RawEvent::SwapedWithExactTarget(who, path));
+			Ok(())
 		}
 
 		/// This Method injects Liquidity to Specific Liquidity pool.
@@ -195,6 +210,7 @@ decl_module! {
 		                    #[compact] max_amount_a: T::Balance, #[compact] max_amount_b: T::Balance) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::do_add_liquidity(&who, currency_id_a, currency_id_b, max_amount_a, max_amount_b)?;
+			Self::deposit_event(RawEvent::LiqudityAdded(who, currency_id_a, currency_id_b));
 			Ok(())
 		}
 
@@ -216,6 +232,7 @@ decl_module! {
 		pub fn remove_liquidity(origin, currency_id_a: T::Hash, currency_id_b: T::Hash, #[compact] remove_share: T::Balance) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::do_remove_liquidity(&who, currency_id_a, currency_id_b, remove_share)?;
+			Self::deposit_event(RawEvent::LiqudityRemoved(who, currency_id_a, currency_id_b));
 			Ok(())
 		}
 	}
@@ -606,5 +623,13 @@ impl<T: Config> Module<T> {
             None => false,
         };
         temp
+    }
+
+    pub fn convert_balance_to_fixed_u128(x: T::Balance) -> Option<FixedU128> {
+        if let Some(y) = TryInto::<u128>::try_into(x).ok() {
+            FixedU128::from(y).checked_div(&FixedU128::from(1_000_000_000_000))
+        } else {
+            None
+        }
     }
 }

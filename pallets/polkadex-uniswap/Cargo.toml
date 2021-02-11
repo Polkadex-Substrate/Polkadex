@@ -21,6 +21,7 @@ frame-system = { git = 'https://github.com/paritytech/substrate.git', branch = "
 sp-runtime = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-arithmetic = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
 sp-core = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false }
+frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = "master", default-features = false, optional = true }
 
 pallet-idenity = {default-features = false, path = "../polkadex-identity-pallet"}
 polkadex-custom-assets = { path = "../polkadex-custom-assets", default-features = false}
@@ -34,5 +35,8 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
-    'pallet-idenity/std'
+    'pallet-idenity/std',
+    'polkadex-custom-assets/std'
 ]
+
+runtime-benchmarks = ["frame-benchmarking"]

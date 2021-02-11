@@ -49,7 +49,7 @@ impl system::Config for Test {
 }
 
 parameter_types! {
-    pub const TradingPathLimit: usize = 10;
+    pub const TradingPathLimit: usize = 5;
 }
 
 
@@ -71,8 +71,7 @@ impl pallet_idenity::Config for Test {
     type Event = ();
     type MaxSubAccounts = MaxSubAccounts;
     type MaxRegistrars= MaxRegistrars;
-
-
+    type WeightInfo = ();
 }
 parameter_types! {
     pub const MaxLocks: u32 = 10;

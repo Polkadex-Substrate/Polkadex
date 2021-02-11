@@ -995,7 +995,7 @@ impl pallet_assets::Config for Runtime {
 // Local
 
 parameter_types! {
-    pub const TradingPathLimitPolkadex: usize = 10;
+    pub const TradingPathLimitPolkadex: usize = 5;
 }
 
 impl polkadex_swap_engine::Config for Runtime {
@@ -1401,7 +1401,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
 			add_benchmark!(params, batches, pallet_grandpa, Grandpa);
 			add_benchmark!(params, batches, pallet_identity, Identity);
-			add_benchmark!(params, batches, pallet_idenity, PolkadexIdentity);
+			add_benchmark!(params, batches, pallet_idenity, PolkadexIdentity); //pallet_idenity
+			add_benchmark!(params, batches, polkadex_swap_engine, PolkadexUniswap); //polkadex_swap_engine
 			add_benchmark!(params, batches, pallet_im_online, ImOnline);
 			add_benchmark!(params, batches, pallet_indices, Indices);
 			add_benchmark!(params, batches, pallet_lottery, Lottery);
