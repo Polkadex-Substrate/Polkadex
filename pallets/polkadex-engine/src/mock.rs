@@ -64,6 +64,7 @@ parameter_types! {
 impl Config for Test {
     type Event = Event;
     type TradingPairReservationFee = TradingPairReservationFee;
+    type WeightData = ();
 }
 
 

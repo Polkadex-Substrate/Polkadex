@@ -1031,6 +1031,7 @@ parameter_types! {
 impl polkadex::Config for Runtime {
 	type Event = Event;
 	type TradingPairReservationFee = TradingPairReservationFeePolkadex;
+	type WeightData = polkadex::weights::SubstrateWeight<Runtime>;
 }
 
 

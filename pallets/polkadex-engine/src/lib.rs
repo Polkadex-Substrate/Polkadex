@@ -24,7 +24,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 mod benchmarking;
-
+pub mod weights;
+pub use weights::WeightInfo;
 pub mod data_structure;
 pub mod data_structure_rpc;
 
@@ -35,6 +36,9 @@ pub trait Config: frame_system::Config + polkadex_custom_assets::Config + polkad
 
     /// The registration fee used for listing a new trading pair
     type TradingPairReservationFee: Get<<Self as polkadex_custom_assets::Config>::Balance>;
+
+    /// Weight information for extrinsics in this pallet.
+    type WeightData: WeightInfo;
 }
 
 decl_event!(
@@ -156,7 +160,7 @@ decl_module! {
         ///
         ///  This function returns a status that, new Trading Pair is successfully registered or not.
 
-		#[weight = 10000]
+		#[weight = T::WeightData::register_new_orderbook_with_polkadex()]
 		pub fn register_new_orderbook_with_polkadex(origin, quote_asset_id: T::Hash, new_token_deposit: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 		    let trader = ensure_signed(origin)?;
 
@@ -178,7 +182,7 @@ decl_module! {
 		    Ok(Some(0).into())
 	    }
 	    /// Registers pairs that doesn't have polkadex token.
-	    #[weight = 10000]
+	    #[weight = T::WeightData::register_new_orderbook()]
 		pub fn register_new_orderbook(origin, quote_asset_id: T::Hash, quote_token_deposit: T::Balance, base_asset_id: T::Hash, base_token_deposit: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 		    let trader = ensure_signed(origin)?;
 
@@ -221,7 +225,7 @@ decl_module! {
         /// # Return
         ///
         ///  This function returns a status that, new Order is successfully created or not.
-        #[weight = 345000000]
+       #[weight = T::WeightData::submit_order()]
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: (T::Hash, T::Hash),  price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
             let trading_pair_id = Self::get_pair(trading_pair.0, trading_pair.1);
@@ -260,7 +264,7 @@ decl_module! {
         /// # Return
         ///
         ///  This function returns a status that, given Order is successfully canceled or not.
-	    #[weight = 10000]
+	    #[weight = T::WeightData::cancel_order()]
 	    pub fn cancel_order(origin, order_id: T::Hash, trading_pair: (T::Hash, T::Hash), price: T::Balance) -> dispatch::DispatchResultWithPostInfo {
 	        let trader = ensure_signed(origin)?;
 

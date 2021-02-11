@@ -904,7 +904,7 @@ impl<T: Config> Module<T> {
 
     pub fn get_asset_id() -> T::Hash {
        let hash_vec: Vec<T::Hash> = <Assets<T>>::iter().map(|(key, _value)| key).collect();
-        hash_vec[2]
+        hash_vec[0]
     }
 
     pub fn get_account_id() -> T::AccountId {
