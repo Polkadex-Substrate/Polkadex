@@ -54,26 +54,26 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn add_registrar() -> Weight {
-		(290_173_000 as Weight)
+		(26_410_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn provide_judgement_trader() -> Weight {
-		(385_846_000 as Weight)
+		(36_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn add_sub_account(s: u32, ) -> Weight {
-		(462_455_000 as Weight)
-			// Standard Error: 1_908_000
-			.saturating_add((2_529_000 as Weight).saturating_mul(s as Weight))
+		(47_176_000 as Weight)
+			// Standard Error: 15_000
+			.saturating_add((298_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
 	fn freeze_account(s: u32, ) -> Weight {
-		(459_059_000 as Weight)
-			// Standard Error: 7_446_000
-			.saturating_add((97_822_000 as Weight).saturating_mul(s as Weight))
+		(35_985_000 as Weight)
+			// Standard Error: 31_000
+			.saturating_add((15_109_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(s as Weight)))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
@@ -84,26 +84,26 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn add_registrar() -> Weight {
-		(290_173_000 as Weight)
+		(26_410_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	fn provide_judgement_trader() -> Weight {
-		(385_846_000 as Weight)
+		(36_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	fn add_sub_account(s: u32, ) -> Weight {
-		(462_455_000 as Weight)
-			// Standard Error: 1_908_000
-			.saturating_add((2_529_000 as Weight).saturating_mul(s as Weight))
+		(47_176_000 as Weight)
+			// Standard Error: 15_000
+			.saturating_add((298_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
 	fn freeze_account(s: u32, ) -> Weight {
-		(459_059_000 as Weight)
-			// Standard Error: 7_446_000
-			.saturating_add((97_822_000 as Weight).saturating_mul(s as Weight))
+		(35_985_000 as Weight)
+			// Standard Error: 31_000
+			.saturating_add((15_109_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
 			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(s as Weight)))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))

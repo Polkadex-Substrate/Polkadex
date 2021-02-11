@@ -54,22 +54,22 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn register_new_orderbook_with_polkadex() -> Weight {
-		(543_481_000 as Weight)
+		(498_828_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(12 as Weight))
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
 	fn register_new_orderbook() -> Weight {
-		(585_289_000 as Weight)
+		(584_196_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(15 as Weight))
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
 	fn submit_order() -> Weight {
-		(306_215_000 as Weight)
+		(257_294_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(6 as Weight))
 			.saturating_add(T::DbWeight::get().writes(5 as Weight))
 	}
 	fn cancel_order() -> Weight {
-		(110_297_000 as Weight)
+		(89_602_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
@@ -78,22 +78,22 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn register_new_orderbook_with_polkadex() -> Weight {
-		(543_481_000 as Weight)
+		(498_828_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(12 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(9 as Weight))
 	}
 	fn register_new_orderbook() -> Weight {
-		(585_289_000 as Weight)
+		(584_196_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(15 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(9 as Weight))
 	}
 	fn submit_order() -> Weight {
-		(306_215_000 as Weight)
+		(257_294_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
 	}
 	fn cancel_order() -> Weight {
-		(110_297_000 as Weight)
+		(89_602_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
