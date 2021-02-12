@@ -229,17 +229,18 @@ decl_module! {
 	    pub fn submit_order(origin, order_type: OrderType, trading_pair: (T::Hash, T::Hash),  price: T::Balance, quantity: T::Balance) -> dispatch::DispatchResultWithPostInfo{
 	        let trader = ensure_signed(origin)?;
             let trading_pair_id = Self::get_pair(trading_pair.0, trading_pair.1);
+            let lower_limit: T::Balance = 0.into(); // 1000000
             ensure!(<Orderbooks<T>>::contains_key(&trading_pair_id), <Error<T>>::InvalidTradingPair);
             ensure!(price.checked_mul(&quantity).is_some(),<Error<T>>::OverFlowError);
             match order_type {
                 OrderType::BidLimit | OrderType::AskLimit | OrderType::AskLimitMM | OrderType::BidLimitMM | OrderType::AskLimitMMOnly | OrderType::BidLimitMMOnly => {
-                    ensure!(price > 1000000.into() && quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                    ensure!(price > lower_limit.into() && quantity > lower_limit.into(), <Error<T>>::PriceOrQuantityTooLow);
                 },
                 OrderType::BidMarket => {
-                    ensure!(price > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                    ensure!(price > lower_limit.into(), <Error<T>>::PriceOrQuantityTooLow);
                 },
                 OrderType::AskMarket => {
-                    ensure!(quantity > 1000000.into(), <Error<T>>::PriceOrQuantityTooLow);
+                    ensure!(quantity > lower_limit.into(), <Error<T>>::PriceOrQuantityTooLow);
                 }
             }
             let converted_price = Self::convert_balance_to_fixed_u128(price).ok_or(<Error<T>>::InternalErrorU128Balance)?;
@@ -273,6 +274,7 @@ decl_module! {
 	        Self::cancel_order_from_orderbook(trader,order_id,trading_pair,converted_price)?;
 	        Ok(Pays::No.into())
 	    }
+
     }
 }
 

@@ -18,14 +18,14 @@ const ORDERS_PER_LEVEL: u32 = 11;
 
 fn set_up_asset_id_token<T: Config>() -> (T::AccountId, T::Hash) {
     let who: T::AccountId = polkadex_custom_assets::Module::<T>::get_account_id();
-    polkadex_custom_assets::Module::<T>::create_token(RawOrigin::Signed(who.clone()).into(), T::Balance::from(10*UNIT), T::Balance::from(0));
+    polkadex_custom_assets::Module::<T>::create_token(RawOrigin::Signed(who.clone()).into(), T::Balance::from(u32::max_value()), T::Balance::from(0));
     (who, polkadex_custom_assets::Module::<T>::get_asset_id())
 }
 
 fn set_account_with_fund<T: Config>(sender: T::AccountId) -> T::Hash {
-    let base_asset_id: T::Hash = T::Hashing::hash_of(&(1 as u64, sender.clone(),T::Balance::from(10*UNIT)));
+    let base_asset_id: T::Hash = T::Hashing::hash_of(&(1 as u64, sender.clone(),T::Balance::from(u32::max_value())));
     let account_data = polkadex_custom_assets::AccountData {
-        free_balance: Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1000000)).unwrap(),
+        free_balance: Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(u32::max_value())).unwrap(),
         reserved_balance: FixedU128::from(0),
         misc_frozen: FixedU128::from(0),
         fee_frozen: FixedU128::from(0),
@@ -38,10 +38,12 @@ fn set_up_bulk_order<T: Config>(sender: T::AccountId, trading_pair: (T::Hash, T:
     for price in 1..PRICE_LEVEL{
         for order in 1..ORDERS_PER_LEVEL{
             //assert_eq!(true, false);
-            Polkadex::<T>::execute_order(sender.clone(),
-                                         OrderType::AskLimit, trading_pair,
-                                         Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(price)).unwrap(),
-                                         Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(order)).unwrap());
+            let result = Polkadex::<T>::execute_order(sender.clone(),
+                                                      OrderType::AskLimit, trading_pair,
+                                                      Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(price)).unwrap(),
+                                                      Polkadex::<T>::convert_balance_to_fixed_u128(T::Balance::from(1)).unwrap());
+
+            assert_eq!(result.is_ok(),true, " Error: {}",result.err().unwrap().as_str());
         }
     }
 }
@@ -81,22 +83,36 @@ benchmarks! {
 	}
 
 	submit_order {
-	    let (caller, quote_asset_id): (T::AccountId, T::Hash) = set_up_asset_id_token::<T>();
-	    let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
-		let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
-		Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
-		let caller2: T::AccountId = whitelisted_caller();
-        let base_asset_id = set_account_with_fund::<T>(caller2.clone());
-	    let trading_pair_id2 = Polkadex::<T>::get_pair(base_asset_id.clone(), native_currency.clone());
-	    Polkadex::<T>::create_order_book(trading_pair_id2.0, trading_pair_id2.1, trading_pair_id2);
-		ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == 0, ".Price Levels are already set.");
-		set_up_bulk_order::<T>(caller2, trading_pair_id2);
-		ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == PRICE_LEVEL as usize -1, ".Price Levels are not set.");
-	}: _(RawOrigin::Signed(caller), OrderType::AskLimit, (quote_asset_id.clone(),
-	native_currency.clone()), T::Balance::from(1000 * 5000), T::Balance::from(1000 * 5000))
+	    // let (caller, quote_asset_id): (T::AccountId, T::Hash) = set_up_asset_id_token::<T>();
+	    // let native_currency = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
+		// let trading_pair_id1 = Polkadex::<T>::get_pair(quote_asset_id.clone(), native_currency.clone());
+		// Polkadex::<T>::create_order_book(trading_pair_id1.0, trading_pair_id1.1, trading_pair_id1);
+		// let caller2: T::AccountId = whitelisted_caller();
+        // let base_asset_id = set_account_with_fund::<T>(caller2.clone());
+	    // let trading_pair_id2 = Polkadex::<T>::get_pair(base_asset_id.clone(), native_currency.clone());
+	    // Polkadex::<T>::create_order_book(trading_pair_id2.0, trading_pair_id2.1, trading_pair_id2);
+		// ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == 0, ".Price Levels are already set.");
+		// set_up_bulk_order::<T>(caller2, trading_pair_id2);
+		// ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == PRICE_LEVEL as usize -1, ".Price Levels are not set.");
+
+
+		let native_currency: T::Hash = polkadex_custom_assets::PolkadexNativeAssetIdProvider::<T>::asset_id();
+		// assert_eq!();
+		let alice: T::AccountId = account("alice",1,1);
+		let bob: T::AccountId  = account("bob",2,2);
+		let quote_currency: T::Hash = T::Hash::default();
+		polkadex_custom_assets::Module::<T>::set_balance(quote_currency,bob.clone(),FixedU128::from(18446744073709551615));
+		polkadex_custom_assets::Module::<T>::set_balance(native_currency,bob.clone(),FixedU128::from(18446744073709551615));
+		polkadex_custom_assets::Module::<T>::set_balance(quote_currency,alice.clone(),FixedU128::from(18446744073709551615));
+		polkadex_custom_assets::Module::<T>::set_balance(native_currency,alice.clone(),FixedU128::from(18446744073709551615));
+		Polkadex::<T>::create_order_book(quote_currency, native_currency,Polkadex::<T>::get_pair(quote_currency.clone(), native_currency.clone()));
+		set_up_bulk_order::<T>(bob, Polkadex::<T>::get_pair(quote_currency.clone(), native_currency.clone()));
+		assert_eq!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len(),(PRICE_LEVEL-1) as usize);
+		ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == (PRICE_LEVEL-1) as usize, ".Price Levels are not set.");
+	}: _(RawOrigin::Signed(alice), OrderType::BidLimit, (quote_currency.clone(),native_currency.clone()), T::Balance::from(PRICE_LEVEL+1), T::Balance::from((PRICE_LEVEL-1)*(ORDERS_PER_LEVEL-1)))
 	verify {
-        ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len()
-        == PRICE_LEVEL as usize, "Price Levels are not set.");
+	    assert_eq!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len(),0);
+         ensure!(<PriceLevels<T>>::iter().map(|(key1, key2, _value)| key1).collect::<Vec<(T::Hash, T::Hash)>>().len() == 0 as usize, "Price Levels are not set.");
      }
 
 	cancel_order {
@@ -130,18 +146,18 @@ mod tests {
 
     #[test]
     fn test_benchmarks() {
-        new_test_ext().execute_with(|| {
-            assert_ok!(test_benchmark_register_new_orderbook_with_polkadex::<Test>());
-        });
-        new_test_ext().execute_with(|| {
-            assert_ok!(test_benchmark_register_new_orderbook::<Test>());
-        });
+        // new_test_ext().execute_with(|| {
+        //     assert_ok!(test_benchmark_register_new_orderbook_with_polkadex::<Test>());
+        // });
+        // new_test_ext().execute_with(|| {
+        //     assert_ok!(test_benchmark_register_new_orderbook::<Test>());
+        // });
         new_test_ext().execute_with(|| {
             assert_ok!(test_benchmark_submit_order::<Test>());
         });
-        new_test_ext().execute_with(|| {
-            assert_ok!(test_benchmark_cancel_order::<Test>());
-        });
+        // new_test_ext().execute_with(|| {
+        //     assert_ok!(test_benchmark_cancel_order::<Test>());
+        // });
     }
 }
 

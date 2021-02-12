@@ -113,7 +113,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     polkadex_custom_assets::GenesisConfig::<Test> {
         native_asset: H256::zero(),
         assets: vec![H256::zero(), temp, temp2],
-        initial_balance: DEXModule::convert_balance_to_fixed_u128(1000 * UNIT).unwrap(),
+        initial_balance: DEXModule::convert_balance_to_fixed_u128(UNIT * UNIT).unwrap(),
         endowed_accounts: endowed_accounts
             .clone().into_iter().map(Into::into).collect(),
     }.assimilate_storage(&mut genesis).unwrap();

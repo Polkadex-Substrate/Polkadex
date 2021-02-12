@@ -18,6 +18,7 @@ use sp_std::vec::Vec;
 use pallet_idenity::Judgement;
 
 pub use self::imbalances::{NegativeImbalance, PositiveImbalance};
+use crate::Permissions::SystemLevel;
 
 #[cfg(test)]
 mod mock;
@@ -910,6 +911,27 @@ impl<T: Config> Module<T> {
     pub fn get_account_id() -> T::AccountId {
         let account_vec: Vec<T::AccountId>= <Balance<T>>::iter().map(|(key1, key2, _value)| key2).collect();
         account_vec[0].clone()
+    }
+
+    pub fn set_balance(asset_id: T::Hash,issuer: T::AccountId, balance: FixedU128){
+
+        let account_data = AccountData {
+            free_balance: balance,
+            reserved_balance: FixedU128::from(0),
+            fee_frozen: FixedU128::from(0),
+            misc_frozen: FixedU128::from(0),
+        };
+        <Balance<T>>::insert(&asset_id, &issuer, &account_data);
+    }
+
+    pub fn create_new_token_for_testing(asset_id: T::Hash,issuer: T::AccountId){
+        let asset_info = AssetInfo {
+            total_issuance: FixedU128::zero(),
+            issuer: issuer.clone(),
+            permissions: SystemLevel,
+            existential_deposit: FixedU128::zero(),
+        };
+        <Assets<T>>::insert(&asset_id, &asset_info);
     }
 }
 
