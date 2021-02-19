@@ -1,7 +1,7 @@
 [build-dependencies.substrate-wasm-builder]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '3.0.0'
+version = '4.0.0'
 
 [package]
 authors = ['Anonymous']
@@ -19,45 +19,45 @@ targets = ['x86_64-unknown-linux-gnu']
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
-version = '1.3.6'
+version = '2.0.0'
 
 [dependencies.frame-benchmarking]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 optional = true
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.frame-executive]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.frame-support]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.frame-system]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.frame-system-benchmarking]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 optional = true
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.frame-system-rpc-runtime-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.hex-literal]
 optional = true
@@ -67,37 +67,37 @@ version = '0.3.1'
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.pallet-randomness-collective-flip]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.pallet-sudo]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.pallet-timestamp]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.pallet-transaction-payment]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.pallet-transaction-payment-rpc-runtime-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.serde]
 features = ['derive']
@@ -108,73 +108,73 @@ version = '1.0.119'
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-block-builder]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-core]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-inherents]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-io]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-offchain]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-session]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-std]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-transaction-pool]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-version]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.template]
 default-features = false
 package = 'pallet-template'
 path = '../pallets/template'
-version = '2.0.0'
+version = '3.0.0'
 
 
 # Cumulus dependencies
@@ -184,22 +184,17 @@ git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 version = '0.1.0'
 
-[dependencies.cumulus-runtime]
+[dependencies.cumulus-pallet-parachain-system]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 default-features = false
 
-[dependencies.cumulus-parachain-system]
+[dependencies.cumulus-primitives-core]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 default-features = false
 
-[dependencies.cumulus-primitives]
-git = 'https://github.com/paritytech/cumulus.git'
-branch = 'rococo-v1'
-default-features = false
-
-[dependencies.xcm-handler]
+[dependencies.cumulus-pallet-xcm-handler]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 default-features = false
@@ -260,11 +255,10 @@ std = [
 	"pallet-sudo/std",
 	"pallet-transaction-payment/std",
 	"parachain-info/std",
-	"cumulus-runtime/std",
-	"cumulus-parachain-system/std",
-	"cumulus-primitives/std",
+	"cumulus-pallet-parachain-system/std",
+	"cumulus-primitives-core/std",
 	"xcm/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
-	"xcm-handler/std",
+	"cumulus-pallet-xcm-handler/std",
 ]

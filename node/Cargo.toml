@@ -1,7 +1,7 @@
 [dependencies]
 derive_more = '0.15.0'
 log = "0.4.13"
-codec = { package = 'parity-scale-codec', version = '1.0.0' }
+codec = { package = 'parity-scale-codec', version = '2.0.0' }
 structopt = "0.3.8"
 serde = { version = "1.0.119", features = ["derive"] }
 hex-literal = "0.2.1"
@@ -11,12 +11,12 @@ jsonrpc-core = "15.1.0"
 [dependencies.frame-benchmarking]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.frame-benchmarking-cli]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.parachain-runtime]
 path = '../runtime'
@@ -25,154 +25,154 @@ version = '2.0.0'
 [dependencies.pallet-transaction-payment-rpc]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sc-basic-authorship]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '0.8.0'
+version = '0.9.0'
 
 [dependencies.sc-chain-spec]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sc-cli]
 features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '0.8.0'
+version = '0.9.0'
 
 [dependencies.sc-client-api]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sc-consensus]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '0.8.0'
+version = '0.9.0'
 
 [dependencies.sc-executor]
 features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '0.8.0'
+version = '0.9.0'
 
 [dependencies.sc-keystore]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sc-rpc]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sc-rpc-api]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '0.8.0'
+version = '0.9.0'
 
 [dependencies.sc-service]
 features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '0.8.0'
+version = '0.9.0'
 
 [dependencies.sc-telemetry]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sc-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sc-tracing]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-api]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-block-builder]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-blockchain]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-consensus]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '0.8.0'
+version = '0.9.0'
 
 [dependencies.sp-core]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-inherents]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-runtime]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-timestamp]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-transaction-pool]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.sp-trie]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [dependencies.substrate-frame-rpc-system]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 [build-dependencies.substrate-build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '2.0.0'
+version = '3.0.0'
 
 # Cumulus dependencies
-[dependencies.cumulus-consensus]
+[dependencies.cumulus-client-consensus]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 
-[dependencies.cumulus-collator]
+[dependencies.cumulus-client-collator]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 
-[dependencies.cumulus-network]
+[dependencies.cumulus-client-network]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 
-[dependencies.cumulus-primitives]
+[dependencies.cumulus-primitives-core]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 
-[dependencies.cumulus-service]
+[dependencies.cumulus-client-service]
 git = 'https://github.com/paritytech/cumulus.git'
 branch = 'rococo-v1'
 

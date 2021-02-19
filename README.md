@@ -31,6 +31,8 @@ cargo build --release
 
 Polkadot (rococo-v1 branch):
 ```
+cargo build --release --features real-overseer
+
 ./target/release/polkadot build-spec --chain rococo-local --raw --disable-default-bootnode > rococo_local.json
 
 ./target/release/polkadot --chain ./rococo_local.json -d cumulus_relay1 --validator --bob --port 50555
