@@ -220,6 +220,11 @@ git = "https://github.com/paritytech/polkadot"
 branch = 'rococo-v1'
 default-features = false
 
+# Local
+[dependencies.polkapool]
+path = "../pallets/Polkapool"
+default-features = false
+
 [features]
 default = ['std']
 runtime-benchmarks = [
@@ -261,4 +266,5 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"cumulus-pallet-xcm-handler/std",
+	"polkapool/std"
 ]

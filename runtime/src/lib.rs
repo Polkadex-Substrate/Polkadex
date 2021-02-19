@@ -34,6 +34,7 @@ use xcm_executor::{
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 
+
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -51,6 +52,7 @@ pub use frame_support::{
 
 /// Import the template pallet.
 pub use template;
+
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -279,6 +281,9 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type HrmpMessageHandlers = ();
 }
 
+
+
+
 impl parachain_info::Config for Runtime {}
 
 parameter_types! {
@@ -338,6 +343,22 @@ impl template::Config for Runtime {
 	type Event = Event;
 }
 
+parameter_types! {
+    pub const TradingPathLimitPolkadex: usize = 10;
+}
+
+impl polkapool::Config for Runtime {
+	type Event = Event;
+	type TradingPathLimit = TradingPathLimitPolkadex;
+	type Balance = Balance;
+}
+
+// impl polkapool::Config for Runtime {
+// 	type Event = Event;
+// 	type TradingPathLimit = ();
+// 	type Balance = Balance;
+// }
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -354,6 +375,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		ParachainInfo: parachain_info::{Module, Storage, Config},
 		XcmHandler: cumulus_pallet_xcm_handler::{Module, Event<T>, Origin},
+		PolkaPool: polkapool::{Module, Call, Storage, Event<T>},
 		TemplateModule: template::{Module, Call, Storage, Event<T>},
 	}
 );
