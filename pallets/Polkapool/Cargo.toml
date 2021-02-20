@@ -17,15 +17,15 @@ version = '2.0.0'
 
 [dependencies]
 
-frame-support = { git = 'https://github.com/paritytech/substrate.git', branch = 'rococo-v1', version = '3.0.0',default-features = false }
-frame-system = { git = 'https://github.com/paritytech/substrate.git', branch = 'rococo-v1', version = '3.0.0',default-features = false }
-sp-runtime = { git = 'https://github.com/paritytech/substrate.git', branch = 'rococo-v1', version = '3.0.0',default-features = false }
-sp-arithmetic = { git = 'https://github.com/paritytech/substrate.git', branch = 'rococo-v1', version = '3.0.0',default-features = false }
-sp-core = { git = 'https://github.com/paritytech/substrate.git', branch = 'rococo-v1', version = '3.0.0',default-features = false }
+frame-support = {  version = '3.0.0',default-features = false }
+frame-system = {   version = '3.0.0',default-features = false }
+sp-runtime = {   version = '3.0.0',default-features = false }
+sp-arithmetic = {   version = '3.0.0',default-features = false }
+sp-core = {   version = '3.0.0',default-features = false }
 
 
 [dev-dependencies]
-sp-io = { git = 'https://github.com/paritytech/substrate.git', branch = 'rococo-v1', version = '3.0.0',default-features = false }
+sp-io = {  version = '3.0.0',default-features = false }
 
 
 [features]
