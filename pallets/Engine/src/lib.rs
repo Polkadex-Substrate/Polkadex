@@ -3,6 +3,7 @@
 use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, Parameter};
 use frame_support::sp_std::fmt::Debug;
+use frame_support::traits::Get;
 use frame_system::ensure_signed;
 use sp_core::Hasher;
 use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
@@ -22,7 +23,9 @@ pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// Balance Type
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize;
+    /// Public Key of the trader
     type Public: IdentifyAccount<AccountId=Self::AccountId>;
+    /// Signature provided by the trade
     type Signature: Verify<Signer=Self::Public> + Member + Decode + Encode;
 }
 
