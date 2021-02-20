@@ -1,4 +1,5 @@
 use codec::{Decode, Encode};
+use sp_std::collections::btree_map;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -14,29 +15,28 @@ pub enum OrderType {
 
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct Order<Balance, AccountId, Signature> {
+pub struct Order<Balance, AccountId, AssetID, Signature> {
     pub price: Balance,
     pub quantity: Balance,
     pub order_type: OrderType,
     pub trader: AccountId,
     pub nonce: u64,
+    pub asset_id: AssetID,
     pub signature: Signature,
 }
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AccountData<Balance> {
-    nonce: u64, // TODO: Store nonce in a better data structure
-    free_balance: Balance,
-    reserved_balance: Balance // TODO: Implement a data structure to store balances of all assets
+pub struct AccountData<AssetID: Ord, Balance> {
+    pub nonce: u64, // TODO: Store nonce in a better data structure
+    pub assets: btree_map::BTreeMap<AssetID,Balance>,
 }
 
-impl<Balance: Default> Default for AccountData<Balance> {
+impl<Balance: Default, AssetID: Ord> Default for AccountData<AssetID,Balance> {
     fn default() -> Self {
         AccountData{
             nonce: 0,
-            free_balance: Default::default(),
-            reserved_balance: Default::default()
+            assets: btree_map::BTreeMap::new()
         }
     }
 }

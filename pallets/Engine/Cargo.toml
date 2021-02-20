@@ -6,7 +6,8 @@ std = [
     'frame-system/std',
     'sp-runtime/std',
     'serde',
-    'sp-core/std'
+    'sp-core/std',
+    'sp-std/std'
 ]
 
 [dependencies.serde]
@@ -14,6 +15,10 @@ version = "1.0.101"
 optional = true
 
 [dependencies.sp-core]
+default-features = false
+version = '3.0.0'
+
+[dependencies.sp-std]
 default-features = false
 version = '3.0.0'
 
