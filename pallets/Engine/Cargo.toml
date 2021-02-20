@@ -4,7 +4,19 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
+    'sp-runtime/std',
+    'serde',
+    'sp-core/std'
 ]
+
+[dependencies.serde]
+version = "1.0.101"
+optional = true
+
+[dependencies.sp-core]
+default-features = false
+version = '3.0.0'
+
 [dependencies.codec]
 default-features = false
 features = ['derive']
@@ -19,18 +31,7 @@ version = '3.0.0'
 default-features = false
 version = '3.0.0'
 
-[dev-dependencies]
-serde = { version = "1.0.101" }
-
-[dev-dependencies.sp-core]
-default-features = false
-version = '3.0.0'
-
-[dev-dependencies.sp-io]
-default-features = false
-version = '3.0.0'
-
-[dev-dependencies.sp-runtime]
+[dependencies.sp-runtime]
 default-features = false
 version = '3.0.0'
 
