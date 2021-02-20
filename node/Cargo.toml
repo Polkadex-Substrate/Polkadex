@@ -51,7 +51,7 @@ pallet-transaction-payment-rpc = { version = "3.0.0" }
 frame-benchmarking = { version = "3.0.0" }
 frame-benchmarking-cli = { version = "3.0.0" }
 
-node-template-runtime = { version = "2.0.0"}
+node-template-runtime = { version = "2.0.0", path="../runtime"}
 
 [build-dependencies]
 substrate-build-script-utils = { version = "3.0.0" }
