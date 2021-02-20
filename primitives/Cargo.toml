@@ -1,0 +1,20 @@
+[package]
+name = "polkadex-primitives"
+version = "0.1.0"
+authors = ["Gautham J <Gauthamastro@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+serde = { version = "1.0.101", optional = true }
+sp-core = { version = "3.0.0", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "serde",
+    "codec/std",
+    "sp-core/std"
+]

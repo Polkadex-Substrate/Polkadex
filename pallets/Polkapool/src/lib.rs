@@ -11,7 +11,7 @@ use frame_system::ensure_signed;
 use sp_arithmetic::FixedPointNumber;
 use sp_arithmetic::traits::{CheckedDiv, CheckedMul, UniqueSaturatedFrom, AtLeast32BitUnsigned, };
 use sp_std::vec::Vec;
-use sp_runtime::{FixedU128, ModuleId};
+use sp_runtime::{ ModuleId};
 use sp_std::vec;
 use sp_runtime::traits::{MaybeSerializeDeserialize, AccountIdConversion, Saturating, Zero, Member};
 
@@ -40,25 +40,26 @@ decl_storage! {
 	trait Store for Module<T: Config> as PolkadexSwapEngine {
 	    /// Liquidity pool for specific pair(a tuple consisting of two sorted AssetIds).
 		/// (AssetID, AssetID) -> (Amount_0, Amount_1, Total LPShares)
-		LiquidityPool get(fn liquidity_pool): map hasher(twox_64_concat) (T::Hash,T::Hash) => (FixedU128, FixedU128, FixedU128);
+		LiquidityPool get(fn liquidity_pool): map hasher(twox_64_concat) (T::Hash,T::Hash) => (T::Balance, T::Balance, T::Balance);
 		/// LPShare holdings
-		LiquidityPoolHoldings get(fn holdings): map hasher(identity) (T::AccountId,(T::Hash,T::Hash)) => FixedU128;
-		/// Swapping Fee
-		SwappingFee: FixedU128 = FixedU128::from(3)/FixedU128::from(1000);
+		LiquidityPoolHoldings get(fn holdings): map hasher(identity) (T::AccountId,(T::Hash,T::Hash)) => T::Balance;
+		/// Swapping Fee FIXME: This is not correct
+		SwappingFee: T::Balance = 3.into();
 	}
 }
 
 decl_event!(
 	pub enum Event<T> where
 		<T as frame_system::Config>::AccountId,
-		AssetId = <T as frame_system::Config>::Hash
+		AssetId = <T as frame_system::Config>::Hash,
+		Balance = <T as Config>::Balance
 	{
 		/// Add liquidity success. \[who, currency_id_0, pool_0_increment, currency_id_1, pool_1_increment, share_increment\]
-		AddLiquidity(AccountId, AssetId, FixedU128, AssetId, FixedU128, FixedU128),
+		AddLiquidity(AccountId, AssetId, Balance, AssetId, Balance, Balance),
 		/// Remove liquidity from the trading pool success. \[who, currency_id_0, pool_0_decrement, currency_id_1, pool_1_decrement, share_decrement\]
-		RemoveLiquidity(AccountId, AssetId, FixedU128, AssetId, FixedU128, FixedU128),
+		RemoveLiquidity(AccountId, AssetId, Balance, AssetId, Balance, Balance),
 		/// Use supply currency to swap target currency. \[trader, trading_path, supply_currency_amount, target_currency_amount\]
-		Swap(AccountId, Vec<AssetId>, FixedU128, FixedU128),
+		Swap(AccountId, Vec<AssetId>, Balance, Balance),
 	}
 );
 
@@ -232,65 +233,45 @@ impl<T: Config> Module<T> {
 
     /// Registers new Swap Pair and insert liquidity.
     pub fn do_register_swap_pair(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash, currency_id_a_amount: T::Balance, currency_id_b_amount: T::Balance) -> DispatchResult {
-        ensure!(!currency_id_a_amount.is_zero() && !currency_id_b_amount.is_zero(),Error::<T>::InsufficientLiquidity);
-        let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
-        ensure!(!<LiquidityPool<T>>::contains_key(&trading_pair), Error::<T>::TradingPairNotAllowed);
-        Self::do_add_liquidity(who, currency_id_a, currency_id_b, currency_id_a_amount, currency_id_b_amount)
+
     }
 
     /// Swaps supply amount for amount less then Minimum target amount.
-    pub fn do_swap_with_exact_supply(who: &T::AccountId, path: &Vec<T::Hash>, supply_amount: T::Balance, min_target_amount: T::Balance, price_impact_limit: Option<FixedU128>) -> DispatchResult {
-        let supply_amount: FixedU128 = Self::convert_balance_to_fixedU128(supply_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-        let min_target_amount: FixedU128 = Self::convert_balance_to_fixedU128(min_target_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-
-        Self::do_swap_with_exact_supply_fixedu128(who, path, supply_amount, min_target_amount, price_impact_limit)
-    }
-
-    ///  Swaps supply amount for amount less then minimum target amount (FixedU128).
-    pub fn do_swap_with_exact_supply_fixedu128(who: &T::AccountId, path: &Vec<T::Hash>, supply_amount: FixedU128, min_target_amount: FixedU128, price_impact_limit: Option<FixedU128>) -> DispatchResult {
+    pub fn do_swap_with_exact_supply(who: &T::AccountId, path: &Vec<T::Hash>, supply_amount: T::Balance, min_target_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> DispatchResult {
         let amounts = Self::get_target_amounts(&path, supply_amount, price_impact_limit)?;
         ensure!(amounts[amounts.len() - 1] >= min_target_amount, Error::<T>::InsufficientTargetAmount);
         let module_account_id = Self::get_wallet_account();
 
         let actual_target_amount = amounts[amounts.len() - 1];
 
-        // TODO: Remove this dirty hacks
-        let actual_target_amount_converted = Self::convert_fixedU128_to_balance(actual_target_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-        let supply_amount_converted = Self::convert_fixedU128_to_balance(supply_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
         // TODO: @Krishna Please take care of results from the transfers, ensure it's not error
         //polkadex_custom_assets::Module::<T>::transfer(who, &module_account_id, path[0], &supply_amount_converted, ExistenceRequirement::AllowDeath)?;
         Self::_swap_by_path(&path, &amounts);
         //polkadex_custom_assets::Module::<T>::transfer(&module_account_id, who, path[path.len() - 1], &actual_target_amount_converted, ExistenceRequirement::AllowDeath)?;
 
-        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), supply_amount, actual_target_amount));
+        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), supply_amount.clone(), actual_target_amount));
 
         Ok(())
     }
-    /// Swaps with Exact target amount.
-    pub fn do_swap_with_exact_target(who: &T::AccountId, path: &Vec<T::Hash>, target_amount: T::Balance, max_supply_amount: T::Balance, price_impact_limit: Option<FixedU128>) -> DispatchResult {
-        let target_amount: FixedU128 = Self::convert_balance_to_fixedU128(target_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-        let max_supply_amount: FixedU128 = Self::convert_balance_to_fixedU128(max_supply_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
 
+    /// Swaps with Exact target amount.
+    pub fn do_swap_with_exact_target(who: &T::AccountId, path: &Vec<T::Hash>, target_amount: T::Balance, max_supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> DispatchResult {
 
         let amounts = Self::get_supply_amounts(&path, target_amount, price_impact_limit)?;
         ensure!(amounts[0] <= max_supply_amount, Error::<T>::ExcessiveSupplyAmount);
         let module_account_id = Self::get_wallet_account();
         let actual_supply_amount = amounts[0];
 
-        // TODO: Remove this dirty hacks
-        let actual_supply_amount_converted = Self::convert_fixedU128_to_balance(actual_supply_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-        let target_amount_converted = Self::convert_fixedU128_to_balance(target_amount).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-
         // TODO: @Krishna Please take care of results from the transfers, ensure it's not error
         //polkadex_custom_assets::Module::<T>::transfer(who, &module_account_id, path[0], &actual_supply_amount_converted, ExistenceRequirement::AllowDeath)?;
         Self::_swap_by_path(&path, &amounts);
         //polkadex_custom_assets::Module::<T>::transfer(&module_account_id, who, path[path.len() - 1], &target_amount_converted, ExistenceRequirement::AllowDeath)?;
 
-        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), actual_supply_amount, target_amount));
+        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), actual_supply_amount, target_amount.clone()));
         Ok(())
     }
 
-    pub fn get_liquidity(currency_id_a: T::Hash, currency_id_b: T::Hash) -> (FixedU128, FixedU128) {
+    pub fn get_liquidity(currency_id_a: T::Hash, currency_id_b: T::Hash) -> (T::Balance, T::Balance) {
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
         let (pool_0, pool_1, _) = Self::liquidity_pool(trading_pair);
         if currency_id_a == trading_pair.0 {
@@ -301,47 +282,47 @@ impl<T: Config> Module<T> {
     }
 
     /// Get how much target amount will be got for specific supply amount and price impact.
-    fn get_target_amount(supply_pool: FixedU128, target_pool: FixedU128, supply_amount: FixedU128) -> FixedU128 {
-        if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
-            FixedU128::zero()
+    fn get_target_amount(supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance) -> T::Balance {
+        if supply_amount ==  0.into() || supply_pool ==  0.into() || target_pool ==  0.into() {
+            0.into()
         } else {
-            let swap_fee: FixedU128 = SwappingFee::get();
-            let fee_term: FixedU128 = FixedU128::from(1).saturating_sub(swap_fee);
+            let swap_fee: T::Balance = SwappingFee::get();
+            let fee_term: T::Balance = 1.saturating_sub(swap_fee);
 
-            let fee_reduced_supply_amount: FixedU128 = supply_amount.saturating_mul(fee_term);
+            let fee_reduced_supply_amount: T::Balance  = supply_amount.saturating_mul(fee_term);
 
-            let numerator: FixedU128 = target_pool.saturating_mul(fee_reduced_supply_amount);  // product makes this value too low
+            let numerator: T::Balance  = target_pool.saturating_mul(fee_reduced_supply_amount);  // product makes this value too low
 
 
-            let denominator: FixedU128 = supply_pool.saturating_add(fee_reduced_supply_amount);
+            let denominator: T::Balance  = supply_pool.saturating_add(fee_reduced_supply_amount.clone());
 
-            let target_amount: FixedU128 = numerator.checked_div(&denominator)
-                .unwrap_or_else(FixedU128::zero);
+            let target_amount: T::Balance  = numerator.checked_div(&denominator)
+                .unwrap_or_else(0);
 
             target_amount
         }
     }
 
     /// Get supply amount paid for specific target amount.
-    fn get_supply_amount(supply_pool: FixedU128, target_pool: FixedU128, target_amount: FixedU128) -> FixedU128 {
-        if target_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
-            FixedU128::zero()
+    fn get_supply_amount(supply_pool: T::Balance, target_pool: T::Balance, target_amount: T::Balance) -> T::Balance {
+        if supply_amount ==  0.into() || supply_pool ==  0.into() || target_pool ==  0.into() {
+            0.into()
         } else {
-            let swap_fee: FixedU128 = SwappingFee::get();
-            let numerator: FixedU128 = target_amount.saturating_mul(supply_pool);
-            let fee_term: FixedU128 = FixedU128::from(1).saturating_sub(swap_fee);
-            let sub: FixedU128 = target_pool.saturating_sub(target_amount);
-            let denominator: FixedU128 = sub.saturating_mul(fee_term);
+            let swap_fee: T::Balance = SwappingFee::get();
+            let numerator: T::Balance = target_amount.saturating_mul(supply_pool);
+            let fee_term: T::Balance = 1.saturating_sub(swap_fee);
+            let sub: T::Balance = target_pool.saturating_sub(target_amount);
+            let denominator: T::Balance = sub.saturating_mul(fee_term);
 
-            let supply_amount: FixedU128 = numerator.checked_div(&denominator).unwrap_or_else(FixedU128::zero);
+            let supply_amount: T::Balance = numerator.checked_div(&denominator).unwrap_or_else(0);
             supply_amount
         }
     }
     /// Get vector of target amount for specific supply amount and price impact.
-    fn get_target_amounts(path: &[T::Hash], supply_amount: FixedU128, price_impact_limit: Option<FixedU128>) -> sp_std::result::Result<Vec<FixedU128>, Error<T>> {
+    fn get_target_amounts(path: &[T::Hash], supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> sp_std::result::Result<Vec<T::Balance>, Error<T>> {
         let path_length = path.len();
         ensure!(path_length >= 2 && path_length <= T::TradingPathLimit::get(), Error::<T>::InvalidTradingPathLength);
-        let mut target_amounts: Vec<FixedU128> = vec![FixedU128::zero(); path_length];
+        let mut target_amounts: Vec<FixedU128> = vec![0.into(); path_length];
         target_amounts[0] = supply_amount;
 
         let mut i: usize = 0;
@@ -354,7 +335,7 @@ impl<T: Config> Module<T> {
 
             // check price impact if limit exists
             if let Some(limit) = price_impact_limit {
-                let price_impact = target_amount.checked_div(&target_pool).unwrap_or_else(FixedU128::zero);
+                let price_impact = target_amount.checked_div(&target_pool).unwrap_or_else(0.into());
                 ensure!(price_impact <= limit, Error::<T>::ExceedPriceImpactLimit);
             }
 
@@ -365,11 +346,11 @@ impl<T: Config> Module<T> {
         Ok(target_amounts)
     }
     /// Get vector of supply amount for specific target amount and price impact.
-    fn get_supply_amounts(path: &[T::Hash], target_amount: FixedU128, price_impact_limit: Option<FixedU128>) -> sp_std::result::Result<Vec<FixedU128>, Error<T>> {
+    fn get_supply_amounts(path: &[T::Hash], target_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> sp_std::result::Result<Vec<T::Balance>, Error<T>> {
         let path_length = path.len();
         ensure!(path_length >= 2 && path_length <= T::TradingPathLimit::get(), Error::<T>::InvalidTradingPathLength);
 
-        let mut supply_amounts: Vec<FixedU128> = vec![FixedU128::zero(); path_length];
+        let mut supply_amounts: Vec<FixedU128> = vec![0; path_length];
         supply_amounts[path_length - 1] = target_amount;
 
         let mut i: usize = path_length - 1;
@@ -383,7 +364,7 @@ impl<T: Config> Module<T> {
 
             // check price impact if limit exists
             if let Some(limit) = price_impact_limit {
-                let price_impact = supply_amounts[i].checked_div(&target_pool).unwrap_or_else(FixedU128::zero);
+                let price_impact = supply_amounts[i].checked_div(&target_pool).unwrap_or_else(0.into());
                 ensure!(price_impact <= limit, Error::<T>::ExceedPriceImpactLimit);
             };
 
@@ -394,9 +375,9 @@ impl<T: Config> Module<T> {
         Ok(supply_amounts)
     }
 
-    fn _swap(supply_currency_id: T::Hash, target_currency_id: T::Hash, supply_increment: FixedU128, target_decrement: FixedU128) {
+    fn _swap(supply_currency_id: T::Hash, target_currency_id: T::Hash, supply_increment: T::Balance, target_decrement: T::Balance) {
         let trading_pair = Self::get_pair(supply_currency_id, target_currency_id);
-        LiquidityPool::<T>::mutate(trading_pair, |(pool_0, pool_1, _pool_shares): &mut (FixedU128, FixedU128, FixedU128)| {
+        LiquidityPool::<T>::mutate(trading_pair, |(pool_0, pool_1, _pool_shares): &mut (T::Balance, T::Balance, T::Balance)| {
             if supply_currency_id == trading_pair.0 {
                 *pool_0 = pool_0.saturating_add(supply_increment);
                 *pool_1 = pool_1.saturating_sub(target_decrement);
@@ -407,7 +388,7 @@ impl<T: Config> Module<T> {
         });
     }
 
-    fn _swap_by_path(path: &[T::Hash], amounts: &[FixedU128]) {
+    fn _swap_by_path(path: &[T::Hash], amounts: &[T::Balance]) {
         let mut i: usize = 0;
         while i + 1 < path.len() {
             let (supply_currency_id, target_currency_id) = (path[i], path[i + 1]);
@@ -423,9 +404,7 @@ impl<T: Config> Module<T> {
     }
     /// Adds Liquidity for specific swapping pair.
     pub fn do_add_liquidity(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash, max_amount_a: T::Balance, max_amount_b: T::Balance) -> dispatch::DispatchResult {
-        ensure!(!max_amount_a.is_zero() && !max_amount_b.is_zero(), Error::<T>::ProvidedAmountIsZero);
-        let max_amount_a: FixedU128 = Self::convert_balance_to_fixedU128(max_amount_a).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-        let max_amount_b: FixedU128 = Self::convert_balance_to_fixedU128(max_amount_b).ok_or(Error::<T>::FixedU128ConversionFailed)?;
+        ensure!(!max_amount_a == 0.into() && !max_amount_b == 0.into(), Error::<T>::ProvidedAmountIsZero);
 
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
 
@@ -436,37 +415,35 @@ impl<T: Config> Module<T> {
                 (max_amount_b, max_amount_a)
             };
 
-            let (pool_0_increment, pool_1_increment, share_increment): (FixedU128, FixedU128, FixedU128) =
-                if FixedU128::is_zero(pool_shares) {
+            let (pool_0_increment, pool_1_increment, share_increment): (T::Balance, T::Balance, T::Balance) =
+                if pool_shares == 0.into() {
                     // initialize this liquidity pool, the initial share is equal to the max value
                     // between base currency amount and other currency amount
                     let initial_share = sp_std::cmp::max(max_amount_0, max_amount_1);
-                    (max_amount_0, max_amount_1, initial_share)
+                    (max_amount_0.clone(), max_amount_1.clone(), initial_share)
                 } else {
-                    let price_0_1 = pool_1.checked_div(&pool_0).unwrap_or(FixedU128::zero());
-                    let input_price_0_1 = max_amount_1.checked_div(&max_amount_0).unwrap_or(FixedU128::zero());
+                    let price_0_1 = pool_1.checked_div(&pool_0).unwrap_or(0.into());
+                    let input_price_0_1 = max_amount_1.checked_div(&max_amount_0).unwrap_or(0.into());
 
                     if input_price_0_1 <= price_0_1 {
                         // max_amount_0 may be too much, calculate the actual amount_0
-                        let price_1_0: FixedU128 = pool_0.checked_div(pool_1).unwrap_or(FixedU128::zero());
-                        let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(FixedU128::zero());
-                        let share_increment = amount_0.checked_div(pool_0).unwrap_or(FixedU128::zero())
-                            .checked_mul(pool_shares).unwrap_or(FixedU128::zero());
+                        let price_1_0: FixedU128 = pool_0.checked_div(pool_1).unwrap_or(0.into());
+                        let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(0.into());
+                        let share_increment = amount_0.checked_div(pool_0).unwrap_or(0.into())
+                            .checked_mul(pool_shares).unwrap_or(0.into());
                         (amount_0, max_amount_1, share_increment)
                     } else {
                         // max_amount_1 is too much, calculate the actual amount_1
-                        let amount_1 = price_0_1.checked_mul(&max_amount_0).unwrap_or(FixedU128::zero());
-                        let share_increment = amount_1.checked_div(pool_1).unwrap_or(FixedU128::zero())
+                        let amount_1 = price_0_1.checked_mul(&max_amount_0).unwrap_or(0.into());
+                        let share_increment = amount_1.checked_div(pool_1).unwrap_or(0.into())
                             .checked_mul(pool_shares)
-                            .unwrap_or(FixedU128::zero());
+                            .unwrap_or(0.into());
                         (max_amount_0, amount_1, share_increment)
                     }
                 };
-            ensure!(!share_increment.is_zero() && !pool_0_increment.is_zero() && !pool_1_increment.is_zero(), Error::<T>::InvalidLiquidityIncrement);
+            ensure!(!share_increment==0.into() && !pool_0_increment==0.into() && !pool_1_increment==0.into(), Error::<T>::InvalidLiquidityIncrement);
             let swap_wallet_account = Self::get_wallet_account();
-            // TODO: Dirty Hack
-            let pool_0_increment_converted = Self::convert_fixedU128_to_balance(pool_0_increment).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-            let pool_1_increment_converted = Self::convert_fixedU128_to_balance(pool_1_increment).ok_or(Error::<T>::FixedU128ConversionFailed)?;
+
             //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.0, &pool_0_increment_converted, ExistenceRequirement::AllowDeath)?;
             //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.1, &pool_1_increment_converted, ExistenceRequirement::AllowDeath)?;
 
@@ -477,15 +454,15 @@ impl<T: Config> Module<T> {
 
             *pool_0 = pool_0.saturating_add(pool_0_increment);
             *pool_1 = pool_1.saturating_add(pool_1_increment);
-            *pool_shares = pool_shares.saturating_add(share_increment); // TODO ask @gautham about this
+            *pool_shares = pool_shares.saturating_add(share_increment.clone()); // TODO ask @gautham about this
 
             Self::deposit_event(RawEvent::AddLiquidity(
                 who.clone(),
                 trading_pair.0,
-                pool_0_increment,
+                pool_0_increment.clone(),
                 trading_pair.1,
-                pool_1_increment,
-                share_increment,
+                pool_1_increment.clone(),
+                share_increment.clone(),
             ));
             Ok(())
         })
@@ -503,15 +480,10 @@ impl<T: Config> Module<T> {
         ensure!(remove_share <= original_share, Error::<T>::LowShare);
 
         <LiquidityPool<T>>::try_mutate(trading_pair, |(pool_0, pool_1, pool_shares)| -> dispatch::DispatchResult {
-            let proportion = remove_share.checked_div(pool_shares).unwrap_or(FixedU128::zero());
+            let proportion = remove_share.checked_div(pool_shares).unwrap_or(0);
             let pool_0_decrement = proportion.saturating_mul(*pool_0);
             let pool_1_decrement = proportion.saturating_mul(*pool_1);
             let swap_wallet_account = Self::get_wallet_account();
-
-
-            // TODO: Dirty Hack
-            let pool_0_decrement_converted = Self::convert_fixedU128_to_balance(pool_0_decrement).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-            let pool_1_decrement_converted = Self::convert_fixedU128_to_balance(pool_1_decrement).ok_or(Error::<T>::FixedU128ConversionFailed)?;
 
             //polkadex_custom_assets::Module::<T>::transfer(&swap_wallet_account, &who, trading_pair.0, &pool_0_decrement_converted, ExistenceRequirement::KeepAlive)?;
             //polkadex_custom_assets::Module::<T>::transfer(&swap_wallet_account, &who, trading_pair.1, &pool_1_decrement_converted, ExistenceRequirement::KeepAlive)?;
@@ -537,75 +509,12 @@ impl<T: Config> Module<T> {
         })
     }
 
+    // TODO: Define this for AssetID
     fn get_pair(currency_id_a: T::Hash, currency_id_b: T::Hash) -> (T::Hash, T::Hash) {
         if currency_id_a > currency_id_b {
             (currency_id_a, currency_id_b)
         } else {
             (currency_id_b, currency_id_a)
         }
-    }
-
-    #[allow(non_snake_case)]
-    pub fn convert_balance_to_fixedU128(amount: T::Balance) -> Option<FixedU128> {
-        if let Some(y) = TryInto::<u128>::try_into(amount).ok() {
-            FixedU128::from(y).checked_div(&FixedU128::from(1_000_000_000_000))
-        } else {
-            None
-        }
-    }
-
-    #[allow(non_snake_case)]
-    pub fn convert_fixedU128_to_balance(x: FixedU128) -> Option<T::Balance> {
-        if let Some(balance_in_fixed_u128) = x.checked_div(&FixedU128::from(1000000)) {
-            let balance_in_u128 = balance_in_fixed_u128.into_inner();
-            Some(UniqueSaturatedFrom::<u128>::unique_saturated_from(balance_in_u128))
-        } else {
-            None
-        }
-    }
-
-    /// Gives best deal.
-    fn give_best_deal(max_supply: FixedU128, min_target: FixedU128, trading_pair: (T::Hash, T::Hash)) -> Option<(FixedU128, FixedU128)> {
-        let path = vec![trading_pair.0, trading_pair.1];
-        let target = Self::get_target_amounts(&path, max_supply, None).ok();
-        let target_vector = &target.clone().unwrap(); // TODO: Remove unwrap
-
-
-        match target {
-            Some(target_vector) => {
-                if target_vector[target_vector.len() - 1] >= min_target {
-                    Some((max_supply, target_vector[target_vector.len() - 1]))
-                } else {
-                    None
-                }
-            }
-            None => None
-        }
-    }
-    /// Executes given deal.
-    fn execute_deal(who: &T::AccountId, optimal_deal: (FixedU128, FixedU128), trading_pair: (T::Hash, T::Hash)) -> bool {
-        let path = vec![trading_pair.0, trading_pair.1];
-
-        match Self::do_swap_with_exact_supply_fixedu128(&who, &path, optimal_deal.0, optimal_deal.1, None) {
-            Ok(_) => true,
-            Err(_) => { false }
-        }
-    }
-    /// Executes deal if best deal
-    pub fn swap_by_orderbook(who: &T::AccountId, trading_pair: (T::Hash, T::Hash), is_bidlimit: bool, price: FixedU128, quantity: FixedU128, quote_asset_id: T::Hash) -> bool {
-        let balance_tuple: (FixedU128, FixedU128) = if is_bidlimit { (price.saturating_mul(quantity), quantity) } else { (quantity, price.saturating_mul(quantity)) };
-        let path: (T::Hash, T::Hash) = match is_bidlimit {
-            true if quote_asset_id == trading_pair.0 => (trading_pair.1, trading_pair.0),
-            false if quote_asset_id == trading_pair.0 => trading_pair,
-            true if quote_asset_id == trading_pair.1 => trading_pair,
-            false if quote_asset_id == trading_pair.1 => (trading_pair.1, trading_pair.0),
-            _ => { return false; }
-        };
-        let (max_supply, min_target) = balance_tuple;
-        let temp = match Self::give_best_deal(max_supply, min_target, path) {
-            Some(optimal_deal) => Self::execute_deal(who, optimal_deal, path),
-            None => false,
-        };
-        temp
     }
 }

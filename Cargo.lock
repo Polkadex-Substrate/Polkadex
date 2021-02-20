@@ -4335,16 +4335,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "989d43012e2ca1c4a02507c67282691a0a3207f9dc67cec596b43fe925b3d325"
 
 [[package]]
-name = "polkapool"
+name = "polkadex-primitives"
 version = "0.1.0"
 dependencies = [
- "frame-support",
- "frame-system",
  "parity-scale-codec",
- "sp-arithmetic",
+ "serde",
  "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]
