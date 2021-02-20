@@ -13,14 +13,10 @@ version = '2.0.0'
 
 [dependencies.frame-support]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = 'rococo-v1'
 version = '3.0.0'
 
 [dependencies.frame-system]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = 'rococo-v1'
 version = '3.0.0'
 
 [dev-dependencies]
@@ -28,20 +24,14 @@ serde = { version = "1.0.101" }
 
 [dev-dependencies.sp-core]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = 'rococo-v1'
 version = '3.0.0'
 
 [dev-dependencies.sp-io]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = 'rococo-v1'
 version = '3.0.0'
 
 [dev-dependencies.sp-runtime]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = 'rococo-v1'
 version = '3.0.0'
 
 [package]
@@ -50,7 +40,7 @@ description = 'FRAME pallet template for defining custom runtime logic.'
 edition = '2018'
 homepage = 'https://substrate.dev'
 license = 'Unlicense'
-name = 'pallet-template'
+name = 'orderbook-engine'
 readme = 'README.md'
 repository = 'https://github.com/paritytech/substrate/'
 version = '3.0.0'
