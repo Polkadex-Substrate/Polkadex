@@ -8,5 +8,6 @@ RUN rustup toolchain install nightly-2020-09-28 && rustup default nightly-2020-0
 COPY . /polkadex/
 RUN cd /polkadex && cargo build --release
 RUN echo ****************************************************************######
+RUN chmod +x /polkadex/scripts/createCustomSpec.sh
 RUN /polkadex/scripts/createCustomSpec.sh
 RUN chmod +x /polkadex/prometheus/prometheus
