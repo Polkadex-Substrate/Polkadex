@@ -11,9 +11,25 @@ benchmarks! {
 
 	settle_trade {
 	    let caller: T::AccountId = whitelisted_caller();
-        let account: T::AccountId = account("new", 0, SEED);
-        Identity::<T>::add_registrar(RawOrigin::Root.into(), caller.clone())?;
-	}: _(RawOrigin::Signed(caller), account.clone(), Judgement::Reasonable)
+	    let maker = Order{
+	    price,
+        quantity,
+        order_type,
+        trader,
+        nonce,
+        asset_id,
+        signature,
+	    };
+	    let taker = Order{
+	    price,
+        quantity,
+        order_type,
+        trader,
+        nonce,
+        asset_id,
+        signature,
+	    }
+	}: _(RawOrigin::Signed(caller), maker, taker)
 }
 
 #[cfg(test)]
