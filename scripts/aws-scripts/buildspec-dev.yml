@@ -10,10 +10,10 @@ phases:
   build:
     commands:
       - echo updating th ip address with intra domains
-      - sed -i 's/ip4/dns/g' ./node/src/chain_spec.rs
-      - sed -i 's/54.176.87.85/balic-dev.polkadex.intra/g' ./node/src/chain_spec.rs
-      - sed -i 's/52.76.105.188/vbob-dev.polkadex.intra/g' ./node/src/chain_spec.rs
-      - sed -i 's/18.198.113.243/vcharli-dev.polkadex.intra/g' ./node/src/chain_spec.rs
+      #- sed -i 's/ip4/dns/g' ./node/src/chain_spec.rs
+      #- sed -i 's/54.176.87.85/balic-dev.polkadex.intra/g' ./node/src/chain_spec.rs
+      #- sed -i 's/52.76.105.188/vbob-dev.polkadex.intra/g' ./node/src/chain_spec.rs
+      #- sed -i 's/18.198.113.243/vcharli-dev.polkadex.intra/g' ./node/src/chain_spec.rs
       - echo +++++++++++++++++++++++++++++++++++++++++##**
       - cat ./node/src/chain_spec.rs
       - echo +++++++++++++++++++++++++++++++++++++++++##**
