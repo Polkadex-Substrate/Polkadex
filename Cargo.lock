@@ -3556,6 +3556,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal",
+ "orderbook-engine",
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",
@@ -3710,15 +3711,15 @@ checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 
 [[package]]
 name = "orderbook-engine"
-version = "3.0.0"
+version = "0.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
  "serde",
  "sp-core",
- "sp-io",
  "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
