@@ -4,7 +4,24 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
+    'sp-runtime/std',
+    'serde',
+    'sp-core/std',
+    'sp-std/std'
 ]
+
+[dependencies.serde]
+version = "1.0.101"
+optional = true
+
+[dependencies.sp-core]
+default-features = false
+version = '3.0.0'
+
+[dependencies.sp-std]
+default-features = false
+version = '3.0.0'
+
 [dependencies.codec]
 default-features = false
 features = ['derive']
@@ -19,18 +36,7 @@ version = '3.0.0'
 default-features = false
 version = '3.0.0'
 
-[dev-dependencies]
-serde = { version = "1.0.101" }
-
-[dev-dependencies.sp-core]
-default-features = false
-version = '3.0.0'
-
-[dev-dependencies.sp-io]
-default-features = false
-version = '3.0.0'
-
-[dev-dependencies.sp-runtime]
+[dependencies.sp-runtime]
 default-features = false
 version = '3.0.0'
 
@@ -43,7 +49,7 @@ license = 'Unlicense'
 name = 'orderbook-engine'
 readme = 'README.md'
 repository = 'https://github.com/paritytech/substrate/'
-version = '3.0.0'
+version = '0.1.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
