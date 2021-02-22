@@ -68,7 +68,7 @@ decl_module! {
 		fn deposit_event() = default;
 
 		#[weight = 0]
-		pub fn settle_trade(origin, maker: Order<T::Balance, T::AccountId, T::Signature>, taker: Order<T::Balance, T::AccountId, T::Signature>) -> dispatch::DispatchResult {
+		pub fn settle_trade(origin, maker: Order<T::Balance, T::AccountId, T::Hash, T::Signature>, taker: Order<T::Balance, T::AccountId, T::Hash, T::Signature>) -> dispatch::DispatchResult {
 			let cloud_provider = ensure_signed(origin)?;
 			Self::settle(cloud_provider, maker, taker)?;
 			// Return a successful DispatchResult
@@ -124,15 +124,20 @@ impl<T: Config> Module<T> {
                mut taker_account: &AccountData<T::Hash, T::Balance>, taker: &Order<T::Balance, T::AccountId, T::Hash, T::Signature>) -> Result<(), Error<T>> {
         match (maker.order_type, taker.order_type) {
             (BidLimit, AskLimit) => {
-
+                Ok(())
             }
-            (BidLimit, AskMarket) => {}
-            (AskLimit, BidLimit) => {}
-            (AskLimit, BidMarket) => {}
+            (BidLimit, AskMarket) => {
+                Ok(())
+            }
+            (AskLimit, BidLimit) => {
+                Ok(())
+            }
+            (AskLimit, BidMarket) => {
+                Ok(())
+            }
             _ => {
                 Err(Error::<T>::InvalidOrderTypeCombination)
             }
         }
-        Ok(())
     }
 }
