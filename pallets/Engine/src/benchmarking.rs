@@ -5,12 +5,26 @@ use frame_system::{EventRecord, RawOrigin};
 use frame_support::ensure;
 use frame_benchmarking::{benchmarks, account, whitelisted_caller};
 use crate::Module as Identity;
+use sp_std::collections::btree_map;
+
+
 const SEED: u32 = 0;
 
 benchmarks! {
 
 	settle_trade {
 	    let caller: T::AccountId = whitelisted_caller();
+	    // Add caller to Providers
+	    <Providers<T>>::insert(caller,Some(1));
+	    // Credit Maker Account
+	    let maker: T::AccountId = account("maker", 0, SEED);
+	    <Traders<T>>::insert(maker,AccountData{
+            nonce: 0,
+            assets: btree_map::BTreeMap::new()
+        });
+	    // Credit Taker Account
+	    let taker: T::AccountId = account("taker", 0, SEED);
+	    <Traders<T>>::insert(taker, taker_acc);
 	    let maker = Order{
 	    price,
         quantity,

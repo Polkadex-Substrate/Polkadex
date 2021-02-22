@@ -22,6 +22,10 @@ version = '3.0.0'
 default-features = false
 version = '3.0.0'
 
+[dependencies.sp-io]
+default-features = false
+version = '3.0.0'
+
 [dependencies.codec]
 default-features = false
 features = ['derive']
