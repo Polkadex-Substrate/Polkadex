@@ -10,11 +10,10 @@ use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDe
 
 use types::{AccountData, Order, OrderType::AskLimit, OrderType::AskMarket, OrderType::BidLimit, OrderType::BidMarket};
 
-#[cfg(test)]
+
 mod mock;
-mod benchmarking;
 #[cfg(test)]
-mod tests;
+mod benchmarking;
 mod types;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
