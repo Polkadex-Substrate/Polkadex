@@ -9,6 +9,7 @@ std = [
     'sp-core/std',
     'sp-std/std'
 ]
+runtime-benchmarks = ["frame-benchmarking"]
 
 [dependencies.serde]
 version = "1.0.101"
@@ -62,5 +63,3 @@ version = '0.1.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
-
-runtime-benchmarks = ["frame-benchmarking"]

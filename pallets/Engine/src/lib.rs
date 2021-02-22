@@ -10,9 +10,8 @@ use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDe
 
 use types::{AccountData, Order, OrderType::AskLimit, OrderType::AskMarket, OrderType::BidLimit, OrderType::BidMarket};
 
-
-mod mock;
 #[cfg(test)]
+mod mock;
 mod benchmarking;
 mod types;
 
