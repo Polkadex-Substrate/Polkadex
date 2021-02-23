@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg(feature = "runtime-benchmarks")]
 
 use frame_benchmarking::{benchmarks, whitelisted_caller};
@@ -7,6 +8,8 @@ use sp_std::prelude::*;
 use sp_std::vec::Vec;
 use super::*;
 use crate::types::OrderType;
+#[cfg(feature = "full_crypto")]
+use sp_core::{H256, Pair};
 
 const SEED: u32 = 0;
 
