@@ -1,6 +1,7 @@
 use codec::{Decode, Encode};
 use sp_std::collections::btree_map;
 use sp_std::vec::Vec;
+
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -14,9 +15,11 @@ pub enum OrderType {
 }
 
 
+
 #[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Order<Balance, AccountId, AssetID> {
+
     pub price: Balance,
     pub quantity: Balance,
     pub order_type: OrderType,

@@ -3525,13 +3525,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-template"
-version = "2.0.0"
+name = "node-polkadex"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "jsonrpc-core",
- "node-template-runtime",
+ "node-polkadex-runtime",
  "pallet-transaction-payment-rpc",
  "sc-basic-authorship",
  "sc-cli",
@@ -3562,8 +3562,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-template-runtime"
-version = "2.0.0"
+name = "node-polkadex-runtime"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -3735,7 +3735,6 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
- "sp-io",
  "sp-runtime",
  "sp-std",
 ]

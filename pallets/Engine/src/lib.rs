@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
+
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter};
 use frame_support::sp_std::fmt::Debug;
 use frame_support::traits::Get;
@@ -10,6 +11,7 @@ use sp_runtime::{AnySignature, DispatchError};
 use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
 use sp_std::vec;
 
+
 use types::{AccountData, Order, OrderType::AskLimit, OrderType::AskMarket, OrderType::BidLimit, OrderType::BidMarket};
 
 #[cfg(test)]
@@ -17,6 +19,7 @@ mod mock;
 mod benchmarking;
 mod types;
 mod weights;
+
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -58,6 +61,7 @@ decl_error! {
 		InvalidOrderTypeCombination,
 		/// Signature provided is invalid
 		InvalidSignature,
+
 	}
 }
 
@@ -102,7 +106,6 @@ impl<T: Config> Module<T> {
             Err(Error::<T>::CallerNotARegisteredProvider)
         }
     }
-
     fn verify_signatures(maker: &Order<T::Balance, T::AccountId, T::Hash>, taker: &Order<T::Balance, T::AccountId, T::Hash>) -> bool {
         let maker_msg = (maker.price, maker.quantity, maker.order_type, maker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
         let taker_msg = (taker.price, taker.quantity, taker.order_type, taker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
@@ -122,6 +125,7 @@ impl<T: Config> Module<T> {
 
         taker_signature.verify(&taker_msg.encode()[..], &taker_public_key) && maker_signature.verify(&maker_msg.encode()[..], &maker_public_key)
 
+
     }
 
     /// When verifying nonce take into account,
@@ -132,6 +136,7 @@ impl<T: Config> Module<T> {
     /// The first principle is to prevent replay attacks.
     fn verify_nonces(maker_account: &AccountData<T::Hash, T::Balance>, maker: &Order<T::Balance, T::AccountId, T::Hash>,
                      taker_account: &AccountData<T::Hash, T::Balance>, taker: &Order<T::Balance, T::AccountId, T::Hash>) -> bool {
+
         // FIXME: Implement an efficient nonce verification
 
         true

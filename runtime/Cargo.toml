@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "2.0.0"
+version = "1.0.0"
 authors = ["Anonymous"]
 edition = "2018"
 license = "Unlicense"
@@ -78,6 +78,7 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "orderbook-engine/std"
+
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
@@ -89,4 +90,5 @@ runtime-benchmarks = [
     "pallet-balances/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
     "orderbook-engine/runtime-benchmarks",
+
 ]
