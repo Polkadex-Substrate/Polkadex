@@ -40,7 +40,6 @@ pub use frame_support::{
 use pallet_transaction_payment::CurrencyAdapter;
 
 use orderbook_engine;
-use orderbook_engine::Config;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -265,6 +264,10 @@ impl orderbook_engine::Config for Runtime{
 	type Signature = MultiSignature;
 }
 
+impl assets::Config for Runtime{
+	type Event = Event;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -280,7 +283,8 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		Engine: orderbook_engine::{Module, Call, Storage, Event<T>}
+		Engine: orderbook_engine::{Module, Call, Storage, Event<T>},
+		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
 	}
 );
 
