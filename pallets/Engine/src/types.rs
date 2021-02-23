@@ -13,16 +13,16 @@ pub enum OrderType {
 }
 
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct Order<Balance, AccountId, AssetID, Signature> {
+pub struct Order<Balance, AccountId, AssetID> {
     pub price: Balance,
     pub quantity: Balance,
     pub order_type: OrderType,
     pub trader: AccountId,
     pub nonce: u64,
     pub asset_id: AssetID,
-    pub signature: Signature,
+    pub signature: Vec<u8>,
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, Debug)]
