@@ -28,7 +28,7 @@ benchmarks! {
 	        nonce: 0,
             assets: btree_map::BTreeMap::new()
 	    };
-	    let maker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::AskLimit, 0 ).using_encoded(<T as frame_system::Config>::Hashing::hash);
+	    let maker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::BidLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
 	    Traders::<T>::insert(&maker, maker_acc);
 
 	    // Credit Taker Account
@@ -39,7 +39,7 @@ benchmarks! {
 	        nonce: 0,
             assets: btree_map::BTreeMap::new()
 	    };
-	    let taker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::BidLimit, 0 ).using_encoded(<T as frame_system::Config>::Hashing::hash);
+	    let taker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::AskLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
 	    Traders::<T>::insert(&taker, taker_acc);
 
 	    let maker_order = Order{
@@ -62,6 +62,8 @@ benchmarks! {
         signature: takerPair.sign(taker_msg.as_ref()).encode(),
 	    };
 
+	    println!("Taker Msg: {}",taker_msg);
+	    println!("Maker Msg: {}",maker_msg);
 	}: _(RawOrigin::Signed(caller), maker_order, taker_order)
 }
 
