@@ -70,7 +70,7 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
-		#[weight = weights::WeightInfo::settle_trade()]
+		#[weight = 0]
 		pub fn settle_trade(origin, maker: Order<T::Balance, T::AccountId, T::Hash>, taker: Order<T::Balance, T::AccountId, T::Hash>) -> dispatch::DispatchResult {
 			let cloud_provider = ensure_signed(origin)?;
 			Self::settle(cloud_provider, maker, taker)?;
