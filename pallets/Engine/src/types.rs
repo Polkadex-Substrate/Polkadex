@@ -1,5 +1,6 @@
 use codec::{Decode, Encode};
 use sp_std::collections::btree_map;
+use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 

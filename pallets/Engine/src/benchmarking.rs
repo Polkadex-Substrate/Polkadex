@@ -1,16 +1,16 @@
 #![cfg(feature = "runtime-benchmarks")]
-
+use frame_support::traits::Vec;
 use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::ensure;
 use frame_system::{EventRecord, RawOrigin};
 use sp_std::collections::btree_map;
 use sp_runtime::{traits::AccountIdConversion, AccountId32};
 use crate::Module as Identity;
-
 use super::*;
 use crate::types::OrderType;
-use sp_core::{H256, Pair};
-
+use sp_io::crypto;
+use sp_core::{H256};
+use sp_std::boxed::Box;
 const SEED: u32 = 0;
 
 benchmarks! {
@@ -21,8 +21,7 @@ benchmarks! {
 	    Providers::<T>::insert(&caller,1 as u32);
 
 	    // Credit Maker Account
-	    let (makerPair, _) = sp_core::sr25519::Pair::generate();
-	    let pubkey_maker = makerPair.public().0;
+            let pubkey_maker = crypto::sr25519_generate(sp_core::crypto::KeyTypeId::from(1), None);
 	    let maker: T::AccountId = T::AccountId::decode(&mut &pubkey_maker[..]).unwrap_or_default();
 	    let maker_acc: AccountData<T::Hash,T::Balance> = AccountData{
 	        nonce: 0,
@@ -32,8 +31,7 @@ benchmarks! {
 	    Traders::<T>::insert(&maker, maker_acc);
 
 	    // Credit Taker Account
-	    let (takerPair, _) = sp_core::sr25519::Pair::generate();
-	    let pubkey_taker = takerPair.public().0;
+	    let pubkey_taker = crypto::sr25519_generate(sp_core::crypto::KeyTypeId::from(2), None);
 	    let taker: T::AccountId = T::AccountId::decode(&mut &pubkey_taker[..]).unwrap_or_default();
 	    let taker_acc: AccountData<T::Hash,T::Balance> = AccountData{
 	        nonce: 0,
@@ -49,7 +47,7 @@ benchmarks! {
         trader: maker,
         nonce: 0,
         asset_id: T::Hash::default(),
-        signature: makerPair.sign(maker_msg.as_ref()).encode(),
+        signature: sp_io::crypto::sr25519_sign(sp_core::crypto::KeyTypeId::from(1),&pubkey_maker,maker_msg.as_ref()).unwrap().0.encode(),
 	    };
 
 	    let taker_order = Order{
@@ -59,7 +57,7 @@ benchmarks! {
         trader: taker,
         nonce:0,
         asset_id: T::Hash::default(),
-        signature: takerPair.sign(taker_msg.as_ref()).encode(),
+        signature: sp_io::crypto::sr25519_sign(sp_core::crypto::KeyTypeId::from(2),&pubkey_taker,taker_msg.as_ref()).unwrap().0.encode(),
 	    };
 	}: _(RawOrigin::Signed(caller), maker_order, taker_order)
 }
@@ -77,27 +75,6 @@ mod tests {
     fn test_benchmarks() {
         new_test_ext().execute_with(|| {
             assert_ok!(test_benchmark_settle_trade::<Test>());
-        });
-    }
-
-    #[test]
-    fn it_works_for_default_value() {
-        new_test_ext().execute_with(|| {
-            // // Dispatch a signed extrinsic.
-            // assert_ok!(EngineModule::do_something(Origin::signed(1), 42));
-            // // Read pallet storage and assert an expected result.
-            // assert_eq!(EngineModule::something(), Some(42));
-        });
-    }
-
-    #[test]
-    fn correct_error_for_none_value() {
-        new_test_ext().execute_with(|| {
-            // Ensure the expected error is thrown when no value is present.
-            // assert_noop!(
-            // 	EngineModule::cause_error(Origin::signed(1)),
-            // 	Error::<Test>::NoneValue
-            // );
         });
     }
 }

@@ -1,20 +1,22 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, Parameter, ensure};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter};
 use frame_support::sp_std::fmt::Debug;
 use frame_support::traits::Get;
 use frame_system::ensure_signed;
 use sp_core::{Hasher, sr25519};
+use sp_runtime::{AnySignature, DispatchError};
 use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
+use sp_std::vec;
 
 use types::{AccountData, Order, OrderType::AskLimit, OrderType::AskMarket, OrderType::BidLimit, OrderType::BidMarket};
-use sp_runtime::{AnySignature, DispatchError};
 
 #[cfg(test)]
 mod mock;
 mod benchmarking;
 mod types;
+mod weights;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -68,7 +70,7 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
-		#[weight = 0]
+		#[weight = weights::WeightInfo::settle_trade()]
 		pub fn settle_trade(origin, maker: Order<T::Balance, T::AccountId, T::Hash>, taker: Order<T::Balance, T::AccountId, T::Hash>) -> dispatch::DispatchResult {
 			let cloud_provider = ensure_signed(origin)?;
 			Self::settle(cloud_provider, maker, taker)?;
@@ -118,8 +120,8 @@ impl<T: Config> Module<T> {
         let taker_account_bytes: [u8; 32] = account_to_bytes(&taker.trader).unwrap();
         let taker_public_key = sr25519::Public::from_raw(taker_account_bytes);
 
-        sr25519::verify_batch(vec![&maker_msg.encode()[..],&taker_msg.encode()[..]], vec![&maker_signature,&taker_signature],vec![&maker_public_key,&taker_public_key])
-        // maker.signature.verify(&(maker_msg.encode()[..]), &maker.trader) && taker.signature.verify(&(taker_msg.encode()[..]), &taker.trader)
+        taker_signature.verify(&taker_msg.encode()[..], &taker_public_key) && maker_signature.verify(&maker_msg.encode()[..], &maker_public_key)
+
     }
 
     /// When verifying nonce take into account,

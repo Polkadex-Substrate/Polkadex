@@ -7,7 +7,8 @@ std = [
     'sp-runtime/std',
     'serde',
     'sp-core/std',
-    'sp-std/std'
+    'sp-core/full_crypto',
+    'sp-std/std',
 ]
 runtime-benchmarks = ["frame-benchmarking"]
 
