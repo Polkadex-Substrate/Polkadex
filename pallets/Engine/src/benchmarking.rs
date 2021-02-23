@@ -61,9 +61,6 @@ benchmarks! {
         asset_id: T::Hash::default(),
         signature: takerPair.sign(taker_msg.as_ref()).encode(),
 	    };
-
-	    println!("Taker Msg: {}",taker_msg);
-	    println!("Maker Msg: {}",maker_msg);
 	}: _(RawOrigin::Signed(caller), maker_order, taker_order)
 }
 

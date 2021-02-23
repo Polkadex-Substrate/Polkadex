@@ -104,9 +104,6 @@ impl<T: Config> Module<T> {
     fn verify_signatures(maker: &Order<T::Balance, T::AccountId, T::Hash>, taker: &Order<T::Balance, T::AccountId, T::Hash>) -> bool {
         let maker_msg = (maker.price, maker.quantity, maker.order_type, maker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
         let taker_msg = (taker.price, taker.quantity, taker.order_type, taker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
-
-        println!("Taker Msg (Runtime): {}",taker_msg);
-        println!("Maker Msg (Runtime): {}",maker_msg);
         // sr25519 always expects a 64 byte signature.
         // ensure!(maker.signature.len() == 64 && taker.signature.len() == 64, Error::<T>::InvalidSignature);
         let maker_signature: sr25519::Signature = sr25519::Signature::from_slice(&maker.signature).into();
