@@ -10,6 +10,11 @@ use frame_support::{
 use sp_runtime::traits::StaticLookup;
 use sp_core::U256;
 use polkadex_primitives::assets::AssetId;
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod test;
 
 pub trait Config: system::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
