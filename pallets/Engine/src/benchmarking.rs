@@ -1,15 +1,12 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use frame_benchmarking::{account, benchmarks, whitelisted_caller};
-use frame_support::ensure;
-use frame_system::{EventRecord, RawOrigin};
+use frame_benchmarking::{benchmarks, whitelisted_caller};
+use frame_system::RawOrigin;
 use sp_std::collections::btree_map;
-use sp_runtime::{traits::AccountIdConversion, AccountId32};
-use crate::Module as Identity;
-
+use sp_std::prelude::*;
+use sp_std::vec::Vec;
 use super::*;
 use crate::types::OrderType;
-use sp_core::{H256, Pair};
 
 const SEED: u32 = 0;
 

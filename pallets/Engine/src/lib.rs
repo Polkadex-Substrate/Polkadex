@@ -3,13 +3,12 @@
 use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, Parameter, ensure};
 use frame_support::sp_std::fmt::Debug;
-use frame_support::traits::Get;
 use frame_system::ensure_signed;
 use sp_core::{Hasher, sr25519};
 use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
-
+use sp_std::prelude::*;
 use types::{AccountData, Order, OrderType::AskLimit, OrderType::AskMarket, OrderType::BidLimit, OrderType::BidMarket};
-use sp_runtime::{AnySignature, DispatchError};
+use sp_runtime::DispatchError;
 
 #[cfg(test)]
 mod mock;
