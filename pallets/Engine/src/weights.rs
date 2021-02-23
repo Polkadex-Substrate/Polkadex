@@ -22,7 +22,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 128
 
 // Executed Command:
-// ./target/release/node-template
+// ./target/release/node-polkadex
 // benchmark
 // --chain=dev
 // --execution=wasm
@@ -51,7 +51,7 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn settle_trade() -> Weight {
-		(150_100_000 as Weight)
+		(148_500_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 	}
 }
@@ -59,7 +59,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn settle_trade() -> Weight {
-		(150_100_000 as Weight)
+		(148_500_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 	}
 }
