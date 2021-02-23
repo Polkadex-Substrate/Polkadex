@@ -76,7 +76,9 @@ std = [
     "sp-transaction-pool/std",
     "sp-version/std",
     "frame-system/std",
-    "frame-system-rpc-runtime-api/std"
+    "frame-system-rpc-runtime-api/std",
+    "orderbook-engine/std"
+
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
@@ -87,4 +89,6 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
+    "orderbook-engine/runtime-benchmarks",
+
 ]

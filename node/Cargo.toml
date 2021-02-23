@@ -50,8 +50,8 @@ pallet-transaction-payment-rpc = { version = "3.0.0" }
 # These dependencies are used for runtime benchmarking
 frame-benchmarking = { version = "3.0.0" }
 frame-benchmarking-cli = { version = "3.0.0" }
-
 node-polkadex-runtime = { version = "1.0.0", path="../runtime"}
+
 
 [build-dependencies]
 substrate-build-script-utils = { version = "3.0.0" }
