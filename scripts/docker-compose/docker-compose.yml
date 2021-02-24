@@ -1,0 +1,47 @@
+version: "3"
+services:
+ docker-host:
+  image: qoomon/docker-host
+  cap_add: [ 'NET_ADMIN', 'NET_RAW' ]
+  restart: on-failure
+ bootnode_alice:
+  container_name: bootnode_alice
+  build: .
+  ports:
+   - "30444:30444"
+   - "9957:9957"
+  command: "/polkadex-aura-node/scripts/docker-compose/bootnode_alice.sh"
+  depends_on:
+   - docker-host
+ validator_bob:
+  container_name: validator_bob
+  build: .
+  ports:
+   - "30555:30555"
+   - "9958:9958"
+   - "9934:9934"
+  command: "/polkadex-aura-node/scripts/docker-compose/validator_bob.sh"
+  depends_on:
+   - docker-host
+   - bootnode_alice
+ validator_charlie:
+  container_name: validator_charlie
+  build: .
+  ports:
+   - "30666:30666"
+   - "9959:9959"
+  command: "/polkadex-aura-node/scripts/docker-compose/validator_charlie.sh"
+  depends_on:
+   - docker-host
+   - bootnode_alice
+ upserver:
+  container_name: upserver
+  build: .
+  ports:
+   - "30333:30333"
+   - "9955:9955"
+   - "9956:9956"
+  command: "/polkadex-aura-node/scripts/docker-compose/upserver.sh"
+  depends_on:
+   - docker-host
+   - bootnode_alice
