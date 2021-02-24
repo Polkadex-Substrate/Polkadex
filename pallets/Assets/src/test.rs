@@ -14,7 +14,6 @@ fn set_balance<T>(asset_id: AssetId, account_id: &AccountId, amount: T)
     TotalIssuance::insert(asset_id, value);
 }
 
-
 #[test]
 fn transfer_free_balance() {
     new_tester().execute_with(|| {

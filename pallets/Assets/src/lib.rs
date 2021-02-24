@@ -15,9 +15,13 @@ mod mock;
 
 #[cfg(test)]
 mod test;
+mod banchmarking;
+pub mod weights;
+pub use weights::WeightInfo;
 
 pub trait Config: system::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
+    type WeightInfo: WeightInfo;
 }
 
 decl_storage! {
@@ -63,8 +67,7 @@ decl_module! {
 		fn deposit_event() = default;
 
 		/// Transfer some free balance to another account.
-		// TODO: Calculate weights (#161)
-		#[weight = 10]
+		#[weight = T::WeightInfo::transfer()]
 		pub fn transfer(origin,
 						asset_id: AssetId,
 						dest: <T::Lookup as StaticLookup>::Source,

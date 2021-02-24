@@ -19,6 +19,7 @@ sp-core = {  version = '3.0.0',default-features = false }
 sp-std = {  version = '3.0.0',default-features = false }
 sp-runtime = {  version = '3.0.0',default-features = false }
 polkadex-primitives = { path = "../../primitives", default-features = false }
+frame-benchmarking = {  version = '3.0.0',default-features = false, optional = true }
 
 [dev-dependencies]
 sp-keyring = {  version = '3.0.0',default-features = false }
@@ -37,3 +38,4 @@ std = [
     "sp-runtime/std",
     "polkadex-primitives/std"
 ]
+runtime-benchmarks = ["frame-benchmarking"]
