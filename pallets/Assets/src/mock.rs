@@ -4,7 +4,7 @@ use super::*;
 use sp_core::H256;
 use frame_support::parameter_types;
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup, IdentifyAccount, Verify}, testing::Header, MultiSignature
+    traits::{BlakeTwo256, IdentityLookup}, testing::Header
 };
 use sp_std::convert::From;
 
@@ -24,8 +24,6 @@ frame_support::construct_runtime!(
 	}
 );
 
-pub type Signature = MultiSignature;
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type Balance = u128;
 
 parameter_types! {
@@ -42,7 +40,7 @@ impl system::Config for Test {
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = AccountId;
+    type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = Event;
@@ -63,7 +61,7 @@ impl assets::Config for Test {
     type Balance = Balance;
 }
 
-pub type TemplateModule = Module<Test>;
+pub type AssetsModule = Module<Test>;
 
 pub fn new_tester() -> sp_io::TestExternalities {
     let storage = system::GenesisConfig::default().build_storage::<Test>().unwrap();

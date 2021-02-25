@@ -1,4 +1,4 @@
-use sp_core::{Pair, Public, sr25519, U256};
+use sp_core::{Pair, Public, sr25519};
 use node_polkadex_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, AssetsConfig
