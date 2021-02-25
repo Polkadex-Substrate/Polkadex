@@ -1,0 +1,41 @@
+[package]
+name = "assets"
+version = "0.1.0"
+authors = ["Anonymous"]
+edition = "2018"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+hex = { version = "2.1.0", package = "rustc-hex", default-features = false }
+serde = { version = "1.0.101", optional = true }
+
+frame-support = {  version = '3.0.0',default-features = false }
+frame-system = {  version = '3.0.0',default-features = false }
+sp-io = {  version = '3.0.0',default-features = false }
+sp-core = {  version = '3.0.0',default-features = false }
+sp-std = {  version = '3.0.0',default-features = false }
+sp-runtime = {  version = '3.0.0',default-features = false }
+polkadex-primitives = { path = "../../primitives", default-features = false }
+frame-benchmarking = {  version = '3.0.0',default-features = false, optional = true }
+
+[dev-dependencies]
+sp-keyring = {  version = '3.0.0',default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "serde",
+    "hex/std",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-io/std",
+    "sp-runtime/std",
+    "polkadex-primitives/std"
+]
+runtime-benchmarks = ["frame-benchmarking"]

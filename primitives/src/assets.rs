@@ -8,7 +8,7 @@ use sp_core::{H160, RuntimeDebug};
 pub enum AssetId {
     POLKADEX,
     // DOT, TODO: Enabled in Parachain upgrade
-    ChainsafeErc20(H160),
-    ChainsafeErc721(H160),
-    // PARACHAIN(para_id,network,palletInstance,assetID) TODO: Enabled in parachain upgrade
+    CHAINSAFE(H160),
+    SNOWFORK(H160),
+    // PARACHAIN(para_id,network,palletInstance,assetID)
 }
