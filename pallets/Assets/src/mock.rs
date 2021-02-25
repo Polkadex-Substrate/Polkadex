@@ -26,6 +26,7 @@ frame_support::construct_runtime!(
 
 pub type Signature = MultiSignature;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type Balance = u128;
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -59,6 +60,7 @@ impl system::Config for Test {
 impl assets::Config for Test {
     type Event = Event;
     type WeightInfo = ();
+    type Balance = Balance;
 }
 
 pub type TemplateModule = Module<Test>;

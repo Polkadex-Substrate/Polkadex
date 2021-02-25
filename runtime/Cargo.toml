@@ -79,6 +79,7 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "assets/std",
+    "orderbook-engine/std"
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
@@ -90,4 +91,5 @@ runtime-benchmarks = [
     "pallet-balances/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
     "assets/runtime-benchmarks",
+    "orderbook-engine/runtime-benchmarks",
 ]

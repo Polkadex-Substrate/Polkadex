@@ -6,12 +6,11 @@ use polkadex_primitives::assets::AssetId;
 
 use super::*;
 
-fn set_balance<T>(asset_id: AssetId, account_id: &AccountId, amount: T)
-    where T : Into<U256> + Copy
+fn set_balance<T: Config>(asset_id: AssetId, account_id: &AccountId, amount: Balance)
 {
-    let value = amount.into();
+    let value = amount;
     Balances::<Test>::insert(asset_id, &account_id, &value);
-    TotalIssuance::insert(asset_id, value);
+    TotalIssuance::<Test>::insert(asset_id, value);
 }
 
 #[test]
@@ -22,12 +21,12 @@ fn transfer_free_balance() {
         let alice: AccountId = Keyring::Alice.into();
         let bob: AccountId = Keyring::Bob.into();
 
-        set_balance(asset_id, &alice.clone(), 500);
-        assert_ok!(TemplateModule::transfer(Origin::signed(alice.clone()), asset_id, bob.clone(), 100.into()));
+        set_balance::<Test>(asset_id, &alice.clone(), 500);
+        assert_ok!(TemplateModule::transfer(Origin::signed(alice.clone()), asset_id, bob.clone(), 100));
 
-        assert_eq!(Balances::<Test>::get(&asset_id, &alice), 400.into());
-        assert_eq!(Balances::<Test>::get(&asset_id, &bob), 100.into());
-        assert_eq!(TotalIssuance::get(&asset_id), 500.into());
+        assert_eq!(Balances::<Test>::get(&asset_id, &alice), 400);
+        assert_eq!(Balances::<Test>::get(&asset_id, &bob), 100);
+        assert_eq!(TotalIssuance::<Test>::get(&asset_id), 500);
     });
 }
 
@@ -40,7 +39,7 @@ fn transfer_should_raise_insufficient_balance() {
         let bob: AccountId = Keyring::Bob.into();
 
         assert_noop!(
-			TemplateModule::transfer(Origin::signed(alice.clone()), asset_id, bob.clone(), 100.into()),
+			TemplateModule::transfer(Origin::signed(alice.clone()), asset_id, bob.clone(), 100),
 			Error::<Test>::InsufficientBalance,
 		);
     });

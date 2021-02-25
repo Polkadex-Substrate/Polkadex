@@ -7,11 +7,11 @@ use polkadex_primitives::assets::AssetId;
 use sp_runtime::traits::StaticLookup;
 const SEED: u32 = 0;
 
-fn set_balance<T: Config>(asset_id: AssetId, account_id: &T::AccountId, amount: U256)
+fn set_balance<T: Config>(asset_id: AssetId, account_id: &T::AccountId, amount: T::Balance)
 {
 	let value = amount;
 	Balances::<T>::insert(asset_id, &account_id, &value);
-	TotalIssuance::insert(asset_id, value);
+	TotalIssuance::<T>::insert(asset_id, value);
 }
 
 benchmarks! {
