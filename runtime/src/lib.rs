@@ -40,7 +40,6 @@ pub use frame_support::{
 use pallet_transaction_payment::CurrencyAdapter;
 
 use orderbook_engine;
-use orderbook_engine::Config;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -265,6 +264,13 @@ impl orderbook_engine::Config for Runtime{
 	type Signature = MultiSignature;
 }
 
+impl assets::Config for Runtime{
+	type Event = Event;
+	type Balance = Balance;
+	type WeightInfo = assets::weights::SubstrateWeight<Runtime>;
+
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -280,7 +286,8 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		Engine: orderbook_engine::{Module, Call, Storage, Event<T>}
+		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
+		Engine: orderbook_engine::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -476,6 +483,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			add_benchmark!(params, batches, assets, Assets);
 			add_benchmark!(params, batches, orderbook_engine, Engine);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }

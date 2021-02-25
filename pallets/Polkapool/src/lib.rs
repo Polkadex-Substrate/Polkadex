@@ -226,7 +226,7 @@ decl_module! {
 
 
 impl<T: Config> Module<T> {
-    /// Stores all the assets related to Swap
+    /// Stores all the Assets related to Swap
     pub fn get_wallet_account() -> T::AccountId {
         ModuleId(*b"pswapacc").into_account()
     }
