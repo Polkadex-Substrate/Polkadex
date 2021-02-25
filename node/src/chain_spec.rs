@@ -159,7 +159,7 @@ fn testnet_genesis(
 				(
 					AssetId::POLKADEX,
 					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					U256::from_str_radix("1000000000000000000", 10).unwrap()
+					1000000000000000000u128
 				)
 			]
 		}),
