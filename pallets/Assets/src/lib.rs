@@ -8,7 +8,8 @@ use frame_support::{
 };
 use frame_support::sp_std::fmt::Debug;
 use sp_runtime::traits::{AtLeast32BitUnsigned, StaticLookup, MaybeSerializeDeserialize, Member};
-use frame_benchmarking::Zero;
+use sp_runtime::traits::Zero;
+
 use sp_runtime::traits::CheckedSub;
 use sp_runtime::traits::CheckedAdd;
 use polkadex_primitives::assets::AssetId;
