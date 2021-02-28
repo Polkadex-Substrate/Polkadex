@@ -21,6 +21,9 @@ sp-runtime = {  version = '3.0.0',default-features = false }
 polkadex-primitives = { path = "../../primitives", default-features = false }
 frame-benchmarking = {  version = '3.0.0',default-features = false, optional = true }
 
+# Local
+chainbridge = {path = "../chainbridge", default-features = false}
+
 [dev-dependencies]
 sp-keyring = {  version = '3.0.0',default-features = false }
 
@@ -36,6 +39,7 @@ std = [
     "sp-std/std",
     "sp-io/std",
     "sp-runtime/std",
-    "polkadex-primitives/std"
+    "polkadex-primitives/std",
+    "chainbridge/std"
 ]
 runtime-benchmarks = ["frame-benchmarking"]

@@ -242,6 +242,19 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
+    pub const TestChainId: u8 = 5;
+    pub const ProposalLifetime: u32 = 50;
+}
+
+impl chainbridge::Config for Runtime {
+	type Event = Event;
+	type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type Proposal = Call;
+	type ChainId = TestChainId;
+	type ProposalLifetime = ProposalLifetime;
+}
+
+parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 }
 
@@ -288,6 +301,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
 		Engine: orderbook_engine::{Module, Call, Storage, Event<T>},
+		ChainBridge: chainbridge::{Module, Call, Storage, Event<T>}
 	}
 );
 

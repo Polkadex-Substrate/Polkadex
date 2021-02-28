@@ -8,8 +8,9 @@ use frame_support::{
 };
 use frame_support::sp_std::fmt::Debug;
 use sp_runtime::traits::{AtLeast32BitUnsigned, StaticLookup, MaybeSerializeDeserialize, Member};
+use sp_core::U256;
 use sp_runtime::traits::Zero;
-
+use chainbridge::{ChainId, DepositNonce, ResourceId};
 use sp_runtime::traits::CheckedSub;
 use sp_runtime::traits::CheckedAdd;
 use polkadex_primitives::assets::AssetId;
@@ -22,7 +23,7 @@ mod banchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-pub trait Config: system::Config {
+pub trait Config: system::Config + chainbridge::Config{
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize;
     type WeightInfo: WeightInfo;
@@ -89,6 +90,19 @@ decl_module! {
 				Ok(())
 			})
 		})
+		}
+
+		/// Withdraw
+		#[weight = 1000]
+		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount_u256: U256) -> DispatchResult {
+		    let withdrawer = ensure_signed(origin)?;
+		    let amount = amount_u256.saturated_into::<T::Balance>(); // @gautham verify this
+            let asset_id: T::Hash = resource_id.using_encoded(T::Hash);
+		    <Balances<T>>::try_mutate(asset_id, withdrawer, |withdrawer_balance| -> DispatchResult {
+		        *withdrawer_balance = withdrawer_balance.checked_sub(&amount).ok_or(Error::<T>::InsufficientBalance)?;
+                chainbridge::Module::<T>::transfer_fungible(dest_id, resource_id, to, amount_u256);
+                Ok(())
+		    })
 		}
 	}
 }
