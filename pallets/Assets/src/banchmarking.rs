@@ -19,10 +19,10 @@ benchmarks! {
 		let asset_id = AssetId::POLKADEX;
 		let alice: T::AccountId = whitelisted_caller();
         let bob: T::AccountId = account("bob", 1, SEED);
-        set_balance::<T>(asset_id, &alice.clone(), 500.into());
+        set_balance::<T>(asset_id, &alice.clone(), T::Balance::from(500u32));
 		let recipient_lookup: <T::Lookup as StaticLookup>::Source = T::Lookup::unlookup(bob.clone());
 
-	}: _(RawOrigin::Signed(alice), asset_id, recipient_lookup, 100.into())
+	}: _(RawOrigin::Signed(alice), asset_id, recipient_lookup, T::Balance::from(100u32))
 }
 
 #[cfg(test)]

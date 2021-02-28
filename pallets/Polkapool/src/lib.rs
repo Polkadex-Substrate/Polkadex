@@ -86,8 +86,6 @@ decl_error! {
 		ZeroSupplyAmount,
 		/// The target amount is zero
 		ZeroTargetAmount,
-		/// Failed to convert T::Balance to FixedU128
-		FixedU128ConversionFailed,
 		///ProvidedAmountIsZero
 		ProvidedAmountIsZero,
 		///Insufficent Balance
@@ -193,11 +191,14 @@ decl_module! {
         ///
         ///  This function returns a status that, Liquidity is successfully inserted or not.
 
+
+
 		#[weight = 10000]
 		pub fn add_liquidity(origin, currency_id_a: T::Hash, currency_id_b: T::Hash,
-		                    #[compact] max_amount_a: T::Balance, #[compact] max_amount_b: T::Balance) -> dispatch::DispatchResult {
+		                    #[compact] max_amount_a: T::Balance, #[compact] max_amount_b: T::Balance,
+		                    lockup_period: T::BlockNumber) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_add_liquidity(&who, currency_id_a, currency_id_b, max_amount_a, max_amount_b)?;
+			Self::do_add_liquidity(&who, currency_id_a, currency_id_b, max_amount_a, max_amount_b, lockup_period)?;
 			Ok(())
 		}
 
@@ -322,7 +323,7 @@ impl<T: Config> Module<T> {
     fn get_target_amounts(path: &[T::Hash], supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> sp_std::result::Result<Vec<T::Balance>, Error<T>> {
         let path_length = path.len();
         ensure!(path_length >= 2 && path_length <= T::TradingPathLimit::get(), Error::<T>::InvalidTradingPathLength);
-        let mut target_amounts: Vec<FixedU128> = vec![0.into(); path_length];
+        let mut target_amounts: Vec<T::Balance> = vec![];
         target_amounts[0] = supply_amount;
 
         let mut i: usize = 0;
@@ -350,7 +351,7 @@ impl<T: Config> Module<T> {
         let path_length = path.len();
         ensure!(path_length >= 2 && path_length <= T::TradingPathLimit::get(), Error::<T>::InvalidTradingPathLength);
 
-        let mut supply_amounts: Vec<FixedU128> = vec![0; path_length];
+        let mut supply_amounts: Vec<T::Balance> = vec![];
         supply_amounts[path_length - 1] = target_amount;
 
         let mut i: usize = path_length - 1;
@@ -403,7 +404,9 @@ impl<T: Config> Module<T> {
         }
     }
     /// Adds Liquidity for specific swapping pair.
-    pub fn do_add_liquidity(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash, max_amount_a: T::Balance, max_amount_b: T::Balance) -> dispatch::DispatchResult {
+    pub fn do_add_liquidity(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash,
+                            max_amount_a: T::Balance, max_amount_b: T::Balance,
+                            lockup_period: T::BlockNumber) -> dispatch::DispatchResult {
         ensure!(!max_amount_a == 0.into() && !max_amount_b == 0.into(), Error::<T>::ProvidedAmountIsZero);
 
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
@@ -427,7 +430,7 @@ impl<T: Config> Module<T> {
 
                     if input_price_0_1 <= price_0_1 {
                         // max_amount_0 may be too much, calculate the actual amount_0
-                        let price_1_0: FixedU128 = pool_0.checked_div(pool_1).unwrap_or(0.into());
+                        let price_1_0: T::Balance = pool_0.checked_div(pool_1).unwrap_or(0.into());
                         let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(0.into());
                         let share_increment = amount_0.checked_div(pool_0).unwrap_or(0.into())
                             .checked_mul(pool_shares).unwrap_or(0.into());
@@ -472,8 +475,6 @@ impl<T: Config> Module<T> {
         if remove_share.is_zero() {
             return Ok(());
         }
-        let remove_share: FixedU128 = Self::convert_balance_to_fixedU128(remove_share).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
         ensure!(<LiquidityPool<T>>::contains_key(&trading_pair), Error::<T>::TradingPairNotAllowed);
         let original_share = <LiquidityPoolHoldings<T>>::get((who, trading_pair));
