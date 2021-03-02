@@ -423,7 +423,7 @@ impl<T: Config> Module<T> {
                         // max_amount_0 may be too much, calculate the actual amount_0
                         let price_1_0: T::Balance = pool_0.checked_div(pool_1).unwrap_or(T::Balance::zero());
                         let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(T::Balance::zero());
-                        let share_increment = amount_0.checked_div(pool_0).unwrap_or_else(|| T::Balance::zero())
+                        let share_increment = amount_0.checked_div(pool_0).unwrap_or(T::Balance::zero())
                             .checked_mul(pool_shares).unwrap_or(T::Balance::zero());
                         (amount_0, max_amount_1, share_increment)
                     } else {
