@@ -10,11 +10,12 @@ edition = "2018"
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
 serde = { version = "1.0.101", optional = true }
 sp-core = { version = "3.0.0", default-features = false }
-
+chainbridge = {path = "../pallets/chainbridge", default-features = false}
 [features]
 default = ["std"]
 std = [
     "serde",
     "codec/std",
-    "sp-core/std"
+    "sp-core/std",
+    "chainbridge/std"
 ]

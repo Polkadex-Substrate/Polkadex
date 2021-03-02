@@ -12,6 +12,7 @@ use sp_core::U256;
 use sp_runtime::traits::Zero;
 use chainbridge::{ChainId, DepositNonce, ResourceId};
 use sp_runtime::traits::CheckedSub;
+use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::CheckedAdd;
 use polkadex_primitives::assets::AssetId;
 #[cfg(test)]
@@ -94,13 +95,14 @@ decl_module! {
 
 		/// Withdraw
 		#[weight = 1000]
-		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount_u256: U256) -> DispatchResult {
+		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount: u128) -> DispatchResult {
 		    let withdrawer = ensure_signed(origin)?;
-		    let amount = amount_u256.saturated_into::<T::Balance>(); // @gautham verify this
-            let asset_id: T::Hash = resource_id.using_encoded(T::Hash);
+		    let amount_u256 = U256::from(amount);
+		    let amount: T::Balance = amount.saturated_into::<T::Balance>();
+            let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
 		    <Balances<T>>::try_mutate(asset_id, withdrawer, |withdrawer_balance| -> DispatchResult {
 		        *withdrawer_balance = withdrawer_balance.checked_sub(&amount).ok_or(Error::<T>::InsufficientBalance)?;
-                chainbridge::Module::<T>::transfer_fungible(dest_id, resource_id, to, amount_u256);
+                chainbridge::Module::<T>::transfer_fungible(dest_id, resource_id, to, amount_u256)?;
                 Ok(())
 		    })
 		}
