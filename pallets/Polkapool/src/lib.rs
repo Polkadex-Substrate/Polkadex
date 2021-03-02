@@ -1,12 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter, sp_std};
 use frame_support::dispatch::DispatchResult;
 use frame_support::sp_std::fmt::Debug;
 use frame_support::traits::Get;
 use frame_system::ensure_signed;
-use sp_arithmetic::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul, };
+use sp_arithmetic::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul, SaturatedConversion};
 use sp_runtime::ModuleId;
-use sp_runtime::traits::{AccountIdConversion, MaybeSerializeDeserialize, Member, Saturating, Zero};
+use sp_runtime::traits::{AccountIdConversion, MaybeSerializeDeserialize, Member, Saturating, Zero, One};
 use sp_std::vec;
 use sp_std::vec::Vec;
 
@@ -15,6 +16,8 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
+
+const WEIGHT_PER_DAY: u128 = 100;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -248,7 +251,6 @@ impl<T: Config> Module<T> {
 
     /// Swaps with Exact target amount.
     pub fn do_swap_with_exact_target(who: &T::AccountId, path: &Vec<T::Hash>, target_amount: T::Balance, max_supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> DispatchResult {
-
         let amounts = Self::get_supply_amounts(&path, target_amount, price_impact_limit)?;
         ensure!(amounts[0] <= max_supply_amount, Error::<T>::ExcessiveSupplyAmount);
         let module_account_id = Self::get_wallet_account();
@@ -275,19 +277,19 @@ impl<T: Config> Module<T> {
 
     /// Get how much target amount will be got for specific supply amount and price impact.
     fn get_target_amount(supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance) -> T::Balance {
-        if supply_amount.is_zero()  || supply_pool.is_zero() || target_pool.is_zero() {
-            T::Balance::from(0u8)
+        if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
+            T::Balance::zero()
         } else {
             let swap_fee: T::Balance = SwappingFee::<T>::get();
-            let fee_term: T::Balance = T::Balance::from(1u8).saturating_sub(swap_fee);
+            let fee_term: T::Balance = T::Balance::one().saturating_sub(swap_fee);
 
-            let fee_reduced_supply_amount: T::Balance  = supply_amount.saturating_mul(fee_term);
+            let fee_reduced_supply_amount: T::Balance = supply_amount.saturating_mul(fee_term);
 
-            let numerator: T::Balance  = target_pool.saturating_mul(fee_reduced_supply_amount);  // product makes this value too low
+            let numerator: T::Balance = target_pool.saturating_mul(fee_reduced_supply_amount);  // product makes this value too low
 
-            let denominator: T::Balance  = supply_pool.saturating_add(fee_reduced_supply_amount.clone());
+            let denominator: T::Balance = supply_pool.saturating_add(fee_reduced_supply_amount.clone());
 
-            let target_amount: T::Balance  = numerator.checked_div(&denominator).unwrap_or(T::Balance::zero());
+            let target_amount: T::Balance = numerator.checked_div(&denominator).unwrap_or(T::Balance::zero());
 
             target_amount
         }
@@ -300,7 +302,7 @@ impl<T: Config> Module<T> {
         } else {
             let swap_fee: T::Balance = SwappingFee::<T>::get();
             let numerator: T::Balance = target_amount.saturating_mul(supply_pool);
-            let fee_term: T::Balance = T::Balance::from(1u8).saturating_sub(swap_fee);
+            let fee_term: T::Balance = T::Balance::one().saturating_sub(swap_fee);
             let sub: T::Balance = target_pool.saturating_sub(target_amount);
             let denominator: T::Balance = sub.saturating_mul(fee_term);
 
@@ -398,7 +400,7 @@ impl<T: Config> Module<T> {
                             lockup_period: T::BlockNumber) -> dispatch::DispatchResult {
         ensure!(!max_amount_a.is_zero() && !max_amount_b.is_zero(), Error::<T>::ProvidedAmountIsZero);
 
-        let trading_pair: (T::Hash, T::Hash)  = Self::get_pair(currency_id_a, currency_id_b);
+        let trading_pair: (T::Hash, T::Hash) = Self::get_pair(currency_id_a, currency_id_b);
 
         <LiquidityPool<T>>::try_mutate(trading_pair, |(pool_0, pool_1, pool_shares)| -> dispatch::DispatchResult {
             let (max_amount_0, max_amount_1) = if currency_id_a == trading_pair.0 {
@@ -421,7 +423,7 @@ impl<T: Config> Module<T> {
                         // max_amount_0 may be too much, calculate the actual amount_0
                         let price_1_0: T::Balance = pool_0.checked_div(pool_1).unwrap_or(T::Balance::zero());
                         let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(T::Balance::zero());
-                        let share_increment = amount_0.checked_div(pool_0).unwrap_or_else(||T::Balance::zero())
+                        let share_increment = amount_0.checked_div(pool_0).unwrap_or_else(|| T::Balance::zero())
                             .checked_mul(pool_shares).unwrap_or(T::Balance::zero());
                         (amount_0, max_amount_1, share_increment)
                     } else {
@@ -439,8 +441,21 @@ impl<T: Config> Module<T> {
             //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.0, &pool_0_increment_converted, ExistenceRequirement::AllowDeath)?;
             //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.1, &pool_1_increment_converted, ExistenceRequirement::AllowDeath)?;
 
+            let lockup_period_days =
+                lockup_period.checked_mul(&T::BlockNumber::from(6u32))
+                    .unwrap_or(T::BlockNumber::zero())
+                    .checked_div(&T::BlockNumber::from(86400u32))
+                    .unwrap_or(T::BlockNumber::zero());
+
+            let days_in_balance: T::Balance = Self::block_to_balance(lockup_period_days);
+
+            let converted_share_increment =
+                days_in_balance.checked_mul(&WEIGHT_PER_DAY.saturated_into::<T::Balance>())
+                    .unwrap_or(T::Balance::zero())
+                    .checked_mul(&share_increment)
+                    .unwrap_or(T::Balance::zero());
             <LiquidityPoolHoldings<T>>::try_mutate((who, trading_pair), |lp_shares| -> dispatch::DispatchResult {
-                *lp_shares = lp_shares.saturating_add(share_increment);
+                *lp_shares = lp_shares.saturating_add(converted_share_increment);
                 Ok(())
             })?;
 
@@ -459,6 +474,11 @@ impl<T: Config> Module<T> {
             Ok(())
         })
     }
+
+    fn block_to_balance(input: T::BlockNumber) -> T::Balance {
+        T::Balance::from(input.saturated_into::<u32>())
+    }
+
     /// Removes liquidity for specific trading pair.
     pub fn do_remove_liquidity(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash, remove_share: T::Balance) -> DispatchResult {
         if remove_share.is_zero() {
