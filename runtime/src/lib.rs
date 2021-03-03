@@ -278,6 +278,7 @@ impl orderbook_engine::Config for Runtime{
 }
 
 impl assets::Config for Runtime{
+	type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
 	type Event = Event;
 	type Balance = Balance;
 	type WeightInfo = assets::weights::SubstrateWeight<Runtime>;

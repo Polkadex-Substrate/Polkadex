@@ -5,6 +5,7 @@ use frame_system::{self as system, ensure_signed};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult, Parameter,
+    traits::EnsureOrigin
 };
 use frame_support::sp_std::fmt::Debug;
 use sp_runtime::traits::{AtLeast32BitUnsigned, StaticLookup, MaybeSerializeDeserialize, Member};
@@ -25,6 +26,7 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 pub trait Config: system::Config + chainbridge::Config{
+    type BridgeOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize;
     type WeightInfo: WeightInfo;
@@ -95,13 +97,25 @@ decl_module! {
 
 		/// Withdraw
 		#[weight = 1000]
-		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount: u128) -> DispatchResult {
+		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount: T::Balance) -> DispatchResult {
 		    let withdrawer = ensure_signed(origin)?;
-		    let amount_u256 = U256::from(amount);
-		    let amount: T::Balance = amount.saturated_into::<T::Balance>();
-            let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
+		    let amount_u256 = U256::from(amount.saturated_into::<u128>());
+	        let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
 		    <Balances<T>>::try_mutate(asset_id, withdrawer, |withdrawer_balance| -> DispatchResult {
 		        *withdrawer_balance = withdrawer_balance.checked_sub(&amount).ok_or(Error::<T>::InsufficientBalance)?;
+                chainbridge::Module::<T>::transfer_fungible(dest_id, resource_id, to, amount_u256)?;
+                Ok(())
+		    })
+		}
+
+		/// Minting
+		#[weight = 1000]
+		pub fn minting(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount: T::Balance) -> DispatchResult {
+		    let source = T::BridgeOrigin::ensure_origin(origin)?;
+		    let amount_u256 = U256::from(amount.saturated_into::<u128>());
+	        let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
+		    <Balances<T>>::try_mutate(asset_id, source, |mint_balance| -> DispatchResult {
+		        *mint_balance = mint_balance.checked_add(&amount).ok_or(Error::<T>::BalanceOverflow)?;
                 chainbridge::Module::<T>::transfer_fungible(dest_id, resource_id, to, amount_u256)?;
                 Ok(())
 		    })
