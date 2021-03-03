@@ -99,6 +99,7 @@ decl_module! {
 		#[weight = 1000]
 		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount: T::Balance) -> DispatchResult {
 		    let withdrawer = ensure_signed(origin)?;
+		    // TODO: Verify withdrawer
 		    let amount_u256 = U256::from(amount.saturated_into::<u128>());
 	        let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
 		    <Balances<T>>::try_mutate(asset_id, withdrawer, |withdrawer_balance| -> DispatchResult {
@@ -110,13 +111,11 @@ decl_module! {
 
 		/// Minting
 		#[weight = 1000]
-		pub fn minting(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount: T::Balance) -> DispatchResult {
+		pub fn minting(origin, recipient: T::AccountId, resource_id: ResourceId, amount: T::Balance) -> DispatchResult {
 		    let source = T::BridgeOrigin::ensure_origin(origin)?;
-		    let amount_u256 = U256::from(amount.saturated_into::<u128>());
 	        let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
-		    <Balances<T>>::try_mutate(asset_id, source, |mint_balance| -> DispatchResult {
+		    <Balances<T>>::try_mutate(asset_id, recipient, |mint_balance| -> DispatchResult {
 		        *mint_balance = mint_balance.checked_add(&amount).ok_or(Error::<T>::BalanceOverflow)?;
-                chainbridge::Module::<T>::transfer_fungible(dest_id, resource_id, to, amount_u256)?;
                 Ok(())
 		    })
 		}
