@@ -27,7 +27,7 @@ benchmarks! {
 	        nonce: 0,
             assets: btree_map::BTreeMap::new()
 	    };
-	    let maker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::BidLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
+	    let maker_msg = (T::Balance::from(128u32), T::Balance::from(12u32), OrderType::BidLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
 	    Traders::<T>::insert(&maker, maker_acc);
 
 	    // Credit Taker Account
@@ -37,12 +37,12 @@ benchmarks! {
 	        nonce: 0,
             assets: btree_map::BTreeMap::new()
 	    };
-	    let taker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::AskLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
+	    let taker_msg = (T::Balance::from(128u32), T::Balance::from(12u32), OrderType::AskLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
 	    Traders::<T>::insert(&taker, taker_acc);
 
 	    let maker_order = Order{
-	    price: T::Balance::from(128),
-        quantity: T::Balance::from(12),
+	    price: T::Balance::from(128u32),
+        quantity: T::Balance::from(12u32),
         order_type: OrderType::BidLimit,
         trader: maker,
         nonce: 0,
@@ -51,8 +51,8 @@ benchmarks! {
 	    };
 
 	    let taker_order = Order{
-	    price: T::Balance::from(128),
-        quantity: T::Balance::from(12),
+	    price: T::Balance::from(128u32),
+        quantity: T::Balance::from(12u32),
         order_type: OrderType::AskLimit,
         trader: taker,
         nonce:0,

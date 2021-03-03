@@ -1,27 +1,23 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, sp_std, Parameter};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter, sp_std};
 use frame_support::dispatch::DispatchResult;
-
-use frame_support::sp_std::convert::TryInto;
 use frame_support::sp_std::fmt::Debug;
-use frame_support::traits::{ExistenceRequirement, Get};
+use frame_support::traits::Get;
 use frame_system::ensure_signed;
-use sp_arithmetic::FixedPointNumber;
-use sp_arithmetic::traits::{CheckedDiv, CheckedMul, UniqueSaturatedFrom, AtLeast32BitUnsigned, };
-use sp_std::vec::Vec;
-use sp_runtime::{ ModuleId};
+use sp_arithmetic::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul, SaturatedConversion};
+use sp_runtime::ModuleId;
+use sp_runtime::traits::{AccountIdConversion, MaybeSerializeDeserialize, Member, Saturating, Zero, One};
 use sp_std::vec;
-use sp_runtime::traits::{MaybeSerializeDeserialize, AccountIdConversion, Saturating, Zero, Member};
-
-
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
+
+const WEIGHT_PER_DAY: u128 = 100;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -33,8 +29,6 @@ pub trait Config: frame_system::Config {
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize + sp_runtime::FixedPointOperand + sp_runtime::traits::Saturating;
 }
 
-
-
 decl_storage! {
 
 	trait Store for Module<T: Config> as PolkadexSwapEngine {
@@ -44,7 +38,7 @@ decl_storage! {
 		/// LPShare holdings
 		LiquidityPoolHoldings get(fn holdings): map hasher(identity) (T::AccountId,(T::Hash,T::Hash)) => T::Balance;
 		/// Swapping Fee FIXME: This is not correct
-		SwappingFee: T::Balance = 3.into();
+		SwappingFee: T::Balance = T::Balance::from(3u32);
 	}
 }
 
@@ -86,8 +80,6 @@ decl_error! {
 		ZeroSupplyAmount,
 		/// The target amount is zero
 		ZeroTargetAmount,
-		/// Failed to convert T::Balance to FixedU128
-		FixedU128ConversionFailed,
 		///ProvidedAmountIsZero
 		ProvidedAmountIsZero,
 		///Insufficent Balance
@@ -193,11 +185,14 @@ decl_module! {
         ///
         ///  This function returns a status that, Liquidity is successfully inserted or not.
 
+
+
 		#[weight = 10000]
 		pub fn add_liquidity(origin, currency_id_a: T::Hash, currency_id_b: T::Hash,
-		                    #[compact] max_amount_a: T::Balance, #[compact] max_amount_b: T::Balance) -> dispatch::DispatchResult {
+		                    #[compact] max_amount_a: T::Balance, #[compact] max_amount_b: T::Balance,
+		                    lockup_period: T::BlockNumber) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_add_liquidity(&who, currency_id_a, currency_id_b, max_amount_a, max_amount_b)?;
+			Self::do_add_liquidity(&who, currency_id_a, currency_id_b, max_amount_a, max_amount_b, lockup_period)?;
 			Ok(())
 		}
 
@@ -233,7 +228,7 @@ impl<T: Config> Module<T> {
 
     /// Registers new Swap Pair and insert liquidity.
     pub fn do_register_swap_pair(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash, currency_id_a_amount: T::Balance, currency_id_b_amount: T::Balance) -> DispatchResult {
-
+        Ok(())
     }
 
     /// Swaps supply amount for amount less then Minimum target amount.
@@ -256,7 +251,6 @@ impl<T: Config> Module<T> {
 
     /// Swaps with Exact target amount.
     pub fn do_swap_with_exact_target(who: &T::AccountId, path: &Vec<T::Hash>, target_amount: T::Balance, max_supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> DispatchResult {
-
         let amounts = Self::get_supply_amounts(&path, target_amount, price_impact_limit)?;
         ensure!(amounts[0] <= max_supply_amount, Error::<T>::ExcessiveSupplyAmount);
         let module_account_id = Self::get_wallet_account();
@@ -283,21 +277,19 @@ impl<T: Config> Module<T> {
 
     /// Get how much target amount will be got for specific supply amount and price impact.
     fn get_target_amount(supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance) -> T::Balance {
-        if supply_amount ==  0.into() || supply_pool ==  0.into() || target_pool ==  0.into() {
-            0.into()
+        if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
+            T::Balance::zero()
         } else {
-            let swap_fee: T::Balance = SwappingFee::get();
-            let fee_term: T::Balance = 1.saturating_sub(swap_fee);
+            let swap_fee: T::Balance = SwappingFee::<T>::get();
+            let fee_term: T::Balance = T::Balance::one().saturating_sub(swap_fee);
 
-            let fee_reduced_supply_amount: T::Balance  = supply_amount.saturating_mul(fee_term);
+            let fee_reduced_supply_amount: T::Balance = supply_amount.saturating_mul(fee_term);
 
-            let numerator: T::Balance  = target_pool.saturating_mul(fee_reduced_supply_amount);  // product makes this value too low
+            let numerator: T::Balance = target_pool.saturating_mul(fee_reduced_supply_amount);  // product makes this value too low
 
+            let denominator: T::Balance = supply_pool.saturating_add(fee_reduced_supply_amount.clone());
 
-            let denominator: T::Balance  = supply_pool.saturating_add(fee_reduced_supply_amount.clone());
-
-            let target_amount: T::Balance  = numerator.checked_div(&denominator)
-                .unwrap_or_else(0);
+            let target_amount: T::Balance = numerator.checked_div(&denominator).unwrap_or(T::Balance::zero());
 
             target_amount
         }
@@ -305,16 +297,16 @@ impl<T: Config> Module<T> {
 
     /// Get supply amount paid for specific target amount.
     fn get_supply_amount(supply_pool: T::Balance, target_pool: T::Balance, target_amount: T::Balance) -> T::Balance {
-        if supply_amount ==  0.into() || supply_pool ==  0.into() || target_pool ==  0.into() {
-            0.into()
+        if target_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
+            T::Balance::zero()
         } else {
-            let swap_fee: T::Balance = SwappingFee::get();
+            let swap_fee: T::Balance = SwappingFee::<T>::get();
             let numerator: T::Balance = target_amount.saturating_mul(supply_pool);
-            let fee_term: T::Balance = 1.saturating_sub(swap_fee);
+            let fee_term: T::Balance = T::Balance::one().saturating_sub(swap_fee);
             let sub: T::Balance = target_pool.saturating_sub(target_amount);
             let denominator: T::Balance = sub.saturating_mul(fee_term);
 
-            let supply_amount: T::Balance = numerator.checked_div(&denominator).unwrap_or_else(0);
+            let supply_amount: T::Balance = numerator.checked_div(&denominator).unwrap_or(T::Balance::zero());
             supply_amount
         }
     }
@@ -322,7 +314,7 @@ impl<T: Config> Module<T> {
     fn get_target_amounts(path: &[T::Hash], supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> sp_std::result::Result<Vec<T::Balance>, Error<T>> {
         let path_length = path.len();
         ensure!(path_length >= 2 && path_length <= T::TradingPathLimit::get(), Error::<T>::InvalidTradingPathLength);
-        let mut target_amounts: Vec<FixedU128> = vec![0.into(); path_length];
+        let mut target_amounts: Vec<T::Balance> = vec![];
         target_amounts[0] = supply_amount;
 
         let mut i: usize = 0;
@@ -335,7 +327,7 @@ impl<T: Config> Module<T> {
 
             // check price impact if limit exists
             if let Some(limit) = price_impact_limit {
-                let price_impact = target_amount.checked_div(&target_pool).unwrap_or_else(0.into());
+                let price_impact = target_amount.checked_div(&target_pool).unwrap_or(T::Balance::zero());
                 ensure!(price_impact <= limit, Error::<T>::ExceedPriceImpactLimit);
             }
 
@@ -350,7 +342,7 @@ impl<T: Config> Module<T> {
         let path_length = path.len();
         ensure!(path_length >= 2 && path_length <= T::TradingPathLimit::get(), Error::<T>::InvalidTradingPathLength);
 
-        let mut supply_amounts: Vec<FixedU128> = vec![0; path_length];
+        let mut supply_amounts: Vec<T::Balance> = vec![];
         supply_amounts[path_length - 1] = target_amount;
 
         let mut i: usize = path_length - 1;
@@ -364,7 +356,7 @@ impl<T: Config> Module<T> {
 
             // check price impact if limit exists
             if let Some(limit) = price_impact_limit {
-                let price_impact = supply_amounts[i].checked_div(&target_pool).unwrap_or_else(0.into());
+                let price_impact = supply_amounts[i].checked_div(&target_pool).unwrap_or(T::Balance::zero());
                 ensure!(price_impact <= limit, Error::<T>::ExceedPriceImpactLimit);
             };
 
@@ -403,10 +395,12 @@ impl<T: Config> Module<T> {
         }
     }
     /// Adds Liquidity for specific swapping pair.
-    pub fn do_add_liquidity(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash, max_amount_a: T::Balance, max_amount_b: T::Balance) -> dispatch::DispatchResult {
-        ensure!(!max_amount_a == 0.into() && !max_amount_b == 0.into(), Error::<T>::ProvidedAmountIsZero);
+    pub fn do_add_liquidity(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash,
+                            max_amount_a: T::Balance, max_amount_b: T::Balance,
+                            lockup_period: T::BlockNumber) -> dispatch::DispatchResult {
+        ensure!(!max_amount_a.is_zero() && !max_amount_b.is_zero(), Error::<T>::ProvidedAmountIsZero);
 
-        let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
+        let trading_pair: (T::Hash, T::Hash) = Self::get_pair(currency_id_a, currency_id_b);
 
         <LiquidityPool<T>>::try_mutate(trading_pair, |(pool_0, pool_1, pool_shares)| -> dispatch::DispatchResult {
             let (max_amount_0, max_amount_1) = if currency_id_a == trading_pair.0 {
@@ -416,39 +410,52 @@ impl<T: Config> Module<T> {
             };
 
             let (pool_0_increment, pool_1_increment, share_increment): (T::Balance, T::Balance, T::Balance) =
-                if pool_shares == 0.into() {
+                if pool_shares.is_zero() {
                     // initialize this liquidity pool, the initial share is equal to the max value
                     // between base currency amount and other currency amount
                     let initial_share = sp_std::cmp::max(max_amount_0, max_amount_1);
                     (max_amount_0.clone(), max_amount_1.clone(), initial_share)
                 } else {
-                    let price_0_1 = pool_1.checked_div(&pool_0).unwrap_or(0.into());
-                    let input_price_0_1 = max_amount_1.checked_div(&max_amount_0).unwrap_or(0.into());
+                    let price_0_1 = pool_1.checked_div(&pool_0).unwrap_or(T::Balance::zero());
+                    let input_price_0_1 = max_amount_1.checked_div(&max_amount_0).unwrap_or(T::Balance::zero());
 
                     if input_price_0_1 <= price_0_1 {
                         // max_amount_0 may be too much, calculate the actual amount_0
-                        let price_1_0: FixedU128 = pool_0.checked_div(pool_1).unwrap_or(0.into());
-                        let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(0.into());
-                        let share_increment = amount_0.checked_div(pool_0).unwrap_or(0.into())
-                            .checked_mul(pool_shares).unwrap_or(0.into());
+                        let price_1_0: T::Balance = pool_0.checked_div(pool_1).unwrap_or(T::Balance::zero());
+                        let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(T::Balance::zero());
+                        let share_increment = amount_0.checked_div(pool_0).unwrap_or(T::Balance::zero())
+                            .checked_mul(pool_shares).unwrap_or(T::Balance::zero());
                         (amount_0, max_amount_1, share_increment)
                     } else {
                         // max_amount_1 is too much, calculate the actual amount_1
-                        let amount_1 = price_0_1.checked_mul(&max_amount_0).unwrap_or(0.into());
-                        let share_increment = amount_1.checked_div(pool_1).unwrap_or(0.into())
+                        let amount_1 = price_0_1.checked_mul(&max_amount_0).unwrap_or(T::Balance::zero());
+                        let share_increment = amount_1.checked_div(pool_1).unwrap_or(T::Balance::zero())
                             .checked_mul(pool_shares)
-                            .unwrap_or(0.into());
+                            .unwrap_or(T::Balance::zero());
                         (max_amount_0, amount_1, share_increment)
                     }
                 };
-            ensure!(!share_increment==0.into() && !pool_0_increment==0.into() && !pool_1_increment==0.into(), Error::<T>::InvalidLiquidityIncrement);
+            ensure!(!share_increment.is_zero() && !pool_0_increment.is_zero() && !pool_1_increment.is_zero(), Error::<T>::InvalidLiquidityIncrement);
             let swap_wallet_account = Self::get_wallet_account();
 
             //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.0, &pool_0_increment_converted, ExistenceRequirement::AllowDeath)?;
             //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.1, &pool_1_increment_converted, ExistenceRequirement::AllowDeath)?;
 
+            let lockup_period_days =
+                lockup_period.checked_mul(&T::BlockNumber::from(6u32))
+                    .unwrap_or(T::BlockNumber::zero())
+                    .checked_div(&T::BlockNumber::from(86400u32))
+                    .unwrap_or(T::BlockNumber::zero());
+
+            let days_in_balance: T::Balance = Self::block_to_balance(lockup_period_days);
+
+            let converted_share_increment =
+                days_in_balance.checked_mul(&WEIGHT_PER_DAY.saturated_into::<T::Balance>())
+                    .unwrap_or(T::Balance::zero())
+                    .checked_mul(&share_increment)
+                    .unwrap_or(T::Balance::zero());
             <LiquidityPoolHoldings<T>>::try_mutate((who, trading_pair), |lp_shares| -> dispatch::DispatchResult {
-                *lp_shares = lp_shares.saturating_add(share_increment);
+                *lp_shares = lp_shares.saturating_add(converted_share_increment);
                 Ok(())
             })?;
 
@@ -467,20 +474,23 @@ impl<T: Config> Module<T> {
             Ok(())
         })
     }
+
+    fn block_to_balance(input: T::BlockNumber) -> T::Balance {
+        T::Balance::from(input.saturated_into::<u32>())
+    }
+
     /// Removes liquidity for specific trading pair.
     pub fn do_remove_liquidity(who: &T::AccountId, currency_id_a: T::Hash, currency_id_b: T::Hash, remove_share: T::Balance) -> DispatchResult {
         if remove_share.is_zero() {
             return Ok(());
         }
-        let remove_share: FixedU128 = Self::convert_balance_to_fixedU128(remove_share).ok_or(Error::<T>::FixedU128ConversionFailed)?;
-
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
         ensure!(<LiquidityPool<T>>::contains_key(&trading_pair), Error::<T>::TradingPairNotAllowed);
         let original_share = <LiquidityPoolHoldings<T>>::get((who, trading_pair));
         ensure!(remove_share <= original_share, Error::<T>::LowShare);
 
         <LiquidityPool<T>>::try_mutate(trading_pair, |(pool_0, pool_1, pool_shares)| -> dispatch::DispatchResult {
-            let proportion = remove_share.checked_div(pool_shares).unwrap_or(0);
+            let proportion = remove_share.checked_div(pool_shares).unwrap_or(T::Balance::zero());
             let pool_0_decrement = proportion.saturating_mul(*pool_0);
             let pool_1_decrement = proportion.saturating_mul(*pool_1);
             let swap_wallet_account = Self::get_wallet_account();

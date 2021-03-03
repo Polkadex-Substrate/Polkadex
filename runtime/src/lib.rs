@@ -271,6 +271,17 @@ impl assets::Config for Runtime{
 
 }
 
+parameter_types! {
+	pub const TradingPathLimit: usize = 4;
+}
+
+impl polkapool::Config for Runtime{
+	type Event = Event;
+	type Balance = Balance;
+	type TradingPathLimit = TradingPathLimit;
+
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -288,6 +299,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
 		Engine: orderbook_engine::{Module, Call, Storage, Event<T>},
+		Polkapool: polkapool::{Module, Call, Storage, Event<T>},
 	}
 );
 
