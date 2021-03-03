@@ -14,6 +14,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 
 orderbook-engine = { path = "../pallets/Engine", version = "0.1.0", default-features = false }
+polkapool = { path = "../pallets/Polkapool", version = "0.1.0", default-features = false }
 assets = { path = "../pallets/Assets", version = "0.1.0", default-features = false }
 pallet-aura = { version = "3.0.0", default-features = false }
 pallet-balances = { version = "3.0.0", default-features = false }
@@ -79,7 +80,8 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "assets/std",
-    "orderbook-engine/std"
+    "orderbook-engine/std",
+    "polkapool/std"
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
