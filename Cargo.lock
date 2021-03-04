@@ -4392,6 +4392,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "polkadex-primitives",
  "sp-arithmetic",
  "sp-core",
  "sp-io",
