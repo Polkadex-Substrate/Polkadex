@@ -21,13 +21,11 @@ mod tests;
 const WEIGHT_PER_DAY: u128 = 100;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Config: frame_system::Config {
+pub trait Config: frame_system::Config + assets::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// Maximum Trading Path limit
     type TradingPathLimit: Get<usize>;
-    /// Balance
-    type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize + sp_runtime::FixedPointOperand + sp_runtime::traits::Saturating;
 }
 
 decl_storage! {
@@ -260,12 +258,11 @@ impl<T: Config> Module<T> {
 
         let actual_target_amount = amounts[amounts.len() - 1];
 
-        // TODO: @Krishna Please take care of results from the transfers, ensure it's not error
-        //polkadex_custom_assets::Module::<T>::transfer(who, &module_account_id, path[0], &supply_amount_converted, ExistenceRequirement::AllowDeath)?;
+        assets::Module::<T>::transfer(who, path[0], &module_account_id, supply_amount.clone())?;
         Self::_swap_by_path(&path, &amounts);
-        //polkadex_custom_assets::Module::<T>::transfer(&module_account_id, who, path[path.len() - 1], &actual_target_amount_converted, ExistenceRequirement::AllowDeath)?;
+        assets::Module::<T>::transfer(module_account_id, path[path.len() - 1], &who, actual_target_amount.clone())?;
 
-        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), supply_amount.clone(), actual_target_amount));
+        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), supply_amount, actual_target_amount));
 
         Ok(())
     }
@@ -277,12 +274,11 @@ impl<T: Config> Module<T> {
         let module_account_id = Self::get_wallet_account();
         let actual_supply_amount = amounts[0];
 
-        // TODO: @Krishna Please take care of results from the transfers, ensure it's not error
-        //polkadex_custom_assets::Module::<T>::transfer(who, &module_account_id, path[0], &actual_supply_amount_converted, ExistenceRequirement::AllowDeath)?;
+        //assets::Module::<T>::transfer(who, path[0], &module_account_id, actual_supply_amount.clone())?;
         Self::_swap_by_path(&path, &amounts);
-        //polkadex_custom_assets::Module::<T>::transfer(&module_account_id, who, path[path.len() - 1], &target_amount_converted, ExistenceRequirement::AllowDeath)?;
+        //assets::Module::<T>::transfer(module_account_id, path[path.len() - 1], &who, target_amount.clone())?;
 
-        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), actual_supply_amount, target_amount.clone()));
+        Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), actual_supply_amount, target_amount));
         Ok(())
     }
 
@@ -296,13 +292,36 @@ impl<T: Config> Module<T> {
         }
     }
 
+/*    Swap functions work the same but if a trader is swapping ABC → XYZ,
+he will pay the fees (0.3%) in ABC where the 0.25% is put into the pool and the remaining 0.05% ABC
+will be converted into PDEX from the pool (ABC, PDEX)) and burned if total tokens burned in a given block is less than 125 PDEX else paid to treasury.
+
+(abc) -> (xyz)
+.25 -> abc>Pool
+0.05 -> abc->pdex
+
+(abc) ->pdex
+.25 -> abc->pdex
+0.05 -> abc->pdex
+0.25 + 0.05 =0.3
+
+*/
     /// Get how much target amount will be got for specific supply amount and price impact.
-    fn get_target_amount(supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance) -> T::Balance {
+    fn get_target_amount(supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance, currency_id_a: AssetId) -> T::Balance {
         if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
             T::Balance::zero()
         } else {
-            let swap_fee: T::Balance = SwappingFee::<T>::get();
-            let fee_term: T::Balance = T::Balance::one().saturating_sub(swap_fee);
+            let swap_fee: T::Balance = SwappingFee::<T>::get();//.3%
+            let pool_fee: T::Balance = swap_fee.saturating_sub(
+                T::Balance::from(5u32).checked_div(&T::Balance::from(100u32))
+                    .unwrap_or(T::Balance::zero())); //.25%
+            let pdex_fee: T::Balance = swap_fee.saturating_sub(pool_fee);//.05%
+            let path: Vec<AssetId> =  vec![currency_id_a, AssetId::POLKADEX];
+
+            Self::_swap_by_path(&path, &vec![supply_amount.saturating_mul(pdex_fee)]);
+
+
+            let fee_term: T::Balance = T::Balance::one().saturating_sub(pool_fee);
 
             let fee_reduced_supply_amount: T::Balance = supply_amount.saturating_mul(fee_term);
 
@@ -343,7 +362,7 @@ impl<T: Config> Module<T> {
             ensure!(LiquidityPool::<T>::contains_key(Self::get_pair(path[i],path[i+1])),Error::<T>::TradingPairNotAllowed);
             let (supply_pool, target_pool) = Self::get_liquidity(path[i], path[i + 1]);
             ensure!(!supply_pool.is_zero() && !target_pool.is_zero(),Error::<T>::InsufficientLiquidity);
-            let target_amount = Self::get_target_amount(supply_pool, target_pool, target_amounts[i]);
+            let target_amount = Self::get_target_amount(supply_pool, target_pool, target_amounts[i], path[i]);
             ensure!(!target_amount.is_zero(), Error::<T>::ZeroTargetAmount);
 
             // check price impact if limit exists
@@ -459,8 +478,8 @@ impl<T: Config> Module<T> {
             ensure!(!share_increment.is_zero() && !pool_0_increment.is_zero() && !pool_1_increment.is_zero(), Error::<T>::InvalidLiquidityIncrement);
             let swap_wallet_account = Self::get_wallet_account();
 
-            //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.0, &pool_0_increment_converted, ExistenceRequirement::AllowDeath)?;
-            //polkadex_custom_assets::Module::<T>::transfer(who, &swap_wallet_account, trading_pair.1, &pool_1_increment_converted, ExistenceRequirement::AllowDeath)?;
+            //assets::Module::<T>::transfer(who, trading_pair.0, &swap_wallet_account, pool_0_increment)?;
+            //assets::Module::<T>::transfer(who, trading_pair.1, &swap_wallet_account, pool_1_increment)?;
 
             let lockup_period_days =
                 lockup_period.checked_mul(&T::BlockNumber::from(6u32))
@@ -516,8 +535,8 @@ impl<T: Config> Module<T> {
             let pool_1_decrement = proportion.saturating_mul(*pool_1);
             let swap_wallet_account = Self::get_wallet_account();
 
-            //polkadex_custom_assets::Module::<T>::transfer(&swap_wallet_account, &who, trading_pair.0, &pool_0_decrement_converted, ExistenceRequirement::KeepAlive)?;
-            //polkadex_custom_assets::Module::<T>::transfer(&swap_wallet_account, &who, trading_pair.1, &pool_1_decrement_converted, ExistenceRequirement::KeepAlive)?;
+            //assets::Module::<T>::transfer(swap_wallet_account.clone(), trading_pair.0, &who, pool_0_decrement)?;
+            //assets::Module::<T>::transfer(swap_wallet_account, trading_pair.1, &who, pool_1_decrement)?;
 
             *pool_0 = pool_0.saturating_sub(pool_0_decrement);
             *pool_1 = pool_1.saturating_sub(pool_1_decrement);

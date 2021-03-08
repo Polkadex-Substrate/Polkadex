@@ -4389,6 +4389,7 @@ dependencies = [
 name = "polkapool"
 version = "0.1.0"
 dependencies = [
+ "assets",
  "frame-support",
  "frame-system",
  "parity-scale-codec",

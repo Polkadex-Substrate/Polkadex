@@ -23,6 +23,7 @@ sp-runtime = {   version = '3.0.0',default-features = false }
 sp-arithmetic = {   version = '3.0.0',default-features = false }
 sp-core = {   version = '3.0.0',default-features = false }
 polkadex-primitives = { path = "../../primitives", default-features = false }
+assets = { path = "../Assets", version = "0.1.0", default-features = false }
 
 [dev-dependencies]
 sp-io = {  version = '3.0.0',default-features = false }
@@ -34,5 +35,6 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
-    "polkadex-primitives/std"
+    "polkadex-primitives/std",
+    "assets/std",
 ]
