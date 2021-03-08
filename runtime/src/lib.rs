@@ -242,13 +242,13 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TestChainId: u8 = 5;
+    pub const TestChainId: u8 = 1;
     pub const ProposalLifetime: u32 = 50;
 }
 
 impl chainbridge::Config for Runtime {
 	type Event = Event;
-	type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type AdminOrigin = frame_system::EnsureRoot<AccountId>;
 	type Proposal = Call;
 	type ChainId = TestChainId;
 	type ProposalLifetime = ProposalLifetime;

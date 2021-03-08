@@ -338,9 +338,10 @@ impl<T: Config> Module<T> {
     // *** Utility methods ***
 
     pub fn ensure_admin(o: T::Origin) -> DispatchResult {
-        T::AdminOrigin::try_origin(o)
-            .map(|_| ())
-            .or_else(ensure_root)?;
+        // T::AdminOrigin::try_origin(o)
+        //     .map(|_| ())
+        //     .or_else(ensure_root)?;
+        //ensure_root(o)?;
         Ok(())
     }
 

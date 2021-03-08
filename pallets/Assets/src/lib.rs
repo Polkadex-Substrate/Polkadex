@@ -1,21 +1,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use frame_system::{self as system, ensure_signed};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult, Parameter,
-    traits::EnsureOrigin
+    traits::EnsureOrigin,
 };
 use frame_support::sp_std::fmt::Debug;
-use sp_runtime::traits::{AtLeast32BitUnsigned, StaticLookup, MaybeSerializeDeserialize, Member};
+use frame_system::{self as system, ensure_signed};
 use sp_core::U256;
-use sp_runtime::traits::Zero;
-use chainbridge::{ChainId, DepositNonce, ResourceId};
-use sp_runtime::traits::CheckedSub;
 use sp_runtime::SaturatedConversion;
+use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, Member, StaticLookup};
 use sp_runtime::traits::CheckedAdd;
+use sp_runtime::traits::CheckedSub;
+use sp_runtime::traits::Zero;
+use sp_std::prelude::*;
+
+use chainbridge::{ChainId, DepositNonce, ResourceId};
 use polkadex_primitives::assets::AssetId;
+pub use weights::WeightInfo;
+
 #[cfg(test)]
 mod mock;
 
@@ -23,10 +26,9 @@ mod mock;
 mod test;
 mod banchmarking;
 pub mod weights;
-pub use weights::WeightInfo;
 
-pub trait Config: system::Config + chainbridge::Config{
-    type BridgeOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+pub trait Config: system::Config + chainbridge::Config {
+    type BridgeOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize;
     type WeightInfo: WeightInfo;
@@ -76,8 +78,9 @@ decl_module! {
 		fn deposit_event() = default;
 
 		/// Transfer some free balance to another account.
-		#[weight = T::WeightInfo::transfer()]
-		pub fn transfer(origin,
+		/// TODO:  change name of function
+		#[weight = 1000]
+		pub fn transfer_new(origin,
 						asset_id: AssetId,
 						dest: <T::Lookup as StaticLookup>::Source,
 						amount: T::Balance) -> DispatchResult {
@@ -97,9 +100,10 @@ decl_module! {
 
 		/// Withdraw
 		#[weight = 1000]
-		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, amount: T::Balance) -> DispatchResult {
+		pub fn withdraw(origin, dest_id: ChainId, resource_id: ResourceId, to: Vec<u8>, #[compact] amount: T::Balance) -> DispatchResult {
 		    let withdrawer = ensure_signed(origin)?;
 		    // TODO: Verify withdrawer
+		    let amount: T::Balance = 4444u128.saturated_into::<T::Balance>();
 		    let amount_u256 = U256::from(amount.saturated_into::<u128>());
 	        let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
 		    <Balances<T>>::try_mutate(asset_id, withdrawer, |withdrawer_balance| -> DispatchResult {
@@ -109,9 +113,20 @@ decl_module! {
 		    })
 		}
 
+		///Register Asset
+		#[weight = 1000]
+		pub fn register_asset(origin, resource_id: ResourceId, #[compact] balance: T::Balance) -> DispatchResult {
+		    let withdrawer = ensure_signed(origin)?;
+		    let assetid = AssetId::CHAINSAFE(resource_id);
+		    <TotalIssuance<T>>::insert(assetid, balance);
+		    <Balances<T>>::insert(assetid, withdrawer, balance);
+		    Ok(())
+
+		}
+
 		/// Minting
 		#[weight = 1000]
-		pub fn minting(origin, recipient: T::AccountId, resource_id: ResourceId, amount: T::Balance) -> DispatchResult {
+		pub fn transfer(origin, recipient: T::AccountId, resource_id: ResourceId, #[compact] amount: T::Balance) -> DispatchResult {
 		    let source = T::BridgeOrigin::ensure_origin(origin)?;
 	        let asset_id: AssetId = AssetId::CHAINSAFE(resource_id);
 		    <Balances<T>>::try_mutate(asset_id, recipient, |mint_balance| -> DispatchResult {
