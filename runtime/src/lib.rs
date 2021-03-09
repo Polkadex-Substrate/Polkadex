@@ -278,7 +278,7 @@ parameter_types! {
 impl polkapool::Config for Runtime{
 	type Event = Event;
 	type TradingPathLimit = TradingPathLimit;
-
+	type GovernanceOrigin = polkapool::EnsureGoverance<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

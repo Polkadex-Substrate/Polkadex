@@ -3,7 +3,7 @@
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter, sp_std};
 use frame_support::dispatch::DispatchResult;
 use frame_support::sp_std::fmt::Debug;
-use frame_support::traits::Get;
+use frame_support::traits::{Get, EnsureOrigin};
 use frame_system::ensure_signed;
 use sp_arithmetic::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul, SaturatedConversion};
 use sp_runtime::ModuleId;
@@ -11,6 +11,7 @@ use sp_runtime::traits::{AccountIdConversion, MaybeSerializeDeserialize, Member,
 use sp_std::vec;
 use sp_std::vec::Vec;
 use polkadex_primitives::assets::AssetId;
+use codec::{Decode, Encode};
 
 #[cfg(test)]
 mod mock;
@@ -19,17 +20,34 @@ mod mock;
 mod tests;
 
 const WEIGHT_PER_DAY: u128 = 100;
-
-pub struct Pool{
-
-}
+const MODULE_ID: ModuleId = ModuleId(*b"cb/gover");
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config + assets::Config {
+    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// Maximum Trading Path limit
     type TradingPathLimit: Get<usize>;
+}
+
+#[derive(Encode, Decode, Clone, Eq, PartialEq, Debug)]
+pub struct Pool<T: Config>{
+    asset_one_amount: T::Balance,
+    asset_two_amount: T::Balance,
+    lp_shares: T::Balance,
+    is_active: bool,
+}
+
+impl<T: Config> Default for Pool<T> {
+    fn default<T>() -> Self {
+        Pool {
+            asset_one_amount: T::Balance::default(),
+            asset_two_amount: T::Balance::default(),
+            lp_shares: T::Balance::default(),
+            is_active: true,
+        }
+    }
 }
 
 decl_storage! {
@@ -37,7 +55,7 @@ decl_storage! {
 	trait Store for Module<T: Config> as PolkadexSwapEngine {
 	    /// Liquidity pool for specific pair(a tuple consisting of two sorted AssetIds).
 		/// (AssetID, AssetID) -> (Amount_0, Amount_1, Total LPShares)
-		LiquidityPool get(fn liquidity_pool): map hasher(twox_64_concat) (AssetId,AssetId) => (T::Balance, T::Balance, T::Balance);
+		LiquidityPool get(fn liquidity_pool): map hasher(twox_64_concat) (AssetId,AssetId) => Pool<T>;
 		/// LPShare holdings
 		LiquidityPoolHoldings get(fn holdings): map hasher(identity) (T::AccountId,(AssetId,AssetId)) => T::Balance;
 		/// Swapping Fee FIXME: This is not correct
@@ -126,7 +144,7 @@ decl_module! {
         #[weight=10000]
         pub fn register_swap_pair(origin, currency_id_a: AssetId, currency_id_b: AssetId, currency_id_a_amount: T::Balance,
                                     currency_id_b_amount: T::Balance) -> dispatch::DispatchResult{
-             let who = ensure_signed(origin)?; //T::BridgeOrigin::ensure_origin(origin)?;
+             let who = T::GovernanceOrigin::ensure_origin(origin)?;
              Self::do_register_swap_pair(&who,currency_id_a,currency_id_b,currency_id_a_amount,currency_id_b_amount)?;
              Ok(())
         }
@@ -232,6 +250,10 @@ impl<T: Config> Module<T> {
         ModuleId(*b"pswapacc").into_account()
     }
 
+    pub fn get_treasury_account() -> T::AccountId {
+        ModuleId(*b"treasacc").into_account()
+    }
+
     /// Registers new Swap Pair and insert liquidity.
     pub fn do_register_swap_pair(who: &T::AccountId, currency_id_a: AssetId, currency_id_b: AssetId,
                                  currency_id_a_amount: T::Balance, currency_id_b_amount: T::Balance) -> dispatch::DispatchResult {
@@ -240,7 +262,13 @@ impl<T: Config> Module<T> {
         ensure!(LiquidityPool::<T>::contains_key((currency_id_a, currency_id_b)),Error::<T>::TradingPairNotAllowed);
 
         let initial_share: T::Balance = sp_std::cmp::max(currency_id_a_amount.clone(), currency_id_b_amount.clone());
-        LiquidityPool::<T>::insert((currency_id_a, currency_id_b ), (currency_id_a_amount.clone(), currency_id_b_amount.clone(), initial_share.clone()));
+        let pool = Pool{
+            asset_one_amount: currency_id_a_amount.clone(),
+            asset_two_amount: currency_id_b_amount.clone(),
+            lp_shares: initial_share.clone(),
+            is_active: true,
+        };
+        LiquidityPool::<T>::insert((currency_id_a, currency_id_b ), pool);
 
         Self::deposit_event(RawEvent::CreatePool(
             who.clone(),
@@ -256,7 +284,7 @@ impl<T: Config> Module<T> {
 
     /// Swaps supply amount for amount less then Minimum target amount.
     pub fn do_swap_with_exact_supply(who: &T::AccountId, path: &Vec<AssetId>, supply_amount: T::Balance, min_target_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> DispatchResult {
-        let amounts = Self::get_target_amounts(&path, supply_amount, price_impact_limit)?;
+        let amounts = Self::get_target_amounts(who, &path, supply_amount, price_impact_limit)?;
         ensure!(amounts[amounts.len() - 1] >= min_target_amount, Error::<T>::InsufficientTargetAmount);
         let module_account_id = Self::get_wallet_account();
 
@@ -298,7 +326,7 @@ impl<T: Config> Module<T> {
 
 
     /// Get how much target amount will be got for specific supply amount and price impact.
-    fn get_target_amount(supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance, currency_id_a: AssetId) -> T::Balance {
+    fn get_target_amount(who: &T::AccountId, supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance) -> T::Balance {
         if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
             T::Balance::zero()
         } else {
@@ -307,10 +335,11 @@ impl<T: Config> Module<T> {
                 T::Balance::from(5u32).checked_div(&T::Balance::from(100u32))
                     .unwrap_or(T::Balance::zero())); //.25%
             let pdex_fee: T::Balance = swap_fee.saturating_sub(pool_fee);//.05%
-            let path: Vec<AssetId> =  vec![currency_id_a, AssetId::POLKADEX];
 
-            Self::_swap_by_path(&path, &vec![supply_amount.saturating_mul(pdex_fee)]);
-
+            assets::Module::<T>::transfer_asset(who, AssetId::POLKADEX,
+                                                &Self::get_treasury_account(), pdex_fee.saturating_mul(supply_amount));
+            //TODO we have to find a mechanism to convert the PDEX
+            //Self::_swap_by_path(&path, &vec![supply_amount.saturating_mul(pdex_fee)]);
 
             let fee_term: T::Balance = T::Balance::one().saturating_sub(pool_fee);
 
@@ -342,7 +371,7 @@ impl<T: Config> Module<T> {
         }
     }
     /// Get vector of target amount for specific supply amount and price impact.
-    fn get_target_amounts(path: &[AssetId], supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> sp_std::result::Result<Vec<T::Balance>, Error<T>> {
+    fn get_target_amounts(who: &T::AccountId, path: &[AssetId], supply_amount: T::Balance, price_impact_limit: Option<T::Balance>) -> sp_std::result::Result<Vec<T::Balance>, Error<T>> {
         let path_length = path.len();
         ensure!(path_length >= 2 && path_length <= T::TradingPathLimit::get(), Error::<T>::InvalidTradingPathLength);
         let mut target_amounts: Vec<T::Balance> = vec![];
@@ -353,7 +382,7 @@ impl<T: Config> Module<T> {
             ensure!(LiquidityPool::<T>::contains_key(Self::get_pair(path[i],path[i+1])),Error::<T>::TradingPairNotAllowed);
             let (supply_pool, target_pool) = Self::get_liquidity(path[i], path[i + 1]);
             ensure!(!supply_pool.is_zero() && !target_pool.is_zero(),Error::<T>::InsufficientLiquidity);
-            let target_amount = Self::get_target_amount(supply_pool, target_pool, target_amounts[i], path[i]);
+            let target_amount = Self::get_target_amount(who, supply_pool, target_pool, target_amounts[i]);
             ensure!(!target_amount.is_zero(), Error::<T>::ZeroTargetAmount);
 
             // check price impact if limit exists
@@ -557,5 +586,17 @@ impl<T: Config> Module<T> {
         } else {
             (currency_id_b, currency_id_a)
         }
+    }
+}
+/// Simple ensure origin for the bridge account
+pub struct EnsureGoverance<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> EnsureOrigin<T::Origin> for EnsureGoverance<T> {
+    type Success = T::AccountId;
+    fn try_origin(o: T::Origin) -> Result<Self::Success, T::Origin> {
+        let bridge_id = MODULE_ID.into_account();
+        o.into().and_then(|o| match o {
+            frame_system::RawOrigin::Signed(who) if who == bridge_id => Ok(bridge_id),
+            r => Err(T::Origin::from(r)),
+        })
     }
 }

@@ -22,8 +22,6 @@ mod banchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-pub struct
-
 pub trait Config: system::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize;
