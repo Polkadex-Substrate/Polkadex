@@ -277,7 +277,6 @@ parameter_types! {
 
 impl polkapool::Config for Runtime{
 	type Event = Event;
-	type Balance = Balance;
 	type TradingPathLimit = TradingPathLimit;
 
 }

@@ -20,6 +20,10 @@ mod tests;
 
 const WEIGHT_PER_DAY: u128 = 100;
 
+pub struct Pool{
+
+}
+
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config + assets::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -44,7 +48,7 @@ decl_storage! {
 decl_event!(
 	pub enum Event<T> where
 		<T as frame_system::Config>::AccountId,
-		Balance = <T as Config>::Balance
+		Balance = <T as assets::Config>::Balance
 	{
 		/// Add liquidity success. \[who, currency_id_0, pool_0_increment, currency_id_1, pool_1_increment, share_increment\]
 		AddLiquidity(AccountId, AssetId, Balance, AssetId, Balance, Balance),
@@ -122,7 +126,7 @@ decl_module! {
         #[weight=10000]
         pub fn register_swap_pair(origin, currency_id_a: AssetId, currency_id_b: AssetId, currency_id_a_amount: T::Balance,
                                     currency_id_b_amount: T::Balance) -> dispatch::DispatchResult{
-             let who = ensure_signed(origin)?;
+             let who = ensure_signed(origin)?; //T::BridgeOrigin::ensure_origin(origin)?;
              Self::do_register_swap_pair(&who,currency_id_a,currency_id_b,currency_id_a_amount,currency_id_b_amount)?;
              Ok(())
         }
@@ -258,9 +262,9 @@ impl<T: Config> Module<T> {
 
         let actual_target_amount = amounts[amounts.len() - 1];
 
-        assets::Module::<T>::transfer(who, path[0], &module_account_id, supply_amount.clone())?;
+        assets::Module::<T>::transfer_asset(who, path[0], &module_account_id, supply_amount.clone())?;
         Self::_swap_by_path(&path, &amounts);
-        assets::Module::<T>::transfer(module_account_id, path[path.len() - 1], &who, actual_target_amount.clone())?;
+        assets::Module::<T>::transfer_asset(&module_account_id, path[path.len() - 1], &who, actual_target_amount.clone())?;
 
         Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), supply_amount, actual_target_amount));
 
@@ -274,9 +278,9 @@ impl<T: Config> Module<T> {
         let module_account_id = Self::get_wallet_account();
         let actual_supply_amount = amounts[0];
 
-        //assets::Module::<T>::transfer(who, path[0], &module_account_id, actual_supply_amount.clone())?;
+        assets::Module::<T>::transfer_asset(who, path[0], &module_account_id, actual_supply_amount.clone())?;
         Self::_swap_by_path(&path, &amounts);
-        //assets::Module::<T>::transfer(module_account_id, path[path.len() - 1], &who, target_amount.clone())?;
+        assets::Module::<T>::transfer_asset(&module_account_id, path[path.len() - 1], &who, target_amount.clone())?;
 
         Self::deposit_event(RawEvent::Swap(who.clone(), path.to_vec(), actual_supply_amount, target_amount));
         Ok(())
@@ -292,20 +296,7 @@ impl<T: Config> Module<T> {
         }
     }
 
-/*    Swap functions work the same but if a trader is swapping ABC → XYZ,
-he will pay the fees (0.3%) in ABC where the 0.25% is put into the pool and the remaining 0.05% ABC
-will be converted into PDEX from the pool (ABC, PDEX)) and burned if total tokens burned in a given block is less than 125 PDEX else paid to treasury.
 
-(abc) -> (xyz)
-.25 -> abc>Pool
-0.05 -> abc->pdex
-
-(abc) ->pdex
-.25 -> abc->pdex
-0.05 -> abc->pdex
-0.25 + 0.05 =0.3
-
-*/
     /// Get how much target amount will be got for specific supply amount and price impact.
     fn get_target_amount(supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance, currency_id_a: AssetId) -> T::Balance {
         if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
@@ -478,9 +469,9 @@ will be converted into PDEX from the pool (ABC, PDEX)) and burned if total token
             ensure!(!share_increment.is_zero() && !pool_0_increment.is_zero() && !pool_1_increment.is_zero(), Error::<T>::InvalidLiquidityIncrement);
             let swap_wallet_account = Self::get_wallet_account();
 
-            //assets::Module::<T>::transfer(who, trading_pair.0, &swap_wallet_account, pool_0_increment)?;
-            //assets::Module::<T>::transfer(who, trading_pair.1, &swap_wallet_account, pool_1_increment)?;
-
+            assets::Module::<T>::transfer_asset(who, trading_pair.0, &swap_wallet_account, pool_0_increment)?;
+            assets::Module::<T>::transfer_asset(who, trading_pair.1, &swap_wallet_account, pool_1_increment)?;
+            // TODO: Hard coded
             let lockup_period_days =
                 lockup_period.checked_mul(&T::BlockNumber::from(6u32))
                     .unwrap_or(T::BlockNumber::zero())
@@ -535,8 +526,8 @@ will be converted into PDEX from the pool (ABC, PDEX)) and burned if total token
             let pool_1_decrement = proportion.saturating_mul(*pool_1);
             let swap_wallet_account = Self::get_wallet_account();
 
-            //assets::Module::<T>::transfer(swap_wallet_account.clone(), trading_pair.0, &who, pool_0_decrement)?;
-            //assets::Module::<T>::transfer(swap_wallet_account, trading_pair.1, &who, pool_1_decrement)?;
+            assets::Module::<T>::transfer_asset(&swap_wallet_account, trading_pair.0, &who, pool_0_decrement)?;
+            assets::Module::<T>::transfer_asset(&swap_wallet_account, trading_pair.1, &who, pool_1_decrement)?;
 
             *pool_0 = pool_0.saturating_sub(pool_0_decrement);
             *pool_1 = pool_1.saturating_sub(pool_1_decrement);

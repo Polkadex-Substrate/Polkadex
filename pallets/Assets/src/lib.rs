@@ -22,6 +22,8 @@ mod banchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
+pub struct
+
 pub trait Config: system::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize;
@@ -91,4 +93,22 @@ decl_module! {
 		})
 		}
 	}
+}
+
+impl<T: Config> Module<T> {
+    pub fn transfer_asset(from: &T::AccountId,
+                    asset_id: AssetId,
+                    dest: &T::AccountId,
+                    amount: T::Balance) -> DispatchResult {
+            if amount.is_zero() || from == dest {
+            return Ok(())
+        }
+        <Balances<T>>::try_mutate(asset_id, from, |from_balance| -> DispatchResult {
+            <Balances<T>>::try_mutate(asset_id, dest, |to_balance| -> DispatchResult {
+                *from_balance = from_balance.checked_sub(&amount).ok_or(Error::<T>::InsufficientBalance)?;
+                *to_balance = to_balance.checked_add(&amount).ok_or(Error::<T>::BalanceOverflow)?;
+                Ok(())
+            })
+        })
+    }
 }
