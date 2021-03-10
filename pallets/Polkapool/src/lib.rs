@@ -49,6 +49,8 @@ impl<T: Config> Default for Pool<T> {
         }
     }
 }
+/// (account, Asset) -> Vec<(25,100), (45,200)>
+///
 
 decl_storage! {
 
@@ -60,6 +62,8 @@ decl_storage! {
 		LiquidityPoolHoldings get(fn holdings): map hasher(identity) (T::AccountId,(AssetId,AssetId)) => T::Balance;
 		/// Swapping Fee FIXME: This is not correct
 		SwappingFee: T::Balance = T::Balance::from(3u32);
+		/// Store record about Lock
+		LockInfo get(fn lock_info): map hasher(identity) (T::AccountId,(AssetId,AssetId)) => Vec<(T::BlockNumber, T::Balance)>;
 	}
 }
 
@@ -110,6 +114,8 @@ decl_error! {
 		LowShare,
 		/// Not Registered with PDEX
 		NotRegisteredWithPolkadex,
+		/// TradingPair Not Avalaible
+		TradingPairNotAvalaible
 	}
 }
 
@@ -146,6 +152,14 @@ decl_module! {
                                     currency_id_b_amount: T::Balance) -> dispatch::DispatchResult{
              let who = T::GovernanceOrigin::ensure_origin(origin)?;
              Self::do_register_swap_pair(&who,currency_id_a,currency_id_b,currency_id_a_amount,currency_id_b_amount)?;
+             Ok(())
+        }
+
+        #[weight=10000]
+        pub fn disable_swap_pair(origin, currency_id_a: AssetId, currency_id_b: AssetId) -> dispatch::DispatchResult{
+             let who = T::GovernanceOrigin::ensure_origin(origin)?;
+             Self::do_disable_swap_pair(&who,currency_id_a,currency_id_b)?;
+
              Ok(())
         }
 
@@ -254,12 +268,22 @@ impl<T: Config> Module<T> {
         ModuleId(*b"treasacc").into_account()
     }
 
+    pub fn do_disable_swap_pair(who: &T::AccountId, currency_id_a: AssetId, currency_id_b: AssetId) -> dispatch::DispatchResult {
+        ensure!(LiquidityPool::<T>::contains_key((currency_id_a, currency_id_b)),Error::<T>::TradingPairNotAvalaible);
+        let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
+        LiquidityPool::<T>::try_mutate(trading_pair, |pool: &mut Pool<T>| {
+            pool.is_active = false;
+            Ok(())
+        })
+
+    }
+
     /// Registers new Swap Pair and insert liquidity.
     pub fn do_register_swap_pair(who: &T::AccountId, currency_id_a: AssetId, currency_id_b: AssetId,
                                  currency_id_a_amount: T::Balance, currency_id_b_amount: T::Balance) -> dispatch::DispatchResult {
         ensure!(!LiquidityPool::<T>::contains_key((currency_id_a, AssetId::POLKADEX)),Error::<T>::NotRegisteredWithPolkadex);
         ensure!(!LiquidityPool::<T>::contains_key((currency_id_b, AssetId::POLKADEX)),Error::<T>::NotRegisteredWithPolkadex);
-        ensure!(LiquidityPool::<T>::contains_key((currency_id_a, currency_id_b)),Error::<T>::TradingPairNotAllowed);
+        ensure!(!LiquidityPool::<T>::contains_key((currency_id_a, currency_id_b)),Error::<T>::TradingPairNotAllowed);
 
         let initial_share: T::Balance = sp_std::cmp::max(currency_id_a_amount.clone(), currency_id_b_amount.clone());
         let pool = Pool{
@@ -518,6 +542,11 @@ impl<T: Config> Module<T> {
                 *lp_shares = lp_shares.saturating_add(converted_share_increment);
                 Ok(())
             })?;
+            <LockInfo<T>>::try_mutate((who, trading_pair), |lp_shares| -> dispatch::DispatchResult {
+                lp_shares.push((lockup_period, converted_share_increment));
+                lp_shares.sort_by_key(|k| k.0);
+                Ok(())
+            })?;
 
             pool.asset_one_amount = pool.asset_one_amount.saturating_add(pool_0_increment);
             pool.asset_two_amount = pool.asset_two_amount.saturating_add(pool_1_increment);
@@ -541,13 +570,21 @@ impl<T: Config> Module<T> {
 
     /// Removes liquidity for specific trading pair.
     pub fn do_remove_liquidity(who: &T::AccountId, currency_id_a: AssetId, currency_id_b: AssetId, remove_share: T::Balance) -> DispatchResult {
+        let mut remove_share = remove_share;
         if remove_share.is_zero() {
             return Ok(());
         }
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
         ensure!(<LiquidityPool<T>>::contains_key(&trading_pair), Error::<T>::TradingPairNotAllowed);
         let original_share = <LiquidityPoolHoldings<T>>::get((who, trading_pair));
-        ensure!(remove_share <= original_share, Error::<T>::LowShare);
+        let current_block = <frame_system::Module<T>>::block_number();
+        let original_share = <LockInfo<T>>::get((who, trading_pair));
+        let total_amount_vec: Vec<T::Balance> = original_share.iter().filter(|element| element.0 <= current_block).map(|(lockup, amount)| amount.clone()).collect::<Vec<T::Balance>>();
+        let mut total_amount = T::Balance::zero();
+        for element in total_amount_vec.iter() {
+            total_amount = total_amount.saturating_add(*element);
+        }
+        ensure!(remove_share <= total_amount, Error::<T>::LowShare);
 
         <LiquidityPool<T>>::try_mutate(trading_pair, |pool: &mut Pool<T>| -> dispatch::DispatchResult {
             let proportion = remove_share.checked_div(&pool.lp_shares).unwrap_or(T::Balance::zero());
@@ -565,6 +602,26 @@ impl<T: Config> Module<T> {
                 *lp_shares = lp_shares.saturating_sub(remove_share);
                 Ok(())
             })?;
+
+            <LockInfo<T>>::try_mutate((who, trading_pair), |lp_shares| -> dispatch::DispatchResult {
+                loop {
+                    lp_shares.reverse();
+                    let item = lp_shares.pop().unwrap();
+                    if item.0 <= current_block {
+                        if item.1 > remove_share {
+                            let new_balance = item.1 - remove_share;
+                            lp_shares.push((item.0, new_balance));
+                        }
+                        else {
+                            remove_share = remove_share - item.1;
+                        }
+                    }
+                }
+
+                Ok(())
+            })?;
+
+
 
 
             Self::deposit_event(RawEvent::RemoveLiquidity(
