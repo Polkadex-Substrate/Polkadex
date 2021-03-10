@@ -1,13 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter, sp_std};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, sp_std};
 use frame_support::dispatch::DispatchResult;
 use frame_support::sp_std::fmt::Debug;
 use frame_support::traits::{Get, EnsureOrigin};
 use frame_system::ensure_signed;
-use sp_arithmetic::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul, SaturatedConversion};
+use sp_arithmetic::traits::{CheckedDiv, CheckedMul, SaturatedConversion};
 use sp_runtime::ModuleId;
-use sp_runtime::traits::{AccountIdConversion, MaybeSerializeDeserialize, Member, Saturating, Zero, One};
+use sp_runtime::traits::{AccountIdConversion, Saturating, Zero, One};
 use sp_std::vec;
 use sp_std::vec::Vec;
 use polkadex_primitives::assets::AssetId;
@@ -40,7 +40,7 @@ pub struct Pool<T: Config>{
 }
 
 impl<T: Config> Default for Pool<T> {
-    fn default<T>() -> Self {
+    fn default() -> Self {
         Pool {
             asset_one_amount: T::Balance::default(),
             asset_two_amount: T::Balance::default(),
@@ -316,11 +316,11 @@ impl<T: Config> Module<T> {
 
     pub fn get_liquidity(currency_id_a: AssetId, currency_id_b: AssetId) -> (T::Balance, T::Balance) {
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
-        let (pool_0, pool_1, _) = Self::liquidity_pool(trading_pair);
+        let pool: Pool<T> = Self::liquidity_pool(trading_pair);
         if currency_id_a == trading_pair.0 {
-            (pool_0, pool_1)
+            (pool.asset_one_amount, pool.asset_two_amount)
         } else {
-            (pool_1, pool_0)
+            (pool.asset_two_amount, pool.asset_one_amount)
         }
     }
 
@@ -429,13 +429,13 @@ impl<T: Config> Module<T> {
 
     fn _swap(supply_currency_id: AssetId, target_currency_id: AssetId, supply_increment: T::Balance, target_decrement: T::Balance) {
         let trading_pair = Self::get_pair(supply_currency_id, target_currency_id);
-        LiquidityPool::<T>::mutate(trading_pair, |(pool_0, pool_1, _pool_shares): &mut (T::Balance, T::Balance, T::Balance)| {
+        LiquidityPool::<T>::mutate(trading_pair, |pool: &mut Pool<T>| {
             if supply_currency_id == trading_pair.0 {
-                *pool_0 = pool_0.saturating_add(supply_increment);
-                *pool_1 = pool_1.saturating_sub(target_decrement);
+                pool.asset_one_amount = pool.asset_one_amount.saturating_add(supply_increment);
+                pool.asset_two_amount = pool.asset_two_amount.saturating_sub(target_decrement);
             } else {
-                *pool_0 = pool_0.saturating_sub(target_decrement);
-                *pool_1 = pool_1.saturating_add(supply_increment);
+                pool.asset_one_amount = pool.asset_one_amount.saturating_sub(target_decrement);
+                pool.asset_two_amount = pool.asset_two_amount.saturating_add(supply_increment);
             }
         });
     }
@@ -462,7 +462,7 @@ impl<T: Config> Module<T> {
 
         let trading_pair: (AssetId, AssetId) = Self::get_pair(currency_id_a, currency_id_b);
 
-        <LiquidityPool<T>>::try_mutate(trading_pair, |(pool_0, pool_1, pool_shares)| -> dispatch::DispatchResult {
+        <LiquidityPool<T>>::try_mutate(trading_pair, |pool: &mut Pool<T>| -> dispatch::DispatchResult {
             let (max_amount_0, max_amount_1) = if currency_id_a == trading_pair.0 {
                 (max_amount_a, max_amount_b)
             } else {
@@ -470,27 +470,27 @@ impl<T: Config> Module<T> {
             };
 
             let (pool_0_increment, pool_1_increment, share_increment): (T::Balance, T::Balance, T::Balance) =
-                if pool_shares.is_zero() {
+                if pool.lp_shares.is_zero() {
                     // initialize this liquidity pool, the initial share is equal to the max value
                     // between base currency amount and other currency amount
                     let initial_share = sp_std::cmp::max(max_amount_0, max_amount_1);
                     (max_amount_0.clone(), max_amount_1.clone(), initial_share)
                 } else {
-                    let price_0_1 = pool_1.checked_div(&pool_0).unwrap_or(T::Balance::zero());
+                    let price_0_1 = pool.asset_two_amount.checked_div(&pool.asset_one_amount).unwrap_or(T::Balance::zero());
                     let input_price_0_1 = max_amount_1.checked_div(&max_amount_0).unwrap_or(T::Balance::zero());
 
                     if input_price_0_1 <= price_0_1 {
                         // max_amount_0 may be too much, calculate the actual amount_0
-                        let price_1_0: T::Balance = pool_0.checked_div(pool_1).unwrap_or(T::Balance::zero());
+                        let price_1_0: T::Balance = pool.asset_one_amount.checked_div(&pool.asset_two_amount).unwrap_or(T::Balance::zero());
                         let amount_0 = price_1_0.checked_mul(&max_amount_1).unwrap_or(T::Balance::zero());
-                        let share_increment = amount_0.checked_div(pool_0).unwrap_or(T::Balance::zero())
-                            .checked_mul(pool_shares).unwrap_or(T::Balance::zero());
+                        let share_increment = amount_0.checked_div(&pool.asset_one_amount).unwrap_or(T::Balance::zero())
+                            .checked_mul(&pool.lp_shares).unwrap_or(T::Balance::zero());
                         (amount_0, max_amount_1, share_increment)
                     } else {
                         // max_amount_1 is too much, calculate the actual amount_1
                         let amount_1 = price_0_1.checked_mul(&max_amount_0).unwrap_or(T::Balance::zero());
-                        let share_increment = amount_1.checked_div(pool_1).unwrap_or(T::Balance::zero())
-                            .checked_mul(pool_shares)
+                        let share_increment = amount_1.checked_div(&pool.asset_two_amount).unwrap_or(T::Balance::zero())
+                            .checked_mul(&pool.lp_shares)
                             .unwrap_or(T::Balance::zero());
                         (max_amount_0, amount_1, share_increment)
                     }
@@ -519,9 +519,9 @@ impl<T: Config> Module<T> {
                 Ok(())
             })?;
 
-            *pool_0 = pool_0.saturating_add(pool_0_increment);
-            *pool_1 = pool_1.saturating_add(pool_1_increment);
-            *pool_shares = pool_shares.saturating_add(share_increment.clone()); // TODO ask @gautham about this
+            pool.asset_one_amount = pool.asset_one_amount.saturating_add(pool_0_increment);
+            pool.asset_two_amount = pool.asset_two_amount.saturating_add(pool_1_increment);
+            pool.lp_shares = pool.lp_shares.saturating_add(share_increment.clone()); // TODO ask @gautham about this
 
             Self::deposit_event(RawEvent::AddLiquidity(
                 who.clone(),
@@ -549,17 +549,17 @@ impl<T: Config> Module<T> {
         let original_share = <LiquidityPoolHoldings<T>>::get((who, trading_pair));
         ensure!(remove_share <= original_share, Error::<T>::LowShare);
 
-        <LiquidityPool<T>>::try_mutate(trading_pair, |(pool_0, pool_1, pool_shares)| -> dispatch::DispatchResult {
-            let proportion = remove_share.checked_div(pool_shares).unwrap_or(T::Balance::zero());
-            let pool_0_decrement = proportion.saturating_mul(*pool_0);
-            let pool_1_decrement = proportion.saturating_mul(*pool_1);
+        <LiquidityPool<T>>::try_mutate(trading_pair, |pool: &mut Pool<T>| -> dispatch::DispatchResult {
+            let proportion = remove_share.checked_div(&pool.lp_shares).unwrap_or(T::Balance::zero());
+            let pool_0_decrement = proportion.saturating_mul(pool.asset_one_amount);
+            let pool_1_decrement = proportion.saturating_mul(pool.asset_two_amount);
             let swap_wallet_account = Self::get_wallet_account();
 
             assets::Module::<T>::transfer_asset(&swap_wallet_account, trading_pair.0, &who, pool_0_decrement)?;
             assets::Module::<T>::transfer_asset(&swap_wallet_account, trading_pair.1, &who, pool_1_decrement)?;
 
-            *pool_0 = pool_0.saturating_sub(pool_0_decrement);
-            *pool_1 = pool_1.saturating_sub(pool_1_decrement);
+            pool.asset_one_amount = pool.asset_one_amount.saturating_sub(pool_0_decrement);
+            pool.asset_two_amount = pool.asset_two_amount.saturating_sub(pool_1_decrement);
 
             <LiquidityPoolHoldings<T>>::try_mutate((who, trading_pair), |lp_shares| -> dispatch::DispatchResult {
                 *lp_shares = lp_shares.saturating_sub(remove_share);
