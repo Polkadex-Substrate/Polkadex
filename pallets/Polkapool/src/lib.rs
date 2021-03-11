@@ -150,16 +150,27 @@ decl_module! {
         #[weight=10000]
         pub fn register_swap_pair(origin, currency_id_a: AssetId, currency_id_b: AssetId, currency_id_a_amount: T::Balance,
                                     currency_id_b_amount: T::Balance) -> dispatch::DispatchResult{
-             let who = T::GovernanceOrigin::ensure_origin(origin)?;
+             let who = ensure_signed(origin)?;
              Self::do_register_swap_pair(&who,currency_id_a,currency_id_b,currency_id_a_amount,currency_id_b_amount)?;
              Ok(())
         }
+        // another dispatchable func which will approve
+        // abc -> pdex
+        // Proposal
+        /// Enable Swap pair
+        #[weight=10000]
+        pub fn enable_swap_pair(origin, currency_id_a: AssetId, currency_id_b: AssetId) -> dispatch::DispatchResult{
+            let who = T::GovernanceOrigin::ensure_origin(origin)?;
+            Self::do_enable_swap_pair(currency_id_a,currency_id_b)?;
+            Ok(())
+        }
 
+
+        /// Disable Swap Pair
         #[weight=10000]
         pub fn disable_swap_pair(origin, currency_id_a: AssetId, currency_id_b: AssetId) -> dispatch::DispatchResult{
              let who = T::GovernanceOrigin::ensure_origin(origin)?;
-             Self::do_disable_swap_pair(&who,currency_id_a,currency_id_b)?;
-
+             Self::do_disable_swap_pair(currency_id_a,currency_id_b)?;
              Ok(())
         }
 
@@ -268,11 +279,21 @@ impl<T: Config> Module<T> {
         ModuleId(*b"treasacc").into_account()
     }
 
-    pub fn do_disable_swap_pair(who: &T::AccountId, currency_id_a: AssetId, currency_id_b: AssetId) -> dispatch::DispatchResult {
+    pub fn do_disable_swap_pair(currency_id_a: AssetId, currency_id_b: AssetId) -> dispatch::DispatchResult {
         ensure!(LiquidityPool::<T>::contains_key((currency_id_a, currency_id_b)),Error::<T>::TradingPairNotAvalaible);
         let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
         LiquidityPool::<T>::try_mutate(trading_pair, |pool: &mut Pool<T>| {
             pool.is_active = false;
+            Ok(())
+        })
+
+    }
+
+    pub fn do_enable_swap_pair(currency_id_a: AssetId, currency_id_b: AssetId) -> dispatch::DispatchResult {
+        ensure!(LiquidityPool::<T>::contains_key((currency_id_a, currency_id_b)),Error::<T>::TradingPairNotAvalaible);
+        let trading_pair = Self::get_pair(currency_id_a, currency_id_b);
+        LiquidityPool::<T>::try_mutate(trading_pair, |pool: &mut Pool<T>| {
+            pool.is_active = true;
             Ok(())
         })
 
@@ -290,7 +311,7 @@ impl<T: Config> Module<T> {
             asset_one_amount: currency_id_a_amount.clone(),
             asset_two_amount: currency_id_b_amount.clone(),
             lp_shares: initial_share.clone(),
-            is_active: true,
+            is_active: false,
         };
         LiquidityPool::<T>::insert((currency_id_a, currency_id_b ), pool);
 
@@ -350,7 +371,7 @@ impl<T: Config> Module<T> {
 
 
     /// Get how much target amount will be got for specific supply amount and price impact.
-    fn get_target_amount(who: &T::AccountId, supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance) -> T::Balance {
+    fn get_target_amount(who: &T::AccountId, supply_pool: T::Balance, target_pool: T::Balance, supply_amount: T::Balance, asset_id: AssetId) -> T::Balance {
         if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
             T::Balance::zero()
         } else {
@@ -360,7 +381,7 @@ impl<T: Config> Module<T> {
                     .unwrap_or(T::Balance::zero())); //.25%
             let pdex_fee: T::Balance = swap_fee.saturating_sub(pool_fee);//.05%
 
-            assets::Module::<T>::transfer_asset(who, AssetId::POLKADEX,
+            assets::Module::<T>::transfer_asset(who, asset_id,
                                                 &Self::get_treasury_account(), pdex_fee.saturating_mul(supply_amount));
             //TODO we have to find a mechanism to convert the PDEX
             //Self::_swap_by_path(&path, &vec![supply_amount.saturating_mul(pdex_fee)]);
@@ -406,7 +427,7 @@ impl<T: Config> Module<T> {
             ensure!(LiquidityPool::<T>::contains_key(Self::get_pair(path[i],path[i+1])),Error::<T>::TradingPairNotAllowed);
             let (supply_pool, target_pool) = Self::get_liquidity(path[i], path[i + 1]);
             ensure!(!supply_pool.is_zero() && !target_pool.is_zero(),Error::<T>::InsufficientLiquidity);
-            let target_amount = Self::get_target_amount(who, supply_pool, target_pool, target_amounts[i]);
+            let target_amount = Self::get_target_amount(who, supply_pool, target_pool, target_amounts[i], path[i]);
             ensure!(!target_amount.is_zero(), Error::<T>::ZeroTargetAmount);
 
             // check price impact if limit exists
@@ -483,7 +504,7 @@ impl<T: Config> Module<T> {
                             max_amount_a: T::Balance, max_amount_b: T::Balance,
                             lockup_period: T::BlockNumber) -> dispatch::DispatchResult {
         ensure!(!max_amount_a.is_zero() && !max_amount_b.is_zero(), Error::<T>::ProvidedAmountIsZero);
-
+        // TODO: if lockup period = 0 and lockup period should be less than 300 days
         let trading_pair: (AssetId, AssetId) = Self::get_pair(currency_id_a, currency_id_b);
 
         <LiquidityPool<T>>::try_mutate(trading_pair, |pool: &mut Pool<T>| -> dispatch::DispatchResult {
@@ -532,7 +553,7 @@ impl<T: Config> Module<T> {
                     .unwrap_or(T::BlockNumber::zero());
 
             let days_in_balance: T::Balance = Self::block_to_balance(lockup_period_days);
-
+            // weight per block?
             let converted_share_increment =
                 days_in_balance.checked_mul(&WEIGHT_PER_DAY.saturated_into::<T::Balance>())
                     .unwrap_or(T::Balance::zero())
@@ -542,6 +563,7 @@ impl<T: Config> Module<T> {
                 *lp_shares = lp_shares.saturating_add(converted_share_increment);
                 Ok(())
             })?;
+            //
             <LockInfo<T>>::try_mutate((who, trading_pair), |lp_shares| -> dispatch::DispatchResult {
                 lp_shares.push((lockup_period, converted_share_increment));
                 lp_shares.sort_by_key(|k| k.0);
@@ -602,7 +624,7 @@ impl<T: Config> Module<T> {
                 *lp_shares = lp_shares.saturating_sub(remove_share);
                 Ok(())
             })?;
-
+// TODO break condition
             <LockInfo<T>>::try_mutate((who, trading_pair), |lp_shares| -> dispatch::DispatchResult {
                 loop {
                     lp_shares.reverse();
