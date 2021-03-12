@@ -48,6 +48,8 @@ frame-benchmarking = { version = "3.0.0", default-features = false, optional = t
 frame-system-benchmarking = { version = "3.0.0", default-features = false, optional = true }
 hex-literal = { version = "0.3.1", optional = true }
 
+orml-vesting = { path = "../orml/vesting", default-features = false }
+
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0" }
 
@@ -81,7 +83,8 @@ std = [
     "frame-system-rpc-runtime-api/std",
     "assets/std",
     "orderbook-engine/std",
-    "polkapool/std"
+    "polkapool/std",
+    "orml-vesting/std",
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",

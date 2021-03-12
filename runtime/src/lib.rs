@@ -5,12 +5,12 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
+use codec::Encode;
 use sp_std::prelude::*;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
-	transaction_validity::{TransactionValidity, TransactionSource},
+	transaction_validity::{TransactionValidity, TransactionSource}, ModuleId
 };
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor,
@@ -20,6 +20,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
+use frame_system::{EnsureOneOf, EnsureRoot, RawOrigin};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
@@ -31,13 +32,15 @@ pub use pallet_balances::Call as BalancesCall;
 pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
 	construct_runtime, parameter_types, StorageValue,
-	traits::{KeyOwnerProofSystem, Randomness},
+	traits::{KeyOwnerProofSystem, Randomness, EnsureOrigin},
 	weights::{
 		Weight, IdentityFee,
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 	},
 };
 use pallet_transaction_payment::CurrencyAdapter;
+/// Weights for pallets used in the runtime.
+mod weights;
 
 use orderbook_engine;
 
@@ -128,6 +131,7 @@ pub fn native_version() -> NativeVersion {
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
+	pub const PolkadexTreasuryModuleId: ModuleId = ModuleId(*b"polka/trsy");
 	pub const Version: RuntimeVersion = VERSION;
 	pub const BlockHashCount: BlockNumber = 2400;
 	/// We allow for 2 seconds of compute with a 6 second average block time.
@@ -281,6 +285,42 @@ impl polkapool::Config for Runtime{
 	type GovernanceOrigin = polkapool::EnsureGoverance<Runtime>;
 }
 
+parameter_types! {
+	pub MinVestedTransfer: Balance = 100u128;
+}
+
+pub struct EnsureRootOrPolakdexTreasury;
+impl EnsureOrigin<Origin> for EnsureRootOrPolakdexTreasury {
+	type Success = AccountId;
+
+	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+			RawOrigin::Root => Ok(PolkadexTreasuryModuleId::get().into_account()),
+			RawOrigin::Signed(caller) => {
+				if caller == PolkadexTreasuryModuleId::get().into_account() {
+					Ok(caller)
+				} else {
+					Err(Origin::from(Some(caller)))
+				}
+			}
+			r => Err(Origin::from(r)),
+		})
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn successful_origin() -> Origin {
+		Origin::from(RawOrigin::Signed(Default::default()))
+	}
+}
+
+impl orml_vesting::Config for Runtime {
+	type Event = Event;
+	type Currency = pallet_balances::Module<Runtime>;
+	type MinVestedTransfer = MinVestedTransfer;
+	type VestedTransferOrigin = EnsureRootOrPolakdexTreasury;
+	type WeightInfo = weights::orml_vesting::WeightInfo<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -299,6 +339,7 @@ construct_runtime!(
 		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
 		Engine: orderbook_engine::{Module, Call, Storage, Event<T>},
 		Polkapool: polkapool::{Module, Call, Storage, Event<T>},
+		Vesting: orml_vesting::{Module, Storage, Call, Event<T>, Config<T>},
 	}
 );
 

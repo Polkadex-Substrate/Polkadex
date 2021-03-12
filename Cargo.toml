@@ -7,4 +7,6 @@ members = [
     'pallets/*',
     'primitives',
     'runtime',
+    "orml/vesting",
+
 ]
