@@ -15,7 +15,8 @@ runtime-benchmarks = ["frame-benchmarking"]
 
 [dependencies.frame-benchmarking]
 default-features = false
-version ="3.0.0"
+git = "https://github.com/paritytech/substrate"
+branch = "rococo-v1"
 optional = true
 
 [dependencies.serde]
@@ -24,15 +25,18 @@ optional = true
 
 [dependencies.sp-core]
 default-features = false
-version = '3.0.0'
+git = "https://github.com/paritytech/substrate"
+branch = "rococo-v1"
 
 [dependencies.sp-std]
 default-features = false
-version = '3.0.0'
+git = "https://github.com/paritytech/substrate"
+branch = "rococo-v1"
 
 [dependencies.sp-io]
 default-features = false
-version = '3.0.0'
+git = "https://github.com/paritytech/substrate"
+branch = "rococo-v1"
 
 [dependencies.codec]
 default-features = false
@@ -42,15 +46,18 @@ version = '2.0.0'
 
 [dependencies.frame-support]
 default-features = false
-version = '3.0.0'
+git = "https://github.com/paritytech/substrate"
+branch = "rococo-v1"
 
 [dependencies.frame-system]
 default-features = false
-version = '3.0.0'
+git = "https://github.com/paritytech/substrate"
+branch = "rococo-v1"
 
 [dependencies.sp-runtime]
 default-features = false
-version = '3.0.0'
+git = "https://github.com/paritytech/substrate"
+branch = "rococo-v1"
 
 [package]
 authors = ['Anonymous']

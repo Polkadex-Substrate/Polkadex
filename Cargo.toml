@@ -4,7 +4,8 @@ panic = 'unwind'
 [workspace]
 members = [
     'node',
-    'pallets/*',
+    'pallets/Assets',
+    'pallets/Polkapool',
     'primitives',
     'runtime',
     "orml/vesting",
