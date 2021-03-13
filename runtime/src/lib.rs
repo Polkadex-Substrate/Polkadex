@@ -38,7 +38,7 @@ pub use frame_support::{
 };
 use pallet_transaction_payment::CurrencyAdapter;
 /// Weights for pallets used in the runtime.
-mod weights;
+
 
 //use orderbook_engine;
 
@@ -316,7 +316,7 @@ impl orml_vesting::Config for Runtime {
 	type Currency = pallet_balances::Module<Runtime>;
 	type MinVestedTransfer = MinVestedTransfer;
 	type VestedTransferOrigin = EnsureRootOrPolakdexTreasury;
-	type WeightInfo = weights::orml_vesting::WeightInfo<Runtime>;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
