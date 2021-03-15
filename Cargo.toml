@@ -5,9 +5,9 @@ panic = 'unwind'
 members = [
     'node',
     'pallets/Assets',
-    'pallets/Polkapool',
     'primitives',
     'runtime',
     "orml/vesting",
-
+    "orml/currencies",
+    "orml/tokens",
 ]
