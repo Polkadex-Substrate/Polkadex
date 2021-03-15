@@ -8,6 +8,7 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
 use polkadex_primitives::assets::AssetId;
+use node_polkadex_runtime::VestingConfig;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -163,5 +164,6 @@ fn testnet_genesis(
 				)
 			]
 		},
+		orml_vesting: VestingConfig { vesting: vec![] },
 	}
 }
