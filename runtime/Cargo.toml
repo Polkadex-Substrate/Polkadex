@@ -47,8 +47,11 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false, optional = true }
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false, optional = true }
 hex-literal = { version = "0.3.1", optional = true }
-
+polkadex-primitives = { path = "../primitives", default-features = false }
 orml-vesting = { path = "../orml/vesting", default-features = false }
+orml-currencies = { path = "../orml/currencies", default-features = false }
+orml-tokens = { path = "../orml/tokens", default-features = false }
+orml-traits = { path = "../orml/traits", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
@@ -85,6 +88,11 @@ std = [
 #    "orderbook-engine/std",
     "polkapool/std",
     "orml-vesting/std",
+    "orml-currencies/std",
+    "orml-tokens/std",
+    "polkadex-primitives/std",
+    "orml-traits/std",
+
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
