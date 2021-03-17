@@ -1,13 +1,14 @@
 use sp_core::{Pair, Public, sr25519};
 use node_polkadex_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-	SudoConfig, SystemConfig, WASM_BINARY, Signature, AssetsConfig
+	SudoConfig, SystemConfig, WASM_BINARY, Signature
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
 use polkadex_primitives::assets::AssetId;
+use node_polkadex_runtime::{TokensConfig, VestingConfig};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -135,33 +136,30 @@ fn testnet_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		frame_system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		pallet_balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
 			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
-		}),
-		pallet_aura: Some(AuraConfig {
+		},
+		pallet_aura: AuraConfig {
 			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
-		}),
-		pallet_grandpa: Some(GrandpaConfig {
+		},
+		pallet_grandpa: GrandpaConfig {
 			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
-		}),
-		pallet_sudo: Some(SudoConfig {
+		},
+		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
-		}),
-		assets: Some(AssetsConfig {
-			balances: vec![
-				(
-					AssetId::POLKADEX,
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					1000000000000000000u128
-				)
-			]
-		}),
+			key: root_key.clone(),
+		},
+		orml_tokens: TokensConfig {
+			endowed_accounts: vec![
+				(root_key, AssetId::POLKADEX, 1000000000000000000u128),
+			],
+		},
+		orml_vesting: VestingConfig { vesting: vec![] },
 	}
 }
