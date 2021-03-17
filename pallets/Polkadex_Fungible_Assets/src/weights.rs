@@ -33,7 +33,7 @@
 // --repeat=20
 // --heap-pages=4096
 // --template=./frame-weight-template.hbs
-// --output=./pallets/Assets/src/weights.rs
+// --output=./pallets/Polkadex_Fungible_Assets/src/weights.rs
 
 
 #![allow(unused_parens)]

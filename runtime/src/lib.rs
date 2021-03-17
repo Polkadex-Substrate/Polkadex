@@ -263,10 +263,9 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-impl assets::Config for Runtime{
+impl polkadex_fungible_assets::Config for Runtime{
 	type Event = Event;
 	type Balance = Balance;
-	type WeightInfo = assets::weights::SubstrateWeight<Runtime>;
 
 }
 
@@ -352,7 +351,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
+		Polkadex_Fungible_Assets: polkadex_fungible_assets::{Module, Call, Event<T>},
 		Vesting: orml_vesting::{Module, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Module, Call, Event<T>},
 		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
@@ -551,7 +550,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, assets, Assets);
+			add_benchmark!(params, batches, polkadex_fungible_assets, Polkadex_Fungible_Assets);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

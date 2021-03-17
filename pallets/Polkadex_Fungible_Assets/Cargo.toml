@@ -1,5 +1,5 @@
 [package]
-name = "assets"
+name = "polkadex-fungible-assets"
 version = "0.1.0"
 authors = ["Anonymous"]
 edition = "2018"
