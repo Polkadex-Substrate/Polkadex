@@ -3,7 +3,7 @@ use codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use sp_core::{H160, RuntimeDebug};
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetId {
     POLKADEX,
@@ -12,3 +12,4 @@ pub enum AssetId {
     SNOWFORK(H160),
     // PARACHAIN(para_id,network,palletInstance,assetID)
 }
+
