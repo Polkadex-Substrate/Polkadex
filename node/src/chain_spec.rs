@@ -1,7 +1,7 @@
 use sp_core::{Pair, Public, sr25519};
 use node_polkadex_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-	SudoConfig, SystemConfig, WASM_BINARY, Signature, AssetsConfig
+	SudoConfig, SystemConfig, WASM_BINARY, Signature
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -154,15 +154,6 @@ fn testnet_genesis(
 		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key.clone(),
-		},
-		assets: AssetsConfig {
-			balances: vec![
-				(
-					AssetId::POLKADEX,
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					1000000000000000000u128
-				)
-			]
 		},
 		orml_tokens: TokensConfig {
 			endowed_accounts: vec![

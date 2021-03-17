@@ -263,13 +263,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-impl assets::Config for Runtime{
-	type Event = Event;
-	type Balance = Balance;
-	type WeightInfo = assets::weights::SubstrateWeight<Runtime>;
-
-}
-
 parameter_types! {
 	pub MinVestedTransfer: Balance = 100u128;
 }
@@ -352,7 +345,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
+		// Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
 		Vesting: orml_vesting::{Module, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Module, Call, Event<T>},
 		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},

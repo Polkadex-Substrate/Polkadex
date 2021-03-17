@@ -12,3 +12,4 @@ pub enum AssetId {
     SNOWFORK(H160),
     // PARACHAIN(para_id,network,palletInstance,assetID)
 }
+

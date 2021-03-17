@@ -170,24 +170,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "assets"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "polkadex-primitives",
- "rustc-hex",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keyring",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "async-channel"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3571,7 +3553,6 @@ dependencies = [
 name = "node-polkadex-runtime"
 version = "1.0.0"
 dependencies = [
- "assets",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
