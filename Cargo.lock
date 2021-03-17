@@ -3593,7 +3593,6 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "polkadex-primitives",
- "polkapool",
  "serde",
  "sp-api",
  "sp-block-builder",
@@ -4464,21 +4463,6 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
-]
-
-[[package]]
-name = "polkapool"
-version = "0.1.0"
-dependencies = [
- "assets",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "polkadex-primitives",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]

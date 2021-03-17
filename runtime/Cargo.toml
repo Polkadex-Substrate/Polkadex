@@ -13,7 +13,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 
-#orderbook-engine = { path = "../pallets/Engine", version = "0.1.0", default-features = false }
 assets = { path = "../pallets/Assets", version = "0.1.0", default-features = false }
 pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-balances = {git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
@@ -84,7 +83,6 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "assets/std",
-#    "orderbook-engine/std",
     "orml-vesting/std",
     "orml-currencies/std",
     "orml-tokens/std",
@@ -102,5 +100,4 @@ runtime-benchmarks = [
     "pallet-balances/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
     "assets/runtime-benchmarks",
-#    "orderbook-engine/runtime-benchmarks",
 ]

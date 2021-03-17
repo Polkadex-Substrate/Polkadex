@@ -43,9 +43,6 @@ pub use frame_support::{
 use pallet_transaction_payment::CurrencyAdapter;
 /// Weights for pallets used in the runtime.
 
-
-//use orderbook_engine;
-
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -266,13 +263,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-// impl orderbook_engine::Config for Runtime{
-// 	type Event = Event;
-// 	type Balance = Balance;
-// 	type Public = <MultiSignature as Verify>::Signer;
-// 	type Signature = MultiSignature;
-// }
-
 impl assets::Config for Runtime{
 	type Event = Event;
 	type Balance = Balance;
@@ -363,7 +353,6 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Assets: assets::{Module, Call, Config<T>, Storage, Event<T>},
-//		Engine: orderbook_engine::{Module, Call, Storage, Event<T>},
 		Vesting: orml_vesting::{Module, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Module, Call, Event<T>},
 		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
@@ -563,7 +552,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, assets, Assets);
-//			add_benchmark!(params, batches, orderbook_engine, Engine);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
