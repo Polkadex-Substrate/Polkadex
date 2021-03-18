@@ -4446,6 +4446,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "orml-tokens",
+ "orml-traits",
  "parity-scale-codec",
  "polkadex-primitives",
  "rustc-hex",

@@ -49,8 +49,8 @@ decl_module! {
 		pub fn create_token(origin,
 						asset_id: T::CurrencyId,
 						max_supply: T::Balance) -> DispatchResult {
+						let who: T::AccountId = ensure_signed(origin)?;
 						ensure!(!orml_tokens::TotalIssuance::<T>::contains_key(asset_id), Error::<T>::AssetIdAlreadyExists);
-                        let who: T::AccountId = ensure_signed(origin)?;
 						orml_tokens::TotalIssuance::<T>::insert(asset_id, max_supply);
 						let account_data = orml_tokens::AccountData{free: max_supply, reserved: T::Balance::zero(), frozen: T::Balance::zero()};
 						orml_tokens::Accounts::<T>::insert(who.clone(), asset_id, account_data);

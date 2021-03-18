@@ -7,8 +7,12 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup}, testing::Header
 };
 use sp_std::convert::From;
+use orml_traits::parameter_type_with_key;
+use crate as polkadex_fungible_assets;
+use std::convert::{TryInto, TryFrom};
+use orml_tokens::WeightInfo;
 
-use crate as assets;
+use polkadex_primitives::assets::AssetId;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -20,7 +24,8 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Module, Call, Storage, Event<T>},
-		Assets: assets::{Module, Call, Storage, Event<T>},
+		PolkadexFungibleAssets: polkadex_fungible_assets::{Module, Call, Event<T>},
+		OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -43,7 +48,7 @@ impl system::Config for Test {
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
-    type Event = Event;
+    type Event = ();
     type BlockHashCount = BlockHashCount;
     type DbWeight = ();
     type Version = ();
@@ -55,13 +60,29 @@ impl system::Config for Test {
     type SS58Prefix = ();
 }
 
-impl assets::Config for Test {
-    type Event = Event;
-    type WeightInfo = ();
-    type Balance = Balance;
+impl Config for Test{
+    type Event = ();
 }
 
-pub type AssetsModule = Module<Test>;
+parameter_types! {
+	pub TreasuryModuleAccount: u64 = 1;
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+		Zero::zero()
+	};
+}
+
+impl orml_tokens::Config for Test{
+    type Event = ();
+    type Balance = Balance;
+    type Amount = i128;
+    type CurrencyId = AssetId;
+    type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
+}
 
 pub fn new_tester() -> sp_io::TestExternalities {
     let storage = system::GenesisConfig::default().build_storage::<Test>().unwrap();
