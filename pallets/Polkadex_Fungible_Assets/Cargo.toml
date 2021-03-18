@@ -20,6 +20,7 @@ sp-std = {  git = "https://github.com/paritytech/substrate", branch = "rococo-v1
 sp-runtime = {  git = "https://github.com/paritytech/substrate", branch = "rococo-v1",default-features = false }
 polkadex-primitives = { path = "../../primitives", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1",default-features = false, optional = true }
+orml-tokens = { path = "../../orml/tokens", default-features = false }
 
 [dev-dependencies]
 sp-keyring = {  git = "https://github.com/paritytech/substrate", branch = "rococo-v1" ,default-features = false }
@@ -36,6 +37,7 @@ std = [
     "sp-std/std",
     "sp-io/std",
     "sp-runtime/std",
-    "polkadex-primitives/std"
+    "polkadex-primitives/std",
+    "orml-tokens/std",
 ]
 runtime-benchmarks = ["frame-benchmarking"]

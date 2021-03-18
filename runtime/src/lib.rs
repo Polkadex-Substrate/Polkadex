@@ -5,7 +5,6 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-use codec::Encode;
 use sp_std::prelude::*;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -18,7 +17,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
-use frame_system::{EnsureOneOf, EnsureRoot, RawOrigin};
+use frame_system::RawOrigin;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use orml_currencies::BasicCurrencyAdapter;
@@ -351,7 +350,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		Polkadex_Fungible_Assets: polkadex_fungible_assets::{Module, Call, Event<T>},
+		PolkadexFungibleAssets: polkadex_fungible_assets::{Module, Call, Event<T>},
 		Vesting: orml_vesting::{Module, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Module, Call, Event<T>},
 		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
@@ -550,7 +549,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, polkadex_fungible_assets, Polkadex_Fungible_Assets);
+			add_benchmark!(params, batches, polkadex_fungible_assets, PolkadexFungibleAssets);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

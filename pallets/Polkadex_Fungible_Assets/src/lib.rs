@@ -1,17 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use sp_std::prelude::*;
-use frame_system::{self as system, ensure_signed};
+use frame_system as system;
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage,
+    decl_error, decl_event, decl_module, ensure,
     dispatch::DispatchResult, Parameter,
 };
 use frame_support::sp_std::fmt::Debug;
-use sp_runtime::traits::{AtLeast32BitUnsigned, StaticLookup, MaybeSerializeDeserialize, Member};
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, Member};
 
-use sp_runtime::traits::CheckedSub;
-use sp_runtime::traits::CheckedAdd;
 use polkadex_primitives::assets::AssetId;
 #[cfg(test)]
 mod mock;
@@ -19,18 +16,16 @@ mod mock;
 #[cfg(test)]
 mod test;
 
-pub trait Config: system::Config {
+pub trait Config: system::Config + orml_tokens::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
-    type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + Debug + MaybeSerializeDeserialize;
 }
 
 decl_event!(
 	pub enum Event<T>
 	where
 		<T as system::Config>::AccountId,
-		Balance = <T as Config>::Balance
 	{
-		TokenIssued(AssetId, AccountId, Balance),
+		TokenIssued(AssetId, AccountId),
 	}
 );
 
@@ -52,6 +47,10 @@ decl_module! {
 		pub fn create_token(origin,
 						asset_id: AssetId,
 						max_supply: T::Balance) -> DispatchResult {
+						ensure!(!orml_tokens::TotalIssuance::<T>::contains_key(asset_id), Error::<T>::AssetIdAlreadyExists);
+
+						orml_tokens::TotalIssuance::<T>::insert(asset_id, max_supply);
+						orml_tokens::Accounts::<T>::insert(origin, asset_id, max_supply);
 			Ok(())
 		}
 	}
