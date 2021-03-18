@@ -264,8 +264,6 @@ impl pallet_sudo::Config for Runtime {
 
 impl polkadex_fungible_assets::Config for Runtime{
 	type Event = Event;
-	type Balance = Balance;
-
 }
 
 parameter_types! {
