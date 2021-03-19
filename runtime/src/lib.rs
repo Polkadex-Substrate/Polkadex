@@ -5,6 +5,7 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+use codec::Encode;
 use sp_std::prelude::*;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -270,6 +271,7 @@ parameter_types! {
 	pub MinVestedTransfer: Balance = 100u128;
 }
 
+
 pub struct EnsureRootOrPolakdexTreasury;
 impl EnsureOrigin<Origin> for EnsureRootOrPolakdexTreasury {
 	type Success = AccountId;
@@ -332,6 +334,7 @@ impl orml_currencies::Config for Runtime {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
 }
+
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
