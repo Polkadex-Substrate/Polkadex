@@ -78,7 +78,7 @@ decl_module! {
 
 		fn deposit_event() = default;
 
-		/// Transfer some free balance to another account.
+		/// Create new token.
 		#[weight = 10000]
 		pub fn create_token(origin,
 						asset_id: T::CurrencyId,
@@ -106,10 +106,3 @@ decl_module! {
 
 	}
 }
-
-/// Questions
-/// Who can call metadata function?
-/// Who can be mintable and bunrable account
-/// deposit a fixed amount of Polkadex token to Polkadex treasury :: Explain
-/// Where to set exsistential deposit
-///
