@@ -88,6 +88,8 @@ decl_module! {
 						orml_tokens::TotalIssuance::<T>::insert(asset_id, max_supply);
 						let account_data = orml_tokens::AccountData{free: max_supply, reserved: T::Balance::zero(), frozen: T::Balance::zero()};
 						orml_tokens::Accounts::<T>::insert(who.clone(), asset_id, account_data);
+
+						InfoAsset::<T>::insert(asset_id, AssetInfo::default());
                         Self::deposit_event(RawEvent::TokenIssued(asset_id, who, max_supply));
 			Ok(())
 		}

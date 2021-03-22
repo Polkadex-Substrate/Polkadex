@@ -8,7 +8,6 @@ use super::*;
 
 #[test]
 fn test_create_token() {
-
     // Register new account
     new_tester().execute_with(|| {
         let alice: u64 = 1;
@@ -16,6 +15,7 @@ fn test_create_token() {
         // Chainsafe Asset
         let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
         assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance), Ok(()));
+        assert_eq!(InfoAsset::<Test>::contains_key(new_asset_chainsafe), true);
         assert_eq!(OrmlToken::total_issuance(new_asset_chainsafe), 500u128);
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &alice), 500u128);
         // Snowfork Asset
@@ -24,7 +24,6 @@ fn test_create_token() {
         assert_eq!(OrmlToken::total_issuance(new_asset_chainsafe), 500u128);
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &alice), 500u128);
     });
-
     // Check for Error
     new_tester().execute_with(|| {
         let alice: u64 = 1;
@@ -45,5 +44,23 @@ fn test_create_token() {
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &alice), 300u128);
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &bob), 200u128);
 
+    });
+}
+
+#[test]
+fn test_set_metadata_fungible() {
+    new_tester().execute_with(|| {
+        let alice: u64 = 1;
+        let new_balance: u128 = 500;
+        let meta_data: AssetMetadata = AssetMetadata {
+            name: "test".encode(),
+            team: "".encode(),
+            website: "".encode()
+        };
+        // Chainsafe Asset
+        let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance), Ok(()));
+        assert_eq!(InfoAsset::<Test>::contains_key(new_asset_chainsafe), true);
+        assert_eq!(PolkadexFungibleAssets::set_metadata_fungible(Origin::signed(alice.clone()), new_asset_chainsafe, meta_data), Ok(()));
     });
 }
