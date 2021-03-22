@@ -14,6 +14,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 
 
+polkadex-fungible-assets = { path = "../pallets/Polkadex_Fungible_Assets", version = "0.1.0", default-features = false }
 pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-balances = {git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
@@ -82,6 +83,8 @@ std = [
     "sp-version/std",
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
+
+    "polkadex-fungible-assets/std",
     "orml-vesting/std",
     "orml-currencies/std",
     "orml-tokens/std",
@@ -96,5 +99,7 @@ runtime-benchmarks = [
     "hex-literal",
     "frame-system/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
-    "pallet-timestamp/runtime-benchmarks"
+    "pallet-timestamp/runtime-benchmarks",
+    "polkadex-fungible-assets/runtime-benchmarks",
+
 ]
