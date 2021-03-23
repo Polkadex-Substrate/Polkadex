@@ -2,7 +2,7 @@
 
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult,
-    ensure,traits::{ExistenceRequirement, Get, Currency}
+    ensure,traits::{ExistenceRequirement, Get, Currency, EnsureOrigin}
 };
 use frame_system as system;
 use frame_system::ensure_signed;
@@ -19,6 +19,7 @@ mod test;
 pub trait Config: system::Config + orml_tokens::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type TreasuryAccountId: Get<Self::AccountId>;
+    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
 
 }
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -160,7 +161,7 @@ decl_module! {
 		    Ok(())
 		}
 
-        /// Info Fungible
+        /// Set Metadata
         #[weight = 10000]
 		pub fn set_metadata_fungible(origin, asset_id: T::CurrencyId, metadata: AssetMetadata) -> DispatchResult {
 		    let who: T::AccountId = ensure_signed(origin)?;
@@ -173,5 +174,15 @@ decl_module! {
 		    })
 		}
 
+		 /// Attest Token
+        #[weight = 10000]
+        pub fn attest_token(origin, asset_id: T::CurrencyId) -> DispatchResult {
+		    let who = T::GovernanceOrigin::ensure_origin(origin)?;
+		    ensure!(<InfoAsset<T>>::contains_key(&asset_id), <Error<T>>::AssetIdNotExists);
+		    InfoAsset::<T>::try_mutate(&asset_id, |ref mut asset_info| {
+		        asset_info.is_verified = true;
+		        Ok(())
+		    })
+		}
 	}
 }

@@ -95,3 +95,24 @@ fn test_set_metadata_fungible() {
         assert_noop!(PolkadexFungibleAssets::set_metadata_fungible(Origin::signed(bob.clone()), new_asset_chainsafe, meta_data), Error::<Test>::NotTheOwner);
     });
 }
+
+#[test]
+fn test_attest_token() {
+    new_tester().execute_with(|| {
+        let alice: u64 = 6;
+        let new_balance: u128 = 500;
+        let existential_deposit: u128 = 1;
+        let mint_account = Some(2u64);
+        let burn_account = Some(3u64);
+        let meta_data: AssetMetadata = AssetMetadata {
+            name: "test".encode(),
+            team: "".encode(),
+            website: "".encode()
+        };
+        // Chainsafe Asset
+        let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance, mint_account, burn_account, existential_deposit), Ok(()));
+        assert_eq!(PolkadexFungibleAssets::attest_token(Origin::signed(alice.clone()), new_asset_chainsafe), Ok(()));
+        assert_eq!(InfoAsset::<Test>::get(new_asset_chainsafe).is_verified, true);
+    });
+}

@@ -2,7 +2,7 @@
 use super::*;
 
 use sp_core::H256;
-use frame_support::parameter_types;
+use frame_support::{ord_parameter_types, parameter_types};
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup}, testing::Header
 };
@@ -11,7 +11,7 @@ use orml_traits::parameter_type_with_key;
 use crate as polkadex_fungible_assets;
 use std::convert::{TryInto, TryFrom};
 use orml_tokens::WeightInfo;
-
+use frame_system::EnsureSignedBy;
 use polkadex_primitives::assets::AssetId;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -64,9 +64,14 @@ parameter_types! {
 	pub const TresuryAccount: u64 = 9;
 }
 
+ord_parameter_types! {
+    pub const Six: u64 = 6;
+}
+
 impl Config for Test{
     type Event = ();
     type TreasuryAccountId = TresuryAccount;
+    type GovernanceOrigin = EnsureSignedBy<Six, u64>;
 }
 
 parameter_types! {

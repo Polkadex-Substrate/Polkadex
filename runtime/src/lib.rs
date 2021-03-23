@@ -93,6 +93,7 @@ pub mod opaque {
 	}
 }
 
+const MODULE_ID: ModuleId = ModuleId(*b"cb/gover");
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("node-polkadex"),
 	impl_name: create_runtime_str!("node-polkadex"),
@@ -266,10 +267,27 @@ impl pallet_sudo::Config for Runtime {
 parameter_types! {
 	pub TreasuryAccountId: AccountId = PolkadexTreasuryModuleId::get().into_account();
 }
+pub struct EnsureGoverance;
+impl EnsureOrigin<Origin> for EnsureGoverance {
+	type Success = AccountId;
+	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+		let bridge_id = MODULE_ID.into_account();
+		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+			RawOrigin::Signed(who) if who == bridge_id => Ok(bridge_id),
+			r => Err(Origin::from(r)),
+		})
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn successful_origin() -> Origin {
+		Origin::from(RawOrigin::Signed(Default::default()))
+	}
+}
 
 impl polkadex_fungible_assets::Config for Runtime{
 	type Event = Event;
 	type TreasuryAccountId = TreasuryAccountId;
+	type GovernanceOrigin = EnsureGoverance;
 }
 
 parameter_types! {
