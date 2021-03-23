@@ -18,7 +18,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
-use frame_system::RawOrigin;
+use frame_system::{RawOrigin, Config};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use orml_currencies::BasicCurrencyAdapter;
@@ -263,8 +263,13 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
+parameter_types! {
+	pub TreasuryAccountId: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
+
 impl polkadex_fungible_assets::Config for Runtime{
 	type Event = Event;
+	type TreasuryAccountId = TreasuryAccountId;
 }
 
 parameter_types! {
@@ -278,7 +283,6 @@ impl EnsureOrigin<Origin> for EnsureRootOrPolakdexTreasury {
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-			RawOrigin::Root => Ok(PolkadexTreasuryModuleId::get().into_account()),
 			RawOrigin::Signed(caller) => {
 				if caller == PolkadexTreasuryModuleId::get().into_account() {
 					Ok(caller)

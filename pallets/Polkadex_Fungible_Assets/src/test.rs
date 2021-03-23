@@ -12,15 +12,17 @@ fn test_create_token() {
     new_tester().execute_with(|| {
         let alice: u64 = 1;
         let new_balance: u128 = 500;
+        let existential_deposit: u128 = 1;
+        let mint_account = Some(2u64);
+        let burn_account = Some(3u64);
         // Chainsafe Asset
         let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
-        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance), Ok(()));
-        assert_eq!(InfoAsset::<Test>::contains_key(new_asset_chainsafe), true);
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance, mint_account, burn_account, existential_deposit), Ok(()));
         assert_eq!(OrmlToken::total_issuance(new_asset_chainsafe), 500u128);
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &alice), 500u128);
         // Snowfork Asset
         let new_asset_snofork: AssetId = AssetId::SNOWFORK(H160::from_low_u64_be(24));
-        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_snofork, new_balance), Ok(()));
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_snofork, new_balance, mint_account, burn_account, existential_deposit), Ok(()));
         assert_eq!(OrmlToken::total_issuance(new_asset_chainsafe), 500u128);
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &alice), 500u128);
     });
@@ -28,9 +30,12 @@ fn test_create_token() {
     new_tester().execute_with(|| {
         let alice: u64 = 1;
         let new_balance: u128 = 500;
+        let existential_deposit: u128 = 1;
+        let mint_account = Some(2u64);
+        let burn_account = Some(3u64);
         let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
-        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance), Ok(()));
-        assert_noop!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance), Error::<Test>::AssetIdAlreadyExists);
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance, mint_account, burn_account, existential_deposit), Ok(()));
+        assert_noop!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance, mint_account, burn_account, existential_deposit), Error::<Test>::AssetIdAlreadyExists);
     });
 
     // Transfer of Balance
@@ -38,8 +43,11 @@ fn test_create_token() {
         let alice: u64 = 1;
         let bob: u64 = 2;
         let new_balance: u128 = 500;
+        let existential_deposit: u128 = 1;
+        let mint_account = Some(2u64);
+        let burn_account = Some(3u64);
         let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
-        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance), Ok(()));
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance, mint_account, burn_account, existential_deposit), Ok(()));
         assert_eq!(OrmlToken::transfer(Origin::signed(alice.clone()),bob,new_asset_chainsafe, 200u128), Ok(().into()));
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &alice), 300u128);
         assert_eq!(OrmlToken::total_balance(new_asset_chainsafe, &bob), 200u128);
@@ -52,6 +60,9 @@ fn test_set_metadata_fungible() {
     new_tester().execute_with(|| {
         let alice: u64 = 1;
         let new_balance: u128 = 500;
+        let existential_deposit: u128 = 1;
+        let mint_account = Some(2u64);
+        let burn_account = Some(3u64);
         let meta_data: AssetMetadata = AssetMetadata {
             name: "test".encode(),
             team: "".encode(),
@@ -59,8 +70,28 @@ fn test_set_metadata_fungible() {
         };
         // Chainsafe Asset
         let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
-        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance), Ok(()));
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance, mint_account, burn_account, existential_deposit), Ok(()));
         assert_eq!(InfoAsset::<Test>::contains_key(new_asset_chainsafe), true);
         assert_eq!(PolkadexFungibleAssets::set_metadata_fungible(Origin::signed(alice.clone()), new_asset_chainsafe, meta_data), Ok(()));
+    });
+
+
+    // Check for Error
+    new_tester().execute_with(|| {
+        let alice: u64 = 1;
+        let new_balance: u128 = 500;
+        let existential_deposit: u128 = 1;
+        let mint_account = Some(2u64);
+        let burn_account = Some(3u64);
+        let meta_data: AssetMetadata = AssetMetadata {
+            name: "test".encode(),
+            team: "".encode(),
+            website: "".encode()
+        };
+        let bob: u64 = 2;
+        // Chainsafe Asset
+        let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
+        assert_eq!(PolkadexFungibleAssets::create_token(Origin::signed(alice.clone()), new_asset_chainsafe, new_balance, mint_account, burn_account, existential_deposit), Ok(()));
+        assert_noop!(PolkadexFungibleAssets::set_metadata_fungible(Origin::signed(bob.clone()), new_asset_chainsafe, meta_data), Error::<Test>::NotTheOwner);
     });
 }
