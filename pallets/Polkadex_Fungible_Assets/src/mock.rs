@@ -60,8 +60,13 @@ impl system::Config for Test {
     type SS58Prefix = ();
 }
 
+parameter_types! {
+	pub const TresuryAccount: u64 = 9;
+}
+
 impl Config for Test{
     type Event = ();
+    type TreasuryAccountId = TresuryAccount;
 }
 
 parameter_types! {
