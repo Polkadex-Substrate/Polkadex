@@ -174,10 +174,5 @@ decl_module! {
 	}
 }
 
-// Questions
-// What all fields to add?
-// Who can call metadata function?
-// Who can be mintable and bunrable account
-// deposit a fixed amount of Polkadex token to Polkadex treasury :: Explain
-// Where to set exsistential deposit
+
 
