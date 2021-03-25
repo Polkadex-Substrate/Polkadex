@@ -116,3 +116,13 @@ fn test_attest_token() {
         assert_eq!(InfoAsset::<Test>::get(new_asset_chainsafe).is_verified, true);
     });
 }
+
+#[test]
+fn test_modify_token_deposit_amount() {
+    new_tester().execute_with(|| {
+        let alice: u64 = 6;
+        let token: u128 = 123;
+        assert_eq!(PolkadexFungibleAssets::modify_token_deposit_amount(Origin::signed(alice.clone()), token), Ok(()));
+        assert_eq!(FixedPDXAmount::<Test>::get(), 123);
+    });
+}

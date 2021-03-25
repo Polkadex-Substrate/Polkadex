@@ -94,7 +94,7 @@ decl_storage! {
         /// Stores AssetInfo
         InfoAsset get(fn get_assetinfo): map hasher(identity) T::CurrencyId => AssetInfo<T>;
         InfoVesting get(fn get_vestinginfo): map hasher(identity) T::AccountId => VestingInfo<T>;
-        FixedPDXAmount: T::Balance;
+        FixedPDXAmount get(fn get_amount): T::Balance;
     }
 }
 
@@ -183,6 +183,14 @@ decl_module! {
 		        asset_info.is_verified = true;
 		        Ok(())
 		    })
+		}
+
+		/// Modify Token Registration
+		#[weight = 10000]
+		pub fn modify_token_deposit_amount(origin, pdx_amount: T::Balance) -> DispatchResult {
+		    let who = T::GovernanceOrigin::ensure_origin(origin)?;
+            <FixedPDXAmount<T>>::put::<T::Balance>(pdx_amount);
+            Ok(())
 		}
 	}
 }
