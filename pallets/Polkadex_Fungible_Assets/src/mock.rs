@@ -1,38 +1,39 @@
 // Mock runtime
 use super::*;
 
+use crate as polkadex_fungible_assets;
+use frame_support::{ord_parameter_types, parameter_types};
+use frame_system::EnsureSignedBy;
+use orml_tokens::WeightInfo;
+use orml_traits::parameter_type_with_key;
+use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
-use frame_support::parameter_types;
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup}, testing::Header
+    testing::Header,
+    traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
-use orml_traits::parameter_type_with_key;
-use crate as polkadex_fungible_assets;
-use std::convert::{TryInto, TryFrom};
-use orml_tokens::WeightInfo;
-
-use polkadex_primitives::assets::AssetId;
+use std::convert::{TryFrom, TryInto};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
-		System: frame_system::{Module, Call, Storage, Event<T>},
-		PolkadexFungibleAssets: polkadex_fungible_assets::{Module, Call, Event<T>},
-		OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
-	}
+    pub enum Test where
+        Block = Block,
+        NodeBlock = Block,
+        UncheckedExtrinsic = UncheckedExtrinsic,
+    {
+        System: frame_system::{Module, Call, Storage, Event<T>},
+        PolkadexFungibleAssets: polkadex_fungible_assets::{Module, Call, Event<T>},
+        OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
+    }
 );
 
 pub type Balance = u128;
 
 parameter_types! {
-	pub const BlockHashCount: u64 = 250;
+    pub const BlockHashCount: u64 = 250;
 }
 
 impl system::Config for Test {
@@ -61,25 +62,30 @@ impl system::Config for Test {
 }
 
 parameter_types! {
-	pub const TresuryAccount: u64 = 9;
+    pub const TresuryAccount: u64 = 9;
 }
 
-impl Config for Test{
+ord_parameter_types! {
+    pub const Six: u64 = 6;
+}
+
+impl Config for Test {
     type Event = ();
     type TreasuryAccountId = TresuryAccount;
+    type GovernanceOrigin = EnsureSignedBy<Six, u64>;
 }
 
 parameter_types! {
-	pub TreasuryModuleAccount: u64 = 1;
+    pub TreasuryModuleAccount: u64 = 1;
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		Zero::zero()
-	};
+    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+        Zero::zero()
+    };
 }
 
-impl orml_tokens::Config for Test{
+impl orml_tokens::Config for Test {
     type Event = ();
     type Balance = Balance;
     type Amount = i128;
@@ -90,7 +96,9 @@ impl orml_tokens::Config for Test{
 }
 
 pub fn new_tester() -> sp_io::TestExternalities {
-    let storage = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    let storage = system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap();
 
     let mut ext: sp_io::TestExternalities = storage.into();
     ext.execute_with(|| System::set_block_number(1));
