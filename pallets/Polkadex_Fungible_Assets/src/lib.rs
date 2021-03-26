@@ -5,10 +5,13 @@ use frame_support::{
     ensure,traits::{ExistenceRequirement, Get, Currency}
 };
 use frame_system as system;
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed, Account};
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 use codec::{Decode, Encode};
+use sp_runtime::DispatchError;
+use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use orml_traits::MultiCurrency;
 
 #[cfg(test)]
 mod mock;
@@ -112,7 +115,11 @@ decl_error! {
 	pub enum Error for Module<T: Config> {
 		AssetIdAlreadyExists,
 		AssetIdNotExists,
-		VestingInfoExists
+		VestingInfoExists,
+		NoPermissionToMint,
+		NoPermissionToBurn,
+		Underflow,
+		Overflow
 	}
 }
 
@@ -137,6 +144,7 @@ decl_module! {
 						ensure!(!<InfoAsset<T>>::contains_key(&asset_id), Error::<T>::AssetIdAlreadyExists);
 						let tresury_account = T::TreasuryAccountId::get();
 						let amout_to_trasfer: T::Balance = FixedPDXAmount::<T>::get();
+//						orml_tokens::MultiCurrency::<T>::transfer();
 //						orml_tokens::CurrencyAdapter::<T, Get<Currency<T::AccountId>>>::transfer(&who, &tresury_account, amout_to_trasfer, ExistenceRequirement::AllowDeath)?;
 						let asset_info = AssetInfo::from(who.clone(), mint_account, burn_account, None, false);
 						<InfoAsset<T>>::insert(asset_id, asset_info);
@@ -150,8 +158,9 @@ decl_module! {
 		/// Vesting
 		#[weight = 10000]
 		pub fn set_vesting_info(origin, amount: T::Balance, rate: T::Balance, account: T::AccountId) -> DispatchResult {
-		    /// Who can use this function?
+		    /// Who can use this function? :
 		    /// From where balace is coming or is it minting
+		    /// Private Token :- Give
 		    ensure!(!<InfoVesting<T>>::contains_key(&account), <Error<T>>::VestingInfoExists);
 		    let current_block_no = <system::Module<T>>::block_number();
 		    let vesting_info = VestingInfo::from(amount, rate, current_block_no);
@@ -171,7 +180,59 @@ decl_module! {
 		    })
 		}
 
+		/// Minting
+		#[weight = 10000]
+		pub fn mint_fungible(origin,to: T::AccountId, asset_id: T::CurrencyId, amount: T::Balance) -> DispatchResult {
+		    let who: T::AccountId = ensure_signed(origin)?;
+		    Self::mint_token(&who, &to,asset_id, amount)?;
+		    Ok(())
+		}
+
+		/// Burn
+		#[weight = 10000]
+		pub fn burn_fungible(origin, asset_id: T::CurrencyId, amount: T::Balance) -> DispatchResult {
+		    let who: T::AccountId = ensure_signed(origin)?;
+		    Self::burn_token(&who,asset_id, amount)?;
+		    Ok(())
+		}
+
 	}
+}
+
+impl<T: Config> Module<T> {
+    pub fn mint_token (who: &T::AccountId, to: &T::AccountId, asset_id: T::CurrencyId, amount: T::Balance) -> Result<(), Error<T>> {
+        let asset_info: AssetInfo<T> = <InfoAsset<T>>::get(asset_id);
+        match asset_info.is_mintable {
+            Some(account) if account == *who => {
+                orml_tokens::TotalIssuance::<T>::try_mutate(&asset_id, |max_supply| {
+                    *max_supply = max_supply.checked_add(&amount).ok_or(<Error<T>>::Overflow)?;
+                    orml_tokens::Accounts::<T>::try_mutate(to, asset_id, |account|{
+                        account.free = account.free.checked_add(&amount).ok_or(<Error<T>>::Overflow)?;
+                        Ok(())
+                    })
+                })
+            }
+            Some(_) => Err(<Error<T>>::NoPermissionToMint),
+            None => Err(<Error<T>>::AssetIdNotExists),
+        }
+    }
+
+    pub fn burn_token (who: &T::AccountId, asset_id: T::CurrencyId, amount: T::Balance) -> Result<(), Error<T>> {
+        let asset_info: AssetInfo<T> = <InfoAsset<T>>::get(asset_id);
+        match asset_info.is_burnable {
+            Some(account) if account == *who => {
+                orml_tokens::TotalIssuance::<T>::try_mutate(&asset_id, |max_supply| {
+                    *max_supply = max_supply.checked_sub(&amount).ok_or(<Error<T>>::Underflow)?;
+                    orml_tokens::Accounts::<T>::try_mutate(who, asset_id, |account|{
+                        account.free = account.free.checked_sub(&amount).ok_or(<Error<T>>::Underflow)?;
+                        Ok(())
+                    })
+                })
+            }
+            Some(_) => Err(<Error<T>>::NoPermissionToBurn),
+            None => Err(<Error<T>>::AssetIdNotExists),
+        }
+    }
 }
 
 
