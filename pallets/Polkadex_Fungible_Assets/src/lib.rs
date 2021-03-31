@@ -12,7 +12,7 @@ use frame_system::{Account, ensure_signed};
 use sp_runtime::DispatchError;
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
-
+use sp_runtime::traits::Hash;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use orml_traits::BasicCurrency;
 use orml_traits::MultiCurrency;
@@ -88,7 +88,7 @@ impl<T: Config> Default for VestingInfo<T> {
         VestingInfo {
             amount: T::Balance::default(),
             rate: T::Balance::default(),
-            block_no: T::BlockNumber::default(),
+            block_no: T::BlockNumber::default()
         }
     }
 }
@@ -98,16 +98,18 @@ impl<T: Config> VestingInfo<T> {
         VestingInfo {
             amount,
             rate,
-            block_no,
+            block_no
         }
     }
 }
+
+pub type VestingIndex = u32;
 
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexFungible {
         /// Stores AssetInfo
         InfoAsset get(fn get_assetinfo): map hasher(identity) T::CurrencyId => AssetInfo<T>;
-        InfoVesting get(fn get_vestinginfo): map hasher(identity) T::AccountId => VestingInfo<T>;
+        InfoVesting get(fn get_vestinginfo): double_map hasher(identity) (T::AccountId,T::CurrencyId), hasher(identity) T::Hash  => VestingInfo<T>;
         FixedPDXAmount get(fn get_amount): T::Balance;
     }
 }
@@ -177,14 +179,31 @@ decl_module! {
         /// Vesting
         #[weight = 10000]
         pub fn set_vesting_info(origin, amount: T::Balance, asset_id: T::CurrencyId, rate: T::Balance, account: T::AccountId) -> DispatchResult {
-            /// Who can use this function? :
-            /// From where balace is coming or is it minting
-            /// Private Token :- Give
-            ensure!(!<InfoVesting<T>>::contains_key(&account), <Error<T>>::VestingInfoExists);
+            let who: T::AccountId = ensure_signed(origin)?;
+            let asset_info: AssetInfo<T> = <InfoAsset<T>>::get(asset_id);
+            ensure!(asset_info.creator == who, Error::<T>::AssetIdAlreadyExists);
             let current_block_no = <system::Module<T>>::block_number();
             let vesting_info = VestingInfo::from(amount, rate, current_block_no);
-            <InfoVesting<T>>::insert(account, vesting_info);
+            let identifier = (&current_block_no, &vesting_info).using_encoded(T::Hashing::hash);
+            <InfoVesting<T>>::insert((account, asset_id), identifier, vesting_info);
             Ok(())
+        }
+
+        ///Claim
+        #[weight = 10000]
+        pub fn claim_vesting(origin, identifier: T::Hash, asset_id: T::CurrencyId) -> DispatchResult {
+            let who: T::AccountId = ensure_signed(origin)?;
+            let vesting: VestingInfo<T> = <InfoVesting<T>>::get((who, asset_id), identifier);
+            let current_block_no = <system::Module<T>>::block_number();
+            // block_diff = currect_block - vesting.block_no
+            // amount = block_diff * vesting.rate;
+            // let amount_to_be_released = if (amount > vesting.amount) vesting.amount else amount
+            // let vestting.amount = vestting.amount.saturation_sub(amount);
+            // Insert Vesting Info
+            // Update free balace of who (free_balabce + amoun_to_be_released)
+
+            Ok(())
+
         }
 
         /// Set Metadata
