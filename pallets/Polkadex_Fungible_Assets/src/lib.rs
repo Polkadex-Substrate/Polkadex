@@ -28,6 +28,7 @@ pub trait Config: system::Config + orml_tokens::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type TreasuryAccountId: Get<Self::AccountId>;
     type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
+    // Native
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -164,9 +165,8 @@ decl_module! {
             ensure!(!<InfoAsset<T>>::contains_key(&asset_id), Error::<T>::AssetIdAlreadyExists);
             let tresury_account = T::TreasuryAccountId::get();
             let amout_to_trasfer: T::Balance = FixedPDXAmount::<T>::get();
-//		    orml_currencies::NativeCurrencyOf::<T>::transfer(&who, &tresury_account, amout_to_trasfer);
-//		    orml_tokens::MultiCurrency::<T>::transfer();
-//			orml_tokens::CurrencyAdapter::<T, Get<Currency<T::AccountId>>>::transfer(&who, &tresury_account, amout_to_trasfer, ExistenceRequirement::AllowDeath)?;
+		    orml_currencies::NativeCurrencyOf::<T>::transfer(&who, &tresury_account, amout_to_trasfer);
+		    // https://github.com/paritytech/substrate/blob/master/frame/vesting/src/lib.rs#L322
             let asset_info = AssetInfo::from(who.clone(), mint_account, burn_account, None, false);
             <InfoAsset<T>>::insert(asset_id, asset_info);
             orml_tokens::TotalIssuance::<T>::insert(asset_id, max_supply);
@@ -184,6 +184,7 @@ decl_module! {
             ensure!(asset_info.creator == who, Error::<T>::AssetIdAlreadyExists);
             let current_block_no = <system::Module<T>>::block_number();
             let vesting_info = VestingInfo::from(amount, rate, current_block_no);
+            // Random Pallet
             let identifier = (&current_block_no, &vesting_info).using_encoded(T::Hashing::hash);
             <InfoVesting<T>>::insert((account, asset_id), identifier, vesting_info);
             Ok(())
