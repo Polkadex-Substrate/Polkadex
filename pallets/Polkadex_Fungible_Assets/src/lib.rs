@@ -343,27 +343,6 @@ impl<T: Config> Module<T> {
         }
     }
 
-    pub fn transfer_native(
-        from: &T::AccountId,
-        to: &T::AccountId,
-        asset_id: T::CurrencyId,
-        amount: T::Balance,
-    ) -> DispatchResult {
-        orml_tokens::Accounts::<T>::try_mutate(from, asset_id, |account_from| {
-            orml_tokens::Accounts::<T>::try_mutate(to, asset_id, |account_to| {
-                account_from.free = account_from
-                    .free
-                    .checked_sub(&amount)
-                    .ok_or(<Error<T>>::Underflow)?;
-                account_to.free = account_to
-                    .free
-                    .checked_add(&amount)
-                    .ok_or(<Error<T>>::Overflow)?;
-                Ok(())
-            })
-        })
-    }
-
     fn block_to_balance(input: T::BlockNumber) -> T::Balance {
         T::Balance::from(input.saturated_into::<u32>())
     }
