@@ -4,7 +4,6 @@ use super::*;
 use crate as polkadex_fungible_assets;
 use frame_support::{ord_parameter_types, parameter_types};
 use frame_system::EnsureSignedBy;
-use orml_tokens::WeightInfo;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
@@ -13,7 +12,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
-use std::convert::{TryFrom, TryInto};
+use orml_currencies::BasicCurrencyAdapter;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -25,8 +24,10 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Module, Call, Storage, Event<T>},
-        PolkadexFungibleAssets: polkadex_fungible_assets::{Module, Call, Event<T>},
+        Fungible: polkadex_fungible_assets::{Module, Call, Event<T>},
+        Currencies: orml_currencies::{Module, Call, Event<T>},
         OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
+        PalletBalances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
     }
 );
 
@@ -54,11 +55,40 @@ impl system::Config for Test {
     type DbWeight = ();
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = ();
+    type AccountData = pallet_balances::AccountData<u128>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = ();
+}
+
+parameter_types! {
+    pub const ExistentialDeposit: u128 = 500;
+    pub const MaxLocks: u32 = 50;
+}
+
+impl pallet_balances::Config for Test {
+    type MaxLocks = MaxLocks;
+    /// The type for recording an account's balance.
+    type Balance = Balance;
+    /// The ubiquitous event type.
+    type Event = ();
+    type DustRemoval = ();
+    type ExistentialDeposit = ExistentialDeposit;
+    type AccountStore = frame_system::Pallet<Test>;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+}
+
+impl orml_currencies::Config for Test {
+    type Event = ();
+    type MultiCurrency = OrmlToken;
+    type NativeCurrency = AdaptedBasicCurrency;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -73,7 +103,10 @@ impl Config for Test {
     type Event = ();
     type TreasuryAccountId = TresuryAccount;
     type GovernanceOrigin = EnsureSignedBy<Six, u64>;
+    type NativeCurrency =AdaptedBasicCurrency;
 }
+
+pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
 
 parameter_types! {
     pub TreasuryModuleAccount: u64 = 1;
@@ -94,6 +127,8 @@ impl orml_tokens::Config for Test {
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
 }
+
+pub type PolkadexFungibleAssets = Module<Test>;
 
 pub fn new_tester() -> sp_io::TestExternalities {
     let storage = system::GenesisConfig::default()

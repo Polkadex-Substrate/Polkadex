@@ -5,8 +5,7 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-use codec::Encode;
-use frame_system::{Config, RawOrigin};
+use frame_system::RawOrigin;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use pallet_grandpa::fg_primitives;
@@ -292,6 +291,7 @@ impl polkadex_fungible_assets::Config for Runtime {
     type Event = Event;
     type TreasuryAccountId = TreasuryAccountId;
     type GovernanceOrigin = EnsureGovernance;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 }
 
 parameter_types! {

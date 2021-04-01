@@ -232,7 +232,6 @@ fn test_burn_fungible() {
 
     // Check Error
     new_tester().execute_with(|| {
-        let alice: u64 = 1;
         let burn_account: u64 = 5;
         let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
         setup_for_mint();
@@ -339,11 +338,7 @@ fn test_attest_token() {
         let existential_deposit: u128 = 1;
         let mint_account = Some(2u64);
         let burn_account = Some(3u64);
-        let meta_data: AssetMetadata = AssetMetadata {
-            name: "test".encode(),
-            team: "".encode(),
-            website: "".encode(),
-        };
+
         // Chainsafe Asset
         let new_asset_chainsafe: AssetId = AssetId::CHAINSAFE(H160::from_low_u64_be(24));
         assert_eq!(

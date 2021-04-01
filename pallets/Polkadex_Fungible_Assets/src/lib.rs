@@ -5,18 +5,19 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
     ensure,
-    traits::{Currency, EnsureOrigin, ExistenceRequirement, Get},
+    traits::{EnsureOrigin, Get},
 };
 use frame_system as system;
-use frame_system::{Account, ensure_signed};
-use sp_runtime::DispatchError;
+use frame_system::{ensure_signed};
+use sp_runtime::SaturatedConversion;
+use sp_runtime::traits::Hash;
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
-use sp_runtime::traits::Hash;
+
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use orml_traits::BasicCurrency;
-use orml_traits::MultiCurrency;
-use polkadex_primitives::assets::AssetId;
+use orml_traits::{
+    BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
+};
 
 #[cfg(test)]
 mod mock;
@@ -24,11 +25,16 @@ mod mock;
 #[cfg(test)]
 mod test;
 
+pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
+
 pub trait Config: system::Config + orml_tokens::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type TreasuryAccountId: Get<Self::AccountId>;
     type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
-    // Native
+
+    type NativeCurrency: BasicCurrencyExtended<Self::AccountId, Balance = BalanceOf<Self>>
+    + BasicLockableCurrency<Self::AccountId, Balance = BalanceOf<Self>>
+    + BasicReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -165,8 +171,11 @@ decl_module! {
             ensure!(!<InfoAsset<T>>::contains_key(&asset_id), Error::<T>::AssetIdAlreadyExists);
             let tresury_account = T::TreasuryAccountId::get();
             let amout_to_trasfer: T::Balance = FixedPDXAmount::<T>::get();
-		    orml_currencies::NativeCurrencyOf::<T>::transfer(&who, &tresury_account, amout_to_trasfer);
-		    // https://github.com/paritytech/substrate/blob/master/frame/vesting/src/lib.rs#L322
+            //let t = <Type as Currency<AccountId>>::Balance::from(amout_to_trasfer.saturated_into());
+            //T::Balance::from(input.saturated_into::<u32>()) ;
+
+            T::NativeCurrency::transfer(&who, &tresury_account, amout_to_trasfer)?;
+
             let asset_info = AssetInfo::from(who.clone(), mint_account, burn_account, None, false);
             <InfoAsset<T>>::insert(asset_id, asset_info);
             orml_tokens::TotalIssuance::<T>::insert(asset_id, max_supply);
@@ -190,21 +199,22 @@ decl_module! {
             Ok(())
         }
 
-        ///Claim
+        /// Claim
         #[weight = 10000]
         pub fn claim_vesting(origin, identifier: T::Hash, asset_id: T::CurrencyId) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
-            let vesting: VestingInfo<T> = <InfoVesting<T>>::get((who, asset_id), identifier);
             let current_block_no = <system::Module<T>>::block_number();
-            // block_diff = currect_block - vesting.block_no
-            // amount = block_diff * vesting.rate;
-            // let amount_to_be_released = if (amount > vesting.amount) vesting.amount else amount
-            // let vestting.amount = vestting.amount.saturation_sub(amount);
-            // Insert Vesting Info
-            // Update free balace of who (free_balabce + amoun_to_be_released)
 
-            Ok(())
-
+            InfoVesting::<T>::try_mutate((who.clone(), asset_id), identifier, |ref mut vesting| {
+                let block_diff = current_block_no - vesting.block_no;
+                let amount = Self::block_to_balance(block_diff) * vesting.rate;
+                let amount_to_be_released = if amount > vesting.amount {vesting.amount} else {amount};
+                vesting.amount = vesting.amount - amount;
+                orml_tokens::Accounts::<T>::mutate(who, &asset_id, |account_data| {
+                    account_data.free = account_data.free + amount_to_be_released;
+                });
+                Ok(())
+            })
         }
 
         /// Set Metadata
@@ -336,5 +346,9 @@ impl<T: Config> Module<T> {
                 Ok(())
             })
         })
+    }
+
+    fn block_to_balance(input: T::BlockNumber) -> T::Balance {
+        T::Balance::from(input.saturated_into::<u32>())
     }
 }
