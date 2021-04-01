@@ -164,7 +164,8 @@ decl_error! {
         NoPermissionToBurn,
         Underflow,
         Overflow,
-        NotTheOwner
+        NotTheOwner,
+        Overlimit,
     }
 }
 
@@ -239,6 +240,7 @@ decl_module! {
             let creator: AssetInfo<T> = Self::get_assetinfo(asset_id);
             ensure!(who == creator.creator, <Error<T>>::NotTheOwner);
             InfoAsset::<T>::try_mutate(&asset_id, |ref mut asset_info| {
+                ensure!(metadata.name.len() <=1024 && metadata.website.len() <=1024 && metadata.team.len() <=1024, <Error<T>>::Overlimit);
                 asset_info.metadata = Some(metadata);
                 Self::deposit_event(RawEvent::MetadataAdded(asset_id, who));
                 Ok(())
