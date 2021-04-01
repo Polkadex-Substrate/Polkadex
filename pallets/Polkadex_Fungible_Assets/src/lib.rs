@@ -189,11 +189,7 @@ decl_module! {
             ensure!(!<InfoAsset<T>>::contains_key(&asset_id), Error::<T>::AssetIdAlreadyExists);
             let tresury_account = T::TreasuryAccountId::get();
             let amout_to_trasfer: T::Balance = FixedPDXAmount::<T>::get();
-            //let t = <Type as Currency<AccountId>>::Balance::from(amout_to_trasfer.saturated_into());
-            //T::Balance::from(input.saturated_into::<u32>()) ;
-
             T::NativeCurrency::transfer(&who, &tresury_account, amout_to_trasfer)?;
-
             let asset_info = AssetInfo::from(who.clone(), mint_account, burn_account, None, false);
             <InfoAsset<T>>::insert(asset_id, asset_info);
             orml_tokens::TotalIssuance::<T>::insert(asset_id, max_supply);
