@@ -5,6 +5,7 @@ panic = 'unwind'
 members = [
     'node',
     'pallets/Polkadex_Fungible_Assets',
+    'pallets/Polkadex_Ido',
     'primitives',
     'runtime',
     "orml/vesting",
