@@ -4461,6 +4461,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "polkadex-ido"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "rustc-hex",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "polkadex-primitives"
 version = "0.1.0"
 dependencies = [

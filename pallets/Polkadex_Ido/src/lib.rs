@@ -31,6 +31,7 @@ use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::Hash;
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
+use polkadex_primitives::assets::AssetId;
 
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use orml_traits::{
@@ -42,12 +43,14 @@ pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 pub trait Config: system::Config + orml_tokens::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
+    type TreasuryAccountId: Get<Self::AccountId>;
 
     type NativeCurrency: BasicCurrencyExtended<Self::AccountId, Balance = BalanceOf<Self>>
     + BasicLockableCurrency<Self::AccountId, Balance = BalanceOf<Self>>
     + BasicReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
 }
 
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub enum KYCStatus {
     Tier0,
     Tier1,
@@ -55,11 +58,11 @@ pub enum KYCStatus {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
-pub struct InvestorInfo<T: Config> {
+pub struct InvestorInfo {
     pub kyc_status: KYCStatus,
 }
 
-impl<T: Config> Default for InvestorInfo<T> {
+impl Default for InvestorInfo {
     fn default() -> Self {
         InvestorInfo {
             kyc_status: KYCStatus::Tier0,
@@ -67,7 +70,7 @@ impl<T: Config> Default for InvestorInfo<T> {
     }
 }
 
-impl<T: Config> InvestorInfo<T> {
+impl InvestorInfo {
     fn from(
         kyc_status: KYCStatus,
     ) -> Self {
@@ -79,21 +82,23 @@ impl<T: Config> InvestorInfo<T> {
 
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
-        InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo<T>;
+        InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
         IDOPDXAmount get(fn get_amount): T::Balance;
     }
 }
 
 decl_event!(
     pub enum Event<T>
+    where
+        <T as system::Config>::AccountId,
     {
-
+        InvestorRegistered(AccountId),
     }
 );
 
 decl_error! {
     pub enum Error for Module<T: Config> {
-
+        InvestorAlreadyRegistered
     }
 }
 
@@ -108,7 +113,16 @@ decl_module! {
         ///register_investor(origin,): The investor needs to  burn 100 PDEX to participate in the events of Polkadex IDO platform. 100 PDEX will be burned if total supply is greater than 20 million else transferred to treasury.
         #[weight = 10000]
         pub fn register_investor(origin) -> DispatchResult {
-            orml_tokens::total_issuance();
+            let who: T::AccountId = ensure_signed(origin)?;
+            if orml_tokens::TotalIssuance::<T>::get(AssetId::POLKADEX) > T::Balance::from(20000000)
+            {
+
+            }
+            else {
+                let tresury_account = T::TreasuryAccountId::get();
+                let amout_to_trasfer: T::Balance = IDOPDXAmount::<T>::get();
+                T::NativeCurrency::transfer(&who, &tresury_account, amout_to_trasfer)?;
+            }
 
             Ok(())
         }
