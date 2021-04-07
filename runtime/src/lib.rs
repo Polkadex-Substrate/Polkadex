@@ -293,6 +293,21 @@ impl polkadex_fungible_assets::Config for Runtime {
     type GovernanceOrigin = EnsureGovernance;
     type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 }
+parameter_types! {
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+    pub const GetIDOPDXAmount: Balance = 100u128;
+    pub const GetMaxSupply: Balance = 2_000_000_0u128;
+}
+
+impl polkadex_ido::Config for Runtime {
+    type Event = Event;
+    type TreasuryAccountId = TreasuryAccountId;
+    type GovernanceOrigin = EnsureGovernance;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type NativeCurrencyId = GetNativeCurrencyId;
+    type IDOPDXAmount = GetIDOPDXAmount;
+    type MaxSupply = GetMaxSupply;
+}
 
 parameter_types! {
     pub MinVestedTransfer: Balance = 100u128;
@@ -348,10 +363,6 @@ impl orml_tokens::Config for Runtime {
     type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
 }
 
-parameter_types! {
-    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
-}
-
 impl orml_currencies::Config for Runtime {
     type Event = Event;
     type MultiCurrency = Tokens;
@@ -379,6 +390,7 @@ construct_runtime!(
         Currencies: orml_currencies::{Module, Call, Event<T>},
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
         PolkadexFungibleAssets: polkadex_fungible_assets::{Module, Call, Event<T>},
+        PolkadexIdo: polkadex_ido::{Module, Call, Event<T>},
     }
 );
 

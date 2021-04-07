@@ -3574,6 +3574,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "polkadex-fungible-assets",
+ "polkadex-ido",
  "polkadex-primitives",
  "serde",
  "sp-api",
