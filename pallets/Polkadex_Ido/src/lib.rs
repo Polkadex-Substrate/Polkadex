@@ -22,6 +22,7 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
+    ensure,
     traits::{EnsureOrigin, Get},
 };
 use frame_system as system;
@@ -105,12 +106,14 @@ decl_event!(
         <T as system::Config>::AccountId,
     {
         InvestorRegistered(AccountId),
+        InvestorAttested(AccountId),
     }
 );
 
 decl_error! {
     pub enum Error for Module<T: Config> {
-        InvestorAlreadyRegistered
+        InvestorAlreadyRegistered,
+        InvestorDoesNotExist,
     }
 }
 
@@ -126,6 +129,7 @@ decl_module! {
         pub fn register_investor(origin) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
             let amount: T::Balance = T::IDOPDXAmount::get();
+            ensure!(!<InfoInvestor<T>>::contains_key(&who.clone()), Error::<T>::InvestorAlreadyRegistered);
             if T::NativeCurrency::total_issuance() > T::MaxSupply::get()
             {
                  orml_tokens::Accounts::<T>::mutate(who.clone(), &T::NativeCurrencyId::get(), |account_data| {
@@ -140,6 +144,17 @@ decl_module! {
             Self::deposit_event(RawEvent::InvestorRegistered(who));
 
             Ok(())
+        }
+
+        #[weight = 10000]
+        pub fn attest_investor(origin, investor: T::AccountId, kyc_status: KYCStatus) -> DispatchResult {
+            T::GovernanceOrigin::ensure_origin(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&investor), <Error<T>>::InvestorDoesNotExist);
+            InfoInvestor::<T>::try_mutate(&investor, |ref mut investor_info| {
+                investor_info.kyc_status = kyc_status;
+                Self::deposit_event(RawEvent::InvestorAttested(investor.clone()));
+                Ok(())
+            })
         }
 
     }
