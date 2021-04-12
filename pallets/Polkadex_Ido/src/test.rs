@@ -20,6 +20,7 @@ use crate::mock::*;
 use frame_support::assert_noop;
 
 use super::*;
+use polkadex_primitives::assets::AssetId;
 
 #[test]
 fn test_register_investor() {
@@ -70,3 +71,52 @@ fn test_attest_investor() {
         );
     });
 }
+
+#[test]
+fn test_register_round() {
+    let balance: Balance = 100;
+    let block_num = 3;
+    ExtBuilder::default()
+        .build().execute_with(|| {
+        assert_noop!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE.clone()),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Error::<Test>::InvestorDoesNotExist
+        );
+        assert_eq!(
+            PolkadexIdo::register_investor(
+                Origin::signed(ALICE.clone())
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE.clone()),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+    });
+}
+

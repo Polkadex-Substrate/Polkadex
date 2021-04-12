@@ -307,6 +307,7 @@ impl polkadex_ido::Config for Runtime {
     type NativeCurrencyId = GetNativeCurrencyId;
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
+    type Randomness = RandomnessCollectiveFlip;
 }
 
 parameter_types! {

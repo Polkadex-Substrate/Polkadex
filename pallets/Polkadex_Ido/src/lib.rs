@@ -23,7 +23,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
     ensure,
-    traits::{EnsureOrigin, Get},
+    traits::{EnsureOrigin, Get, Randomness},
 };
 use frame_system as system;
 use frame_system::{ensure_signed};
@@ -53,6 +53,7 @@ pub trait Config: system::Config + orml_tokens::Config {
     type NativeCurrencyId: Get<Self::CurrencyId>;
     type IDOPDXAmount: Get<Self::Balance>;
     type MaxSupply: Get<Self::Balance>;
+    type Randomness: Randomness<Self::Hash>;
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -85,9 +86,71 @@ impl InvestorInfo {
     }
 }
 
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
+pub struct FundingRound<T: Config> {
+    investor_address: T::AccountId,
+    token_a: T::CurrencyId,
+    amount: T::Balance,
+    token_b: T::CurrencyId,
+    vesting_per_block: T::Balance,
+    start_block: T::BlockNumber,
+    min_allocation: T::Balance,
+    max_allocation: T::Balance,
+    operator_commission: T::Balance,
+    token_a_priceper_token_b: T::Balance,
+    close_round_block: T::BlockNumber
+}
+
+impl<T: Config> Default for FundingRound<T> {
+    fn default() -> Self {
+        FundingRound {
+            investor_address: T::AccountId::default(),
+            token_a: T::NativeCurrencyId::get(),
+            amount: T::Balance::default(),
+            token_b: T::NativeCurrencyId::get(),
+            vesting_per_block: T::Balance::default(),
+            start_block: T::BlockNumber::default(),
+            min_allocation: T::Balance::default(),
+            max_allocation: T::Balance::default(),
+            operator_commission: T::Balance::default(),
+            token_a_priceper_token_b: T::Balance::default(),
+            close_round_block: T::BlockNumber::default()
+        }
+    }
+}
+
+impl<T: Config> FundingRound<T> {
+    fn from(investor_address: T::AccountId,
+            token_a: T::CurrencyId,
+            amount: T::Balance,
+            token_b: T::CurrencyId,
+            vesting_per_block: T::Balance,
+            start_block: T::BlockNumber,
+            min_allocation: T::Balance,
+            max_allocation: T::Balance,
+            operator_commission: T::Balance,
+            token_a_priceper_token_b: T::Balance,
+            close_round_block: T::BlockNumber) -> Self {
+        FundingRound{
+            investor_address,
+            token_a,
+            amount,
+            token_b,
+            vesting_per_block,
+            start_block,
+            min_allocation,
+            max_allocation,
+            operator_commission,
+            token_a_priceper_token_b,
+            close_round_block,
+        }
+    }
+}
+
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
         InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
+        InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
     }
     add_extra_genesis {
 		config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -104,9 +167,11 @@ decl_event!(
     pub enum Event<T>
     where
         <T as system::Config>::AccountId,
+        <T as system::Config>::Hash,
     {
         InvestorRegistered(AccountId),
         InvestorAttested(AccountId),
+        FundingRoundRegistered(Hash),
     }
 );
 
@@ -156,7 +221,41 @@ decl_module! {
                 Ok(())
             })
         }
-
+        #[weight = 10000]
+        pub fn register_round(
+            origin,
+            token_a: T::CurrencyId,
+            amount: T::Balance,
+            token_b: T::CurrencyId,
+            vesting_per_block: T::Balance,
+            start_block: T::BlockNumber,
+            min_allocation: T::Balance,
+            max_allocation: T::Balance,
+            operator_commission: T::Balance,
+            token_a_priceper_token_b: T::Balance,
+            close_round_block: T::BlockNumber
+        ) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
+            let funding_round: FundingRound<T> = FundingRound::from(
+                investor_address,
+                token_a,
+                amount,
+                token_b,
+                vesting_per_block,
+                start_block,
+                min_allocation,
+                max_allocation,
+                operator_commission,
+                token_a_priceper_token_b,
+                close_round_block,
+            );
+            let phrase = b"polkadex_funding_round";
+            let round_id: T::Hash = T::Randomness::random(phrase);
+            <InfoFundingRound<T>>::insert(round_id, funding_round);
+            Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
+            Ok(())
+        }
     }
 }
 

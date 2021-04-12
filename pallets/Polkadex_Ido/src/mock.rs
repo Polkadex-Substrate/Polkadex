@@ -19,7 +19,10 @@
 use super::*;
 
 use crate as polkadex_ido;
-use frame_support::{ord_parameter_types, parameter_types};
+use frame_support::{
+    parameter_types, ord_parameter_types,
+    traits::TestRandomness,
+};
 use frame_system::EnsureSignedBy;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
@@ -128,6 +131,7 @@ impl Config for Test {
     type NativeCurrencyId = GetNativeCurrencyId;
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
+    type Randomness = TestRandomness;
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
