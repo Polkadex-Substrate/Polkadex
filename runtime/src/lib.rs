@@ -297,6 +297,7 @@ parameter_types! {
     pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
     pub const GetIDOPDXAmount: Balance = 100u128;
     pub const GetMaxSupply: Balance = 2_000_000_0u128;
+    pub const PolkadexIdoModuleId: ModuleId = ModuleId(*b"polk/ido");
 }
 
 impl polkadex_ido::Config for Runtime {
@@ -308,6 +309,7 @@ impl polkadex_ido::Config for Runtime {
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
     type Randomness = RandomnessCollectiveFlip;
+    type ModuleId = PolkadexIdoModuleId;
 }
 
 parameter_types! {

@@ -28,10 +28,14 @@ use frame_support::{
 use frame_system as system;
 use frame_system::{ensure_signed};
 use sp_std::prelude::*;
-
+use sp_runtime::ModuleId;
+use sp_runtime::traits::AccountIdConversion;
 use orml_traits::{
     BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
 };
+use sp_runtime::traits::Saturating;
+use sp_runtime::traits::CheckedDiv;
+use sp_runtime::traits::Zero;
 
 #[cfg(test)]
 mod mock;
@@ -54,6 +58,7 @@ pub trait Config: system::Config + orml_tokens::Config {
     type IDOPDXAmount: Get<Self::Balance>;
     type MaxSupply: Get<Self::Balance>;
     type Randomness: Randomness<Self::Hash>;
+    type ModuleId: Get<ModuleId>;
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -88,7 +93,6 @@ impl InvestorInfo {
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct FundingRound<T: Config> {
-    investor_address: T::AccountId,
     token_a: T::CurrencyId,
     amount: T::Balance,
     token_b: T::CurrencyId,
@@ -104,7 +108,6 @@ pub struct FundingRound<T: Config> {
 impl<T: Config> Default for FundingRound<T> {
     fn default() -> Self {
         FundingRound {
-            investor_address: T::AccountId::default(),
             token_a: T::NativeCurrencyId::get(),
             amount: T::Balance::default(),
             token_b: T::NativeCurrencyId::get(),
@@ -120,8 +123,7 @@ impl<T: Config> Default for FundingRound<T> {
 }
 
 impl<T: Config> FundingRound<T> {
-    fn from(investor_address: T::AccountId,
-            token_a: T::CurrencyId,
+    fn from(token_a: T::CurrencyId,
             amount: T::Balance,
             token_b: T::CurrencyId,
             vesting_per_block: T::Balance,
@@ -132,7 +134,6 @@ impl<T: Config> FundingRound<T> {
             token_a_priceper_token_b: T::Balance,
             close_round_block: T::BlockNumber) -> Self {
         FundingRound{
-            investor_address,
             token_a,
             amount,
             token_b,
@@ -150,7 +151,10 @@ impl<T: Config> FundingRound<T> {
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
         InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
+        InfoProjectTeam get(fn get_team): map hasher(identity) T::Hash => T::AccountId;
         InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
+        WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
     }
     add_extra_genesis {
 		config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -179,6 +183,11 @@ decl_error! {
     pub enum Error for Module<T: Config> {
         InvestorAlreadyRegistered,
         InvestorDoesNotExist,
+        FundingRoundDoesNotExist,
+        InvestorNotAssociatedWithFundingRound,
+        FundingRoundDoesNotBelong,
+        NotWhiteListed,
+        NotAValidAmount,
     }
 }
 
@@ -235,10 +244,8 @@ decl_module! {
             token_a_priceper_token_b: T::Balance,
             close_round_block: T::BlockNumber
         ) -> DispatchResult {
-            let investor_address: T::AccountId = ensure_signed(origin)?;
-            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
+            let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
-                investor_address,
                 token_a,
                 amount,
                 token_b,
@@ -253,9 +260,41 @@ decl_module! {
             let phrase = b"polkadex_funding_round";
             let round_id: T::Hash = T::Randomness::random(phrase);
             <InfoFundingRound<T>>::insert(round_id, funding_round);
+            <InfoProjectTeam<T>>::insert(round_id, team);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
             Ok(())
         }
+
+        #[weight = 10000]
+        pub fn whitelist_investor(origin, round_id: T::Hash, investor_address: T::AccountId, amount: T::Balance) -> DispatchResult {
+            let team: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoProjectTeam<T>>::get(round_id).eq(&team), <Error<T>>::FundingRoundDoesNotBelong);
+            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            <WhiteListInvestors<T>>::insert(round_id, investor_address, amount);
+            Ok(())
+        }
+
+        #[weight = 10000]
+        pub fn participate_in_round(origin, round_id: T::Hash, amount: T::Balance) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(<WhiteListInvestors<T>>::contains_key(&round_id, &investor_address), <Error<T>>::NotWhiteListed);
+            let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
+            ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
+            T::NativeCurrency::transfer(&investor_address, &Self::get_wallet_account(), amount)?;
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
+            let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
+            <InvestorShareInfo<T>>::insert(round_id, investor_address, investor_share);
+            Ok(())
+        }
+    }
+}
+
+impl<T: Config> Module<T> {
+
+    pub fn get_wallet_account() -> T::AccountId {
+        T::ModuleId::get().into_account()
     }
 }
 
