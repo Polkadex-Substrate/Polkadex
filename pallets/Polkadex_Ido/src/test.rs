@@ -17,7 +17,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::mock::*;
-use frame_support::assert_noop;
+use frame_support::{assert_noop, assert_ok};
+use sp_runtime::traits::Hash;
 
 use super::*;
 use polkadex_primitives::assets::AssetId;
@@ -78,28 +79,7 @@ fn test_register_round() {
     let block_num = 3;
     ExtBuilder::default()
         .build().execute_with(|| {
-        assert_noop!(
-            PolkadexIdo::register_round(
-                Origin::signed(ALICE.clone()),
-                AssetId::POLKADEX,
-                balance,
-                AssetId::POLKADEX,
-                balance,
-                block_num,
-                balance,
-                balance,
-                balance,
-                balance,
-                block_num
-            ),
-            Error::<Test>::InvestorDoesNotExist
-        );
-        assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(ALICE.clone())
-            ),
-            Ok(())
-        );
+
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(ALICE.clone()),
@@ -120,3 +100,158 @@ fn test_register_round() {
     });
 }
 
+#[test]
+fn test_whitelist_investor() {
+    let balance: Balance = 100;
+    let investor_address: u64 = 4;
+    let block_num = 3;
+    let round_id = create_hash_data(&1u32);
+    ExtBuilder::default()
+        .build().execute_with(|| {
+
+        assert_noop!(
+            PolkadexIdo::whitelist_investor(
+                Origin::signed(ALICE.clone()),
+                round_id,
+                investor_address,
+                balance
+            ),
+            Error::<Test>::FundingRoundDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE.clone()),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        assert_noop!(
+            PolkadexIdo::whitelist_investor(
+                Origin::signed(investor_address),
+                round_id,
+                ALICE.clone(),
+                balance
+            ),
+            Error::<Test>::FundingRoundDoesNotBelong
+        );
+
+        assert_noop!(
+            PolkadexIdo::whitelist_investor(
+                Origin::signed(ALICE.clone()),
+                round_id,
+                investor_address,
+                balance
+            ),
+            Error::<Test>::InvestorDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_investor(
+                Origin::signed(investor_address)
+            ),
+            Ok(())
+        );
+
+        assert_eq!(
+            PolkadexIdo::whitelist_investor(
+                Origin::signed(ALICE.clone()),
+                round_id,
+                investor_address,
+                balance
+            ),
+            Ok(())
+        );
+    });
+}
+
+#[test]
+fn test_participate_in_round() {
+    let balance: Balance = 100;
+    let investor_address: u64 = 4;
+    let block_num = 3;
+    let round_id = create_hash_data(&1u32);
+    ExtBuilder::default()
+        .build().execute_with(|| {
+
+        assert_noop!(
+            PolkadexIdo::participate_in_round(
+                Origin::signed(ALICE.clone()),
+                round_id,
+                balance
+            ),
+            Error::<Test>::NotWhiteListed
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE.clone()),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+
+        assert_eq!(
+            PolkadexIdo::register_investor(
+                Origin::signed(investor_address)
+            ),
+            Ok(())
+        );
+
+        assert_eq!(
+            PolkadexIdo::whitelist_investor(
+                Origin::signed(ALICE.clone()),
+                round_id,
+                investor_address,
+                balance
+            ),
+            Ok(())
+        );
+
+        assert_noop!(
+            PolkadexIdo::participate_in_round(
+                Origin::signed(investor_address),
+                round_id,
+                50
+            ),
+            Error::<Test>::NotAValidAmount
+        );
+/*        let data = pallet_balances::AccountData{free: 500_000, reserved: 10, misc_frozen: 10, fee_frozen: 10};
+        pallet_balances::Account::<Test>::insert(investor_address, data.clone());*/
+        assert_eq!(
+            PolkadexIdo::participate_in_round(
+                Origin::signed(investor_address),
+                round_id,
+                balance
+            ),
+            Ok(())
+        );
+    });
+}
+
+
+fn create_hash_data(data: &u32) -> <mock::Test as frame_system::Config>::Hash {
+    data.using_encoded(<Test as frame_system::Config>::Hashing::hash)
+}

@@ -23,12 +23,11 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
     ensure,
-    traits::{EnsureOrigin, Get, Randomness},
+    traits::{EnsureOrigin, Get, Randomness}, PalletId
 };
 use frame_system as system;
 use frame_system::{ensure_signed};
 use sp_std::prelude::*;
-use sp_runtime::ModuleId;
 use sp_runtime::traits::AccountIdConversion;
 use orml_traits::{
     BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
@@ -57,8 +56,8 @@ pub trait Config: system::Config + orml_tokens::Config {
     type NativeCurrencyId: Get<Self::CurrencyId>;
     type IDOPDXAmount: Get<Self::Balance>;
     type MaxSupply: Get<Self::Balance>;
-    type Randomness: Randomness<Self::Hash>;
-    type ModuleId: Get<ModuleId>;
+    type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+    type ModuleId: Get<PalletId>;
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -151,7 +150,7 @@ impl<T: Config> FundingRound<T> {
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
         InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
-        InfoProjectTeam get(fn get_team): map hasher(identity) T::Hash => T::AccountId;
+        InfoProjectTeam get(fn get_team): map hasher(identity) T::AccountId => T::Hash;
         InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
         WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
         InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
@@ -258,9 +257,9 @@ decl_module! {
                 close_round_block,
             );
             let phrase = b"polkadex_funding_round";
-            let round_id: T::Hash = T::Randomness::random(phrase);
+            let (round_id, _) = T::Randomness::random(phrase);
             <InfoFundingRound<T>>::insert(round_id, funding_round);
-            <InfoProjectTeam<T>>::insert(round_id, team);
+            <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
             Ok(())
         }
@@ -268,9 +267,9 @@ decl_module! {
         #[weight = 10000]
         pub fn whitelist_investor(origin, round_id: T::Hash, investor_address: T::AccountId, amount: T::Balance) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
-            ensure!(<InfoProjectTeam<T>>::get(round_id).eq(&team), <Error<T>>::FundingRoundDoesNotBelong);
-            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            ensure!(<InfoProjectTeam<T>>::get(team).eq(&round_id), <Error<T>>::FundingRoundDoesNotBelong);
+            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             <WhiteListInvestors<T>>::insert(round_id, investor_address, amount);
             Ok(())
         }

@@ -20,8 +20,7 @@ use super::*;
 
 use crate as polkadex_ido;
 use frame_support::{
-    parameter_types, ord_parameter_types,
-    traits::TestRandomness,
+    parameter_types, ord_parameter_types
 };
 use frame_system::EnsureSignedBy;
 use orml_traits::parameter_type_with_key;
@@ -34,6 +33,8 @@ use sp_runtime::{
 use sp_std::convert::From;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::arithmetic::Zero;
+use frame_support::PalletId;
+use frame_support_test::TestRandomness;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -44,11 +45,11 @@ frame_support::construct_runtime!(
         NodeBlock = Block,
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
-        System: frame_system::{Module, Call, Storage, Event<T>},
-        PolkadexIdo: polkadex_ido::{Module, Call, Event<T>},
-        Currencies: orml_currencies::{Module, Call, Event<T>},
-        OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
-        PalletBalances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+        System: frame_system::{Pallet, Call, Storage, Event<T>},
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>},
+        Currencies: orml_currencies::{Pallet, Call, Event<T>},
+        OrmlToken: orml_tokens::{Pallet, Call, Storage, Event<T>},
+        PalletBalances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
     }
 );
 
@@ -82,10 +83,11 @@ impl system::Config for Test {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = ();
+    type OnSetCode = ();
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 500;
+    pub const ExistentialDeposit: u128 = 0;
     pub const MaxLocks: u32 = 50;
 }
 
@@ -115,6 +117,7 @@ impl orml_currencies::Config for Test {
 
 parameter_types! {
     pub const TresuryAccount: u64 = 9;
+    pub const PolkadexIdoModuleId: PalletId = PalletId(*b"polk/ido");
 }
 
 ord_parameter_types! {
@@ -131,7 +134,8 @@ impl Config for Test {
     type NativeCurrencyId = GetNativeCurrencyId;
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
-    type Randomness = TestRandomness;
+    type Randomness = TestRandomness<Self>;
+    type ModuleId = PolkadexIdoModuleId;
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
@@ -166,7 +170,7 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
-            endowed_accounts: vec![(ALICE, AssetId::POLKADEX, INITIAL_BALANCE)],
+            endowed_accounts: vec![(ALICE, AssetId::POLKADEX, INITIAL_BALANCE), (4, AssetId::POLKADEX, INITIAL_BALANCE)],
         }
     }
 }
@@ -179,7 +183,7 @@ impl ExtBuilder {
             .unwrap();
 
         pallet_balances::GenesisConfig::<Test> {
-            balances: vec![(ALICE, INITIAL_BALANCE)],
+            balances: vec![(ALICE, INITIAL_BALANCE), (4u64, INITIAL_BALANCE)],
         }
             .assimilate_storage(&mut t)
             .unwrap();

@@ -27,6 +27,7 @@ polkadex-primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 sp-keyring = {  git = "https://github.com/paritytech/substrate", branch = "rococo-v1" ,default-features = false }
+frame-support-test = {  git = "https://github.com/paritytech/substrate", branch = "rococo-v1" ,default-features = false }
 
 [features]
 default = ["std"]
