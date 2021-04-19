@@ -32,6 +32,7 @@ use sp_runtime::traits::AccountIdConversion;
 use orml_traits::{
     BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
 };
+use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Zero;
@@ -154,6 +155,9 @@ decl_storage! {
         InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
         WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
         InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
+        InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::AccountId => T::Balance;
+        InterestedParticipants get(fn get_interested_particpants): map hasher(identity) T::Hash => Vec<T::AccountId>;
     }
     add_extra_genesis {
 		config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -164,30 +168,6 @@ decl_storage! {
 			})
 		})
 	}
-}
-
-decl_event!(
-    pub enum Event<T>
-    where
-        <T as system::Config>::AccountId,
-        <T as system::Config>::Hash,
-    {
-        InvestorRegistered(AccountId),
-        InvestorAttested(AccountId),
-        FundingRoundRegistered(Hash),
-    }
-);
-
-decl_error! {
-    pub enum Error for Module<T: Config> {
-        InvestorAlreadyRegistered,
-        InvestorDoesNotExist,
-        FundingRoundDoesNotExist,
-        InvestorNotAssociatedWithFundingRound,
-        FundingRoundDoesNotBelong,
-        NotWhiteListed,
-        NotAValidAmount,
-    }
 }
 
 decl_module! {
@@ -280,6 +260,7 @@ decl_module! {
             ensure!(<WhiteListInvestors<T>>::contains_key(&round_id, &investor_address), <Error<T>>::NotWhiteListed);
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
             ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
+            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             T::NativeCurrency::transfer(&investor_address, &Self::get_wallet_account(), amount)?;
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
@@ -287,6 +268,73 @@ decl_module! {
             <InvestorShareInfo<T>>::insert(round_id, investor_address, investor_share);
             Ok(())
         }
+
+        #[weight = 10000]
+        pub fn claim_tokens(origin, round_id: T::Hash) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            if current_block_no >= funding_round.start_block {
+                let last_claim_block: T::BlockNumber = <LastClaimBlockInfo<T>>::get(round_id, investor_address.clone());
+                let investor_share = <InvestorShareInfo<T>>::get(round_id, investor_address.clone());
+                if !last_claim_block.is_zero() && last_claim_block > funding_round.start_block{
+
+                    let total_released_block: T::BlockNumber = current_block_no - funding_round.start_block;
+                    let tokensReleasedForGivenInvestor: T::Balance = Self::block_to_balance(total_released_block)
+                    * funding_round.vesting_per_block * investor_share;
+
+                    <InfoClaimAmount<T>>::insert(investor_address.clone(), tokensReleasedForGivenInvestor);
+
+                } else {
+                    let total_released_block: T::BlockNumber = current_block_no - funding_round.start_block;
+                    let tokensReleasedForGivenInvestor: T::Balance = Self::block_to_balance(total_released_block)
+                    * funding_round.vesting_per_block * investor_share;
+
+                    <InfoClaimAmount<T>>::insert(investor_address.clone(), tokensReleasedForGivenInvestor);
+                }
+                <LastClaimBlockInfo<T>>::insert(round_id, investor_address, current_block_no);
+            }
+
+            Ok(())
+        }
+
+        #[weight = 10000]
+        pub fn show_interest_in_round(origin, round_id: T::Hash) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            InterestedParticipants::<T>::mutate(round_id, |investors| {
+                    investors.push(investor_address);
+                });
+
+             Ok(())
+        }
+    }
+}
+
+decl_event!(
+    pub enum Event<T>
+    where
+        <T as system::Config>::AccountId,
+        <T as system::Config>::Hash,
+    {
+        InvestorRegistered(AccountId),
+        InvestorAttested(AccountId),
+        FundingRoundRegistered(Hash),
+    }
+);
+
+decl_error! {
+    pub enum Error for Module<T: Config> {
+        InvestorAlreadyRegistered,
+        InvestorDoesNotExist,
+        FundingRoundDoesNotExist,
+        InvestorNotAssociatedWithFundingRound,
+        FundingRoundDoesNotBelong,
+        NotWhiteListed,
+        NotAValidAmount,
     }
 }
 
@@ -294,6 +342,10 @@ impl<T: Config> Module<T> {
 
     pub fn get_wallet_account() -> T::AccountId {
         T::ModuleId::get().into_account()
+    }
+
+    fn block_to_balance(input: T::BlockNumber) -> T::Balance {
+        T::Balance::from(input.saturated_into::<u32>())
     }
 }
 
