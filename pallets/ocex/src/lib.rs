@@ -18,39 +18,44 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
 use frame_system as system;
 use frame_system::{ensure_signed};
-use sp_runtime::SaturatedConversion;
-use sp_runtime::traits::Hash;
-use sp_runtime::traits::Zero;
+use frame_support::StorageMap;
 use sp_std::prelude::*;
 use sp_runtime::traits::AccountIdConversion;
-use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use orml_tokens::Call::transfer;
-use orml_traits::{BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, MultiCurrency};
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage,
+    decl_error, decl_event, decl_module,
     dispatch::DispatchResult,
     ensure,
-    traits::{EnsureOrigin, Get, Randomness}, PalletId
+    traits::Get, PalletId
 };
-pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use polkadex_primitives::assets::{AssetId};
+// pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
+
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod test;
 
 pub trait Config: system::Config + orml_tokens::Config + pallet_substratee_registry::Config {
+    /// Events
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
+    /// Bonding Account
     type OcexId: Get<PalletId>;
+    /// Currency for transfer currencies
+    type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId , Balance = Self::Balance>;
 }
 
 decl_event!(
     pub enum Event<T>
     where
         <T as system::Config>::AccountId,
-        <T as orml_tokens::Config>::CurrencyId,
         <T as orml_tokens::Config>::Balance
     {
-        TokenDeposited(CurrencyId, AccountId, Balance),
-        TokenWithdrawn(CurrencyId, AccountId, Balance),
+        TokenDeposited(AssetId, AccountId, Balance),
+        TokenWithdrawn(AssetId, AccountId, Balance),
     }
 );
 
@@ -70,19 +75,19 @@ decl_module! {
 
         /// Deposit
         #[weight = 10000]
-        pub fn deposit(origin, asset_id:  T::CurrencyId, amount: T::Balance) -> DispatchResult{
+        pub fn deposit(origin, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let from: T::AccountId = ensure_signed(origin)?;
-            //orml_tokens::Pallet::<T>::MultiCurrency::transfer(asset_id, &from, &Self::get_account(), amount);
+            <T as Config>::Currency::transfer(asset_id, &from, &Self::get_account(), amount)?;
             Self::deposit_event(RawEvent::TokenDeposited(asset_id, from, amount));
             Ok(())
         }
 
         /// Withdraw
         #[weight = 10000]
-        pub fn withdraw(origin, asset_id:  T::CurrencyId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
+        pub fn withdraw(origin, asset_id:  AssetId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
             ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
-            //orml_tokens::Pallet::<T>::MultiCurrency::transfer(asset_id, &Self::get_account(), &to, amount);
+            <T as Config>::Currency::transfer(asset_id, &Self::get_account(), &to, amount)?;
             Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, to, amount));
             Ok(())
         }
