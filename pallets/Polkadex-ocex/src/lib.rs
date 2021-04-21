@@ -56,7 +56,7 @@ decl_event!(
 
 decl_error! {
     pub enum Error for Module<T: Config> {
-        NotPresentInEnclave,
+        NotARegisteredEnclave,
     }
 }
 
@@ -79,9 +79,9 @@ decl_module! {
 
         /// Withdraw
         #[weight = 10000]
-        pub fn deposit(origin, asset_id:  T::CurrencyId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
+        pub fn withdraw(origin, asset_id:  T::CurrencyId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
-            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotPresentInEnclave);
+            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
             //orml_tokens::Pallet::<T>::MultiCurrency::transfer(asset_id, &Self::get_account(), &to, amount);
             Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, to, amount));
             Ok(())
