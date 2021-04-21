@@ -14,7 +14,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 
 
-polkadex-fungible-assets = { path = "../pallets/Polkadex_Fungible_Assets", version = "0.1.0", default-features = false }
+polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-balances = {git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }

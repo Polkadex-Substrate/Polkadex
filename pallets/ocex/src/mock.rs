@@ -16,11 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use super::*;
-
-use crate as polkadex_fungible_assets;
 use frame_support::{ord_parameter_types, parameter_types};
 use frame_system::EnsureSignedBy;
+use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
@@ -29,7 +27,8 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
-use orml_currencies::BasicCurrencyAdapter;
+
+use super::*;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -41,10 +40,10 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Module, Call, Storage, Event<T>},
-        Fungible: polkadex_fungible_assets::{Module, Call, Event<T>},
+        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         Currencies: orml_currencies::{Module, Call, Event<T>},
         OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
-        PalletBalances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+
     }
 );
 
@@ -97,7 +96,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
 }
 
 impl orml_currencies::Config for Test {
@@ -120,10 +119,10 @@ impl Config for Test {
     type Event = ();
     type TreasuryAccountId = TresuryAccount;
     type GovernanceOrigin = EnsureSignedBy<Six, u64>;
-    type NativeCurrency =AdaptedBasicCurrency;
+    type NativeCurrency = AdaptedBasicCurrency;
 }
 
-pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
+pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, Balances, i128, u128>;
 
 parameter_types! {
     pub TreasuryModuleAccount: u64 = 1;
@@ -144,8 +143,6 @@ impl orml_tokens::Config for Test {
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
 }
-
-pub type PolkadexFungibleAssets = Module<Test>;
 
 pub fn new_tester() -> sp_io::TestExternalities {
     let storage = system::GenesisConfig::default()
