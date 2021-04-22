@@ -236,8 +236,8 @@ decl_module! {
                 token_a_priceper_token_b,
                 close_round_block,
             );
-            let phrase = b"polkadex_funding_round";
-            let (round_id, _) = T::Randomness::random(phrase);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone()).encode());
             <InfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
@@ -250,6 +250,9 @@ decl_module! {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             ensure!(<InfoProjectTeam<T>>::get(team).eq(&round_id), <Error<T>>::FundingRoundDoesNotBelong);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             <WhiteListInvestors<T>>::insert(round_id, investor_address, amount);
             Ok(())
         }
@@ -262,7 +265,9 @@ decl_module! {
             ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             T::NativeCurrency::transfer(&investor_address, &Self::get_wallet_account(), amount)?;
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             <InvestorShareInfo<T>>::insert(round_id, investor_address, investor_share);
@@ -305,12 +310,30 @@ decl_module! {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             InterestedParticipants::<T>::mutate(round_id, |investors| {
                     investors.push(investor_address);
                 });
 
              Ok(())
         }
+
+         #[weight = 10000]
+        pub fn withdraw_raise(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+            let creator: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            ensure!(<InfoProjectTeam<T>>::contains_key(&creator.clone()), <Error<T>>::CreaterDoesNotExist);
+            let info_round_id = <InfoProjectTeam<T>>::get(&creator.clone());
+            ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
+            T::NativeCurrency::transfer(&creator, &beneficiary, total_raise)?;
+            Ok(())
+        }
+
     }
 }
 
@@ -335,6 +358,9 @@ decl_error! {
         FundingRoundDoesNotBelong,
         NotWhiteListed,
         NotAValidAmount,
+        NotACreater,
+        CreaterDoesNotExist,
+        NotAllowed
     }
 }
 

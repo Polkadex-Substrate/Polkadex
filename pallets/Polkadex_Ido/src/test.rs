@@ -126,7 +126,7 @@ fn test_whitelist_investor() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                block_num,
+                0,
                 balance,
                 balance,
                 balance,
@@ -201,7 +201,7 @@ fn test_participate_in_round() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                block_num,
+                0,
                 balance,
                 balance,
                 balance,
@@ -238,8 +238,7 @@ fn test_participate_in_round() {
             ),
             Error::<Test>::NotAValidAmount
         );
-/*        let data = pallet_balances::AccountData{free: 500_000, reserved: 10, misc_frozen: 10, fee_frozen: 10};
-        pallet_balances::Account::<Test>::insert(investor_address, data.clone());*/
+
         assert_eq!(
             PolkadexIdo::participate_in_round(
                 Origin::signed(investor_address),
@@ -327,7 +326,7 @@ fn test_show_interest_in_round() {
 
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let block_num = 0;
+    let block_num = 3;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default()
         .build().execute_with(|| {
@@ -361,7 +360,7 @@ fn test_show_interest_in_round() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                block_num,
+                0,
                 balance,
                 balance,
                 balance,
@@ -384,6 +383,110 @@ fn test_show_interest_in_round() {
         assert_eq!(
             InterestedParticipants::<Test>::contains_key(round_id),
             true
+        );
+
+    });
+}
+
+#[test]
+fn test_withdraw_raise() {
+    let balance: Balance = 100;
+    let investor_address: u64 = 4;
+    let block_num = 0;
+    let round_id = create_hash_data(&1u32);
+    ExtBuilder::default()
+        .build().execute_with(|| {
+        assert_noop!(
+            PolkadexIdo::withdraw_raise(
+                Origin::signed(ALICE),
+                round_id,
+                investor_address
+            ),
+            Error::<Test>::InvestorDoesNotExist
+        );
+        assert_eq!(
+            PolkadexIdo::register_investor(
+                Origin::signed(investor_address)
+            ),
+            Ok(())
+        );
+
+        assert_noop!(
+             PolkadexIdo::withdraw_raise(
+                Origin::signed(ALICE),
+                round_id,
+                investor_address
+            ),
+            Error::<Test>::FundingRoundDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+
+        assert_noop!(
+             PolkadexIdo::withdraw_raise(
+                Origin::signed(3),
+                round_id,
+                investor_address
+            ),
+            Error::<Test>::CreaterDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_investor(
+                Origin::signed(2)
+            ),
+            Ok(())
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(4),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        assert_noop!(
+             PolkadexIdo::withdraw_raise(
+                Origin::signed(4),
+                round_id,
+                2
+            ),
+            Error::<Test>::NotACreater
+        );
+        assert_eq!(
+            PolkadexIdo::withdraw_raise(
+                Origin::signed(ALICE),
+                round_id,
+                investor_address
+            ),
+            Ok(())
         );
 
     });

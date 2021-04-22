@@ -161,7 +161,7 @@ impl orml_tokens::Config for Test {
 }
 
 pub const ALICE: AccountId = 1;
-pub const INITIAL_BALANCE : Balance = 1000;
+pub const INITIAL_BALANCE : Balance = 1_000_000;
 
 pub struct ExtBuilder {
     endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
@@ -170,7 +170,10 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
-            endowed_accounts: vec![(ALICE, AssetId::POLKADEX, INITIAL_BALANCE), (4, AssetId::POLKADEX, INITIAL_BALANCE)],
+            endowed_accounts: vec![
+                (ALICE, AssetId::POLKADEX, INITIAL_BALANCE),
+                (4, AssetId::POLKADEX, INITIAL_BALANCE),
+                (2, AssetId::POLKADEX, INITIAL_BALANCE)]
         }
     }
 }
@@ -183,7 +186,7 @@ impl ExtBuilder {
             .unwrap();
 
         pallet_balances::GenesisConfig::<Test> {
-            balances: vec![(ALICE, INITIAL_BALANCE), (4u64, INITIAL_BALANCE)],
+            balances: vec![(ALICE, INITIAL_BALANCE), (4u64, INITIAL_BALANCE), (2u64, INITIAL_BALANCE)],
         }
             .assimilate_storage(&mut t)
             .unwrap();
