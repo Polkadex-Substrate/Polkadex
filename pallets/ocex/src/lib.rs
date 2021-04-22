@@ -18,19 +18,16 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_system as system;
-use frame_system::{ensure_signed};
 use frame_support::StorageMap;
-use sp_std::prelude::*;
-use sp_runtime::traits::AccountIdConversion;
 use frame_support::{
-    decl_error, decl_event, decl_module,
-    dispatch::DispatchResult,
-    ensure,
-    traits::Get, PalletId
+    decl_error, decl_event, decl_module, dispatch::DispatchResult, ensure, traits::Get, PalletId,
 };
+use frame_system as system;
+use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use polkadex_primitives::assets::{AssetId};
+use polkadex_primitives::assets::AssetId;
+use sp_runtime::traits::AccountIdConversion;
+use sp_std::prelude::*;
 // pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 
 #[cfg(test)]
@@ -39,13 +36,19 @@ mod mock;
 #[cfg(test)]
 mod test;
 
-pub trait Config: system::Config + orml_tokens::Config + pallet_substratee_registry::Config {
+pub trait Config:
+    system::Config + orml_tokens::Config + pallet_substratee_registry::Config
+{
     /// Events
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     /// Bonding Account
     type OcexId: Get<PalletId>;
     /// Currency for transfer currencies
-    type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId , Balance = Self::Balance>;
+    type Currency: MultiCurrencyExtended<
+        Self::AccountId,
+        CurrencyId = AssetId,
+        Balance = Self::Balance,
+    >;
 }
 
 decl_event!(
@@ -58,6 +61,8 @@ decl_event!(
         TokenWithdrawn(AssetId, AccountId, Balance),
     }
 );
+
+// TODO: Implement a vec of MRENCLAVES set by governance
 
 decl_error! {
     pub enum Error for Module<T: Config> {
@@ -82,12 +87,22 @@ decl_module! {
             Ok(())
         }
 
+        /// Release
+        #[weight = 10000]
+        pub fn release(origin, asset_id:  AssetId, amount: T::Balance, to: T::AccountId) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
+            // TODO: Check if the latest MRENCLAVE is registered by this sender
+            // TODO: Handle software updated to enclave
+            <T as Config>::Currency::transfer(asset_id, &Self::get_account(), &to, amount)?;
+            Ok(())
+        }
+
         /// Withdraw
+        /// It helps to notify enclave about sender's intend to withdraw via on-chain
         #[weight = 10000]
         pub fn withdraw(origin, asset_id:  AssetId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
-            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
-            <T as Config>::Currency::transfer(asset_id, &Self::get_account(), &to, amount)?;
             Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, to, amount));
             Ok(())
         }
@@ -100,3 +115,5 @@ impl<T: Config> Module<T> {
         T::OcexId::get().into_account()
     }
 }
+
+// TODO: Set genesis storage to have some balance for PDEX and DOT for alice and bob
