@@ -43,7 +43,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         Currencies: orml_currencies::{Module, Call, Event<T>},
         OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
-
+        OCEX: polkadex_ocex::{Module, Call, Storage, Event<T>}
     }
 );
 
@@ -142,6 +142,11 @@ impl orml_tokens::Config for Test {
     type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
+}
+
+impl polkadex_ocex::Config for Test {
+    type Event = ();
+    type OcexId:
 }
 
 pub fn new_tester() -> sp_io::TestExternalities {
