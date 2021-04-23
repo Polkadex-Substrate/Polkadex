@@ -1,3 +1,0 @@
-cargo:warning=Git command failed with status: exit code: 128
-cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION=3.0.0-unknown-x86_64-linux-gnu
-cargo:warning=Could not find `.git/HEAD` searching from `/home/knoldus/Desktop/new-workspace/node-template/node` upwards!
