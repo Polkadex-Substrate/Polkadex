@@ -51,7 +51,7 @@ pallet-transaction-payment-rpc = { version = "3.0.0", git = "https://github.com/
 frame-benchmarking = { version = "3.1.0", git = "https://github.com/paritytech/substrate.git" }
 frame-benchmarking-cli = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
 
-node-template-runtime = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
+node-template-runtime = { path = "../runtime" }
 
 [build-dependencies]
 substrate-build-script-utils = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
