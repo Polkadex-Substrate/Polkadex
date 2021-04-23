@@ -45,10 +45,10 @@ frame-system-benchmarking = { version = "3.0.0", default-features = false, git =
 hex-literal = { version = "0.3.1", optional = true }
 
 # ORML Pallets
-#orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
-#orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
-#orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
-#orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { path = "../primitives", default-features = false }
@@ -84,11 +84,11 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
-#	"orml-vesting/std",
-#	"orml-currencies/std",
-#	"orml-tokens/std",
-#	"orml-traits/std",
-#	"polkadex-primitives/std",
+	"orml-vesting/std",
+	"orml-currencies/std",
+	"orml-tokens/std",
+	"orml-traits/std",
+	"polkadex-primitives/std",
 #	"polkadex-fungible-assets/std"
 ]
 runtime-benchmarks = [
