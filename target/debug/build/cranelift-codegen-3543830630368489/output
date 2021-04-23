@@ -1,0 +1,2 @@
+cargo:rustc-cfg=feature="x86"
+cargo:rerun-if-changed=/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.71.0/build.rs

@@ -1,43 +1,185 @@
-![Logo](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/Logo.svg)
-## What is Polkadex? :rocket:
-Polkadex is a Open Source, Decentralized Exchange Platform made using Substrate Blockchain Framework that provides traders with the centralized user experience.
-## Why did we do this? :gift:
-There are many decentralized exchanges/protocols available in the market for traders but they still prefer to use centralized solutions for their convenience and ease of use knowing very well that their funds are at risk. This is because decentralized solutions are still not user friendly to an average trader. Some of them also have no proper decentralization and also got hacked in the process. We cannot call an exchange decentralized if it can lose or freeze customer funds.
+# Substrate Node Template
 
-The problems faced by decentralized exchanges are:
+A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacking :rocket:
 
-* Inadequate UI/UX experience.
-* Low liquidity
-* Lack of advanced trading features, high-frequency trading, and bots.
-* Lack of proper decentralization and interoperability.
+## Getting Started
 
-To solve the above problems, our goal is to build a fully decentralized, peer-peer, cryptocurrency exchange for the Defi ecosystem in Substrate. The project envisages the creation of a fully decentralized platform for exchanging tokens in a peer-peer, trustless environment, that enables high-frequency trading, high-liquidity, and lightning-fast transaction speed for supporting Defi applications.
+Follow these steps to get started with the Node Template :hammer_and_wrench:
 
-In order to address the first problem, we needed to enable features that attract users into the exchange which includes a fast, responsive UI and trading features. It is mainly to attract day traders and retail investors who prefer centralized exchanges due to convenience and speed of execution. The block time of 3s given by the Babe/Grandpa consensus algorithm allows transaction speeds of up to 400/s under test conditions which is more than sufficient to compete with any centralized solutions in the market today. Please check our analysis [here](https://github.com/Gauthamastro/Exchange_Analytics.git).  Since Substrate allows the modular implementation of the consensus algorithm, we think a platform like a Substrate will support the future growth of the exchange by changing consensus to accommodate more transactions per second as better ones emerge.
+### Rust Setup
 
-Secondly, the lack of liquidity is addressed by enabling,
+First, complete the [basic Rust setup instructions](./doc/rust-setup.md).
 
-1. High-frequency trading using feeless transactions.
-2. APIs that enable trading/AMM bots to observe market changes and submit trades.
-3. Advanced trading features like stop limit, market limit, Stop loss, Fill/Kill, Post only, TWAP, etc.
+### Run
 
-Thirdly, proper decentralization and Interoperability are achieved by having a parachain in Polkadot that brings in liquidity from other blockchains and also using ChainBridge protocol that connects directly to the Ethereum network. Hence, traders have two different mechanisms to bring in liquidity.
+Use Rust's native `cargo` command to build and launch the template node:
 
-The value we provide to the Substrate community is,
-
-1. They can build custom UI/UX to connect to our network and create their own custom exchange experience.
-2. Traders can contribute their own custom trading algorithms by making use of market data provided by our full nodes.
-3. They get a decentralized trading platform to trade Polkadot & Ethereum tokens.
-4. This will be one of the first Decentralized exchanges to have High-Frequency Trading bot support using APIs directly from full nodes.
-   ![Web3 Grants](https://github.com/Polkadex-Substrate/Documentation/blob/master/images/web3%20foundation_grants_badge_black.svg)
-## Run the node :dancer:
-You need to have docker installed to run Polkadex. Use the command given below.
+```sh
+cargo run --release -- --dev --tmp
 ```
-docker-compose up
+
+### Build
+
+The `cargo run` command will perform an initial build. Use the following command to build the node
+without launching it:
+
+```sh
+cargo build --release
 ```
-## Documentation :books:
-For Tutorials, Documentation and API Reference please check this [page](https://github.com/Polkadex-Substrate/Documentation)
-## Contribute :heart_eyes:
-We would love to work with anyone who can contribute their work and improve this project. The details will be shared soon.
-## License :scroll:
-Licensed Under [Apache 2.0](https://github.com/Polkadex-Substrate/Polkadex/blob/master/LICENSE)
+
+### Embedded Docs
+
+Once the project has been built, the following command can be used to explore all parameters and
+subcommands:
+
+```sh
+./target/release/node-template -h
+```
+
+## Run
+
+The provided `cargo run` command will launch a temporary node and its state will be discarded after
+you terminate the process. After the project has been built, there are other ways to launch the
+node.
+
+### Single-Node Development Chain
+
+This command will start the single-node development chain with persistent state:
+
+```bash
+./target/release/node-template --dev
+```
+
+Purge the development chain's state:
+
+```bash
+./target/release/node-template purge-chain --dev
+```
+
+Start the development chain with detailed logging:
+
+```bash
+RUST_BACKTRACE=1 ./target/release/node-template -ldebug --dev
+```
+
+### Multi-Node Local Testnet
+
+If you want to see the multi-node consensus algorithm in action, refer to
+[our Start a Private Network tutorial](https://substrate.dev/docs/en/tutorials/start-a-private-network/).
+
+## Template Structure
+
+A Substrate project such as this consists of a number of components that are spread across a few
+directories.
+
+### Node
+
+A blockchain node is an application that allows users to participate in a blockchain network.
+Substrate-based blockchain nodes expose a number of capabilities:
+
+-   Networking: Substrate nodes use the [`libp2p`](https://libp2p.io/) networking stack to allow the
+    nodes in the network to communicate with one another.
+-   Consensus: Blockchains must have a way to come to
+    [consensus](https://substrate.dev/docs/en/knowledgebase/advanced/consensus) on the state of the
+    network. Substrate makes it possible to supply custom consensus engines and also ships with
+    several consensus mechanisms that have been built on top of
+    [Web3 Foundation research](https://research.web3.foundation/en/latest/polkadot/NPoS/index.html).
+-   RPC Server: A remote procedure call (RPC) server is used to interact with Substrate nodes.
+
+There are several files in the `node` directory - take special note of the following:
+
+-   [`chain_spec.rs`](./node/src/chain_spec.rs): A
+    [chain specification](https://substrate.dev/docs/en/knowledgebase/integrate/chain-spec) is a
+    source code file that defines a Substrate chain's initial (genesis) state. Chain specifications
+    are useful for development and testing, and critical when architecting the launch of a
+    production chain. Take note of the `development_config` and `testnet_genesis` functions, which
+    are used to define the genesis state for the local development chain configuration. These
+    functions identify some
+    [well-known accounts](https://substrate.dev/docs/en/knowledgebase/integrate/subkey#well-known-keys)
+    and use them to configure the blockchain's initial state.
+-   [`service.rs`](./node/src/service.rs): This file defines the node implementation. Take note of
+    the libraries that this file imports and the names of the functions it invokes. In particular,
+    there are references to consensus-related topics, such as the
+    [longest chain rule](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#longest-chain-rule),
+    the [Aura](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#aura) block authoring
+    mechanism and the
+    [GRANDPA](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#grandpa) finality
+    gadget.
+
+After the node has been [built](#build), refer to the embedded documentation to learn more about the
+capabilities and configuration parameters that it exposes:
+
+```shell
+./target/release/node-template --help
+```
+
+### Runtime
+
+In Substrate, the terms
+"[runtime](https://substrate.dev/docs/en/knowledgebase/getting-started/glossary#runtime)" and
+"[state transition function](https://substrate.dev/docs/en/knowledgebase/getting-started/glossary#stf-state-transition-function)"
+are analogous - they refer to the core logic of the blockchain that is responsible for validating
+blocks and executing the state changes they define. The Substrate project in this repository uses
+the [FRAME](https://substrate.dev/docs/en/knowledgebase/runtime/frame) framework to construct a
+blockchain runtime. FRAME allows runtime developers to declare domain-specific logic in modules
+called "pallets". At the heart of FRAME is a helpful
+[macro language](https://substrate.dev/docs/en/knowledgebase/runtime/macros) that makes it easy to
+create pallets and flexibly compose them to create blockchains that can address
+[a variety of needs](https://www.substrate.io/substrate-users/).
+
+Review the [FRAME runtime implementation](./runtime/src/lib.rs) included in this template and note
+the following:
+
+-   This file configures several pallets to include in the runtime. Each pallet configuration is
+    defined by a code block that begins with `impl $PALLET_NAME::Config for Runtime`.
+-   The pallets are composed into a single runtime by way of the
+    [`construct_runtime!`](https://crates.parity.io/frame_support/macro.construct_runtime.html)
+    macro, which is part of the core
+    [FRAME Support](https://substrate.dev/docs/en/knowledgebase/runtime/frame#support-library)
+    library.
+
+### Pallets
+
+The runtime in this project is constructed using many FRAME pallets that ship with the
+[core Substrate repository](https://github.com/paritytech/substrate/tree/master/frame) and a
+template pallet that is [defined in the `pallets`](./pallets/template/src/lib.rs) directory.
+
+A FRAME pallet is compromised of a number of blockchain primitives:
+
+-   Storage: FRAME defines a rich set of powerful
+    [storage abstractions](https://substrate.dev/docs/en/knowledgebase/runtime/storage) that makes
+    it easy to use Substrate's efficient key-value database to manage the evolving state of a
+    blockchain.
+-   Dispatchables: FRAME pallets define special types of functions that can be invoked (dispatched)
+    from outside of the runtime in order to update its state.
+-   Events: Substrate uses [events](https://substrate.dev/docs/en/knowledgebase/runtime/events) to
+    notify users of important changes in the runtime.
+-   Errors: When a dispatchable fails, it returns an error.
+-   Config: The `Config` configuration interface is used to define the types and parameters upon
+    which a FRAME pallet depends.
+
+### Run in Docker
+
+First, install [Docker](https://docs.docker.com/get-docker/) and
+[Docker Compose](https://docs.docker.com/compose/install/).
+
+Then run the following command to start a single node development chain.
+
+```bash
+./scripts/docker_run.sh
+```
+
+This command will firstly compile your code, and then start a local development network. You can
+also replace the default command (`cargo build --release && ./target/release/node-template --dev --ws-external`)
+by appending your own. A few useful ones are as follow.
+
+```bash
+# Run Substrate node without re-compiling
+./scripts/docker_run.sh ./target/release/node-template --dev --ws-external
+
+# Purge the local dev chain
+./scripts/docker_run.sh ./target/release/node-template purge-chain --dev
+
+# Check whether the code is compilable
+./scripts/docker_run.sh cargo check
+```

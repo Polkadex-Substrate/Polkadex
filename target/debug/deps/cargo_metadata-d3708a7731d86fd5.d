@@ -1,0 +1,11 @@
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/cargo_metadata-d3708a7731d86fd5.rmeta: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/dependency.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/diagnostic.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/errors.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/messages.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/libcargo_metadata-d3708a7731d86fd5.rlib: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/dependency.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/diagnostic.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/errors.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/messages.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/cargo_metadata-d3708a7731d86fd5.d: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/dependency.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/diagnostic.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/errors.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/messages.rs
+
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/lib.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/dependency.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/diagnostic.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/errors.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/cargo_metadata-0.12.3/src/messages.rs:

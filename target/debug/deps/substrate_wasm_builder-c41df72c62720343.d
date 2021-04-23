@@ -1,0 +1,10 @@
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/substrate_wasm_builder-c41df72c62720343.rmeta: /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/lib.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/builder.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/prerequisites.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/wasm_project.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/libsubstrate_wasm_builder-c41df72c62720343.rlib: /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/lib.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/builder.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/prerequisites.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/wasm_project.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/substrate_wasm_builder-c41df72c62720343.d: /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/lib.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/builder.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/prerequisites.rs /home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/wasm_project.rs
+
+/home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/lib.rs:
+/home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/builder.rs:
+/home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/prerequisites.rs:
+/home/knoldus/.cargo/git/checkouts/substrate-7e08433d4c370a21/20b1a0e/utils/wasm-builder/src/wasm_project.rs:

@@ -1,0 +1,13 @@
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/url-67cb0913575434c3.rmeta: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/host.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/origin.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/parser.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/path_segments.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/slicing.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/quirks.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/liburl-67cb0913575434c3.rlib: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/host.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/origin.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/parser.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/path_segments.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/slicing.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/quirks.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/url-67cb0913575434c3.d: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/host.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/origin.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/parser.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/path_segments.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/slicing.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/quirks.rs
+
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/lib.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/host.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/origin.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/parser.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/path_segments.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/slicing.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/url-2.2.1/src/quirks.rs:

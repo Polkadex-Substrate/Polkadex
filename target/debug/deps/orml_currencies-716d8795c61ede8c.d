@@ -1,0 +1,10 @@
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/orml_currencies-716d8795c61ede8c.rmeta: /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/lib.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/default_weight.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/mock.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/tests.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/liborml_currencies-716d8795c61ede8c.rlib: /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/lib.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/default_weight.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/mock.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/tests.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/orml_currencies-716d8795c61ede8c.d: /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/lib.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/default_weight.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/mock.rs /home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/tests.rs
+
+/home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/lib.rs:
+/home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/default_weight.rs:
+/home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/mock.rs:
+/home/knoldus/.cargo/git/checkouts/open-runtime-module-library-d9d5e297fcc9ade1/2a62d2c/currencies/src/tests.rs:

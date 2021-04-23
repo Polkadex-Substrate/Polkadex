@@ -1,0 +1,26 @@
+TARGET = Some("x86_64-unknown-linux-gnu")
+OPT_LEVEL = Some("0")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+CRATE_CC_NO_DEFAULTS = None
+DEBUG = Some("true")
+CARGO_CFG_TARGET_FEATURE = Some("fxsr,sse,sse2")
+running: "cc" "-O0" "-ffunction-sections" "-fdata-sections" "-fPIC" "-g" "-fno-omit-frame-pointer" "-m64" "-Wall" "-Wextra" "-DCFG_TARGET_OS_linux" "-DCFG_TARGET_ARCH_x86_64" "-o" "/home/knoldus/Desktop/new-workspace/node-template/target/debug/build/wasmtime-fiber-317a34f8c8b8c5d5/out/src/arch/x86_64.o" "-c" "src/arch/x86_64.S"
+exit code: 0
+AR_x86_64-unknown-linux-gnu = None
+AR_x86_64_unknown_linux_gnu = None
+HOST_AR = None
+AR = None
+running: "ar" "cq" "/home/knoldus/Desktop/new-workspace/node-template/target/debug/build/wasmtime-fiber-317a34f8c8b8c5d5/out/libwasmtime-fiber.a" "/home/knoldus/Desktop/new-workspace/node-template/target/debug/build/wasmtime-fiber-317a34f8c8b8c5d5/out/src/arch/x86_64.o"
+exit code: 0
+running: "ar" "s" "/home/knoldus/Desktop/new-workspace/node-template/target/debug/build/wasmtime-fiber-317a34f8c8b8c5d5/out/libwasmtime-fiber.a"
+exit code: 0
+cargo:rustc-link-lib=static=wasmtime-fiber
+cargo:rustc-link-search=native=/home/knoldus/Desktop/new-workspace/node-template/target/debug/build/wasmtime-fiber-317a34f8c8b8c5d5/out

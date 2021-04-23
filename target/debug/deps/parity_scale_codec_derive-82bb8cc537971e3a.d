@@ -1,0 +1,9 @@
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/libparity_scale_codec_derive-82bb8cc537971e3a.so: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/decode.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/encode.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/utils.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/trait_bounds.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/parity_scale_codec_derive-82bb8cc537971e3a.d: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/decode.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/encode.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/utils.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/trait_bounds.rs
+
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/lib.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/decode.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/encode.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/utils.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-derive-2.1.0/src/trait_bounds.rs:

@@ -15,7 +15,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult, MultiSignature,
 };
 use sp_runtime::traits::{
-    BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor, Zero
+	BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor, Zero
 };
 use polkadex_primitives::assets::AssetId;
 use frame_system::RawOrigin;
@@ -37,12 +37,12 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
-    construct_runtime, parameter_types, StorageValue, PalletId,
-    traits::{EnsureOrigin, KeyOwnerProofSystem, Randomness},
-    weights::{
-        Weight, IdentityFee,
-        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-    },
+	construct_runtime, parameter_types, StorageValue, PalletId,
+	traits::{EnsureOrigin, KeyOwnerProofSystem, Randomness},
+	weights::{
+		Weight, IdentityFee,
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+	},
 };
 use pallet_transaction_payment::CurrencyAdapter;
 
@@ -81,18 +81,18 @@ const MODULE_ID: PalletId = PalletId(*b"cb/gover");
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-    use super::*;
+	use super::*;
 
-    pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
-    /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    /// Opaque block type.
-    pub type Block = generic::Block<Header, UncheckedExtrinsic>;
-    /// Opaque block identifier type.
-    pub type BlockId = generic::BlockId<Block>;
+	/// Opaque block header type.
+	pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+	/// Opaque block type.
+	pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+	/// Opaque block identifier type.
+	pub type BlockId = generic::BlockId<Block>;
 
-    impl_opaque_keys! {
+	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
 			pub grandpa: Grandpa,
@@ -103,18 +103,18 @@ pub mod opaque {
 // To learn more about runtime versioning and what each of the following value means:
 //   https://substrate.dev/docs/en/knowledgebase/runtime/upgrades#runtime-versioning
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("node-template"),
-    impl_name: create_runtime_str!("node-template"),
-    authoring_version: 1,
-    // The version of the runtime specification. A full node will not attempt to use its native
-    //   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
-    //   `spec_version`, and `authoring_version` are the same between Wasm and native.
-    // This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
-    //   the compatible custom types.
-    spec_version: 100,
-    impl_version: 1,
-    apis: RUNTIME_API_VERSIONS,
-    transaction_version: 1,
+	spec_name: create_runtime_str!("node-template"),
+	impl_name: create_runtime_str!("node-template"),
+	authoring_version: 1,
+	// The version of the runtime specification. A full node will not attempt to use its native
+	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
+	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
+	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
+	//   the compatible custom types.
+	spec_version: 100,
+	impl_version: 1,
+	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 1,
 };
 
 /// This determines the average expected block time that we are targeting.
@@ -137,10 +137,10 @@ pub const DAYS: BlockNumber = HOURS * 24;
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-    NativeVersion {
-        runtime_version: VERSION,
-        can_author_with: Default::default(),
-    }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
@@ -160,77 +160,77 @@ parameter_types! {
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
-    /// The basic call filter to use in dispatchable.
-    type BaseCallFilter = ();
-    /// Block & extrinsics weights: base values and limits.
-    type BlockWeights = BlockWeights;
-    /// The maximum length of a block (in bytes).
-    type BlockLength = BlockLength;
-    /// The identifier used to distinguish between accounts.
-    type AccountId = AccountId;
-    /// The aggregated dispatch type that is available for extrinsics.
-    type Call = Call;
-    /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-    type Lookup = AccountIdLookup<AccountId, ()>;
-    /// The index type for storing how many extrinsics an account has signed.
-    type Index = Index;
-    /// The index type for blocks.
-    type BlockNumber = BlockNumber;
-    /// The type for hashing blocks and tries.
-    type Hash = Hash;
-    /// The hashing algorithm used.
-    type Hashing = BlakeTwo256;
-    /// The header type.
-    type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    /// The ubiquitous event type.
-    type Event = Event;
-    /// The ubiquitous origin type.
-    type Origin = Origin;
-    /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
-    type BlockHashCount = BlockHashCount;
-    /// The weight of database operations that the runtime can invoke.
-    type DbWeight = RocksDbWeight;
-    /// Version of the runtime.
-    type Version = Version;
-    /// Converts a module to the index of the module in `construct_runtime!`.
+	/// The basic call filter to use in dispatchable.
+	type BaseCallFilter = ();
+	/// Block & extrinsics weights: base values and limits.
+	type BlockWeights = BlockWeights;
+	/// The maximum length of a block (in bytes).
+	type BlockLength = BlockLength;
+	/// The identifier used to distinguish between accounts.
+	type AccountId = AccountId;
+	/// The aggregated dispatch type that is available for extrinsics.
+	type Call = Call;
+	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+	type Lookup = AccountIdLookup<AccountId, ()>;
+	/// The index type for storing how many extrinsics an account has signed.
+	type Index = Index;
+	/// The index type for blocks.
+	type BlockNumber = BlockNumber;
+	/// The type for hashing blocks and tries.
+	type Hash = Hash;
+	/// The hashing algorithm used.
+	type Hashing = BlakeTwo256;
+	/// The header type.
+	type Header = generic::Header<BlockNumber, BlakeTwo256>;
+	/// The ubiquitous event type.
+	type Event = Event;
+	/// The ubiquitous origin type.
+	type Origin = Origin;
+	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
+	type BlockHashCount = BlockHashCount;
+	/// The weight of database operations that the runtime can invoke.
+	type DbWeight = RocksDbWeight;
+	/// Version of the runtime.
+	type Version = Version;
+	/// Converts a module to the index of the module in `construct_runtime!`.
     ///
     /// This type is being generated by `construct_runtime!`.
-    type PalletInfo = PalletInfo;
-    /// What to do if a new account is created.
-    type OnNewAccount = ();
-    /// What to do if an account is fully reaped from the system.
-    type OnKilledAccount = ();
-    /// The data to be stored in an account.
-    type AccountData = pallet_balances::AccountData<Balance>;
-    /// Weight information for the extrinsics of this pallet.
-    type SystemWeightInfo = ();
-    /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
-    type SS58Prefix = SS58Prefix;
-    /// The set code logic, just the default since we're not a parachain.
-    type OnSetCode = ();
+	type PalletInfo = PalletInfo;
+	/// What to do if a new account is created.
+	type OnNewAccount = ();
+	/// What to do if an account is fully reaped from the system.
+	type OnKilledAccount = ();
+	/// The data to be stored in an account.
+	type AccountData = pallet_balances::AccountData<Balance>;
+	/// Weight information for the extrinsics of this pallet.
+	type SystemWeightInfo = ();
+	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
+	type SS58Prefix = SS58Prefix;
+	/// The set code logic, just the default since we're not a parachain.
+	type OnSetCode = ();
 }
 
 impl pallet_aura::Config for Runtime {
-    type AuthorityId = AuraId;
+	type AuthorityId = AuraId;
 }
 
 impl pallet_grandpa::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
+	type Event = Event;
+	type Call = Call;
 
-    type KeyOwnerProofSystem = ();
+	type KeyOwnerProofSystem = ();
 
-    type KeyOwnerProof =
-    <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+	type KeyOwnerProof =
+	<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
-    type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-        KeyTypeId,
-        GrandpaId,
-    )>>::IdentificationTuple;
+	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+		KeyTypeId,
+		GrandpaId,
+	)>>::IdentificationTuple;
 
-    type HandleEquivocation = ();
+	type HandleEquivocation = ();
 
-    type WeightInfo = ();
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -238,11 +238,11 @@ parameter_types! {
 }
 
 impl pallet_timestamp::Config for Runtime {
-    /// A timestamp: milliseconds since the unix epoch.
-    type Moment = u64;
-    type OnTimestampSet = Aura;
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
+	/// A timestamp: milliseconds since the unix epoch.
+	type Moment = u64;
+	type OnTimestampSet = Aura;
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -251,15 +251,15 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
-    type MaxLocks = MaxLocks;
-    /// The type for recording an account's balance.
-    type Balance = Balance;
-    /// The ubiquitous event type.
-    type Event = Event;
-    type DustRemoval = ();
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = System;
-    type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+	type MaxLocks = MaxLocks;
+	/// The type for recording an account's balance.
+	type Balance = Balance;
+	/// The ubiquitous event type.
+	type Event = Event;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -267,15 +267,15 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
-    type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = ();
+	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+	type TransactionByteFee = TransactionByteFee;
+	type WeightToFee = IdentityFee<Balance>;
+	type FeeMultiplierUpdate = ();
 }
 
 impl pallet_sudo::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
+	type Event = Event;
+	type Call = Call;
 }
 
 parameter_types! {
@@ -404,13 +404,13 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-    frame_system::CheckSpecVersion<Runtime>,
-    frame_system::CheckTxVersion<Runtime>,
-    frame_system::CheckGenesis<Runtime>,
-    frame_system::CheckEra<Runtime>,
-    frame_system::CheckNonce<Runtime>,
-    frame_system::CheckWeight<Runtime>,
-    pallet_transaction_payment::ChargeTransactionPayment<Runtime>
+	frame_system::CheckSpecVersion<Runtime>,
+	frame_system::CheckTxVersion<Runtime>,
+	frame_system::CheckGenesis<Runtime>,
+	frame_system::CheckEra<Runtime>,
+	frame_system::CheckNonce<Runtime>,
+	frame_system::CheckWeight<Runtime>,
+	pallet_transaction_payment::ChargeTransactionPayment<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
@@ -418,11 +418,11 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
-    Runtime,
-    Block,
-    frame_system::ChainContext<Runtime>,
-    Runtime,
-    AllPallets,
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPallets,
 >;
 
 impl_runtime_apis! {

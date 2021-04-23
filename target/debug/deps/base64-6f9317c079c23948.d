@@ -1,0 +1,12 @@
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/base64-6f9317c079c23948.rmeta: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/chunked_encoder.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/display.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/tables.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/encode.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/decode.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/libbase64-6f9317c079c23948.rlib: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/chunked_encoder.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/display.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/tables.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/encode.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/decode.rs
+
+/home/knoldus/Desktop/new-workspace/node-template/target/debug/deps/base64-6f9317c079c23948.d: /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/lib.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/chunked_encoder.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/display.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/tables.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/encode.rs /home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/decode.rs
+
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/lib.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/chunked_encoder.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/display.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/tables.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/encode.rs:
+/home/knoldus/.cargo/registry/src/github.com-1ecc6299db9ec823/base64-0.11.0/src/decode.rs:

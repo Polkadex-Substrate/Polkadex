@@ -1,0 +1,1 @@
+#![no_std] pub use wasm_project::*;

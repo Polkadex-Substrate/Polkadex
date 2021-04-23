@@ -1,0 +1,1 @@
+cargo:rustc-cfg=value_bag_capture_const_type_id
