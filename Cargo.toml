@@ -8,7 +8,4 @@ members = [
     'pallets/fungible-assets',
     'primitives',
     'runtime',
-    "orml/vesting",
-    "orml/currencies",
-    "orml/tokens",
 ]
