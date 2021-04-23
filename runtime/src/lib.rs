@@ -299,12 +299,12 @@ impl EnsureOrigin<Origin> for EnsureGovernance {
     }
 }
 
-// impl polkadex_fungible_assets::Config for Runtime {
-// 	type Event = Event;
-// 	type TreasuryAccountId = TreasuryAccountId;
-// 	type GovernanceOrigin = EnsureGovernance;
-// 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
-// }
+impl polkadex_fungible_assets::Config for Runtime {
+	type Event = Event;
+	type TreasuryAccountId = TreasuryAccountId;
+	type GovernanceOrigin = EnsureGovernance;
+	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+}
 
 parameter_types! {
     pub MinVestedTransfer: Balance = 100u128;
@@ -390,6 +390,7 @@ construct_runtime!(
         Vesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>},
         Currencies: orml_currencies::{Pallet, Call, Event<T>},
         Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
+        PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
     }
 );
 
