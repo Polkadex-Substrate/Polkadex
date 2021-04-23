@@ -10,8 +10,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_std::prelude::*;
 
 use frame_system::RawOrigin;
-// use orml_currencies::BasicCurrencyAdapter;
-// use orml_traits::parameter_type_with_key;
+use orml_currencies::BasicCurrencyAdapter;
+use orml_traits::parameter_type_with_key;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use polkadex_primitives::assets::AssetId;
@@ -333,44 +333,44 @@ impl EnsureOrigin<Origin> for EnsureRootOrPolkadexTreasury {
     }
 }
 
-// impl orml_vesting::Config for Runtime {
-// 	type Event = Event;
-// 	type Currency = pallet_balances::Module<Runtime>;
-// 	type MinVestedTransfer = MinVestedTransfer;
-// 	type VestedTransferOrigin = EnsureRootOrPolkadexTreasury;
-// 	type WeightInfo = ();
-// }
+impl orml_vesting::Config for Runtime {
+    type Event = Event;
+    type Currency = pallet_balances::Module<Runtime>;
+    type MinVestedTransfer = MinVestedTransfer;
+    type VestedTransferOrigin = EnsureRootOrPolkadexTreasury;
+    type WeightInfo = ();
+}
 
-// parameter_type_with_key! {
-//     pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-//         Zero::zero()
-//     };
-// }
-// parameter_types! {
-//     pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
-// }
+parameter_type_with_key! {
+    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+        Zero::zero()
+    };
+}
+parameter_types! {
+    pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
 
-// impl orml_tokens::Config for Runtime {
-// 	type Event = Event;
-// 	type Balance = Balance;
-// 	type Amount = Amount;
-// 	type CurrencyId = AssetId;
-// 	type WeightInfo = ();
-// 	type ExistentialDeposits = ExistentialDeposits;
-// 	type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
-// }
+impl orml_tokens::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Amount = Amount;
+    type CurrencyId = AssetId;
+    type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
+}
 
 parameter_types! {
     pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
 }
-//
-// impl orml_currencies::Config for Runtime {
-// 	type Event = Event;
-// 	type MultiCurrency = Tokens;
-// 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
-// 	type GetNativeCurrencyId = GetNativeCurrencyId;
-// 	type WeightInfo = ();
-// }
+
+impl orml_currencies::Config for Runtime {
+    type Event = Event;
+    type MultiCurrency = Tokens;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type WeightInfo = ();
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -387,9 +387,9 @@ construct_runtime!(
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        // Vesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>},
-        // Currencies: orml_currencies::{Pallet, Call, Event<T>},
-        // Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
+        Vesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>},
+        Currencies: orml_currencies::{Pallet, Call, Event<T>},
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
     }
 );
 
