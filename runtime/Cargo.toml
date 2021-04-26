@@ -53,6 +53,8 @@ orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 # Local Dependecies
 polkadex-primitives = { path = "../primitives", default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
+polkadex-ocex = { path = "../pallets/ocex", default-features = false }
+pallet-substratee-registry = {git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false}
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git" }
@@ -89,7 +91,9 @@ std = [
 	"orml-tokens/std",
 	"orml-traits/std",
 	"polkadex-primitives/std",
-	"polkadex-fungible-assets/std"
+	"polkadex-fungible-assets/std",
+	"polkadex-ocex/std",
+	"pallet-substratee-registry/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",

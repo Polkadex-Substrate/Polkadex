@@ -46,7 +46,7 @@ use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
-
+pub use pallet_substratee_registry;
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -68,6 +68,8 @@ pub type Balance = u128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
+
+pub type Moment = u64;
 
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
@@ -372,6 +374,17 @@ impl orml_currencies::Config for Runtime {
     type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
+}
+
+/// added by SCS
+// impl pallet_substratee_registry::Config for Runtime {
+//     type Event = Event;
+//     type Currency = pallet_balances::Pallet<Runtime>;
+//     type MomentsPerDay = MomentsPerDay;
+// }
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -391,6 +404,7 @@ construct_runtime!(
         Currencies: orml_currencies::{Pallet, Call, Event<T>},
         Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
+//        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
     }
 );
 
