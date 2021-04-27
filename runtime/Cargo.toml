@@ -1,11 +1,11 @@
 [package]
 name = "node-polkadex-runtime"
-version = "1.0.0"
-authors = ["Anonymous"]
+version = "3.0.0"
+authors = ["Substrate DevHub <https://github.com/substrate-developer-hub>"]
 edition = "2018"
 license = "Unlicense"
 homepage = "https://substrate.dev"
-repository = "https://github.com/paritytech/substrate/"
+repository = "https://github.com/substrate-developer-hub/substrate-node-template/"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -13,93 +13,97 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 
-
-polkadex-fungible-assets = { path = "../pallets/Polkadex_Fungible_Assets", version = "0.1.0", default-features = false }
-pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-balances = {git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-grandpa = {git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-sudo = {git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-frame-executive = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
-sp-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
-sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-session = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-version = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+pallet-aura = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-balances = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+frame-support = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-grandpa = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-randomness-collective-flip = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-sudo = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+frame-system = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-timestamp = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-transaction-payment = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+frame-executive = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0"}
+sp-consensus-aura = { version = "0.9.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-core = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-inherents = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0"}
+sp-offchain = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-session = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-std = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-transaction-pool = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-version = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-proxy = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
 # Used for the node template's RPCs
-frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+frame-system-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-transaction-payment-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
 # Used for runtime benchmarking
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false, optional = true }
-frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false, optional = true }
+frame-benchmarking = { version = "3.1.0", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true }
+frame-system-benchmarking = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true }
 hex-literal = { version = "0.3.1", optional = true }
+
+# ORML Pallets
+orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+
+# Local Dependecies
 polkadex-primitives = { path = "../primitives", default-features = false }
-orml-vesting = { path = "../orml/vesting", default-features = false }
-orml-currencies = { path = "../orml/currencies", default-features = false }
-orml-tokens = { path = "../orml/tokens", default-features = false }
-orml-traits = { path = "../orml/traits", default-features = false }
+polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
+polkadex-ocex = { path = "../pallets/ocex", default-features = false }
+pallet-substratee-registry = {git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false}
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git" }
 
 [features]
 default = ["std"]
 std = [
-    "codec/std",
-    "frame-executive/std",
-    "frame-support/std",
-    "pallet-aura/std",
-    "pallet-balances/std",
-    "pallet-grandpa/std",
-    "pallet-randomness-collective-flip/std",
-    "pallet-sudo/std",
-    "pallet-timestamp/std",
-    "pallet-transaction-payment/std",
-    "pallet-transaction-payment-rpc-runtime-api/std",
-    "serde",
-    "sp-api/std",
-    "sp-block-builder/std",
-    "sp-consensus-aura/std",
-    "sp-core/std",
-    "sp-inherents/std",
-    "sp-offchain/std",
-    "sp-runtime/std",
-    "sp-session/std",
-    "sp-std/std",
-    "sp-transaction-pool/std",
-    "sp-version/std",
-    "frame-system/std",
-    "frame-system-rpc-runtime-api/std",
-
-    "polkadex-fungible-assets/std",
-    "orml-vesting/std",
-    "orml-currencies/std",
-    "orml-tokens/std",
-    "polkadex-primitives/std",
-    "orml-traits/std",
+	"codec/std",
+	"frame-executive/std",
+	"frame-support/std",
+	"frame-system-rpc-runtime-api/std",
+	"frame-system/std",
+	"pallet-aura/std",
+	"pallet-balances/std",
+	"pallet-grandpa/std",
+	"pallet-randomness-collective-flip/std",
+	"pallet-sudo/std",
+	"pallet-timestamp/std",
+	"pallet-transaction-payment-rpc-runtime-api/std",
+	"pallet-transaction-payment/std",
+	"sp-api/std",
+	"sp-block-builder/std",
+	"sp-consensus-aura/std",
+	"sp-core/std",
+	"sp-inherents/std",
+	"sp-offchain/std",
+	"sp-runtime/std",
+	"sp-session/std",
+	"sp-std/std",
+	"sp-transaction-pool/std",
+	"sp-version/std",
+	"orml-vesting/std",
+	"orml-currencies/std",
+	"orml-tokens/std",
+	"orml-traits/std",
+	"polkadex-primitives/std",
+	"polkadex-fungible-assets/std",
+	"polkadex-ocex/std",
+	"pallet-substratee-registry/std",
+	"pallet-proxy/std"
 ]
 runtime-benchmarks = [
-    "sp-runtime/runtime-benchmarks",
-    "frame-benchmarking",
-    "frame-support/runtime-benchmarks",
-    "frame-system-benchmarking",
-    "hex-literal",
-    "frame-system/runtime-benchmarks",
-    "pallet-balances/runtime-benchmarks",
-    "pallet-timestamp/runtime-benchmarks",
-    "polkadex-fungible-assets/runtime-benchmarks",
-
+	"frame-benchmarking",
+	"frame-support/runtime-benchmarks",
+	"frame-system-benchmarking",
+	"frame-system/runtime-benchmarks",
+	"hex-literal",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
 ]

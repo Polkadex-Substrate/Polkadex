@@ -5,26 +5,27 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-use frame_system::RawOrigin;
+
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_std::prelude::*;
+
+use frame_system::{RawOrigin, Config};
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use polkadex_primitives::assets::AssetId;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::{
-    AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor,
-    Verify,
+    AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, Zero,
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, ModuleId, MultiSignature,
+    ApplyExtrinsicResult, MultiSignature,
 };
-use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -37,7 +38,7 @@ pub use frame_support::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
     },
-    StorageValue,
+    PalletId, StorageValue,
 };
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -45,7 +46,8 @@ use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
-/// Weights for pallets used in the runtime.
+pub use pallet_substratee_registry;
+
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -57,6 +59,8 @@ pub type Signature = MultiSignature;
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
+pub type Amount = i128;
+
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
 pub type AccountIndex = u32;
@@ -67,11 +71,15 @@ pub type Balance = u128;
 /// Index of a transaction in the chain.
 pub type Index = u32;
 
+pub type Moment = u64;
+
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;
+
+const MODULE_ID: PalletId = PalletId(*b"cb/gover");
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -97,18 +105,24 @@ pub mod opaque {
     }
 }
 
-const MODULE_ID: ModuleId = ModuleId(*b"cb/gover");
+// To learn more about runtime versioning and what each of the following value means:
+//   https://substrate.dev/docs/en/knowledgebase/runtime/upgrades#runtime-versioning
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("node-polkadex"),
-    impl_name: create_runtime_str!("node-polkadex"),
+    spec_name: create_runtime_str!("node-template"),
+    impl_name: create_runtime_str!("node-template"),
     authoring_version: 1,
-    spec_version: 1,
+    // The version of the runtime specification. A full node will not attempt to use its native
+    //   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
+    //   `spec_version`, and `authoring_version` are the same between Wasm and native.
+    // This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
+    //   the compatible custom types.
+    spec_version: 100,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
 
-/// This determines the average expected block time that we are targetting.
+/// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
 /// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
 /// up by `pallet_aura` to implement `fn slot_duration()`.
@@ -116,6 +130,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// Change this to adjust the block time.
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
 
+// NOTE: Currently it is not possible to change the slot duration after the chain has started.
+//       Attempting to do so will brick block production.
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
 // Time is measured by number of blocks.
@@ -135,7 +151,8 @@ pub fn native_version() -> NativeVersion {
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
-    pub const PolkadexTreasuryModuleId: ModuleId = ModuleId(*b"polka/tr");
+    pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
     /// We allow for 2 seconds of compute with a 6 second average block time.
@@ -195,9 +212,9 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
+    /// The set code logic, just the default since we're not a parachain.
+    type OnSetCode = ();
 }
-
-pub type Amount = i128;
 
 impl pallet_aura::Config for Runtime {
     type AuthorityId = AuraId;
@@ -210,7 +227,7 @@ impl pallet_grandpa::Config for Runtime {
     type KeyOwnerProofSystem = ();
 
     type KeyOwnerProof =
-    <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+        <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
     type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
         KeyTypeId,
@@ -288,10 +305,10 @@ impl EnsureOrigin<Origin> for EnsureGovernance {
 }
 
 impl polkadex_fungible_assets::Config for Runtime {
-    type Event = Event;
-    type TreasuryAccountId = TreasuryAccountId;
-    type GovernanceOrigin = EnsureGovernance;
-    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type Event = Event;
+	type TreasuryAccountId = TreasuryAccountId;
+	type GovernanceOrigin = EnsureGovernance;
+	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 }
 
 parameter_types! {
@@ -360,6 +377,23 @@ impl orml_currencies::Config for Runtime {
     type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
+}
+
+/// added by SCS
+impl pallet_substratee_registry::Config for Runtime {
+    type Event = Event;
+    type Currency = pallet_balances::Pallet<Runtime>;
+    type MomentsPerDay = MomentsPerDay;
+}
+
+impl polkadex_ocex::Config for Runtime {
+    type Event = Event;
+    type OcexId = OcexModuleId;
+    type Currency = Currencies;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -367,18 +401,20 @@ construct_runtime!(
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-        Aura: pallet_aura::{Module, Config<T>},
-        Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
-        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
-        Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-        Vesting: orml_vesting::{Module, Storage, Call, Event<T>, Config<T>},
-        Currencies: orml_currencies::{Module, Call, Event<T>},
-        Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
-        PolkadexFungibleAssets: polkadex_fungible_assets::{Module, Call, Event<T>},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        Aura: pallet_aura::{Pallet, Config<T>},
+        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
+        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
+        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
+        Vesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>},
+        Currencies: orml_currencies::{Pallet, Call, Event<T>},
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
+        PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Event<T>},
     }
 );
 
@@ -412,7 +448,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllModules,
+    AllPallets,
 >;
 
 impl_runtime_apis! {
@@ -422,7 +458,7 @@ impl_runtime_apis! {
         }
 
         fn execute_block(block: Block) {
-            Executive::execute_block(block)
+            Executive::execute_block(block);
         }
 
         fn initialize_block(header: &<Block as BlockT>::Header) {
@@ -457,7 +493,7 @@ impl_runtime_apis! {
         }
 
         fn random_seed() -> <Block as BlockT>::Hash {
-            RandomnessCollectiveFlip::random_seed()
+            RandomnessCollectiveFlip::random_seed().0
         }
     }
 
@@ -477,8 +513,8 @@ impl_runtime_apis! {
     }
 
     impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> u64 {
-            Aura::slot_duration()
+        fn slot_duration() -> sp_consensus_aura::SlotDuration {
+            sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
         }
 
         fn authorities() -> Vec<AuraId> {
@@ -552,7 +588,7 @@ impl_runtime_apis! {
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
             use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
-            use frame_system_benchmarking::Module as SystemBench;
+            use frame_system_benchmarking::Pallet as SystemBench;
             impl frame_system_benchmarking::Config for Runtime {}
 
             let whitelist: Vec<TrackedStorageKey> = vec![
@@ -574,7 +610,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-            add_benchmark!(params, batches, polkadex_fungible_assets, PolkadexFungibleAssets);
+            add_benchmark!(params, batches, pallet_template, TemplateModule);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

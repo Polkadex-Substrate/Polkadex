@@ -25,8 +25,8 @@ use sp_core::{RuntimeDebug, H160};
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetId {
     POLKADEX,
-    // DOT, TODO: Enabled in Parachain upgrade
+    DOT, // TODO: Enabled in Parachain upgrade
     CHAINSAFE(H160),
-    SNOWFORK(H160),
-    // PARACHAIN(para_id,network,palletInstance,assetID)
+    TOKEN(H160),
+   // PARACHAIN(para_id, network, palletInstance, assetID),
 }
