@@ -29,9 +29,8 @@ use frame_system as system;
 use frame_system::{ensure_signed};
 use sp_std::prelude::*;
 use sp_runtime::traits::AccountIdConversion;
-use orml_traits::{
-    BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
-};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use polkadex_primitives::assets::AssetId;
 use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
@@ -50,10 +49,11 @@ pub trait Config: system::Config + orml_tokens::Config {
     type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
     type TreasuryAccountId: Get<Self::AccountId>;
 
-    type NativeCurrency: BasicCurrencyExtended<Self::AccountId, Balance = BalanceOf<Self>>
-    + BasicLockableCurrency<Self::AccountId, Balance = BalanceOf<Self>>
-    + BasicReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
-
+    type Currency: MultiCurrencyExtended<
+        Self::AccountId,
+        CurrencyId = AssetId,
+        Balance = Self::Balance,
+    >;
     type NativeCurrencyId: Get<Self::CurrencyId>;
     type IDOPDXAmount: Get<Self::Balance>;
     type MaxSupply: Get<Self::Balance>;
@@ -93,39 +93,41 @@ impl InvestorInfo {
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct FundingRound<T: Config> {
-    token_a: T::CurrencyId,
+    token_a: AssetId,
     amount: T::Balance,
-    token_b: T::CurrencyId,
+    token_b: AssetId,
     vesting_per_block: T::Balance,
     start_block: T::BlockNumber,
     min_allocation: T::Balance,
     max_allocation: T::Balance,
     operator_commission: T::Balance,
     token_a_priceper_token_b: T::Balance,
-    close_round_block: T::BlockNumber
+    close_round_block: T::BlockNumber,
+    actual_raise: T::Balance
 }
 
 impl<T: Config> Default for FundingRound<T> {
     fn default() -> Self {
         FundingRound {
-            token_a: T::NativeCurrencyId::get(),
+            token_a: AssetId::POLKADEX,
             amount: T::Balance::default(),
-            token_b: T::NativeCurrencyId::get(),
+            token_b: AssetId::POLKADEX,
             vesting_per_block: T::Balance::default(),
             start_block: T::BlockNumber::default(),
             min_allocation: T::Balance::default(),
             max_allocation: T::Balance::default(),
             operator_commission: T::Balance::default(),
             token_a_priceper_token_b: T::Balance::default(),
-            close_round_block: T::BlockNumber::default()
+            close_round_block: T::BlockNumber::default(),
+            actual_raise: Zero::zero()
         }
     }
 }
 
 impl<T: Config> FundingRound<T> {
-    fn from(token_a: T::CurrencyId,
+    fn from(token_a: AssetId,
             amount: T::Balance,
-            token_b: T::CurrencyId,
+            token_b: AssetId,
             vesting_per_block: T::Balance,
             start_block: T::BlockNumber,
             min_allocation: T::Balance,
@@ -144,6 +146,7 @@ impl<T: Config> FundingRound<T> {
             operator_commission,
             token_a_priceper_token_b,
             close_round_block,
+            actual_raise: Zero::zero(),
         }
     }
 }
@@ -183,14 +186,14 @@ decl_module! {
             let who: T::AccountId = ensure_signed(origin)?;
             let amount: T::Balance = T::IDOPDXAmount::get();
             ensure!(!<InfoInvestor<T>>::contains_key(&who.clone()), Error::<T>::InvestorAlreadyRegistered);
-            if T::NativeCurrency::total_issuance() > T::MaxSupply::get()
+            if <T as Config>::Currency::total_issuance(AssetId::POLKADEX) > T::MaxSupply::get()
             {
                  orml_tokens::Accounts::<T>::mutate(who.clone(), &T::NativeCurrencyId::get(), |account_data| {
                     account_data.free = account_data.free - amount;
                 });
             }
             else {
-                T::NativeCurrency::transfer(&who, &T::TreasuryAccountId::get(), amount)?;
+                <T as Config>::Currency::transfer(AssetId::POLKADEX, &who, &T::TreasuryAccountId::get(), amount)?;
             }
             let investor_info = InvestorInfo::default();
             <InfoInvestor<T>>::insert(who.clone(), investor_info);
@@ -212,9 +215,9 @@ decl_module! {
         #[weight = 10000]
         pub fn register_round(
             origin,
-            token_a: T::CurrencyId,
+            token_a: AssetId,
             amount: T::Balance,
-            token_b: T::CurrencyId,
+            token_b: AssetId,
             vesting_per_block: T::Balance,
             start_block: T::BlockNumber,
             min_allocation: T::Balance,
@@ -264,13 +267,17 @@ decl_module! {
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
             ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
-            T::NativeCurrency::transfer(&investor_address, &Self::get_wallet_account(), amount)?;
+            <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::get_wallet_account(), amount)?;
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             <InvestorShareInfo<T>>::insert(round_id, investor_address, investor_share);
+            <InfoFundingRound<T>>::mutate(round_id, |round_details| {
+                let mut actual_raise = round_details.actual_raise;
+                actual_raise += amount;
+            });
             Ok(())
         }
 
@@ -330,10 +337,24 @@ decl_module! {
             ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
-            T::NativeCurrency::transfer(&creator, &beneficiary, total_raise)?;
+            <T as Config>::Currency::transfer(AssetId::POLKADEX, &creator, &beneficiary, total_raise)?;
             Ok(())
         }
 
+         #[weight = 10000]
+        pub fn withdraw_token(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+            let creator: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            ensure!(<InfoProjectTeam<T>>::contains_key(&creator.clone()), <Error<T>>::CreaterDoesNotExist);
+            let info_round_id = <InfoProjectTeam<T>>::get(&creator.clone());
+            ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
+            let remaining_token = total_raise.saturating_sub(funding_round.actual_raise);
+            <T as Config>::Currency::transfer(AssetId::POLKADEX, &creator, &beneficiary, remaining_token)?;
+            Ok(())
+        }
     }
 }
 

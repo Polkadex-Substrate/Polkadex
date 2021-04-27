@@ -130,7 +130,7 @@ impl Config for Test {
     type Event = ();
     type TreasuryAccountId = TresuryAccount;
     type GovernanceOrigin = EnsureSignedBy<Six, u64>;
-    type NativeCurrency = AdaptedBasicCurrency;
+    type Currency = OrmlToken;
     type NativeCurrencyId = GetNativeCurrencyId;
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;

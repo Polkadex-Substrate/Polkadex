@@ -492,6 +492,110 @@ fn test_withdraw_raise() {
     });
 }
 
+#[test]
+fn test_withdraw_token() {
+    let balance: Balance = 100;
+    let investor_address: u64 = 4;
+    let block_num = 0;
+    let round_id = create_hash_data(&1u32);
+    ExtBuilder::default()
+        .build().execute_with(|| {
+        assert_noop!(
+            PolkadexIdo::withdraw_token(
+                Origin::signed(ALICE),
+                round_id,
+                investor_address
+            ),
+            Error::<Test>::InvestorDoesNotExist
+        );
+        assert_eq!(
+            PolkadexIdo::register_investor(
+                Origin::signed(investor_address)
+            ),
+            Ok(())
+        );
+
+        assert_noop!(
+             PolkadexIdo::withdraw_token(
+                Origin::signed(ALICE),
+                round_id,
+                investor_address
+            ),
+            Error::<Test>::FundingRoundDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+
+        assert_noop!(
+             PolkadexIdo::withdraw_token(
+                Origin::signed(3),
+                round_id,
+                investor_address
+            ),
+            Error::<Test>::CreaterDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_investor(
+                Origin::signed(2)
+            ),
+            Ok(())
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(4),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                block_num,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        assert_noop!(
+             PolkadexIdo::withdraw_token(
+                Origin::signed(4),
+                round_id,
+                2
+            ),
+            Error::<Test>::NotACreater
+        );
+        assert_eq!(
+            PolkadexIdo::withdraw_token(
+                Origin::signed(ALICE),
+                round_id,
+                investor_address
+            ),
+            Ok(())
+        );
+
+    });
+}
+
 fn create_hash_data(data: &u32) -> <mock::Test as frame_system::Config>::Hash {
     data.using_encoded(<Test as frame_system::Config>::Hashing::hash)
 }

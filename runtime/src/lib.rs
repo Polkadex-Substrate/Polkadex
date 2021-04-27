@@ -463,12 +463,12 @@ impl polkadex_ido::Config for Runtime {
     type Event = Event;
     type TreasuryAccountId = TreasuryAccountId;
     type GovernanceOrigin = EnsureGovernance;
-    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
     type NativeCurrencyId = GetNativeCurrencyId;
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
     type Randomness = RandomnessCollectiveFlip;
     type ModuleId = PolkadexIdoPalletId;
+    type Currency = Currencies;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
