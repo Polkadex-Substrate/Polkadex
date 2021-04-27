@@ -9,9 +9,9 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_std::prelude::*;
 
-use frame_system::RawOrigin;
+use frame_system::{RawOrigin, Config};
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use polkadex_primitives::assets::AssetId;
@@ -47,6 +47,8 @@ use pallet_transaction_payment::CurrencyAdapter;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 pub use pallet_substratee_registry;
+
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -150,6 +152,7 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
     pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
     /// We allow for 2 seconds of compute with a 6 second average block time.
@@ -379,11 +382,17 @@ parameter_types! {
 }
 
 /// added by SCS
-// impl pallet_substratee_registry::Config for Runtime {
-//     type Event = Event;
-//     type Currency = pallet_balances::Pallet<Runtime>;
-//     type MomentsPerDay = MomentsPerDay;
-// }
+impl pallet_substratee_registry::Config for Runtime {
+    type Event = Event;
+    type Currency = pallet_balances::Pallet<Runtime>;
+    type MomentsPerDay = MomentsPerDay;
+}
+
+impl polkadex_ocex::Config for Runtime {
+    type Event = Event;
+    type OcexId = OcexModuleId;
+    type Currency = Currencies;
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -404,7 +413,8 @@ construct_runtime!(
         Currencies: orml_currencies::{Pallet, Call, Event<T>},
         Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
-//        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Event<T>},
     }
 );
 
