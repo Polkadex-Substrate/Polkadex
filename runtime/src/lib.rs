@@ -453,6 +453,24 @@ impl polkadex_ocex::Config for Runtime {
     type Currency = Currencies;
 }
 
+parameter_types! {
+    pub const GetIDOPDXAmount: Balance = 100u128;
+    pub const GetMaxSupply: Balance = 2_000_000_0u128;
+    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+}
+
+impl polkadex_ido::Config for Runtime {
+    type Event = Event;
+    type TreasuryAccountId = TreasuryAccountId;
+    type GovernanceOrigin = EnsureGovernance;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type NativeCurrencyId = GetNativeCurrencyId;
+    type IDOPDXAmount = GetIDOPDXAmount;
+    type MaxSupply = GetMaxSupply;
+    type Randomness = RandomnessCollectiveFlip;
+    type ModuleId = PolkadexIdoPalletId;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -475,6 +493,7 @@ construct_runtime!(
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Event<T>},
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>},
     }
 );
 
