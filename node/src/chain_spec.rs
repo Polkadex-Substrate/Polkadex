@@ -163,7 +163,12 @@ fn testnet_genesis(
 			key: root_key.clone(),
 		},
 		orml_tokens: TokensConfig {
-			endowed_accounts: vec![(root_key, AssetId::POLKADEX, 1000000000000000000u128)],
+			endowed_accounts: vec![(root_key, AssetId::POLKADEX, 1000000000000000000u128),
+								   (endowed_accounts[0].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
+								   (endowed_accounts[0].to_owned(), AssetId::DOT, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::DOT, 1000000000000000000u128)
+			],
 		},
 		orml_vesting: VestingConfig { vesting: vec![] },
 	}

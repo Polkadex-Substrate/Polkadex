@@ -34,6 +34,7 @@ sp-session = { version = "3.0.0", default-features = false, git = "https://githu
 sp-std = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-transaction-pool = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-version = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-proxy = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
 # Used for the node template's RPCs
 frame-system-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
@@ -93,7 +94,8 @@ std = [
 	"polkadex-primitives/std",
 	"polkadex-fungible-assets/std",
 	"polkadex-ocex/std",
-	"pallet-substratee-registry/std"
+	"pallet-substratee-registry/std",
+	"pallet-proxy/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
