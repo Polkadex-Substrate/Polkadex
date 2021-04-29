@@ -24,8 +24,8 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
           default: true
+          components: rustfmt, clippy
       - run: cargo test
-      - run: cargo fmt
       - name: Build Project
         if: github.event_name == 'push'
         run: cargo build
