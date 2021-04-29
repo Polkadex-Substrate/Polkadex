@@ -35,14 +35,12 @@ use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Zero;
-
+mod benchmarking;
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod test;
-
-pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 
 pub trait Config: system::Config + orml_tokens::Config {
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
@@ -77,16 +75,6 @@ impl Default for InvestorInfo {
     fn default() -> Self {
         InvestorInfo {
             kyc_status: KYCStatus::Tier0,
-        }
-    }
-}
-
-impl InvestorInfo {
-    fn from(
-        kyc_status: KYCStatus,
-    ) -> Self {
-        InvestorInfo {
-            kyc_status,
         }
     }
 }
@@ -294,17 +282,17 @@ decl_module! {
                 if !last_claim_block.is_zero() && last_claim_block > funding_round.start_block{
 
                     let total_released_block: T::BlockNumber = current_block_no - funding_round.start_block;
-                    let tokensReleasedForGivenInvestor: T::Balance = Self::block_to_balance(total_released_block)
+                    let tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
                     * funding_round.vesting_per_block * investor_share;
 
-                    <InfoClaimAmount<T>>::insert(investor_address.clone(), tokensReleasedForGivenInvestor);
+                    <InfoClaimAmount<T>>::insert(investor_address.clone(), tokens_released_for_given_investor);
 
                 } else {
                     let total_released_block: T::BlockNumber = current_block_no - funding_round.start_block;
-                    let tokensReleasedForGivenInvestor: T::Balance = Self::block_to_balance(total_released_block)
+                    let tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
                     * funding_round.vesting_per_block * investor_share;
 
-                    <InfoClaimAmount<T>>::insert(investor_address.clone(), tokensReleasedForGivenInvestor);
+                    <InfoClaimAmount<T>>::insert(investor_address.clone(), tokens_released_for_given_investor);
                 }
                 <LastClaimBlockInfo<T>>::insert(round_id, investor_address, current_block_no);
             }

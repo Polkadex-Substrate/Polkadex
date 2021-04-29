@@ -20,7 +20,8 @@ use super::*;
 
 use crate as polkadex_ido;
 use frame_support::{
-    parameter_types, ord_parameter_types
+    parameter_types,
+	traits::SortedMembers,
 };
 use frame_system::EnsureSignedBy;
 use orml_traits::parameter_type_with_key;
@@ -120,16 +121,22 @@ parameter_types! {
     pub const PolkadexIdoModuleId: PalletId = PalletId(*b"polk/ido");
 }
 
-ord_parameter_types! {
-    pub const Six: u64 = 6;
+parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100u128;
     pub const GetMaxSupply: Balance = 200u128;
+}
+
+pub struct OneToFive;
+impl SortedMembers<u64> for OneToFive {
+	fn sorted_members() -> Vec<u64> {
+		vec![1, 2, 3, 4, 5]
+	}
 }
 
 impl Config for Test {
     type Event = ();
     type TreasuryAccountId = TresuryAccount;
-    type GovernanceOrigin = EnsureSignedBy<Six, u64>;
+    type GovernanceOrigin = EnsureSignedBy<OneToFive, u64>;
     type Currency = OrmlToken;
     type NativeCurrencyId = GetNativeCurrencyId;
     type IDOPDXAmount = GetIDOPDXAmount;

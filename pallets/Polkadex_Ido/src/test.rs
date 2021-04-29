@@ -45,7 +45,7 @@ fn test_register_investor() {
 
 #[test]
 fn test_attest_investor() {
-    let bob: u64 = 6;
+    let bob: u64 = 5;
     ExtBuilder::default()
         .build().execute_with(|| {
         assert_noop!(

@@ -108,4 +108,5 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"polkadex-ido/runtime-benchmarks"
 ]
