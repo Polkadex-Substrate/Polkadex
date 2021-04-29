@@ -1,5 +1,5 @@
 [package]
-name = "node-template"
+name = "polkadex-node"
 version = "3.0.0"
 authors = ["Substrate DevHub <https://github.com/substrate-developer-hub>"]
 description = "A fresh FRAME-based Substrate node, ready for hacking."
@@ -13,7 +13,7 @@ repository = "https://github.com/substrate-developer-hub/substrate-node-template
 targets = ["x86_64-unknown-linux-gnu"]
 
 [[bin]]
-name = "node-template"
+name = "polkadex-node"
 
 [dependencies]
 structopt = "0.3.8"
