@@ -20,7 +20,7 @@ jobs:
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-10-06
+          toolchain: nightly
           target: wasm32-unknown-unknown
           override: true
           default: true
