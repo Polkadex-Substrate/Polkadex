@@ -72,19 +72,7 @@ fn test_create_token() {
             OrmlToken::total_balance(new_asset_chainsafe, &alice),
             500u128
         );
-        // Snowfork Asset
-        let new_asset_snofork: AssetId = AssetId::SNOWFORK(H160::from_low_u64_be(24));
-        assert_eq!(
-            PolkadexFungibleAssets::create_token(
-                Origin::signed(alice.clone()),
-                new_asset_snofork,
-                new_balance,
-                mint_account,
-                burn_account,
-                existential_deposit
-            ),
-            Ok(())
-        );
+
         assert_eq!(OrmlToken::total_issuance(new_asset_chainsafe), 500u128);
         assert_eq!(
             OrmlToken::total_balance(new_asset_chainsafe, &alice),

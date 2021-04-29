@@ -20,7 +20,7 @@ use super::*;
 
 use crate as polkadex_fungible_assets;
 use frame_support::{ord_parameter_types, parameter_types};
-use frame_system::EnsureSignedBy;
+use frame_system::{EnsureSignedBy, SetCode};
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
@@ -40,11 +40,11 @@ frame_support::construct_runtime!(
         NodeBlock = Block,
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
-        System: frame_system::{Module, Call, Storage, Event<T>},
-        Fungible: polkadex_fungible_assets::{Module, Call, Event<T>},
-        Currencies: orml_currencies::{Module, Call, Event<T>},
-        OrmlToken: orml_tokens::{Module, Call, Storage, Event<T>},
-        PalletBalances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+        System: frame_system::{Pallet, Call, Storage, Event<T>},
+        Fungible: polkadex_fungible_assets::{Pallet, Call, Event<T>},
+        Currencies: orml_currencies::{Pallet, Call, Event<T>},
+        OrmlToken: orml_tokens::{Pallet, Call, Storage, Event<T>},
+        PalletBalances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
     }
 );
 
@@ -77,6 +77,7 @@ impl system::Config for Test {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = ();
+    type OnSetCode = ();
 }
 
 parameter_types! {
@@ -145,7 +146,7 @@ impl orml_tokens::Config for Test {
     type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
 }
 
-pub type PolkadexFungibleAssets = Module<Test>;
+pub type PolkadexFungibleAssets = Pallet<Test>;
 
 pub fn new_tester() -> sp_io::TestExternalities {
     let storage = system::GenesisConfig::default()
