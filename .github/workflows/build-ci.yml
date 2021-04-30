@@ -25,10 +25,11 @@ jobs:
           override: true
           default: true
           components: rustfmt, clippy
-      - run: cargo test
       - name: Build Project
         if: github.event_name == 'push'
         run: cargo build
+      - name: Test Project
+        run: cargo test
       - name: Run Cargo Trampulin
         if: github.event_name == 'push'
         uses: actions-rs/tarpaulin@v0.1
