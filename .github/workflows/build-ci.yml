@@ -1,0 +1,51 @@
+name: Build-CI
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+#      - name: Cache Rust Dependecies
+#        uses: actions/cache@v2
+#        with:
+#          path: |
+#            ~/.cargo/registry
+#            ~/.cargo/git
+#            target
+#          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: wasm32-unknown-unknown
+          override: true
+          default: true
+          components: rustfmt, clippy
+      - name: Build Project
+        if: github.event_name == 'push'
+        run: cargo build
+      - run: cargo clean
+      - name: Test Project
+        run: cargo test
+      - name: Run Cargo Trampulin
+        if: github.event_name == 'push'
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          version: '0.15.0'
+          args: '--exclude polkadex-node node-polkadex-runtime polkadex-primitives  --workspace'
+      - name: Upload to codecov.io
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+      - name: Archive code coverage results
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v1
+        with:
+          name: code-coverage-report
+          path: cobertura.xml
+
