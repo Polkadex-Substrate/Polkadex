@@ -35,6 +35,8 @@ use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Zero;
+
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(test)]
 mod mock;
