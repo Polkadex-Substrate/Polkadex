@@ -17,7 +17,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
+		TokenFaucetModule: token_faucet_pallet::{Module, Call, Storage, Event<T>},
 	}
 );
 

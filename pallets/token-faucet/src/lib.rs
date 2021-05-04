@@ -5,8 +5,9 @@
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, traits::Get};
-use frame_system::ensure_signed;
+use frame_system::{ensure_none, ensure_signed};
 use frame_support::pallet_prelude::{ValidTransaction, InvalidTransaction};
+use frame_system::offchain::SubmitTransaction;
 
 #[cfg(test)]
 mod mock;
@@ -24,6 +25,7 @@ pub trait Config: frame_system::Config {
 // https://substrate.dev/docs/en/knowledgebase/runtime/storage
 decl_storage! {
 	trait Store for Module<T: Config> as TokenFaucetMap {
+        //Total token supply
 		pub TokenFaucetMap get(fn token_faucet): map hasher(blake2_128_concat) T::AccountId => u64;
 	}
 }
@@ -51,15 +53,13 @@ decl_module! {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
 
-		// Events must be initialized if they are used by the pallet.
-		fn deposit_event() = default;
 
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn credit_account_with_tokens_unsigned(origin, block_number: u64) -> dispatch::DispatchResult {
-			let who = ensure_none!(origin)?;
-			Self::deposit_event(RawEvent::SomethingStored(something, who));
+            TokenFaucetMap::<T>::insert(&origin,block_number);
+            //Mint account with free tokens
+            T::Currency::deposit_creating(&origin, 100000).map_err(|_| DispatchError::Other("Minting failed"))?;;
+			Self::deposit_event(RawEvent::AccountCredited(origin));
 			Ok(())
 		}
 	}
@@ -69,9 +69,14 @@ decl_module! {
 impl<T: Config> Module<T> {
     fn offchain_unsigned_tx(block_number: T::BlockNumber) -> Result<(), Error<T>> {
         let block_number: u64 = block_number.try_into().unwrap_or(0);
+        let call = Call::credit_account_with_tokens_unsigned(block_number);
+        SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|_| {
+            debug::error!("Failed in offchain_unsigned_tx");
+            <Error<T>>::OffchainUnsignedTxError
+        })
     }
 }
-/// Number block created every 24 hrs
+/// Number blocks created every 24 hrs
 const BLOCK_THRESHOLD : u64 = ((24 * 60 * 60) / 6);
 
 impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
