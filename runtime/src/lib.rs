@@ -34,7 +34,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
-use frame_benchmarking::frame_support::pallet_prelude::Get;
+
 pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{EnsureOrigin, KeyOwnerProofSystem, Randomness},
