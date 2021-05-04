@@ -34,6 +34,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
+use frame_benchmarking::frame_support::pallet_prelude::Get;
 pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{EnsureOrigin, KeyOwnerProofSystem, Randomness},
@@ -155,6 +156,7 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 parameter_types! {
     pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
     pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
     /// We allow for 2 seconds of compute with a 6 second average block time.
@@ -453,6 +455,7 @@ parameter_types! {
 impl polkadex_ocex::Config for Runtime {
     type Event = Event;
     type OcexId = OcexModuleId;
+    type GenesisAccount = OCEXGenesisAccount;
     type Currency = Currencies;
     type ProxyLimit = ProxyLimit;
 }

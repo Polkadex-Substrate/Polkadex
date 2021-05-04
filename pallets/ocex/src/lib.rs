@@ -56,6 +56,8 @@ pub trait Config:
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     /// Bonding Account
     type OcexId: Get<PalletId>;
+    /// LinkedList Genesis Account
+    type GenesisAccount: Get<PalletId>;
     /// Currency for transfer currencies
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
@@ -90,10 +92,16 @@ decl_error! {
     }
 }
 
+/// TODO: Implement genesis configuration for GenesisAccount like this
+/// get_genesis_acc() (key) --> LinkedAccount{
+///                             prev: get_genesis_acc(),
+///                             next: None,
+///                             proxies: vec![] }
+/// When the first account is added, the next field becomes that account and
+/// prev field of first account's struct will be get_genesis_acc()
 decl_storage! {
     trait Store for Module<T: Config> as OCEX {
-        pub FirstAccount: Option<T::AccountId> = None;
-        pub LastAccount: Option<T::AccountId> = None;
+        pub LastAccount: T::AccountId = Self::get_genesis_acc();
         pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount<T::AccountId>;
     }
 }
@@ -168,7 +176,7 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-    // Note add_proxy doesn't check if given proxy is already registered
+    // Note add_proxy doesn't check if given main or proxy is already registered
     pub fn add_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
         let mut acc: LinkedAccount<T::AccountId> = <MainAccounts<T>>::get(&main);
         if acc.proxies.len() < T::ProxyLimit::get() {
@@ -180,6 +188,7 @@ impl<T: Config> Module<T> {
         Ok(())
     }
 
+    // Note remove_proxy doesn't check if given main or proxy is already registered
     pub fn remove_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
         let mut acc: LinkedAccount<T::AccountId> = <MainAccounts<T>>::get(&main);
         for i in 0..T::ProxyLimit::get() {
@@ -200,47 +209,20 @@ impl<T: Config> Module<T> {
         T::OcexId::get().into_account()
     }
 
+    pub fn get_genesis_acc() -> T::AccountId {
+        T::GenesisAccount::get().into_account()
+    }
+
     pub fn register_acc(sender: T::AccountId) -> Result<(), Error<T>> {
-        match <FirstAccount<T>>::get() {
-            Some(_) => {
-                // Get current last account_id
-                let last_acc_option: Option<T::AccountId> = <LastAccount<T>>::get();
-                let last_acc: T::AccountId = last_acc_option.unwrap();
-                // Get current last account
-                // If first acc is defined then last acc must be there
-                let mut last: LinkedAccount<T::AccountId> = <MainAccounts<T>>::get(&last_acc);
-                // modify next of current last account to sender
-                last.next = Some(sender.clone());
-                // write back modified previous last account
-                <MainAccounts<T>>::insert(&last_acc, last);
-                // set sender to last account
-                <LastAccount<T>>::put(sender.clone());
-                // write sender's struct to LinkedAccount
-                <MainAccounts<T>>::insert(
-                    sender,
-                    LinkedAccount {
-                        prev: last_acc,
-                        next: None,
-                        proxies: vec![],
-                    },
-                );
-            }
-            None => {
-                // Set sender as first acc
-                <FirstAccount<T>>::put(sender.clone());
-                // Set sender as last acc as  there is only one acc
-                <LastAccount<T>>::put(sender.clone());
-                // Set the sender's acc details
-                <MainAccounts<T>>::insert(
-                    sender,
-                    LinkedAccount {
-                        prev: T::AccountId::default(),
-                        next: None,
-                        proxies: vec![],
-                    },
-                );
-            }
-        }
+        let last_acc: T::AccountId = <LastAccount<T>>::get();
+        let mut last_account: LinkedAccount<T> = <MainAccounts<T>>::get(last_acc);
+
+        last_account.next = sender;
+        // TODO: Write it back
+        // TODO: Create linkedAccount struct for new acc
+        // TODO: Write the new account back
+        // TODO: Set the last account as sender
+
         Ok(())
     }
 }
