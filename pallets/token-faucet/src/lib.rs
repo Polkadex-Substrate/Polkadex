@@ -4,11 +4,12 @@
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, traits::Get};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, traits::Get, debug,
+                    traits::{Currency, ExistenceRequirement::AllowDeath, Imbalance, OnUnbalanced},
+};
 use frame_system::{ensure_none, ensure_signed};
-use frame_support::pallet_prelude::{ValidTransaction, InvalidTransaction};
+use frame_support::pallet_prelude::*;
 use frame_system::offchain::SubmitTransaction;
-
 #[cfg(test)]
 mod mock;
 
@@ -19,6 +20,8 @@ mod tests;
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
+    type Currency: Currency<Self::AccountId>;
 }
 
 // The pallet's runtime storage items.
@@ -56,9 +59,10 @@ decl_module! {
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn credit_account_with_tokens_unsigned(origin, block_number: u64) -> dispatch::DispatchResult {
-            TokenFaucetMap::<T>::insert(&origin,block_number);
+            let account = ensure_signed(origin)?;
+            TokenFaucetMap::<T>::insert(&account,block_number);
             //Mint account with free tokens
-            T::Currency::deposit_creating(&origin, 100000).map_err(|_| DispatchError::Other("Minting failed"))?;;
+            T::Currency::deposit_creating(&account, 100000).map_err(|_| DispatchError::Other("Minting failed"))?;;
 			Self::deposit_event(RawEvent::AccountCredited(origin));
 			Ok(())
 		}
@@ -81,7 +85,7 @@ const BLOCK_THRESHOLD : u64 = ((24 * 60 * 60) / 6);
 
 impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
-    fn validate_unsigned(_source: frame_support::unsigned::TransactionSource, _call: &Self::Call)
+    fn validate_unsigned(_source: frame_support::unsigned::TransactionSource, call: &Self::Call)
                          -> frame_support::unsigned::TransactionValidity {
         let current_block_no: u64 = <frame_system::Pallet<T>>::block_number().try_into().unwrap_or(0);
 
@@ -91,9 +95,9 @@ impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
         match call {
             Call::credit_account_with_tokens_unsigned(block_number) => {
-                valid_tx(block_number)
+                valid_tx(*block_number)
             }
-            _ => InvalidTransaction::Call::into(),
+            _ => InvalidTransaction::Call.into(),
         }
     }
 }
