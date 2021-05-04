@@ -245,8 +245,9 @@ decl_module! {
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
-            <WhiteListInvestors<T>>::insert(round_id, investor_address, amount);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
+            <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
+			Self::deposit_event(RawEvent::InvestorWhitelisted(round_id, investor_address));
             Ok(())
         }
 
@@ -257,17 +258,18 @@ decl_module! {
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
             ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
-            <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::get_wallet_account(), amount)?;
+			<T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::get_wallet_account(), amount)?;
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
-            <InvestorShareInfo<T>>::insert(round_id, investor_address, investor_share);
+            <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
             <InfoFundingRound<T>>::mutate(round_id, |round_details| {
                 let mut actual_raise = round_details.actual_raise;
                 actual_raise += amount;
             });
+			Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
             Ok(())
         }
 
@@ -296,9 +298,9 @@ decl_module! {
 
                     <InfoClaimAmount<T>>::insert(investor_address.clone(), tokens_released_for_given_investor);
                 }
-                <LastClaimBlockInfo<T>>::insert(round_id, investor_address, current_block_no);
+                <LastClaimBlockInfo<T>>::insert(round_id.clone(), investor_address.clone(), current_block_no);
             }
-
+			Self::deposit_event(RawEvent::TokenClaimed(round_id, investor_address));
             Ok(())
         }
 
@@ -357,6 +359,9 @@ decl_event!(
         InvestorRegistered(AccountId),
         InvestorAttested(AccountId),
         FundingRoundRegistered(Hash),
+		InvestorWhitelisted(Hash, AccountId),
+		ParticipatedInRound(Hash, AccountId),
+		TokenClaimed(Hash, AccountId),
     }
 );
 
