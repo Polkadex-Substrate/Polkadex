@@ -74,7 +74,7 @@ decl_module! {
             let _ = ensure_none(origin)?;
             TokenFaucetMap::<T>::insert(&account,<frame_system::Pallet<T>>::block_number());
             //Mint account with free tokens
-            T::Currency::deposit(AssetId::POLKADEX, &account,(100000 as u128).saturated_into());
+            T::Currency::deposit(AssetId::POLKADEX, &account,(100000 as u128).saturated_into()); // TODO: Handle the result
 			Self::deposit_event(RawEvent::AccountCredited(account));
 			Ok(())
 		}
