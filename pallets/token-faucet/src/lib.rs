@@ -4,12 +4,17 @@
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, traits::Get, debug,
-                    traits::{Currency, ExistenceRequirement::AllowDeath, Imbalance, OnUnbalanced},
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch,
+                    traits::Get,
 };
-use frame_system::{ensure_none, ensure_signed};
 use frame_support::pallet_prelude::*;
-use frame_system::offchain::SubmitTransaction;
+use frame_system::ensure_none;
+use orml_traits::{MultiCurrency,MultiCurrencyExtended};
+
+use polkadex_primitives::assets::AssetId;
+use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+use frame_support::sp_runtime::SaturatedConversion;
+
 #[cfg(test)]
 mod mock;
 
@@ -20,8 +25,14 @@ mod tests;
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-
-    type Currency: Currency<Self::AccountId>;
+    /// Balance Type
+    type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + MaybeSerializeDeserialize;
+    /// Module that handles tokens
+    type Currency: MultiCurrencyExtended<
+        Self::AccountId,
+        CurrencyId=AssetId,
+        Balance=Self::Balance,
+    >;
 }
 
 // The pallet's runtime storage items.
@@ -29,7 +40,7 @@ pub trait Config: frame_system::Config {
 decl_storage! {
 	trait Store for Module<T: Config> as TokenFaucetMap {
         //Total token supply
-		pub TokenFaucetMap get(fn token_faucet): map hasher(blake2_128_concat) T::AccountId => u64;
+		pub TokenFaucetMap get(fn token_faucet): map hasher(blake2_128_concat) T::AccountId => T::BlockNumber;
 	}
 }
 
@@ -56,46 +67,49 @@ decl_module! {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
 
+        fn deposit_event() = default;
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn credit_account_with_tokens_unsigned(origin, block_number: u64) -> dispatch::DispatchResult {
-            let account = ensure_signed(origin)?;
-            TokenFaucetMap::<T>::insert(&account,block_number);
+		pub fn credit_account_with_tokens_unsigned(origin, account: T::AccountId) -> dispatch::DispatchResult {
+            let _ = ensure_none(origin)?;
+            TokenFaucetMap::<T>::insert(&account,<frame_system::Pallet<T>>::block_number());
             //Mint account with free tokens
-            T::Currency::deposit_creating(&account, 100000).map_err(|_| DispatchError::Other("Minting failed"))?;;
-			Self::deposit_event(RawEvent::AccountCredited(origin));
+            T::Currency::deposit(AssetId::POLKADEX, &account,(100000 as u128).saturated_into());
+			Self::deposit_event(RawEvent::AccountCredited(account));
 			Ok(())
 		}
 	}
 }
 
 
-impl<T: Config> Module<T> {
-    fn offchain_unsigned_tx(block_number: T::BlockNumber) -> Result<(), Error<T>> {
-        let block_number: u64 = block_number.try_into().unwrap_or(0);
-        let call = Call::credit_account_with_tokens_unsigned(block_number);
-        SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|_| {
-            debug::error!("Failed in offchain_unsigned_tx");
-            <Error<T>>::OffchainUnsignedTxError
-        })
-    }
-}
 /// Number blocks created every 24 hrs
-const BLOCK_THRESHOLD : u64 = ((24 * 60 * 60) / 6);
+const BLOCK_THRESHOLD: u64 = (24 * 60 * 60) / 6;
+/// The type to sign and send transactions.
+pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 
 impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
     fn validate_unsigned(_source: frame_support::unsigned::TransactionSource, call: &Self::Call)
                          -> frame_support::unsigned::TransactionValidity {
-        let current_block_no: u64 = <frame_system::Pallet<T>>::block_number().try_into().unwrap_or(0);
+        let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 
-        let valid_tx = |block_number: u64| {
-            current_block_no - block_number >= BLOCK_THRESHOLD
+        let valid_tx = |account: T::AccountId| {
+            let last_block_number: T::BlockNumber = <TokenFaucetMap<T>>::get(account);
+            if current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into() {
+                ValidTransaction::with_tag_prefix("token-faucet")
+                    .priority(UNSIGNED_TXS_PRIORITY)
+                    .and_provides([&b"request_token_faucet".to_vec()])
+                    .longevity(3)
+                    .propagate(true)
+                    .build()
+            } else {
+                TransactionValidity::Err(TransactionValidityError::Invalid(InvalidTransaction::ExhaustsResources))
+            }
         };
 
         match call {
-            Call::credit_account_with_tokens_unsigned(block_number) => {
-                valid_tx(*block_number)
+            Call::credit_account_with_tokens_unsigned(account) => {
+                valid_tx(*account)
             }
             _ => InvalidTransaction::Call.into(),
         }
