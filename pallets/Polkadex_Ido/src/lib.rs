@@ -174,13 +174,11 @@ decl_module! {
         #[weight = 10000]
         pub fn register_investor(origin) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
-            let amount: T::Balance = T::IDOPDXAmount::get();
             ensure!(!<InfoInvestor<T>>::contains_key(&who.clone()), Error::<T>::InvestorAlreadyRegistered);
+            let amount: T::Balance = T::IDOPDXAmount::get();
             if <T as Config>::Currency::total_issuance(AssetId::POLKADEX) > T::MaxSupply::get()
             {
-                 orml_tokens::Accounts::<T>::mutate(who.clone(), &T::NativeCurrencyId::get(), |account_data| {
-                    account_data.free = account_data.free - amount;
-                });
+                 T::Currency::withdraw(AssetId::POLKADEX,&who,amount)
             }
             else {
                 <T as Config>::Currency::transfer(AssetId::POLKADEX, &who, &T::TreasuryAccountId::get(), amount)?;
@@ -188,7 +186,6 @@ decl_module! {
             let investor_info = InvestorInfo::default();
             <InfoInvestor<T>>::insert(who.clone(), investor_info);
             Self::deposit_event(RawEvent::InvestorRegistered(who));
-
             Ok(())
         }
 
@@ -202,6 +199,7 @@ decl_module! {
                 Ok(())
             })
         }
+
         #[weight = 10000]
         pub fn register_round(
             origin,
