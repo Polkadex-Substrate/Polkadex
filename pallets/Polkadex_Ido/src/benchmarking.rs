@@ -181,6 +181,90 @@ benchmarks! {
 		ensure!(<LastClaimBlockInfo<T>>::contains_key(&round_id.clone(), investor_address.clone()), "Claim Token didn't work");
 		assert_last_event::<T>(Event::<T>::TokenClaimed(round_id, investor_address).into());
 	}
+
+	show_interest_in_round {
+		let investor_address: T::AccountId = account("origin", 105, SEED);
+		set_up::<T>(investor_address.clone());
+		whitelist_account!(investor_address);
+		PolkadexIdo::<T>::register_investor(RawOrigin::Signed(investor_address.clone()).into());
+		assert_eq!(<InfoInvestor<T>>::contains_key(investor_address.clone()), true);
+		let caller: T::AccountId = account("origin", 106, SEED);
+		whitelist_account!(caller);
+		let balance = T::Balance::one();
+    	let block_num = T::BlockNumber::one();
+		PolkadexIdo::<T>::register_round(RawOrigin::Signed(caller.clone()).into(),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                T::BlockNumber::zero() ,
+                balance,
+                balance,
+                balance,
+                balance,
+                <frame_system::Pallet<T>>::block_number() + T::BlockNumber::from(32u32));
+		let round_id = <InfoProjectTeam<T>>::get(caller.clone());
+	}: _(RawOrigin::Signed(investor_address.clone()), round_id.clone())
+	verify {
+		ensure!(<InterestedParticipants<T>>::contains_key(&round_id.clone()), "ShowedInterest didn't work");
+		assert_last_event::<T>(Event::<T>::ShowedInterest(round_id, investor_address).into());
+	}
+
+	withdraw_raise {
+		let investor_address: T::AccountId = account("origin", 106, SEED);
+		set_up::<T>(investor_address.clone());
+		whitelist_account!(investor_address);
+		PolkadexIdo::<T>::register_investor(RawOrigin::Signed(investor_address.clone()).into());
+		assert_eq!(<InfoInvestor<T>>::contains_key(investor_address.clone()), true);
+		let caller: T::AccountId = account("origin", 107, SEED);
+		set_up::<T>(caller.clone());
+		whitelist_account!(caller);
+		let balance = T::Balance::one();
+    	let block_num = T::BlockNumber::one();
+		PolkadexIdo::<T>::register_round(RawOrigin::Signed(caller.clone()).into(),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                T::BlockNumber::zero() ,
+                balance,
+                balance,
+                balance,
+                balance,
+                <frame_system::Pallet<T>>::block_number() + T::BlockNumber::from(32u32));
+		let round_id = <InfoProjectTeam<T>>::get(caller.clone());
+	}: _(RawOrigin::Signed(caller.clone()), round_id.clone(), investor_address)
+	verify {
+		assert_last_event::<T>(Event::<T>::WithdrawRaised(round_id, caller).into());
+	}
+
+	withdraw_token {
+		let investor_address: T::AccountId = account("origin", 106, SEED);
+		set_up::<T>(investor_address.clone());
+		whitelist_account!(investor_address);
+		PolkadexIdo::<T>::register_investor(RawOrigin::Signed(investor_address.clone()).into());
+		assert_eq!(<InfoInvestor<T>>::contains_key(investor_address.clone()), true);
+		let caller: T::AccountId = account("origin", 107, SEED);
+		set_up::<T>(caller.clone());
+		whitelist_account!(caller);
+		let balance = T::Balance::one();
+    	let block_num = T::BlockNumber::one();
+		PolkadexIdo::<T>::register_round(RawOrigin::Signed(caller.clone()).into(),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                T::BlockNumber::zero() ,
+                balance,
+                balance,
+                balance,
+                balance,
+                <frame_system::Pallet<T>>::block_number() + T::BlockNumber::from(32u32));
+		let round_id = <InfoProjectTeam<T>>::get(caller.clone());
+	}: _(RawOrigin::Signed(caller.clone()), round_id.clone(), investor_address)
+	verify {
+		assert_last_event::<T>(Event::<T>::WithdrawToken(round_id, caller).into());
+	}
 }
 
 impl_benchmark_test_suite!(

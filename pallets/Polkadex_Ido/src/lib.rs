@@ -311,11 +311,11 @@ decl_module! {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
             InterestedParticipants::<T>::mutate(round_id, |investors| {
-                    investors.push(investor_address);
+                    investors.push(investor_address.clone());
                 });
-
+			Self::deposit_event(RawEvent::ShowedInterest(round_id, investor_address));
              Ok(())
         }
 
@@ -330,6 +330,7 @@ decl_module! {
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             <T as Config>::Currency::transfer(AssetId::POLKADEX, &creator, &beneficiary, total_raise)?;
+			Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
             Ok(())
         }
 
@@ -345,6 +346,7 @@ decl_module! {
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let remaining_token = total_raise.saturating_sub(funding_round.actual_raise);
             <T as Config>::Currency::transfer(AssetId::POLKADEX, &creator, &beneficiary, remaining_token)?;
+			Self::deposit_event(RawEvent::WithdrawToken(round_id, creator));
             Ok(())
         }
     }
@@ -362,6 +364,9 @@ decl_event!(
 		InvestorWhitelisted(Hash, AccountId),
 		ParticipatedInRound(Hash, AccountId),
 		TokenClaimed(Hash, AccountId),
+		ShowedInterest(Hash, AccountId),
+		WithdrawRaised(Hash, AccountId),
+		WithdrawToken(Hash, AccountId),
     }
 );
 
