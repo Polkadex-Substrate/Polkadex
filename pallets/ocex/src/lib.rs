@@ -30,11 +30,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_std::prelude::*;
 // pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 
-#[cfg(test)]
-mod mock;
 
-#[cfg(test)]
-mod test;
 
 pub trait Config:
     system::Config + orml_tokens::Config + pallet_substratee_registry::Config
