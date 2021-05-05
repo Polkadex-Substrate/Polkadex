@@ -8,12 +8,12 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch,
                     traits::Get,
 };
 use frame_support::pallet_prelude::*;
+use frame_support::sp_runtime::SaturatedConversion;
+use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 use frame_system::ensure_none;
-use orml_traits::{MultiCurrency,MultiCurrencyExtended};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 use polkadex_primitives::assets::AssetId;
-use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::sp_runtime::SaturatedConversion;
 
 #[cfg(test)]
 mod mock;
@@ -93,7 +93,7 @@ impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
                          -> frame_support::unsigned::TransactionValidity {
         let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 
-        let valid_tx = |account: T::AccountId| {
+        let valid_tx = |account: &T::AccountId| {
             let last_block_number: T::BlockNumber = <TokenFaucetMap<T>>::get(account);
             if current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into() {
                 ValidTransaction::with_tag_prefix("token-faucet")
@@ -109,7 +109,7 @@ impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
         match call {
             Call::credit_account_with_tokens_unsigned(account) => {
-                valid_tx(*account)
+                valid_tx(account)
             }
             _ => InvalidTransaction::Call.into(),
         }
