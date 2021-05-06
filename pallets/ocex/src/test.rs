@@ -37,18 +37,18 @@ fn test_register_account(){
         // Verify LastAccount Storage
         assert_eq!(<LastAccount<Test>>::get(), 3);
         // Verify Main Account Storage
-        let latest_linked_account: LinkedAccount<u64> = LinkedAccount{
+        let latest_linked_account: LinkedAccount<Test> = LinkedAccount{
             prev: new_account,
             next: None,
             proxies: vec![]
         };
-        let linked_account: LinkedAccount<u64> = LinkedAccount{
+        let linked_account: LinkedAccount<Test> = LinkedAccount{
             prev: gen_account,
             next: Some(new_account_two),
             proxies: vec![]
         };
-        let expected_linked_account_gen: LinkedAccount<u64> = LinkedAccount{
-            prev: 0,
+        let expected_linked_account_gen: LinkedAccount<Test> = LinkedAccount{
+            prev: gen_account,
             next: Some(new_account),
             proxies: vec![]
         };
@@ -79,7 +79,7 @@ fn test_add_proxy(){
         assert_ok!(PolkadexOcexPallet::add_proxy(Origin::signed(new_account), proxy_account_one));
         // TODO: Already registered Proxies can be registered multiple times
         //assert_ok!(PolkadexOcexPallet::add_proxy(Origin::signed(new_account), proxy_account_one));
-        let expected_linked_account: LinkedAccount<u64> = LinkedAccount{
+        let expected_linked_account: LinkedAccount<Test> = LinkedAccount{
             prev: gen_account,
             next: None,
             proxies: vec![3]
@@ -113,7 +113,7 @@ fn test_remove_proxy(){
         let proxy_account_one = 3;
         assert_ok!(PolkadexOcexPallet::add_proxy(Origin::signed(new_account), proxy_account_one));
         assert_ok!(PolkadexOcexPallet::remove_proxy(Origin::signed(new_account), proxy_account_one));
-        let expected_linked_account: LinkedAccount<u64> = LinkedAccount{
+        let expected_linked_account: LinkedAccount<Test> = LinkedAccount{
             prev: gen_account,
             next: None,
             proxies: vec![]

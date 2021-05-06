@@ -39,14 +39,14 @@ mod mock;
 mod test;
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
-pub struct LinkedAccount<AccountID> {
-    prev: AccountID,
-    next: Option<AccountID>,
-    proxies: Vec<AccountID>,
+pub struct LinkedAccount<T: Config> {
+    prev: T::AccountId,
+    next: Option<T::AccountId>,
+    proxies: Vec<T::AccountId>,
 }
 
-impl<AccountId> LinkedAccount<AccountId> {
-    fn from(prev: AccountId) -> LinkedAccount<AccountId> {
+impl<T: Config> LinkedAccount<T> {
+    fn from(prev: T::AccountId) -> Self {
         LinkedAccount{
             prev: prev,
             next: None,
@@ -55,10 +55,10 @@ impl<AccountId> LinkedAccount<AccountId> {
     }
 }
 
-impl<AccountId: Default> Default for LinkedAccount<AccountId> {
+impl<T: Config> Default for LinkedAccount<T> {
     fn default() -> Self {
         LinkedAccount {
-            prev: AccountId::default(),
+            prev: Module::<T>::get_genesis_acc(),
             next: None,
             proxies: vec![],
         }
@@ -111,7 +111,7 @@ decl_error! {
 decl_storage! {
     trait Store for Module<T: Config> as OCEX {
         pub LastAccount: T::AccountId = T::GenesisAccount::get().into_account();
-        pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount<T::AccountId>;
+        pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount<T>;
     }
 }
 decl_module! {
@@ -187,7 +187,7 @@ decl_module! {
 impl<T: Config> Module<T> {
     // Note add_proxy doesn't check if given main or proxy is already registered
     pub fn add_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
-        let mut acc: LinkedAccount<T::AccountId> = <MainAccounts<T>>::get(&main);
+        let mut acc: LinkedAccount<T> = <MainAccounts<T>>::get(&main);
         if acc.proxies.len() < T::ProxyLimit::get() {
             acc.proxies.push(proxy);
             <MainAccounts<T>>::insert(main, acc);
@@ -199,7 +199,7 @@ impl<T: Config> Module<T> {
 
     // Note remove_proxy doesn't check if given main or proxy is already registered
     pub fn remove_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
-        <MainAccounts<T>>::try_mutate(main.clone(), |ref mut linked_account: &mut LinkedAccount<T::AccountId>| {
+        <MainAccounts<T>>::try_mutate(main.clone(), |ref mut linked_account: &mut LinkedAccount<T>| {
             let index = linked_account.proxies.iter().position(|x| *x == proxy).unwrap();
             linked_account.proxies.remove(index);
             Ok(())
@@ -217,7 +217,7 @@ impl<T: Config> Module<T> {
     pub fn register_acc(sender: T::AccountId) -> Result<(), Error<T>> {
         let last_account: T::AccountId = <LastAccount<T>>::get();
         <MainAccounts<T>>::try_mutate(last_account.clone(), |ref mut last_linked_account| {
-            let new_linked_account: LinkedAccount<T::AccountId> = LinkedAccount::from(last_account);
+            let new_linked_account: LinkedAccount<T> = LinkedAccount::from(last_account);
             <MainAccounts<T>>::insert(&sender, new_linked_account);
             <LastAccount<T>>::put(&sender);
             last_linked_account.next = Some(sender);
