@@ -18,19 +18,52 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{Decode, Encode};
 use frame_support::StorageMap;
 use frame_support::{
-    decl_error, decl_event, decl_module, dispatch::DispatchResult, ensure, traits::Get, PalletId,
+    decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
+    traits::Get, PalletId,
 };
 use frame_system as system;
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use polkadex_primitives::assets::AssetId;
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::prelude::*;
-// pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 
+use polkadex_primitives::assets::AssetId;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod test;
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
+pub struct LinkedAccount<T: Config> {
+    prev: T::AccountId,
+    next: Option<T::AccountId>,
+    proxies: Vec<T::AccountId>,
+}
+
+impl<T: Config> LinkedAccount<T> {
+    fn from(prev: T::AccountId) -> Self {
+        LinkedAccount{
+            prev: prev,
+            next: None,
+            proxies: vec![]
+        }
+    }
+}
+
+impl<T: Config> Default for LinkedAccount<T> {
+    fn default() -> Self {
+        LinkedAccount {
+            prev: Module::<T>::get_genesis_acc(),
+            next: None,
+            proxies: vec![],
+        }
+    }
+}
 
 pub trait Config:
     system::Config + orml_tokens::Config + pallet_substratee_registry::Config
@@ -39,12 +72,15 @@ pub trait Config:
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     /// Bonding Account
     type OcexId: Get<PalletId>;
+    /// LinkedList Genesis Account
+    type GenesisAccount: Get<PalletId>;
     /// Currency for transfer currencies
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
         CurrencyId = AssetId,
         Balance = Self::Balance,
     >;
+    type ProxyLimit: Get<usize>;
 }
 
 decl_event!(
@@ -55,6 +91,9 @@ decl_event!(
     {
         TokenDeposited(AssetId, AccountId, Balance),
         TokenWithdrawn(AssetId, AccountId, Balance),
+        MainAccountRegistered(AccountId),
+        ProxyAdded(AccountId,AccountId),
+        ProxyRemoved(AccountId,AccountId),
     }
 );
 
@@ -63,9 +102,18 @@ decl_event!(
 decl_error! {
     pub enum Error for Module<T: Config> {
         NotARegisteredEnclave,
+        AlreadyRegistered,
+        NotARegisteredMainAccount,
+        ProxyLimitReached
     }
 }
 
+decl_storage! {
+    trait Store for Module<T: Config> as OCEX {
+        pub LastAccount: T::AccountId = T::GenesisAccount::get().into_account();
+        pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount<T>;
+    }
+}
 decl_module! {
     pub struct Module<T: Config> for enum Call where
     origin: T::Origin {
@@ -98,8 +146,38 @@ decl_module! {
         /// It helps to notify enclave about sender's intend to withdraw via on-chain
         #[weight = 10000]
         pub fn withdraw(origin, asset_id:  AssetId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
-            let sender: T::AccountId = ensure_signed(origin)?;
+            let _: T::AccountId = ensure_signed(origin)?;
             Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, to, amount));
+            Ok(())
+        }
+
+        /// Register MainAccount
+        #[weight = 10000]
+        pub fn register(origin) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(!<MainAccounts<T>>::contains_key(&sender), Error::<T>::AlreadyRegistered);
+            Self::register_acc(sender.clone())?;
+            Self::deposit_event(RawEvent::MainAccountRegistered(sender));
+            Ok(())
+        }
+
+        /// Add Proxy
+        #[weight = 10000]
+        pub fn add_proxy(origin, proxy: T::AccountId) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
+            Self::add_proxy_(sender.clone(),proxy.clone())?;
+            Self::deposit_event(RawEvent::ProxyAdded(sender,proxy));
+            Ok(())
+        }
+
+        /// Remove Proxy
+        #[weight = 10000]
+        pub fn remove_proxy(origin, proxy: T::AccountId) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
+            Self::remove_proxy_(sender.clone(),proxy.clone())?;
+            Self::deposit_event(RawEvent::ProxyRemoved(sender,proxy));
             Ok(())
         }
 
@@ -107,9 +185,43 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
+    // Note add_proxy doesn't check if given main or proxy is already registered
+    pub fn add_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
+        let mut acc: LinkedAccount<T> = <MainAccounts<T>>::get(&main);
+        if acc.proxies.len() < T::ProxyLimit::get() {
+            acc.proxies.push(proxy);
+            <MainAccounts<T>>::insert(main, acc);
+        } else {
+            return Err(Error::<T>::ProxyLimitReached);
+        }
+        Ok(())
+    }
+
+    // Note remove_proxy doesn't check if given main or proxy is already registered
+    pub fn remove_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
+        <MainAccounts<T>>::try_mutate(main.clone(), |ref mut linked_account: &mut LinkedAccount<T>| {
+            let index = linked_account.proxies.iter().position(|x| *x == proxy).unwrap();
+            linked_account.proxies.remove(index);
+            Ok(())
+        })
+    }
+
     pub fn get_account() -> T::AccountId {
         T::OcexId::get().into_account()
     }
-}
 
-// TODO: Set genesis storage to have some balance for PDEX and DOT for alice and bob
+    pub fn get_genesis_acc() -> T::AccountId {
+        T::GenesisAccount::get().into_account()
+    }
+
+    pub fn register_acc(sender: T::AccountId) -> Result<(), Error<T>> {
+        let last_account: T::AccountId = <LastAccount<T>>::get();
+        <MainAccounts<T>>::try_mutate(last_account.clone(), |ref mut last_linked_account| {
+            let new_linked_account: LinkedAccount<T> = LinkedAccount::from(last_account);
+            <MainAccounts<T>>::insert(&sender, new_linked_account);
+            <LastAccount<T>>::put(&sender);
+            last_linked_account.next = Some(sender);
+            Ok(())
+        })
+    }
+}
