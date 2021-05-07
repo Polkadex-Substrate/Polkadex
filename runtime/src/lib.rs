@@ -482,6 +482,7 @@ construct_runtime!(
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Event<T>},
+        ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -679,4 +680,17 @@ impl_runtime_apis! {
             Ok(batches)
         }
     }
+}
+
+parameter_types! {
+    pub const ChainId: u8 = 1;
+    pub const ProposalLifetime: BlockNumber = 1000;
+}
+
+impl chainbridge::Config for Runtime {
+    type Event = Event;
+    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type Proposal = Call;
+    type ChainId = ChainId;
+    type ProposalLifetime = ProposalLifetime;
 }
