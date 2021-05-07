@@ -125,8 +125,9 @@ decl_module! {
 
         /// Deposit
         #[weight = 10000]
-        pub fn deposit(origin, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
+        pub fn deposit(origin, main: T::AccountId, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let from: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==from, Error::<T>::MainAccountSignatureNotFound);
             <T as Config>::Currency::transfer(asset_id, &from, &Self::get_account(), amount)?;
             Self::deposit_event(RawEvent::TokenDeposited(asset_id, from, amount));
             Ok(())
@@ -146,8 +147,9 @@ decl_module! {
         /// Withdraw
         /// It helps to notify enclave about sender's intend to withdraw via on-chain
         #[weight = 10000]
-        pub fn withdraw(origin, asset_id:  AssetId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
-            let _: T::AccountId = ensure_signed(origin)?;
+        pub fn withdraw(origin,  main: T::AccountId, asset_id:  AssetId,amount: T::Balance) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, to, amount));
             Ok(())
         }
