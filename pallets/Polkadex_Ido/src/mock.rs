@@ -143,6 +143,7 @@ impl Config for Test {
     type MaxSupply = GetMaxSupply;
     type Randomness = TestRandomness<Self>;
     type ModuleId = PolkadexIdoModuleId;
+	type WeightIDOInfo = ();
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;

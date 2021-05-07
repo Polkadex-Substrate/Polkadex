@@ -122,7 +122,6 @@ impl Config for Test {
     type TreasuryAccountId = TresuryAccount;
     type GovernanceOrigin = EnsureSignedBy<Six, u64>;
     type NativeCurrency =AdaptedBasicCurrency;
-	type WeightIDOInfo = ();
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
