@@ -469,6 +469,7 @@ impl polkadex_ido::Config for Runtime {
     type Randomness = RandomnessCollectiveFlip;
     type ModuleId = PolkadexIdoPalletId;
     type Currency = Currencies;
+	type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

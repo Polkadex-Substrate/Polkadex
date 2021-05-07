@@ -55,6 +55,8 @@ use sp_runtime::traits::Zero;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod weights;
+pub use weights::WeightInfo;
 #[cfg(test)]
 mod mock;
 
@@ -85,6 +87,8 @@ pub trait Config: system::Config + orml_tokens::Config {
     type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 	/// The IDO's module id
     type ModuleId: Get<PalletId>;
+	/// Weight information for extrinsics in this pallet.
+	type WeightIDOInfo: WeightInfo;
 }
 
 /// The type of `KYCStatus` that provides level of KYC
@@ -215,7 +219,7 @@ decl_module! {
 		///
 		/// - If `total_issuance` is greater than maximum supply, Polkadex reserved fund will be burned
 		/// - Else Polkadex reserved amount will be transferred to treasury
-        #[weight = 10000]
+        #[weight = T::WeightIDOInfo::register_investor()]
         pub fn register_investor(origin) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
             ensure!(!<InfoInvestor<T>>::contains_key(&who.clone()), Error::<T>::InvestorAlreadyRegistered);
@@ -265,7 +269,7 @@ decl_module! {
 		/// * `operator_commission`: Commission for operrator
 		/// * `token_a_priceper_token_b`: Priceper amount for project token
 		/// * `close_round_block`: Closing block of funding round
-        #[weight = 10000]
+        #[weight = T::WeightIDOInfo::register_round()]
         pub fn register_round(
             origin,
             token_a: AssetId,
@@ -307,7 +311,7 @@ decl_module! {
 		/// * `round_id`: Funding round id
 		/// * `investor_address`: Investor
 		/// * `amount`: The max amount that investor will be investing in tokenB
-        #[weight = 10000]
+        #[weight = T::WeightIDOInfo::whitelist_investor()]
         pub fn whitelist_investor(origin, round_id: T::Hash, investor_address: T::AccountId, amount: T::Balance) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
@@ -345,7 +349,7 @@ decl_module! {
         }
 
 		/// Investor claiming for a particular funding round
-        #[weight = 10000]
+        #[weight = T::WeightIDOInfo::claim_tokens()]
         pub fn claim_tokens(origin, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
@@ -377,7 +381,7 @@ decl_module! {
         }
 
 		/// Stores informating about investors, showing interest in funding round
-        #[weight = 10000]
+        #[weight = T::WeightIDOInfo::show_interest_in_round()]
         pub fn show_interest_in_round(origin, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
