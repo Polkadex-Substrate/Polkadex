@@ -104,7 +104,8 @@ decl_error! {
         NotARegisteredEnclave,
         AlreadyRegistered,
         NotARegisteredMainAccount,
-        ProxyLimitReached
+        ProxyLimitReached,
+        MainAccountSignatureNotFound
     }
 }
 
@@ -153,8 +154,9 @@ decl_module! {
 
         /// Register MainAccount
         #[weight = 10000]
-        pub fn register(origin) -> DispatchResult{
+        pub fn register(origin, main: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             ensure!(!<MainAccounts<T>>::contains_key(&sender), Error::<T>::AlreadyRegistered);
             Self::register_acc(sender.clone())?;
             Self::deposit_event(RawEvent::MainAccountRegistered(sender));
@@ -163,8 +165,9 @@ decl_module! {
 
         /// Add Proxy
         #[weight = 10000]
-        pub fn add_proxy(origin, proxy: T::AccountId) -> DispatchResult{
+        pub fn add_proxy(origin, main: T::AccountId, proxy: T::AccountId,) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
             Self::add_proxy_(sender.clone(),proxy.clone())?;
             Self::deposit_event(RawEvent::ProxyAdded(sender,proxy));
@@ -173,8 +176,9 @@ decl_module! {
 
         /// Remove Proxy
         #[weight = 10000]
-        pub fn remove_proxy(origin, proxy: T::AccountId) -> DispatchResult{
+        pub fn remove_proxy(origin, main: T::AccountId, proxy: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
             Self::remove_proxy_(sender.clone(),proxy.clone())?;
             Self::deposit_event(RawEvent::ProxyRemoved(sender,proxy));
