@@ -60,7 +60,7 @@ pallet-substratee-registry = {git = "https://github.com/Polkadex-Substrate/palle
 [dependencies.chainbridge]
 default-features = false
 git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
-rev = 'b80b8bed1939b48e9196ec391b4b3c4877a50417'
+
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git" }
