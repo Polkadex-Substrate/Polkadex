@@ -15,9 +15,9 @@ frame_support::construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		TokenFaucetModule: token_faucet_pallet::{Module, Call, Storage, Event<T>},
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		TokenFaucetModule: token_faucet_pallet::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -54,9 +54,4 @@ impl system::Config for TestRuntime {
 impl token_faucet_pallet::Config for TestRuntime {
 	type Event = Event;
 	type Currency = Balances;
-}
-
-// Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap().into()
 }

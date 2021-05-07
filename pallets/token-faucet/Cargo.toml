@@ -12,6 +12,10 @@ targets = ['x86_64-unknown-linux-gnu']
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 frame-support = { default-features = false, version = '3.0.0' , git = "https://github.com/paritytech/substrate.git" }
+sp-runtime = { default-features = false, version = '3.0.0' , git = "https://github.com/paritytech/substrate.git" }
+sp-core = { default-features = false, version = '3.0.0' , git = "https://github.com/paritytech/substrate.git" }
+sp-keystore = "0.9.0"
+pallet-balances = { default-features = false, version = '3.0.0' , git = "https://github.com/paritytech/substrate.git" }
 frame-system = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate.git"  }
 polkadex-primitives = { path = "../../primitives", default-features = false }
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
@@ -22,6 +26,7 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
+    'sp-runtime/std',
     'orml-traits/std',
     'polkadex-primitives/std',
 ]
