@@ -52,6 +52,9 @@ use pallet_transaction_payment::CurrencyAdapter;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
+// Added for PolkadexTEE
+pub use substratee_registry;
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
