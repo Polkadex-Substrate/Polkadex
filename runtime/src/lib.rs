@@ -18,6 +18,7 @@ use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthority
 use polkadex_primitives::assets::AssetId;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_io::hashing::blake2_128;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::{
     AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, Zero,
@@ -483,6 +484,8 @@ construct_runtime!(
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
+        Example: example::{Pallet, Call, Event<T>},
+        Erc721: erc721::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -693,4 +696,24 @@ impl chainbridge::Config for Runtime {
     type Proposal = Call;
     type ChainId = ChainId;
     type ProposalLifetime = ProposalLifetime;
+}
+
+parameter_types! {
+    pub HashId: chainbridge::ResourceId = chainbridge::derive_resource_id(1, &blake2_128(b"hash"));
+    pub NativeTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(0, &blake2_128(b"DAV"));
+    pub NFTTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(1, &blake2_128(b"NFT"));
+}
+
+impl erc721::Config for Runtime {
+    type Event = Event;
+    type Identifier = NFTTokenId;
+}
+
+impl example::Config for Runtime {
+    type Event = Event;
+    type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
+    type Currency = pallet_balances::Module<Runtime>;
+    type HashId = HashId;
+    type NativeTokenId = NativeTokenId;
+    type Erc721Id = NFTTokenId;
 }
