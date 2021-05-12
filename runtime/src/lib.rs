@@ -481,7 +481,7 @@ construct_runtime!(
         Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
-        PolkadexOcex: polkadex_ocex::{Pallet, Call, Event<T>},
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Event<T>},
     }
 );
 
