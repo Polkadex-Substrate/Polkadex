@@ -113,8 +113,22 @@ decl_error! {
 
 decl_storage! {
     trait Store for Module<T: Config> as OCEX {
-        pub LastAccount: T::AccountId = T::GenesisAccount::get().into_account();
+        LastAccount get(fn key) config(): T::AccountId;
         pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount<T>;
+    }
+    add_extra_genesis {
+        config(genesis_account): T::AccountId;
+        build( |config: &GenesisConfig<T>| {
+            // let linked_account_object = LinkedAccount<T>{
+            //     prev: &config.genesis_account,
+            //     current: &config.genesis_account,
+            //     next: None,
+            //     proxies: vec![]
+            // };
+            let linked_account_object = LinkedAccount::from(config.genesis_account.clone(), config.genesis_account.clone());
+            //let linked_account_object = LinkedAccount::default();
+            <MainAccounts<T>>::insert(&config.genesis_account, linked_account_object);
+        });
     }
 }
 decl_module! {
