@@ -4,7 +4,7 @@
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch,
+use frame_support::{ debug, decl_error, decl_event, decl_module, decl_storage, dispatch,
                     traits::Get,
 };
 use frame_support::pallet_prelude::*;
@@ -14,7 +14,7 @@ use frame_system::ensure_none;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 use polkadex_primitives::assets::AssetId;
-
+use sp_runtime::print;
 #[cfg(test)]
 mod mock;
 
@@ -93,16 +93,17 @@ impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
                          -> frame_support::unsigned::TransactionValidity {
         let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 
+        //debu
         let valid_tx = |account: &T::AccountId| {
             let last_block_number: T::BlockNumber = <TokenFaucetMap<T>>::get(account);
-            if current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into() {
+            if (last_block_number == 0_u64.saturated_into()) || (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into()) {
                 ValidTransaction::with_tag_prefix("token-faucet")
                     .priority(UNSIGNED_TXS_PRIORITY)
                     .and_provides([&b"request_token_faucet".to_vec()])
                     .longevity(3)
                     .propagate(true)
                     .build()
-            } else {
+            }else {
                 TransactionValidity::Err(TransactionValidityError::Invalid(InvalidTransaction::ExhaustsResources))
             }
         };
