@@ -139,7 +139,7 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
-    let genesis = AccountId::default();
+    let genesis = get_account_id_from_seed::<sr25519::Public>("Gen");
     GenesisConfig {
         frame_system: SystemConfig {
             // Add Wasm runtime to storage.
