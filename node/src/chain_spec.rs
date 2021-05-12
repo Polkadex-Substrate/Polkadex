@@ -2,14 +2,15 @@ use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::traits::{IdentifyAccount, Verify, AccountIdConversion};
 
 use node_polkadex_runtime::{
-    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
+    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig, PolkadexOcexConfig,
     SystemConfig, WASM_BINARY,
 };
 use node_polkadex_runtime::{TokensConfig, VestingConfig};
 use polkadex_primitives::assets::AssetId;
+use frame_benchmarking::frame_support::PalletId;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -128,6 +129,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
     ))
 }
 
+pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
     wasm_binary: &[u8],
@@ -136,6 +139,8 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
+    //let genesis = get_account_id_from_seed::<sr25519::Public>("Gen");
+    let genesis: AccountId = OCEXGenesisAccount.into_account();
     GenesisConfig {
         frame_system: SystemConfig {
             // Add Wasm runtime to storage.
@@ -178,5 +183,10 @@ fn testnet_genesis(
             ],
         },
         orml_vesting: VestingConfig { vesting: vec![] },
+        polkadex_ocex: PolkadexOcexConfig{
+            key: genesis.clone(),
+            genesis_account: genesis
+        }
+
     }
 }
