@@ -24,10 +24,10 @@ pallet-timestamp = { version = "3.0.0", default-features = false, git = "https:/
 pallet-transaction-payment = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 frame-executive = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0"}
+sp-block-builder = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0" }
 sp-consensus-aura = { version = "0.9.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-core = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-sp-inherents = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0"}
+sp-inherents = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0" }
 sp-offchain = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-session = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
@@ -56,7 +56,7 @@ orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 polkadex-primitives = { path = "../primitives", default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
-pallet-substratee-registry = {git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false}
+pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
 
 [dependencies.chainbridge]
 default-features = false
@@ -117,7 +117,7 @@ std = [
 	"pallet-proxy/std",
 	"chainbridge/std",
 	'erc721/std',
-    'example/std',
+	'example/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
