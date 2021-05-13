@@ -4629,7 +4629,6 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-substratee-registry",
- "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
  "rustc-hex",
