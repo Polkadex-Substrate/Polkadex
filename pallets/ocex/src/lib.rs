@@ -167,7 +167,7 @@ decl_module! {
         pub fn withdraw(origin,  main: T::AccountId, asset_id:  AssetId,amount: T::Balance) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
             ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
-            Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, to, amount));
+            Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, sender, amount));
             Ok(())
         }
 
