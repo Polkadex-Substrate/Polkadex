@@ -107,7 +107,8 @@ decl_error! {
         NotARegisteredEnclave,
         AlreadyRegistered,
         NotARegisteredMainAccount,
-        ProxyLimitReached
+        ProxyLimitReached,
+        MainAccountSignatureNotFound
     }
 }
 
@@ -141,8 +142,9 @@ decl_module! {
 
         /// Deposit
         #[weight = 10000]
-        pub fn deposit(origin, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
+        pub fn deposit(origin, main: T::AccountId, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let from: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==from, Error::<T>::MainAccountSignatureNotFound);
             <T as Config>::Currency::transfer(asset_id, &from, &Self::get_account(), amount)?;
             Self::deposit_event(RawEvent::TokenDeposited(asset_id, from, amount));
             Ok(())
@@ -162,16 +164,18 @@ decl_module! {
         /// Withdraw
         /// It helps to notify enclave about sender's intend to withdraw via on-chain
         #[weight = 10000]
-        pub fn withdraw(origin, asset_id:  AssetId, to: T::AccountId,amount: T::Balance) -> DispatchResult{
-            let _: T::AccountId = ensure_signed(origin)?;
+        pub fn withdraw(origin,  main: T::AccountId, asset_id:  AssetId,amount: T::Balance) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, to, amount));
             Ok(())
         }
 
         /// Register MainAccount
         #[weight = 10000]
-        pub fn register(origin) -> DispatchResult{
+        pub fn register(origin, main: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             ensure!(!<MainAccounts<T>>::contains_key(&sender), Error::<T>::AlreadyRegistered);
             Self::register_acc(sender.clone())?;
             Self::deposit_event(RawEvent::MainAccountRegistered(sender));
@@ -180,8 +184,9 @@ decl_module! {
 
         /// Add Proxy
         #[weight = 10000]
-        pub fn add_proxy(origin, proxy: T::AccountId) -> DispatchResult{
+        pub fn add_proxy(origin, main: T::AccountId, proxy: T::AccountId,) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
             Self::add_proxy_(sender.clone(),proxy.clone())?;
             Self::deposit_event(RawEvent::ProxyAdded(sender,proxy));
@@ -190,8 +195,9 @@ decl_module! {
 
         /// Remove Proxy
         #[weight = 10000]
-        pub fn remove_proxy(origin, proxy: T::AccountId) -> DispatchResult{
+        pub fn remove_proxy(origin, main: T::AccountId, proxy: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
             Self::remove_proxy_(sender.clone(),proxy.clone())?;
             Self::deposit_event(RawEvent::ProxyRemoved(sender,proxy));
