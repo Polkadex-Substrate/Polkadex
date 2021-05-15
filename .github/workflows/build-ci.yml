@@ -9,16 +9,16 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-#      - name: Cache Rust Dependecies
-#        uses: actions/cache@v2
-#        with:
-#          path: |
-#            ~/.cargo/registry
-#            ~/.cargo/git
-#            target
-#          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install toolchain
-        run: ./install_rust.sh
+      - name: Cache Rust Dependecies
+        uses: actions/cache@v2
+        with:
+         path: |
+           ~/.cargo/registry
+           ~/.cargo/git
+           target
+         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+#       - name: Install toolchain
+#         run: ./install_rust.sh
       - name: Build Project
         if: github.event_name == 'push'
         run: cargo build
