@@ -18,13 +18,7 @@ jobs:
 #            target
 #          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          target: wasm32-unknown-unknown
-          override: true
-          default: true
-          components: rustfmt, clippy
+        run: ./install_rust.sh
       - name: Build Project
         if: github.event_name == 'push'
         run: cargo build
