@@ -16,20 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::{Decode, Encode};
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use sp_core::{RuntimeDebug, H160};
 use sp_runtime::{MultiSignature,traits::{
     IdentifyAccount, Verify,
 }};
-
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum AssetId {
-    POLKADEX,
-    DOT, // TODO: Enabled in Parachain upgrade
-    CHAINSAFE(H160),
-    TOKEN(H160),
-    // PARACHAIN(para_id, network, palletInstance, assetID),
-}
+pub type Signature = MultiSignature;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;

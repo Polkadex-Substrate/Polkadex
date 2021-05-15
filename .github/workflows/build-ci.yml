@@ -42,4 +42,3 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
-

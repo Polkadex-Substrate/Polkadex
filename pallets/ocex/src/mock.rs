@@ -178,12 +178,21 @@ impl pallet_substratee_registry::Config for Test {
 pub type PolkadexOcexPallet = Pallet<Test>;
 
 // Build test environment by setting the root `key` for the Genesis.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-    let storage = system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap();
+// pub fn new_test_ext() -> sp_io::TestExternalities {
+//     let storage = system::GenesisConfig::default()
+//         .build_storage::<Test>()
+//         .unwrap();
+//
+//     let mut ext: sp_io::TestExternalities = storage.into();
+//     ext.execute_with(|| System::set_block_number(1));
+//     ext
+// }
 
-    let mut ext: sp_io::TestExternalities = storage.into();
-    ext.execute_with(|| System::set_block_number(1));
-    ext
+pub fn new_test_ext(genesis: u64) -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    ocex_pallet::GenesisConfig::<Test>{
+        key: genesis,
+        genesis_account: genesis
+    }.assimilate_storage(&mut t).unwrap();
+    t.into()
 }
