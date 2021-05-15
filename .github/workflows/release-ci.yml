@@ -4,12 +4,12 @@ on:
     branches: [main]
 jobs:
   build:
-    runs-on: ubuntu-latest
-    steps: 
+    runs-on: self-hosted
+    steps:
       - uses: actions/checkout@v2
       - name: Use NodeJS
         uses: actions/setup-node@v1
-        with: 
+        with:
           node-version: "12.x"
       - run: npm install -g semantic-release@15
       - name: Create a Release
