@@ -21,3 +21,4 @@ use sp_runtime::{MultiSignature,traits::{
 }};
 pub type Signature = MultiSignature;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type Balance = u128;
