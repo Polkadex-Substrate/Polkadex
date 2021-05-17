@@ -16,7 +16,7 @@ use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use polkadex_primitives::assets::AssetId;
-pub use polkadex_primitives::common_types::{Signature, AccountId};
+pub use polkadex_primitives::common_types::{Signature, AccountId, Balance};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::AccountIdConversion;
@@ -70,7 +70,7 @@ pub type Amount = i128;
 pub type AccountIndex = u32;
 
 /// Balance of an account.
-pub type Balance = u128;
+// pub type Balance = u128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
