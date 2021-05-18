@@ -21,7 +21,6 @@ use super::*;
 use crate as polkadex_fungible_assets;
 use frame_support::{ord_parameter_types, parameter_types};
 use frame_system::{EnsureSignedBy, SetCode};
-use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
@@ -30,6 +29,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
+use orml_currencies::BasicCurrencyAdapter;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -98,7 +98,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+	pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
 }
 
 impl orml_currencies::Config for Test {
@@ -121,7 +121,7 @@ impl Config for Test {
     type Event = ();
     type TreasuryAccountId = TresuryAccount;
     type GovernanceOrigin = EnsureSignedBy<Six, u64>;
-    type NativeCurrency = AdaptedBasicCurrency;
+    type NativeCurrency =AdaptedBasicCurrency;
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
