@@ -10,13 +10,11 @@ edition = "2018"
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
 serde = { version = "1.0.101", optional = true }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false }
-sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
 [features]
 default = ["std"]
 std = [
     "serde",
     "codec/std",
-    "sp-core/std",
-    "sp-runtime/std"
+    "sp-core/std"
 ]

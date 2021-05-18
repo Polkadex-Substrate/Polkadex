@@ -40,4 +40,4 @@ For Tutorials, Documentation and API Reference please check this [page](https://
 ## Contribute :heart_eyes:
 We would love to work with anyone who can contribute their work and improve this project. The details will be shared soon.
 ## License :scroll:
-Licensed Under [GPLv3](https://github.com/Polkadex-Substrate/Polkadex/blob/master/LICENSE)
+Licensed Under [Apache 2.0](https://github.com/Polkadex-Substrate/Polkadex/blob/master/LICENSE)
