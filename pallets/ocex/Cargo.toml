@@ -25,6 +25,7 @@ orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-mo
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 pallet-balances = {git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-substratee-registry = {git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false}
+timestamp= {git = "https://github.com/paritytech/substrate.git", package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
 [dev-dependencies]
 sp-keyring = {  git = "https://github.com/paritytech/substrate", default-features = false }
@@ -45,6 +46,6 @@ std = [
     "orml-tokens/std",
     "orml-currencies/std",
     "pallet-balances/std",
-    "pallet-substratee-registry/std"
+    "pallet-substratee-registry/std",
 ]
 runtime-benchmarks = ["frame-benchmarking"]

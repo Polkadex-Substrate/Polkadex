@@ -9,58 +9,59 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_std::prelude::*;
 
-use frame_system::{RawOrigin, Config};
+use codec::{Decode, Encode};
+use frame_system::{Config, RawOrigin};
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use polkadex_primitives::assets::AssetId;
+pub use polkadex_primitives::common_types::{Signature, AccountId};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::{
     AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, Zero,
 };
-use codec::{Encode, Decode};
 
+use frame_support::traits::InstanceFilter;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, MultiSignature,
 };
-use frame_support::{traits::InstanceFilter};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
+
 pub use frame_support::{
-    construct_runtime, parameter_types, RuntimeDebug,
+    construct_runtime, parameter_types,
     traits::{EnsureOrigin, KeyOwnerProofSystem, Randomness},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
     },
-    PalletId, StorageValue,
+    PalletId, RuntimeDebug, StorageValue,
 };
 pub use pallet_balances::Call as BalancesCall;
+pub use pallet_substratee_registry;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
-pub use pallet_substratee_registry;
-
 
 /// An index to a block.
 pub type BlockNumber = u32;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
+//pub type Signature = MultiSignature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+//pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 pub type Amount = i128;
 
@@ -156,6 +157,7 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 parameter_types! {
     pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
     pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
     /// We allow for 2 seconds of compute with a 6 second average block time.
@@ -288,14 +290,14 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-	// One storage item; key size 32, value size 8; .
-	pub const ProxyDepositBase: Balance = 0;
-	// Additional storage item size of 33 bytes.
-	pub const ProxyDepositFactor: Balance = 0;
-	pub const MaxProxies: u16 = 5;
-	pub const AnnouncementDepositBase: Balance = 0;
-	pub const AnnouncementDepositFactor: Balance = 0;
-	pub const MaxPending: u16 = 32;
+    // One storage item; key size 32, value size 8; .
+    pub const ProxyDepositBase: Balance = 0;
+    // Additional storage item size of 33 bytes.
+    pub const ProxyDepositFactor: Balance = 0;
+    pub const MaxProxies: u16 = 5;
+    pub const AnnouncementDepositBase: Balance = 0;
+    pub const AnnouncementDepositFactor: Balance = 0;
+    pub const MaxPending: u16 = 32;
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug)]
@@ -304,16 +306,17 @@ pub enum ProxyType {
     NonTransfer,
 }
 
-impl Default for ProxyType { fn default() -> Self { Self::Any } }
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
 
 impl InstanceFilter<Call> for ProxyType {
     fn filter(&self, c: &Call) -> bool {
         match self {
             ProxyType::Any => true,
-            ProxyType::NonTransfer => !matches!(
-                c,
-                Call::Currencies(..)
-            ),
+            ProxyType::NonTransfer => !matches!(c, Call::Currencies(..)),
         }
     }
 
@@ -364,10 +367,10 @@ impl EnsureOrigin<Origin> for EnsureGovernance {
 }
 
 impl polkadex_fungible_assets::Config for Runtime {
-	type Event = Event;
-	type TreasuryAccountId = TreasuryAccountId;
-	type GovernanceOrigin = EnsureGovernance;
-	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type Event = Event;
+    type TreasuryAccountId = TreasuryAccountId;
+    type GovernanceOrigin = EnsureGovernance;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 }
 
 parameter_types! {
@@ -437,7 +440,7 @@ impl orml_currencies::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
+    pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
 }
 
 /// added by SCS
@@ -447,9 +450,20 @@ impl pallet_substratee_registry::Config for Runtime {
     type MomentsPerDay = MomentsPerDay;
 }
 
+parameter_types! {
+    pub const ProxyLimit: usize = 10; // Max sub-accounts per main account
+}
 impl polkadex_ocex::Config for Runtime {
     type Event = Event;
     type OcexId = OcexModuleId;
+    type GenesisAccount = OCEXGenesisAccount;
+    type Currency = Currencies;
+    type ProxyLimit = ProxyLimit;
+}
+
+impl token_faucet_pallet::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
     type Currency = Currencies;
 }
 
@@ -474,7 +488,8 @@ construct_runtime!(
         Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
-        PolkadexOcex: polkadex_ocex::{Pallet, Call, Event<T>},
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
+        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned}
     }
 );
 
@@ -550,10 +565,6 @@ impl_runtime_apis! {
             data: sp_inherents::InherentData,
         ) -> sp_inherents::CheckInherentsResult {
             data.check_extrinsics(&block)
-        }
-
-        fn random_seed() -> <Block as BlockT>::Hash {
-            RandomnessCollectiveFlip::random_seed().0
         }
     }
 
