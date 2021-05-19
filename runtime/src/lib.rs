@@ -490,7 +490,7 @@ construct_runtime!(
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned}
+        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},

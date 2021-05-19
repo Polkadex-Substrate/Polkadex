@@ -1,4 +1,3 @@
-use frame_benchmarking::frame_support::PalletId;
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
@@ -12,7 +11,6 @@ use node_polkadex_runtime::{
 };
 use node_polkadex_runtime::{TokensConfig, VestingConfig};
 use polkadex_primitives::assets::AssetId;
-use sp_runtime::traits::AccountIdConversion;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
