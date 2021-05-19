@@ -247,7 +247,8 @@ impl<T: Config> Module<T> {
     pub fn register_acc(sender: T::AccountId) -> Result<(), Error<T>> {
         let last_account: T::AccountId = <LastAccount<T>>::get();
         <MainAccounts<T>>::try_mutate(last_account.clone(), |ref mut last_linked_account| {
-            let new_linked_account: LinkedAccount<T> = LinkedAccount::from(last_account,sender.clone());
+            let new_linked_account: LinkedAccount<T> =
+                LinkedAccount::from(last_account, sender.clone());
             <MainAccounts<T>>::insert(&sender, new_linked_account);
             <LastAccount<T>>::put(&sender);
             last_linked_account.next = Some(sender);

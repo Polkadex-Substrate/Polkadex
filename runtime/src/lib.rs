@@ -461,6 +461,12 @@ impl polkadex_ocex::Config for Runtime {
     type ProxyLimit = ProxyLimit;
 }
 
+impl token_faucet_pallet::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Currency = Currencies;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -483,6 +489,7 @@ construct_runtime!(
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
+        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned}
     }
 );
 

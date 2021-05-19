@@ -2,15 +2,15 @@ use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify, AccountIdConversion};
+use sp_runtime::traits::{AccountIdConversion, IdentifyAccount, Verify};
 
+use frame_benchmarking::frame_support::PalletId;
 use node_polkadex_runtime::{
-    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig, PolkadexOcexConfig,
-    SystemConfig, WASM_BINARY,
+    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, PolkadexOcexConfig,
+    Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use node_polkadex_runtime::{TokensConfig, VestingConfig};
 use polkadex_primitives::assets::AssetId;
-use frame_benchmarking::frame_support::PalletId;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -183,10 +183,9 @@ fn testnet_genesis(
             ],
         },
         orml_vesting: VestingConfig { vesting: vec![] },
-        polkadex_ocex: PolkadexOcexConfig{
+        polkadex_ocex: PolkadexOcexConfig {
             key: genesis.clone(),
-            genesis_account: genesis
-        }
-
+            genesis_account: genesis,
+        },
     }
 }
