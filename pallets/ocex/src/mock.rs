@@ -21,16 +21,16 @@ use super::*;
 use crate as ocex_pallet;
 use frame_support::{ord_parameter_types, parameter_types};
 use frame_system::{EnsureSignedBy, SetCode};
+use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
+use sp_runtime::traits::Zero;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
-use sp_runtime::traits::Zero;
 use sp_std::convert::From;
-use orml_currencies::BasicCurrencyAdapter;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -101,7 +101,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
 }
 
 impl orml_currencies::Config for Test {
@@ -175,17 +175,24 @@ impl pallet_substratee_registry::Config for Test {
     type MomentsPerDay = MomentsPerDay;
 }
 
-
-
 pub type PolkadexOcexPallet = Pallet<Test>;
 
 // Build test environment by setting the root `key` for the Genesis.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-    let storage = system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap();
+// pub fn new_test_ext() -> sp_io::TestExternalities {
+//     let storage = system::GenesisConfig::default()
+//         .build_storage::<Test>()
+//         .unwrap();
+//
+//     let mut ext: sp_io::TestExternalities = storage.into();
+//     ext.execute_with(|| System::set_block_number(1));
+//     ext
+// }
 
-    let mut ext: sp_io::TestExternalities = storage.into();
-    ext.execute_with(|| System::set_block_number(1));
-    ext
+pub fn new_test_ext(genesis: u64) -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    ocex_pallet::GenesisConfig::<Test>{
+        key: genesis,
+        genesis_account: genesis
+    }.assimilate_storage(&mut t).unwrap();
+    t.into()
 }

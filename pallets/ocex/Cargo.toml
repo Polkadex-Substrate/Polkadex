@@ -47,6 +47,5 @@ std = [
     "orml-currencies/std",
     "pallet-balances/std",
     "pallet-substratee-registry/std",
-    "timestamp/std"
 ]
 runtime-benchmarks = ["frame-benchmarking"]

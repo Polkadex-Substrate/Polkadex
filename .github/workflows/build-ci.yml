@@ -6,25 +6,19 @@ on:
     branches: [develop, main]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-#      - name: Cache Rust Dependecies
-#        uses: actions/cache@v2
-#        with:
-#          path: |
-#            ~/.cargo/registry
-#            ~/.cargo/git
-#            target
-#          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Cache Rust Dependecies
+        uses: actions/cache@v2
         with:
-          toolchain: nightly
-          target: wasm32-unknown-unknown
-          override: true
-          default: true
-          components: rustfmt, clippy
+         path: |
+           ~/.cargo/registry
+           ~/.cargo/git
+           target
+         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+#       - name: Install toolchain
+#         run: ./install_rust.sh
       - name: Build Project
         if: github.event_name == 'push'
         run: cargo build
@@ -48,4 +42,3 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
-
