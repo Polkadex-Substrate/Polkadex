@@ -57,6 +57,7 @@ polkadex-primitives = { path = "../primitives", default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
+token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
 
 [dependencies.chainbridge]
 default-features = false
@@ -113,6 +114,7 @@ std = [
 	"polkadex-primitives/std",
 	"polkadex-fungible-assets/std",
 	"polkadex-ocex/std",
+	"token-faucet-pallet/std",
 	"pallet-substratee-registry/std",
 	"pallet-proxy/std",
 	"chainbridge/std",

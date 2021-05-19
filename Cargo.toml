@@ -6,6 +6,7 @@ members = [
     'node',
     'pallets/ocex',
     'pallets/fungible-assets',
+    'pallets/token-faucet',
     'primitives',
     'runtime',
 ]

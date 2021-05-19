@@ -16,6 +16,7 @@ use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use polkadex_primitives::assets::AssetId;
+pub use polkadex_primitives::common_types::{AccountId, Balance, Signature};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_io::hashing::blake2_128;
@@ -57,11 +58,11 @@ pub use sp_runtime::{Perbill, Permill};
 pub type BlockNumber = u32;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
+//pub type Signature = MultiSignature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+//pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 pub type Amount = i128;
 
@@ -70,7 +71,7 @@ pub type Amount = i128;
 pub type AccountIndex = u32;
 
 /// Balance of an account.
-pub type Balance = u128;
+// pub type Balance = u128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
@@ -461,6 +462,12 @@ impl polkadex_ocex::Config for Runtime {
     type ProxyLimit = ProxyLimit;
 }
 
+impl token_faucet_pallet::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Currency = Currencies;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -482,7 +489,8 @@ construct_runtime!(
         Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
-        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Event<T>},
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
+        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned}
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},

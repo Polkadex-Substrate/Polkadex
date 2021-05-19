@@ -3783,6 +3783,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "token-faucet-pallet",
 ]
 
 [[package]]
@@ -4704,6 +4705,7 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
+ "sp-runtime",
 ]
 
 [[package]]
@@ -7661,6 +7663,20 @@ name = "tinyvec_macros"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
+
+[[package]]
+name = "token-faucet-pallet"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "pallet-balances",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "sp-core",
+ "sp-runtime",
+]
 
 [[package]]
 name = "tokio"
