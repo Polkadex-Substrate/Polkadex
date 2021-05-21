@@ -720,7 +720,8 @@ impl erc721::Config for Runtime {
 impl example::Config for Runtime {
     type Event = Event;
     type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
-    type Currency = pallet_balances::Module<Runtime>;
+    type Balance = Balance;
+    type Currency = Currencies;
     type HashId = HashId;
     type NativeTokenId = NativeTokenId;
     type Erc721Id = NFTTokenId;

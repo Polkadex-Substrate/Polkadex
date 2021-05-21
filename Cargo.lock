@@ -769,7 +769,7 @@ dependencies = [
 [[package]]
 name = "chainbridge"
 version = "0.0.2"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#162c9f4cbc454b7f44ae0d096905a001d7061b03"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#7fddbc1d665b958795dcf8fe9a9f1b7af32613e9"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -1434,7 +1434,7 @@ checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
 [[package]]
 name = "example-erc721"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#162c9f4cbc454b7f44ae0d096905a001d7061b03"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#7fddbc1d665b958795dcf8fe9a9f1b7af32613e9"
 dependencies = [
  "chainbridge",
  "frame-support",
@@ -1451,13 +1451,15 @@ dependencies = [
 [[package]]
 name = "example-pallet"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#162c9f4cbc454b7f44ae0d096905a001d7061b03"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#7fddbc1d665b958795dcf8fe9a9f1b7af32613e9"
 dependencies = [
  "chainbridge",
  "example-erc721",
  "frame-support",
  "frame-system",
+ "orml-traits",
  "parity-scale-codec",
+ "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=main)",
  "serde",
  "sp-arithmetic",
  "sp-core",
@@ -3769,7 +3771,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-fungible-assets",
  "polkadex-ocex",
- "polkadex-primitives",
+ "polkadex-primitives 0.1.0",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",
@@ -4625,7 +4627,7 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.1.0",
  "rustc-hex",
  "serde",
  "sp-core",
@@ -4644,7 +4646,7 @@ dependencies = [
  "jsonrpc-core",
  "node-polkadex-runtime",
  "pallet-transaction-payment-rpc",
- "polkadex-primitives",
+ "polkadex-primitives 0.1.0",
  "sc-basic-authorship",
  "sc-cli",
  "sc-client-api",
@@ -4688,7 +4690,7 @@ dependencies = [
  "pallet-substratee-registry",
  "pallet-timestamp",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.1.0",
  "rustc-hex",
  "serde",
  "sp-core",
@@ -4706,6 +4708,16 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-runtime",
+]
+
+[[package]]
+name = "polkadex-primitives"
+version = "0.1.0"
+source = "git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=main#b116ad9d87340899a52b3b39bb9a7a703875a92f"
+dependencies = [
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
 ]
 
 [[package]]
@@ -7673,7 +7685,7 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.1.0",
  "sp-core",
  "sp-runtime",
 ]
