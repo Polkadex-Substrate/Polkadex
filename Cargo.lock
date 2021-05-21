@@ -769,7 +769,7 @@ dependencies = [
 [[package]]
 name = "chainbridge"
 version = "0.0.2"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#7fddbc1d665b958795dcf8fe9a9f1b7af32613e9"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#bc39c9192efbc1c18c17fd332719151c98183aa6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -1434,7 +1434,7 @@ checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
 [[package]]
 name = "example-erc721"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#7fddbc1d665b958795dcf8fe9a9f1b7af32613e9"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#bc39c9192efbc1c18c17fd332719151c98183aa6"
 dependencies = [
  "chainbridge",
  "frame-support",
@@ -1451,7 +1451,7 @@ dependencies = [
 [[package]]
 name = "example-pallet"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#7fddbc1d665b958795dcf8fe9a9f1b7af32613e9"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#bc39c9192efbc1c18c17fd332719151c98183aa6"
 dependencies = [
  "chainbridge",
  "example-erc721",
@@ -1459,7 +1459,7 @@ dependencies = [
  "frame-system",
  "orml-traits",
  "parity-scale-codec",
- "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=main)",
+ "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=develop)",
  "serde",
  "sp-arithmetic",
  "sp-core",
@@ -4713,11 +4713,12 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=main#b116ad9d87340899a52b3b39bb9a7a703875a92f"
+source = "git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=develop#dd6efde7883313b8ed3f7e0b158bc637482954c6"
 dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
+ "sp-runtime",
 ]
 
 [[package]]
