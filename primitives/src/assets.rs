@@ -30,6 +30,5 @@ pub enum AssetId {
     POLKADEX,
     DOT, // TODO: Enabled in Parachain upgrade
     CHAINSAFE(H160),
-    TOKEN(H160),
     // PARACHAIN(para_id, network, palletInstance, assetID),
 }
