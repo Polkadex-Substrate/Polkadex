@@ -769,7 +769,7 @@ dependencies = [
 [[package]]
 name = "chainbridge"
 version = "0.0.2"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#bc39c9192efbc1c18c17fd332719151c98183aa6"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#6ad42b45667e0119e6f8e27b08ff6e2c81c52c52"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -1434,7 +1434,7 @@ checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
 [[package]]
 name = "example-erc721"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#bc39c9192efbc1c18c17fd332719151c98183aa6"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#6ad42b45667e0119e6f8e27b08ff6e2c81c52c52"
 dependencies = [
  "chainbridge",
  "frame-support",
@@ -1451,7 +1451,7 @@ dependencies = [
 [[package]]
 name = "example-pallet"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=feature/mint-token#bc39c9192efbc1c18c17fd332719151c98183aa6"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#6ad42b45667e0119e6f8e27b08ff6e2c81c52c52"
 dependencies = [
  "chainbridge",
  "example-erc721",

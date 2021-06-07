@@ -63,19 +63,19 @@ token-faucet-pallet = { path = "../pallets/token-faucet", default-features = fal
 [dependencies.chainbridge]
 default-features = false
 git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
-branch = 'feature/mint-token'
+branch = 'main'
 
 [dependencies.example]
 default-features = false
 git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
 package = 'example-pallet'
-branch = 'feature/mint-token'
+branch = 'main'
 
 [dependencies.erc721]
 default-features = false
 git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
 package = 'example-erc721'
-branch = 'feature/mint-token'
+branch = 'main'
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git" }
