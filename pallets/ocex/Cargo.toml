@@ -18,7 +18,8 @@ sp-io = {  git = "https://github.com/paritytech/substrate", default-features = f
 sp-core = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-std = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false }
-polkadex-primitives = { path = "../../primitives", default-features = false }
+#polkadex-primitives = { path = "../primitives", default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/Polkadex.git", branch = 'develop', default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
