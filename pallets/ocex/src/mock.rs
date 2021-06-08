@@ -18,13 +18,14 @@
 
 use super::*;
 
-use crate as polkadex_fungible_assets;
+use crate as ocex_pallet;
 use frame_support::{ord_parameter_types, parameter_types};
 use frame_system::{EnsureSignedBy, SetCode};
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
+use sp_runtime::traits::Zero;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
@@ -41,7 +42,9 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Pallet, Call, Storage, Event<T>},
-        Fungible: polkadex_fungible_assets::{Pallet, Call, Event<T>},
+        Timestamp: timestamp::{Pallet, Call, Storage, Inherent},
+        Ocex: ocex_pallet::{Pallet, Call, Event<T>},
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
         Currencies: orml_currencies::{Pallet, Call, Event<T>},
         OrmlToken: orml_tokens::{Pallet, Call, Storage, Event<T>},
         PalletBalances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
@@ -113,15 +116,17 @@ parameter_types! {
     pub const TresuryAccount: u64 = 9;
 }
 
-ord_parameter_types! {
-    pub const Six: u64 = 6;
+parameter_types! {
+    pub const ProxyLimit: usize = 2; // Max sub-accounts per main account
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
 }
-
 impl Config for Test {
     type Event = ();
-    type TreasuryAccountId = TresuryAccount;
-    type GovernanceOrigin = EnsureSignedBy<Six, u64>;
-    type NativeCurrency = AdaptedBasicCurrency;
+    type OcexId = OcexModuleId;
+    type GenesisAccount = OCEXGenesisAccount;
+    type Currency = Currencies;
+    type ProxyLimit = ProxyLimit;
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
@@ -146,14 +151,48 @@ impl orml_tokens::Config for Test {
     type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
 }
 
-pub type PolkadexFungibleAssets = Pallet<Test>;
+parameter_types! {
+        pub const MinimumPeriod: u64 = 6000 / 2;
+}
 
-pub fn new_tester() -> sp_io::TestExternalities {
-    let storage = system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap();
+pub type Moment = u64;
 
-    let mut ext: sp_io::TestExternalities = storage.into();
-    ext.execute_with(|| System::set_block_number(1));
-    ext
+impl timestamp::Config for Test {
+    type Moment = Moment;
+    type OnTimestampSet = ();
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
+}
+
+/// added by SCS
+impl pallet_substratee_registry::Config for Test {
+    type Event = ();
+    type Currency = PalletBalances;
+    type MomentsPerDay = MomentsPerDay;
+}
+
+pub type PolkadexOcexPallet = Pallet<Test>;
+
+// Build test environment by setting the root `key` for the Genesis.
+// pub fn new_test_ext() -> sp_io::TestExternalities {
+//     let storage = system::GenesisConfig::default()
+//         .build_storage::<Test>()
+//         .unwrap();
+//
+//     let mut ext: sp_io::TestExternalities = storage.into();
+//     ext.execute_with(|| System::set_block_number(1));
+//     ext
+// }
+
+pub fn new_test_ext(genesis: u64) -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    ocex_pallet::GenesisConfig::<Test>{
+        key: genesis,
+        genesis_account: genesis
+    }.assimilate_storage(&mut t).unwrap();
+    t.into()
 }

@@ -2,11 +2,12 @@ use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::traits::{AccountIdConversion, IdentifyAccount, Verify};
 
+use frame_benchmarking::frame_support::PalletId;
 use node_polkadex_runtime::{
-    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-    SystemConfig, WASM_BINARY,
+    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, PolkadexOcexConfig,
+    Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use node_polkadex_runtime::{TokensConfig, VestingConfig};
 use polkadex_primitives::assets::AssetId;
@@ -61,6 +62,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
                     get_account_id_from_seed::<sr25519::Public>("Bob"),
                     get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
                     get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+                    PalletId(*b"cb/bridg").into_account(),
                 ],
                 true,
             )
@@ -93,7 +95,6 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
                 // Initial PoA authorities
                 vec![
                     authority_keys_from_seed("Alice"),
-                    authority_keys_from_seed("Bob"),
                 ],
                 // Sudo account
                 get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -111,6 +112,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
                     get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
                     get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
                     get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+                    PalletId(*b"cb/bridg").into_account(),
                 ],
                 true,
             )
@@ -128,6 +130,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
     ))
 }
 
+pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
     wasm_binary: &[u8],
@@ -136,6 +140,8 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
+    //let genesis = get_account_id_from_seed::<sr25519::Public>("Gen");
+    let genesis: AccountId = OCEXGenesisAccount.into_account();
     GenesisConfig {
         frame_system: SystemConfig {
             // Add Wasm runtime to storage.
@@ -178,5 +184,9 @@ fn testnet_genesis(
             ],
         },
         orml_vesting: VestingConfig { vesting: vec![] },
+        polkadex_ocex: PolkadexOcexConfig {
+            key: genesis.clone(),
+            genesis_account: genesis,
+        },
     }
 }

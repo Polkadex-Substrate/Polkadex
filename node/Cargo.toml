@@ -35,6 +35,7 @@ sc-finality-grandpa = { version = "0.9.0", git = "https://github.com/paritytech/
 sp-finality-grandpa = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
 sc-client-api = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
 sp-runtime = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
+sp-timestamp = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
 
 # These dependencies are used for the node template's RPCs
 jsonrpc-core = "15.1.0"
@@ -50,7 +51,8 @@ pallet-transaction-payment-rpc = { version = "3.0.0", git = "https://github.com/
 # These dependencies are used for runtime benchmarking
 frame-benchmarking = { version = "3.1.0", git = "https://github.com/paritytech/substrate.git" }
 frame-benchmarking-cli = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git" }
-polkadex-primitives = { path = "../primitives", default-features = false }
+#polkadex-primitives = { path = "../primitives", default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/Polkadex.git", branch = 'develop', default-features = false }
 node-polkadex-runtime = { path = "../runtime" }
 
 [build-dependencies]
