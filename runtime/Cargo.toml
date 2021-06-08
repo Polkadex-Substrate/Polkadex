@@ -24,10 +24,10 @@ pallet-timestamp = { version = "3.0.0", default-features = false, git = "https:/
 pallet-transaction-payment = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 frame-executive = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0"}
+sp-block-builder = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0" }
 sp-consensus-aura = { version = "0.9.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-core = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-sp-inherents = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0"}
+sp-inherents = { git = "https://github.com/paritytech/substrate.git", default-features = false, version = "3.0.0" }
 sp-offchain = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-session = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
@@ -35,6 +35,7 @@ sp-std = { version = "3.0.0", default-features = false, git = "https://github.co
 sp-transaction-pool = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-version = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 pallet-proxy = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-io = { version = '3.0.0', default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
 # Used for the node template's RPCs
 frame-system-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
@@ -52,10 +53,29 @@ orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
 # Local Dependecies
-polkadex-primitives = { path = "../primitives", default-features = false }
+#polkadex-primitives = { path = "../primitives", default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/Polkadex.git", branch = 'develop', default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
-pallet-substratee-registry = {git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false}
+pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
+token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
+
+[dependencies.chainbridge]
+default-features = false
+git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
+branch = 'main'
+
+[dependencies.example]
+default-features = false
+git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
+package = 'example-pallet'
+branch = 'main'
+
+[dependencies.erc721]
+default-features = false
+git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
+package = 'example-erc721'
+branch = 'main'
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git" }
@@ -87,6 +107,7 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
+	'sp-io/std',
 	"orml-vesting/std",
 	"orml-currencies/std",
 	"orml-tokens/std",
@@ -94,8 +115,12 @@ std = [
 	"polkadex-primitives/std",
 	"polkadex-fungible-assets/std",
 	"polkadex-ocex/std",
+	"token-faucet-pallet/std",
 	"pallet-substratee-registry/std",
-	"pallet-proxy/std"
+	"pallet-proxy/std",
+	"chainbridge/std",
+	'erc721/std',
+	'example/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
