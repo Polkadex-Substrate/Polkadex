@@ -38,6 +38,7 @@ pallet-staking = { version = '3.0.0', git = "https://github.com/paritytech/subst
 pallet-transaction-payment-rpc = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 pallet-contracts = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 
+
 pallet-contracts-rpc = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sc-basic-authorship = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 sc-cli = { features = ['wasmtime'], version = '0.9.0', git = "https://github.com/paritytech/substrate" }
@@ -75,6 +76,10 @@ sp-runtime = { version = '3.0.0', git = "https://github.com/paritytech/substrate
 sc-telemetry = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sp-transaction-pool = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 substrate-frame-rpc-system = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
+sc-service-test = { version = "2.0.0", git = "https://github.com/paritytech/substrate" }
+sp-keyring = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+frame-system = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+pallet-transaction-payment = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 
 #Primitives
 node-primitives = { path = "../node-primitives" }
@@ -94,6 +99,7 @@ sc-keystore =  { version = '3.0.0', git = "https://github.com/paritytech/substra
 sc-consensus = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
 sc-consensus-babe =  { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
 sc-consensus-epochs =  { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
+
 [features]
 default = []
 runtime-benchmarks = [
