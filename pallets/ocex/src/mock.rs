@@ -189,10 +189,14 @@ pub type PolkadexOcexPallet = Pallet<Test>;
 // }
 
 pub fn new_test_ext(genesis: u64) -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-    ocex_pallet::GenesisConfig::<Test>{
+    let mut t = frame_system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap();
+    ocex_pallet::GenesisConfig::<Test> {
         key: genesis,
-        genesis_account: genesis
-    }.assimilate_storage(&mut t).unwrap();
+        genesis_account: genesis,
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
     t.into()
 }

@@ -20,4 +20,3 @@
 
 pub mod assets;
 pub mod common_types;
-
