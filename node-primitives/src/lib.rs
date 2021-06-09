@@ -18,11 +18,12 @@
 //! Low-level types used throughout the Substrate code.
 
 #![warn(missing_docs)]
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use sp_runtime::{
-    generic, MultiSignature, OpaqueExtrinsic, traits::{BlakeTwo256, IdentifyAccount, Verify},
+    generic,
+    traits::{BlakeTwo256, IdentifyAccount, Verify},
+    MultiSignature, OpaqueExtrinsic,
 };
 
 /// An index to a block.
@@ -74,7 +75,7 @@ pub mod report {
     use super::{Signature, Verify};
 
     /// Key type for the reporting module. Used for reporting BABE and GRANDPA
-        /// equivocations.
+    /// equivocations.
     pub const KEY_TYPE: KeyTypeId = key_types::REPORTING;
 
     mod app {

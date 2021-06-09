@@ -33,17 +33,22 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 mod multiplier_tests {
     use frame_support::weights::{DispatchClass, Weight, WeightToFeePolynomial};
     use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-    use sp_runtime::{assert_eq_error_rate, FixedPointNumber, traits::{Convert, One, Zero}};
+    use sp_runtime::{
+        assert_eq_error_rate,
+        traits::{Convert, One, Zero},
+        FixedPointNumber,
+    };
 
     use crate::{
-        AdjustmentVariable,
-        constants::{currency::*, time::*}, MinimumMultiplier, Runtime,
-        RuntimeBlockWeights as BlockWeights, System, TargetBlockFullness,
-        TransactionPayment,
+        constants::{currency::*, time::*},
+        AdjustmentVariable, MinimumMultiplier, Runtime, RuntimeBlockWeights as BlockWeights,
+        System, TargetBlockFullness, TransactionPayment,
     };
 
     fn max_normal() -> Weight {
-        BlockWeights::get().get(DispatchClass::Normal).max_total
+        BlockWeights::get()
+            .get(DispatchClass::Normal)
+            .max_total
             .unwrap_or_else(|| BlockWeights::get().max_block)
     }
 
@@ -89,9 +94,14 @@ mod multiplier_tests {
         Multiplier::from_float(next_float)
     }
 
-    fn run_with_system_weight<F>(w: Weight, assertions: F) where F: Fn() -> () {
-        let mut t: sp_io::TestExternalities =
-            frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap().into();
+    fn run_with_system_weight<F>(w: Weight, assertions: F)
+    where
+        F: Fn() -> (),
+    {
+        let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
+            .build_storage::<Runtime>()
+            .unwrap()
+            .into();
         t.execute_with(|| {
             System::set_block_consumed_resources(w, 0);
             assertions()
@@ -112,11 +122,11 @@ mod multiplier_tests {
         test_set.into_iter().for_each(|(w, fm)| {
             run_with_system_weight(w, || {
                 assert_eq_error_rate!(
-					truth_value_update(w, fm),
-					runtime_multiplier_update(fm),
-					// Error is only 1 in 100^18
-					Multiplier::from_inner(100),
-				);
+                    truth_value_update(w, fm),
+                    runtime_multiplier_update(fm),
+                    // Error is only 1 in 100^18
+                    Multiplier::from_inner(100),
+                );
             })
         })
     }
@@ -127,7 +137,12 @@ mod multiplier_tests {
         // the weight is 1/100th bigger than target.
         run_with_system_weight(target() * 101 / 100, || {
             let next = runtime_multiplier_update(min_multiplier());
-            assert!(next > min_multiplier(), "{:?} !>= {:?}", next, min_multiplier());
+            assert!(
+                next > min_multiplier(),
+                "{:?} !>= {:?}",
+                next,
+                min_multiplier()
+            );
         })
     }
 
@@ -159,7 +174,9 @@ mod multiplier_tests {
             loop {
                 let next = runtime_multiplier_update(fm);
                 fm = next;
-                if fm == min_multiplier() { break; }
+                if fm == min_multiplier() {
+                    break;
+                }
                 iterations += 1;
             }
             assert!(iterations > 533_333);
@@ -186,7 +203,11 @@ mod multiplier_tests {
         // `cargo test congested_chain_simulation -- --nocapture` to get some insight.
 
         // almost full. The entire quota of normal transactions is taken.
-        let block_weight = BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap() - 100;
+        let block_weight = BlockWeights::get()
+            .get(DispatchClass::Normal)
+            .max_total
+            .unwrap()
+            - 100;
 
         // Default substrate weight.
         let tx_weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
@@ -200,7 +221,9 @@ mod multiplier_tests {
             loop {
                 let next = runtime_multiplier_update(fm);
                 // if no change, panic. This should never happen in this case.
-                if fm == next { panic!("The fee should ever increase"); }
+                if fm == next {
+                    panic!("The fee should ever increase");
+                }
                 fm = next;
                 iterations += 1;
                 let fee =
@@ -226,10 +249,10 @@ mod multiplier_tests {
         run_with_system_weight(target() / 4, || {
             let next = runtime_multiplier_update(fm);
             assert_eq_error_rate!(
-				next,
-				truth_value_update(target() / 4 , fm),
-				Multiplier::from_inner(100),
-			);
+                next,
+                truth_value_update(target() / 4, fm),
+                Multiplier::from_inner(100),
+            );
 
             // Light block. Multiplier is reduced a little.
             assert!(next < fm);
@@ -238,20 +261,20 @@ mod multiplier_tests {
         run_with_system_weight(target() / 2, || {
             let next = runtime_multiplier_update(fm);
             assert_eq_error_rate!(
-				next,
-				truth_value_update(target() / 2 , fm),
-				Multiplier::from_inner(100),
-			);
+                next,
+                truth_value_update(target() / 2, fm),
+                Multiplier::from_inner(100),
+            );
             // Light block. Multiplier is reduced a little.
             assert!(next < fm);
         });
         run_with_system_weight(target(), || {
             let next = runtime_multiplier_update(fm);
             assert_eq_error_rate!(
-				next,
-				truth_value_update(target(), fm),
-				Multiplier::from_inner(100),
-			);
+                next,
+                truth_value_update(target(), fm),
+                Multiplier::from_inner(100),
+            );
             // ideal. No changes.
             assert_eq!(next, fm)
         });
@@ -259,10 +282,10 @@ mod multiplier_tests {
             // More than ideal. Fee is increased.
             let next = runtime_multiplier_update(fm);
             assert_eq_error_rate!(
-				next,
-				truth_value_update(target() * 2 , fm),
-				Multiplier::from_inner(100),
-			);
+                next,
+                truth_value_update(target() * 2, fm),
+                Multiplier::from_inner(100),
+            );
 
             // Heavy block. Fee is increased a little.
             assert!(next > fm);
@@ -278,10 +301,10 @@ mod multiplier_tests {
             (0..1_000).for_each(|_| {
                 next = runtime_multiplier_update(original);
                 assert_eq_error_rate!(
-					next,
-					truth_value_update(target() * 2, original),
-					Multiplier::from_inner(100),
-				);
+                    next,
+                    truth_value_update(target() * 2, original),
+                    Multiplier::from_inner(100),
+                );
                 // must always increase
                 assert!(next > original, "{:?} !>= {:?}", next, original);
                 original = next;
@@ -327,28 +350,24 @@ mod multiplier_tests {
             BlockWeights::get().max_block,
             Weight::max_value() / 2,
             Weight::max_value(),
-        ].into_iter().for_each(|i| {
+        ]
+        .into_iter()
+        .for_each(|i| {
             run_with_system_weight(i, || {
                 let next = runtime_multiplier_update(Multiplier::one());
                 let truth = truth_value_update(i, Multiplier::one());
-                assert_eq_error_rate!(
-					truth,
-					next,
-					Multiplier::from_inner(50_000_000)
-				);
+                assert_eq_error_rate!(truth, next, Multiplier::from_inner(50_000_000));
             });
         });
 
         // Some values that are all above the target and will cause an increase.
         let t = target();
-        vec![t + 100, t * 2, t * 4]
-            .into_iter()
-            .for_each(|i| {
-                run_with_system_weight(i, || {
-                    let fm = runtime_multiplier_update(max_fm);
-                    // won't grow. The convert saturates everything.
-                    assert_eq!(fm, max_fm);
-                })
-            });
+        vec![t + 100, t * 2, t * 4].into_iter().for_each(|i| {
+            run_with_system_weight(i, || {
+                let fm = runtime_multiplier_update(max_fm);
+                // won't grow. The convert saturates everything.
+                assert_eq!(fm, max_fm);
+            })
+        });
     }
 }
