@@ -3839,7 +3839,6 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal",
  "log",
- "node-primitives",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
@@ -3886,7 +3885,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-fungible-assets",
  "polkadex-ocex",
- "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=develop)",
+ "polkadex-primitives 0.1.0",
  "serde",
  "sp-api",
  "sp-authority-discovery",
@@ -3907,19 +3906,6 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "token-faucet-pallet",
-]
-
-[[package]]
-name = "node-primitives"
-version = "2.0.0"
-dependencies = [
- "frame-system",
- "parity-scale-codec",
- "pretty_assertions",
- "sp-application-crypto",
- "sp-core",
- "sp-runtime",
- "sp-serializer",
 ]
 
 [[package]]
@@ -5242,7 +5228,6 @@ dependencies = [
  "log",
  "nix",
  "node-polkadex-runtime",
- "node-primitives",
  "pallet-contracts",
  "pallet-contracts-rpc",
  "pallet-im-online",
@@ -5252,6 +5237,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.11.1",
  "platforms",
+ "polkadex-primitives 0.1.0",
  "rand 0.7.3",
  "regex",
  "sc-authority-discovery",
@@ -5329,10 +5315,14 @@ dependencies = [
 name = "polkadex-primitives"
 version = "0.1.0"
 dependencies = [
+ "frame-system",
  "parity-scale-codec",
+ "pretty_assertions",
  "serde",
+ "sp-application-crypto",
  "sp-core",
  "sp-runtime",
+ "sp-serializer",
 ]
 
 [[package]]
