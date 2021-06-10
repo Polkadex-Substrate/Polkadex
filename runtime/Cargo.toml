@@ -101,7 +101,7 @@ orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 # Local Dependecies
 #polkadex-primitives = { path = "../primitives", default-features = false }
 #polkadex pallets
-polkadex-primitives = { path="../primitives",default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/Polkadex.git", branch = 'develop', default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }

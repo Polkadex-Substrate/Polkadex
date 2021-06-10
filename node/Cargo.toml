@@ -82,7 +82,7 @@ frame-system = { version = "3.0.0", default-features = false, git = "https://git
 pallet-transaction-payment = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 
 #Primitives
-polkadex-primitives = { path = "../primitives" }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/Polkadex.git", branch = 'develop', default-features = false }
 sp-authority-discovery = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 
 [dev-dependencies]
