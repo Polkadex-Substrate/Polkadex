@@ -58,7 +58,6 @@ pallet-election-provider-multi-phase = { version = "3.0.0", default-features = f
 pallet-authority-discovery = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-contracts-primitives = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-contracts-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
-node-primitives = { version= "2.0.0",default-features= false, path = "../node-primitives" }
 #end added
 #frame
 frame-support = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
@@ -100,9 +99,7 @@ orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
 # Local Dependecies
-#polkadex-primitives = { path = "../primitives", default-features = false }
-#polkadex pallets
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/Polkadex.git", branch = 'develop', default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
@@ -164,7 +161,6 @@ std = [
 	'pallet-contracts-primitives/std',
 	'pallet-contracts-rpc-runtime-api/std',
 	'pallet-tips/std',
-	"node-primitives/std",
 	'pallet-timestamp/std',
 	'pallet-transaction-payment/std',
 	'pallet-transaction-payment-rpc-runtime-api/std',

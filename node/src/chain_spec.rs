@@ -7,8 +7,9 @@ use node_polkadex_runtime::{
     SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
     TechnicalCommitteeConfig, MAX_NOMINATIONS,
 };
-use node_primitives::Block;
+
 use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::Block;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use frame_benchmarking::frame_support::PalletId;
@@ -24,7 +25,7 @@ use sp_runtime::{
 };
 
 pub use node_polkadex_runtime::GenesisConfig;
-pub use node_primitives::{AccountId, Balance, Signature};
+pub use polkadex_primitives::{AccountId, Balance, Signature};
 
 type AccountPublic = <Signature as Verify>::Signer;
 

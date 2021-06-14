@@ -35,7 +35,7 @@ use std::sync::Arc;
 use grandpa::{
     FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
-use node_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
