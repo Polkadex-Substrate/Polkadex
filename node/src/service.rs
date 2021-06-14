@@ -23,7 +23,7 @@
 use crate::rpc as node_rpc;
 use futures::prelude::*;
 use node_polkadex_runtime::RuntimeApi;
-use node_primitives::Block;
+use polkadex_primitives::Block;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
 use sc_executor::native_executor_instance;
