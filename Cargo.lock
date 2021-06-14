@@ -5252,6 +5252,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.11.1",
  "platforms",
+ "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main)",
  "rand 0.7.3",
  "regex",
  "sc-authority-discovery",
@@ -5342,6 +5343,18 @@ source = "git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=develop#
 dependencies = [
  "parity-scale-codec",
  "serde",
+ "sp-core",
+ "sp-runtime",
+]
+
+[[package]]
+name = "polkadex-primitives"
+version = "0.1.0"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main#b49a9a64b8659fbc7928c329fb7be726039c51c6"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "sp-application-crypto",
  "sp-core",
  "sp-runtime",
 ]
