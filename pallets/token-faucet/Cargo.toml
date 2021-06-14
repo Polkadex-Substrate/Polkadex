@@ -17,7 +17,7 @@ sp-core = { default-features = false, version = '3.0.0' , git = "https://github.
 pallet-balances = { default-features = false, version = '3.0.0' , git = "https://github.com/paritytech/substrate.git" }
 frame-system = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate.git"  }
 #polkadex-primitives = { path = "../primitives", default-features = false }
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/Polkadex.git", branch = 'develop', default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
 [features]
