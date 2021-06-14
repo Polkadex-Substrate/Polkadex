@@ -86,9 +86,9 @@ use static_assertions::const_assert;
 use constants::{currency::*, time::*};
 use frame_support::traits::OnUnbalanced;
 use impls::Author;
-pub use node_primitives::{AccountId, Signature};
-use node_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 pub use pallet_substratee_registry;
+pub use polkadex_primitives::{AccountId, Signature};
+use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use sp_io::hashing::blake2_128;
 use sp_runtime::traits::AccountIdConversion;
 
@@ -1054,7 +1054,7 @@ impl pallet_gilt::Config for Runtime {
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
-        NodeBlock = node_primitives::Block,
+        NodeBlock = polkadex_primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
