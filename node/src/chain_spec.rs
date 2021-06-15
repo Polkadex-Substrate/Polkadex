@@ -371,15 +371,17 @@ pub fn testnet_genesis(
         pallet_gilt: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting: vec![] },
         orml_tokens: TokensConfig {
-			endowed_accounts: vec![(root_key, AssetId::POLKADEX, 1000000000000000000u128),
+			endowed_accounts: vec![
 								   (endowed_accounts[0].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
 								   (endowed_accounts[0].to_owned(), AssetId::DOT, 1000000000000000000u128),
-								   (endowed_accounts[1].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
-								   (endowed_accounts[1].to_owned(), AssetId::DOT, 1000000000000000000u128),
 								   (endowed_accounts[0].to_owned(), AssetId::BTC, 1000000000000000000u128),
 								   (endowed_accounts[0].to_owned(), AssetId::USD, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::DOT, 1000000000000000000u128),
 								   (endowed_accounts[1].to_owned(), AssetId::BTC, 1000000000000000000u128),
 								   (endowed_accounts[1].to_owned(), AssetId::USD, 1000000000000000000u128),
+
+
 			],
 		},
         polkadex_ocex: PolkadexOcexConfig {
