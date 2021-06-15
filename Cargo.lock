@@ -5333,7 +5333,7 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main#7f046ec95692b5953cde9197ae1129ebfb6ec20b"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main#b49a9a64b8659fbc7928c329fb7be726039c51c6"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
