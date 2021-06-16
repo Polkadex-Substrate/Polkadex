@@ -88,7 +88,7 @@ use frame_support::traits::OnUnbalanced;
 use impls::Author;
 pub use pallet_substratee_registry;
 pub use polkadex_primitives::{AccountId, Signature};
-use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
+pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use sp_io::hashing::blake2_128;
 use sp_runtime::traits::AccountIdConversion;
 
