@@ -1,0 +1,48 @@
+[package]
+authors = ['Polkadex Authors']
+description = 'Polkapool, pallet for governance based feeless swaps'
+edition = '2018'
+homepage = 'https://polkadex.trade'
+name = 'pallet-polkapool'
+version = '0.1.0'
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[dependencies]
+# Polkadex Primitives
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
+# ORML
+orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
+
+# external dependencies
+codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
+
+# Substrate dependencies
+frame-benchmarking = {default-features = false, optional = true, version = '3.1.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+frame-support = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+frame-system = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+sp-arithmetic = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+
+[dev-dependencies]
+serde = '1.0.119'
+sp-core = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+sp-io = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+sp-runtime = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+
+[features]
+default = ['std']
+runtime-benchmarks = ['frame-benchmarking']
+std = [
+	'codec/std',
+	'frame-support/std',
+	'frame-system/std',
+	'frame-benchmarking/std',
+	'orml-tokens/std',
+	'orml-currencies/std',
+	'orml-traits/std',
+	'polkadex-primitives/std'
+]
+try-runtime = ['frame-support/try-runtime']

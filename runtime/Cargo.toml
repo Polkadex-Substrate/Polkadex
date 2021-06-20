@@ -85,7 +85,7 @@ sp-npos-elections = { version = "3.0.0", default-features = false, git = "https:
 
 sp-io = { version = '3.0.0', default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
-# Used for the node template's RPCs
+# Used for the node polkapool's RPCs
 frame-system-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
 # Used for runtime benchmarking
