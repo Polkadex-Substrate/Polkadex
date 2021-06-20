@@ -22,7 +22,7 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, Codec};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
@@ -84,7 +84,7 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::traits::OnUnbalanced;
+use frame_support::traits::{OnUnbalanced, Filter};
 use impls::Author;
 pub use pallet_substratee_registry;
 pub use polkadex_primitives::{AccountId, Signature};
@@ -1033,6 +1033,39 @@ parameter_types! {
     pub const MaxIntakeBids: u32 = 10;
 }
 
+pub struct FeelessTxnFilter;
+
+impl Filter<Call> for FeelessTxnFilter {
+    fn filter(call: &Call) -> bool {
+        match call {
+            Call::Contracts(_) => true, // TODO: Pass only whitelisted contracts via governance
+            _ => false
+        }
+    }
+}
+
+parameter_types! {
+	pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
+		RuntimeBlockWeights::get().max_block;
+	pub const MaxAllowedTxns: usize = 50;
+    pub const MinStakePeriod: BlockNumber = 1;
+    pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
+}
+
+impl pallet_polkapool::Config for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type PalletsOrigin = OriginCaller;
+    type Call = Call;
+    type Balance = Balance;
+    type Currency = Currencies;
+    type MinStakeAmount = MinStakeAmount;
+    type MaxAllowedTxns = MaxAllowedTxns;
+    type MinStakePeriod = MinStakePeriod;
+    type RandomnessSource = RandomnessCollectiveFlip;
+    type CallFilter = FeelessTxnFilter;
+}
+
 impl pallet_gilt::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
@@ -1050,6 +1083,8 @@ impl pallet_gilt::Config for Runtime {
     type MaxIntakeBids = MaxIntakeBids;
     type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
 }
+
+
 
 construct_runtime!(
     pub enum Runtime where
@@ -1100,8 +1135,9 @@ construct_runtime!(
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
         TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
-        Example: example::{Pallet, Call, Event<T>},
+        // Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -1597,15 +1633,15 @@ impl erc721::Config for Runtime {
     type Identifier = NFTTokenId;
 }
 
-impl example::Config for Runtime {
-    type Event = Event;
-    type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
-    type Balance = Balance;
-    type Currency = Currencies;
-    type HashId = HashId;
-    type NativeTokenId = NativeTokenId;
-    type Erc721Id = NFTTokenId;
-}
+// impl example::Config for Runtime {
+//     type Event = Event;
+//     type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
+//     type Balance = Balance;
+//     type Currency = Currencies;
+//     type HashId = HashId;
+//     type NativeTokenId = NativeTokenId;
+//     type Erc721Id = NFTTokenId;
+// }
 #[cfg(test)]
 mod tests {
     use frame_system::offchain::CreateSignedTransaction;
