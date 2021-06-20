@@ -98,6 +98,7 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
+mod weights;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};

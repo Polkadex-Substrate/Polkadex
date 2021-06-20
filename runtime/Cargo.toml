@@ -96,7 +96,7 @@ orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
 # Third party dependencies
-pallet-verifier-lightclient = {git = "https://github.com/Snowfork/polkadot-ethereum", default-features=false, rev="e19c4d63102ae611b733d623081a015addb08291"}
+pallet-verifier-lightclient = {git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features=false, rev="444f3b85cac07703c4b58347ce489fd04b9a0a27"}
 
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
