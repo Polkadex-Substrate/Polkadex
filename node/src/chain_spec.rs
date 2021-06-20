@@ -3,14 +3,17 @@ use hex_literal::hex;
 use node_polkadex_runtime::constants::currency::*;
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig,
-    CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig,
+    CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, PolkadexOcexConfig, TokensConfig, OrmlVestingConfig,
     SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
     TechnicalCommitteeConfig, MAX_NOMINATIONS,  VerifierLightclientConfig,
 };
 use pallet_verifier_lightclient::EthereumHeader;
+use polkadex_primitives::assets::AssetId;
+
 use polkadex_primitives::Block;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
+use frame_benchmarking::frame_support::PalletId;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
@@ -18,7 +21,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{
-    traits::{IdentifyAccount, Verify},
+    traits::{IdentifyAccount, Verify, AccountIdConversion},
     Perbill,
 };
 
@@ -224,6 +227,7 @@ pub fn authority_keys_from_seed(
         get_from_seed::<AuthorityDiscoveryId>(seed),
     )
 }
+pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
 
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
@@ -240,6 +244,7 @@ pub fn testnet_genesis(
     endowed_accounts: Option<Vec<AccountId>>,
     enable_println: bool,
 ) -> GenesisConfig {
+	let genesis: AccountId = OCEXGenesisAccount.into_account();
     let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
         vec![
             get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -351,7 +356,7 @@ pub fn testnet_genesis(
             // println should only be enabled on development chains
             current_schedule: pallet_contracts::Schedule::default().enable_println(enable_println),
         },
-        pallet_sudo: SudoConfig { key: root_key },
+        pallet_sudo: SudoConfig { key: root_key.clone() },
         pallet_babe: BabeConfig {
             authorities: vec![],
             epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -391,6 +396,27 @@ pub fn testnet_genesis(
             },
             initial_difficulty: 19755084633726428633088u128.into(),
         },
+
+        orml_vesting: OrmlVestingConfig { vesting: vec![] },
+        orml_tokens: TokensConfig {
+			endowed_accounts: vec![
+								   (endowed_accounts[0].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
+								   (endowed_accounts[0].to_owned(), AssetId::DOT, 1000000000000000000u128),
+								   (endowed_accounts[0].to_owned(), AssetId::BTC, 1000000000000000000u128),
+								   (endowed_accounts[0].to_owned(), AssetId::USD, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::DOT, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::BTC, 1000000000000000000u128),
+								   (endowed_accounts[1].to_owned(), AssetId::USD, 1000000000000000000u128),
+
+
+			],
+		},
+        polkadex_ocex: PolkadexOcexConfig {
+			key: genesis.clone(),
+			genesis_account: genesis,
+		},
+
     }
 }
 
