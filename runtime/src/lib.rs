@@ -91,6 +91,7 @@ pub use polkadex_primitives::{AccountId, Signature};
 use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use sp_io::hashing::blake2_128;
 use sp_runtime::traits::AccountIdConversion;
+use pallet_verifier_lightclient::{EthereumDifficultyConfig,EthereumHeader};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1051,6 +1052,26 @@ impl pallet_gilt::Config for Runtime {
     type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
 }
 
+pub const ROPSTEN_DIFFICULTY_CONFIG: EthereumDifficultyConfig = EthereumDifficultyConfig {
+    byzantium_fork_block: 1700000,
+    constantinople_fork_block: 4230000,
+    muir_glacier_fork_block: 7117117,
+};
+
+parameter_types! {
+	pub const DescendantsUntilFinalized: u8 = 3;
+	pub const DifficultyConfig: EthereumDifficultyConfig = ROPSTEN_DIFFICULTY_CONFIG;
+	pub const VerifyPoW: bool = true;
+}
+
+impl pallet_verifier_lightclient::Config for Runtime {
+    type Event = Event;
+    type DescendantsUntilFinalized = DescendantsUntilFinalized;
+    type DifficultyConfig = DifficultyConfig;
+    type VerifyPoW = VerifyPoW;
+    type WeightInfo = weights::verifier_lightclient_weights::WeightInfo<Runtime>;
+}
+
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -1102,6 +1123,7 @@ construct_runtime!(
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},
+        VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
     }
 );
 
@@ -1432,6 +1454,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
             add_benchmark!(params, batches, pallet_vesting, Vesting);
+            add_benchmark!(params, batches, pallet_verifier_lightclient, VerifierLightclient);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

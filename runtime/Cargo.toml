@@ -17,9 +17,6 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 static_assertions = "1.1.0"
 log = { version = "0.4.14", default-features = false }
 #pallets
-#remove
-pallet-aura = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-#end remove
 #added
 pallet-authorship = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 pallet-babe = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
@@ -98,6 +95,9 @@ orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-mo
 orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
+# Third party dependencies
+pallet-verifier-lightclient = {git = "https://github.com/Snowfork/polkadot-ethereum", default-features=false, rev="e19c4d63102ae611b733d623081a015addb08291"}
+
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
@@ -128,7 +128,6 @@ substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/parityte
 [features]
 default = ["std"]
 std = [
-	"pallet-aura/std",
 	'codec/std',
 	'serde',
 	'frame-executive/std',
@@ -186,6 +185,8 @@ std = [
 	'sp-transaction-pool/std',
 	'sp-version/std',
 	"sp-npos-elections/std",
+
+	'pallet-verifier-lightclient/std',
 
 	"orml-vesting/std",
 	"orml-currencies/std",
