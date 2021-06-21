@@ -9,11 +9,13 @@ use frame_support::{
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo, UnfilteredDispatchable};
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::traits::IsSubType;
+use frame_support::traits::{IsSubType, Randomness};
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
 use sp_arithmetic::traits::SaturatedConversion;
+use polkadex_primitives::BlockNumber;
+use sp_core::H256;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -45,6 +47,7 @@ pub trait Config: frame_system::Config {
     + UnfilteredDispatchable<Origin=Self::Origin>
     + IsSubType<Call<Self>>
     + IsType<<Self as frame_system::Config>::Call>;
+    type RandomnessSource: Randomness<H256, BlockNumber>;
 }
 
 #[derive(Decode, Encode, Default)]
@@ -75,6 +78,12 @@ impl<T: Config> MovingAverage<T> {
     }
 }
 
+#[derive(Decode, Encode, Default)]
+pub struct StoreExt<T: Config> {
+    pub call: T::Call,
+    pub origin: T::Origin,
+}
+
 decl_storage! {
     trait Store for Module<T: Config> as TokenFaucetMap {
         /// All users and their staked amount
@@ -86,7 +95,7 @@ decl_storage! {
         pub StakeMovingAverage get(fn get_stake_moving_average): MovingAverage<T>;
 
         /// Feeless Extrinsics stored for next block
-        pub TxnsForNextBlock get(fn get_next_block_txns): Vec<<T as Config>::Call>;
+        pub TxnsForNextBlock get(fn get_next_block_txns): Vec<StoreExt<T>>;
     }
 }
 
@@ -105,7 +114,8 @@ decl_event!(
 decl_error! {
     pub enum Error for Module<T: Config> {
         StakeAmountTooSmall,
-        NotEnoughBalanceToStake
+        NotEnoughBalanceToStake,
+        NoMoreFeelessTxnsForThisBlock
     }
 }
 
@@ -119,25 +129,50 @@ decl_module! {
 
         fn deposit_event() = default;
 
+        fn on_initialize(n: T::BlockNumber) -> Weight {
+            // Load the exts and clear the storage
+            let stored_exts: Vec<StoreExt<T>> = <TxnsForNextBlock<T>>::take();
+            // TODO: Randomize the vector using babe randomness
+            let mut used_weight: Weight = Weight::from(0);
+            // Start executing
+            for ext in stored_exts{
+                used_weight = used_weight + weightext.call.dispatch(ext.origin);
+            }
+            used_weight
+        }
+
+        // TODO: Update the weights to include swap transaction's weight
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn claim_feeless_transaction(origin, stake_amount: T::Balance, call: <T as Config>::Call) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(stake_amount >= T::MinStakeAmount::get(), Error::<T>::StakeAmountTooSmall);
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
+            let mut stored_exts: Vec<StoreExt<T>> = Self::get_next_block_txns();
+            ensure!(stored_exts.len() < T::MaxAllowedTxns::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
+
             // Update the moving average of stake amount
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
             stake_moving_average.update_stake_amount(&stake_amount);
 
+            // Get current block number
+            let current_block_number: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
+
             // Store the staking record
-            let mut staked_amount: StakeInfo<T> = Self::staked_users();
+            let mut staked_amount: StakeInfo<T> = Self::staked_users(who.clone());
             staked_amount.staked_amount += stake_amount;
-            staked_amount.unlocking_block =
+            staked_amount.unlocking_block = current_block_number + T::MinStakePeriod::get();
 
 
             // Store the transactions randomize and execute on next block's initialize
-            let mut stored_exts: Vec<<T as Config>::Call> = Self::get_next_block_txns();
-            stored_exts.push(call.clone());
+            stored_exts.push(StoreExt{
+                call,
+                origin
+            });
+
+            <StakedUsers<T>>::put(who.clone(),staked_amount);
+            <TxnsForNextBlock<T>>::put(stored_exts);
+            <StakeMovingAverage<T>>::put(stake_moving_average);
             Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(call));
             Ok(())
         }
