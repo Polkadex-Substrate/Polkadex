@@ -13,8 +13,8 @@ use frame_support::traits::{IsSubType, Randomness};
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
-use sp_arithmetic::traits::SaturatedConversion;
 use polkadex_primitives::BlockNumber;
+use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::H256;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -36,9 +36,8 @@ pub trait Config: frame_system::Config {
     >;
     /// Min amount that must be staked
     type MinStakeAmount: Get<Self::Balance>;
-    /// Maximum allowed Feeless Transactions in a block
+    /// Maximum allowed Feeless Transactions in a block, (TODO: Bound the number of transactions based on total weight)
     type MaxAllowedTxns: Get<u128>;
-
     /// Min Stake Period
     type MinStakePeriod: Get<Self::BlockNumber>;
     /// The overarching call type.
@@ -47,6 +46,7 @@ pub trait Config: frame_system::Config {
     + UnfilteredDispatchable<Origin=Self::Origin>
     + IsSubType<Call<Self>>
     + IsType<<Self as frame_system::Config>::Call>;
+    /// Randomness Source
     type RandomnessSource: Randomness<H256, BlockNumber>;
 }
 
@@ -56,7 +56,7 @@ pub struct StakeInfo<T: Config> {
     pub unlocking_block: T::BlockNumber,
 }
 
-impl<T> StakeInfo<T> {
+impl<T: Config> StakeInfo<T> {
     pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> StakeInfo<T> {
         StakeInfo {
             staked_amount: stake,
@@ -79,13 +79,21 @@ impl<T: Config> MovingAverage<T> {
 }
 
 #[derive(Decode, Encode, Default)]
-pub struct StoreExt<T: Config> {
-    pub call: T::Call,
+pub struct Ext<T: Config> {
+    pub call: <T as Config>::Call,
     pub origin: T::Origin,
 }
 
+#[derive(Decode, Encode, Default)]
+pub struct ExtStore<T: Config> {
+    /// vector of eligible feeless extrinsics
+    pub store: Vec<Ext<T>>,
+    /// Total Weight of the stored extrinsics
+    pub total_weight: Weight,
+}
+
 decl_storage! {
-    trait Store for Module<T: Config> as TokenFaucetMap {
+    trait Store for Module<T: Config> as Polkapool {
         /// All users and their staked amount
         /// (when they can claim, accountId => Balance)
         pub StakedUsers get(fn staked_users):  map hasher(blake2_128_concat) T::AccountId => StakeInfo<T>;
@@ -95,7 +103,7 @@ decl_storage! {
         pub StakeMovingAverage get(fn get_stake_moving_average): MovingAverage<T>;
 
         /// Feeless Extrinsics stored for next block
-        pub TxnsForNextBlock get(fn get_next_block_txns): Vec<StoreExt<T>>;
+        pub TxnsForNextBlock get(fn get_next_block_txns): ExtStore<T>;
     }
 }
 
@@ -106,7 +114,7 @@ decl_event!(
         Call = <T as Config>::Call,
     {
         FeelessExtrinsicAccepted(Call),
-        FeelessExtrinsicsExecuted(Vec<Call>)
+        FeelessExtrinsicsExecuted(Vec<Call>),
     }
 );
 
@@ -131,12 +139,12 @@ decl_module! {
 
         fn on_initialize(n: T::BlockNumber) -> Weight {
             // Load the exts and clear the storage
-            let stored_exts: Vec<StoreExt<T>> = <TxnsForNextBlock<T>>::take();
+            let stored_exts: ExtStore<T> = <TxnsForNextBlock<T>>::take();
             // TODO: Randomize the vector using babe randomness
             let mut used_weight: Weight = Weight::from(0);
             // Start executing
-            for ext in stored_exts{
-                used_weight = used_weight + weightext.call.dispatch(ext.origin);
+            for ext in stored_exts.store{
+                used_weight = used_weight + ext.call.dispatch(ext.origin);
             }
             used_weight
         }
@@ -148,8 +156,8 @@ decl_module! {
             ensure!(stake_amount >= T::MinStakeAmount::get(), Error::<T>::StakeAmountTooSmall);
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
-            let mut stored_exts: Vec<StoreExt<T>> = Self::get_next_block_txns();
-            ensure!(stored_exts.len() < T::MaxAllowedTxns::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
+            let mut stored_exts: ExtStore<T> = Self::get_next_block_txns();
+            ensure!(stored_exts.store.len() < T::MaxAllowedTxns::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
 
             // Update the moving average of stake amount
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
@@ -165,7 +173,7 @@ decl_module! {
 
 
             // Store the transactions randomize and execute on next block's initialize
-            stored_exts.push(StoreExt{
+            stored_exts.store.push(Ext{
                 call,
                 origin
             });

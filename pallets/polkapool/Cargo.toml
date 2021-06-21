@@ -21,16 +21,16 @@ orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
 
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, version = '3.1.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
-frame-support = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
-frame-system = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
-sp-arithmetic = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+frame-benchmarking = {default-features = false, optional = true, version = '3.1.0', git = 'https://github.com/paritytech/substrate.git'}
+frame-support = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
+frame-system = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
+sp-arithmetic = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
+sp-core = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
 
 [dev-dependencies]
 serde = '1.0.119'
-sp-core = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
-sp-io = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
-sp-runtime = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05'}
+sp-io = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
+sp-runtime = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
 
 [features]
 default = ['std']
