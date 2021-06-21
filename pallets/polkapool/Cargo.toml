@@ -43,6 +43,8 @@ std = [
 	'orml-tokens/std',
 	'orml-currencies/std',
 	'orml-traits/std',
-	'polkadex-primitives/std'
+	'polkadex-primitives/std',
+	'sp-arithmetic/std',
+	'sp-core/std'
 ]
 try-runtime = ['frame-support/try-runtime']
