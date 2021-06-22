@@ -84,7 +84,7 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::traits::OnUnbalanced;
+use frame_support::traits::{OnUnbalanced, Filter};
 use impls::Author;
 pub use pallet_substratee_registry;
 pub use polkadex_primitives::{AccountId, Signature};
@@ -92,6 +92,8 @@ use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Momen
 use sp_io::hashing::blake2_128;
 use sp_runtime::traits::AccountIdConversion;
 use pallet_verifier_lightclient::{EthereumDifficultyConfig,EthereumHeader};
+pub use artemis_core::{MessageId};
+use pallet_eth_dispatch::EnsureEthereumAccount;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1073,6 +1075,32 @@ impl pallet_verifier_lightclient::Config for Runtime {
     type WeightInfo = weights::verifier_lightclient_weights::WeightInfo<Runtime>;
 }
 
+pub struct CallFilter;
+impl Filter<Call> for CallFilter {
+    fn filter(call: &Call) -> bool {
+        match call {
+            Call::ETH(_) | Call::ERC20(_) | Call::DOT(_) => true,
+            _ => false
+        }
+    }
+}
+
+impl pallet_eth_dispatch::Config for Runtime {
+    type Origin = Origin;
+    type Event = Event;
+    type MessageId = MessageId;
+    type Call = Call;
+    type CallFilter = CallFilter;
+}
+
+use pallet_basic_channel::inbound as basic_channel_inbound;
+impl basic_channel_inbound::Config for Runtime {
+    type Event = Event;
+    type Verifier = pallet_verifier_lightclient::Module<Runtime>;
+    type MessageDispatch = pallet_eth_dispatch::Module<Runtime>;
+    type WeightInfo = weights::basic_channel_inbound_weights::WeightInfo<Runtime>;
+}
+
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -1124,6 +1152,8 @@ construct_runtime!(
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},
+        BasicInboundChannel: basic_channel_inbound::{Pallet, Call, Config, Storage, Event},
+        Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
         VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
     }
 );
