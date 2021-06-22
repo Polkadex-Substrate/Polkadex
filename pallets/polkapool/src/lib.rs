@@ -9,7 +9,7 @@ use frame_support::{
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo, UnfilteredDispatchable, EncodeLike};
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::traits::{IsSubType, Randomness};
+use frame_support::traits::{IsSubType, Randomness, Filter};
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
@@ -49,6 +49,8 @@ pub trait Config: frame_system::Config {
     + Encode + Decode;
     /// Randomness Source
     type RandomnessSource: Randomness<H256, BlockNumber>;
+    /// Call Filter
+    type CallFilter: Filter<<Self as Config>::Call>;
 }
 
 #[derive(Decode, Encode, Default, Copy, Clone)]

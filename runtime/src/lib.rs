@@ -84,7 +84,7 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::traits::OnUnbalanced;
+use frame_support::traits::{OnUnbalanced, Filter};
 use impls::Author;
 pub use pallet_substratee_registry;
 pub use polkadex_primitives::{AccountId, Signature};
@@ -100,6 +100,8 @@ pub mod constants;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
+use pallet_contracts::{Frame, Schedule};
+use frame_benchmarking::frame_support::pallet_prelude::Get;
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -1031,6 +1033,17 @@ parameter_types! {
     pub const MinFreeze: Balance = 100 * DOLLARS;
     pub const IntakePeriod: BlockNumber = 10;
     pub const MaxIntakeBids: u32 = 10;
+}
+
+pub struct FeelessTxnFilter;
+
+impl Filter<Call> for FeelessTxnFilter {
+    fn filter(call: &Call) -> bool {
+        match call {
+            Call::Contracts(_) => true, // TODO: Pass only whitelisted contracts via governance
+            _ => false
+        }
+    }
 }
 
 impl pallet_gilt::Config for Runtime {
