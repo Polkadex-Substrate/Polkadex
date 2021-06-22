@@ -185,6 +185,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -216,6 +217,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -1553,6 +1555,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3de9ad4541d99dc22b59134e7ff8dc3d6c988c89ecd7324bf10a8362b07a2afa"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "erc20-pdex-migration-pallet"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "pallet-balances",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "sp-core",
+ "sp-runtime",
 ]
 
 [[package]]
@@ -3983,6 +3999,7 @@ dependencies = [
  "artemis-core",
  "artemis-dispatch",
  "chainbridge",
+ "erc20-pdex-migration-pallet",
  "example-erc721",
  "example-pallet",
  "frame-benchmarking",

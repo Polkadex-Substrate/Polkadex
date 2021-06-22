@@ -22,9 +22,11 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
+pub use artemis_core::MessageId;
 use codec::{Decode, Encode};
 use frame_support::{
     construct_runtime, parameter_types,
+    RuntimeDebug,
     traits::{
         Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier, Randomness,
         U128CurrencyToVote,
@@ -33,67 +35,67 @@ use frame_support::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
     },
-    RuntimeDebug,
 };
-use frame_support::{traits::InstanceFilter, PalletId};
+use frame_support::{PalletId, traits::InstanceFilter};
+use frame_support::traits::{Filter, OnUnbalanced};
+use frame_system::{
+    EnsureOneOf,
+    EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
+};
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
-use frame_system::{
-    limits::{BlockLength, BlockWeights},
-    EnsureOneOf, EnsureRoot, RawOrigin,
-};
+use orml_currencies::BasicCurrencyAdapter;
+use orml_traits::{MultiCurrencyExtended, parameter_type_with_key};
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
+use pallet_basic_channel::inbound as basic_channel_inbound;
 use pallet_contracts::weights::WeightInfo;
-use pallet_grandpa::fg_primitives;
+use pallet_eth_dispatch::EnsureEthereumAccount;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+use pallet_grandpa::fg_primitives;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
+pub use pallet_substratee_registry;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use pallet_verifier_lightclient::{EthereumDifficultyConfig, EthereumHeader};
+pub use polkadex_primitives::{AccountId, Signature};
+pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use polkadex_primitives::assets::AssetId;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{
     crypto::KeyTypeId,
-    u32_trait::{_1, _2, _3, _4, _5},
     OpaqueMetadata,
+    u32_trait::{_1, _2, _3, _4, _5},
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
+use sp_io::hashing::blake2_128;
+use sp_runtime::{
+    ApplyExtrinsicResult, create_runtime_str, FixedPointNumber, generic, impl_opaque_keys, Perbill,
+    Percent, Permill, Perquintill,
+};
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::generic::Era;
 use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion,
     StaticLookup, Zero,
 };
+use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
-};
-#[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
-use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill,
-    Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-
 use constants::{currency::*, time::*};
-use frame_support::traits::{OnUnbalanced, Filter};
 use impls::Author;
-pub use pallet_substratee_registry;
-pub use polkadex_primitives::{AccountId, Signature};
-pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
-use sp_io::hashing::blake2_128;
-use sp_runtime::traits::AccountIdConversion;
-use pallet_verifier_lightclient::{EthereumDifficultyConfig,EthereumHeader};
-pub use artemis_core::{MessageId};
-use pallet_eth_dispatch::EnsureEthereumAccount;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -102,8 +104,6 @@ pub mod impls;
 pub mod constants;
 mod weights;
 
-use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -154,7 +154,7 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 pub struct DealWithFees;
 
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
             // for fees, 80% to treasury, 20% to author
             let mut split = fees.ration(80, 20);
@@ -372,7 +372,7 @@ impl pallet_babe::Config for Runtime {
     )>>::IdentificationTuple;
 
     type HandleEquivocation =
-        pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+    pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
     type WeightInfo = ();
 }
@@ -418,7 +418,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
-        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 parameter_types! {
@@ -602,25 +602,25 @@ impl pallet_democracy::Config for Runtime {
     type MinimumDeposit = MinimumDeposit;
     /// A straight majority of the council can decide what their next motion is.
     type ExternalOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>;
+    pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>;
     /// A super-majority can have the next scheduled referendum be a straight majority-carries vote.
     type ExternalMajorityOrigin =
-        pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>;
+    pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>;
     /// A unanimous council can have the next scheduled referendum be a straight default-carries
     /// (NTB) vote.
     type ExternalDefaultOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
+    pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
     /// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
     /// be tabled immediately and with a shorter voting/enactment period.
     type FastTrackOrigin =
-        pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>;
+    pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>;
     type InstantOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>;
+    pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>;
     type InstantAllowed = InstantAllowed;
     type FastTrackVotingPeriod = FastTrackVotingPeriod;
     // To cancel a proposal which has been passed, 2/3 of the council must agree to it.
     type CancellationOrigin =
-        pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>;
+    pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>;
     // To cancel a proposal before it has been passed, the technical committee must be unanimous or
     // Root must agree.
     type CancelProposalOrigin = EnsureOneOf<
@@ -851,8 +851,8 @@ parameter_types! {
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
-where
-    Call: From<LocalCall>,
+    where
+        Call: From<LocalCall>,
 {
     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
         call: Call,
@@ -902,8 +902,8 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-where
-    Call: From<C>,
+    where
+        Call: From<C>,
 {
     type Extrinsic = UncheckedExtrinsic;
     type OverarchingCall = Call;
@@ -934,7 +934,7 @@ impl pallet_grandpa::Config for Runtime {
     type KeyOwnerProofSystem = Historical;
 
     type KeyOwnerProof =
-        <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+    <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
     type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
         KeyTypeId,
@@ -1076,10 +1076,11 @@ impl pallet_verifier_lightclient::Config for Runtime {
 }
 
 pub struct CallFilter;
+
 impl Filter<Call> for CallFilter {
     fn filter(call: &Call) -> bool {
         match call {
-            Call::ETH(_) | Call::ERC20(_) | Call::DOT(_) => true,
+            Call::ERC20PDEX(_) => true,
             _ => false
         }
     }
@@ -1093,12 +1094,18 @@ impl pallet_eth_dispatch::Config for Runtime {
     type CallFilter = CallFilter;
 }
 
-use pallet_basic_channel::inbound as basic_channel_inbound;
 impl basic_channel_inbound::Config for Runtime {
     type Event = Event;
     type Verifier = pallet_verifier_lightclient::Module<Runtime>;
     type MessageDispatch = pallet_eth_dispatch::Module<Runtime>;
     type WeightInfo = weights::basic_channel_inbound_weights::WeightInfo<Runtime>;
+}
+
+impl erc20_pdex_migration_pallet::Config for Runtime{
+    type Event = Event;
+    type Balance = Balance;
+    type Currency = Currencies;
+    type CallOrigin = EnsureEthereumAccount;
 }
 
 construct_runtime!(
@@ -1155,6 +1162,7 @@ construct_runtime!(
         BasicInboundChannel: basic_channel_inbound::{Pallet, Call, Config, Storage, Event},
         Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
         VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
+        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>}
     }
 );
 
@@ -1510,6 +1518,7 @@ parameter_types! {
     pub TreasuryAccountId: AccountId = PolkadexTreasuryModuleId::get().into_account();
 }
 pub struct EnsureGovernance;
+
 impl EnsureOrigin<Origin> for EnsureGovernance {
     type Success = AccountId;
     fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
@@ -1538,6 +1547,7 @@ parameter_types! {
 }
 
 pub struct EnsureRootOrPolkadexTreasury;
+
 impl EnsureOrigin<Origin> for EnsureRootOrPolkadexTreasury {
     type Success = AccountId;
 
@@ -1660,6 +1670,7 @@ impl example::Config for Runtime {
     type NativeTokenId = NativeTokenId;
     type Erc721Id = NFTTokenId;
 }
+
 #[cfg(test)]
 mod tests {
     use frame_system::offchain::CreateSignedTransaction;
@@ -1669,10 +1680,9 @@ mod tests {
     #[test]
     fn validate_transaction_submitter_bounds() {
         fn is_submit_signed_transaction<T>()
-        where
-            T: CreateSignedTransaction<Call>,
-        {
-        }
+            where
+                T: CreateSignedTransaction<Call>,
+        {}
 
         is_submit_signed_transaction::<Runtime>();
     }

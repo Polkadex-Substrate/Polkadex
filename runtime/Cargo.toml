@@ -106,7 +106,7 @@ polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
 token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
-#pallet-native-mint = {}
+erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 
 [dependencies.chainbridge]
 default-features = false
@@ -187,6 +187,10 @@ std = [
     'sp-version/std',
     "sp-npos-elections/std",
     'pallet-verifier-lightclient/std',
+    'pallet-eth-dispatch/std',
+    'pallet-basic-channel/std',
+    'artemis-core/std',
+    'erc20-pdex-migration-pallet/std',
     "orml-vesting/std",
     "orml-currencies/std",
     "orml-tokens/std",
@@ -198,6 +202,7 @@ std = [
     "chainbridge/std",
     'erc721/std',
     'example/std',
+
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
