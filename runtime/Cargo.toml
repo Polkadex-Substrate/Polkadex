@@ -17,9 +17,6 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 static_assertions = "1.1.0"
 log = { version = "0.4.14", default-features = false }
 #pallets
-#remove
-pallet-aura = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-#end remove
 #added
 pallet-authorship = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 pallet-babe = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
@@ -65,7 +62,6 @@ frame-system = { version = "3.0.0", default-features = false, git = "https://git
 frame-executive = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 #sp
 sp-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-sp-consensus-aura = { version = "0.9.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-offchain = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-session = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
@@ -98,12 +94,19 @@ orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-mo
 orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
+# Third party dependencies
+pallet-verifier-lightclient = { git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
+pallet-eth-dispatch = { package = "artemis-dispatch", git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
+pallet-basic-channel = { package = "artemis-basic-channel", git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
+artemis-core = { git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
+
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
 token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
+erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 
 [dependencies.chainbridge]
 default-features = false
@@ -128,85 +131,86 @@ substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/parityte
 [features]
 default = ["std"]
 std = [
-	"pallet-aura/std",
-	'codec/std',
-	'serde',
-	'frame-executive/std',
-	'frame-support/std',
-	'frame-system/std',
-	'frame-system-rpc-runtime-api/std',
-	'pallet-authorship/std',
-	'pallet-babe/std',
-	'pallet-balances/std',
-	'pallet-grandpa/std',
-	'pallet-im-online/std',
-	'pallet-offences/std',
-	'pallet-randomness-collective-flip/std',
-	'pallet-session/std',
-	'pallet-staking/std',
-	'pallet-authority-discovery/std',
-	'pallet-multisig/std',
-	'pallet-sudo/std',
-	'pallet-vesting/std',
-	'pallet-indices/std',
-	'pallet-identity/std',
-	'pallet-proxy/std',
-	'pallet-recovery/std',
-	'pallet-society/std',
-	'pallet-lottery/std',
-	'pallet-gilt/std',
-	'pallet-utility/std',
-	"pallet-bounties/std",
-	'pallet-contracts/std',
-	'pallet-contracts-primitives/std',
-	'pallet-contracts-rpc-runtime-api/std',
-	'pallet-tips/std',
-	'pallet-timestamp/std',
-	'pallet-transaction-payment/std',
-	'pallet-transaction-payment-rpc-runtime-api/std',
-	'pallet-treasury/std',
-	'pallet-collective/std',
-	'pallet-elections-phragmen/std',
-	'pallet-membership/std',
-	'pallet-democracy/std',
-	'pallet-scheduler/std',
-	"pallet-election-provider-multi-phase/std",
-	#sp
-	"sp-consensus-aura/std",
-	'sp-api/std',
-	'sp-block-builder/std',
-	'sp-consensus-babe/std',
-	'sp-core/std',
-	'sp-inherents/std',
-	'sp-offchain/std',
-	'sp-runtime/std',
-	'sp-session/std',
-	'sp-staking/std',
-	'sp-std/std',
-	'sp-transaction-pool/std',
-	'sp-version/std',
-	"sp-npos-elections/std",
+    'codec/std',
+    'serde',
+    'frame-executive/std',
+    'frame-support/std',
+    'frame-system/std',
+    'frame-system-rpc-runtime-api/std',
+    'pallet-authorship/std',
+    'pallet-babe/std',
+    'pallet-balances/std',
+    'pallet-grandpa/std',
+    'pallet-im-online/std',
+    'pallet-offences/std',
+    'pallet-randomness-collective-flip/std',
+    'pallet-session/std',
+    'pallet-staking/std',
+    'pallet-authority-discovery/std',
+    'pallet-multisig/std',
+    'pallet-sudo/std',
+    'pallet-vesting/std',
+    'pallet-indices/std',
+    'pallet-identity/std',
+    'pallet-proxy/std',
+    'pallet-recovery/std',
+    'pallet-society/std',
+    'pallet-lottery/std',
+    'pallet-gilt/std',
+    'pallet-utility/std',
+    "pallet-bounties/std",
+    'pallet-contracts/std',
+    'pallet-contracts-primitives/std',
+    'pallet-contracts-rpc-runtime-api/std',
+    'pallet-tips/std',
+    'pallet-timestamp/std',
+    'pallet-transaction-payment/std',
+    'pallet-transaction-payment-rpc-runtime-api/std',
+    'pallet-treasury/std',
+    'pallet-collective/std',
+    'pallet-elections-phragmen/std',
+    'pallet-membership/std',
+    'pallet-democracy/std',
+    'pallet-scheduler/std',
+    "pallet-election-provider-multi-phase/std",
+    'sp-api/std',
+    'sp-block-builder/std',
+    'sp-consensus-babe/std',
+    'sp-core/std',
+    'sp-inherents/std',
+    'sp-offchain/std',
+    'sp-runtime/std',
+    'sp-session/std',
+    'sp-staking/std',
+    'sp-std/std',
+    'sp-transaction-pool/std',
+    'sp-version/std',
+    "sp-npos-elections/std",
+    'pallet-verifier-lightclient/std',
+    'pallet-eth-dispatch/std',
+    'pallet-basic-channel/std',
+    'artemis-core/std',
+    'erc20-pdex-migration-pallet/std',
+    "orml-vesting/std",
+    "orml-currencies/std",
+    "orml-tokens/std",
+    "orml-traits/std",
+    "polkadex-primitives/std",
+    "polkadex-fungible-assets/std",
+    "polkadex-ocex/std",
+    "token-faucet-pallet/std",
+    "chainbridge/std",
+    'erc721/std',
+    'example/std',
 
-	"orml-vesting/std",
-	"orml-currencies/std",
-	"orml-tokens/std",
-	"orml-traits/std",
-
-	"polkadex-primitives/std",
-	"polkadex-fungible-assets/std",
-	"polkadex-ocex/std",
-	"token-faucet-pallet/std",
-	"chainbridge/std",
-	'erc721/std',
-	'example/std',
 ]
 runtime-benchmarks = [
-	"frame-benchmarking",
-	"frame-support/runtime-benchmarks",
-	"frame-system-benchmarking",
-	"frame-system/runtime-benchmarks",
-	"hex-literal",
-	"pallet-balances/runtime-benchmarks",
-	"pallet-timestamp/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-support/runtime-benchmarks",
+    "frame-system-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "hex-literal",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-timestamp/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
 ]
