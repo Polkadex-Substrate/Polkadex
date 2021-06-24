@@ -22,7 +22,7 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, Codec};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
@@ -101,7 +101,13 @@ pub mod constants;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use pallet_contracts::{Frame, Schedule};
-use frame_benchmarking::frame_support::pallet_prelude::Get;
+use frame_benchmarking::frame_support::pallet_prelude::{Get, Member, IsType, MaybeSerializeDeserialize};
+use pallet_polkapool::{Config, Call, Event};
+use frame_benchmarking::frame_support::sp_runtime::traits::{One, AtLeast32BitUnsigned, Bounded};
+use frame_benchmarking::frame_support::dispatch::{GetDispatchInfo, Dispatchable, UnfilteredDispatchable, PostDispatchInfo};
+use frame_benchmarking::frame_support::sp_runtime::app_crypto::sp_core::H256;
+use frame_benchmarking::frame_support::traits::IsSubType;
+use frame_benchmarking::frame_support::Parameter;
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -1046,6 +1052,27 @@ impl Filter<Call> for FeelessTxnFilter {
     }
 }
 
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+		RuntimeBlockWeights::get().max_block;
+	pub const MaxAllowedTxns: usize = 50;
+    pub const MinStakePeriod: BlockNumber = 1;
+    pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
+}
+
+impl pallet_polkapool::Config for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type Balance = Balance;
+    type Currency = Currencies;
+    type MinStakeAmount = MinStakeAmount;
+    type MaxAllowedTxns = MaxAllowedTxns;
+    type MinStakePeriod = MinStakePeriod;
+    type Call = Call;
+    type RandomnessSource = RandomnessCollectiveFlip;
+    type CallFilter = FeelessTxnFilter;
+}
+
 impl pallet_gilt::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
@@ -1063,6 +1090,8 @@ impl pallet_gilt::Config for Runtime {
     type MaxIntakeBids = MaxIntakeBids;
     type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
 }
+
+
 
 construct_runtime!(
     pub enum Runtime where
@@ -1115,6 +1144,7 @@ construct_runtime!(
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>}
     }
 );
 

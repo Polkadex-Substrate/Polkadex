@@ -26,6 +26,7 @@ frame-support = {default-features = false, version = '3.0.0', git = 'https://git
 frame-system = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
 sp-arithmetic = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
 sp-core = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
+sp-std = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
 
 [dev-dependencies]
 serde = '1.0.119'
@@ -45,6 +46,7 @@ std = [
 	'orml-traits/std',
 	'polkadex-primitives/std',
 	'sp-arithmetic/std',
-	'sp-core/std'
+	'sp-core/std',
+	'sp-std/std'
 ]
 try-runtime = ['frame-support/try-runtime']
