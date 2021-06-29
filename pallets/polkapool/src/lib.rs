@@ -60,6 +60,8 @@ pub trait Config: frame_system::Config {
     type RandomnessSource: Randomness<H256, BlockNumber>;
     /// Call Filter
     type CallFilter: Filter<<Self as Config>::Call>;
+    //Minimum Stake per Call
+    type MinStakePerWeight : Get<u128>;
 }
 
 #[derive(Decode, Encode, Copy, Clone)]
@@ -201,8 +203,8 @@ decl_module! {
             ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
             let origin = <T as Config>::Origin::from(origin);
 
-
-            ensure!(stake_amount >= T::MinStakeAmount::get(), Error::<T>::StakeAmountTooSmall); // TODO min stake should be the weight of the call
+            let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128)?;
+            ensure!(stake_amount >= minimum_stake_amount, Error::<T>::StakeAmountTooSmall); // TODO min stake should be the weight of the call
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
             let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
