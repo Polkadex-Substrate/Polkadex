@@ -100,14 +100,6 @@ pub mod constants;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
-use pallet_contracts::{Frame, Schedule};
-use frame_benchmarking::frame_support::pallet_prelude::{Get, Member, IsType, MaybeSerializeDeserialize};
-use pallet_polkapool::{Config, Call, Event};
-use frame_benchmarking::frame_support::sp_runtime::traits::{One, AtLeast32BitUnsigned, Bounded};
-use frame_benchmarking::frame_support::dispatch::{GetDispatchInfo, Dispatchable, UnfilteredDispatchable, PostDispatchInfo};
-use frame_benchmarking::frame_support::sp_runtime::app_crypto::sp_core::H256;
-use frame_benchmarking::frame_support::traits::IsSubType;
-use frame_benchmarking::frame_support::Parameter;
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -1053,7 +1045,7 @@ impl Filter<Call> for FeelessTxnFilter {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+	pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
 		RuntimeBlockWeights::get().max_block;
 	pub const MaxAllowedTxns: usize = 50;
     pub const MinStakePeriod: BlockNumber = 1;
@@ -1063,12 +1055,13 @@ parameter_types! {
 impl pallet_polkapool::Config for Runtime {
     type Event = Event;
     type Origin = Origin;
+    type PalletsOrigin = OriginCaller;
+    type Call = Call;
     type Balance = Balance;
     type Currency = Currencies;
     type MinStakeAmount = MinStakeAmount;
     type MaxAllowedTxns = MaxAllowedTxns;
     type MinStakePeriod = MinStakePeriod;
-    type Call = Call;
     type RandomnessSource = RandomnessCollectiveFlip;
     type CallFilter = FeelessTxnFilter;
 }
@@ -1142,9 +1135,9 @@ construct_runtime!(
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
         TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
-        Example: example::{Pallet, Call, Event<T>},
+        // Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},
-        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>}
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -1640,15 +1633,15 @@ impl erc721::Config for Runtime {
     type Identifier = NFTTokenId;
 }
 
-impl example::Config for Runtime {
-    type Event = Event;
-    type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
-    type Balance = Balance;
-    type Currency = Currencies;
-    type HashId = HashId;
-    type NativeTokenId = NativeTokenId;
-    type Erc721Id = NFTTokenId;
-}
+// impl example::Config for Runtime {
+//     type Event = Event;
+//     type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
+//     type Balance = Balance;
+//     type Currency = Currencies;
+//     type HashId = HashId;
+//     type NativeTokenId = NativeTokenId;
+//     type Erc721Id = NFTTokenId;
+// }
 #[cfg(test)]
 mod tests {
     use frame_system::offchain::CreateSignedTransaction;

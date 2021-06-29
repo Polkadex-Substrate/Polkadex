@@ -5,12 +5,12 @@ use codec::Codec;
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, traits::Get,
+    decl_error, decl_event, decl_module, decl_storage, dispatch, traits::{Get, OriginTrait},
 };
-use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo, UnfilteredDispatchable};
+use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::traits::{Filter, IsSubType, Randomness};
+use frame_support::traits::{Filter, Randomness};
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
@@ -18,13 +18,25 @@ use polkadex_primitives::BlockNumber;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
 use sp_std::vec::Vec;
+use sp_std::boxed::Box;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-    /// Origin type
-    type CallOrigin: From<frame_system::RawOrigin<Self::AccountId>> + Codec + Clone + Eq;
+    /// The aggregated origin which the dispatch will take.
+    type Origin: OriginTrait<PalletsOrigin = Self::PalletsOrigin>
+    + From<Self::PalletsOrigin>
+    + IsType<<Self as frame_system::Config>::Origin>;
+
+    /// The caller origin, overarching type of all pallets origins.
+    type PalletsOrigin: From<frame_system::RawOrigin<Self::AccountId>> + Codec + Clone + Eq;
+
+    /// The aggregated call type.
+    type Call: Parameter
+    + Dispatchable<Origin = <Self as Config>::Origin>
+    + GetDispatchInfo
+    + From<frame_system::Call<Self>>;
     /// Balance Type
     type Balance: Parameter
     + Member
@@ -44,11 +56,6 @@ pub trait Config: frame_system::Config {
     type MaxAllowedTxns: Get<usize>;
     /// Min Stake Period
     type MinStakePeriod: Get<Self::BlockNumber>;
-    /// The overarching call type.
-    type Call: Parameter
-    + Dispatchable<Origin = <Self as Config>::CallOrigin>
-    + GetDispatchInfo
-    + From<frame_system::Call<Self>>;
     /// Randomness Source
     type RandomnessSource: Randomness<H256, BlockNumber>;
     /// Call Filter
@@ -133,7 +140,7 @@ decl_storage! {
         pub StakeMovingAverage get(fn get_stake_moving_average): MovingAverage<T>;
 
         /// Feeless Extrinsics stored for next block
-        pub TxnsForNextBlock get(fn get_next_block_txns): ExtStore<<T as Config>::Call, <T as Config>::CallOrigin>;
+        pub TxnsForNextBlock get(fn get_next_block_txns): ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin>;
     }
 }
 
@@ -155,6 +162,7 @@ decl_error! {
         NotEnoughBalanceToStake,
         NoMoreFeelessTxnsForThisBlock,
         BadOrigin,
+        InvalidCall
     }
 }
 
@@ -162,7 +170,7 @@ decl_error! {
 // These functions materialize as "extrinsics", which are often compared to transactions.
 // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 decl_module! {
-    pub struct Module<T: Config> for enum Call where origin: T::Origin  {
+    pub struct Module<T: Config> for enum Call where origin: <T as frame_system::Config>::Origin {
         // Errors must be initialized if they are used by the pallet.
         type Error = Error<T>;
 
@@ -170,14 +178,15 @@ decl_module! {
 
         fn on_initialize(_n: T::BlockNumber) -> Weight {
             // Load the exts and clear the storage
-            let stored_exts: ExtStore<<T as Config>::Call, <T as Config>::CallOrigin> = <TxnsForNextBlock<T>>::take();
+            let stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = <TxnsForNextBlock<T>>::take();
             // TODO: Randomize the vector using babe randomness
             let base_weight: Weight = T::DbWeight::get().reads_writes(1, 1);
             let mut total_weight: Weight = 0;
             // Start executing
             for ext in stored_exts.store{
                 total_weight = total_weight + ext.call.get_dispatch_info().weight;
-                ext.call.dispatch(ext.origin); // FIXME: Handle the result returned
+                // let origin = <<T as Config>::Origin as From<T::PalletsOrigin>>::from(ext.origin.clone()).into();
+                ext.call.dispatch(ext.origin.into()); // FIXME: Handle the result returned
 
             }
             total_weight = total_weight + base_weight;
@@ -186,16 +195,18 @@ decl_module! {
 
         // TODO: Update the weights to include swap transaction's weight
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
-        pub fn claim_feeless_transaction(origin, stake_amount: <T as Config>::Balance, call: <T as Config>::Call) -> dispatch::DispatchResult {
+        pub fn claim_feeless_transaction(origin, stake_amount: <T as Config>::Balance, call: Box<<T as Config>::Call>) -> dispatch::DispatchResult {
             let who = ensure_signed(origin.clone())?;
             ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
-            let origin = <T as Config>::CallOrigin::from(origin.into().ok().unwrap());
+            ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
+            let origin = <T as Config>::Origin::from(origin);
 
-            ensure!(stake_amount >= T::MinStakeAmount::get(), Error::<T>::StakeAmountTooSmall);
+
+            ensure!(stake_amount >= T::MinStakeAmount::get(), Error::<T>::StakeAmountTooSmall); // TODO min stake should be the weight of the call
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
-            let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::CallOrigin> = Self::get_next_block_txns();
-            ensure!(stored_exts.store.len() < T::MaxAllowedTxns::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
+            let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
+            ensure!(stored_exts.store.len() < T::MaxAllowedTxns::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock); // TODO: If if we already used the total feeless weight of next block
 
             // Update the moving average of stake amount
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
@@ -212,14 +223,14 @@ decl_module! {
 
             // Store the transactions randomize and execute on next block's initialize
             stored_exts.store.push(Ext{
-                call: call.clone(),
-                origin
+                call: *call.clone(),
+                origin: origin.caller().clone()
             });
 
             <StakedUsers<T>>::insert(who.clone(),staked_amount);
             <TxnsForNextBlock<T>>::put(stored_exts);
             <StakeMovingAverage<T>>::put(stake_moving_average);
-            Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(call));
+            Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(*call));
             Ok(())
         }
     }
