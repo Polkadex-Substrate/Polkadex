@@ -325,7 +325,12 @@ decl_module! {
             Ok(())
         }
 
-		/// Stores information about whitelisted investor, participating in round
+		/// Stores information about whitelisted investor, participating in round.
+		///
+		/// # Parameters
+		///
+		/// * `round_id`: Funding round id
+		/// * `amount`: Amount to be transferred to wallet.
         #[weight = 10000]
         pub fn participate_in_round(origin, round_id: T::Hash, amount: T::Balance) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
@@ -348,7 +353,11 @@ decl_module! {
             Ok(())
         }
 
-		/// Investor claiming for a particular funding round
+		/// Investor claiming for a particular funding round.
+		///
+		/// # Parameters
+		///
+		/// * `round_id`: Funding round id
         #[weight = T::WeightIDOInfo::claim_tokens()]
         pub fn claim_tokens(origin, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
@@ -380,7 +389,11 @@ decl_module! {
             Ok(())
         }
 
-		/// Stores informating about investors, showing interest in funding round
+		/// Stores information about investors, showing interest in funding round.
+		///
+		/// # Parameters
+		///
+		/// * `round_id`: Funding round id
         #[weight = T::WeightIDOInfo::show_interest_in_round()]
         pub fn show_interest_in_round(origin, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
@@ -398,6 +411,11 @@ decl_module! {
 
 		/// Transfers the raised amount to another address,
 		/// only the round creator can call this or the governance.
+		///
+		/// # Parameters
+		///
+		/// * `round_id`: Funding round id
+		/// * `beneficiary`: Account Id of Beneficiary
          #[weight = 10000]
         pub fn withdraw_raise(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
             let creator: T::AccountId = ensure_signed(origin)?;
@@ -415,6 +433,11 @@ decl_module! {
 
 		/// Transfers the remaining tokens to another address,
 		/// only the round creator can call this or the governance.
+		///
+		/// # Parameters
+		///
+		/// * `round_id`: Funding round id
+		/// * `beneficiary`: Account Id of Beneficiary
          #[weight = 10000]
         pub fn withdraw_token(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
             let creator: T::AccountId = ensure_signed(origin)?;
