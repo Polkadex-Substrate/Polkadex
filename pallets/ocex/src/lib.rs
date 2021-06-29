@@ -120,14 +120,8 @@ decl_storage! {
     add_extra_genesis {
         config(genesis_account): T::AccountId;
         build( |config: &GenesisConfig<T>| {
-            // let linked_account_object = LinkedAccount<T>{
-            //     prev: &config.genesis_account,
-            //     current: &config.genesis_account,
-            //     next: None,
-            //     proxies: vec![]
-            // };
+
             let linked_account_object = LinkedAccount::from(config.genesis_account.clone(), config.genesis_account.clone());
-            //let linked_account_object = LinkedAccount::default();
             <MainAccounts<T>>::insert(&config.genesis_account, linked_account_object);
         });
     }

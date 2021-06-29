@@ -107,6 +107,7 @@ polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
 token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
 erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
+polkadex-ido = { path = "../pallets/Polkadex_Ido", default-features = false }
 
 [dependencies.chainbridge]
 default-features = false
@@ -202,7 +203,7 @@ std = [
     "chainbridge/std",
     'erc721/std',
     'example/std',
-
+	'polkadex-ido/std'
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

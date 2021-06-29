@@ -8,5 +8,6 @@ members = [
     'pallets/fungible-assets',
     'pallets/token-faucet',
     'pallets/pdex-migration',
+	'pallets/Polkadex_Ido',
     'runtime',
 ]
