@@ -203,7 +203,7 @@ std = [
     "chainbridge/std",
     'erc721/std',
     'example/std',
-
+	'polkadex-ido/std'
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

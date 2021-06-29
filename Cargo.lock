@@ -397,7 +397,7 @@ dependencies = [
  "memchr",
  "num_cpus",
  "once_cell",
- "pin-project-lite 0.2.6",
+ "pin-project-lite 0.2.7",
  "pin-utils",
  "slab",
  "wasm-bindgen-futures",
@@ -444,7 +444,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "memchr",
- "pin-project-lite 0.2.6",
+ "pin-project-lite 0.2.7",
 ]
 
 [[package]]
@@ -457,7 +457,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "memchr",
- "pin-project-lite 0.2.6",
+ "pin-project-lite 0.2.7",
 ]
 
 [[package]]
@@ -868,7 +868,7 @@ dependencies = [
 [[package]]
 name = "chainbridge"
 version = "0.0.2"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#1bd952b3417e83c9b7b1165f768fdf80e8e73f2d"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#a781bdb844233c78c7b81f0646a78ddb1f870626"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -999,9 +999,9 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed00c67cb5d0a7d64a44f6ad2668db7e7530311dd53ea79bcd4fb022c64911c8"
+checksum = "66c99696f6c9dd7f35d486b9d04d7e6e202aa3e8c40d553f2fdf5e7e0c6a71ef"
 dependencies = [
  "libc",
 ]
@@ -1650,7 +1650,7 @@ checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
 [[package]]
 name = "example-erc721"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#1bd952b3417e83c9b7b1165f768fdf80e8e73f2d"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#a781bdb844233c78c7b81f0646a78ddb1f870626"
 dependencies = [
  "chainbridge",
  "frame-support",
@@ -1667,7 +1667,7 @@ dependencies = [
 [[package]]
 name = "example-pallet"
 version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#1bd952b3417e83c9b7b1165f768fdf80e8e73f2d"
+source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#a781bdb844233c78c7b81f0646a78ddb1f870626"
 dependencies = [
  "chainbridge",
  "example-erc721",
@@ -2168,7 +2168,7 @@ dependencies = [
  "futures-io",
  "memchr",
  "parking",
- "pin-project-lite 0.2.6",
+ "pin-project-lite 0.2.7",
  "waker-fn",
 ]
 
@@ -2235,7 +2235,7 @@ dependencies = [
  "futures-sink",
  "futures-task",
  "memchr",
- "pin-project-lite 0.2.6",
+ "pin-project-lite 0.2.7",
  "pin-utils",
  "proc-macro-hack",
  "proc-macro-nested",
@@ -2437,9 +2437,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.18"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "322f4de77956e22ed0e5032c359a0f1273f1f7f0d79bfa3b8ffbc730d7fbcc5c"
+checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
 ]
@@ -5388,9 +5388,9 @@ checksum = "257b64915a082f7811703966789728173279bdebb956b143dbcd23f6f970a777"
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc0e1f259c92177c30a4c9d177246edd0a3568b25756a977d0632cf8fa37e905"
+checksum = "8d31d11c69a6b52a174b42bdc0c30e5e11670f90788b2c471c31c1d17d449443"
 
 [[package]]
 name = "pin-utils"
@@ -6286,9 +6286,9 @@ checksum = "61b3909d758bb75c79f23d4736fac9433868679d3ad2ea7a61e3c25cfda9a088"
 
 [[package]]
 name = "ruzstd"
-version = "0.2.2"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d425143485a37727c7a46e689bbe3b883a00f42b4a52c4ac0f44855c1009b00"
+checksum = "8cada0ef59efa6a5f4dc5e491f93d9f31e3fc7758df421ff1de8a706338e1100"
 dependencies = [
  "byteorder",
  "twox-hash",
@@ -9180,7 +9180,7 @@ checksum = "09adeb8c97449311ccd28a427f96fb563e7fd31aabf994189879d9da2394b89d"
 dependencies = [
  "cfg-if 1.0.0",
  "log",
- "pin-project-lite 0.2.6",
+ "pin-project-lite 0.2.7",
  "tracing-attributes",
  "tracing-core",
 ]
@@ -9238,9 +9238,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.2.18"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa5553bf0883ba7c9cbe493b085c29926bd41b66afc31ff72cf17ff4fb60dcd5"
+checksum = "ab69019741fca4d98be3c62d2b75254528b5432233fd8a4d2739fec20278de48"
 dependencies = [
  "ansi_term 0.12.1",
  "chrono",
