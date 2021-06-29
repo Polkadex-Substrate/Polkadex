@@ -22,11 +22,11 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-use codec::{Decode, Encode, Codec};
+use codec::{Decode, Encode};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier, Randomness,
+        Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier,
         U128CurrencyToVote,
     },
     weights::{
@@ -38,10 +38,7 @@ use frame_support::{
 use frame_support::{traits::InstanceFilter, PalletId};
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
-use frame_system::{
-    limits::{BlockLength, BlockWeights},
-    EnsureOneOf, EnsureRoot, RawOrigin,
-};
+use frame_system::{limits::{BlockLength, BlockWeights}, EnsureOneOf, EnsureRoot, RawOrigin};
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_contracts::weights::WeightInfo;
@@ -99,7 +96,7 @@ pub mod impls;
 pub mod constants;
 
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
+use orml_traits::{parameter_type_with_key};
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -1048,8 +1045,11 @@ parameter_types! {
 	pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
 		RuntimeBlockWeights::get().max_block;
 	pub const MaxAllowedTxns: usize = 50;
-    pub const MinStakePeriod: BlockNumber = 1;
+    pub const MinStakePerWeight: u128 = 10_000;
+    pub const MinStakePeriodPerWeight: u32 = 1;
     pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
+    pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
+		RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_polkapool::Config for Runtime {
@@ -1060,10 +1060,12 @@ impl pallet_polkapool::Config for Runtime {
     type Balance = Balance;
     type Currency = Currencies;
     type MinStakeAmount = MinStakeAmount;
-    type MaxAllowedTxns = MaxAllowedTxns;
-    type MinStakePeriod = MinStakePeriod;
+    type MaxAllowedWeight = MaxAllowedWeight;
     type RandomnessSource = RandomnessCollectiveFlip;
     type CallFilter = FeelessTxnFilter;
+    type MinStakePerWeight = MinStakePerWeight;
+    type GovernanceOrigin = EnsureGovernance;
+    type MinStakePeriodPerWeight = ();
 }
 
 impl pallet_gilt::Config for Runtime {

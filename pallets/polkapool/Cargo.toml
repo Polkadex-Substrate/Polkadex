@@ -19,7 +19,8 @@ orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 
 # external dependencies
 codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
-
+rand = {default-features = false, version = '0.8.0'}
+rand_chacha = {default-features = false, version = '0.3.0'}
 # Substrate dependencies
 frame-benchmarking = {default-features = false, optional = true, version = '3.1.0', git = 'https://github.com/paritytech/substrate.git'}
 frame-support = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
@@ -27,7 +28,8 @@ frame-system = {default-features = false, version = '3.0.0', git = 'https://gith
 sp-arithmetic = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
 sp-core = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
 sp-std = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
-
+pallet-babe = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
+sp-consensus-vrf = { default-features = false, version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 [dev-dependencies]
 serde = '1.0.119'
 sp-io = {default-features = false, version = '3.0.0', git = 'https://github.com/paritytech/substrate.git'}
@@ -37,6 +39,8 @@ sp-runtime = {default-features = false, version = '3.0.0', git = 'https://github
 default = ['std']
 runtime-benchmarks = ['frame-benchmarking']
 std = [
+	"rand/std",
+	"rand_chacha/std",
 	'codec/std',
 	'frame-support/std',
 	'frame-system/std',
@@ -44,9 +48,11 @@ std = [
 	'orml-tokens/std',
 	'orml-currencies/std',
 	'orml-traits/std',
+	"sp-consensus-vrf/std",
 	'polkadex-primitives/std',
 	'sp-arithmetic/std',
 	'sp-core/std',
-	'sp-std/std'
+	'sp-std/std',
+	'pallet-babe/std',
 ]
 try-runtime = ['frame-support/try-runtime']
