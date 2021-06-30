@@ -1065,7 +1065,7 @@ impl pallet_polkapool::Config for Runtime {
     type MinStakeAmount = MinStakeAmount;
     type MaxAllowedWeight = MaxAllowedWeight;
     type MinStakePeriod = MinStakePeriod;
-    type RandomnessSource = RandomnessCollectiveFlip;
+    type RandomnessSource = Babe;
     type CallFilter = FeelessTxnFilter;
     type MinStakePerWeight = MinStakePerWeight;
     type GovernanceOrigin = EnsureGovernance;

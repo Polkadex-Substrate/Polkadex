@@ -17,11 +17,13 @@ use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
+use sp_consensus_vrf::schnorrkel;
 use sp_std::vec::Vec;
 use sp_std::boxed::Box;
 use frame_system::{
     limits::{BlockWeights}
 };
+use rand::{seq::SliceRandom, SeedableRng};
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -59,13 +61,14 @@ pub trait Config: frame_system::Config {
     /// Min Stake Period
     type MinStakePeriod: Get<Self::BlockNumber>;
     /// Randomness Source
-    type RandomnessSource: Randomness<H256, BlockNumber>;
+    type RandomnessSource: Randomness<Self::Hash, BlockNumber>;
     /// Call Filter
     type CallFilter: Filter<<Self as Config>::Call>;
     //Minimum Stake per Call
     type MinStakePerWeight : Get<u128>;
 
     type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success = Self::AccountId>;
+
 }
 
 
@@ -192,6 +195,16 @@ decl_module! {
             // TODO: Randomize the vector using babe randomness
             let base_weight: Weight = T::DbWeight::get().reads_writes(1, 1);
             let mut total_weight: Weight = 0;
+            let random_seed = <T as Config>::RandomnessSource::random_seed();
+
+            /*
+            let seed = [0; 32];
+    let mut rng = ChaChaRng::from_seed(seed);
+
+    let mut v1 = vec![1, 2, 3, 4, 5];
+    v1.shuffle(&mut rng);
+    assert_eq!(v1, [3, 5, 2, 4, 1]);
+             */
             // Start executing
             for ext in stored_exts.store{
                 total_weight = total_weight + ext.call.get_dispatch_info().weight;
@@ -212,11 +225,11 @@ decl_module! {
             let origin = <T as Config>::Origin::from(origin);
 
             let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128).unwrap();
-            ensure!(stake_amount >= minimum_stake_amount.saturated_into(), Error::<T>::StakeAmountTooSmall); // TODO min stake should be the weight of the call
+            ensure!(stake_amount >= minimum_stake_amount.saturated_into(), Error::<T>::StakeAmountTooSmall); // TODO
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
             let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
-            ensure!(stored_exts.total_weight < T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock); // TODO: If if we already used the total feeless weight of next block
+            ensure!(stored_exts.total_weight < T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
 
             // Update the moving average of stake amount
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
