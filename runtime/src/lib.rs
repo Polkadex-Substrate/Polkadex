@@ -1048,8 +1048,11 @@ parameter_types! {
 	pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
 		RuntimeBlockWeights::get().max_block;
 	pub const MaxAllowedTxns: usize = 50;
+    pub const MinStakePerWeight: u128 = 10_000;
     pub const MinStakePeriod: BlockNumber = 1;
     pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
+    pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
+		RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_polkapool::Config for Runtime {
@@ -1060,10 +1063,12 @@ impl pallet_polkapool::Config for Runtime {
     type Balance = Balance;
     type Currency = Currencies;
     type MinStakeAmount = MinStakeAmount;
-    type MaxAllowedTxns = MaxAllowedTxns;
+    type MaxAllowedWeight = MaxAllowedWeight;
     type MinStakePeriod = MinStakePeriod;
     type RandomnessSource = RandomnessCollectiveFlip;
     type CallFilter = FeelessTxnFilter;
+    type MinStakePerWeight = MinStakePerWeight;
+    type GovernanceOrigin = EnsureGovernance;
 }
 
 impl pallet_gilt::Config for Runtime {

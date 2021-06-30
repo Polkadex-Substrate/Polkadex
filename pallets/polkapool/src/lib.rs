@@ -19,7 +19,9 @@ use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero}
 use sp_core::H256;
 use sp_std::vec::Vec;
 use sp_std::boxed::Box;
-
+use frame_system::{
+    limits::{BlockWeights}
+};
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -53,7 +55,7 @@ pub trait Config: frame_system::Config {
     /// Min amount that must be staked
     type MinStakeAmount: Get<Self::Balance>;
     /// Maximum allowed Feeless Transactions in a block, (TODO: Bound the number of transactions based on total weight)
-    type MaxAllowedTxns: Get<usize>;
+    type MaxAllowedWeight: Get<Weight>;
     /// Min Stake Period
     type MinStakePeriod: Get<Self::BlockNumber>;
     /// Randomness Source
@@ -62,7 +64,11 @@ pub trait Config: frame_system::Config {
     type CallFilter: Filter<<Self as Config>::Call>;
     //Minimum Stake per Call
     type MinStakePerWeight : Get<u128>;
+
+    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success = Self::AccountId>;
 }
+
+
 
 #[derive(Decode, Encode, Copy, Clone)]
 pub struct StakeInfo<T: Config + frame_system::Config> {
@@ -149,11 +155,13 @@ decl_storage! {
 decl_event!(
     pub enum Event<T>
     where
-        // AccountId = <T as frame_system::Config>::AccountId,
+        AccountId = <T as frame_system::Config>::AccountId,
+        Balance = <T as Config>::Balance,
         Call = <T as Config>::Call,
     {
         FeelessExtrinsicAccepted(Call),
         FeelessExtrinsicsExecuted(Vec<Call>),
+        StakeSlashed(AccountId, Balance),
     }
 );
 
@@ -203,12 +211,12 @@ decl_module! {
             ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
             let origin = <T as Config>::Origin::from(origin);
 
-            let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128)?;
-            ensure!(stake_amount >= minimum_stake_amount, Error::<T>::StakeAmountTooSmall); // TODO min stake should be the weight of the call
+            let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128).unwrap();
+            ensure!(stake_amount >= minimum_stake_amount.saturated_into(), Error::<T>::StakeAmountTooSmall); // TODO min stake should be the weight of the call
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
             let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
-            ensure!(stored_exts.store.len() < T::MaxAllowedTxns::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock); // TODO: If if we already used the total feeless weight of next block
+            ensure!(stored_exts.total_weight < T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock); // TODO: If if we already used the total feeless weight of next block
 
             // Update the moving average of stake amount
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
@@ -228,11 +236,22 @@ decl_module! {
                 call: *call.clone(),
                 origin: origin.caller().clone()
             });
+            stored_exts.total_weight += call.get_dispatch_info().weight;
 
             <StakedUsers<T>>::insert(who.clone(),staked_amount);
             <TxnsForNextBlock<T>>::put(stored_exts);
             <StakeMovingAverage<T>>::put(stake_moving_average);
             Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(*call));
+            Ok(())
+        }
+
+        #[weight = 10000]
+        pub fn slash_stake(origin, account: T::AccountId) -> DispatchResult {
+            let origin = <T as Config>::Origin::from(origin);
+            T::GovernanceOrigin::ensure_origin(origin)?;
+            let stake = <StakedUsers<T>>::get(&account);
+            T::Currency::slash(AssetId::POLKADEX,&account,stake.staked_amount);
+            Self::deposit_event(RawEvent::StakeSlashed(account,stake.staked_amount));
             Ok(())
         }
     }
