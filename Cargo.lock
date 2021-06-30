@@ -4523,6 +4523,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main)",
  "rand 0.8.3",
+ "rand_chacha 0.3.0",
  "serde",
  "sp-arithmetic",
  "sp-consensus-vrf",

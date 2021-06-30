@@ -23,6 +23,7 @@ use sp_std::boxed::Box;
 use frame_system::{
     limits::{BlockWeights}
 };
+use rand_chacha::ChaChaRng;
 use rand::{seq::SliceRandom, SeedableRng};
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -61,7 +62,7 @@ pub trait Config: frame_system::Config {
     /// Min Stake Period
     type MinStakePeriod: Get<Self::BlockNumber>;
     /// Randomness Source
-    type RandomnessSource: Randomness<Self::Hash, BlockNumber>;
+    type RandomnessSource: Randomness<H256, BlockNumber>;
     /// Call Filter
     type CallFilter: Filter<<Self as Config>::Call>;
     //Minimum Stake per Call
@@ -191,20 +192,12 @@ decl_module! {
 
         fn on_initialize(_n: T::BlockNumber) -> Weight {
             // Load the exts and clear the storage
-            let stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = <TxnsForNextBlock<T>>::take();
-            // TODO: Randomize the vector using babe randomness
+            let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = <TxnsForNextBlock<T>>::take();
             let base_weight: Weight = T::DbWeight::get().reads_writes(1, 1);
             let mut total_weight: Weight = 0;
-            let random_seed = <T as Config>::RandomnessSource::random_seed();
-
-            /*
-            let seed = [0; 32];
-    let mut rng = ChaChaRng::from_seed(seed);
-
-    let mut v1 = vec![1, 2, 3, 4, 5];
-    v1.shuffle(&mut rng);
-    assert_eq!(v1, [3, 5, 2, 4, 1]);
-             */
+            let seed = <T as Config>::RandomnessSource::random_seed();
+            let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
+            stored_exts.store.shuffle(&mut rng);
             // Start executing
             for ext in stored_exts.store{
                 total_weight = total_weight + ext.call.get_dispatch_info().weight;
