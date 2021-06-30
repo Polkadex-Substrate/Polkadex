@@ -135,11 +135,6 @@ pub struct ExtStore<Call, Origin> {
     pub total_weight: Weight,
 }
 
-impl<Call, Origin> Default for ExtStore<Call, Origin> {
-    fn default() -> Self {
-        todo!()
-    }
-}
 
 decl_storage! {
     trait Store for Module<T: Config> as Polkapool {
