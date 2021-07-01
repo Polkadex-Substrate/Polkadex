@@ -160,8 +160,11 @@ decl_event!(
         AccountId = <T as frame_system::Config>::AccountId,
         Balance = <T as Config>::Balance,
         Call = <T as Config>::Call,
+        PostCallInfo = <<T as Config>::Call as Dispatchable>::PostInfo,
     {
         FeelessExtrinsicAccepted(Call),
+        FeelessCallFailedToExecute(PostCallInfo),
+        FeelessCallExecutedSuccessfully(PostCallInfo),
         FeelessExtrinsicsExecuted(Vec<Call>),
         StakeSlashed(AccountId, Balance),
     }
@@ -169,12 +172,15 @@ decl_event!(
 
 // Errors inform users that something went wrong.
 decl_error! {
-    pub enum Error for Module<T: Config> {
+    pub enum Error for Module<T: Config>
+    {
         StakeAmountTooSmall,
         NotEnoughBalanceToStake,
         NoMoreFeelessTxnsForThisBlock,
         BadOrigin,
-        InvalidCall
+        InvalidCall,
+        Overflow,
+        BadCall
     }
 }
 
@@ -199,8 +205,14 @@ decl_module! {
             // Start executing
             for ext in stored_exts.store{
                 total_weight = total_weight + ext.call.get_dispatch_info().weight;
-                // let origin = <<T as Config>::Origin as From<T::PalletsOrigin>>::from(ext.origin.clone()).into();
-                ext.call.dispatch(ext.origin.into()); // FIXME: Handle the result returned
+                match ext.call.dispatch(ext.origin.into()) {
+                    Ok(post_info) => {
+                        Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
+                    }
+                    Err(post_info_with_error) => {
+                        Self::deposit_event(RawEvent::FeelessCallFailedToExecute(post_info_with_error.post_info));
+                    }
+                }
 
             }
             total_weight = total_weight + base_weight;
@@ -215,7 +227,7 @@ decl_module! {
             ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
             let origin = <T as Config>::Origin::from(origin);
 
-            let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128).unwrap();
+            let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128).ok_or(<Error<T>>::Overflow)?;
             ensure!(stake_amount >= minimum_stake_amount.saturated_into(), Error::<T>::StakeAmountTooSmall); // TODO
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
