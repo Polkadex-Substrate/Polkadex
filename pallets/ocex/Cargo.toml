@@ -25,7 +25,7 @@ orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 pallet-balances = {git = "https://github.com/paritytech/substrate", default-features = false }
-pallet-substratee-registry = {git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false}
+pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", default-features = false }
 timestamp= {git = "https://github.com/paritytech/substrate.git", package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
 [dev-dependencies]
