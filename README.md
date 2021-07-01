@@ -77,7 +77,6 @@ brew install jq
 
 - Generate node key using `subkey`
 ```bash
-subkey generate --scheme Ed25519 | jq -r '.secretSeed'
 Alice_Node_Key=$(subkey generate --scheme Ed25519 --output-type Json | jq -r '.secretSeed')
 ```
 
