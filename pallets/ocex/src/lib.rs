@@ -94,6 +94,7 @@ decl_event!(
     {
         TokenDeposited(AssetId, AccountId, Balance),
         TokenWithdrawn(AssetId, AccountId, Balance),
+		TokenRelease(AssetId, AccountId, Balance),
         MainAccountRegistered(AccountId),
         ProxyAdded(AccountId,AccountId),
         ProxyRemoved(AccountId,AccountId),
@@ -152,6 +153,7 @@ decl_module! {
             // TODO: Check if the latest MRENCLAVE is registered by this sender
             // TODO: Handle software updated to enclave
             <T as Config>::Currency::transfer(asset_id, &Self::get_account(), &to, amount)?;
+			Self::deposit_event(RawEvent::TokenRelease(asset_id, to, amount));
             Ok(())
         }
 
