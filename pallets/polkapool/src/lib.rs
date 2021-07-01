@@ -57,7 +57,7 @@ pub trait Config: frame_system::Config {
     >;
     /// Min amount that must be staked
     type MinStakeAmount: Get<Self::Balance>;
-    /// Maximum allowed Feeless Transactions in a block, (TODO: Bound the number of transactions based on total weight)
+    /// Maximum allowed Feeless Transactions in a block
     type MaxAllowedWeight: Get<Weight>;
     /// Min Stake Period
     type MinStakePeriod: Get<Self::BlockNumber>;
@@ -160,11 +160,11 @@ decl_event!(
         AccountId = <T as frame_system::Config>::AccountId,
         Balance = <T as Config>::Balance,
         Call = <T as Config>::Call,
-        PostCallInfo = <<T as Config>::Call as Dispatchable>::PostInfo,
+        PostInfo = <<T as Config>::Call as Dispatchable>::PostInfo,
     {
         FeelessExtrinsicAccepted(Call),
-        FeelessCallFailedToExecute(PostCallInfo),
-        FeelessCallExecutedSuccessfully(PostCallInfo),
+        FeelessCallFailedToExecute(PostInfo),
+        FeelessCallExecutedSuccessfully(PostInfo),
         FeelessExtrinsicsExecuted(Vec<Call>),
         StakeSlashed(AccountId, Balance),
     }
