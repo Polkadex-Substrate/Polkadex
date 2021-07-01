@@ -121,18 +121,21 @@ pub struct Ext<Call, Origin> {
     pub origin: Origin,
 }
 
-impl<Call, Origin> Default for Ext<Call, Origin> {
-    fn default() -> Self {
-        todo!()
-    }
-}
-
 #[derive(Decode, Encode, Clone)]
 pub struct ExtStore<Call, Origin> {
     /// vector of eligible feeless extrinsics
     pub store: Vec<Ext<Call, Origin>>,
     /// Total Weight of the stored extrinsics
     pub total_weight: Weight,
+}
+
+impl<Call,Origin> Default for ExtStore<Call, Origin> {
+    fn default() -> Self {
+        Self {
+            store: Vec::new(),
+            total_weight: 0
+        }
+    }
 }
 
 
