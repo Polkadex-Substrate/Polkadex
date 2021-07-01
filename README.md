@@ -69,9 +69,24 @@ This will remove the data folder, note that all chain data is now lost.
 
 ## Run as a validator node
 
+- Install `subkey`, `jq`
+```bash
+curl https://getsubstrate.io -sSf | bash -s --
+brew install jq
+```
+
+- Generate node key using `subkey`
+```bash
+subkey generate --scheme Ed25519 | jq -r '.secretSeed'
+Alice_Node_Key=$(subkey generate --scheme Ed25519 --output-type Json | jq -r '.secretSeed')
+```
+
+- Run Alice's node
+
 ```bash
 # Purge any chain data from previous runs
 ./target/release/polkadex-node purge-chain --base-path /tmp/alice --chain local
+
 # Start Alice's node
 ./target/release/polkadex-node --base-path /tmp/alice \
   --chain local \
@@ -79,7 +94,7 @@ This will remove the data folder, note that all chain data is now lost.
   --port 30333 \
   --ws-port 9945 \
   --rpc-port 9933 \
-  --node-key 0000000000000000000000000000000000000000000000000000000000000001 \
+  --node-key $Alice_Node_Key \
   --telemetry-url 'wss://telemetry.polkadot.io/submit/ 0' \
   --validator
 ```
