@@ -175,6 +175,15 @@ If all is going well, after a few seconds, the nodes should peer together and st
 2021-06-30 08:16:58 💤 Idle (1 peers), best: #2 (0x4293…3e39), finalized #0 (0xa55f…7888), ⬇ 1.7kiB/s ⬆ 1.9kiB/s 
 ```
 
+## Using docker
+
+The following commands will setup a local polkadex network made of 2 nodes. It's using the node key (0000000000000000000000000000000000000000000000000000000000000001). But you should generate your own node key using the subkey as the above.
+
+```bash
+docker build . -t polkadex-node
+docker-compose -f 2nodes.yml up --force-recreate
+```
+
 ## Connecting Polkadot JS Apps to a Local Polkadex Node
 The development node is a Substrate-based node, so you can interact with it using standard Substrate tools. The two provided RPC endpoints are:
 - HTTP: `http://127.0.0.1:9933`
