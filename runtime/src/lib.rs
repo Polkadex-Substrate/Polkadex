@@ -38,10 +38,7 @@ use frame_support::{
 use frame_support::{traits::InstanceFilter, PalletId};
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
-use frame_system::{
-    limits::{BlockLength, BlockWeights},
-    EnsureOneOf, EnsureRoot, RawOrigin,
-};
+use frame_system::{limits::{BlockLength, BlockWeights}, EnsureOneOf, EnsureRoot, RawOrigin, Config};
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_contracts::weights::WeightInfo;
@@ -1049,7 +1046,7 @@ parameter_types! {
 		RuntimeBlockWeights::get().max_block;
 	pub const MaxAllowedTxns: usize = 50;
     pub const MinStakePerWeight: u128 = 10_000;
-    pub const MinStakePeriod: BlockNumber = 1;
+    pub const MinStakePeriodPerWeight: u32 = 1;
     pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
     pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
 		RuntimeBlockWeights::get().max_block;
@@ -1064,11 +1061,11 @@ impl pallet_polkapool::Config for Runtime {
     type Currency = Currencies;
     type MinStakeAmount = MinStakeAmount;
     type MaxAllowedWeight = MaxAllowedWeight;
-    type MinStakePeriod = MinStakePeriod;
     type RandomnessSource = RandomnessCollectiveFlip;
     type CallFilter = FeelessTxnFilter;
     type MinStakePerWeight = MinStakePerWeight;
     type GovernanceOrigin = EnsureGovernance;
+    type MinStakePeriodPerWeight = ();
 }
 
 impl pallet_gilt::Config for Runtime {

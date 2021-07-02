@@ -7,6 +7,8 @@ use codec::Codec;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch, traits::{Get, OriginTrait},
 };
+use core::{convert::TryInto, fmt};
+use sp_arithmetic::traits::*;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
@@ -25,12 +27,13 @@ use frame_system::{
 };
 use rand_chacha::ChaChaRng;
 use rand::{seq::SliceRandom, SeedableRng};
+
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// The aggregated origin which the dispatch will take.
-    type Origin: OriginTrait<PalletsOrigin = Self::PalletsOrigin>
+    type Origin: OriginTrait<PalletsOrigin=Self::PalletsOrigin>
     + From<Self::PalletsOrigin>
     + IsType<<Self as frame_system::Config>::Origin>;
 
@@ -39,7 +42,7 @@ pub trait Config: frame_system::Config {
 
     /// The aggregated call type.
     type Call: Parameter
-    + Dispatchable<Origin = <Self as Config>::Origin>
+    + Dispatchable<Origin=<Self as Config>::Origin>
     + GetDispatchInfo
     + From<frame_system::Call<Self>>;
     /// Balance Type
@@ -60,18 +63,16 @@ pub trait Config: frame_system::Config {
     /// Maximum allowed Feeless Transactions in a block
     type MaxAllowedWeight: Get<Weight>;
     /// Min Stake Period
-    type MinStakePeriod: Get<Self::BlockNumber>;
+    type MinStakePeriodPerWeight: Get<u32>;
     /// Randomness Source
     type RandomnessSource: Randomness<H256, BlockNumber>;
     /// Call Filter
     type CallFilter: Filter<<Self as Config>::Call>;
     //Minimum Stake per Call
-    type MinStakePerWeight : Get<u128>;
+    type MinStakePerWeight: Get<u128>;
 
-    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success = Self::AccountId>;
-
+    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success=Self::AccountId>;
 }
-
 
 
 #[derive(Decode, Encode, Copy, Clone)]
@@ -129,11 +130,11 @@ pub struct ExtStore<Call, Origin> {
     pub total_weight: Weight,
 }
 
-impl<Call,Origin> Default for ExtStore<Call, Origin> {
+impl<Call, Origin> Default for ExtStore<Call, Origin> {
     fn default() -> Self {
         Self {
             store: Vec::new(),
-            total_weight: 0
+            total_weight: 0,
         }
     }
 }
@@ -167,6 +168,7 @@ decl_event!(
         FeelessCallExecutedSuccessfully(PostInfo),
         FeelessExtrinsicsExecuted(Vec<Call>),
         StakeSlashed(AccountId, Balance),
+        Unstaked(AccountId, Balance),
     }
 );
 
@@ -176,6 +178,9 @@ decl_error! {
     {
         StakeAmountTooSmall,
         NotEnoughBalanceToStake,
+        UnlockingFailedCurrentBlockNumberLow,
+        StakeNotFound,
+        FailedToDepositStakedAmount,
         NoMoreFeelessTxnsForThisBlock,
         BadOrigin,
         InvalidCall,
@@ -239,12 +244,16 @@ decl_module! {
             stake_moving_average.update_stake_amount(stake_amount.clone());
 
             // Get current block number
-            let current_block_number: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
-
+            let call_weight =  call.get_dispatch_info().weight;
+            ensure!( call_weight < u32::MAX as u64, Error::<T>::Overflow);
             // Store the staking record
             let mut staked_amount = Self::staked_users(who.clone());
             staked_amount.staked_amount += stake_amount;
-            staked_amount.unlocking_block = current_block_number + T::MinStakePeriod::get();
+
+            //Todo change to new Formula
+            staked_amount.unlocking_block =  staked_amount.unlocking_block
+            .checked_add(&(call_weight as u32).saturated_into::<T::BlockNumber>().checked_mul(&T::MinStakePeriodPerWeight::get().saturated_into::<T::BlockNumber>()).ok_or(<Error<T>>::Overflow)?)
+            .ok_or(<Error<T>>::Overflow)?;
 
 
             // Store the transactions randomize and execute on next block's initialize
@@ -262,10 +271,26 @@ decl_module! {
         }
 
         #[weight = 10000]
+        pub fn unstake(origin, account: T::AccountId) -> DispatchResult {
+            let who = ensure_signed(origin.clone())?;
+            ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
+            ensure!(who == account,Error::<T>::BadOrigin);
+            ensure!(<StakedUsers<T>>::contains_key(&account),Error::<T>::StakeNotFound);
+            let stake = <StakedUsers<T>>::get(&account);
+            let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
+            ensure!(stake.unlocking_block <= current_block_no,Error::<T>::UnlockingFailedCurrentBlockNumberLow);
+            ensure!(T::Currency::deposit(AssetId::POLKADEX, &account, stake.staked_amount).is_ok(),Error::<T>::FailedToDepositStakedAmount);
+            Self::deposit_event(RawEvent::Unstaked(account,stake.staked_amount));
+            Ok(())
+        }
+
+
+        #[weight = 10000]
         pub fn slash_stake(origin, account: T::AccountId) -> DispatchResult {
             let origin = <T as Config>::Origin::from(origin);
             T::GovernanceOrigin::ensure_origin(origin)?;
             let stake = <StakedUsers<T>>::get(&account);
+            <StakedUsers<T>>::remove(&account);
             T::Currency::slash(AssetId::POLKADEX,&account,stake.staked_amount);
             Self::deposit_event(RawEvent::StakeSlashed(account,stake.staked_amount));
             Ok(())
