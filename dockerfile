@@ -16,17 +16,8 @@ RUN cd Polkadex && \
 	cargo update -p sp-std --precise e5437efefa82bd8eb567f1245f0a7443ac4e4fe7 && \
 	cargo +nightly-2021-05-11 build --release "--$PROFILE"
 
-CMD cp ./Polkadex/target/release/polkadex-node /usr/local/bin
+CMD cp /Polkadex/target/release/polkadex-node /usr/local/bin
 
-RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-node polkadex-node && \
-	mkdir -p /polkadex-node/.local/share && \
-	mkdir /data && \
-	chown -R polkadex-node:polkadex-node /data && \
-	ln -s /data /polkadex-node/.local/share/polkadex-node && \
-	rm -rf /usr/bin /usr/sbin
-
-USER polkadex-node
 EXPOSE 30333 9933 9944
-VOLUME ["/data"]
 
-CMD ["/usr/local/bin/polkadex-node"]
+CMD ["/Polkadex/target/release/polkadex-node"]
