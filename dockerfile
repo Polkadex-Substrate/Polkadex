@@ -16,8 +16,6 @@ RUN cd Polkadex && \
 	cargo update -p sp-std --precise e5437efefa82bd8eb567f1245f0a7443ac4e4fe7 && \
 	cargo +nightly-2021-05-11 build --release "--$PROFILE"
 
-CMD cp /Polkadex/target/release/polkadex-node /usr/local/bin
-
 EXPOSE 30333 9933 9944
 
 CMD ["/Polkadex/target/release/polkadex-node"]
