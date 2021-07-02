@@ -7,7 +7,6 @@ use codec::Codec;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch, traits::{Get, OriginTrait},
 };
-use core::{convert::TryInto, fmt};
 use sp_arithmetic::traits::*;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
 use frame_support::pallet_prelude::*;
@@ -19,12 +18,8 @@ use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
-use sp_consensus_vrf::schnorrkel;
 use sp_std::vec::Vec;
 use sp_std::boxed::Box;
-use frame_system::{
-    limits::{BlockWeights}
-};
 use rand_chacha::ChaChaRng;
 use rand::{seq::SliceRandom, SeedableRng};
 

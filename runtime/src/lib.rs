@@ -22,11 +22,11 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-use codec::{Decode, Encode, Codec};
+use codec::{Decode, Encode};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier, Randomness,
+        Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier,
         U128CurrencyToVote,
     },
     weights::{
@@ -38,7 +38,7 @@ use frame_support::{
 use frame_support::{traits::InstanceFilter, PalletId};
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
-use frame_system::{limits::{BlockLength, BlockWeights}, EnsureOneOf, EnsureRoot, RawOrigin, Config};
+use frame_system::{limits::{BlockLength, BlockWeights}, EnsureOneOf, EnsureRoot, RawOrigin};
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_contracts::weights::WeightInfo;
@@ -96,7 +96,7 @@ pub mod impls;
 pub mod constants;
 
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
+use orml_traits::{parameter_type_with_key};
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
