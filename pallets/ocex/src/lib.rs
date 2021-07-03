@@ -135,7 +135,11 @@ decl_module! {
 
         fn deposit_event() = default;
 
-        /// Deposit
+        /// Transfers given amount to OCEX
+		///
+		/// # Parameters
+		///
+		/// * `pdx_amount`: New Token Deposit Amount
         #[weight = 10000]
         pub fn deposit(origin, main: T::AccountId, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let from: T::AccountId = ensure_signed(origin)?;
@@ -167,7 +171,10 @@ decl_module! {
             Ok(())
         }
 
-        /// Register MainAccount
+        /// Registers main Account
+		///
+		/// # Parameter
+		/// * `main`: Main Account to be registered
         #[weight = 10000]
         pub fn register(origin, main: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
@@ -178,9 +185,13 @@ decl_module! {
             Ok(())
         }
 
-        /// Add Proxy
+        /// Adds Proxy Account for given Main Account.
+		///
+		/// # Parameter
+		/// * `main`: Main Account for which Proxy Account is to be added
+		/// * `proxy`: Proxy Account to be added
         #[weight = 10000]
-        pub fn add_proxy(origin, main: T::AccountId, proxy: T::AccountId,) -> DispatchResult{
+        pub fn add_proxy(origin, main: T::AccountId, proxy: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
             ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
@@ -189,7 +200,11 @@ decl_module! {
             Ok(())
         }
 
-        /// Remove Proxy
+        /// Removes Proxy Account for given Main Account.
+		///
+		/// # Parameter
+		/// * `main`: Main Account for which Proxy Account is to be removed
+		/// * `proxy`: Proxy Account to be removed
         #[weight = 10000]
         pub fn remove_proxy(origin, main: T::AccountId, proxy: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
