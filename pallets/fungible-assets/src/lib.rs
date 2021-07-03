@@ -280,9 +280,9 @@ decl_module! {
 		///
 		/// # Parameters
 		///
-		/// * `asset_id`: Asset Id for which creator wants to set Metadata
-		/// * `asset_id`: Asset Id for which creator wants to set Metadata
-		/// * `metadata`: Metadata to be set for given Asset Id
+		/// * `to`: Destination account to which minted amount is going to be transferred
+		/// * `asset_id`: Asset Id
+		/// * `amount`: Amount which is going to be minted for given Asset Id
         #[weight = 10000]
         pub fn mint_fungible(origin, to: T::AccountId, asset_id: T::CurrencyId, amount: T::Balance) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -291,7 +291,14 @@ decl_module! {
             Ok(())
         }
 
-        /// Burn
+        /// Burn amount for given Asset Id,
+		/// Account which has Burning Authority for given Asset Id can access this Dispatchable
+		/// function.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id
+		/// * `amount`: Amount which is going to be burned for given Asset Id
         #[weight = 10000]
         pub fn burn_fungible(origin, asset_id: T::CurrencyId, amount: T::Balance) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -300,7 +307,12 @@ decl_module! {
             Ok(())
         }
 
-        /// Attest Token
+        /// Verifies given Asset Id,
+		/// Account which has Governance Privilege, can access this Dispatchable function.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id to be Verified
         #[weight = 10000]
         pub fn attest_token(origin, asset_id: T::CurrencyId) -> DispatchResult {
             T::GovernanceOrigin::ensure_origin(origin)?;
@@ -312,7 +324,12 @@ decl_module! {
             })
         }
 
-        /// Modify Token Registration
+        /// Modifies token deposit amount,
+		/// Account which has Governance Privilege, can access this Dispatchable function.
+		///
+		/// # Parameters
+		///
+		/// * `pdx_amount`: New Token Deposit Amount
         #[weight = 10000]
         pub fn modify_token_deposit_amount(origin, pdx_amount: T::Balance) -> DispatchResult {
             T::GovernanceOrigin::ensure_origin(origin)?;

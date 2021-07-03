@@ -215,10 +215,9 @@ decl_module! {
 
 		/// Registers a new investor to allow participating in funding round.
 		///
-		/// Registration is executed as follows:
+		/// # Parameters
 		///
-		/// - If `total_issuance` is greater than maximum supply, Polkadex reserved fund will be burned
-		/// - Else Polkadex reserved amount will be transferred to treasury
+		/// * `origin`: Account to be registered as Investor
         #[weight = T::WeightIDOInfo::register_investor()]
         pub fn register_investor(origin) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -244,7 +243,7 @@ decl_module! {
 		///
 		/// * `investor`: Registered investor
 		/// * `kyc_status`: Level of KYC Status
-        #[weight = 10000]
+        #[weight = 10000] //TODO : Connect weight file
         pub fn attest_investor(origin, investor: T::AccountId, kyc_status: KYCStatus) -> DispatchResult {
             T::GovernanceOrigin::ensure_origin(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor), <Error<T>>::InvestorDoesNotExist);
