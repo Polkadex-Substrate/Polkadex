@@ -177,7 +177,15 @@ decl_module! {
 
         fn deposit_event() = default;
 
-        /// Create new token.
+        /// Creates new Token and stores information related to that.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: New Asset Id to be registered
+		/// * `max_supply`: Maximum supply of new Asset Id
+		/// * `mint_account`: Account which can mint amount for given Asset id
+		/// * `burn_account`: Account which can burn amount for given Asset id
+		/// * `existenial_deposit`: Existential Deposit
         #[weight = 10000]
         pub fn create_token(origin,
                         asset_id: T::CurrencyId,
@@ -200,7 +208,15 @@ decl_module! {
             Ok(())
         }
 
-        /// Vesting
+        /// Set Vesting information related to given Asset Id,
+		/// Only creator of given Asset Id can set Vesting information.
+		///
+		/// # Parameters
+		///
+		/// * `amount`: Total amount which is going to be transferred to given Account, over fixed period of time
+		/// * `asset_id`: Asset Id for which creator wants to set Vesting Info
+		/// * `rate`: Rate at which transfer of amount will take place
+		/// * `account`: Destination Account
         #[weight = 10000]
         pub fn set_vesting_info(origin, amount: T::Balance, asset_id: T::CurrencyId, rate: T::Balance, account: T::AccountId) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -214,7 +230,12 @@ decl_module! {
             Ok(())
         }
 
-        /// Claim
+        /// Claim Vesting amount, set by given Asset Id's creator.
+		///
+		/// # Parameters
+		///
+		/// * `identifier`: Usual identifier which helps to find Vestion info of Given Asset Id
+		/// * `asset_id`: Asset Id for which creator wants to set Vesting Info
         #[weight = 10000]
         pub fn claim_vesting(origin, identifier: T::Hash, asset_id: T::CurrencyId) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -232,7 +253,13 @@ decl_module! {
             })
         }
 
-        /// Set Metadata
+        /// Set Metadata of given Asset Id,
+		/// Only creator of given Asset Id can access this Disptachable function.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id for which creator wants to set Metadata
+		/// * `metadata`: Metadata to be set for given Asset Id
         #[weight = 10000]
         pub fn set_metadata_fungible(origin, asset_id: T::CurrencyId, metadata: AssetMetadata) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -247,16 +274,31 @@ decl_module! {
             })
         }
 
-        /// Minting
+        /// Mints amount for given Asset Id,
+		/// Account which has Minting Authority for given Asset Id can access this Dispatchable
+		/// function.
+		///
+		/// # Parameters
+		///
+		/// * `to`: Destination account to which minted amount is going to be transferred
+		/// * `asset_id`: Asset Id
+		/// * `amount`: Amount which is going to be minted for given Asset Id
         #[weight = 10000]
-        pub fn mint_fungible(origin,to: T::AccountId, asset_id: T::CurrencyId, amount: T::Balance) -> DispatchResult {
+        pub fn mint_fungible(origin, to: T::AccountId, asset_id: T::CurrencyId, amount: T::Balance) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
             Self::mint_token(&who, &to,asset_id, amount)?;
             Self::deposit_event(RawEvent::AmountMinted(asset_id, who, amount));
             Ok(())
         }
 
-        /// Burn
+        /// Burn amount for given Asset Id,
+		/// Account which has Burning Authority for given Asset Id can access this Dispatchable
+		/// function.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id
+		/// * `amount`: Amount which is going to be burned for given Asset Id
         #[weight = 10000]
         pub fn burn_fungible(origin, asset_id: T::CurrencyId, amount: T::Balance) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -265,7 +307,12 @@ decl_module! {
             Ok(())
         }
 
-        /// Attest Token
+        /// Verifies given Asset Id,
+		/// Account which has Governance Privilege, can access this Dispatchable function.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id to be Verified
         #[weight = 10000]
         pub fn attest_token(origin, asset_id: T::CurrencyId) -> DispatchResult {
             T::GovernanceOrigin::ensure_origin(origin)?;
@@ -277,7 +324,12 @@ decl_module! {
             })
         }
 
-        /// Modify Token Registration
+        /// Modifies token deposit amount,
+		/// Account which has Governance Privilege, can access this Dispatchable function.
+		///
+		/// # Parameters
+		///
+		/// * `pdx_amount`: New Token Deposit Amount
         #[weight = 10000]
         pub fn modify_token_deposit_amount(origin, pdx_amount: T::Balance) -> DispatchResult {
             T::GovernanceOrigin::ensure_origin(origin)?;
