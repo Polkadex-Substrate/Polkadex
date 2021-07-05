@@ -1,15 +1,6 @@
 # Polkadex OCEX Pallet
 
-Polkadex Fungible Assets Pallet provides functionality to issue new tokens and offers efficient way to mint, burn and distribute tokens.
-
-## Overview
-Polkadex Fungible Assets Pallet provides function for:-
-* Creating new tokens.
-* Setting Vesting information related to given Asset Id.
-* Claiming Vesting amount, set by given Asset Id's creator.
-* Setting Metadata of given Asset Id.
-* Minting, Burning and Attesting tokens.
-
+OCEX pallet handles the deposits, withdrawals and off-chain workers for verifying the IPFS snapshots of enclave, and safeguards user funds by initiating emergency shutdown protocol.
 
 ## Importing a `polkadex-ocex` pallet
 
@@ -78,9 +69,9 @@ Inside the testnet_genesis function we need to add our pallet's configuration to
 ```
 ## Dispatchable functions
 
-- `deposit` -
-- `release` -
-- `withdraw` -
+- `deposit` - Transfers given amount to Enclave.
+- `release` - Releases/Transfers given amount to Destination Account, Only Enclave can call this Dispatchable function.
+- `withdraw` - Notifies enclave about senders intend to withdraw via on-chain.
 - `register` - Registers main Account
 - `add_proxy` - Adds Proxy Account for given Main Account.
 - `remove_proxy` - Removes Proxy Account for given Main Account.
