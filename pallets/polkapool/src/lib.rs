@@ -1,3 +1,22 @@
+// This file is part of Polkadex.
+
+// Copyright (C) 2020-2021 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Codec;
@@ -220,6 +239,9 @@ decl_module! {
         }
 
         // TODO: Update the weights to include swap transaction's weight
+        /// ## Claim Fee-less Transaction
+        /// * `stake_amount`: Amount to stake for the given call
+        /// * `call`: Call from Contracts Pallet
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
         pub fn claim_feeless_transaction(origin, stake_amount: <T as Config>::Balance, call: Box<<T as Config>::Call>) -> dispatch::DispatchResult {
             let who = ensure_signed(origin.clone())?;
@@ -265,11 +287,13 @@ decl_module! {
             Ok(())
         }
 
+        /// ## Unstake
+        /// Returns staked tokens back to origin if `origin` is a staked user
         #[weight = 10000]
         pub fn unstake(origin) -> DispatchResult {
             let who = ensure_signed(origin.clone())?;
             ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
-            ensure!(<StakedUsers<T>>::contains_key(&account),Error::<T>::StakeNotFound);
+            ensure!(<StakedUsers<T>>::contains_key(&who),Error::<T>::StakeNotFound);
             let stake = <StakedUsers<T>>::get(&who);
             let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
             ensure!(stake.unlocking_block <= current_block_no,Error::<T>::UnlockingFailedCurrentBlockNumberLow);
@@ -278,7 +302,8 @@ decl_module! {
             Ok(())
         }
 
-
+        /// ## Slash Stake
+        /// Slash stake of account by the Governance
         #[weight = 10000]
         pub fn slash_stake(origin, account: T::AccountId) -> DispatchResult {
             let origin = <T as Config>::Origin::from(origin);
