@@ -65,7 +65,7 @@ sp-api = { version = "3.0.0", default-features = false, git = "https://github.co
 sp-offchain = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-session = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-sp-std = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-std = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-transaction-pool = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 sp-version = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
@@ -104,7 +104,7 @@ artemis-core = { git = "https://github.com/Polkadex-Substrate/polkadot-ethereum"
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
-pallet-substratee-registry = { git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry.git", default-features = false }
+pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", default-features = false }
 token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
 erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 polkadex-ido = { path = "../pallets/Polkadex_Ido", default-features = false }

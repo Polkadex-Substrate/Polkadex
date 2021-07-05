@@ -94,6 +94,7 @@ decl_event!(
     {
         TokenDeposited(AssetId, AccountId, Balance),
         TokenWithdrawn(AssetId, AccountId, Balance),
+		TokenRelease(AssetId, AccountId, Balance),
         MainAccountRegistered(AccountId),
         ProxyAdded(AccountId,AccountId),
         ProxyRemoved(AccountId,AccountId),
@@ -134,7 +135,8 @@ decl_module! {
 
         fn deposit_event() = default;
 
-        /// Transfers given amount to Enclave.
+
+    /// Transfers given amount to Enclave.
 		///
 		/// # Parameters
 		///
@@ -150,7 +152,7 @@ decl_module! {
             Ok(())
         }
 
-        /// Releases/Transfers given amount to Destination Account,
+    /// Releases/Transfers given amount to Destination Account,
 		/// Only Enclave can call this Dispatchable function.
 		///
 		/// # Parameters
@@ -165,6 +167,7 @@ decl_module! {
             // TODO: Check if the latest MRENCLAVE is registered by this sender
             // TODO: Handle software updated to enclave
             <T as Config>::Currency::transfer(asset_id, &Self::get_account(), &to, amount)?;
+			Self::deposit_event(RawEvent::TokenRelease(asset_id, to, amount));
             Ok(())
         }
 
@@ -183,7 +186,7 @@ decl_module! {
             Ok(())
         }
 
-        /// Registers main Account.
+    /// Registers main Account.
 		///
 		/// # Parameter
 		///
@@ -198,7 +201,7 @@ decl_module! {
             Ok(())
         }
 
-        /// Adds Proxy Account for given Main Account.
+    /// Adds Proxy Account for given Main Account.
 		///
 		/// # Parameter
 		///
@@ -214,7 +217,7 @@ decl_module! {
             Ok(())
         }
 
-        /// Removes Proxy Account for given Main Account.
+    /// Removes Proxy Account for given Main Account.
 		///
 		/// # Parameter
 		///
