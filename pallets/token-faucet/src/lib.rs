@@ -13,7 +13,6 @@ use frame_system::ensure_none;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 use polkadex_primitives::assets::AssetId;
-use sp_runtime::print;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
