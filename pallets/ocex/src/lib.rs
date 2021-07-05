@@ -135,11 +135,14 @@ decl_module! {
 
         fn deposit_event() = default;
 
-        /// Transfers given amount to OCEX
+
+    /// Transfers given amount to Enclave.
 		///
 		/// # Parameters
 		///
-		/// * `pdx_amount`: New Token Deposit Amount
+		/// * `main`: Account from which amount is to be transferred
+		/// * `asset_id`: Asset Id
+		/// * `amount`: Amount to be transferred to Enclave
         #[weight = 10000]
         pub fn deposit(origin, main: T::AccountId, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let from: T::AccountId = ensure_signed(origin)?;
@@ -149,7 +152,14 @@ decl_module! {
             Ok(())
         }
 
-        /// Release
+    /// Releases/Transfers given amount to Destination Account,
+		/// Only Enclave can call this Dispatchable function.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id
+		/// * `amount`: Amount to be released
+		/// * `to`: Destination Account
         #[weight = 10000]
         pub fn release(origin, asset_id:  AssetId, amount: T::Balance, to: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
@@ -161,19 +171,25 @@ decl_module! {
             Ok(())
         }
 
-        /// Withdraw
-        /// It helps to notify enclave about sender's intend to withdraw via on-chain
+        /// Notifies enclave about sender's intend to withdraw via on-chain.
+		///
+		/// # Parameters
+		///
+		/// * `main`: Account which wants to Notify Enclave
+		/// * `asset_id`: Asset Id
+		/// * `amount`: Amount to be notified to Enclave
         #[weight = 10000]
-        pub fn withdraw(origin,  main: T::AccountId, asset_id:  AssetId,amount: T::Balance) -> DispatchResult{
+        pub fn withdraw(origin,  main: T::AccountId, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
             ensure!(main==sender, Error::<T>::MainAccountSignatureNotFound);
             Self::deposit_event(RawEvent::TokenWithdrawn(asset_id, sender, amount));
             Ok(())
         }
 
-        /// Registers main Account
+    /// Registers main Account.
 		///
 		/// # Parameter
+		///
 		/// * `main`: Main Account to be registered
         #[weight = 10000]
         pub fn register(origin, main: T::AccountId) -> DispatchResult{
@@ -185,9 +201,10 @@ decl_module! {
             Ok(())
         }
 
-        /// Adds Proxy Account for given Main Account.
+    /// Adds Proxy Account for given Main Account.
 		///
 		/// # Parameter
+		///
 		/// * `main`: Main Account for which Proxy Account is to be added
 		/// * `proxy`: Proxy Account to be added
         #[weight = 10000]
@@ -200,9 +217,10 @@ decl_module! {
             Ok(())
         }
 
-        /// Removes Proxy Account for given Main Account.
+    /// Removes Proxy Account for given Main Account.
 		///
 		/// # Parameter
+		///
 		/// * `main`: Main Account for which Proxy Account is to be removed
 		/// * `proxy`: Proxy Account to be removed
         #[weight = 10000]
