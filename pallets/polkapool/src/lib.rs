@@ -266,16 +266,15 @@ decl_module! {
         }
 
         #[weight = 10000]
-        pub fn unstake(origin, account: T::AccountId) -> DispatchResult {
+        pub fn unstake(origin) -> DispatchResult {
             let who = ensure_signed(origin.clone())?;
             ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
-            ensure!(who == account,Error::<T>::BadOrigin);
             ensure!(<StakedUsers<T>>::contains_key(&account),Error::<T>::StakeNotFound);
-            let stake = <StakedUsers<T>>::get(&account);
+            let stake = <StakedUsers<T>>::get(&who);
             let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
             ensure!(stake.unlocking_block <= current_block_no,Error::<T>::UnlockingFailedCurrentBlockNumberLow);
-            ensure!(T::Currency::deposit(AssetId::POLKADEX, &account, stake.staked_amount).is_ok(),Error::<T>::FailedToDepositStakedAmount);
-            Self::deposit_event(RawEvent::Unstaked(account,stake.staked_amount));
+            ensure!(T::Currency::deposit(AssetId::POLKADEX, &who, stake.staked_amount).is_ok(),Error::<T>::FailedToDepositStakedAmount);
+            Self::deposit_event(RawEvent::Unstaked(who,stake.staked_amount));
             Ok(())
         }
 
