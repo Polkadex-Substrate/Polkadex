@@ -1221,8 +1221,8 @@ construct_runtime!(
         Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
         VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
         ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>},
-		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>}
-        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>},
+		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>},
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>}
     }
 );
 
