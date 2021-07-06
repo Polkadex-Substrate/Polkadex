@@ -193,8 +193,6 @@ Start by connecting to it with Polkadot JS Apps. Open a browser to: https://polk
 
 Click on the top left corner to open the menu to configure the networks, and then navigate down to open the Development sub-menu. In there, you will want to toggle the "Local Node" option, which points Polkadot JS Apps to ws://127.0.0.1:9944. Next, select the Switch button, and the site should connect to your Polkadex development node.
 
-## Documentation :books:
-For Tutorials, Documentation and API Reference please check this [page](https://github.com/Polkadex-Substrate/Documentation)
 ## Contribute :heart_eyes:
 We would love to work with anyone who can contribute their work and improve this project. The details will be shared soon.
 ## License :scroll:
