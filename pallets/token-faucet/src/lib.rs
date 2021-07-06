@@ -6,9 +6,7 @@ use frame_support::sp_runtime::SaturatedConversion;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
-use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, traits::Get,
-};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, traits::Get};
 use frame_system::ensure_none;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 

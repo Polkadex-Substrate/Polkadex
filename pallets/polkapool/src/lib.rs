@@ -16,61 +16,66 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Codec;
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// https://substrate.dev/docs/en/knowledgebase/runtime/frame
-use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, traits::{Get, OriginTrait},
-};
-use sp_arithmetic::traits::*;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 use frame_support::traits::{Filter, Randomness};
+/// Edit this file to define custom logic or remove it if it is not needed.
+/// Learn more about FRAME and the core library of Substrate FRAME pallets:
+/// https://substrate.dev/docs/en/knowledgebase/runtime/frame
+use frame_support::{
+    decl_error, decl_event, decl_module, decl_storage, dispatch,
+    traits::{Get, OriginTrait},
+};
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
+use rand::{seq::SliceRandom, SeedableRng};
+use rand_chacha::ChaChaRng;
+use sp_arithmetic::traits::*;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
-use sp_std::vec::Vec;
 use sp_std::boxed::Box;
-use rand_chacha::ChaChaRng;
-use rand::{seq::SliceRandom, SeedableRng};
+use sp_std::vec::Vec;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// The aggregated origin which the dispatch will take.
-    type Origin: OriginTrait<PalletsOrigin=Self::PalletsOrigin>
-    + From<Self::PalletsOrigin>
-    + IsType<<Self as frame_system::Config>::Origin>;
+    type Origin: OriginTrait<PalletsOrigin = Self::PalletsOrigin>
+        + From<Self::PalletsOrigin>
+        + IsType<<Self as frame_system::Config>::Origin>;
 
     /// The caller origin, overarching type of all pallets origins.
     type PalletsOrigin: From<frame_system::RawOrigin<Self::AccountId>> + Codec + Clone + Eq;
 
     /// The aggregated call type.
     type Call: Parameter
-    + Dispatchable<Origin=<Self as Config>::Origin>
-    + GetDispatchInfo
-    + From<frame_system::Call<Self>>;
+        + Dispatchable<Origin = <Self as Config>::Origin>
+        + GetDispatchInfo
+        + From<frame_system::Call<Self>>;
     /// Balance Type
     type Balance: Parameter
-    + Member
-    + AtLeast32BitUnsigned
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize + Clone + Zero + One + PartialOrd + Bounded;
+        + Member
+        + AtLeast32BitUnsigned
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + Clone
+        + Zero
+        + One
+        + PartialOrd
+        + Bounded;
     /// Module that handles tokens
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
-        CurrencyId=AssetId,
-        Balance=Self::Balance,
+        CurrencyId = AssetId,
+        Balance = Self::Balance,
     >;
     /// Min amount that must be staked
     type MinStakeAmount: Get<Self::Balance>;
@@ -85,9 +90,8 @@ pub trait Config: frame_system::Config {
     //Minimum Stake per Call
     type MinStakePerWeight: Get<u128>;
 
-    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success=Self::AccountId>;
+    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success = Self::AccountId>;
 }
-
 
 #[derive(Decode, Encode, Copy, Clone)]
 pub struct StakeInfo<T: Config + frame_system::Config> {
@@ -97,7 +101,10 @@ pub struct StakeInfo<T: Config + frame_system::Config> {
 
 impl<T: Config + frame_system::Config> Default for StakeInfo<T> {
     fn default() -> Self {
-        StakeInfo { staked_amount: 0_u128.saturated_into(), unlocking_block: 1_u32.saturated_into() }
+        StakeInfo {
+            staked_amount: 0_u128.saturated_into(),
+            unlocking_block: 1_u32.saturated_into(),
+        }
     }
 }
 
@@ -118,14 +125,21 @@ pub struct MovingAverage<T: Config> {
 
 impl<T: Config> Default for MovingAverage<T> {
     fn default() -> Self {
-        MovingAverage { amount: 0_u128.saturated_into(), count: 0_u128.saturated_into() }
+        MovingAverage {
+            amount: 0_u128.saturated_into(),
+            count: 0_u128.saturated_into(),
+        }
     }
 }
 
 impl<T: Config> MovingAverage<T> {
     pub fn update_stake_amount(&mut self, stake_amount: <T as Config>::Balance) {
         let new_count = self.count.saturating_add(1u128.saturated_into());
-        self.amount = self.amount.saturating_mul(self.count.clone()).saturating_add(stake_amount) / new_count;
+        self.amount = self
+            .amount
+            .saturating_mul(self.count.clone())
+            .saturating_add(stake_amount)
+            / new_count;
         self.count = new_count
     }
 }
@@ -152,7 +166,6 @@ impl<Call, Origin> Default for ExtStore<Call, Origin> {
         }
     }
 }
-
 
 decl_storage! {
     trait Store for Module<T: Config> as Polkapool {
@@ -316,4 +329,3 @@ decl_module! {
         }
     }
 }
-

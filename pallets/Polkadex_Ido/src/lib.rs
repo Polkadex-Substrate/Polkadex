@@ -40,18 +40,19 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
     ensure,
-    traits::{EnsureOrigin, Get, Randomness}, PalletId
+    traits::{EnsureOrigin, Get, Randomness},
+    PalletId,
 };
 use frame_system as system;
-use frame_system::{ensure_signed};
-use sp_std::prelude::*;
-use sp_runtime::traits::AccountIdConversion;
+use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
-use sp_runtime::SaturatedConversion;
-use sp_runtime::traits::Saturating;
+use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedDiv;
+use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
+use sp_runtime::SaturatedConversion;
+use sp_std::prelude::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -65,30 +66,30 @@ mod test;
 
 /// The module configuration trait.
 pub trait Config: system::Config + orml_tokens::Config {
-	/// The overarching event type.
+    /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
-	/// The origin which may attests the investor to take part in the IDO pallet.
-    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
-	/// The treasury mechanism.
+    /// The origin which may attests the investor to take part in the IDO pallet.
+    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+    /// The treasury mechanism.
     type TreasuryAccountId: Get<Self::AccountId>;
-	/// The currency mechanism.
+    /// The currency mechanism.
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
         CurrencyId = AssetId,
         Balance = Self::Balance,
     >;
-	/// The native currency ID type
+    /// The native currency ID type
     type NativeCurrencyId: Get<Self::CurrencyId>;
-	/// The basic amount of funds that must be reserved for an Polkadex.
+    /// The basic amount of funds that must be reserved for an Polkadex.
     type IDOPDXAmount: Get<Self::Balance>;
-	/// Maximum supply for IDO
+    /// Maximum supply for IDO
     type MaxSupply: Get<Self::Balance>;
-	/// The generator used to supply randomness to IDO
+    /// The generator used to supply randomness to IDO
     type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
-	/// The IDO's module id
+    /// The IDO's module id
     type ModuleId: Get<PalletId>;
-	/// Weight information for extrinsics in this pallet.
-	type WeightIDOInfo: WeightInfo;
+    /// Weight information for extrinsics in this pallet.
+    type WeightIDOInfo: WeightInfo;
 }
 
 /// The type of `KYCStatus` that provides level of KYC
@@ -96,13 +97,13 @@ pub trait Config: system::Config + orml_tokens::Config {
 pub enum KYCStatus {
     Tier0,
     Tier1,
-    Tier2
+    Tier2,
 }
 
 /// KYC information for an investor.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct InvestorInfo {
-	/// Level of KYC status
+    /// Level of KYC status
     pub kyc_status: KYCStatus,
 }
 
@@ -127,7 +128,7 @@ pub struct FundingRound<T: Config> {
     operator_commission: T::Balance,
     token_a_priceper_token_b: T::Balance,
     close_round_block: T::BlockNumber,
-    actual_raise: T::Balance
+    actual_raise: T::Balance,
 }
 
 impl<T: Config> Default for FundingRound<T> {
@@ -143,23 +144,25 @@ impl<T: Config> Default for FundingRound<T> {
             operator_commission: T::Balance::default(),
             token_a_priceper_token_b: T::Balance::default(),
             close_round_block: T::BlockNumber::default(),
-            actual_raise: Zero::zero()
+            actual_raise: Zero::zero(),
         }
     }
 }
 
 impl<T: Config> FundingRound<T> {
-    fn from(token_a: AssetId,
-            amount: T::Balance,
-            token_b: AssetId,
-            vesting_per_block: T::Balance,
-            start_block: T::BlockNumber,
-            min_allocation: T::Balance,
-            max_allocation: T::Balance,
-            operator_commission: T::Balance,
-            token_a_priceper_token_b: T::Balance,
-            close_round_block: T::BlockNumber) -> Self {
-        FundingRound{
+    fn from(
+        token_a: AssetId,
+        amount: T::Balance,
+        token_b: AssetId,
+        vesting_per_block: T::Balance,
+        start_block: T::BlockNumber,
+        min_allocation: T::Balance,
+        max_allocation: T::Balance,
+        operator_commission: T::Balance,
+        token_a_priceper_token_b: T::Balance,
+        close_round_block: T::BlockNumber,
+    ) -> Self {
+        FundingRound {
             token_a,
             amount,
             token_b,
@@ -177,32 +180,32 @@ impl<T: Config> FundingRound<T> {
 
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
-		/// A mapping of Investor and its KYC status
+        /// A mapping of Investor and its KYC status
         InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
-		/// A mapping between funding round creator and funding round id
+        /// A mapping between funding round creator and funding round id
         InfoProjectTeam get(fn get_team): map hasher(identity) T::AccountId => T::Hash;
-		/// A mapping between round id and funding round information
+        /// A mapping between round id and funding round information
         InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
-		/// For each round, we keep mapping between whitelist investors and the amount, they will be investing
+        /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
         WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
         /// For each round, we keep mapping between participants and the amount, they will be using
-		InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
         /// For each round, we keep mapping between investors and the block, when they will claim token
-		LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
+        LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
         /// A mapping between investor and claim amount
-		InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::AccountId => T::Balance;
-		/// A mapping between funding round id and its InterestedParticipants
+        InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::AccountId => T::Balance;
+        /// A mapping between funding round id and its InterestedParticipants
         InterestedParticipants get(fn get_interested_particpants): map hasher(identity) T::Hash => Vec<T::AccountId>;
     }
     add_extra_genesis {
-		config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
+        config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
 
-		build(|config: &GenesisConfig<T>| {
-			config.endowed_accounts.iter().for_each(|(account_id, currency_id, initial_balance)| {
-				 orml_tokens::Accounts::<T>::mutate(account_id, currency_id, |account_data| account_data.free = *initial_balance)
-			})
-		})
-	}
+        build(|config: &GenesisConfig<T>| {
+            config.endowed_accounts.iter().for_each(|(account_id, currency_id, initial_balance)| {
+                 orml_tokens::Accounts::<T>::mutate(account_id, currency_id, |account_data| account_data.free = *initial_balance)
+            })
+        })
+    }
 }
 
 decl_module! {
@@ -213,11 +216,11 @@ decl_module! {
 
         fn deposit_event() = default;
 
-		/// Registers a new investor to allow participating in funding round.
-		///
-		/// # Parameters
-		///
-		/// * `origin`: Account to be registered as Investor
+        /// Registers a new investor to allow participating in funding round.
+        ///
+        /// # Parameters
+        ///
+        /// * `origin`: Account to be registered as Investor
         #[weight = T::WeightIDOInfo::register_investor()]
         pub fn register_investor(origin) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
@@ -236,13 +239,13 @@ decl_module! {
             Ok(())
         }
 
-		/// Attests the investor to take part in the IDO pallet.
-		/// Attestor is part of the governance committee of IDO pallet.
-		///
-		/// # Parameters
-		///
-		/// * `investor`: Registered investor
-		/// * `kyc_status`: Level of KYC Status
+        /// Attests the investor to take part in the IDO pallet.
+        /// Attestor is part of the governance committee of IDO pallet.
+        ///
+        /// # Parameters
+        ///
+        /// * `investor`: Registered investor
+        /// * `kyc_status`: Level of KYC Status
         #[weight = 10000] //TODO : Connect weight file
         pub fn attest_investor(origin, investor: T::AccountId, kyc_status: KYCStatus) -> DispatchResult {
             T::GovernanceOrigin::ensure_origin(origin)?;
@@ -254,20 +257,20 @@ decl_module! {
             })
         }
 
-		/// Registers a funding round with the amount as the total allocation for this round and vesting period.
-		///
-		/// # Parameters
-		///
-		/// * `token_a`: The Project token
-		/// * `amount`: Amount for funding round
-		/// * `token_b`: Token in which funding is received
-		/// * `vesting_per_block`: Vesting per block
-		/// * `start_block`: Start block of funding round
-		/// * `min_allocation`: Minimum allocation
-		/// * `max_allocation`: Maximum allocation
-		/// * `operator_commission`: Commission for operrator
-		/// * `token_a_priceper_token_b`: Priceper amount for project token
-		/// * `close_round_block`: Closing block of funding round
+        /// Registers a funding round with the amount as the total allocation for this round and vesting period.
+        ///
+        /// # Parameters
+        ///
+        /// * `token_a`: The Project token
+        /// * `amount`: Amount for funding round
+        /// * `token_b`: Token in which funding is received
+        /// * `vesting_per_block`: Vesting per block
+        /// * `start_block`: Start block of funding round
+        /// * `min_allocation`: Minimum allocation
+        /// * `max_allocation`: Maximum allocation
+        /// * `operator_commission`: Commission for operrator
+        /// * `token_a_priceper_token_b`: Priceper amount for project token
+        /// * `close_round_block`: Closing block of funding round
         #[weight = T::WeightIDOInfo::register_round()]
         pub fn register_round(
             origin,
@@ -303,13 +306,13 @@ decl_module! {
             Ok(())
         }
 
-		/// Project team whitelists investor for the given round for the given amount.
-		///
-		/// # Parameters
-		///
-		/// * `round_id`: Funding round id
-		/// * `investor_address`: Investor
-		/// * `amount`: The max amount that investor will be investing in tokenB
+        /// Project team whitelists investor for the given round for the given amount.
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
+        /// * `investor_address`: Investor
+        /// * `amount`: The max amount that investor will be investing in tokenB
         #[weight = T::WeightIDOInfo::whitelist_investor()]
         pub fn whitelist_investor(origin, round_id: T::Hash, investor_address: T::AccountId, amount: T::Balance) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
@@ -320,16 +323,16 @@ decl_module! {
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
-			Self::deposit_event(RawEvent::InvestorWhitelisted(round_id, investor_address));
+            Self::deposit_event(RawEvent::InvestorWhitelisted(round_id, investor_address));
             Ok(())
         }
 
-		/// Stores information about whitelisted investor, participating in round.
-		///
-		/// # Parameters
-		///
-		/// * `round_id`: Funding round id
-		/// * `amount`: Amount to be transferred to wallet.
+        /// Stores information about whitelisted investor, participating in round.
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
+        /// * `amount`: Amount to be transferred to wallet.
         #[weight = 10000]
         pub fn participate_in_round(origin, round_id: T::Hash, amount: T::Balance) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
@@ -337,7 +340,7 @@ decl_module! {
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
             ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
-			<T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::get_wallet_account(), amount)?;
+            <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::get_wallet_account(), amount)?;
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
@@ -348,15 +351,15 @@ decl_module! {
                 let mut actual_raise = round_details.actual_raise;
                 actual_raise += amount;
             });
-			Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
+            Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
             Ok(())
         }
 
-		/// Investor claiming for a particular funding round.
-		///
-		/// # Parameters
-		///
-		/// * `round_id`: Funding round id
+        /// Investor claiming for a particular funding round.
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
         #[weight = T::WeightIDOInfo::claim_tokens()]
         pub fn claim_tokens(origin, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
@@ -384,15 +387,15 @@ decl_module! {
                 }
                 <LastClaimBlockInfo<T>>::insert(round_id.clone(), investor_address.clone(), current_block_no);
             }
-			Self::deposit_event(RawEvent::TokenClaimed(round_id, investor_address));
+            Self::deposit_event(RawEvent::TokenClaimed(round_id, investor_address));
             Ok(())
         }
 
-		/// Stores information about investors, showing interest in funding round.
-		///
-		/// # Parameters
-		///
-		/// * `round_id`: Funding round id
+        /// Stores information about investors, showing interest in funding round.
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
         #[weight = T::WeightIDOInfo::show_interest_in_round()]
         pub fn show_interest_in_round(origin, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
@@ -404,17 +407,17 @@ decl_module! {
             InterestedParticipants::<T>::mutate(round_id, |investors| {
                     investors.push(investor_address.clone());
                 });
-			Self::deposit_event(RawEvent::ShowedInterest(round_id, investor_address));
+            Self::deposit_event(RawEvent::ShowedInterest(round_id, investor_address));
              Ok(())
         }
 
-		/// Transfers the raised amount to another address,
-		/// only the round creator can call this or the governance.
-		///
-		/// # Parameters
-		///
-		/// * `round_id`: Funding round id
-		/// * `beneficiary`: Account Id of Beneficiary
+        /// Transfers the raised amount to another address,
+        /// only the round creator can call this or the governance.
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
+        /// * `beneficiary`: Account Id of Beneficiary
          #[weight = 10000]
         pub fn withdraw_raise(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
             let creator: T::AccountId = ensure_signed(origin)?;
@@ -426,17 +429,17 @@ decl_module! {
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             <T as Config>::Currency::transfer(AssetId::POLKADEX, &creator, &beneficiary, total_raise)?;
-			Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
+            Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
             Ok(())
         }
 
-		/// Transfers the remaining tokens to another address,
-		/// only the round creator can call this or the governance.
-		///
-		/// # Parameters
-		///
-		/// * `round_id`: Funding round id
-		/// * `beneficiary`: Account Id of Beneficiary
+        /// Transfers the remaining tokens to another address,
+        /// only the round creator can call this or the governance.
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
+        /// * `beneficiary`: Account Id of Beneficiary
          #[weight = 10000]
         pub fn withdraw_token(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
             let creator: T::AccountId = ensure_signed(origin)?;
@@ -449,7 +452,7 @@ decl_module! {
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let remaining_token = total_raise.saturating_sub(funding_round.actual_raise);
             <T as Config>::Currency::transfer(AssetId::POLKADEX, &creator, &beneficiary, remaining_token)?;
-			Self::deposit_event(RawEvent::WithdrawToken(round_id, creator));
+            Self::deposit_event(RawEvent::WithdrawToken(round_id, creator));
             Ok(())
         }
     }
@@ -461,54 +464,53 @@ decl_event!(
         <T as system::Config>::AccountId,
         <T as system::Config>::Hash,
     {
-		/// Investor has been registered
+        /// Investor has been registered
         InvestorRegistered(AccountId),
-		/// Investor has been attested
+        /// Investor has been attested
         InvestorAttested(AccountId),
-		/// Funding round has been registered
+        /// Funding round has been registered
         FundingRoundRegistered(Hash),
-		/// Investor has been whitelisted
-		InvestorWhitelisted(Hash, AccountId),
-		/// Participant has been added
-		ParticipatedInRound(Hash, AccountId),
-		/// Token has been claimed
-		TokenClaimed(Hash, AccountId),
-		/// Showed interest in funding round
-		ShowedInterest(Hash, AccountId),
-		/// Transferred raised amount
-		WithdrawRaised(Hash, AccountId),
-		/// Transferred remaining tokens
-		WithdrawToken(Hash, AccountId),
+        /// Investor has been whitelisted
+        InvestorWhitelisted(Hash, AccountId),
+        /// Participant has been added
+        ParticipatedInRound(Hash, AccountId),
+        /// Token has been claimed
+        TokenClaimed(Hash, AccountId),
+        /// Showed interest in funding round
+        ShowedInterest(Hash, AccountId),
+        /// Transferred raised amount
+        WithdrawRaised(Hash, AccountId),
+        /// Transferred remaining tokens
+        WithdrawToken(Hash, AccountId),
     }
 );
 
 decl_error! {
     pub enum Error for Module<T: Config> {
-		/// Investor is already registered
+        /// Investor is already registered
         InvestorAlreadyRegistered,
-		/// Investor does not exist
+        /// Investor does not exist
         InvestorDoesNotExist,
-		/// Funding round does not exist
+        /// Funding round does not exist
         FundingRoundDoesNotExist,
-		/// Investor is not associated with funding round
+        /// Investor is not associated with funding round
         InvestorNotAssociatedWithFundingRound,
-		/// Funding round does not belong
+        /// Funding round does not belong
         FundingRoundDoesNotBelong,
-		/// Investor is not whitelisted
+        /// Investor is not whitelisted
         NotWhiteListed,
-		/// Not a valid amount
+        /// Not a valid amount
         NotAValidAmount,
-		/// Not a creator of funding round
+        /// Not a creator of funding round
         NotACreater,
-		/// Creator does not exist
+        /// Creator does not exist
         CreaterDoesNotExist,
-		/// Not allowed
+        /// Not allowed
         NotAllowed
     }
 }
 
 impl<T: Config> Module<T> {
-
     pub fn get_wallet_account() -> T::AccountId {
         T::ModuleId::get().into_account()
     }
@@ -517,4 +519,3 @@ impl<T: Config> Module<T> {
         T::Balance::from(input.saturated_into::<u32>())
     }
 }
-
