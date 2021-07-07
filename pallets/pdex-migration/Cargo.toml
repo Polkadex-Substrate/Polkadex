@@ -1,9 +1,9 @@
 [package]
-authors = ['Mambisi Zempare <mambisi@polkadex.trade>']
-description = 'FRAME pallet for Token Faucet'
+authors = ['Polkadex Authors']
+description = 'FRAME pallet for migrating ERC20 PDEX to Native PDEX'
 edition = '2018'
 homepage = 'https://polkadex.trade'
-name = 'token-faucet-pallet'
+name = 'erc20-pdex-migration-pallet'
 version = '1.0.0'
 
 [package.metadata.docs.rs]
@@ -16,7 +16,6 @@ sp-runtime = { default-features = false, version = '3.0.0' , git = "https://gith
 sp-core = { default-features = false, version = '3.0.0' , git = "https://github.com/paritytech/substrate.git" }
 pallet-balances = { default-features = false, version = '3.0.0' , git = "https://github.com/paritytech/substrate.git" }
 frame-system = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate.git"  }
-#polkadex-primitives = { path = "../primitives", default-features = false }
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
