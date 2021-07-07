@@ -30,11 +30,15 @@ fn test_register_account() {
         // Register new account
         let new_account: u64 = 2;
         let gen_account: u64 = 0;
-        assert_ok!(PolkadexOcexPallet::register(Origin::signed(new_account), new_account));
+        assert_ok!(PolkadexOcexPallet::register(
+            Origin::signed(new_account),
+            new_account
+        ));
         let new_account_two: u64 = 3;
-        assert_ok!(PolkadexOcexPallet::register(Origin::signed(
+        assert_ok!(PolkadexOcexPallet::register(
+            Origin::signed(new_account_two),
             new_account_two
-        ), new_account_two));
+        ));
 
         // Verify LastAccount Storage
         assert_eq!(<LastAccount<Test>>::get(), 3);
@@ -71,7 +75,10 @@ fn test_register_account() {
     // Test Errors
     new_test_ext(0).execute_with(|| {
         let new_account: u64 = 2;
-        assert_ok!(PolkadexOcexPallet::register(Origin::signed(new_account), new_account));
+        assert_ok!(PolkadexOcexPallet::register(
+            Origin::signed(new_account),
+            new_account
+        ));
         assert_noop!(
             PolkadexOcexPallet::register(Origin::signed(2), 2u64),
             Error::<Test>::AlreadyRegistered
@@ -84,7 +91,10 @@ fn test_add_proxy() {
     new_test_ext(0).execute_with(|| {
         let new_account: u64 = 2;
         let gen_account: u64 = 0;
-        assert_ok!(PolkadexOcexPallet::register(Origin::signed(new_account), new_account));
+        assert_ok!(PolkadexOcexPallet::register(
+            Origin::signed(new_account),
+            new_account
+        ));
         let proxy_account_one = 3;
         assert_ok!(PolkadexOcexPallet::add_proxy(
             Origin::signed(new_account),
@@ -108,7 +118,10 @@ fn test_add_proxy() {
     // Test Errors
     new_test_ext(0).execute_with(|| {
         let new_account: u64 = 2;
-        assert_ok!(PolkadexOcexPallet::register(Origin::signed(new_account), new_account));
+        assert_ok!(PolkadexOcexPallet::register(
+            Origin::signed(new_account),
+            new_account
+        ));
         let proxy_account_one = 3;
         let proxy_account_two = 4;
         let not_registered_account: u64 = 4;
@@ -134,7 +147,11 @@ fn test_add_proxy() {
         // Check proxy Limit
         let proxy_account_three = 5;
         assert_noop!(
-            PolkadexOcexPallet::add_proxy(Origin::signed(new_account), new_account, proxy_account_three),
+            PolkadexOcexPallet::add_proxy(
+                Origin::signed(new_account),
+                new_account,
+                proxy_account_three
+            ),
             Error::<Test>::ProxyLimitReached
         );
     });
@@ -145,7 +162,10 @@ fn test_remove_proxy() {
     new_test_ext(0).execute_with(|| {
         let new_account: u64 = 2;
         let gen_account: u64 = 0;
-        assert_ok!(PolkadexOcexPallet::register(Origin::signed(new_account), new_account));
+        assert_ok!(PolkadexOcexPallet::register(
+            Origin::signed(new_account),
+            new_account
+        ));
         let proxy_account_one = 3;
         assert_ok!(PolkadexOcexPallet::add_proxy(
             Origin::signed(new_account),
@@ -173,7 +193,10 @@ fn test_remove_proxy() {
     new_test_ext(0).execute_with(|| {
         let new_account: u64 = 2;
         let proxy_account_one = 3;
-        assert_ok!(PolkadexOcexPallet::register(Origin::signed(new_account), new_account));
+        assert_ok!(PolkadexOcexPallet::register(
+            Origin::signed(new_account),
+            new_account
+        ));
         let not_registered_account: u64 = 4;
         assert_noop!(
             PolkadexOcexPallet::remove_proxy(
