@@ -4703,7 +4703,6 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=develop#dd6efde7883313b8ed3f7e0b158bc637482954c6"
 dependencies = [
  "parity-scale-codec",
  "serde",
@@ -4714,6 +4713,7 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.1.0"
+source = "git+https://github.com/Polkadex-Substrate/Polkadex.git?branch=develop#dd6efde7883313b8ed3f7e0b158bc637482954c6"
 dependencies = [
  "parity-scale-codec",
  "serde",
