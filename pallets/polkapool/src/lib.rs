@@ -31,7 +31,7 @@ use frame_support::{
     traits::{Get, OriginTrait},
 };
 use frame_system::ensure_signed;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
 use rand::{seq::SliceRandom, SeedableRng};
@@ -72,7 +72,7 @@ pub trait Config: frame_system::Config {
         + PartialOrd
         + Bounded;
     /// Module that handles tokens
-    type Currency: MultiCurrencyExtended<
+    type Currency: MultiReservableCurrency<
         Self::AccountId,
         CurrencyId = AssetId,
         Balance = Self::Balance,
@@ -212,7 +212,8 @@ decl_error! {
         BadOrigin,
         InvalidCall,
         Overflow,
-        BadCall
+        BadCall,
+        FailedToMoveBalanceToReserve
     }
 }
 
@@ -273,6 +274,9 @@ decl_module! {
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
             stake_moving_average.update_stake_amount(stake_amount.clone());
 
+            //Reserve stake amount
+            ensure!(T::Currency::reserve(AssetId::POLKADEX, &who, stake_amount).is_ok(),Error::<T>::FailedToMoveBalanceToReserve);
+
             // Get current block number
             let call_weight =  call.get_dispatch_info().weight;
             ensure!( call_weight < u32::MAX as u64, Error::<T>::Overflow);
@@ -310,7 +314,7 @@ decl_module! {
             let stake = <StakedUsers<T>>::get(&who);
             let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
             ensure!(stake.unlocking_block <= current_block_no,Error::<T>::UnlockingFailedCurrentBlockNumberLow);
-            ensure!(T::Currency::deposit(AssetId::POLKADEX, &who, stake.staked_amount).is_ok(),Error::<T>::FailedToDepositStakedAmount);
+            T::Currency::unreserve(AssetId::POLKADEX, &who, stake.staked_amount);
             Self::deposit_event(RawEvent::Unstaked(who,stake.staked_amount));
             Ok(())
         }
