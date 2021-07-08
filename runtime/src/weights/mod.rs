@@ -15,8 +15,8 @@
 
 //! A list of the different weight modules for our runtime.
 
+pub mod basic_channel_inbound_weights;
 pub mod pallet_session;
 pub mod pallet_staking;
 pub mod pallet_utility;
 pub mod verifier_lightclient_weights;
-pub mod basic_channel_inbound_weights;

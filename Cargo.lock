@@ -4059,6 +4059,7 @@ dependencies = [
  "pallet-membership",
  "pallet-multisig",
  "pallet-offences",
+ "pallet-polkapool",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
  "pallet-recovery",
@@ -4712,6 +4713,30 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-polkapool"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-babe",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "rand 0.8.4",
+ "rand_chacha 0.3.1",
+ "serde",
+ "sp-arithmetic",
+ "sp-consensus-vrf",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 

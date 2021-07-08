@@ -94,7 +94,7 @@ decl_event!(
     {
         TokenDeposited(AssetId, AccountId, Balance),
         TokenWithdrawn(AssetId, AccountId, Balance),
-		TokenRelease(AssetId, AccountId, Balance),
+        TokenRelease(AssetId, AccountId, Balance),
         MainAccountRegistered(AccountId),
         ProxyAdded(AccountId,AccountId),
         ProxyRemoved(AccountId,AccountId),
@@ -137,12 +137,12 @@ decl_module! {
 
 
     /// Transfers given amount to Enclave.
-		///
-		/// # Parameters
-		///
-		/// * `main`: Account from which amount is to be transferred
-		/// * `asset_id`: Asset Id
-		/// * `amount`: Amount to be transferred to Enclave
+        ///
+        /// # Parameters
+        ///
+        /// * `main`: Account from which amount is to be transferred
+        /// * `asset_id`: Asset Id
+        /// * `amount`: Amount to be transferred to Enclave
         #[weight = 10000]
         pub fn deposit(origin, main: T::AccountId, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let from: T::AccountId = ensure_signed(origin)?;
@@ -153,13 +153,13 @@ decl_module! {
         }
 
     /// Releases/Transfers given amount to Destination Account,
-		/// Only Enclave can call this Dispatchable function.
-		///
-		/// # Parameters
-		///
-		/// * `asset_id`: Asset Id
-		/// * `amount`: Amount to be released
-		/// * `to`: Destination Account
+        /// Only Enclave can call this Dispatchable function.
+        ///
+        /// # Parameters
+        ///
+        /// * `asset_id`: Asset Id
+        /// * `amount`: Amount to be released
+        /// * `to`: Destination Account
         #[weight = 10000]
         pub fn release(origin, asset_id:  AssetId, amount: T::Balance, to: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
@@ -167,17 +167,17 @@ decl_module! {
             // TODO: Check if the latest MRENCLAVE is registered by this sender
             // TODO: Handle software updated to enclave
             <T as Config>::Currency::transfer(asset_id, &Self::get_account(), &to, amount)?;
-			Self::deposit_event(RawEvent::TokenRelease(asset_id, to, amount));
+            Self::deposit_event(RawEvent::TokenRelease(asset_id, to, amount));
             Ok(())
         }
 
         /// Notifies enclave about sender's intend to withdraw via on-chain.
-		///
-		/// # Parameters
-		///
-		/// * `main`: Account which wants to Notify Enclave
-		/// * `asset_id`: Asset Id
-		/// * `amount`: Amount to be notified to Enclave
+        ///
+        /// # Parameters
+        ///
+        /// * `main`: Account which wants to Notify Enclave
+        /// * `asset_id`: Asset Id
+        /// * `amount`: Amount to be notified to Enclave
         #[weight = 10000]
         pub fn withdraw(origin,  main: T::AccountId, asset_id:  AssetId, amount: T::Balance) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
@@ -187,10 +187,10 @@ decl_module! {
         }
 
     /// Registers main Account.
-		///
-		/// # Parameter
-		///
-		/// * `main`: Main Account to be registered
+        ///
+        /// # Parameter
+        ///
+        /// * `main`: Main Account to be registered
         #[weight = 10000]
         pub fn register(origin, main: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
@@ -202,11 +202,11 @@ decl_module! {
         }
 
     /// Adds Proxy Account for given Main Account.
-		///
-		/// # Parameter
-		///
-		/// * `main`: Main Account for which Proxy Account is to be added
-		/// * `proxy`: Proxy Account to be added
+        ///
+        /// # Parameter
+        ///
+        /// * `main`: Main Account for which Proxy Account is to be added
+        /// * `proxy`: Proxy Account to be added
         #[weight = 10000]
         pub fn add_proxy(origin, main: T::AccountId, proxy: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
@@ -218,11 +218,11 @@ decl_module! {
         }
 
     /// Removes Proxy Account for given Main Account.
-		///
-		/// # Parameter
-		///
-		/// * `main`: Main Account for which Proxy Account is to be removed
-		/// * `proxy`: Proxy Account to be removed
+        ///
+        /// # Parameter
+        ///
+        /// * `main`: Main Account for which Proxy Account is to be removed
+        /// * `proxy`: Proxy Account to be removed
         #[weight = 10000]
         pub fn remove_proxy(origin, main: T::AccountId, proxy: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;

@@ -19,11 +19,12 @@
 use super::*;
 
 use crate as polkadex_ido;
-use frame_support::{
-    parameter_types,
-	traits::SortedMembers,
-};
+use frame_support::PalletId;
+use frame_support::{parameter_types, traits::SortedMembers};
+use frame_support_test::TestRandomness;
 use frame_system::EnsureSignedBy;
+use orml_currencies::BasicCurrencyAdapter;
+use orml_traits::arithmetic::Zero;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
@@ -32,10 +33,6 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
-use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::arithmetic::Zero;
-use frame_support::PalletId;
-use frame_support_test::TestRandomness;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -105,7 +102,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
 }
 
 impl orml_currencies::Config for Test {
@@ -128,9 +125,9 @@ parameter_types! {
 
 pub struct OneToFive;
 impl SortedMembers<u64> for OneToFive {
-	fn sorted_members() -> Vec<u64> {
-		vec![1, 2, 3, 4, 5]
-	}
+    fn sorted_members() -> Vec<u64> {
+        vec![1, 2, 3, 4, 5]
+    }
 }
 
 impl Config for Test {
@@ -143,7 +140,7 @@ impl Config for Test {
     type MaxSupply = GetMaxSupply;
     type Randomness = TestRandomness<Self>;
     type ModuleId = PolkadexIdoModuleId;
-	type WeightIDOInfo = ();
+    type WeightIDOInfo = ();
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
@@ -169,7 +166,7 @@ impl orml_tokens::Config for Test {
 }
 
 pub const ALICE: AccountId = 1;
-pub const INITIAL_BALANCE : Balance = 1_000_000;
+pub const INITIAL_BALANCE: Balance = 1_000_000;
 
 pub struct ExtBuilder {
     endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
@@ -181,27 +178,33 @@ impl Default for ExtBuilder {
             endowed_accounts: vec![
                 (ALICE, AssetId::POLKADEX, INITIAL_BALANCE),
                 (4, AssetId::POLKADEX, INITIAL_BALANCE),
-                (2, AssetId::POLKADEX, INITIAL_BALANCE)]
+                (2, AssetId::POLKADEX, INITIAL_BALANCE),
+            ],
         }
     }
 }
 
 impl ExtBuilder {
-
     pub fn build(self) -> sp_io::TestExternalities {
         let mut t = frame_system::GenesisConfig::default()
             .build_storage::<Test>()
             .unwrap();
 
         pallet_balances::GenesisConfig::<Test> {
-            balances: vec![(ALICE, INITIAL_BALANCE), (4u64, INITIAL_BALANCE), (2u64, INITIAL_BALANCE)],
+            balances: vec![
+                (ALICE, INITIAL_BALANCE),
+                (4u64, INITIAL_BALANCE),
+                (2u64, INITIAL_BALANCE),
+            ],
         }
-            .assimilate_storage(&mut t)
-            .unwrap();
+        .assimilate_storage(&mut t)
+        .unwrap();
 
         super::GenesisConfig::<Test> {
             endowed_accounts: self.endowed_accounts,
-        }.assimilate_storage(&mut t).unwrap();
+        }
+        .assimilate_storage(&mut t)
+        .unwrap();
 
         let mut ext = sp_io::TestExternalities::new(t);
         ext.execute_with(|| System::set_block_number(1));

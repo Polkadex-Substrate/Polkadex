@@ -24,7 +24,6 @@
 // --output
 // runtime/rococo/src/weights/verifier_lightclient_weights.rs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
