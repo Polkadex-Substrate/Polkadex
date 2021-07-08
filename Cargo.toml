@@ -9,5 +9,6 @@ members = [
     'pallets/token-faucet',
     'pallets/pdex-migration',
 	'pallets/Polkadex_Ido',
+    'pallets/polkapool',
     'runtime',
 ]

@@ -86,20 +86,16 @@ impl pallet_staking::WeightInfo for WeightInfo {
             .saturating_add(DbWeight::get().writes(3 as Weight))
     }
     fn set_validator_count() -> Weight {
-        (5185000 as Weight)
-            .saturating_add(DbWeight::get().writes(1 as Weight))
+        (5185000 as Weight).saturating_add(DbWeight::get().writes(1 as Weight))
     }
     fn force_no_eras() -> Weight {
-        (5907000 as Weight)
-            .saturating_add(DbWeight::get().writes(1 as Weight))
+        (5907000 as Weight).saturating_add(DbWeight::get().writes(1 as Weight))
     }
     fn force_new_era() -> Weight {
-        (5917000 as Weight)
-            .saturating_add(DbWeight::get().writes(1 as Weight))
+        (5917000 as Weight).saturating_add(DbWeight::get().writes(1 as Weight))
     }
     fn force_new_era_always() -> Weight {
-        (5952000 as Weight)
-            .saturating_add(DbWeight::get().writes(1 as Weight))
+        (5952000 as Weight).saturating_add(DbWeight::get().writes(1 as Weight))
     }
     fn set_invulnerables(v: u32) -> Weight {
         (6324000 as Weight)

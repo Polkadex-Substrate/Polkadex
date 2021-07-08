@@ -26,18 +26,13 @@ use polkadex_primitives::assets::AssetId;
 #[test]
 fn test_register_investor() {
     // Register new account
-    ExtBuilder::default()
-        .build().execute_with(|| {
+    ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(ALICE.clone())
-            ),
+            PolkadexIdo::register_investor(Origin::signed(ALICE.clone())),
             Ok(())
         );
         assert_noop!(
-            PolkadexIdo::register_investor(
-                Origin::signed(ALICE.clone())
-            ),
+            PolkadexIdo::register_investor(Origin::signed(ALICE.clone())),
             Error::<Test>::InvestorAlreadyRegistered
         );
     });
@@ -46,28 +41,17 @@ fn test_register_investor() {
 #[test]
 fn test_attest_investor() {
     let bob: u64 = 5;
-    ExtBuilder::default()
-        .build().execute_with(|| {
+    ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::attest_investor(
-                Origin::signed(bob),
-                ALICE.clone(),
-                KYCStatus::Tier1
-            ),
+            PolkadexIdo::attest_investor(Origin::signed(bob), ALICE.clone(), KYCStatus::Tier1),
             Error::<Test>::InvestorDoesNotExist
         );
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(ALICE.clone())
-            ),
+            PolkadexIdo::register_investor(Origin::signed(ALICE.clone())),
             Ok(())
         );
         assert_eq!(
-            PolkadexIdo::attest_investor(
-                Origin::signed(bob),
-                ALICE.clone(),
-                KYCStatus::Tier1
-            ),
+            PolkadexIdo::attest_investor(Origin::signed(bob), ALICE.clone(), KYCStatus::Tier1),
             Ok(())
         );
     });
@@ -77,9 +61,7 @@ fn test_attest_investor() {
 fn test_register_round() {
     let balance: Balance = 100;
     let block_num = 3;
-    ExtBuilder::default()
-        .build().execute_with(|| {
-
+    ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(ALICE.clone()),
@@ -96,7 +78,6 @@ fn test_register_round() {
             ),
             Ok(())
         );
-
     });
 }
 
@@ -106,9 +87,7 @@ fn test_whitelist_investor() {
     let investor_address: u64 = 4;
     let block_num = 3;
     let round_id = create_hash_data(&1u32);
-    ExtBuilder::default()
-        .build().execute_with(|| {
-
+    ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
             PolkadexIdo::whitelist_investor(
                 Origin::signed(ALICE.clone()),
@@ -158,9 +137,7 @@ fn test_whitelist_investor() {
         );
 
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(investor_address)
-            ),
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
@@ -182,15 +159,9 @@ fn test_participate_in_round() {
     let investor_address: u64 = 4;
     let block_num = 3;
     let round_id = create_hash_data(&1u32);
-    ExtBuilder::default()
-        .build().execute_with(|| {
-
+    ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::participate_in_round(
-                Origin::signed(ALICE.clone()),
-                round_id,
-                balance
-            ),
+            PolkadexIdo::participate_in_round(Origin::signed(ALICE.clone()), round_id, balance),
             Error::<Test>::NotWhiteListed
         );
 
@@ -214,9 +185,7 @@ fn test_participate_in_round() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
 
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(investor_address)
-            ),
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
@@ -231,20 +200,12 @@ fn test_participate_in_round() {
         );
 
         assert_noop!(
-            PolkadexIdo::participate_in_round(
-                Origin::signed(investor_address),
-                round_id,
-                50
-            ),
+            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, 50),
             Error::<Test>::NotAValidAmount
         );
 
         assert_eq!(
-            PolkadexIdo::participate_in_round(
-                Origin::signed(investor_address),
-                round_id,
-                balance
-            ),
+            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
             Ok(())
         );
     });
@@ -256,28 +217,19 @@ fn test_claim_tokens() {
     let investor_address: u64 = 4;
     let block_num = 0;
     let round_id = create_hash_data(&1u32);
-    ExtBuilder::default()
-        .build().execute_with(|| {
+    ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::claim_tokens(
-                Origin::signed(investor_address),
-                round_id,
-            ),
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
             Error::<Test>::InvestorDoesNotExist
         );
 
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(investor_address)
-            ),
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
         assert_noop!(
-            PolkadexIdo::claim_tokens(
-                Origin::signed(investor_address),
-                round_id,
-            ),
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
             Error::<Test>::FundingRoundDoesNotExist
         );
 
@@ -301,10 +253,7 @@ fn test_claim_tokens() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
 
         assert_eq!(
-            PolkadexIdo::claim_tokens(
-                Origin::signed(investor_address),
-                round_id,
-            ),
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
             Ok(())
         );
 
@@ -317,39 +266,28 @@ fn test_claim_tokens() {
             InfoClaimAmount::<Test>::contains_key(investor_address),
             true
         );
-
     });
 }
 
 #[test]
 fn test_show_interest_in_round() {
-
     let balance: Balance = 100;
     let investor_address: u64 = 4;
     let block_num = 3;
     let round_id = create_hash_data(&1u32);
-    ExtBuilder::default()
-        .build().execute_with(|| {
+    ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(
-                Origin::signed(investor_address),
-                round_id,
-            ),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
             Error::<Test>::InvestorDoesNotExist
         );
 
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(investor_address)
-            ),
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(
-                Origin::signed(investor_address),
-                round_id,
-            ),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
             Error::<Test>::FundingRoundDoesNotExist
         );
 
@@ -373,18 +311,11 @@ fn test_show_interest_in_round() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
 
         assert_eq!(
-            PolkadexIdo::show_interest_in_round(
-                Origin::signed(investor_address),
-                round_id,
-            ),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
             Ok(())
         );
 
-        assert_eq!(
-            InterestedParticipants::<Test>::contains_key(round_id),
-            true
-        );
-
+        assert_eq!(InterestedParticipants::<Test>::contains_key(round_id), true);
     });
 }
 
@@ -394,29 +325,18 @@ fn test_withdraw_raise() {
     let investor_address: u64 = 4;
     let block_num = 0;
     let round_id = create_hash_data(&1u32);
-    ExtBuilder::default()
-        .build().execute_with(|| {
+    ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::withdraw_raise(
-                Origin::signed(ALICE),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_raise(Origin::signed(ALICE), round_id, investor_address),
             Error::<Test>::InvestorDoesNotExist
         );
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(investor_address)
-            ),
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
         assert_noop!(
-             PolkadexIdo::withdraw_raise(
-                Origin::signed(ALICE),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_raise(Origin::signed(ALICE), round_id, investor_address),
             Error::<Test>::FundingRoundDoesNotExist
         );
 
@@ -440,20 +360,11 @@ fn test_withdraw_raise() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
 
         assert_noop!(
-             PolkadexIdo::withdraw_raise(
-                Origin::signed(3),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_raise(Origin::signed(3), round_id, investor_address),
             Error::<Test>::CreaterDoesNotExist
         );
 
-        assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(2)
-            ),
-            Ok(())
-        );
+        assert_eq!(PolkadexIdo::register_investor(Origin::signed(2)), Ok(()));
 
         assert_eq!(
             PolkadexIdo::register_round(
@@ -473,22 +384,13 @@ fn test_withdraw_raise() {
         );
 
         assert_noop!(
-             PolkadexIdo::withdraw_raise(
-                Origin::signed(4),
-                round_id,
-                2
-            ),
+            PolkadexIdo::withdraw_raise(Origin::signed(4), round_id, 2),
             Error::<Test>::NotACreater
         );
         assert_eq!(
-            PolkadexIdo::withdraw_raise(
-                Origin::signed(ALICE),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_raise(Origin::signed(ALICE), round_id, investor_address),
             Ok(())
         );
-
     });
 }
 
@@ -498,29 +400,18 @@ fn test_withdraw_token() {
     let investor_address: u64 = 4;
     let block_num = 0;
     let round_id = create_hash_data(&1u32);
-    ExtBuilder::default()
-        .build().execute_with(|| {
+    ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::withdraw_token(
-                Origin::signed(ALICE),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_token(Origin::signed(ALICE), round_id, investor_address),
             Error::<Test>::InvestorDoesNotExist
         );
         assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(investor_address)
-            ),
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
         assert_noop!(
-             PolkadexIdo::withdraw_token(
-                Origin::signed(ALICE),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_token(Origin::signed(ALICE), round_id, investor_address),
             Error::<Test>::FundingRoundDoesNotExist
         );
 
@@ -544,20 +435,11 @@ fn test_withdraw_token() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
 
         assert_noop!(
-             PolkadexIdo::withdraw_token(
-                Origin::signed(3),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_token(Origin::signed(3), round_id, investor_address),
             Error::<Test>::CreaterDoesNotExist
         );
 
-        assert_eq!(
-            PolkadexIdo::register_investor(
-                Origin::signed(2)
-            ),
-            Ok(())
-        );
+        assert_eq!(PolkadexIdo::register_investor(Origin::signed(2)), Ok(()));
 
         assert_eq!(
             PolkadexIdo::register_round(
@@ -577,22 +459,13 @@ fn test_withdraw_token() {
         );
 
         assert_noop!(
-             PolkadexIdo::withdraw_token(
-                Origin::signed(4),
-                round_id,
-                2
-            ),
+            PolkadexIdo::withdraw_token(Origin::signed(4), round_id, 2),
             Error::<Test>::NotACreater
         );
         assert_eq!(
-            PolkadexIdo::withdraw_token(
-                Origin::signed(ALICE),
-                round_id,
-                investor_address
-            ),
+            PolkadexIdo::withdraw_token(Origin::signed(ALICE), round_id, investor_address),
             Ok(())
         );
-
     });
 }
 

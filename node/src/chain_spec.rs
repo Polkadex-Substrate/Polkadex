@@ -3,29 +3,31 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_verifier_lightclient::EthereumHeader;
-pub use polkadex_primitives::{AccountId, Balance, Signature};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::Block;
+pub use polkadex_primitives::{AccountId, Balance, Signature};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, Pair, Public, sr25519};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{
-    Perbill,
     traits::{AccountIdConversion, IdentifyAccount, Verify},
+    Perbill,
 };
 
-use node_polkadex_runtime::{
-    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
-    DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, PolkadexOcexConfig, SessionConfig,
-    SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-    TokensConfig, VerifierLightclientConfig,ERC20PDEXConfig, BasicInboundChannelConfig, wasm_binary_unwrap,
-};
 use node_polkadex_runtime::constants::currency::*;
 pub use node_polkadex_runtime::GenesisConfig;
+use node_polkadex_runtime::{
+    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
+    BasicInboundChannelConfig, ContractsConfig, CouncilConfig, DemocracyConfig, ERC20PDEXConfig,
+    ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, OrmlVestingConfig,
+    PolkadexOcexConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
+    SystemConfig, TechnicalCommitteeConfig, TokensConfig, VerifierLightclientConfig,
+    MAX_NOMINATIONS,
+};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -159,7 +161,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
         // 5Ff3iXP75ruzroPWRP2FYBHWnmGGBSb63857BgnzCoXNxfPo
         "9ee5e5bdc0ec239eb164f865ecc345ce4c88e76ee002e0f7e318097347471809"
     ]
-        .into();
+    .into();
 
     let endowed_accounts: Vec<AccountId> = vec![root_key.clone()];
 
@@ -200,8 +202,8 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 
 /// Helper function to generate an account ID from seed
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-    where
-        AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+where
+    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
