@@ -261,25 +261,27 @@ decl_module! {
             let who = ensure_signed(origin.clone())?;
             ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
             ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
-            let origin = <T as Config>::Origin::from(origin);
+            // Get current block number
+            let call_weight =  call.get_dispatch_info().weight;
+            ensure!( call_weight < u32::MAX as u64, Error::<T>::Overflow);
 
+             //Reserve stake amount
+            ensure!(T::Currency::reserve(AssetId::POLKADEX, &who, stake_amount).is_ok(),Error::<T>::FailedToMoveBalanceToReserve);
+
+            let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
+            ensure!(stored_exts.total_weight < T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
+
+            let origin = <T as Config>::Origin::from(origin);
             let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128).ok_or(<Error<T>>::Overflow)?;
             ensure!(stake_amount >= minimum_stake_amount.saturated_into(), Error::<T>::StakeAmountTooSmall); // TODO
             ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
 
-            let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
-            ensure!(stored_exts.total_weight < T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
 
             // Update the moving average of stake amount
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
             stake_moving_average.update_stake_amount(stake_amount.clone());
 
-            //Reserve stake amount
-            ensure!(T::Currency::reserve(AssetId::POLKADEX, &who, stake_amount).is_ok(),Error::<T>::FailedToMoveBalanceToReserve);
 
-            // Get current block number
-            let call_weight =  call.get_dispatch_info().weight;
-            ensure!( call_weight < u32::MAX as u64, Error::<T>::Overflow);
             // Store the staking record
             let mut staked_amount = Self::staked_users(who.clone());
             staked_amount.staked_amount += stake_amount;
