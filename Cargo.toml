@@ -8,7 +8,8 @@ members = [
     'pallets/fungible-assets',
     'pallets/token-faucet',
     'pallets/pdex-migration',
-	'pallets/Polkadex_Ido',
+    'pallets/Polkadex_Ido',
     'pallets/polkapool',
     'runtime',
+    'contracts/uniswap_v2',
 ]
