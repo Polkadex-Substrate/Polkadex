@@ -6,13 +6,21 @@ edition = "2018"
 
 [dependencies]
 ink_primitives = { version = "3.0.0-rc3", default-features = false }
-ink_metadata = { version = "3.0.0-rc3", default-features = false, features = ["derive"], optional = true }
+ink_metadata = { version = "3.0.0-rc3", default-features = false, features = [
+    "derive",
+], optional = true }
 ink_env = { version = "3.0.0-rc3", default-features = false }
 ink_storage = { version = "3.0.0-rc3", default-features = false }
 ink_lang = { version = "3.0.0-rc3", default-features = false }
 
-scale = { package = "parity-scale-codec", version = "2.0.1", default-features = false, features = ["derive"] }
-scale-info = { version = "0.6.0", default-features = false, features = ["derive"], optional = true }
+scale = { package = "parity-scale-codec", version = "2.0.1", default-features = false, features = [
+    "derive",
+] }
+scale-info = { version = "0.6.0", default-features = false, features = [
+    "derive",
+], optional = true }
+sp-core = { tag = "v3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
+sp-runtime = { tag = "v3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
 
 # Should be removed once bitvecto-rs/bitvec#105 is resolved
 funty = "=1.1.0"
@@ -21,8 +29,8 @@ funty = "=1.1.0"
 name = "uniswap_v2"
 path = "lib.rs"
 crate-type = [
-	# Used for normal contract Wasm blobs.
-	"cdylib",
+    # Used for normal contract Wasm blobs.
+    "cdylib",
 ]
 
 [features]
@@ -34,5 +42,7 @@ std = [
     "ink_primitives/std",
     "scale/std",
     "scale-info/std",
+    "sp-runtime/std",
+    "sp-core/std",
 ]
 ink-as-dependency = []
