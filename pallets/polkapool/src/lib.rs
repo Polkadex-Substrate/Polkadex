@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use codec::Codec;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
@@ -31,7 +32,7 @@ use frame_support::{
     traits::{Get, OriginTrait},
 };
 use frame_system::ensure_signed;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
+use orml_traits::{MultiCurrency, MultiReservableCurrency};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
 use rand::{seq::SliceRandom, SeedableRng};
@@ -137,7 +138,7 @@ impl<T: Config> MovingAverage<T> {
         let new_count = self.count.saturating_add(1u128.saturated_into());
         self.amount = self
             .amount
-            .saturating_mul(self.count.clone())
+            .saturating_mul(self.count)
             .saturating_add(stake_amount)
             / new_count;
         self.count = new_count
@@ -237,7 +238,7 @@ decl_module! {
             stored_exts.store.shuffle(&mut rng);
             // Start executing
             for ext in stored_exts.store{
-                total_weight = total_weight + ext.call.get_dispatch_info().weight;
+                total_weight += ext.call.get_dispatch_info().weight;
                 match ext.call.dispatch(ext.origin.into()) {
                     Ok(post_info) => {
                         Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
@@ -248,7 +249,7 @@ decl_module! {
                 }
 
             }
-            total_weight = total_weight + base_weight;
+            total_weight  += base_weight;
             total_weight
         }
 
@@ -279,7 +280,7 @@ decl_module! {
 
             // Update the moving average of stake amount
             let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
-            stake_moving_average.update_stake_amount(stake_amount.clone());
+            stake_moving_average.update_stake_amount(stake_amount);
 
 
             // Store the staking record
@@ -299,7 +300,7 @@ decl_module! {
             });
             stored_exts.total_weight += call.get_dispatch_info().weight;
 
-            <StakedUsers<T>>::insert(who.clone(),staked_amount);
+            <StakedUsers<T>>::insert(who,staked_amount);
             <TxnsForNextBlock<T>>::put(stored_exts);
             <StakeMovingAverage<T>>::put(stake_moving_average);
             Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(*call));
@@ -311,7 +312,7 @@ decl_module! {
         #[weight = 10000]
         pub fn unstake(origin) -> DispatchResult {
             let who = ensure_signed(origin.clone())?;
-            ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
+            ensure!(origin.into().is_ok(),Error::<T>::BadOrigin);
             ensure!(<StakedUsers<T>>::contains_key(&who),Error::<T>::StakeNotFound);
             let stake = <StakedUsers<T>>::get(&who);
             let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
