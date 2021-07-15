@@ -8940,6 +8940,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "substrate-fixed"
+version = "0.5.6"
+source = "git+https://github.com/encointer/substrate-fixed#b33d186888c60f38adafcfc0ec3a21aab263aef1"
+dependencies = [
+ "parity-scale-codec",
+ "typenum",
+]
+
+[[package]]
 name = "substrate-frame-rpc-system"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate#e5437efefa82bd8eb567f1245f0a7443ac4e4fe7"
@@ -9844,9 +9853,11 @@ dependencies = [
  "ink_metadata",
  "ink_primitives",
  "ink_storage",
+ "num-traits",
  "parity-scale-codec",
  "primitive-types 0.10.1",
  "scale-info",
+ "substrate-fixed",
 ]
 
 [[package]]

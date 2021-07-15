@@ -26,6 +26,12 @@ err-derive = { version = "0.3.0", default-features = false }
 # Should be removed once bitvecto-rs/bitvec#105 is resolved
 funty = "=1.1.0"
 primitive-types = { version = "0.10.1", default-features = false }
+num-traits = { version = "0.2.14", default-features = false }
+
+[dependencies.fixed]
+default-features = false
+git = "https://github.com/encointer/substrate-fixed"
+package = "substrate-fixed"
 
 [lib]
 name = "uniswap_v2"
