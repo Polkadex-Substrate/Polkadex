@@ -1,17 +1,17 @@
-#[cfg(feature = "std")]
-use ink_storage::traits::StorageLayout;
-use ink_storage::traits::{PackedLayout, SpreadLayout};
-use sp_core::{H160};
-use sp_runtime::{FixedU128};
 use ink_primitives::Key;
 use ink_primitives::KeyPtr;
-use ink_storage::traits::{forward_pull_packed, forward_clear_packed, forward_push_packed};
-use scale_info::{Type, TypeInfo, build::Fields, Path};
+#[cfg(feature = "std")]
+use ink_storage::traits::StorageLayout;
+use ink_storage::traits::{forward_clear_packed, forward_pull_packed, forward_push_packed};
+use ink_storage::traits::{PackedLayout, SpreadLayout};
+use primitive_types::H160;
+use scale_info::{build::Fields, Path, Type, TypeInfo};
+// use sp_runtime::FixedU128;
 
 pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
 
-pub type ExchangeRate = FixedU128;
-pub type Ratio = FixedU128;
+pub type ExchangeRate = u128;
+pub type Ratio = u128;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -127,28 +127,42 @@ impl core::ops::DerefMut for TokenAddress {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode, PartialOrd, Ord, PackedLayout, SpreadLayout)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    scale::Encode,
+    scale::Decode,
+    PartialOrd,
+    Ord,
+    PackedLayout,
+    SpreadLayout,
+)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct TradingPair(TokenAddress, TokenAddress);
 
 impl TradingPair {
-	pub fn from_currency_ids(currency_id_a: TokenAddress, currency_id_b: TokenAddress) -> Option<Self> {
-		if currency_id_a != currency_id_b {
-			if currency_id_a > currency_id_b {
-				Some(TradingPair(currency_id_b, currency_id_a))
-			} else {
-				Some(TradingPair(currency_id_a, currency_id_b))
-			}
-		} else {
-			None
-		}
-	}
+    pub fn from_currency_ids(
+        currency_id_a: TokenAddress,
+        currency_id_b: TokenAddress,
+    ) -> Option<Self> {
+        if currency_id_a != currency_id_b {
+            if currency_id_a > currency_id_b {
+                Some(TradingPair(currency_id_b, currency_id_a))
+            } else {
+                Some(TradingPair(currency_id_a, currency_id_b))
+            }
+        } else {
+            None
+        }
+    }
 
-	pub fn first(&self) -> TokenAddress {
-		self.0
-	}
+    pub fn first(&self) -> TokenAddress {
+        self.0
+    }
 
-	pub fn second(&self) -> TokenAddress {
-		self.1
-	}
+    pub fn second(&self) -> TokenAddress {
+        self.1
+    }
 }

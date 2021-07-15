@@ -4,9 +4,7 @@ mod chain_extension;
 mod models;
 
 use ink_lang as ink;
-use sp_runtime::{
-	traits::{AccountIdConversion, Bounded, One, Zero},
-};
+// use sp_runtime::traits::{AccountIdConversion, Bounded, One, Zero};
 
 /// Error types
 #[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode, err_derive::Error)]
@@ -29,12 +27,8 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[ink::contract(env = crate::chain_extension::CustomEnvironment)]
 mod uniswap_v2 {
     use super::*;
-    use crate::{
-        models::{TradingPair, TokenAddress, ExchangeRate, Ratio},
-    };
-    use ink_storage::{
-        collections::HashMap
-    };
+    use crate::models::{ExchangeRate, Ratio, TokenAddress, TradingPair};
+    use ink_storage::collections::HashMap;
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
@@ -74,83 +68,83 @@ mod uniswap_v2 {
         pub fn new() -> Self {
             Self {
                 liquidityPool: HashMap::new(),
-                totalIssuances: HashMap::new()
+                totalIssuances: HashMap::new(),
             }
         }
 
         /// Add liquidity to trading pair
         /// - `currency_id_a`: currency id A.
-		/// - `currency_id_b`: currency id B.
-		/// - `max_amount_a`: maximum amount of currency_id_a is allowed to inject to liquidity
-		///   pool.
-		/// - `max_amount_b`: maximum amount of currency_id_b is allowed to inject to liquidity
-		///   pool.
-		/// - `min_share_increment`: minimum acceptable share amount.
-		/// - `stake_increment_share`: indicates whether to stake increased dex share to earn
-		///   incentives
+        /// - `currency_id_b`: currency id B.
+        /// - `max_amount_a`: maximum amount of currency_id_a is allowed to inject to liquidity
+        ///   pool.
+        /// - `max_amount_b`: maximum amount of currency_id_b is allowed to inject to liquidity
+        ///   pool.
+        /// - `min_share_increment`: minimum acceptable share amount.
+        /// - `stake_increment_share`: indicates whether to stake increased dex share to earn
+        ///   incentives
         #[ink(message)]
         pub fn add_liquidity(
-            &self,
-			currency_id_a: TokenAddress,
-			currency_id_b: TokenAddress,
-			max_amount_a: Balance,
-			max_amount_b: Balance,
-			min_share_increment: Balance,
-			stake_increment_share: bool,
-		) -> Result<()> {
-			let caller = self.env().caller();
-			self.do_add_liquidity(
-				currency_id_a,
-				currency_id_b,
-				max_amount_a,
-				max_amount_b,
-				min_share_increment,
-				stake_increment_share,
-			)?;
-			Ok(())
-		}
+            &mut self,
+            currency_id_a: TokenAddress,
+            currency_id_b: TokenAddress,
+            max_amount_a: Balance,
+            max_amount_b: Balance,
+            min_share_increment: Balance,
+            stake_increment_share: bool,
+        ) -> Result<()> {
+            let caller = self.env().caller();
+            self.do_add_liquidity(
+                currency_id_a,
+                currency_id_b,
+                max_amount_a,
+                max_amount_b,
+                min_share_increment,
+                stake_increment_share,
+            )?;
+            Ok(())
+        }
 
         /// Remove liquidity from specific liquidity pool in the form of burning
-		/// shares, and withdrawing currencies in trading pairs from liquidity
-		/// pool in proportion, and withdraw liquidity incentive interest.
-		///
-		/// - `currency_id_a`: currency id A.
-		/// - `currency_id_b`: currency id B.
-		/// - `remove_share`: liquidity amount to remove.
-		/// - `min_withdrawn_a`: minimum acceptable withrawn for currency_id_a.
-		/// - `min_withdrawn_b`: minimum acceptable withrawn for currency_id_b.
-		/// - `by_unstake`: this flag indicates whether to withdraw share which is on incentives.
+        /// shares, and withdrawing currencies in trading pairs from liquidity
+        /// pool in proportion, and withdraw liquidity incentive interest.
+        ///
+        /// - `currency_id_a`: currency id A.
+        /// - `currency_id_b`: currency id B.
+        /// - `remove_share`: liquidity amount to remove.
+        /// - `min_withdrawn_a`: minimum acceptable withrawn for currency_id_a.
+        /// - `min_withdrawn_b`: minimum acceptable withrawn for currency_id_b.
+        /// - `by_unstake`: this flag indicates whether to withdraw share which is on incentives.
         #[ink(message)]
         pub fn remove_liquidity(
-            &self,
-			currency_id_a: TokenAddress,
-			currency_id_b: TokenAddress,
-			remove_share: Balance,
-			min_withdrawn_a: Balance,
-			min_withdrawn_b: Balance,
-			by_unstake: bool,
-		) -> Result<()> {
-			let caller = self.env().caller();
-			self.do_remove_liquidity(
-				currency_id_a,
-				currency_id_b,
-				remove_share,
-				min_withdrawn_a,
-				min_withdrawn_b,
-				by_unstake,
-			)?;
-			Ok(())
-		}
+            &mut self,
+            currency_id_a: TokenAddress,
+            currency_id_b: TokenAddress,
+            remove_share: Balance,
+            min_withdrawn_a: Balance,
+            min_withdrawn_b: Balance,
+            by_unstake: bool,
+        ) -> Result<()> {
+            let caller = self.env().caller();
+            self.do_remove_liquidity(
+                currency_id_a,
+                currency_id_b,
+                remove_share,
+                min_withdrawn_a,
+                min_withdrawn_b,
+                by_unstake,
+            )?;
+            Ok(())
+        }
 
         // #[ink(message)]
         // pub fn do_swap_with_exact_supply(
         //     &self,
-		// 	path: &[TokenAddress],
+        // 	path: &[TokenAddress],
         //     supply_amount: Balance,
         //     min_target_amount: Balance,
         //     price_impact_limit: Option<Ratio>,
-		// ) -> Result<Balance> {
-		// 	let amounts = Self::get_target_amounts(&path, supply_amount, price_impact_limit)?;
+        // ) -> Result<Balance> {
+        // 	let amounts = Self::get_target_amounts(&path, supply_amount, price_impact_limit)?;
         //     ensure!(
         //         amounts[amounts.len() - 1] >= min_target_amount,
         //         Error::<T>::InsufficientTargetAmount
@@ -169,7 +163,7 @@ mod uniswap_v2 {
         //         actual_target_amount,
         //     ));
         //     Ok(actual_target_amount)
-		// }
+        // }
 
         /// Transfers token `id` `from` the sender to the `to` AccountId.
         fn do_add_liquidity(
@@ -183,11 +177,12 @@ mod uniswap_v2 {
         ) -> Result<()> {
             let caller = self.env().caller();
 
-            let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b).ok_or(Error::InvalidTokenAddress);
+            let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
+                .ok_or(Error::InvalidTokenAddress);
 
-            if max_amount_a.is_zero() || max_amount_b.is_zero() {
-                return Err(Error::InvalidLiquidityIncrement)
-            }
+            // if max_amount_a.is_zero() || max_amount_b.is_zero() {
+            //     return Err(Error::InvalidLiquidityIncrement);
+            // }
 
             // self.liquidityPool.try_mutate(trading_pair, |(pool_0, pool_1)| -> Result<()> {
             //     let total_shares = self.totalIssuances.get(&trading_pair).unwrap_or_default();
@@ -211,7 +206,7 @@ mod uniswap_v2 {
             //                     ExchangeRate::one(),
             //                 )
             //             };
-    
+
             //             let shares_from_token_0 = exchange_rate_0
             //                 .checked_mul_int(max_amount_0)
             //                 .ok_or(Err(Error::ArithmeticOverflow))?;
@@ -221,14 +216,14 @@ mod uniswap_v2 {
             //             let initial_shares = shares_from_token_0
             //                 .checked_add(shares_from_token_1)
             //                 .ok_or(Err(Error::ArithmeticOverflow))?;
-    
+
             //             (max_amount_0, max_amount_1, initial_shares)
             //         } else {
             //             let exchange_rate_0_1 =
             //                 ExchangeRate::checked_from_rational(*pool_1, *pool_0).ok_or(Err(Error::ArithmeticOverflow))?;
             //             let input_exchange_rate_0_1 = ExchangeRate::checked_from_rational(max_amount_1, max_amount_0)
             //                 .ok_or(Err(Error::ArithmeticOverflow))?;
-    
+
             //             if input_exchange_rate_0_1 <= exchange_rate_0_1 {
             //                 // max_amount_0 may be too much, calculate the actual amount_0
             //                 let exchange_rate_1_0 =
@@ -251,7 +246,7 @@ mod uniswap_v2 {
             //                 (max_amount_0, amount_1, share_increment)
             //             }
             //         };
-    
+
             //     if share_increment.is_zero() || pool_0_increment.is_zero() || pool_1_increment.is_zero() {
             //         return Err(Error::InvalidLiquidityIncrement)
             //     }
@@ -259,7 +254,7 @@ mod uniswap_v2 {
             //     if share_increment < min_share_increment {
             //         return Err(Error::UnacceptableShareIncrement)
             //     }
-    
+
             //     // Todo:
             //     // 1. Get uniswap account id
             //     // 2. transfer pool_0_increment amount of trading_pair.first() token from sender to uniswap account
@@ -272,10 +267,10 @@ mod uniswap_v2 {
             //     // T::Currency::transfer(trading_pair.first(), who, &module_account_id, pool_0_increment)?;
             //     // T::Currency::transfer(trading_pair.second(), who, &module_account_id, pool_1_increment)?;
             //     // T::Currency::deposit(dex_share_currency_id, who, share_increment)?;
-    
+
             //     *pool_0 = pool_0.checked_add(pool_0_increment).ok_or(Err(Error::ArithmeticOverflow))?;
             //     *pool_1 = pool_1.checked_add(pool_1_increment).ok_or(Err(Error::ArithmeticOverflow))?;
-    
+
             //     // self.env().emit_event(LiquidityAdded{
             //     //     caller,
             //     //     trading_pair.first(),
@@ -288,7 +283,7 @@ mod uniswap_v2 {
             // });
             Ok(())
         }
-    
+
         fn do_remove_liquidity(
             &mut self,
             currency_id_a: TokenAddress,
@@ -300,12 +295,13 @@ mod uniswap_v2 {
         ) -> Result<()> {
             let caller = self.env().caller();
 
-            if remove_share.is_zero() {
-                return Ok(());
-            }
+            // if remove_share.is_zero() {
+            //     return Ok(());
+            // }
 
-            let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b).ok_or(Error::InvalidTokenAddress);
-    
+            let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
+                .ok_or(Error::InvalidTokenAddress);
+
             // self.liquidityPool.try_mutate(trading_pair, |(pool_0, pool_1)| -> Result<()> {
             //     let (min_withdrawn_0, min_withdrawn_1) = if currency_id_a == trading_pair.first() {
             //         (min_withdrawn_a, min_withdrawn_b)
@@ -323,7 +319,7 @@ mod uniswap_v2 {
             //     }
 
             //     // let module_account_id = Self::account_id();
-    
+
             //     if by_unstake {
             //         // T::DEXIncentives::do_withdraw_dex_share(who, dex_share_currency_id, remove_share)?;
             //     }
@@ -331,10 +327,10 @@ mod uniswap_v2 {
             //     // T::Currency::withdraw(dex_share_currency_id, &who, remove_share)?;
             //     // T::Currency::transfer(trading_pair.first(), &module_account_id, &who, pool_0_decrement)?;
             //     // T::Currency::transfer(trading_pair.second(), &module_account_id, &who, pool_1_decrement)?;
-    
+
             //     *pool_0 = pool_0.checked_sub(pool_0_decrement).ok_or(Err(Error::ArithmeticOverflow))?;
             //     *pool_1 = pool_1.checked_sub(pool_1_decrement).ok_or(Err(Error::ArithmeticOverflow))?;
-    
+
             //     // self.env().emit_event(LiquidityRemoved{
             //     //     who.clone(),
             //     //     trading_pair.first(),
@@ -348,7 +344,7 @@ mod uniswap_v2 {
 
             Ok(())
         }
-    
+
         // fn get_liquidity(currency_id_a: TokenAddress, currency_id_b: TokenAddress) -> (Balance, Balance) {
         //     if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b) {
         //         let (pool_0, pool_1) = Self::liquidity_pool(trading_pair);
@@ -361,7 +357,6 @@ mod uniswap_v2 {
         //         (Zero::zero(), Zero::zero())
         //     }
         // }
-    
 
         // Simply returns the current value of our `bool`.
         // #[ink(message)]
