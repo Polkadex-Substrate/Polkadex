@@ -3,14 +3,129 @@ use ink_storage::traits::StorageLayout;
 use ink_storage::traits::{PackedLayout, SpreadLayout};
 use sp_core::{H160};
 use sp_runtime::{FixedU128};
+use ink_primitives::Key;
+use ink_primitives::KeyPtr;
+use ink_storage::traits::{forward_pull_packed, forward_clear_packed, forward_push_packed};
+use scale_info::{Type, TypeInfo, build::Fields, Path};
 
 pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
 
 pub type ExchangeRate = FixedU128;
+pub type Ratio = FixedU128;
 
-// #[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode, PartialOrd, Ord, PackedLayout, SpreadLayout)]
-// #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub type TokenAddress = H160;
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub struct TokenAddress(H160);
+
+impl PackedLayout for TokenAddress {
+    #[inline]
+    fn pull_packed(&mut self, _at: &Key) {}
+    #[inline]
+    fn push_packed(&self, _at: &Key) {}
+    #[inline]
+    fn clear_packed(&self, _at: &Key) {}
+}
+
+impl SpreadLayout for TokenAddress {
+    const FOOTPRINT: u64 = 1;
+    const REQUIRES_DEEP_CLEAN_UP: bool = false;
+
+    #[inline]
+    fn pull_spread(ptr: &mut KeyPtr) -> Self {
+        forward_pull_packed::<Self>(ptr)
+    }
+
+    #[inline]
+    fn push_spread(&self, ptr: &mut KeyPtr) {
+        forward_push_packed::<Self>(self, ptr)
+    }
+
+    #[inline]
+    fn clear_spread(&self, ptr: &mut KeyPtr) {
+        forward_clear_packed::<Self>(self, ptr)
+    }
+}
+
+impl scale::Encode for TokenAddress {
+    #[inline(always)]
+    fn size_hint(&self) -> usize {
+        20
+    }
+
+    #[inline]
+    fn encode_to<T: scale::Output + ?Sized>(&self, dest: &mut T) {
+        dest.write(&self.0.as_bytes())
+    }
+}
+
+impl scale::Decode for TokenAddress {
+    #[inline]
+    fn decode<I: scale::Input>(input: &mut I) -> Result<Self, scale::Error> {
+        // As H160 is just a glorified wrapper around 20 bytes we simply
+        // forward this information directly in the TypeInfo trait.
+        // There is no need for more elaborate type information.
+        let dec = <[u8; 20] as scale::Decode>::decode(input)?;
+        Ok(Self(H160(dec)))
+    }
+}
+
+impl TypeInfo for TokenAddress {
+    type Identity = Self;
+
+    fn type_info() -> Type {
+        Type::builder()
+            .path(Path::new("TokenAddress", "pool"))
+            .composite(Fields::unnamed().field_of::<[u8; 20]>("[u8; 20]"))
+    }
+}
+
+impl TokenAddress {
+    /// Returns a shared reference to the wrapped H160 instance.
+    ///
+    /// # Note
+    ///
+    /// This is an inherent method to avoid name resolution problems.
+    #[inline]
+    pub fn get(self: &Self) -> &H160 {
+        &self.0
+    }
+
+    /// Returns an exclusive reference to the wrapped H160 instance.
+    ///
+    /// # Note
+    ///
+    /// This is an inherent method to avoid name resolution problems.
+    #[inline]
+    pub fn get_mut(self: &mut Self) -> &mut H160 {
+        &mut self.0
+    }
+
+    /// Consumes the wrapper to return the owned H160 instance.
+    ///
+    /// # Note
+    ///
+    /// This is an inherent method to avoid name resolution problems.
+    #[inline]
+    pub fn into_inner(self: Self) -> H160 {
+        self.0
+    }
+}
+
+impl core::ops::Deref for TokenAddress {
+    type Target = H160;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        Self::get(self)
+    }
+}
+
+impl core::ops::DerefMut for TokenAddress {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Self::get_mut(self)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode, PartialOrd, Ord, PackedLayout, SpreadLayout)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
