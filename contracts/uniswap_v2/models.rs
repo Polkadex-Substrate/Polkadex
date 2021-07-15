@@ -14,7 +14,6 @@ pub type ExchangeRate = u128;
 pub type Ratio = u128;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct TokenAddress(H160);
 
 impl PackedLayout for TokenAddress {
