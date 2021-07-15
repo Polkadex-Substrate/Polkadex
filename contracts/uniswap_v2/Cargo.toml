@@ -3,7 +3,6 @@ name = "uniswap_v2"
 version = "0.1.0"
 authors = ["[your_name] <[your_email]>"]
 edition = "2018"
-resolver = "2"
 
 [dependencies]
 ink_primitives = { version = "3.0.0-rc3", default-features = false }
@@ -20,13 +19,13 @@ scale = { package = "parity-scale-codec", version = "2.0.1", default-features = 
 scale-info = { version = "0.6.0", default-features = false, features = [
     "derive",
 ], optional = false }
-sp-core = { tag = "3.0.0-rc3", default-features = false }
-sp-runtime = { tag = "3.0.0-rc3", default-features = false }
+# sp-runtime = { tag = "3.0.0-rc3", default-features = false }
 
 err-derive = { version = "0.3.0", default-features = false }
 
 # Should be removed once bitvecto-rs/bitvec#105 is resolved
 funty = "=1.1.0"
+primitive-types = { version = "0.10.1", default-features = false }
 
 [lib]
 name = "uniswap_v2"
@@ -44,7 +43,6 @@ std = [
     "ink_storage/std",
     "ink_primitives/std",
     "scale/std",
-    "sp-runtime/std",
-    "sp-core/std",
+    # "sp-runtime/std",
 ]
 ink-as-dependency = []
