@@ -31,7 +31,7 @@ use node_polkadex_runtime::{
 
 type AccountPublic = <Signature as Verify>::Signer;
 
-const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+//const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Node `ChainSpec` extensions.
 ///
@@ -183,10 +183,7 @@ pub fn staging_testnet_config() -> ChainSpec {
         ChainType::Live,
         staging_testnet_config_genesis,
         boot_nodes,
-        Some(
-            TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-                .expect("Staging telemetry url is valid; qed"),
-        ),
+        None,
         None,
         None,
         Default::default(),
