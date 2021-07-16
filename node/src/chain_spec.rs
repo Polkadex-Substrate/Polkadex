@@ -32,6 +32,7 @@ use node_polkadex_runtime::{
 type AccountPublic = <Signature as Verify>::Signer;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const LOCAL_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Node `ChainSpec` extensions.
 ///
@@ -463,12 +464,15 @@ fn local_testnet_genesis() -> GenesisConfig {
 /// Local testnet config (multivalidator Alice + Bob)
 pub fn local_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
-        "Local Testnet",
-        "local_testnet",
+        "Local Polkadex Testnet",
+        "local_polkdex_testnet",
         ChainType::Local,
         local_testnet_genesis,
         vec![],
-        None,
+        Some(
+            TelemetryEndpoints::new(vec![(LOCAL_TELEMETRY_URL.to_string(), 0)])
+                .expect("Local telemetry url is invalid; qed"),
+        ), // Telemetry endpoint
         None,
         None,
         Default::default(),
