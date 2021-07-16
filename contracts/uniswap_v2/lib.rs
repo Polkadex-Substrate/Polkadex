@@ -185,7 +185,8 @@ mod uniswap_v2 {
                 return Err(Error::InvalidLiquidityIncrement);
             }
 
-            let (pool_0, pool_1) = match self.liquidityPool.get(&trading_pair) {
+            let (pool_0, pool_1): (&Balance, &Balance) = match self.liquidityPool.get(&trading_pair)
+            {
                 Option::Some((p_0, p_1)) => (p_0, p_1),
                 Option::None => (&0u128, &0u128),
             };
@@ -205,9 +206,9 @@ mod uniswap_v2 {
                     let (exchange_rate_0, exchange_rate_1) = if max_amount_0 > max_amount_1 {
                         let (rate_1, overflowed) = ExchangeRate::from_num(max_amount_0)
                             .overflowing_div(ExchangeRate::from_num(max_amount_1));
-                        // if overflowed {
-                        //     return Err(Error::ArithmeticOverflow);
-                        // }
+                        if overflowed {
+                            return Err(Error::ArithmeticOverflow);
+                        }
                         (ExchangeRate::from_num(1), rate_1)
                     } else {
                         let (rate_0, overflowed) = ExchangeRate::from_num(max_amount_1)
@@ -215,21 +216,32 @@ mod uniswap_v2 {
                         (rate_0, ExchangeRate::from_num(1))
                     };
 
-                    // let shares_from_token_0 = exchange_rate_0
-                    //     .checked_mul_int(max_amount_0)
-                    //     .ok_or(Err(Error::ArithmeticOverflow))?;
-                    // let shares_from_token_1 = exchange_rate_1
-                    //     .checked_mul_int(max_amount_1)
-                    //     .ok_or(Err(Error::ArithmeticOverflow))?;
-                    // let initial_shares = shares_from_token_0
-                    //     .checked_add(shares_from_token_1)
-                    //     .ok_or(Err(Error::ArithmeticOverflow))?;
+                    let shares_from_token_0 = exchange_rate_0
+                        .checked_mul_int(max_amount_0)
+                        .ok_or(Error::ArithmeticOverflow)?;
+                    let shares_from_token_1 = exchange_rate_0
+                        .checked_mul_int(max_amount_1)
+                        .ok_or(Error::ArithmeticOverflow)?;
+                    let initial_shares = shares_from_token_0
+                        .checked_add(shares_from_token_1)
+                        .ok_or(Error::ArithmeticOverflow)?;
 
-                    (max_amount_0, max_amount_1, 0)
+                    (max_amount_0, max_amount_1, initial_shares.to_num())
                 } else {
-                    // let exchange_rate_0_1 =
-                    //     ExchangeRate::checked_from_rational(*pool_1, *pool_0)
-                    //         .ok_or(Err(Error::ArithmeticOverflow))?;
+                    let (exchange_rate_0_1, overflowed) = ExchangeRate::from_num(*pool_1)
+                        .overflowing_div(ExchangeRate::from_num(*pool_0));
+                    if overflowed {
+                        return Err(Error::ArithmeticOverflow);
+                    }
+
+                    let (input_exchange_rate_0_1, overflowed) =
+                        ExchangeRate::from_num(max_amount_1)
+                            .overflowing_div(ExchangeRate::from_num(max_amount_0));
+                    if overflowed {
+                        return Err(Error::ArithmeticOverflow);
+                    }
+                    // let exchange_rate_0_1 = ExchangeRate::checked_from_rational(*pool_1, *pool_0)
+                    //     .ok_or(Err(Error::ArithmeticOverflow))?;
                     // let input_exchange_rate_0_1 =
                     //     ExchangeRate::checked_from_rational(max_amount_1, max_amount_0)
                     //         .ok_or(Err(Error::ArithmeticOverflow))?;
