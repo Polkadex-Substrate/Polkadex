@@ -25,7 +25,7 @@ use frame_support::sp_runtime::SaturatedConversion;
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 use frame_support::{decl_error, decl_event, decl_module, decl_storage};
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{ MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
 use sp_core::{H160, U256};
 use sp_runtime::traits::StaticLookup;

@@ -19,10 +19,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Codec;
-use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
-use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::traits::{Filter, Randomness};
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
@@ -30,119 +26,152 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch,
     traits::{Get, OriginTrait},
 };
+use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
+use frame_support::pallet_prelude::*;
+use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+use frame_support::traits::{Filter, Randomness};
 use frame_system::ensure_signed;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
+use orml_traits::{MultiCurrency, MultiReservableCurrency, MultiLockableCurrency};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
-use rand::{seq::SliceRandom, SeedableRng};
+use rand::{SeedableRng, seq::SliceRandom};
 use rand_chacha::ChaChaRng;
 use sp_arithmetic::traits::*;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
 use sp_std::boxed::Box;
+use sp_std::collections::vec_deque::VecDeque;
 use sp_std::vec::Vec;
+use sp_std::vec;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// The aggregated origin which the dispatch will take.
-    type Origin: OriginTrait<PalletsOrigin = Self::PalletsOrigin>
-        + From<Self::PalletsOrigin>
-        + IsType<<Self as frame_system::Config>::Origin>;
+    type Origin: OriginTrait<PalletsOrigin=Self::PalletsOrigin>
+    + From<Self::PalletsOrigin>
+    + IsType<<Self as frame_system::Config>::Origin>;
 
     /// The caller origin, overarching type of all pallets origins.
     type PalletsOrigin: From<frame_system::RawOrigin<Self::AccountId>> + Codec + Clone + Eq;
 
     /// The aggregated call type.
     type Call: Parameter
-        + Dispatchable<Origin = <Self as Config>::Origin>
-        + GetDispatchInfo
-        + From<frame_system::Call<Self>>;
+    + Dispatchable<Origin=<Self as Config>::Origin>
+    + GetDispatchInfo
+    + From<frame_system::Call<Self>>;
     /// Balance Type
     type Balance: Parameter
-        + Member
-        + AtLeast32BitUnsigned
-        + Default
-        + Copy
-        + MaybeSerializeDeserialize
-        + Clone
-        + Zero
-        + One
-        + PartialOrd
-        + Bounded;
+    + Member
+    + AtLeast32BitUnsigned
+    + Default
+    + Copy
+    + MaybeSerializeDeserialize
+    + Clone
+    + Zero
+    + One
+    + PartialOrd
+    + Bounded;
     /// Module that handles tokens
     type Currency: MultiReservableCurrency<
         Self::AccountId,
-        CurrencyId = AssetId,
-        Balance = Self::Balance,
-    >;
+        CurrencyId=AssetId,
+        Balance=Self::Balance,
+    > + MultiLockableCurrency<Self::AccountId>;
     /// Min amount that must be staked
     type MinStakeAmount: Get<Self::Balance>;
     /// Maximum allowed Feeless Transactions in a block
     type MaxAllowedWeight: Get<Weight>;
     /// Min Stake Period
-    type MinStakePeriodPerWeight: Get<u32>;
+    type MinStakePeriod: Get<BlockNumber>;
+    /// Max number of stakes per account
+    type MaxStakes: Get<usize>;
     /// Randomness Source
     type RandomnessSource: Randomness<H256, BlockNumber>;
     /// Call Filter
     type CallFilter: Filter<<Self as Config>::Call>;
-    //Minimum Stake per Call
+    /// Minimum Stake per Call
     type MinStakePerWeight: Get<u128>;
-
-    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success = Self::AccountId>;
+    /// The Governance Origin that can slash stakes
+    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success=Self::AccountId>;
 }
 
 #[derive(Decode, Encode, Copy, Clone)]
-pub struct StakeInfo<T: Config + frame_system::Config> {
+pub struct Stake<T: Config + frame_system::Config> {
     pub staked_amount: T::Balance,
     pub unlocking_block: T::BlockNumber,
 }
 
-impl<T: Config + frame_system::Config> Default for StakeInfo<T> {
+impl<T: Config + frame_system::Config> Default for Stake<T> {
     fn default() -> Self {
-        StakeInfo {
+        Stake {
             staked_amount: 0_u128.saturated_into(),
             unlocking_block: 1_u32.saturated_into(),
         }
     }
 }
 
-impl<T: Config + frame_system::Config> StakeInfo<T> {
-    pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> StakeInfo<T> {
-        StakeInfo {
+impl<T: Config + frame_system::Config> Stake<T> {
+    pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> Stake<T> {
+        Stake {
             staked_amount: stake,
             unlocking_block: unlock,
         }
     }
 }
 
-#[derive(Decode, Encode, Copy, Clone)]
-pub struct MovingAverage<T: Config> {
-    pub amount: <T as Config>::Balance,
-    pub count: <T as Config>::Balance,
+#[derive(Decode, Encode, Clone)]
+pub struct StakeInfo<T: Config + frame_system::Config> {
+    stakes: VecDeque<Stake<T>>,
 }
 
-impl<T: Config> Default for MovingAverage<T> {
+impl<T: Config + frame_system::Config> Default for StakeInfo<T> {
     fn default() -> Self {
-        MovingAverage {
-            amount: 0_u128.saturated_into(),
-            count: 0_u128.saturated_into(),
+        StakeInfo {
+            stakes: VecDeque::new()
         }
     }
 }
 
-impl<T: Config> MovingAverage<T> {
-    pub fn update_stake_amount(&mut self, stake_amount: <T as Config>::Balance) {
-        let new_count = self.count.saturating_add(1u128.saturated_into());
-        self.amount = self
-            .amount
-            .saturating_mul(self.count.clone())
-            .saturating_add(stake_amount)
-            / new_count;
-        self.count = new_count
+impl<T: Config + frame_system::Config> StakeInfo<T> {
+    pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> StakeInfo<T> {
+        let mut queue = VecDeque::new();
+        queue.push_back(Stake::new(stake, unlock));
+        StakeInfo {
+            stakes: queue
+        }
+    }
+
+    pub fn push(&mut self, stake: T::Balance, unlock: T::BlockNumber) -> Result<(), Error<T>> {
+        if self.stakes.len() < T::MaxStakes::get() {
+            self.stakes.push_back(Stake::new(stake, unlock));
+            return Ok(());
+        }
+        Err(Error::<T>::MaxStakesExceededForAccount)
+    }
+
+    pub fn claimable_stakes(&mut self, current_block: T::BlockNumber) -> Vec<Stake<T>> {
+        let mut claimable_stakes = vec![];
+        while let Some(stake) = self.stakes.pop_front() {
+            if stake.unlocking_block <= current_block {
+                claimable_stakes.push(stake);
+                continue;
+            }
+            break;
+        }
+        claimable_stakes
+    }
+
+    pub fn total_stake(&mut self)-> T::Balance{
+        let mut total: T::Balance = 0u128.saturated_into();
+        for stake in self.stakes.pop_front(){
+            total += stake.staked_amount
+        }
+        total
     }
 }
+
 
 #[derive(Decode, Encode, Copy, Clone)]
 pub struct Ext<Call, Origin> {
@@ -172,10 +201,6 @@ decl_storage! {
         /// All users and their staked amount
         /// (when they can claim, accountId => Balance)
         pub StakedUsers get(fn staked_users):  map hasher(blake2_128_concat) T::AccountId => StakeInfo<T>;
-
-        /// StakeMovingAverage
-        /// TODO: Set StakeMovingAverage as MinStakeAmount if it is zero
-        pub StakeMovingAverage get(fn get_stake_moving_average): MovingAverage<T>;
 
         /// Feeless Extrinsics stored for next block
         pub TxnsForNextBlock get(fn get_next_block_txns): ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin>;
@@ -213,7 +238,8 @@ decl_error! {
         InvalidCall,
         Overflow,
         BadCall,
-        FailedToMoveBalanceToReserve
+        FailedToMoveBalanceToReserve,
+        MaxStakesExceededForAccount
     }
 }
 
@@ -254,54 +280,43 @@ decl_module! {
 
         // TODO: Update the weights to include swap transaction's weight
         /// ## Claim Fee-less Transaction
-        /// * `stake_amount`: Amount to stake for the given call
+        /// * `stake_amount`: StakePricePerWeight
         /// * `call`: Call from Contracts Pallet
         #[weight = 10_000 + T::DbWeight::get().writes(1)]
-        pub fn claim_feeless_transaction(origin, stake_amount: <T as Config>::Balance, call: Box<<T as Config>::Call>) -> dispatch::DispatchResult {
+        pub fn claim_feeless_transaction(origin, stake_price: <T as Config>::Balance, call: Box<<T as Config>::Call>) -> dispatch::DispatchResult {
             let who = ensure_signed(origin.clone())?;
             ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
             ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
-            // Get current block number
+
             let call_weight =  call.get_dispatch_info().weight;
-            ensure!( call_weight < u32::MAX as u64, Error::<T>::Overflow);
+            ensure!(call_weight <= u64::MAX, Error::<T>::Overflow);
+
+            let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
+            stored_exts.total_weight += call.get_dispatch_info().weight;
+            ensure!(stored_exts.total_weight <= T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
+
+            // Calculates the stake amount and the stake period for the given call
+            let (stake_amount, stake_period) = Self::calculate_stake_params(stake_price, call_weight);
+            let current_block: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
+
+            // Load account Info
+            let mut staked_info: StakeInfo<T> = Self::staked_users(who.clone());
+            staked_info.push(stake_amount,stake_period+current_block)?;
 
              //Reserve stake amount
             ensure!(T::Currency::reserve(AssetId::POLKADEX, &who, stake_amount).is_ok(),Error::<T>::FailedToMoveBalanceToReserve);
-
-            let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
-            ensure!(stored_exts.total_weight < T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
+            // TODO: Replace reserver with T::Currency::set_lock() since that makes more sense
 
             let origin = <T as Config>::Origin::from(origin);
-            let minimum_stake_amount = T::MinStakePerWeight::get().checked_mul(call.get_dispatch_info().weight as u128).ok_or(<Error<T>>::Overflow)?;
-            ensure!(stake_amount >= minimum_stake_amount.saturated_into(), Error::<T>::StakeAmountTooSmall); // TODO
-            ensure!(stake_amount <= T::Currency::free_balance(AssetId::POLKADEX,&who), Error::<T>::NotEnoughBalanceToStake);
-
-
-            // Update the moving average of stake amount
-            let mut stake_moving_average: MovingAverage<T> = Self::get_stake_moving_average();
-            stake_moving_average.update_stake_amount(stake_amount.clone());
-
-
-            // Store the staking record
-            let mut staked_amount = Self::staked_users(who.clone());
-            staked_amount.staked_amount += stake_amount;
-
-            //Todo change to new Formula
-            staked_amount.unlocking_block =  staked_amount.unlocking_block
-            .checked_add(&(call_weight as u32).saturated_into::<T::BlockNumber>().checked_mul(&T::MinStakePeriodPerWeight::get().saturated_into::<T::BlockNumber>()).ok_or(<Error<T>>::Overflow)?)
-            .ok_or(<Error<T>>::Overflow)?;
-
 
             // Store the transactions randomize and execute on next block's initialize
             stored_exts.store.push(Ext{
                 call: *call.clone(),
                 origin: origin.caller().clone()
             });
-            stored_exts.total_weight += call.get_dispatch_info().weight;
 
-            <StakedUsers<T>>::insert(who.clone(),staked_amount);
+            <StakedUsers<T>>::insert(who.clone(),staked_info);
             <TxnsForNextBlock<T>>::put(stored_exts);
-            <StakeMovingAverage<T>>::put(stake_moving_average);
             Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(*call));
             Ok(())
         }
@@ -313,11 +328,14 @@ decl_module! {
             let who = ensure_signed(origin.clone())?;
             ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
             ensure!(<StakedUsers<T>>::contains_key(&who),Error::<T>::StakeNotFound);
-            let stake = <StakedUsers<T>>::get(&who);
+            let mut stake_info: StakeInfo<T> = <StakedUsers<T>>::get(&who);
             let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
-            ensure!(stake.unlocking_block <= current_block_no,Error::<T>::UnlockingFailedCurrentBlockNumberLow);
-            T::Currency::unreserve(AssetId::POLKADEX, &who, stake.staked_amount);
-            Self::deposit_event(RawEvent::Unstaked(who,stake.staked_amount));
+            let mut total: T::Balance = 0u128.saturated_into();
+            for stake in stake_info.claimable_stakes(current_block_no){
+                T::Currency::unreserve(AssetId::POLKADEX, &who, stake.staked_amount);
+                total += stake.staked_amount;
+            }
+            Self::deposit_event(RawEvent::Unstaked(who,total));
             Ok(())
         }
 
@@ -327,11 +345,28 @@ decl_module! {
         pub fn slash_stake(origin, account: T::AccountId) -> DispatchResult {
             let origin = <T as Config>::Origin::from(origin);
             T::GovernanceOrigin::ensure_origin(origin)?;
-            let stake = <StakedUsers<T>>::get(&account);
-            <StakedUsers<T>>::remove(&account);
-            T::Currency::slash(AssetId::POLKADEX,&account,stake.staked_amount);
-            Self::deposit_event(RawEvent::StakeSlashed(account,stake.staked_amount));
+            let mut stake_info: StakeInfo<T> = <StakedUsers<T>>::take(&account);
+            T::Currency::withdraw(AssetId::POLKADEX,&account,stake_info.total_stake())?;
+            Self::deposit_event(RawEvent::StakeSlashed(account,stake_info.total_stake()));
             Ok(())
         }
+    }
+}
+
+impl<T: Config> Module<T> {
+    // Calculates the stake amount and staking period
+    // The staking period will vary between 28-56 days. The heavier the transaction, longer the period.
+    // A transaction consuming the full allocated weight lock the tokens for 56 days.
+    pub fn calculate_stake_params(stake_price: T::Balance, call_weight: Weight) -> (T::Balance, T::BlockNumber) {
+        // Calculate the min requirements
+        let stake_amount = stake_price.saturating_mul(call_weight.saturated_into());
+        let mut stake_period: T::BlockNumber = T::MinStakePeriod::get().saturated_into(); // 28 days
+        // Add a extra staking period based on the fraction of total weight allocation this call occupies
+        if let Some(allocation_inverse_fraction) = T::MaxAllowedWeight::get().checked_div(call_weight) {
+            if let Some(extra_stake_period) = stake_period.checked_div(&allocation_inverse_fraction.saturated_into()) {
+                stake_period = stake_period.saturating_add(extra_stake_period);
+            }
+        }
+        (stake_amount, stake_period)
     }
 }

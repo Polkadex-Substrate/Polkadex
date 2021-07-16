@@ -228,7 +228,7 @@ decl_module! {
             let amount: T::Balance = T::IDOPDXAmount::get();
             if <T as Config>::Currency::total_issuance(AssetId::POLKADEX) > T::MaxSupply::get()
             {
-                 T::Currency::withdraw(AssetId::POLKADEX,&who,amount);
+                 T::Currency::withdraw(AssetId::POLKADEX,&who,amount)?;
             }
             else {
                 <T as Config>::Currency::transfer(AssetId::POLKADEX, &who, &T::TreasuryAccountId::get(), amount)?;
