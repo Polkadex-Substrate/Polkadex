@@ -185,118 +185,121 @@ mod uniswap_v2 {
                 return Err(Error::InvalidLiquidityIncrement);
             }
 
-            self.liquidityPool
-                .try_mutate(trading_pair, |(pool_0, pool_1)| -> Result<()> {
-                    let total_shares = self.totalIssuances.get(&trading_pair).unwrap_or_default();
-                    let (max_amount_0, max_amount_1) = if currency_id_a == trading_pair.first() {
-                        (max_amount_a, max_amount_b)
-                    } else {
-                        (max_amount_b, max_amount_a)
-                    };
-                    let (pool_0_increment, pool_1_increment, share_increment): (
-                        Balance,
-                        Balance,
-                        Balance,
-                    ) = if total_shares.is_zero() {
-                        let (exchange_rate_0, exchange_rate_1) = if max_amount_0 > max_amount_1 {
-                            let (rate_1, overflowed) = ExchangeRate::from_num(max_amount_0)
-                                .overflowing_div(ExchangeRate::from_num(max_amount_1));
-                            // if overflowed {
-                            //     return Err(Error::ArithmeticOverflow);
-                            // }
-                            (ExchangeRate::from_num(1), rate_1)
-                        } else {
-                            let (rate_0, overflowed) = ExchangeRate::from_num(max_amount_1)
-                                .overflowing_div(ExchangeRate::from_num(max_amount_0));
-                            (rate_0, ExchangeRate::from_num(1))
-                        };
+            let (pool_0, pool_1) = match self.liquidityPool.get(&trading_pair) {
+                Option::Some((p_0, p_1)) => (p_0, p_1),
+                Option::None => (&0u128, &0u128),
+            };
 
-                        // let shares_from_token_0 = exchange_rate_0
-                        //     .checked_mul_int(max_amount_0)
-                        //     .ok_or(Err(Error::ArithmeticOverflow))?;
-                        // let shares_from_token_1 = exchange_rate_1
-                        //     .checked_mul_int(max_amount_1)
-                        //     .ok_or(Err(Error::ArithmeticOverflow))?;
-                        // let initial_shares = shares_from_token_0
-                        //     .checked_add(shares_from_token_1)
-                        //     .ok_or(Err(Error::ArithmeticOverflow))?;
+            let total_shares = match self.totalIssuances.get(&trading_pair) {
+                Option::Some(share) => share,
+                Option::None => &0u128,
+            };
 
-                        (max_amount_0, max_amount_1, 0)
-                    } else {
-                        // let exchange_rate_0_1 =
-                        //     ExchangeRate::checked_from_rational(*pool_1, *pool_0)
-                        //         .ok_or(Err(Error::ArithmeticOverflow))?;
-                        // let input_exchange_rate_0_1 =
-                        //     ExchangeRate::checked_from_rational(max_amount_1, max_amount_0)
-                        //         .ok_or(Err(Error::ArithmeticOverflow))?;
-
-                        // if input_exchange_rate_0_1 <= exchange_rate_0_1 {
-                        //     // max_amount_0 may be too much, calculate the actual amount_0
-                        //     let exchange_rate_1_0 =
-                        //         ExchangeRate::checked_from_rational(*pool_0, *pool_1)
-                        //             .ok_or(Err(Error::ArithmeticOverflow))?;
-                        //     let amount_0 = exchange_rate_1_0
-                        //         .checked_mul_int(max_amount_1)
-                        //         .ok_or(Err(Error::ArithmeticOverflow))?;
-                        //     let share_increment = Ratio::checked_from_rational(amount_0, *pool_0)
-                        //         .and_then(|n| n.checked_mul_int(total_shares))
-                        //         .ok_or(Err(Error::ArithmeticOverflow))?;
-                        //     (amount_0, max_amount_1, share_increment)
-                        // } else {
-                        //     // max_amount_1 is too much, calculate the actual amount_1
-                        //     let amount_1 = exchange_rate_0_1
-                        //         .checked_mul_int(max_amount_0)
-                        //         .ok_or(Err(Error::ArithmeticOverflow))?;
-                        //     let share_increment = Ratio::checked_from_rational(amount_1, *pool_1)
-                        //         .and_then(|n| n.checked_mul_int(total_shares))
-                        //         .ok_or(Err(Error::ArithmeticOverflow))?;
-                        //     (max_amount_0, amount_1, share_increment)
+            let (max_amount_0, max_amount_1) = if currency_id_a == trading_pair.first() {
+                (max_amount_a, max_amount_b)
+            } else {
+                (max_amount_b, max_amount_a)
+            };
+            let (pool_0_increment, pool_1_increment, share_increment): (Balance, Balance, Balance) =
+                if total_shares.is_zero() {
+                    let (exchange_rate_0, exchange_rate_1) = if max_amount_0 > max_amount_1 {
+                        let (rate_1, overflowed) = ExchangeRate::from_num(max_amount_0)
+                            .overflowing_div(ExchangeRate::from_num(max_amount_1));
+                        // if overflowed {
+                        //     return Err(Error::ArithmeticOverflow);
                         // }
-
-                        (max_amount_0, max_amount_1, 0)
+                        (ExchangeRate::from_num(1), rate_1)
+                    } else {
+                        let (rate_0, overflowed) = ExchangeRate::from_num(max_amount_1)
+                            .overflowing_div(ExchangeRate::from_num(max_amount_0));
+                        (rate_0, ExchangeRate::from_num(1))
                     };
 
-                    // if share_increment.is_zero()
-                    //     || pool_0_increment.is_zero()
-                    //     || pool_1_increment.is_zero()
-                    // {
-                    //     return Err(Error::InvalidLiquidityIncrement);
-                    // }
-
-                    // if share_increment < min_share_increment {
-                    //     return Err(Error::UnacceptableShareIncrement);
-                    // }
-
-                    // Todo:
-                    // 1. Get uniswap account id
-                    // 2. transfer pool_0_increment amount of trading_pair.first() token from sender to uniswap account
-                    // 3. transfer pool_1_increment amount of trading_pair.second() token from sender to uniswap account
-                    // 4. totalIssuances[trading_pair].add(share_increment)
-                    // 5. share[trading_pair][who].add(share_increment)
-
-                    // self.env().extension().transfer()?;
-                    // let module_account_id = Self::account_id();
-                    // T::Currency::transfer(trading_pair.first(), who, &module_account_id, pool_0_increment)?;
-                    // T::Currency::transfer(trading_pair.second(), who, &module_account_id, pool_1_increment)?;
-                    // T::Currency::deposit(dex_share_currency_id, who, share_increment)?;
-
-                    // *pool_0 = pool_0
-                    //     .checked_add(pool_0_increment)
+                    // let shares_from_token_0 = exchange_rate_0
+                    //     .checked_mul_int(max_amount_0)
                     //     .ok_or(Err(Error::ArithmeticOverflow))?;
-                    // *pool_1 = pool_1
-                    //     .checked_add(pool_1_increment)
+                    // let shares_from_token_1 = exchange_rate_1
+                    //     .checked_mul_int(max_amount_1)
+                    //     .ok_or(Err(Error::ArithmeticOverflow))?;
+                    // let initial_shares = shares_from_token_0
+                    //     .checked_add(shares_from_token_1)
                     //     .ok_or(Err(Error::ArithmeticOverflow))?;
 
-                    // self.env().emit_event(LiquidityAdded{
-                    //     caller,
-                    //     trading_pair.first(),
-                    //     pool_0_increment,
-                    //     trading_pair.second(),
-                    //     pool_1_increment,
-                    //     share_increment,
-                    // });
-                    Ok(())
-                });
+                    (max_amount_0, max_amount_1, 0)
+                } else {
+                    // let exchange_rate_0_1 =
+                    //     ExchangeRate::checked_from_rational(*pool_1, *pool_0)
+                    //         .ok_or(Err(Error::ArithmeticOverflow))?;
+                    // let input_exchange_rate_0_1 =
+                    //     ExchangeRate::checked_from_rational(max_amount_1, max_amount_0)
+                    //         .ok_or(Err(Error::ArithmeticOverflow))?;
+
+                    // if input_exchange_rate_0_1 <= exchange_rate_0_1 {
+                    //     // max_amount_0 may be too much, calculate the actual amount_0
+                    //     let exchange_rate_1_0 =
+                    //         ExchangeRate::checked_from_rational(*pool_0, *pool_1)
+                    //             .ok_or(Err(Error::ArithmeticOverflow))?;
+                    //     let amount_0 = exchange_rate_1_0
+                    //         .checked_mul_int(max_amount_1)
+                    //         .ok_or(Err(Error::ArithmeticOverflow))?;
+                    //     let share_increment = Ratio::checked_from_rational(amount_0, *pool_0)
+                    //         .and_then(|n| n.checked_mul_int(total_shares))
+                    //         .ok_or(Err(Error::ArithmeticOverflow))?;
+                    //     (amount_0, max_amount_1, share_increment)
+                    // } else {
+                    //     // max_amount_1 is too much, calculate the actual amount_1
+                    //     let amount_1 = exchange_rate_0_1
+                    //         .checked_mul_int(max_amount_0)
+                    //         .ok_or(Err(Error::ArithmeticOverflow))?;
+                    //     let share_increment = Ratio::checked_from_rational(amount_1, *pool_1)
+                    //         .and_then(|n| n.checked_mul_int(total_shares))
+                    //         .ok_or(Err(Error::ArithmeticOverflow))?;
+                    //     (max_amount_0, amount_1, share_increment)
+                    // }
+
+                    (max_amount_0, max_amount_1, 0)
+                };
+
+            // if share_increment.is_zero()
+            //     || pool_0_increment.is_zero()
+            //     || pool_1_increment.is_zero()
+            // {
+            //     return Err(Error::InvalidLiquidityIncrement);
+            // }
+
+            // if share_increment < min_share_increment {
+            //     return Err(Error::UnacceptableShareIncrement);
+            // }
+
+            // Todo:
+            // 1. Get uniswap account id
+            // 2. transfer pool_0_increment amount of trading_pair.first() token from sender to uniswap account
+            // 3. transfer pool_1_increment amount of trading_pair.second() token from sender to uniswap account
+            // 4. totalIssuances[trading_pair].add(share_increment)
+            // 5. share[trading_pair][who].add(share_increment)
+
+            // self.env().extension().transfer()?;
+            // let module_account_id = Self::account_id();
+            // T::Currency::transfer(trading_pair.first(), who, &module_account_id, pool_0_increment)?;
+            // T::Currency::transfer(trading_pair.second(), who, &module_account_id, pool_1_increment)?;
+            // T::Currency::deposit(dex_share_currency_id, who, share_increment)?;
+
+            // *pool_0 = pool_0
+            //     .checked_add(pool_0_increment)
+            //     .ok_or(Err(Error::ArithmeticOverflow))?;
+            // *pool_1 = pool_1
+            //     .checked_add(pool_1_increment)
+            //     .ok_or(Err(Error::ArithmeticOverflow))?;
+
+            // self.env().emit_event(LiquidityAdded{
+            //     caller,
+            //     trading_pair.first(),
+            //     pool_0_increment,
+            //     trading_pair.second(),
+            //     pool_1_increment,
+            //     share_increment,
+            // });
+
             Ok(())
         }
 
