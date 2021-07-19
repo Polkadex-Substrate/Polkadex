@@ -36,9 +36,9 @@ mod uniswap_v2 {
     /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct UniswapV2 {
-        /// Stores a liquidityPool hashmap value on the storage.
-        liquidityPool: HashMap<TradingPair, (Balance, Balance)>,
-        totalIssuances: HashMap<TradingPair, Balance>,
+        /// Stores a liquidity_pool hashmap value on the storage.
+        liquidity_pool: HashMap<TradingPair, (Balance, Balance)>,
+        total_issuances: HashMap<TradingPair, Balance>,
     }
 
     /// Emitted when Adding liquidity success. \[who, currency_id_0, pool_0_increment, currency_id_1, pool_1_increment, share_increment\].
@@ -57,10 +57,10 @@ mod uniswap_v2 {
     pub struct LiquidityRemoved {
         who: AccountId,
         currency_id_0: TokenAddress,
-        pool_0_increment: Balance,
+        pool_0_decrement: Balance,
         currency_id_1: TokenAddress,
-        pool_1_increment: Balance,
-        share_increment: Balance,
+        pool_1_decrement: Balance,
+        remove_share: Balance,
     }
 
     impl UniswapV2 {
@@ -68,8 +68,8 @@ mod uniswap_v2 {
         #[ink(constructor)]
         pub fn new() -> Self {
             Self {
-                liquidityPool: HashMap::new(),
-                totalIssuances: HashMap::new(),
+                liquidity_pool: HashMap::new(),
+                total_issuances: HashMap::new(),
             }
         }
 
@@ -185,13 +185,13 @@ mod uniswap_v2 {
                 return Err(Error::InvalidLiquidityIncrement);
             }
 
-            let (pool_0, pool_1): (&Balance, &Balance) = match self.liquidityPool.get(&trading_pair)
-            {
-                Option::Some((p_0, p_1)) => (p_0, p_1),
-                Option::None => (&0u128, &0u128),
-            };
+            let (pool_0, pool_1): (&Balance, &Balance) =
+                match self.liquidity_pool.get(&trading_pair) {
+                    Option::Some((p_0, p_1)) => (p_0, p_1),
+                    Option::None => (&0u128, &0u128),
+                };
 
-            let total_shares = match self.totalIssuances.get(&trading_pair) {
+            let total_shares = match self.total_issuances.get(&trading_pair) {
                 Option::Some(share) => share,
                 Option::None => &0u128,
             };
@@ -300,7 +300,7 @@ mod uniswap_v2 {
             // 1. Get uniswap account id
             // 2. transfer pool_0_increment amount of trading_pair.first() token from sender to uniswap account
             // 3. transfer pool_1_increment amount of trading_pair.second() token from sender to uniswap account
-            // 4. totalIssuances[trading_pair].add(share_increment)
+            // 4. total_issuances[trading_pair].add(share_increment)
             // 5. share[trading_pair][who].add(share_increment)
 
             // self.env().extension().transfer()?;
@@ -316,7 +316,7 @@ mod uniswap_v2 {
                 .checked_add(pool_1_increment)
                 .ok_or(Error::ArithmeticOverflow)?;
 
-            self.liquidityPool
+            self.liquidity_pool
                 .insert(trading_pair.clone(), (pool_0, pool_1));
 
             self.env().emit_event(LiquidityAdded {
@@ -342,52 +342,77 @@ mod uniswap_v2 {
         ) -> Result<()> {
             let caller = self.env().caller();
 
-            // if remove_share.is_zero() {
-            //     return Ok(());
-            // }
+            if remove_share.is_zero() {
+                return Ok(());
+            }
 
             let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
-                .ok_or(Error::InvalidTokenAddress);
+                .ok_or(Error::InvalidTokenAddress)?;
 
-            // self.liquidityPool.try_mutate(trading_pair, |(pool_0, pool_1)| -> Result<()> {
-            //     let (min_withdrawn_0, min_withdrawn_1) = if currency_id_a == trading_pair.first() {
-            //         (min_withdrawn_a, min_withdrawn_b)
-            //     } else {
-            //         (min_withdrawn_b, min_withdrawn_a)
-            //     };
-            //     let total_shares = self.totalIssuances.get(&trading_pair).unwrap_or_default();
-            //     let proportion =
-            //         Ratio::checked_from_rational(remove_share, total_shares).ok_or(Err(Error::ArithmeticOverflow))?;
-            //     let pool_0_decrement = proportion.checked_mul_int(*pool_0).ok_or(Err(Error::ArithmeticOverflow))?;
-            //     let pool_1_decrement = proportion.checked_mul_int(*pool_1).ok_or(Err(Error::ArithmeticOverflow))?;
+            let (pool_0, pool_1): (&Balance, &Balance) =
+                match self.liquidity_pool.get(&trading_pair) {
+                    Option::Some((p_0, p_1)) => (p_0, p_1),
+                    Option::None => (&0u128, &0u128),
+                };
 
-            //     if pool_0_decrement < min_withdrawn_0 || pool_1_decrement < min_withdrawn_1 {
-            //         return Err(Error::UnacceptableLiquidityWithdrawn)
-            //     }
+            let (min_withdrawn_0, min_withdrawn_1) = if currency_id_a == trading_pair.first() {
+                (min_withdrawn_a, min_withdrawn_b)
+            } else {
+                (min_withdrawn_b, min_withdrawn_a)
+            };
 
-            //     // let module_account_id = Self::account_id();
+            let total_shares = match self.total_issuances.get(&trading_pair) {
+                Option::Some(share) => *share,
+                Option::None => 0u128,
+            };
 
-            //     if by_unstake {
-            //         // T::DEXIncentives::do_withdraw_dex_share(who, dex_share_currency_id, remove_share)?;
-            //     }
+            let (proportion, overflowed) = ExchangeRate::from_num(remove_share)
+                .overflowing_div(ExchangeRate::from_num(total_shares));
+            if overflowed {
+                return Err(Error::ArithmeticOverflow);
+            }
 
-            //     // T::Currency::withdraw(dex_share_currency_id, &who, remove_share)?;
-            //     // T::Currency::transfer(trading_pair.first(), &module_account_id, &who, pool_0_decrement)?;
-            //     // T::Currency::transfer(trading_pair.second(), &module_account_id, &who, pool_1_decrement)?;
+            let pool_0_decrement = proportion
+                .checked_mul_int(*pool_0)
+                .ok_or(Error::ArithmeticOverflow)?
+                .to_num();
+            let pool_1_decrement = proportion
+                .checked_mul_int(*pool_1)
+                .ok_or(Error::ArithmeticOverflow)?
+                .to_num();
 
-            //     *pool_0 = pool_0.checked_sub(pool_0_decrement).ok_or(Err(Error::ArithmeticOverflow))?;
-            //     *pool_1 = pool_1.checked_sub(pool_1_decrement).ok_or(Err(Error::ArithmeticOverflow))?;
+            if pool_0_decrement < min_withdrawn_0 || pool_1_decrement < min_withdrawn_1 {
+                return Err(Error::UnacceptableLiquidityWithdrawn);
+            }
 
-            //     // self.env().emit_event(LiquidityRemoved{
-            //     //     who.clone(),
-            //     //     trading_pair.first(),
-            //     //     pool_0_decrement,
-            //     //     trading_pair.second(),
-            //     //     pool_1_decrement,
-            //     //     remove_share,
-            //     // });
-            //     Ok(())
-            // })
+            // let module_account_id = Self::account_id();
+
+            if by_unstake {
+                // T::DEXIncentives::do_withdraw_dex_share(who, dex_share_currency_id, remove_share)?;
+            }
+
+            // T::Currency::withdraw(dex_share_currency_id, &who, remove_share)?;
+            // T::Currency::transfer(trading_pair.first(), &module_account_id, &who, pool_0_decrement)?;
+            // T::Currency::transfer(trading_pair.second(), &module_account_id, &who, pool_1_decrement)?;
+
+            let pool_0 = pool_0
+                .checked_sub(pool_0_decrement)
+                .ok_or(Error::ArithmeticOverflow)?;
+            let pool_1 = pool_1
+                .checked_sub(pool_1_decrement)
+                .ok_or(Error::ArithmeticOverflow)?;
+
+            self.liquidity_pool
+                .insert(trading_pair.clone(), (pool_0, pool_1));
+
+            self.env().emit_event(LiquidityRemoved {
+                who: caller,
+                currency_id_0: trading_pair.first(),
+                pool_0_decrement,
+                currency_id_1: trading_pair.second(),
+                pool_1_decrement,
+                remove_share,
+            });
 
             Ok(())
         }
