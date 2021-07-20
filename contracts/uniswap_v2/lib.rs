@@ -94,6 +94,7 @@ mod uniswap_v2 {
             stake_increment_share: bool,
         ) -> Result<()> {
             let caller = self.env().caller();
+
             self.do_add_liquidity(
                 currency_id_a,
                 currency_id_b,
@@ -203,18 +204,10 @@ mod uniswap_v2 {
             };
             let (pool_0_increment, pool_1_increment, share_increment): (Balance, Balance, Balance) =
                 if total_shares.is_zero() {
-                    let (exchange_rate_0, exchange_rate_1) = if max_amount_0 > max_amount_1 {
-                        let (rate_1, overflowed) = ExchangeRate::from_num(max_amount_0)
-                            .overflowing_div(ExchangeRate::from_num(max_amount_1));
-                        if overflowed {
-                            return Err(Error::ArithmeticOverflow);
-                        }
-                        (ExchangeRate::from_num(1), rate_1)
-                    } else {
-                        let (rate_0, overflowed) = ExchangeRate::from_num(max_amount_1)
-                            .overflowing_div(ExchangeRate::from_num(max_amount_0));
-                        (rate_0, ExchangeRate::from_num(1))
-                    };
+                    let exchange_rate_0 = ExchangeRate::from_num(1);
+                    let exchange_rate_1 = ExchangeRate::from_num(max_amount_0)
+                        .checked_div_int(max_amount_1)
+                        .ok_or(Error::ArithmeticOverflow)?;
 
                     let shares_from_token_0 = exchange_rate_0
                         .checked_mul_int(max_amount_0)
@@ -226,20 +219,27 @@ mod uniswap_v2 {
                         .checked_add(shares_from_token_1)
                         .ok_or(Error::ArithmeticOverflow)?;
 
+                    self.liquidity_pool.insert(
+                        trading_pair.clone(),
+                        (max_amount_0.clone(), max_amount_1.clone()),
+                    );
+
                     (max_amount_0, max_amount_1, initial_shares.to_num())
                 } else {
-                    let (exchange_rate_0_1, overflowed) = ExchangeRate::from_num(*pool_1)
-                        .overflowing_div(ExchangeRate::from_num(*pool_0));
-                    if overflowed {
-                        return Err(Error::ArithmeticOverflow);
-                    }
+                    let exchange_rate_0_1 = ExchangeRate::from_num(*pool_1)
+                        .checked_div_int(*pool_0)
+                        .ok_or(Error::ArithmeticOverflow)?;
 
-                    let (input_exchange_rate_0_1, overflowed) =
-                        ExchangeRate::from_num(max_amount_1)
-                            .overflowing_div(ExchangeRate::from_num(max_amount_0));
-                    if overflowed {
-                        return Err(Error::ArithmeticOverflow);
-                    }
+                    let input_exchange_rate_0_1 = ExchangeRate::from_num(max_amount_1)
+                        .checked_div(ExchangeRate::from_num(max_amount_0))
+                        .ok_or(Error::ArithmeticOverflow)?;
+
+                    // let (input_exchange_rate_0_1, overflowed) =
+                    //     ExchangeRate::from_num(max_amount_1)
+                    //         .overflowing_div(ExchangeRate::from_num(max_amount_0));
+                    // if overflowed {
+                    //     return Err(Error::ArithmeticOverflow);
+                    // }
                     // let exchange_rate_0_1 = ExchangeRate::checked_from_rational(*pool_1, *pool_0)
                     //     .ok_or(Err(Error::ArithmeticOverflow))?;
                     // let input_exchange_rate_0_1 =
@@ -248,41 +248,36 @@ mod uniswap_v2 {
 
                     if input_exchange_rate_0_1 <= exchange_rate_0_1 {
                         // max_amount_0 may be too much, calculate the actual amount_0
-                        let (exchange_rate_1_0, overflowed) = ExchangeRate::from_num(*pool_0)
-                            .overflowing_div(ExchangeRate::from_num(*pool_1));
-                        if overflowed {
-                            return Err(Error::ArithmeticOverflow);
-                        }
+                        let exchange_rate_1_0 = ExchangeRate::from_num(*pool_0)
+                            .checked_div_int(*pool_1)
+                            .ok_or(Error::ArithmeticOverflow)?;
+
                         let amount_0 = exchange_rate_1_0
                             .checked_mul_int(max_amount_1)
                             .ok_or(Error::ArithmeticOverflow)?;
-                        let (share_increment, overflowed) = ExchangeRate::from_num(amount_0)
-                            .overflowing_div(ExchangeRate::from_num(*pool_0));
-                        if overflowed {
-                            return Err(Error::ArithmeticOverflow);
-                        }
-                        (amount_0.to_num(), max_amount_1, share_increment.to_num())
-                    } else {
-                        // max_amount_1 is too much, calculate the actual amount_1
-                        let (amount_1, overflowed) = ExchangeRate::from_num(exchange_rate_0_1)
-                            .overflowing_div(ExchangeRate::from_num(max_amount_0));
-                        if overflowed {
-                            return Err(Error::ArithmeticOverflow);
-                        }
-                        let (share_increment, overflowed) = ExchangeRate::from_num(amount_1)
-                            .overflowing_div(ExchangeRate::from_num(*pool_1));
-                        if overflowed {
-                            return Err(Error::ArithmeticOverflow);
-                        }
+
+                        let share_increment = ExchangeRate::from_num(amount_0)
+                            .checked_div_int(*pool_0)
+                            .ok_or(Error::ArithmeticOverflow)?;
+
                         let share_increment = share_increment
                             .checked_mul_int(*total_shares)
                             .ok_or(Error::ArithmeticOverflow)?;
-                        // let amount_1 = exchange_rate_0_1
-                        //     .checked_mul_int(max_amount_0)
-                        //     .ok_or(Err(Error::ArithmeticOverflow))?;
-                        // let share_increment = Ratio::checked_from_rational(amount_1, *pool_1)
-                        //     .and_then(|n| n.checked_mul_int(total_shares))
-                        //     .ok_or(Err(Error::ArithmeticOverflow))?;
+
+                        (amount_0.to_num(), max_amount_1, share_increment.to_num())
+                    } else {
+                        // max_amount_1 is too much, calculate the actual amount_1
+                        let amount_1 = exchange_rate_0_1
+                            .checked_mul_int(max_amount_0)
+                            .ok_or(Error::ArithmeticOverflow)?;
+
+                        let share_increment = ExchangeRate::from_num(amount_1)
+                            .checked_div_int(*pool_1)
+                            .ok_or(Error::ArithmeticOverflow)?;
+
+                        let share_increment = share_increment
+                            .checked_mul_int(*total_shares)
+                            .ok_or(Error::ArithmeticOverflow)?;
                         (max_amount_0, amount_1.to_num(), share_increment.to_num())
                     }
                 };
@@ -417,18 +412,28 @@ mod uniswap_v2 {
             Ok(())
         }
 
-        // fn get_liquidity(currency_id_a: TokenAddress, currency_id_b: TokenAddress) -> (Balance, Balance) {
-        //     if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b) {
-        //         let (pool_0, pool_1) = Self::liquidity_pool(trading_pair);
-        //         if currency_id_a == trading_pair.first() {
-        //             (pool_0, pool_1)
-        //         } else {
-        //             (pool_1, pool_0)
-        //         }
-        //     } else {
-        //         (Zero::zero(), Zero::zero())
-        //     }
-        // }
+        #[ink(message)]
+        pub fn get_liquidity(
+            &self,
+            currency_id_a: TokenAddress,
+            currency_id_b: TokenAddress,
+        ) -> (Balance, Balance) {
+            if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
+            {
+                let (pool_0, pool_1): (Balance, Balance) =
+                    match self.liquidity_pool.get(&trading_pair) {
+                        Option::Some((p_0, p_1)) => (*p_0, *p_1),
+                        Option::None => (0u128, 0u128),
+                    };
+                if currency_id_a == trading_pair.first() {
+                    (pool_0, pool_1)
+                } else {
+                    (pool_1, pool_0)
+                }
+            } else {
+                (Zero::zero(), Zero::zero())
+            }
+        }
 
         // Simply returns the current value of our `bool`.
         // #[ink(message)]
