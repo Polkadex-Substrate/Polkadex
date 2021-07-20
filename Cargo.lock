@@ -9851,6 +9851,7 @@ dependencies = [
  "ink_env",
  "ink_lang",
  "ink_metadata",
+ "ink_prelude",
  "ink_primitives",
  "ink_storage",
  "num-traits",
