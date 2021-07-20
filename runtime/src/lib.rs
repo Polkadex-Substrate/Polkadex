@@ -1056,6 +1056,8 @@ parameter_types! {
     pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
     pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
         RuntimeBlockWeights::get().max_block;
+    pub const MinStakePeriod: BlockNumber = 360000u32; // 28 days
+    pub const MaxStakes: usize = 50;
 }
 
 impl pallet_polkapool::Config for Runtime {
@@ -1067,11 +1069,12 @@ impl pallet_polkapool::Config for Runtime {
     type Currency = Currencies;
     type MinStakeAmount = MinStakeAmount;
     type MaxAllowedWeight = MaxAllowedWeight;
+    type MinStakePeriod = MinStakePeriod;
+    type MaxStakes = MaxStakes;
     type RandomnessSource = RandomnessCollectiveFlip;
     type CallFilter = FeelessTxnFilter;
     type MinStakePerWeight = MinStakePerWeight;
     type GovernanceOrigin = EnsureGovernance;
-    type MinStakePeriodPerWeight = ();
 }
 
 impl pallet_gilt::Config for Runtime {
