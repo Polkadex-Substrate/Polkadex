@@ -12,6 +12,7 @@ ink_metadata = { version = "3.0.0-rc3", default-features = false, features = [
 ink_env = { version = "3.0.0-rc3", default-features = false }
 ink_storage = { version = "3.0.0-rc3", default-features = false }
 ink_lang = { version = "3.0.0-rc3", default-features = false }
+ink_prelude = { version = "3.0.0-rc3", default-features = false }
 
 scale = { package = "parity-scale-codec", version = "2.0.1", default-features = false, features = [
     "derive",
@@ -48,6 +49,7 @@ std = [
     "ink_env/std",
     "ink_storage/std",
     "ink_primitives/std",
+    "ink_prelude/std",
     "scale/std",
     # "sp-runtime/std",
 ]

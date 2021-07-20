@@ -1,4 +1,4 @@
-use fixed::{types::extra::U128, FixedU128};
+use fixed::{types::extra::U64, FixedU128};
 use ink_primitives::Key;
 use ink_primitives::KeyPtr;
 #[cfg(feature = "std")]
@@ -10,8 +10,8 @@ use scale_info::{build::Fields, Path, Type, TypeInfo};
 
 pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
 
-pub type ExchangeRate = FixedU128<U128>;
-pub type Ratio = FixedU128<U128>;
+pub type ExchangeRate = FixedU128<U64>;
+pub type Ratio = FixedU128<U64>;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct TokenAddress(H160);
