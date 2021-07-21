@@ -18,7 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::StorageMap;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
@@ -30,9 +30,9 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::prelude::*;
 
+use core::convert::TryInto;
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::AccountId;
-use std::convert::TryInto;
 
 use polkadex_sgx_primitives::LinkedAccount;
 
@@ -215,7 +215,9 @@ impl<T: Config> Module<T> {
     pub fn add_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
         let mut acc: LinkedAccount = <MainAccounts<T>>::get(&main);
         if acc.proxies.len() < T::ProxyLimit::get() {
-            acc.proxies.push(AccountId::new(proxy.encode().as_slice().try_into().unwrap()));
+            acc.proxies.push(AccountId::new(
+                proxy.encode().as_slice().try_into().unwrap(),
+            ));
             <MainAccounts<T>>::insert(main, acc);
         } else {
             return Err(Error::<T>::ProxyLimitReached);
@@ -231,7 +233,9 @@ impl<T: Config> Module<T> {
                 let index = linked_account
                     .proxies
                     .iter()
-                    .position(|x| *x == AccountId::new(proxy.encode().as_slice().try_into().unwrap()))
+                    .position(|x| {
+                        *x == AccountId::new(proxy.encode().as_slice().try_into().unwrap())
+                    })
                     .unwrap();
                 linked_account.proxies.remove(index);
                 Ok(())
@@ -250,11 +254,15 @@ impl<T: Config> Module<T> {
     pub fn register_acc(sender: T::AccountId) -> Result<(), Error<T>> {
         let last_account: T::AccountId = <LastAccount<T>>::get();
         <MainAccounts<T>>::try_mutate(last_account.clone(), |ref mut last_linked_account| {
-            let new_linked_account: LinkedAccount =
-                LinkedAccount::from(AccountId::new(last_account.encode().as_slice().try_into().unwrap()), AccountId::new(sender.clone().encode().as_slice().try_into().unwrap()));
+            let new_linked_account: LinkedAccount = LinkedAccount::from(
+                AccountId::new(last_account.encode().as_slice().try_into().unwrap()),
+                AccountId::new(sender.clone().encode().as_slice().try_into().unwrap()),
+            );
             <MainAccounts<T>>::insert(&sender, new_linked_account);
             <LastAccount<T>>::put(&sender);
-            last_linked_account.next = Some(AccountId::new(sender.encode().as_slice().try_into().unwrap()));
+            last_linked_account.next = Some(AccountId::new(
+                sender.encode().as_slice().try_into().unwrap(),
+            ));
             Ok(())
         })
     }
