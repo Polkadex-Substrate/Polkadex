@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use codec::Codec;
 /// Edit this file to define custom logic or remove it if it is not needed.
@@ -165,8 +166,8 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
 
     pub fn total_stake(&mut self)-> T::Balance{
         let mut total: T::Balance = 0u128.saturated_into();
-        for stake in self.stakes.pop_front(){
-            total += stake.staked_amount
+        while let Some(stake) = self.stakes.pop_front() {
+            total += stake.staked_amount;
         }
         total
     }
@@ -263,7 +264,7 @@ decl_module! {
             stored_exts.store.shuffle(&mut rng);
             // Start executing
             for ext in stored_exts.store{
-                total_weight = total_weight + ext.call.get_dispatch_info().weight;
+                total_weight += ext.call.get_dispatch_info().weight;
                 match ext.call.dispatch(ext.origin.into()) {
                     Ok(post_info) => {
                         Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
@@ -274,7 +275,7 @@ decl_module! {
                 }
 
             }
-            total_weight = total_weight + base_weight;
+            total_weight  += base_weight;
             total_weight
         }
 
@@ -289,10 +290,9 @@ decl_module! {
             ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
 
             let call_weight =  call.get_dispatch_info().weight;
-            ensure!(call_weight <= u64::MAX, Error::<T>::Overflow);
 
             let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
-            stored_exts.total_weight += call.get_dispatch_info().weight;
+            stored_exts.total_weight = stored_exts.total_weight.saturating_add(call_weight);
             ensure!(stored_exts.total_weight <= T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
 
             // Calculates the stake amount and the stake period for the given call
@@ -315,7 +315,7 @@ decl_module! {
                 origin: origin.caller().clone()
             });
 
-            <StakedUsers<T>>::insert(who.clone(),staked_info);
+            <StakedUsers<T>>::insert(who,staked_info);
             <TxnsForNextBlock<T>>::put(stored_exts);
             Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(*call));
             Ok(())
@@ -326,7 +326,7 @@ decl_module! {
         #[weight = 10000]
         pub fn unstake(origin) -> DispatchResult {
             let who = ensure_signed(origin.clone())?;
-            ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
+            ensure!(origin.into().is_ok(),Error::<T>::BadOrigin);
             ensure!(<StakedUsers<T>>::contains_key(&who),Error::<T>::StakeNotFound);
             let mut stake_info: StakeInfo<T> = <StakedUsers<T>>::get(&who);
             let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();

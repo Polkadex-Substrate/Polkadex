@@ -34,8 +34,8 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_basic_channel::inbound::WeightInfo for WeightInfo<T> {
     fn submit() -> Weight {
-        (176_439_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(6 as Weight))
-            .saturating_add(T::DbWeight::get().writes(3 as Weight))
+        (176_439_000_u64)
+            .saturating_add(T::DbWeight::get().reads(6_u64))
+            .saturating_add(T::DbWeight::get().writes(3_u64))
     }
 }
