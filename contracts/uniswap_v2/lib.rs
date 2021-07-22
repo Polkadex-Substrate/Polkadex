@@ -1,35 +1,28 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod chain_extension;
+mod constants;
+mod errors;
 mod models;
 
+use errors::Error;
 use ink_lang as ink;
-// use sp_runtime::traits::{AccountIdConversion, Bounded, One, Zero};
-
-/// Error types
-#[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode, err_derive::Error)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum Error {
-    #[error(display = "TokenAddress is invalid")]
-    InvalidTokenAddress,
-    #[error(display = "LiquidityIncrement is invalid")]
-    InvalidLiquidityIncrement,
-    #[error(display = "Arithmetic Overflow occured")]
-    ArithmeticOverflow,
-    #[error(display = "Share Increment is invalid")]
-    UnacceptableShareIncrement,
-    #[error(display = "Unacceptable Liqudity withdrawn")]
-    UnacceptableLiquidityWithdrawn,
-}
 
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[ink::contract(env = crate::chain_extension::CustomEnvironment)]
 mod uniswap_v2 {
     use super::*;
-    use crate::models::{ExchangeRate, Ratio, TokenAddress, TradingPair};
+    use crate::{
+        constants::{GET_EXCHANGE_FEE, TRADING_PATH_LIMIT},
+        models::{ExchangeRate, Ratio, TokenAddress, TradingPair},
+    };
+    use core::convert::TryInto;
+    use ink_prelude::vec;
+    use ink_prelude::vec::Vec;
     use ink_storage::collections::HashMap;
     use num_traits::{One, Zero};
+    use primitive_types::U256;
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
@@ -62,6 +55,15 @@ mod uniswap_v2 {
         currency_id_1: TokenAddress,
         pool_1_decrement: Balance,
         remove_share: Balance,
+    }
+
+    /// Use supply currency to swap target currency. \[trader, trading_path, supply_currency_amount, target_currency_amount\]
+    #[ink(event)]
+    pub struct Swap {
+        who: AccountId,
+        path: Vec<TokenAddress>,
+        supply_amount: Balance,
+        actual_target_amount: Balance,
     }
 
     impl UniswapV2 {
@@ -137,44 +139,193 @@ mod uniswap_v2 {
             Ok(())
         }
 
-        // #[ink(message)]
-        // pub fn do_swap_with_exact_supply(
-        //     &self,
-        // 	path: &[TokenAddress],
-        //     supply_amount: Balance,
-        //     min_target_amount: Balance,
-        //     price_impact_limit: Option<Ratio>,
-        // ) -> Result<Balance> {
-        // 	let amounts = Self::get_target_amounts(&path, supply_amount, price_impact_limit)?;
-        //     ensure!(
-        //         amounts[amounts.len() - 1] >= min_target_amount,
-        //         Error::<T>::InsufficientTargetAmount
-        //     );
-        //     let module_account_id = Self::account_id();
-        //     let actual_target_amount = amounts[amounts.len() - 1];
+        #[ink(message)]
+        pub fn swap_with_exact_supply(
+            &mut self,
+            path: Vec<TokenAddress>,
+            supply_amount: Balance,
+            min_target_amount: Balance,
+        ) -> Result<()> {
+            self.do_swap_with_exact_supply(path, supply_amount, min_target_amount, None)?;
+            Ok(())
+        }
 
-        //     T::Currency::transfer(path[0], who, &module_account_id, supply_amount)?;
-        //     Self::_swap_by_path(&path, &amounts)?;
-        //     T::Currency::transfer(path[path.len() - 1], &module_account_id, who, actual_target_amount)?;
+        pub fn get_target_amount(
+            &self,
+            supply_pool: Balance,
+            target_pool: Balance,
+            supply_amount: Balance,
+        ) -> Balance {
+            if supply_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
+                Zero::zero()
+            } else {
+                let (fee_numerator, fee_denominator) = GET_EXCHANGE_FEE;
+                let supply_amount_with_fee: U256 = U256::from(supply_amount)
+                    .saturating_mul(U256::from(fee_denominator.saturating_sub(fee_numerator)));
+                let numerator: U256 =
+                    supply_amount_with_fee.saturating_mul(U256::from(target_pool));
+                let denominator: U256 = U256::from(supply_pool)
+                    .saturating_mul(U256::from(fee_denominator))
+                    .saturating_add(supply_amount_with_fee);
 
-        //     Self::deposit_event(Event::Swap(
-        //         who.clone(),
-        //         path.to_vec(),
-        //         supply_amount,
-        //         actual_target_amount,
-        //     ));
-        //     Ok(actual_target_amount)
-        // }
+                numerator
+                    .checked_div(denominator)
+                    .and_then(|n| TryInto::<Balance>::try_into(n).ok())
+                    .unwrap_or_else(Zero::zero)
+            }
+        }
+
+        pub fn get_target_amounts(
+            &self,
+            path: &Vec<TokenAddress>,
+            supply_amount: Balance,
+            price_impact_limit: Option<Ratio>,
+        ) -> Result<Vec<Balance>> {
+            let path_length = path.len();
+            if path_length < 2 || path_length <= (TRADING_PATH_LIMIT as usize) {
+                return Err(Error::InvalidTradingPathLength);
+            }
+
+            let mut target_amounts: Vec<Balance> = vec![Zero::zero(); path_length];
+            target_amounts[0] = supply_amount;
+
+            let mut i: usize = 0;
+            while i + 1 < path_length {
+                let (supply_pool, target_pool) = self.get_liquidity(path[i], path[i + 1]);
+                if supply_pool.is_zero() || target_pool.is_zero() {
+                    return Err(Error::InsufficientLiquidity);
+                }
+                let target_amount =
+                    self.get_target_amount(supply_pool, target_pool, target_amounts[i]);
+
+                if target_amount.is_zero() {
+                    return Err(Error::ZeroTargetAmount);
+                }
+
+                // check price impact if limit exists
+                if let Some(limit) = price_impact_limit {
+                    let price_impact = Ratio::from_num(target_amount)
+                        .checked_div_int(target_pool)
+                        .unwrap_or_else(Ratio::max_value);
+                    if price_impact > limit {
+                        return Err(Error::ExceedPriceImpactLimit);
+                    }
+                }
+
+                target_amounts[i + 1] = target_amount;
+                i += 1;
+            }
+
+            Ok(target_amounts)
+        }
+
+        fn _swap(
+            &mut self,
+            supply_currency_id: TokenAddress,
+            target_currency_id: TokenAddress,
+            supply_increment: Balance,
+            target_decrement: Balance,
+        ) -> Result<()> {
+            if let Some(trading_pair) =
+                TradingPair::from_currency_ids(supply_currency_id, target_currency_id)
+            {
+                let ((pool_0, pool_1), _) = self.pair_info(&trading_pair);
+
+                let invariant_before_swap: U256 =
+                    U256::from(pool_0).saturating_mul(U256::from(pool_1));
+
+                if supply_currency_id == trading_pair.first() {
+                    let pool_0 = pool_0
+                        .checked_add(supply_increment)
+                        .ok_or(Error::ArithmeticOverflow)?;
+                    let pool_1 = pool_1
+                        .checked_sub(target_decrement)
+                        .ok_or(Error::ArithmeticUnderflow)?;
+                    self.liquidity_pool
+                        .insert(trading_pair.clone(), (pool_0, pool_1));
+                } else {
+                    let pool_0 = pool_0
+                        .checked_sub(target_decrement)
+                        .ok_or(Error::ArithmeticUnderflow)?;
+                    let pool_1 = pool_1
+                        .checked_add(supply_increment)
+                        .ok_or(Error::ArithmeticOverflow)?;
+                    self.liquidity_pool
+                        .insert(trading_pair.clone(), (pool_0, pool_1));
+                }
+
+                // invariant check to ensure the constant product formulas (k = x * y)
+                let invariant_after_swap: U256 =
+                    U256::from(pool_0).saturating_mul(U256::from(pool_1));
+                if invariant_after_swap < invariant_before_swap {
+                    return Err(Error::InvariantCheckFailed);
+                }
+                return Ok(());
+            }
+            Ok(())
+        }
+
+        fn _swap_by_path(&mut self, path: &[TokenAddress], amounts: &[Balance]) -> Result<()> {
+            let mut i: usize = 0;
+            while i + 1 < path.len() {
+                let (supply_currency_id, target_currency_id) = (path[i], path[i + 1]);
+                let (supply_increment, target_decrement) = (amounts[i], amounts[i + 1]);
+                self._swap(
+                    supply_currency_id,
+                    target_currency_id,
+                    supply_increment,
+                    target_decrement,
+                )?;
+                i += 1;
+            }
+            Ok(())
+        }
+
+        pub fn do_swap_with_exact_supply(
+            &mut self,
+            path: Vec<TokenAddress>,
+            supply_amount: Balance,
+            min_target_amount: Balance,
+            price_impact_limit: Option<Ratio>,
+        ) -> Result<Balance> {
+            let caller = self.env().caller();
+            let amounts = self.get_target_amounts(&path, supply_amount, price_impact_limit)?;
+
+            if amounts[amounts.len() - 1] > min_target_amount {
+                return Err(Error::InsufficientTargetAmount);
+            }
+
+            // let module_account_id = Self::account_id();
+            let actual_target_amount = amounts[amounts.len() - 1];
+
+            // T::Currency::transfer(path[0], who, &module_account_id, supply_amount)?;
+            // Self::_swap_by_path(&path, &amounts)?;
+            // T::Currency::transfer(
+            //     path[path.len() - 1],
+            //     &module_account_id,
+            //     who,
+            //     actual_target_amount,
+            // )?;
+
+            self.env().emit_event(Swap {
+                who: caller,
+                path: path.to_vec(),
+                supply_amount,
+                actual_target_amount,
+            });
+
+            Ok(actual_target_amount)
+        }
 
         fn pair_info(&mut self, trading_pair: &TradingPair) -> ((Balance, Balance), Balance) {
             let (pool_0, pool_1): (Balance, Balance) = match self.liquidity_pool.get(trading_pair) {
                 Option::Some((p_0, p_1)) => (*p_0, *p_1),
-                Option::None => (0u128, 0u128),
+                Option::None => (Zero::zero(), Zero::zero()),
             };
 
             let total_shares = match self.total_issuances.get(trading_pair) {
                 Option::Some(share) => *share,
-                Option::None => 0u128,
+                Option::None => Zero::zero(),
             };
 
             ((pool_0, pool_1), total_shares)
@@ -188,7 +339,7 @@ mod uniswap_v2 {
         ) -> Result<()> {
             let incentives = match self.dex_incentives.get(&(trading_pair.clone(), who)) {
                 Option::Some(p) => *p,
-                Option::None => 0u128,
+                Option::None => Zero::zero(),
             };
 
             let incentives = incentives
@@ -218,7 +369,7 @@ mod uniswap_v2 {
         ) -> Result<()> {
             let incentives = match self.dex_incentives.get(&(trading_pair.clone(), who)) {
                 Option::Some(p) => *p,
-                Option::None => 0u128,
+                Option::None => Zero::zero(),
             };
 
             let incentives = incentives
@@ -491,7 +642,7 @@ mod uniswap_v2 {
                 let (pool_0, pool_1): (Balance, Balance) =
                     match self.liquidity_pool.get(&trading_pair) {
                         Option::Some((p_0, p_1)) => (*p_0, *p_1),
-                        Option::None => (0u128, 0u128),
+                        Option::None => (Zero::zero(), Zero::zero()),
                     };
                 if currency_id_a == trading_pair.first() {
                     (pool_0, pool_1)
@@ -499,7 +650,7 @@ mod uniswap_v2 {
                     (pool_1, pool_0)
                 }
             } else {
-                (0u128, 0u128)
+                (Zero::zero(), Zero::zero())
             }
         }
 
@@ -514,10 +665,10 @@ mod uniswap_v2 {
             {
                 match self.dex_incentives.get(&(trading_pair, account)) {
                     Option::Some(p) => *p,
-                    Option::None => 0u128,
+                    Option::None => Zero::zero(),
                 }
             } else {
-                0u128
+                Zero::zero()
             }
         }
 
@@ -531,10 +682,10 @@ mod uniswap_v2 {
             {
                 match self.total_issuances.get(&trading_pair) {
                     Option::Some(p) => *p,
-                    Option::None => 0u128,
+                    Option::None => Zero::zero(),
                 }
             } else {
-                0u128
+                Zero::zero()
             }
         }
     }
