@@ -2866,11 +2866,11 @@ dependencies = [
 
 [[package]]
 name = "ink_allocator"
-version = "3.0.0-rc3"
+version = "3.0.0-rc4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4b41edd82693a52117decaf02969399e5f4773c5d4621e575401bd8cf141885"
+checksum = "de7684a210829f47a9e49a1500ff39f2e7ab13ffbb18e6f2d37ab88258dfab15"
 dependencies = [
- "wee_alloc",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -2917,14 +2917,13 @@ dependencies = [
 
 [[package]]
 name = "ink_lang_codegen"
-version = "3.0.0-rc3"
+version = "3.0.0-rc4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7232d7e90b0a9686fdec95bf6e26641a5ac46fa7f0fe77e14772d20f4e98b54"
+checksum = "c5ee2177ac0844b4a35f12bf76de4aa155f4a27e54124fbc4aef4e636a03644c"
 dependencies = [
  "blake2",
  "derive_more",
  "either",
- "funty",
  "heck",
  "impl-serde",
  "ink_lang_ir",
@@ -2938,9 +2937,9 @@ dependencies = [
 
 [[package]]
 name = "ink_lang_ir"
-version = "3.0.0-rc3"
+version = "3.0.0-rc4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dd8825036a8b6affc1441c1cb4c6c9ba9e84e1adade0510e5bfec2833e82a8d"
+checksum = "8bba0258bfabda79197a561cd9030804fb9cc65ff0f77ff83527f2eb61743f87"
 dependencies = [
  "blake2",
  "either",
@@ -3023,9 +3022,9 @@ dependencies = [
 
 [[package]]
 name = "ink_storage_derive"
-version = "3.0.0-rc3"
+version = "3.0.0-rc4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43029b877cdb418b8653396493264f3c07c040f3bc1b13b09dea8835b3bd7b83"
+checksum = "7c491eabbaec4dbb023dd94ca5d076a081c5c06655fb9295d67e3e90ee2b8146"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4016,12 +4015,6 @@ name = "memory_units"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
-
-[[package]]
-name = "memory_units"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
 name = "merlin"
@@ -10122,7 +10115,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf617d864d25af3587aa745529f7aaa541066c876d57e050c0d0c85c61c92aff"
 dependencies = [
  "libc",
- "memory_units 0.3.0",
+ "memory_units",
  "num-rational 0.2.4",
  "num-traits",
  "parity-wasm 0.41.0",
@@ -10409,18 +10402,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aabe153544e473b775453675851ecc86863d2a81d786d741f6b76778f2a48940"
 dependencies = [
  "webpki 0.21.4",
-]
-
-[[package]]
-name = "wee_alloc"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbb3b5a6b2bb17cb6ad44a2e68a43e8d2722c997da10e928665c72ec6c0a0b8e"
-dependencies = [
- "cfg-if 0.1.10",
- "libc",
- "memory_units 0.4.0",
- "winapi 0.3.9",
 ]
 
 [[package]]

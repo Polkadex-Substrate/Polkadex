@@ -182,7 +182,7 @@ mod uniswap_v2 {
             price_impact_limit: Option<Ratio>,
         ) -> Result<Vec<Balance>> {
             let path_length = path.len();
-            if path_length < 2 || path_length <= (TRADING_PATH_LIMIT as usize) {
+            if path_length < 2 || path_length > (TRADING_PATH_LIMIT as usize) {
                 return Err(Error::InvalidTradingPathLength);
             }
 
@@ -289,9 +289,10 @@ mod uniswap_v2 {
             price_impact_limit: Option<Ratio>,
         ) -> Result<Balance> {
             let caller = self.env().caller();
+
             let amounts = self.get_target_amounts(&path, supply_amount, price_impact_limit)?;
 
-            if amounts[amounts.len() - 1] > min_target_amount {
+            if amounts[amounts.len() - 1] < min_target_amount {
                 return Err(Error::InsufficientTargetAmount);
             }
 
@@ -299,7 +300,7 @@ mod uniswap_v2 {
             let actual_target_amount = amounts[amounts.len() - 1];
 
             // T::Currency::transfer(path[0], who, &module_account_id, supply_amount)?;
-            // Self::_swap_by_path(&path, &amounts)?;
+            self._swap_by_path(&path, &amounts)?;
             // T::Currency::transfer(
             //     path[path.len() - 1],
             //     &module_account_id,
@@ -456,10 +457,10 @@ mod uniswap_v2 {
                 (max_amount_b, max_amount_a)
             };
 
-            ink_env::debug_println(&ink_prelude::format!(
-                "------------------------------- \"{:?}\" ",
-                ExchangeRate::max_value(), // 0.999999999999999999999999999999999999997
-            ));
+            // ink_env::debug_println(&ink_prelude::format!(
+            //     "------------------------------- \"{:?}\" ",
+            //     ExchangeRate::max_value(), // 0.999999999999999999999999999999999999997
+            // ));
 
             let (pool_0_increment, pool_1_increment, share_increment): (Balance, Balance, Balance) =
                 if total_shares.is_zero() {
