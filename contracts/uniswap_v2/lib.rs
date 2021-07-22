@@ -39,6 +39,7 @@ mod uniswap_v2 {
         /// Stores a liquidity_pool hashmap value on the storage.
         liquidity_pool: HashMap<TradingPair, (Balance, Balance)>,
         total_issuances: HashMap<TradingPair, Balance>,
+        dex_incentives: HashMap<(TradingPair, AccountId), Balance>,
     }
 
     /// Emitted when Adding liquidity success. \[who, currency_id_0, pool_0_increment, currency_id_1, pool_1_increment, share_increment\].
@@ -70,6 +71,7 @@ mod uniswap_v2 {
             Self {
                 liquidity_pool: HashMap::new(),
                 total_issuances: HashMap::new(),
+                dex_incentives: HashMap::new(),
             }
         }
 
@@ -229,7 +231,7 @@ mod uniswap_v2 {
                         .ok_or(Error::ArithmeticOverflow)?;
 
                     let input_exchange_rate_0_1 = ExchangeRate::from_num(max_amount_1)
-                        .checked_div(ExchangeRate::from_num(max_amount_0))
+                        .checked_div_int(max_amount_0)
                         .ok_or(Error::ArithmeticOverflow)?;
 
                     if input_exchange_rate_0_1 <= exchange_rate_0_1 {
@@ -300,6 +302,25 @@ mod uniswap_v2 {
             self.liquidity_pool
                 .insert(trading_pair.clone(), (pool_0, pool_1));
 
+            let incentives = match self.dex_incentives.get(&(trading_pair.clone(), caller)) {
+                Option::Some(p) => *p,
+                Option::None => 0u128,
+            };
+
+            let incentives = incentives
+                .checked_add(share_increment)
+                .ok_or(Error::ArithmeticOverflow)?;
+
+            self.dex_incentives
+                .insert((trading_pair.clone(), caller), incentives);
+
+            let total_shares = total_shares
+                .checked_add(share_increment)
+                .ok_or(Error::ArithmeticOverflow)?;
+
+            self.total_issuances
+                .insert(trading_pair.clone(), total_shares);
+
             self.env().emit_event(LiquidityAdded {
                 who: caller,
                 currency_id_0: trading_pair.first(),
@@ -330,11 +351,11 @@ mod uniswap_v2 {
             let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
                 .ok_or(Error::InvalidTokenAddress)?;
 
-            let (pool_0, pool_1): (&Balance, &Balance) =
-                match self.liquidity_pool.get(&trading_pair) {
-                    Option::Some((p_0, p_1)) => (p_0, p_1),
-                    Option::None => (&0u128, &0u128),
-                };
+            let (pool_0, pool_1): (Balance, Balance) = match self.liquidity_pool.get(&trading_pair)
+            {
+                Option::Some((p_0, p_1)) => (*p_0, *p_1),
+                Option::None => (0u128, 0u128),
+            };
 
             let (min_withdrawn_0, min_withdrawn_1) = if currency_id_a == trading_pair.first() {
                 (min_withdrawn_a, min_withdrawn_b)
@@ -347,18 +368,16 @@ mod uniswap_v2 {
                 Option::None => 0u128,
             };
 
-            let (proportion, overflowed) = ExchangeRate::from_num(remove_share)
-                .overflowing_div(ExchangeRate::from_num(total_shares));
-            if overflowed {
-                return Err(Error::ArithmeticOverflow);
-            }
+            let proportion = ExchangeRate::from_num(remove_share)
+                .checked_div_int(total_shares)
+                .ok_or(Error::ArithmeticOverflow)?;
 
             let pool_0_decrement = proportion
-                .checked_mul_int(*pool_0)
+                .checked_mul_int(pool_0)
                 .ok_or(Error::ArithmeticOverflow)?
                 .to_num();
             let pool_1_decrement = proportion
-                .checked_mul_int(*pool_1)
+                .checked_mul_int(pool_1)
                 .ok_or(Error::ArithmeticOverflow)?
                 .to_num();
 
@@ -417,15 +436,44 @@ mod uniswap_v2 {
                     (pool_1, pool_0)
                 }
             } else {
-                (Zero::zero(), Zero::zero())
+                (0u128, 0u128)
             }
         }
 
-        // Simply returns the current value of our `bool`.
-        // #[ink(message)]
-        // pub fn get(&self) -> bool {
-        //     self.value
-        // }
+        #[ink(message)]
+        pub fn get_dex_incentive(
+            &self,
+            currency_id_a: TokenAddress,
+            currency_id_b: TokenAddress,
+            account: AccountId,
+        ) -> Balance {
+            if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
+            {
+                match self.dex_incentives.get(&(trading_pair, account)) {
+                    Option::Some(p) => *p,
+                    Option::None => 0u128,
+                }
+            } else {
+                0u128
+            }
+        }
+
+        #[ink(message)]
+        pub fn get_total_issuance(
+            &self,
+            currency_id_a: TokenAddress,
+            currency_id_b: TokenAddress,
+        ) -> Balance {
+            if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
+            {
+                match self.total_issuances.get(&trading_pair) {
+                    Option::Some(p) => *p,
+                    Option::None => 0u128,
+                }
+            } else {
+                0u128
+            }
+        }
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`

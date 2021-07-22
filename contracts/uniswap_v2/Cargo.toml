@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["[your_name] <[your_email]>"]
 edition = "2018"
 
+[profile.release]
+overflow-checks = false
+
 [dependencies]
 ink_primitives = { version = "3.0.0-rc3", default-features = false }
 ink_metadata = { version = "3.0.0-rc3", default-features = false, features = [
