@@ -62,8 +62,8 @@ mod uniswap_v2 {
     pub struct Swap {
         who: AccountId,
         path: Vec<TokenAddress>,
-        supply_amount: Balance,
-        actual_target_amount: Balance,
+        supply: Balance,
+        target: Balance,
     }
 
     impl UniswapV2 {
@@ -139,6 +139,11 @@ mod uniswap_v2 {
             Ok(())
         }
 
+        /// Trading with DEX, swap with exact supply amount
+        ///
+        /// - `path`: trading path.
+        /// - `supply_amount`: exact supply amount.
+        /// - `min_target_amount`: acceptable minimum target amount.
         #[ink(message)]
         pub fn swap_with_exact_supply(
             &mut self,
@@ -147,6 +152,22 @@ mod uniswap_v2 {
             min_target_amount: Balance,
         ) -> Result<()> {
             self.do_swap_with_exact_supply(path, supply_amount, min_target_amount, None)?;
+            Ok(())
+        }
+
+        /// Trading with DEX, swap with exact target amount
+        ///
+        /// - `path`: trading path.
+        /// - `target_amount`: exact target amount.
+        /// - `max_supply_amount`: acceptable maximum supply amount.
+        #[ink(message)]
+        pub fn swap_with_exact_target(
+            &mut self,
+            path: Vec<TokenAddress>,
+            target_amount: Balance,
+            max_supply_amount: Balance,
+        ) -> Result<()> {
+            self.do_swap_with_exact_target(path, target_amount, max_supply_amount, None)?;
             Ok(())
         }
 
@@ -170,6 +191,31 @@ mod uniswap_v2 {
 
                 numerator
                     .checked_div(denominator)
+                    .and_then(|n| TryInto::<Balance>::try_into(n).ok())
+                    .unwrap_or_else(Zero::zero)
+            }
+        }
+
+        pub fn get_supply_amount(
+            &self,
+            supply_pool: Balance,
+            target_pool: Balance,
+            target_amount: Balance,
+        ) -> Balance {
+            if target_amount.is_zero() || supply_pool.is_zero() || target_pool.is_zero() {
+                Zero::zero()
+            } else {
+                let (fee_numerator, fee_denominator) = GET_EXCHANGE_FEE;
+                let numerator: U256 = U256::from(supply_pool)
+                    .saturating_mul(U256::from(target_amount))
+                    .saturating_mul(U256::from(fee_denominator));
+                let denominator: U256 = U256::from(target_pool)
+                    .saturating_sub(U256::from(target_amount))
+                    .saturating_mul(U256::from(fee_denominator.saturating_sub(fee_numerator)));
+
+                numerator
+                    .checked_div(denominator)
+                    .and_then(|r| r.checked_add(U256::one())) // add 1 to result so that correct the possible losses caused by remainder discarding in
                     .and_then(|n| TryInto::<Balance>::try_into(n).ok())
                     .unwrap_or_else(Zero::zero)
             }
@@ -217,6 +263,50 @@ mod uniswap_v2 {
             }
 
             Ok(target_amounts)
+        }
+
+        pub fn get_supply_amounts(
+            &self,
+            path: &Vec<TokenAddress>,
+            target_amount: Balance,
+            price_impact_limit: Option<Ratio>,
+        ) -> Result<Vec<Balance>> {
+            let path_length = path.len();
+            if path_length < 2 || path_length > (TRADING_PATH_LIMIT as usize) {
+                return Err(Error::InvalidTradingPathLength);
+            }
+
+            let mut supply_amounts: Vec<Balance> = vec![Zero::zero(); path_length];
+            supply_amounts[path_length - 1] = target_amount;
+
+            let mut i: usize = path_length - 1;
+            while i > 0 {
+                let (supply_pool, target_pool) = self.get_liquidity(path[i - 1], path[i]);
+                if supply_pool.is_zero() || target_pool.is_zero() {
+                    return Err(Error::InsufficientLiquidity);
+                }
+                let supply_amount =
+                    self.get_supply_amount(supply_pool, target_pool, supply_amounts[i]);
+
+                if supply_amount.is_zero() {
+                    return Err(Error::ZeroTargetAmount);
+                }
+
+                // check price impact if limit exists
+                if let Some(limit) = price_impact_limit {
+                    let price_impact = Ratio::from_num(supply_amounts[i])
+                        .checked_div_int(target_pool)
+                        .unwrap_or_else(Ratio::max_value);
+                    if price_impact > limit {
+                        return Err(Error::ExceedPriceImpactLimit);
+                    }
+                }
+
+                supply_amounts[i - 1] = supply_amount;
+                i -= 1;
+            }
+
+            Ok(supply_amounts)
         }
 
         fn _swap(
@@ -311,11 +401,43 @@ mod uniswap_v2 {
             self.env().emit_event(Swap {
                 who: caller,
                 path: path.to_vec(),
-                supply_amount,
-                actual_target_amount,
+                supply: supply_amount,
+                target: actual_target_amount,
             });
 
             Ok(actual_target_amount)
+        }
+
+        pub fn do_swap_with_exact_target(
+            &mut self,
+            path: Vec<TokenAddress>,
+            target_amount: Balance,
+            max_supply_amount: Balance,
+            price_impact_limit: Option<Ratio>,
+        ) -> Result<Balance> {
+            let caller = self.env().caller();
+
+            let amounts = self.get_supply_amounts(&path, target_amount, price_impact_limit)?;
+
+            if amounts[0] > max_supply_amount {
+                return Err(Error::ExcessiveSupplyAmount);
+            }
+
+            // let module_account_id = Self::account_id();
+            let actual_supply_amount = amounts[0];
+
+            // T::Currency::transfer(path[0], who, &module_account_id, actual_supply_amount)?;
+            self._swap_by_path(&path, &amounts)?;
+            // T::Currency::transfer(path[path.len() - 1], &module_account_id, who, target_amount)?;
+
+            self.env().emit_event(Swap {
+                who: caller,
+                path: path.to_vec(),
+                supply: actual_supply_amount,
+                target: target_amount,
+            });
+
+            Ok(actual_supply_amount)
         }
 
         fn pair_info(&mut self, trading_pair: &TradingPair) -> ((Balance, Balance), Balance) {
