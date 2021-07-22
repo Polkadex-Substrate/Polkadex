@@ -166,8 +166,8 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
 
     pub fn total_stake(&mut self)-> T::Balance{
         let mut total: T::Balance = 0u128.saturated_into();
-        for stake in self.stakes.pop_front(){
-            total += stake.staked_amount
+        while let Some(stake) = self.stakes.pop_front() {
+            total += stake.staked_amount;
         }
         total
     }
@@ -290,10 +290,9 @@ decl_module! {
             ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
 
             let call_weight =  call.get_dispatch_info().weight;
-            ensure!(call_weight <= u64::MAX, Error::<T>::Overflow);
 
             let mut stored_exts: ExtStore<<T as Config>::Call, <T as Config>::PalletsOrigin> = Self::get_next_block_txns();
-            stored_exts.total_weight += call.get_dispatch_info().weight;
+            stored_exts.total_weight = stored_exts.total_weight.saturating_add(call_weight);
             ensure!(stored_exts.total_weight <= T::MaxAllowedWeight::get(), Error::<T>::NoMoreFeelessTxnsForThisBlock);
 
             // Calculates the stake amount and the stake period for the given call
@@ -316,7 +315,7 @@ decl_module! {
                 origin: origin.caller().clone()
             });
 
-            <StakedUsers<T>>::insert(who,staked_amount);
+            <StakedUsers<T>>::insert(who,staked_info);
             <TxnsForNextBlock<T>>::put(stored_exts);
             Self::deposit_event(RawEvent::FeelessExtrinsicAccepted(*call));
             Ok(())
