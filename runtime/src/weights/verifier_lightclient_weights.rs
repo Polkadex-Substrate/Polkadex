@@ -34,23 +34,23 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_verifier_lightclient::WeightInfo for WeightInfo<T> {
     fn import_header() -> Weight {
-        (1_399_655_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(17 as Weight))
-            .saturating_add(T::DbWeight::get().writes(22 as Weight))
+        (1_399_655_000_u64)
+            .saturating_add(T::DbWeight::get().reads(17_u64))
+            .saturating_add(T::DbWeight::get().writes(22_u64))
     }
     fn import_header_not_new_finalized_with_max_prune() -> Weight {
-        (1_354_413_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(16 as Weight))
-            .saturating_add(T::DbWeight::get().writes(20 as Weight))
+        (1_354_413_000_u64)
+            .saturating_add(T::DbWeight::get().reads(16_u64))
+            .saturating_add(T::DbWeight::get().writes(20_u64))
     }
     fn import_header_new_finalized_with_single_prune() -> Weight {
-        (1_321_962_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(10 as Weight))
-            .saturating_add(T::DbWeight::get().writes(8 as Weight))
+        (1_321_962_000_u64)
+            .saturating_add(T::DbWeight::get().reads(10_u64))
+            .saturating_add(T::DbWeight::get().writes(8_u64))
     }
     fn import_header_not_new_finalized_with_single_prune() -> Weight {
-        (1_282_699_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(9 as Weight))
-            .saturating_add(T::DbWeight::get().writes(6 as Weight))
+        (1_282_699_000_u64)
+            .saturating_add(T::DbWeight::get().reads(9_u64))
+            .saturating_add(T::DbWeight::get().writes(6_u64))
     }
 }
