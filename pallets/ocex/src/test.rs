@@ -22,65 +22,70 @@ use frame_support::{assert_noop, assert_ok};
 use super::*;
 use orml_traits::MultiCurrency;
 use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::AccountId;
 use sp_core::H160;
+
+const GEN_ACCOUNT: AccountId = AccountId::new(*b"01234567890123456789012345678901");
+const NEW_ACCOUNT: AccountId = AccountId::new(*b"12345678901234567890123456789012");
+const NEW_ACCOUNT_TWO: AccountId = AccountId::new(*b"23456789012345678901234567890123");
+const PROXY_ACCOUNT_ONE: AccountId = AccountId::new(*b"34567890123456789012345678901234");
+const PROXY_ACCOUNT_TWO: AccountId = AccountId::new(*b"45678901234567890123456789012345");
+const PROXY_ACCOUNT_THREE: AccountId = AccountId::new(*b"56789012345678901234567890123456");
+const NOT_REGISTERED_ACCOUNT: AccountId = AccountId::new(*b"67890123456789012345678901234567");
 
 #[test]
 fn test_register_account() {
-    new_test_ext(0).execute_with(|| {
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
         // Register new account
-        let new_account: u64 = 2;
-        let gen_account: u64 = 0;
         assert_ok!(PolkadexOcexPallet::register(
-            Origin::signed(new_account),
-            new_account
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone()
         ));
-        let new_account_two: u64 = 3;
         assert_ok!(PolkadexOcexPallet::register(
-            Origin::signed(new_account_two),
-            new_account_two
+            Origin::signed(NEW_ACCOUNT_TWO.clone()),
+            NEW_ACCOUNT_TWO.clone()
         ));
 
         // Verify LastAccount Storage
-        assert_eq!(<LastAccount<Test>>::get(), 3);
+        assert_eq!(<LastAccount<Test>>::get(), NEW_ACCOUNT_TWO);
         // Verify Main Account Storage
-        let latest_linked_account: LinkedAccount<Test> = LinkedAccount {
-            prev: new_account,
-            current: new_account_two,
+        let latest_linked_account: LinkedAccount = LinkedAccount {
+            prev: NEW_ACCOUNT.clone(),
+            current: NEW_ACCOUNT_TWO.clone(),
             next: None,
             proxies: vec![],
         };
-        let linked_account: LinkedAccount<Test> = LinkedAccount {
-            prev: gen_account,
-            current: new_account,
-            next: Some(new_account_two),
+        let linked_account: LinkedAccount = LinkedAccount {
+            prev: GEN_ACCOUNT.clone(),
+            current: NEW_ACCOUNT.clone(),
+            next: Some(NEW_ACCOUNT_TWO.clone()),
             proxies: vec![],
         };
-        let expected_linked_account_gen: LinkedAccount<Test> = LinkedAccount {
-            prev: gen_account,
-            current: gen_account,
-            next: Some(new_account),
+        let expected_linked_account_gen: LinkedAccount = LinkedAccount {
+            prev: GEN_ACCOUNT.clone(),
+            current: GEN_ACCOUNT.clone(),
+            next: Some(NEW_ACCOUNT.clone()),
             proxies: vec![],
         };
         assert_eq!(
-            <MainAccounts<Test>>::get(new_account_two),
+            <MainAccounts<Test>>::get(NEW_ACCOUNT_TWO),
             latest_linked_account
         );
-        assert_eq!(<MainAccounts<Test>>::get(new_account), linked_account);
+        assert_eq!(<MainAccounts<Test>>::get(NEW_ACCOUNT), linked_account);
         assert_eq!(
-            <MainAccounts<Test>>::get(gen_account),
+            <MainAccounts<Test>>::get(GEN_ACCOUNT),
             expected_linked_account_gen
         );
     });
 
     // Test Errors
-    new_test_ext(0).execute_with(|| {
-        let new_account: u64 = 2;
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
         assert_ok!(PolkadexOcexPallet::register(
-            Origin::signed(new_account),
-            new_account
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone()
         ));
         assert_noop!(
-            PolkadexOcexPallet::register(Origin::signed(2), 2u64),
+            PolkadexOcexPallet::register(Origin::signed(NEW_ACCOUNT.clone()), NEW_ACCOUNT),
             Error::<Test>::AlreadyRegistered
         );
     });
@@ -88,69 +93,61 @@ fn test_register_account() {
 
 #[test]
 fn test_add_proxy() {
-    new_test_ext(0).execute_with(|| {
-        let new_account: u64 = 2;
-        let gen_account: u64 = 0;
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
         assert_ok!(PolkadexOcexPallet::register(
-            Origin::signed(new_account),
-            new_account
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone()
         ));
-        let proxy_account_one = 3;
         assert_ok!(PolkadexOcexPallet::add_proxy(
-            Origin::signed(new_account),
-            new_account,
-            proxy_account_one
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone(),
+            PROXY_ACCOUNT_ONE.clone()
         ));
         // TODO: Already registered Proxies can be registered multiple times
-        //assert_ok!(PolkadexOcexPallet::add_proxy(Origin::signed(new_account), proxy_account_one));
-        let expected_linked_account: LinkedAccount<Test> = LinkedAccount {
-            prev: gen_account,
-            current: new_account,
+        //assert_ok!(PolkadexOcexPallet::add_proxy(Origin::signed(NEW_ACCOUNT), PROXY_ACCOUNT_ONE));
+        let expected_linked_account: LinkedAccount = LinkedAccount {
+            prev: GEN_ACCOUNT,
+            current: NEW_ACCOUNT.clone(),
             next: None,
-            proxies: vec![3],
+            proxies: vec![PROXY_ACCOUNT_ONE],
         };
         assert_eq!(
-            <MainAccounts<Test>>::get(new_account),
+            <MainAccounts<Test>>::get(NEW_ACCOUNT),
             expected_linked_account
         );
     });
 
     // Test Errors
-    new_test_ext(0).execute_with(|| {
-        let new_account: u64 = 2;
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
         assert_ok!(PolkadexOcexPallet::register(
-            Origin::signed(new_account),
-            new_account
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone()
         ));
-        let proxy_account_one = 3;
-        let proxy_account_two = 4;
-        let not_registered_account: u64 = 4;
         assert_noop!(
             PolkadexOcexPallet::add_proxy(
-                Origin::signed(not_registered_account),
-                not_registered_account,
-                proxy_account_one
+                Origin::signed(NOT_REGISTERED_ACCOUNT.clone()),
+                NOT_REGISTERED_ACCOUNT,
+                PROXY_ACCOUNT_ONE.clone()
             ),
             Error::<Test>::NotARegisteredMainAccount
         );
         assert_ok!(PolkadexOcexPallet::add_proxy(
-            Origin::signed(new_account),
-            new_account,
-            proxy_account_one
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone(),
+            PROXY_ACCOUNT_ONE
         ));
         assert_ok!(PolkadexOcexPallet::add_proxy(
-            Origin::signed(new_account),
-            new_account,
-            proxy_account_two
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone(),
+            PROXY_ACCOUNT_TWO
         ));
 
         // Check proxy Limit
-        let proxy_account_three = 5;
         assert_noop!(
             PolkadexOcexPallet::add_proxy(
-                Origin::signed(new_account),
-                new_account,
-                proxy_account_three
+                Origin::signed(NEW_ACCOUNT.clone()),
+                NEW_ACCOUNT,
+                PROXY_ACCOUNT_THREE
             ),
             Error::<Test>::ProxyLimitReached
         );
@@ -159,50 +156,45 @@ fn test_add_proxy() {
 
 #[test]
 fn test_remove_proxy() {
-    new_test_ext(0).execute_with(|| {
-        let new_account: u64 = 2;
-        let gen_account: u64 = 0;
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
         assert_ok!(PolkadexOcexPallet::register(
-            Origin::signed(new_account),
-            new_account
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone()
         ));
-        let proxy_account_one = 3;
         assert_ok!(PolkadexOcexPallet::add_proxy(
-            Origin::signed(new_account),
-            new_account,
-            proxy_account_one
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone(),
+            PROXY_ACCOUNT_ONE.clone()
         ));
         assert_ok!(PolkadexOcexPallet::remove_proxy(
-            Origin::signed(new_account),
-            new_account,
-            proxy_account_one
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT.clone(),
+            PROXY_ACCOUNT_ONE
         ));
-        let expected_linked_account: LinkedAccount<Test> = LinkedAccount {
-            prev: gen_account,
-            current: new_account,
+
+        let expected_linked_account: LinkedAccount = LinkedAccount {
+            prev: GEN_ACCOUNT,
+            current: NEW_ACCOUNT.clone(),
             next: None,
             proxies: vec![],
         };
         assert_eq!(
-            <MainAccounts<Test>>::get(new_account),
+            <MainAccounts<Test>>::get(NEW_ACCOUNT),
             expected_linked_account
         );
     });
 
     // Verify Errors
-    new_test_ext(0).execute_with(|| {
-        let new_account: u64 = 2;
-        let proxy_account_one = 3;
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
         assert_ok!(PolkadexOcexPallet::register(
-            Origin::signed(new_account),
-            new_account
+            Origin::signed(NEW_ACCOUNT.clone()),
+            NEW_ACCOUNT
         ));
-        let not_registered_account: u64 = 4;
         assert_noop!(
             PolkadexOcexPallet::remove_proxy(
-                Origin::signed(not_registered_account),
-                not_registered_account,
-                proxy_account_one
+                Origin::signed(NOT_REGISTERED_ACCOUNT.clone()),
+                NOT_REGISTERED_ACCOUNT,
+                PROXY_ACCOUNT_ONE
             ),
             Error::<Test>::NotARegisteredMainAccount
         );
