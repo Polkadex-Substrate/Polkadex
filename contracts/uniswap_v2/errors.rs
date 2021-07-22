@@ -28,4 +28,6 @@ pub enum Error {
     InsufficientTargetAmount,
     #[error(display = "InvariantCheckFailed")]
     InvariantCheckFailed,
+    #[error(display = "ExcessiveSupplyAmount")]
+    ExcessiveSupplyAmount,
 }
