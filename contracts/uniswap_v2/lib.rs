@@ -811,6 +811,40 @@ mod uniswap_v2 {
                 Zero::zero()
             }
         }
+
+        #[ink(message)]
+        pub fn get_swap_target_amount(
+            &self,
+            path: Vec<TokenAddress>,
+            supply_amount: Balance,
+            // price_impact_limit: Option<Ratio>,
+        ) -> Option<Balance> {
+            let path_length = path.len();
+            if path_length < 2 || path_length > (TRADING_PATH_LIMIT as usize) {
+                return None;
+            }
+
+            self.get_target_amounts(&path, supply_amount, None)
+                .ok()
+                .map(|amounts| amounts[amounts.len() - 1])
+        }
+
+        #[ink(message)]
+        pub fn get_swap_supply_amount(
+            &self,
+            path: Vec<TokenAddress>,
+            target_amount: Balance,
+            // price_impact_limit: Option<Ratio>,
+        ) -> Option<Balance> {
+            let path_length = path.len();
+            if path_length < 2 || path_length > (TRADING_PATH_LIMIT as usize) {
+                return None;
+            }
+
+            self.get_supply_amounts(&path, target_amount, None)
+                .ok()
+                .map(|amounts| amounts[0])
+        }
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
