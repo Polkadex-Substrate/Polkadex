@@ -198,6 +198,8 @@ decl_storage! {
         InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::AccountId => T::Balance;
         /// A mapping between funding round id and its InterestedParticipants
         InterestedParticipants get(fn get_interested_particpants): map hasher(identity) T::Hash => Vec<T::AccountId>;
+
+        Nonce get(fn nonce): u128;
     }
     add_extra_genesis {
         config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -301,7 +303,7 @@ decl_module! {
                 close_round_block,
             );
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone()).encode());
+            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
             <InfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
@@ -343,6 +345,7 @@ decl_module! {
             ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             let round_account_id = Self::round_account_id(round_id.clone());
@@ -513,5 +516,11 @@ impl<T: Config> Module<T> {
 
     pub fn round_account_id(hash: T::Hash) -> T::AccountId {
         T::ModuleId::get().into_sub_account(hash)
+    }
+
+    fn incr_nonce() -> u128 {
+        let current_nonce : u128= <Nonce>::get();
+        <Nonce>::put(current_nonce.saturating_add(1));
+        <Nonce>::get()
     }
 }
