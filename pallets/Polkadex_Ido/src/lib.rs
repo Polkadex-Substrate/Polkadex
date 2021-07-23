@@ -200,6 +200,8 @@ decl_storage! {
         InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::AccountId => T::Balance;
         /// A mapping between funding round id and its InterestedParticipants
         InterestedParticipants get(fn get_interested_particpants): map hasher(identity) T::Hash => Vec<T::AccountId>;
+
+        Nonce get(fn nonce): u128;
     }
     add_extra_genesis {
         config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -303,7 +305,7 @@ decl_module! {
                 close_round_block,
             );
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone()).encode());
+            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
             <InfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
@@ -375,7 +377,8 @@ decl_module! {
                 let investor_share = <InvestorShareInfo<T>>::get(round_id, investor_address.clone());
                 let total_released_block: T::BlockNumber = current_block_no - funding_round.start_block;
                 let tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
-                * funding_round.vesting_per_block * investor_share;
+                .saturating_mul(funding_round.vesting_per_block)
+                .saturating_mul(investor_share);
 
                 <InfoClaimAmount<T>>::insert(investor_address.clone(), tokens_released_for_given_investor);
                 <LastClaimBlockInfo<T>>::insert(round_id, investor_address.clone(), current_block_no);
@@ -512,5 +515,11 @@ impl<T: Config> Module<T> {
 
     fn block_to_balance(input: T::BlockNumber) -> T::Balance {
         T::Balance::from(input.saturated_into::<u32>())
+    }
+
+    fn incr_nonce() -> u128 {
+        let current_nonce : u128= <Nonce>::get();
+        <Nonce>::put(current_nonce.saturating_add(1));
+        <Nonce>::get()
     }
 }
