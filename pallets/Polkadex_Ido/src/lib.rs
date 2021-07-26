@@ -411,7 +411,7 @@ decl_module! {
             let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
             let participants_limit : usize = (funding_round.amount / funding_round.max_allocation).saturated_into::<usize>();
             InterestedParticipants::<T>::mutate(round_id, |investors| {
-                // Replace participants at random when maximum amount is reached
+                // Replace participants at random when maximum slot is reached
                 if investors.len() <= participants_limit {
                     investors.push(investor_address.clone());
                 }else {
