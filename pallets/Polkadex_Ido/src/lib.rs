@@ -93,7 +93,7 @@ pub trait Config: system::Config + orml_tokens::Config {
     /// The generator used to supply randomness to IDO
     type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
     /// Randomness Source for random participant seed
-    type RandomnessSource: Randomness<H256, BlockNumber>;
+    type RandomnessSource: Randomness<H256, Self::BlockNumber>;
     /// The IDO's module id
     type ModuleId: Get<PalletId>;
     /// Weight information for extrinsics in this pallet.
