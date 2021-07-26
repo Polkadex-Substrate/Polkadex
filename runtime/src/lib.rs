@@ -70,7 +70,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{
     crypto::KeyTypeId,
     u32_trait::{_1, _2, _3, _4, _5},
-    OpaqueMetadata,
+    OpaqueMetadata, H160,
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_io::hashing::blake2_128;
@@ -90,7 +90,7 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill,
     Percent, Permill, Perquintill,
 };
-use sp_std::prelude::*;
+use sp_std::{convert::TryInto, prelude::*};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -832,10 +832,100 @@ impl pallet_contracts::Config for Runtime {
     type MaxValueSize = MaxValueSize;
     type WeightPrice = pallet_transaction_payment::Module<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    type ChainExtension = ();
+    type ChainExtension = impl_uniswap::CustomChainExtension;
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
     type MaxCodeSize = MaxCodeSize;
+}
+
+mod impl_uniswap {
+    use super::*;
+    use codec::Encode;
+    use frame_support::log::error;
+    use pallet_contracts::chain_extension::{
+        ChainExtension, Environment, Ext, InitState, RetVal, SysConfig, UncheckedFrom,
+    };
+    use sp_runtime::DispatchError;
+
+    pub struct CustomChainExtension;
+
+    impl ChainExtension<Runtime> for CustomChainExtension {
+        fn call<E: Ext>(
+            func_id: u32,
+            env: Environment<E, InitState>,
+        ) -> Result<RetVal, DispatchError>
+        where
+            <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+            <E as Ext>::T: orml_currencies::Config,
+        {
+            match func_id {
+                0 => {
+                    // use orml_currencies::;
+
+                    let mut env = env.buf_in_buf_out();
+
+                    // get the value for this round from the chainklink feed
+                    // let feed = <E::T as pallet_chainlink_oracle::Config>::Oracle::feed(0.into())
+                    //     .ok_or(DispatchError::Other("chainlink feed missing"))?;
+                    // let RoundData { answer, .. } = feed.latest_data();
+                    // let answer: FeedValue = 123;
+
+                    // let random_seed = crate::RandomnessCollectiveFlip::random_seed().0;
+                    // let random_slice = random_seed.encode();
+                    // trace!(
+                    //     target: "runtime",
+                    //     "[ChainExtension]|call|func_id:{:}",
+                    //     func_id
+                    // );
+
+                    let input_data = env.read(100)?;
+
+                    let token_addr: H160 = H160::from_slice(&input_data[0..20]);
+                    let from: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
+                    let to: AccountId = AccountId::new(input_data[52..84].try_into().unwrap());
+                    let amount: Balance = u128::from_le_bytes(input_data[84..].try_into().unwrap());
+                    log::info!(
+                        "-------------- {:?} {:?} {:?} {:?}",
+                        token_addr,
+                        from,
+                        to,
+                        amount
+                    );
+                    <E::T as orml_currencies::Config>::MultiCurrency::transfer(
+                        AssetId::CHAINSAFE(token_addr),
+                        &from,
+                        &to,
+                        amount,
+                    );
+                    env.write(&[0], false, None).map_err(|_| {
+                        DispatchError::Other("ChainExtension failed to call transfer")
+                    })?;
+                }
+
+                _ => {
+                    error!("Called an unregistered `func_id`: {:}", func_id);
+                    return Err(DispatchError::Other("Unimplemented func_id"));
+                }
+            }
+            Ok(RetVal::Converging(0))
+        }
+
+        fn enabled() -> bool {
+            true
+        }
+    }
+
+    // parameter_types! {
+    //     pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+    // }
+
+    // impl orml_currencies::Config for Runtime {
+    //     type Event = Event;
+    //     type MultiCurrency = Tokens;
+    //     type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    //     type GetNativeCurrencyId = GetNativeCurrencyId;
+    //     type WeightInfo = ();
+    // }
 }
 
 impl pallet_sudo::Config for Runtime {

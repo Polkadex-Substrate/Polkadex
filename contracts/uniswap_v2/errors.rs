@@ -30,4 +30,6 @@ pub enum Error {
     InvariantCheckFailed,
     #[error(display = "ExcessiveSupplyAmount")]
     ExcessiveSupplyAmount,
+    #[error(display = "TransferFailed")]
+    TransferFailed,
 }

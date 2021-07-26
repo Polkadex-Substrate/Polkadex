@@ -8,8 +8,6 @@ use ink_storage::traits::{PackedLayout, SpreadLayout};
 use primitive_types::H160;
 use scale_info::{build::Fields, Path, Type, TypeInfo};
 
-pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
-
 pub type ExchangeRate = FixedU128<U64>;
 pub type Ratio = FixedU128<U64>;
 
