@@ -55,6 +55,11 @@ use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
 use sp_runtime::SaturatedConversion;
 use sp_std::prelude::*;
+use rand::SeedableRng;
+use rand::Rng;
+use rand_chacha::ChaChaRng;
+use polkadex_primitives::BlockNumber;
+use sp_core::H256;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -88,6 +93,8 @@ pub trait Config: system::Config + orml_tokens::Config {
     type MaxSupply: Get<Self::Balance>;
     /// The generator used to supply randomness to IDO
     type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+    /// Randomness Source for random participant seed
+    type RandomnessSource: Randomness<H256, BlockNumber>;
     /// The IDO's module id
     type ModuleId: Get<PalletId>;
     /// Weight information for extrinsics in this pallet.
@@ -339,6 +346,7 @@ decl_module! {
         /// * `amount`: Amount to be transferred to wallet.
         #[weight = 10000]
         pub fn participate_in_round(origin, round_id: T::Hash, amount: T::Balance) -> DispatchResult {
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<WhiteListInvestors<T>>::contains_key(&round_id, &investor_address), <Error<T>>::NotWhiteListed);
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
@@ -394,12 +402,23 @@ decl_module! {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+
+            let funding_round : FundingRound<T> = <InfoFundingRound<T>>::get(round_id);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
+
+            let seed = <T as Config>::RandomnessSource::random_seed();
+            let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
+            let participants_limit : usize = (funding_round.amount / funding_round.max_allocation).saturated_into::<usize>();
             InterestedParticipants::<T>::mutate(round_id, |investors| {
+                // Replace participants at random when maximum amount is reached
+                if investors.len() <= participants_limit {
                     investors.push(investor_address.clone());
-                });
+                }else {
+                    let random_index = rng.gen_range(0..participants_limit);
+                    investors[random_index] = investor_address.clone();
+                }
+            });
             Self::deposit_event(RawEvent::ShowedInterest(round_id, investor_address));
              Ok(())
         }
