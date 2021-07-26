@@ -139,6 +139,7 @@ impl Config for Test {
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
     type Randomness = TestRandomness<Self>;
+    type RandomnessSource = TestRandomness<Self>;
     type ModuleId = PolkadexIdoModuleId;
     type WeightIDOInfo = ();
 }
