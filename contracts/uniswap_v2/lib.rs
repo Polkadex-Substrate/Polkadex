@@ -29,6 +29,7 @@ mod uniswap_v2 {
     /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct UniswapV2 {
+        owner: AccountId,
         /// Stores a liquidity_pool hashmap value on the storage.
         liquidity_pool: HashMap<TradingPair, (Balance, Balance)>,
         total_issuances: HashMap<TradingPair, Balance>,
@@ -71,6 +72,7 @@ mod uniswap_v2 {
         #[ink(constructor)]
         pub fn new() -> Self {
             Self {
+                owner: Self::env().caller(),
                 liquidity_pool: HashMap::new(),
                 total_issuances: HashMap::new(),
                 dex_incentives: HashMap::new(),
@@ -663,7 +665,13 @@ mod uniswap_v2 {
             // 4. total_issuances[trading_pair].add(share_increment)
             // 5. share[trading_pair][who].add(share_increment)
 
-            // self.env().extension().transfer()?;
+            let module_account_id = self.account_id();
+            self.env().extension().transfer(
+                trading_pair.first(),
+                caller,
+                module_account_id,
+                pool_0_increment,
+            )?;
             // let module_account_id = Self::account_id();
             // T::Currency::transfer(trading_pair.first(), who, &module_account_id, pool_0_increment)?;
             // T::Currency::transfer(trading_pair.second(), who, &module_account_id, pool_1_increment)?;
@@ -685,6 +693,10 @@ mod uniswap_v2 {
             });
 
             Ok(())
+        }
+
+        fn account_id(&self) -> AccountId {
+            self.owner
         }
 
         fn do_remove_liquidity(

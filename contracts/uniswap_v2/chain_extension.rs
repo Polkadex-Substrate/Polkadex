@@ -1,23 +1,29 @@
+use crate::{errors::Error, models::TokenAddress};
 use ink_env::Environment;
 use ink_lang as ink;
 
 /// Define the operations to interact with the substrate runtime
 #[ink::chain_extension]
 pub trait CurrencyExtension {
-    type ErrorCode = ChainExtensionError;
+    type ErrorCode = Error;
 
     #[ink(extension = 0, returns_result = false)]
-    fn transfer() -> <CustomEnvironment as Environment>::Balance;
+    fn transfer(
+        token_address: TokenAddress,
+        from: <ink_env::DefaultEnvironment as Environment>::AccountId,
+        to: <ink_env::DefaultEnvironment as Environment>::AccountId,
+        amount: <ink_env::DefaultEnvironment as Environment>::Balance,
+    ) -> ();
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode, err_derive::Error)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum ChainExtensionError {
-    #[error(display = "Transfer failed")]
-    TransferFailed,
-}
+// #[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode, err_derive::Error)]
+// #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+// pub enum ChainExtensionError {
+//     #[error(display = "Transfer failed")]
+//     TransferFailed,
+// }
 
-impl ink_env::chain_extension::FromStatusCode for ChainExtensionError {
+impl ink_env::chain_extension::FromStatusCode for Error {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
         match status_code {
             0 => Ok(()),
@@ -32,8 +38,7 @@ impl ink_env::chain_extension::FromStatusCode for ChainExtensionError {
 pub struct CustomEnvironment;
 
 impl Environment for CustomEnvironment {
-    const MAX_EVENT_TOPICS: usize =
-        <ink_env::DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
+    const MAX_EVENT_TOPICS: usize = <ink_env::DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
 
     type AccountId = <ink_env::DefaultEnvironment as Environment>::AccountId;
     type Balance = <ink_env::DefaultEnvironment as Environment>::Balance;
