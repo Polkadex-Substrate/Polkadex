@@ -356,8 +356,6 @@ decl_module! {
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
-
-            let current_block_no = <frame_system::Pallet<T>>::block_number();
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
              <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::get_wallet_account(), amount)?;
@@ -415,7 +413,7 @@ decl_module! {
             let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
             let participants_limit : usize = (funding_round.amount / funding_round.max_allocation).saturated_into::<usize>();
             InterestedParticipants::<T>::mutate(round_id, |investors| {
-                // Replace participants at random when maximum amount is reached
+                // Replace participants at random when maximum slot is reached
                 if investors.len() <= participants_limit {
                     investors.push(investor_address.clone());
                 }else {
