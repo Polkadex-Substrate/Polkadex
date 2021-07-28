@@ -61,7 +61,7 @@ use rand::{ Rng, seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
 use polkadex_primitives::BlockNumber;
 use sp_core::H256;
-
+use frame_support::pallet_prelude::Weight;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -152,7 +152,7 @@ impl<T: Config> Default for FundingRound<T> {
             min_allocation: T::Balance::default(),
             max_allocation: T::Balance::default(),
             operator_commission: T::Balance::default(),
-            token_a_priceper_token_b: T::Balance::default(),
+            token_a_priceper_token_b: 1u128.saturated_into(),
             close_round_block: T::BlockNumber::default(),
             actual_raise: Zero::zero(),
         }
@@ -228,6 +228,21 @@ decl_module! {
 
         fn deposit_event() = default;
 
+        fn on_initialize(block_number: T::BlockNumber) -> Weight {
+
+            let call_weight: Weight = T::DbWeight::get().reads_writes(1, 1);
+            // Clean up WhiteListInvestors and InterestedParticipants in all expired rounds
+            for (round_id,round_info) in <InfoFundingRound<T>>::iter() {
+
+                if block_number > round_info.close_round_block {
+                    <WhiteListInvestors<T>>::remove_prefix(round_id);
+                    <InterestedParticipants<T>>::remove(round_id);
+                }
+
+            }
+            return call_weight
+        }
+
         /// Registers a new investor to allow participating in funding round.
         ///
         /// # Parameters
@@ -298,6 +313,7 @@ decl_module! {
             close_round_block: T::BlockNumber
         ) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
+            ensure!(token_a_priceper_token_b > 0_u128.saturated_into(), Error::<T>::PriceTokenBPerTokenAError);
             let funding_round: FundingRound<T> = FundingRound::from(
                 token_a,
                 amount,
@@ -351,7 +367,7 @@ decl_module! {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<WhiteListInvestors<T>>::contains_key(&round_id, &investor_address), <Error<T>>::NotWhiteListed);
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
-            ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
+            ensure!(amount <= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
@@ -521,7 +537,9 @@ decl_error! {
         /// Not allowed
         NotAllowed,
         /// Withdraw Error
-        WithdrawError
+        WithdrawError,
+        ///
+        PriceTokenBPerTokenAError
     }
 }
 
