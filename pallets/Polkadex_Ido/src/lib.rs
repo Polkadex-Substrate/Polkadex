@@ -55,7 +55,7 @@ use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
 use sp_runtime::SaturatedConversion;
 use sp_std::prelude::*;
-
+use frame_support::pallet_prelude::Weight;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -217,6 +217,22 @@ decl_module! {
         type Error = Error<T>;
 
         fn deposit_event() = default;
+
+        fn on_initialize(block_number: T::BlockNumber) -> Weight {
+
+            let call_weight: Weight = T::DbWeight::get().reads_writes(1, 1);
+            // Clean up WhiteListInvestors and InterestedParticipants in all expired rounds
+            for (round_id,round_info) in <InfoFundingRound<T>>::iter() {
+
+                if block_number > round_info.close_round_block {
+                    <WhiteListInvestors<T>>::remove_prefix(round_id);
+                    <InterestedParticipants<T>>::remove(round_id);
+                    Self::deposit_event(RawEvent::CleanedupExpiredRound(round_id));
+                }
+
+            }
+            return call_weight
+        }
 
         /// Registers a new investor to allow participating in funding round.
         ///
@@ -473,6 +489,8 @@ decl_event! {
         WithdrawRaised(Hash, AccountId),
         /// Transferred remaining tokens
         WithdrawToken(Hash, AccountId),
+        CleanedupExpiredRound(Hash),
+
     }
 }
 
