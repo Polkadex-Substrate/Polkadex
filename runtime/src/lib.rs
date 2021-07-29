@@ -46,7 +46,7 @@ use frame_system::{
 };
 use impls::Author;
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
+use orml_traits::parameter_type_with_key;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_basic_channel::inbound as basic_channel_inbound;
@@ -842,6 +842,7 @@ mod impl_uniswap {
     use super::*;
     use codec::Encode;
     use frame_support::log::error;
+    use orml_traits::MultiCurrency;
     use pallet_contracts::chain_extension::{
         ChainExtension, Environment, Ext, InitState, RetVal, SysConfig, UncheckedFrom,
     };
@@ -860,46 +861,61 @@ mod impl_uniswap {
         {
             match func_id {
                 0 => {
-                    // use orml_currencies::;
-
+                    // deposit
                     let mut env = env.buf_in_buf_out();
-
-                    // get the value for this round from the chainklink feed
-                    // let feed = <E::T as pallet_chainlink_oracle::Config>::Oracle::feed(0.into())
-                    //     .ok_or(DispatchError::Other("chainlink feed missing"))?;
-                    // let RoundData { answer, .. } = feed.latest_data();
-                    // let answer: FeedValue = 123;
-
-                    // let random_seed = crate::RandomnessCollectiveFlip::random_seed().0;
-                    // let random_slice = random_seed.encode();
-                    // trace!(
-                    //     target: "runtime",
-                    //     "[ChainExtension]|call|func_id:{:}",
-                    //     func_id
-                    // );
-
-                    let input_data = env.read(100)?;
+                    let input_data = env.read(68)?;
 
                     let token_addr: H160 = H160::from_slice(&input_data[0..20]);
                     let from: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
-                    let to: AccountId = AccountId::new(input_data[52..84].try_into().unwrap());
-                    let amount: Balance = u128::from_le_bytes(input_data[84..].try_into().unwrap());
-                    log::info!(
-                        "-------------- {:?} {:?} {:?} {:?}",
-                        token_addr,
-                        from,
-                        to,
-                        amount
-                    );
-                    <E::T as orml_currencies::Config>::MultiCurrency::transfer(
+                    let to: AccountId = PalletId(*b"polka/ex").into_account();
+                    let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
+                    log::info!("-------------- {:?} {:?} {:?}", token_addr, to, amount);
+
+                    match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
                         AssetId::CHAINSAFE(token_addr),
                         &from,
                         &to,
                         amount,
-                    );
-                    env.write(&[0], false, None).map_err(|_| {
-                        DispatchError::Other("ChainExtension failed to call transfer")
-                    })?;
+                    ) {
+                        Ok(res) => {
+                            log::info!("ChainExtension success {:?}", res);
+                            env.write(&[0], false, None)?;
+                        }
+                        Err(err) => {
+                            log::info!("ChainExtension error {:?}", err);
+                            return Err(DispatchError::Other(
+                                "ChainExtension failed to call transfer",
+                            ));
+                        }
+                    }
+                }
+
+                1 => {
+                    // withdraw
+                    let mut env = env.buf_in_buf_out();
+                    let input_data = env.read(68)?;
+
+                    let token_addr: H160 = H160::from_slice(&input_data[0..20]);
+                    let from: AccountId = PalletId(*b"polka/ex").into_account();
+                    let to: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
+                    let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
+                    log::info!("-------------- {:?} {:?} {:?}", token_addr, from, amount);
+
+                    match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
+                        AssetId::CHAINSAFE(token_addr),
+                        &from,
+                        &to,
+                        amount,
+                    ) {
+                        Ok(_) => {
+                            env.write(&[0], false, None)?;
+                        }
+                        Err(_) => {
+                            return Err(DispatchError::Other(
+                                "ChainExtension failed to call transfer",
+                            ));
+                        }
+                    }
                 }
 
                 _ => {

@@ -8,9 +8,14 @@ pub trait CurrencyExtension {
     type ErrorCode = Error;
 
     #[ink(extension = 0, returns_result = false)]
-    fn transfer(
+    fn deposit(
         token_address: TokenAddress,
         from: <ink_env::DefaultEnvironment as Environment>::AccountId,
+        amount: <ink_env::DefaultEnvironment as Environment>::Balance,
+    ) -> ();
+    #[ink(extension = 1, returns_result = false)]
+    fn withdraw(
+        token_address: TokenAddress,
         to: <ink_env::DefaultEnvironment as Environment>::AccountId,
         amount: <ink_env::DefaultEnvironment as Environment>::Balance,
     ) -> ();
