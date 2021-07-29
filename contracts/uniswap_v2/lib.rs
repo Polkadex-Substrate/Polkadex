@@ -388,17 +388,15 @@ mod uniswap_v2 {
                 return Err(Error::InsufficientTargetAmount);
             }
 
-            // let module_account_id = Self::account_id();
             let actual_target_amount = amounts[amounts.len() - 1];
 
-            // T::Currency::transfer(path[0], who, &module_account_id, supply_amount)?;
+            self.env()
+                .extension()
+                .deposit(path[0], caller, supply_amount)?;
             self._swap_by_path(&path, &amounts)?;
-            // T::Currency::transfer(
-            //     path[path.len() - 1],
-            //     &module_account_id,
-            //     who,
-            //     actual_target_amount,
-            // )?;
+            self.env()
+                .extension()
+                .withdraw(path[path.len() - 1], caller, actual_target_amount)?;
 
             self.env().emit_event(Swap {
                 who: caller,
@@ -425,12 +423,17 @@ mod uniswap_v2 {
                 return Err(Error::ExcessiveSupplyAmount);
             }
 
-            // let module_account_id = Self::account_id();
             let actual_supply_amount = amounts[0];
 
             // T::Currency::transfer(path[0], who, &module_account_id, actual_supply_amount)?;
+            self.env()
+                .extension()
+                .deposit(path[0], caller, actual_supply_amount)?;
             self._swap_by_path(&path, &amounts)?;
             // T::Currency::transfer(path[path.len() - 1], &module_account_id, who, target_amount)?;
+            self.env()
+                .extension()
+                .withdraw(path[path.len() - 1], caller, target_amount)?;
 
             self.env().emit_event(Swap {
                 who: caller,
@@ -658,24 +661,12 @@ mod uniswap_v2 {
                 return Err(Error::UnacceptableShareIncrement);
             }
 
-            // Todo:
-            // 1. Get uniswap account id
-            // 2. transfer pool_0_increment amount of trading_pair.first() token from sender to uniswap account
-            // 3. transfer pool_1_increment amount of trading_pair.second() token from sender to uniswap account
-            // 4. total_issuances[trading_pair].add(share_increment)
-            // 5. share[trading_pair][who].add(share_increment)
-
-            let module_account_id = self.account_id();
-            self.env().extension().transfer(
-                trading_pair.first(),
-                caller,
-                module_account_id,
-                pool_0_increment,
-            )?;
-            // let module_account_id = Self::account_id();
-            // T::Currency::transfer(trading_pair.first(), who, &module_account_id, pool_0_increment)?;
-            // T::Currency::transfer(trading_pair.second(), who, &module_account_id, pool_1_increment)?;
-            // T::Currency::deposit(dex_share_currency_id, who, share_increment)?;
+            self.env()
+                .extension()
+                .deposit(trading_pair.first(), caller, pool_0_increment)?;
+            self.env()
+                .extension()
+                .deposit(trading_pair.second(), caller, pool_1_increment)?;
 
             self.do_deposit_pool(&trading_pair, pool_0_increment, pool_1_increment)?;
 
@@ -693,10 +684,6 @@ mod uniswap_v2 {
             });
 
             Ok(())
-        }
-
-        fn account_id(&self) -> AccountId {
-            self.owner
         }
 
         fn do_remove_liquidity(
@@ -742,11 +729,13 @@ mod uniswap_v2 {
                 return Err(Error::UnacceptableLiquidityWithdrawn);
             }
 
-            // let module_account_id = Self::account_id();
+            self.env()
+                .extension()
+                .withdraw(trading_pair.first(), caller, pool_0_decrement)?;
 
-            // T::Currency::withdraw(dex_share_currency_id, &who, remove_share)?;
-            // T::Currency::transfer(trading_pair.first(), &module_account_id, &who, pool_0_decrement)?;
-            // T::Currency::transfer(trading_pair.second(), &module_account_id, &who, pool_1_decrement)?;
+            self.env()
+                .extension()
+                .withdraw(trading_pair.second(), caller, pool_1_decrement)?;
 
             self.do_withdraw_pool(&trading_pair, pool_0_decrement, pool_1_decrement)?;
 
