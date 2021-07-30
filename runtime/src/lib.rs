@@ -867,7 +867,7 @@ mod impl_uniswap {
 
                     let token_addr: H160 = H160::from_slice(&input_data[0..20]);
                     let from: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
-                    let to: AccountId = PalletId(*b"polka/ex").into_account();
+                    let to: AccountId = PalletId(*b"polkadex").into_account();
                     let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
                     log::info!("-------------- {:?} {:?} {:?}", token_addr, to, amount);
 
@@ -896,7 +896,7 @@ mod impl_uniswap {
                     let input_data = env.read(68)?;
 
                     let token_addr: H160 = H160::from_slice(&input_data[0..20]);
-                    let from: AccountId = PalletId(*b"polka/ex").into_account();
+                    let from: AccountId = PalletId(*b"polkadex").into_account();
                     let to: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
                     let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
                     log::info!("-------------- {:?} {:?} {:?}", token_addr, from, amount);

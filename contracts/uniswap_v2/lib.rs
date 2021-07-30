@@ -24,15 +24,15 @@ mod uniswap_v2 {
     use num_traits::{One, Zero};
     use primitive_types::U256;
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct UniswapV2 {
+        /// Deployer account
         owner: AccountId,
-        /// Stores a liquidity_pool hashmap value on the storage.
+        /// Stores the balance of each token for a trading pair
         liquidity_pool: HashMap<TradingPair, (Balance, Balance)>,
+        /// Total LP amount for a trading pair
         total_issuances: HashMap<TradingPair, Balance>,
+        /// LP amount for a specific user
         dex_incentives: HashMap<(TradingPair, AccountId), Balance>,
     }
 
@@ -82,13 +82,10 @@ mod uniswap_v2 {
         /// Add liquidity to trading pair
         /// - `currency_id_a`: currency id A.
         /// - `currency_id_b`: currency id B.
-        /// - `max_amount_a`: maximum amount of currency_id_a is allowed to inject to liquidity
-        ///   pool.
-        /// - `max_amount_b`: maximum amount of currency_id_b is allowed to inject to liquidity
-        ///   pool.
+        /// - `max_amount_a`: maximum amount of currency_id_a is allowed to inject to liquidity pool.
+        /// - `max_amount_b`: maximum amount of currency_id_b is allowed to inject to liquidity pool.
         /// - `min_share_increment`: minimum acceptable share amount.
-        /// - `stake_increment_share`: indicates whether to stake increased dex share to earn
-        ///   incentives
+        /// - `stake_increment_share`: indicates whether to stake increased dex share to earn incentives
         #[ink(message)]
         pub fn add_liquidity(
             &mut self,
@@ -141,7 +138,7 @@ mod uniswap_v2 {
             Ok(())
         }
 
-        /// Trading with DEX, swap with exact supply amount
+        /// Swap with exact supply amount
         ///
         /// - `path`: trading path.
         /// - `supply_amount`: exact supply amount.
@@ -157,7 +154,7 @@ mod uniswap_v2 {
             Ok(())
         }
 
-        /// Trading with DEX, swap with exact target amount
+        /// Swap with exact target amount
         ///
         /// - `path`: trading path.
         /// - `target_amount`: exact target amount.
@@ -425,12 +422,10 @@ mod uniswap_v2 {
 
             let actual_supply_amount = amounts[0];
 
-            // T::Currency::transfer(path[0], who, &module_account_id, actual_supply_amount)?;
             self.env()
                 .extension()
                 .deposit(path[0], caller, actual_supply_amount)?;
             self._swap_by_path(&path, &amounts)?;
-            // T::Currency::transfer(path[path.len() - 1], &module_account_id, who, target_amount)?;
             self.env()
                 .extension()
                 .withdraw(path[path.len() - 1], caller, target_amount)?;
@@ -557,7 +552,6 @@ mod uniswap_v2 {
             Ok((pool_0, pool_1))
         }
 
-        /// Transfers token `id` `from` the sender to the `to` AccountId.
         fn do_add_liquidity(
             &mut self,
             currency_id_a: TokenAddress,
@@ -855,21 +849,46 @@ mod uniswap_v2 {
     mod tests {
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
-
-        /// We test if the default constructor does its job.
-        #[test]
-        fn default_works() {
-            let uniswap_v2 = UniswapV2::default();
-            assert_eq!(uniswap_v2.get(), false);
-        }
+        use crate::{
+            constants::{GET_EXCHANGE_FEE, TRADING_PATH_LIMIT},
+            models::{ExchangeRate, Ratio, TokenAddress, TradingPair},
+        };
+        use primitive_types::H160;
 
         /// We test a simple use case of our contract.
         #[test]
-        fn it_works() {
-            let mut uniswap_v2 = UniswapV2::new(false);
-            assert_eq!(uniswap_v2.get(), false);
-            uniswap_v2.flip();
-            assert_eq!(uniswap_v2.get(), true);
+        fn add_liquidity_works() {
+            // struct MockedExtension;
+            // impl ink_env::test::ChainExtension for MockedExtension {
+            //     fn func_id(&self) -> u32 {
+            //         0
+            //     }
+            //     /// The chain extension is called with the given input.
+            //     ///
+            //     /// Returns an error code and may fill the `output` buffer with a
+            //     /// SCALE encoded result. The error code is taken from the
+            //     /// `ink_env::chain_extension::FromStatusCode` implementation for
+            //     /// `RandomReadErr`.
+            //     fn call(&mut self, _input: &[u8], output: &mut Vec<u8>) -> u32 {
+            //         let ret: [u8; 32] = [1; 32];
+            //         scale::Encode::encode_to(&ret, output);
+            //         0
+            //     }
+            // }
+            // ink_env::test::register_chain_extension(MockedExtension);
+
+            // let mut uniswap_v2 = UniswapV2::new();
+            // let tokenA: TokenAddress = TokenAddress::from_slice(&[0; 20]);
+            // let tokenB: TokenAddress = TokenAddress::from_slice(&[1; 20]);
+
+            // uniswap_v2.add_liquidity(
+            //     tokenA,
+            //     tokenB,
+            //     100_000_000_000_000,
+            //     20_000_000_000_000,
+            //     0,
+            //     true,
+            // );
         }
     }
 }
