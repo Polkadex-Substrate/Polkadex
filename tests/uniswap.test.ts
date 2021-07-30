@@ -324,5 +324,19 @@ describe('UniswapV2', () => {
     const newAliceBalanceB = await getAccountBalance(Alice.address, tokenB);
     expect(newAliceBalanceA).to.eq(orgAliceBalanceA - 20_000);
     expect(newAliceBalanceB).to.eq(orgAliceBalanceB + 3_324);
+
+    await expect(
+      contract
+        .connect(Alice)
+        .tx.swapWithExactTarget([tokenB, tokenA], 10_000, 2_000)
+    )
+      .to.emit(contract, 'Swap')
+      .withArgs(Alice.address, [tokenB, tokenA], 1_521, 10_000);
+
+    // should transfer actual balance
+    const newAliceBalanceA_2 = await getAccountBalance(Alice.address, tokenA);
+    const newAliceBalanceB_2 = await getAccountBalance(Alice.address, tokenB);
+    expect(newAliceBalanceA_2).to.eq(newAliceBalanceA + 10_000);
+    expect(newAliceBalanceB_2).to.eq(newAliceBalanceB - 1_521);
   });
 });
