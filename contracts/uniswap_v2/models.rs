@@ -106,6 +106,10 @@ impl TokenAddress {
     pub fn into_inner(self: Self) -> H160 {
         self.0
     }
+
+    pub fn from_slice(slice: &[u8]) -> Self {
+        TokenAddress(H160::from_slice(slice))
+    }
 }
 
 impl core::ops::Deref for TokenAddress {
