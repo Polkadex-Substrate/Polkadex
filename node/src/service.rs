@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#![allow(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 
 //! Service implementation. Specialized wrapper over substrate service.
@@ -25,7 +26,6 @@ use futures::prelude::*;
 use node_polkadex_runtime::RuntimeApi;
 use polkadex_primitives::Block;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use sc_consensus_babe;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_network::{Event, NetworkService};
@@ -286,7 +286,7 @@ pub fn new_full_base(
 
     let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         config,
-        backend: backend.clone(),
+        backend,
         client: client.clone(),
         keystore: keystore_container.sync_keystore(),
         network: network.clone(),
@@ -526,7 +526,7 @@ pub fn new_light_base(
         babe_block_import,
         Some(Box::new(justification_import)),
         client.clone(),
-        select_chain.clone(),
+        select_chain,
         move |_, ()| async move {
             let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 

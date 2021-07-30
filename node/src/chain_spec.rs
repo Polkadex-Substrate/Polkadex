@@ -32,6 +32,7 @@ use node_polkadex_runtime::{
 type AccountPublic = <Signature as Verify>::Signer;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const LOCAL_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Node `ChainSpec` extensions.
 ///
@@ -229,7 +230,7 @@ pub fn authority_keys_from_seed(
     )
 }
 
-pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+pub const OCEXGENESIS_ACCOUNT: PalletId = PalletId(*b"polka/ga");
 
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
@@ -246,7 +247,7 @@ pub fn testnet_genesis(
     endowed_accounts: Option<Vec<AccountId>>,
     enable_println: bool,
 ) -> GenesisConfig {
-    let genesis: AccountId = OCEXGenesisAccount.into_account();
+    let genesis: AccountId = OCEXGENESIS_ACCOUNT.into_account();
     let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
         vec![
             get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -358,7 +359,7 @@ pub fn testnet_genesis(
             // println should only be enabled on development chains
             current_schedule: pallet_contracts::Schedule::default().enable_println(enable_println),
         },
-        pallet_sudo: SudoConfig { key: root_key.clone() },
+        pallet_sudo: SudoConfig { key: root_key },
         pallet_babe: BabeConfig {
             authorities: vec![],
             epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -376,8 +377,8 @@ pub fn testnet_genesis(
         pallet_verifier_lightclient: VerifierLightclientConfig {
             initial_header: EthereumHeader {
                 parent_hash: hex!("c75694f43b710d53e3026151ecd910b4d1614ff6be90bea0e9e25c71d31ddc94").into(),
-                timestamp: 1624172254u64.into(),
-                number: 10473724u64.into(),
+                timestamp: 1624172254u64,
+                number: 10473724u64,
                 author: hex!("1cffe205e97976bb9d1ec006f5222360a89353e0").into(),
                 transactions_root: hex!("9e298e62573bb9fb4d774f48aacfef0299b5b2c711708e4c0966eaa3a297d507").into(),
                 ommers_hash: hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").into(),
@@ -463,12 +464,15 @@ fn local_testnet_genesis() -> GenesisConfig {
 /// Local testnet config (multivalidator Alice + Bob)
 pub fn local_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
-        "Local Testnet",
-        "local_testnet",
+        "Local Polkadex Testnet",
+        "local_polkdex_testnet",
         ChainType::Local,
         local_testnet_genesis,
         vec![],
-        None,
+        Some(
+            TelemetryEndpoints::new(vec![(LOCAL_TELEMETRY_URL.to_string(), 0)])
+                .expect("Local telemetry url is invalid; qed"),
+        ), // Telemetry endpoint
         None,
         None,
         Default::default(),

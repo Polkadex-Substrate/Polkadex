@@ -21,7 +21,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
-
+#![allow(clippy::from_over_into)]
 pub use artemis_core::MessageId;
 use codec::{Decode, Encode};
 use constants::{currency::*, time::*};
@@ -46,7 +46,7 @@ use frame_system::{
 };
 use impls::Author;
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key};
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_basic_channel::inbound as basic_channel_inbound;
@@ -61,7 +61,7 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_substratee_registry;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use pallet_verifier_lightclient::{EthereumDifficultyConfig, EthereumHeader};
+use pallet_verifier_lightclient::{EthereumDifficultyConfig};
 use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
@@ -377,7 +377,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-    pub const IndexDeposit: Balance = 1 * DOLLARS;
+    pub const IndexDeposit: Balance = DOLLARS;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -389,7 +389,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: Balance = 1 * DOLLARS;
+    pub const ExistentialDeposit: Balance = DOLLARS;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
     // This number may need to be adjusted in the future if this assumption no longer holds true.
     pub const MaxLocks: u32 = 50;
@@ -586,7 +586,7 @@ parameter_types! {
     pub const EnactmentPeriod: BlockNumber = 30 * 24 * 60 * MINUTES;
     pub const CooloffPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
     // One cent: $10,000 / MB
-    pub const PreimageByteDeposit: Balance = 1 * CENTS;
+    pub const PreimageByteDeposit: Balance = CENTS;
     pub const MaxVotes: u32 = 100;
     pub const MaxProposals: u32 = 100;
 }
@@ -736,15 +736,15 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
-    pub const ProposalBondMinimum: Balance = 1 * DOLLARS;
-    pub const SpendPeriod: BlockNumber = 1 * DAYS;
+    pub const ProposalBondMinimum: Balance = DOLLARS;
+    pub const SpendPeriod: BlockNumber = DAYS;
     pub const Burn: Permill = Permill::from_percent(50);
-    pub const TipCountdown: BlockNumber = 1 * DAYS;
+    pub const TipCountdown: BlockNumber = DAYS;
     pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = 1 * DOLLARS;
-    pub const DataDepositPerByte: Balance = 1 * CENTS;
-    pub const BountyDepositBase: Balance = 1 * DOLLARS;
-    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+    pub const TipReportDepositBase: Balance = DOLLARS;
+    pub const DataDepositPerByte: Balance = CENTS;
+    pub const BountyDepositBase: Balance = DOLLARS;
+    pub const BountyDepositPayoutDelay: BlockNumber = DAYS;
     pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
     pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
     pub const MaximumReasonLength: u32 = 16384;
@@ -997,7 +997,7 @@ where
         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature.into(), extra)))
+        Some((call, (address, signature, extra)))
     }
 }
 
@@ -1125,10 +1125,10 @@ impl pallet_lottery::Config for Runtime {
 
 parameter_types! {
     pub const AssetDeposit: Balance = 100 * DOLLARS;
-    pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+    pub const ApprovalDeposit: Balance = DOLLARS;
     pub const StringLimit: u32 = 50;
     pub const MetadataDepositBase: Balance = 10 * DOLLARS;
-    pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+    pub const MetadataDepositPerByte: Balance = DOLLARS;
 }
 
 parameter_types! {
@@ -1146,10 +1146,8 @@ pub struct FeelessTxnFilter;
 
 impl Filter<Call> for FeelessTxnFilter {
     fn filter(call: &Call) -> bool {
-        match call {
-            Call::Contracts(_) => true, // TODO: Pass only whitelisted contracts via governance
-            _ => false,
-        }
+        // TODO: Pass only whitelisted contracts via governance
+        matches!(call, Call::Contracts(_))
     }
 }
 
@@ -1162,6 +1160,8 @@ parameter_types! {
     pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
     pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
         RuntimeBlockWeights::get().max_block;
+    pub const MinStakePeriod: BlockNumber = 360000u32; // 28 days
+    pub const MaxStakes: usize = 50;
 }
 
 impl pallet_polkapool::Config for Runtime {
@@ -1173,11 +1173,12 @@ impl pallet_polkapool::Config for Runtime {
     type Currency = Currencies;
     type MinStakeAmount = MinStakeAmount;
     type MaxAllowedWeight = MaxAllowedWeight;
+    type MinStakePeriod = MinStakePeriod;
+    type MaxStakes = MaxStakes;
     type RandomnessSource = RandomnessCollectiveFlip;
     type CallFilter = FeelessTxnFilter;
     type MinStakePerWeight = MinStakePerWeight;
     type GovernanceOrigin = EnsureGovernance;
-    type MinStakePeriodPerWeight = ();
 }
 
 impl pallet_gilt::Config for Runtime {
@@ -1222,10 +1223,7 @@ pub struct CallFilter;
 
 impl Filter<Call> for CallFilter {
     fn filter(call: &Call) -> bool {
-        match call {
-            Call::ERC20PDEX(_) => true,
-            _ => false,
-        }
+        matches!(call, Call::ERC20PDEX(_))
     }
 }
 
@@ -1252,8 +1250,8 @@ impl erc20_pdex_migration_pallet::Config for Runtime {
 }
 
 parameter_types! {
-    pub const GetIDOPDXAmount: Balance = 100u128;
-    pub const GetMaxSupply: Balance = 2_000_000_0u128;
+    pub const GetIDOPDXAmount: Balance = 100_u128;
+    pub const GetMaxSupply: Balance = 2_000_000_u128;
     pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
 }
 
@@ -1270,7 +1268,7 @@ impl polkadex_ido::Config for Runtime {
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
 }
 
-construct_runtime!(
+construct_runtime! {
     pub enum Runtime where
         Block = Block,
         NodeBlock = polkadex_primitives::Block,
@@ -1325,10 +1323,10 @@ construct_runtime!(
         Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
         VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
         ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>},
-        PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>},
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>},
         Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>}
     }
-);
+}
 
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
@@ -1737,7 +1735,7 @@ impl EnsureOrigin<Origin> for EnsureRootOrPolkadexTreasury {
 
 impl orml_vesting::Config for Runtime {
     type Event = Event;
-    type Currency = pallet_balances::Module<Runtime>;
+    type Currency = pallet_balances::Pallet<Runtime>;
     type MinVestedTransfer = MinVestedTransfer;
     type VestedTransferOrigin = EnsureRootOrPolkadexTreasury;
     type WeightInfo = ();
