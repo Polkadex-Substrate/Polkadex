@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -139,7 +140,7 @@ decl_storage! {
     }
 }
 
-decl_event!(
+decl_event!{
     pub enum Event<T>
     where
         <T as system::Config>::AccountId,
@@ -153,7 +154,7 @@ decl_event!(
         AmountBurnt(CurrencyId, AccountId, Balance),
         TokenDepositModified(Balance),
     }
-);
+}
 
 decl_error! {
     pub enum Error for Module<T: Config> {
@@ -192,7 +193,7 @@ decl_module! {
                         max_supply: T::Balance,
                         mint_account: Option<T::AccountId>,
                         burn_account: Option<T::AccountId>,
-                        existenial_deposit: T::Balance) -> DispatchResult {
+                        _existenial_deposit: T::Balance) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
             ensure!(!orml_tokens::TotalIssuance::<T>::contains_key(asset_id), Error::<T>::AssetIdAlreadyExists);
             ensure!(!<InfoAsset<T>>::contains_key(&asset_id), Error::<T>::AssetIdAlreadyExists);
@@ -222,7 +223,7 @@ decl_module! {
             let who: T::AccountId = ensure_signed(origin)?;
             let asset_info: AssetInfo<T> = <InfoAsset<T>>::get(asset_id);
             ensure!(asset_info.creator == who, Error::<T>::AssetIdAlreadyExists);
-            let current_block_no = <system::Module<T>>::block_number();
+            let current_block_no = <system::Pallet<T>>::block_number();
             let vesting_info = VestingInfo::from(amount, rate, current_block_no);
             // Random Pallet
             let identifier = (&current_block_no, &vesting_info).using_encoded(T::Hashing::hash);
@@ -239,15 +240,15 @@ decl_module! {
         #[weight = 10000]
         pub fn claim_vesting(origin, identifier: T::Hash, asset_id: T::CurrencyId) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
-            let current_block_no = <system::Module<T>>::block_number();
+            let current_block_no = <system::Pallet<T>>::block_number();
 
             InfoVesting::<T>::try_mutate((who.clone(), asset_id), identifier, |ref mut vesting| {
                 let block_diff = current_block_no - vesting.block_no;
                 let amount = Self::block_to_balance(block_diff) * vesting.rate;
                 let amount_to_be_released = if amount > vesting.amount {vesting.amount} else {amount};
-                vesting.amount = vesting.amount - amount;
+                vesting.amount -= amount;
                 orml_tokens::Accounts::<T>::mutate(who, &asset_id, |account_data| {
-                    account_data.free = account_data.free + amount_to_be_released;
+                    account_data.free += amount_to_be_released;
                 });
                 Ok(())
             })

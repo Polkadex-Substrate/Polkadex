@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
@@ -25,7 +26,7 @@ use frame_support::sp_runtime::SaturatedConversion;
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 use frame_support::{decl_error, decl_event, decl_module, decl_storage};
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
 use sp_core::{H160, U256};
 use sp_runtime::traits::StaticLookup;
@@ -60,7 +61,7 @@ decl_storage! {
 
 // Pallets use events to inform users when important changes are made.
 // https://substrate.dev/docs/en/knowledgebase/runtime/events
-decl_event!(
+decl_event!{
     pub enum Event<T>
     where
         AccountId = <T as frame_system::Config>::AccountId,
@@ -68,7 +69,7 @@ decl_event!(
     {
         NativePDEXMinted(H160, H160, AccountId, U256, Balance),
     }
-);
+}
 
 // Errors inform users that something went wrong.
 decl_error! {
@@ -92,7 +93,7 @@ decl_module! {
         pub fn mint(origin, token: H160, sender: H160, recipient: <T::Lookup as StaticLookup>::Source, amount: U256) -> DispatchResult {
             let who = T::CallOrigin::ensure_origin(origin)?;
             if who != Address::get() {
-                return Err(DispatchError::BadOrigin.into());
+                return Err(DispatchError::BadOrigin);
             }
 
             let recipient = T::Lookup::lookup(recipient)?;

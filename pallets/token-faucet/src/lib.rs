@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-
+#![allow(clippy::unused_unit)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet_prelude::*;
@@ -60,14 +60,14 @@ decl_storage! {
 
 // Pallets use events to inform users when important changes are made.
 // https://substrate.dev/docs/en/knowledgebase/runtime/events
-decl_event!(
+decl_event!{
     pub enum Event<T>
     where
         AccountId = <T as frame_system::Config>::AccountId,
     {
         AccountCredited(AccountId),
     }
-);
+}
 
 // Errors inform users that something went wrong.
 decl_error! {
@@ -91,7 +91,7 @@ decl_module! {
             let _ = ensure_none(origin)?;
             TokenFaucetMap::<T>::insert(&account,<frame_system::Pallet<T>>::block_number());
             //Mint account with free tokens
-            T::Currency::deposit(AssetId::POLKADEX, &account,(1000000000000000000 as u128).saturated_into())?;
+            T::Currency::deposit(AssetId::POLKADEX, &account,(1000000000000000000_u128).saturated_into())?;
             Self::deposit_event(RawEvent::AccountCredited(account));
             Ok(())
         }

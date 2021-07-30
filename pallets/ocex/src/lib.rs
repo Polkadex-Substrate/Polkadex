@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
 use frame_support::StorageMap;
@@ -252,7 +253,7 @@ impl<T: Config> Module<T> {
     // Note remove_proxy doesn't check if given main or proxy is already registered
     pub fn remove_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
         <MainAccounts<T>>::try_mutate(
-            main.clone(),
+            main,
             |ref mut linked_account: &mut LinkedAccount<T>| {
                 let index = linked_account
                     .proxies
