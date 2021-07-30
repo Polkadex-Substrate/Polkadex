@@ -13,6 +13,7 @@ describe('UniswapV2', () => {
     await api.isReady;
     const Alice = (await getSigners())[0];
     const Bob = (await getSigners())[1];
+    const Charlie = (await getSigners())[2];
 
     const contractFactory = await getContractFactory('uniswap_v2', Alice);
     const contract = await contractFactory.deploy('new');
@@ -63,6 +64,7 @@ describe('UniswapV2', () => {
       contract,
       Alice,
       Bob,
+      Charlie,
       tokenA,
       tokenB,
       tokenC,
@@ -251,5 +253,76 @@ describe('UniswapV2', () => {
     const newBobBalanceB = await getAccountBalance(Bob.address, tokenB);
     expect(newBobBalanceA).to.eq(orgBobBalanceA - AMOUNT_A + DECREMENT_A);
     expect(newBobBalanceB).to.eq(orgBobBalanceB - AMOUNT_B + DECREMENT_B);
+  });
+
+  it.only('Single Path Swap works', async () => {
+    const {
+      contract,
+      Alice,
+      Bob,
+      tokenA,
+      tokenB,
+      addAccountBalance,
+      getAccountBalance
+    } = await setup();
+
+    const AMOUNT_A = 100_000,
+      AMOUNT_B = 20_000,
+      AMOUNT_C = 20_000,
+      AMOUNT_D = 40_000;
+
+    const orgBobBalanceA = await getAccountBalance(Bob.address, tokenA);
+    const orgBobBalanceB = await getAccountBalance(Bob.address, tokenB);
+
+    if (orgBobBalanceA < AMOUNT_A) {
+      await addAccountBalance(Bob.address, tokenA, AMOUNT_A);
+    }
+
+    if (orgBobBalanceB < AMOUNT_B) {
+      await addAccountBalance(Bob.address, tokenB, AMOUNT_B);
+    }
+
+    const orgAliceBalanceA = await getAccountBalance(Alice.address, tokenA);
+    const orgAliceBalanceB = await getAccountBalance(Alice.address, tokenB);
+
+    if (orgAliceBalanceA < AMOUNT_C) {
+      await addAccountBalance(Alice.address, tokenA, AMOUNT_C);
+    }
+
+    if (orgAliceBalanceB < AMOUNT_D) {
+      await addAccountBalance(Alice.address, tokenB, AMOUNT_D);
+    }
+
+    await contract
+      .connect(Bob)
+      .tx.addLiquidity(tokenA, tokenB, AMOUNT_A, AMOUNT_B, 0, true);
+
+    // test targetAmount from supply
+    const testTargetAmount = await contract
+      .connect(Alice)
+      .query.getSwapTargetAmount([tokenA, tokenB], 20_000);
+
+    expect(testTargetAmount.output).to.eq(3_324);
+
+    // test supplyAmount from target
+    const testSupplyAmount = await contract
+      .connect(Alice)
+      .query.getSwapSupplyAmount([tokenA, tokenB], 3_324);
+
+    expect(testSupplyAmount.output).to.eq(19_993);
+
+    await expect(
+      contract
+        .connect(Alice)
+        .tx.swapWithExactSupply([tokenA, tokenB], 20_000, 0)
+    )
+      .to.emit(contract, 'Swap')
+      .withArgs(Alice.address, [tokenA, tokenB], 20_000, 3_324);
+
+    // should transfer actual balance
+    const newAliceBalanceA = await getAccountBalance(Alice.address, tokenA);
+    const newAliceBalanceB = await getAccountBalance(Alice.address, tokenB);
+    expect(newAliceBalanceA).to.eq(orgAliceBalanceA - 20_000);
+    expect(newAliceBalanceB).to.eq(orgAliceBalanceB + 3_324);
   });
 });

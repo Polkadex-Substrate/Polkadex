@@ -663,10 +663,7 @@ mod uniswap_v2 {
                 .deposit(trading_pair.second(), caller, pool_1_increment)?;
 
             self.do_deposit_pool(&trading_pair, pool_0_increment, pool_1_increment)?;
-
-            if stake_increment_share {
-                self.do_deposit_dex_share(caller, &trading_pair, share_increment)?;
-            }
+            self.do_deposit_dex_share(caller, &trading_pair, share_increment)?;
 
             self.env().emit_event(LiquidityAdded {
                 who: caller,
@@ -732,10 +729,7 @@ mod uniswap_v2 {
                 .withdraw(trading_pair.second(), caller, pool_1_decrement)?;
 
             self.do_withdraw_pool(&trading_pair, pool_0_decrement, pool_1_decrement)?;
-
-            if by_unstake {
-                self.do_withdraw_dex_share(caller, &trading_pair, remove_share)?;
-            }
+            self.do_withdraw_dex_share(caller, &trading_pair, remove_share)?;
 
             self.env().emit_event(LiquidityRemoved {
                 who: caller,
