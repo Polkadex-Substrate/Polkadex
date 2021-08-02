@@ -266,7 +266,7 @@ decl_module! {
             // Start executing
             for ext in stored_exts.store{
                 total_weight = total_weight.saturating_add(ext.call.get_dispatch_info().weight);
-                if total_weight <= T::MaxAllowedWeight::get() {
+                if total_weight > T::MaxAllowedWeight::get() {
                     total_weight = total_weight.saturating_sub(ext.call.get_dispatch_info().weight);
                     break;
                 }
