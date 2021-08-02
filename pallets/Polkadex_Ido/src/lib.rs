@@ -37,6 +37,7 @@
 // Clippy warning diabled for to many arguments on line#157
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
+
 use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
@@ -56,10 +57,19 @@ use sp_runtime::traits::Zero;
 use sp_runtime::SaturatedConversion;
 use sp_std::prelude::*;
 use frame_support::pallet_prelude::Weight;
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::collections::btree_set::BTreeSet;
+use rand::{Rng, seq::SliceRandom, SeedableRng};
+use rand_chacha::ChaChaRng;
+use polkadex_primitives::BlockNumber;
+use sp_core::H256;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
+
 pub use weights::WeightInfo;
+
 #[cfg(test)]
 mod mock;
 
@@ -71,14 +81,14 @@ pub trait Config: system::Config + orml_tokens::Config {
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     /// The origin which may attests the investor to take part in the IDO pallet.
-    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
     /// The treasury mechanism.
     type TreasuryAccountId: Get<Self::AccountId>;
     /// The currency mechanism.
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
-        CurrencyId = AssetId,
-        Balance = Self::Balance,
+        CurrencyId=AssetId,
+        Balance=Self::Balance,
     >;
     /// The native currency ID type
     type NativeCurrencyId: Get<Self::CurrencyId>;
@@ -88,6 +98,8 @@ pub trait Config: system::Config + orml_tokens::Config {
     type MaxSupply: Get<Self::Balance>;
     /// The generator used to supply randomness to IDO
     type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+    /// Randomness Source for random participant seed
+    type RandomnessSource: Randomness<H256, Self::BlockNumber>;
     /// The IDO's module id
     type ModuleId: Get<PalletId>;
     /// Weight information for extrinsics in this pallet.
@@ -180,6 +192,13 @@ impl<T: Config> FundingRound<T> {
     }
 }
 
+#[derive(Decode, Encode, Clone)]
+pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
+    account_id: T::AccountId,
+    amount: T::Balance,
+}
+
+
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
         /// A mapping of Investor and its KYC status
@@ -196,8 +215,12 @@ decl_storage! {
         LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
         /// A mapping between investor and claim amount
         InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::AccountId => T::Balance;
-        /// A mapping between funding round id and its InterestedParticipants
-        InterestedParticipants get(fn get_interested_particpants): map hasher(identity) T::Hash => Vec<T::AccountId>;
+        /// A mapping between funding round id and its InterestedParticipants plus the amount they are willing to invest
+        InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
+        /// A mapping between funding round id and amount interested participant are will to invest
+        InterestedParticipantsAmounts get(fn get_interested_particpants_amounts): map hasher(identity) T::Hash => BTreeMap<T::Balance, BTreeSet<T::AccountId>>;
+
+        Nonce get(fn nonce): u128;
     }
     add_extra_genesis {
         config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -317,7 +340,7 @@ decl_module! {
                 close_round_block,
             );
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone()).encode());
+            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
             <InfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
@@ -353,6 +376,7 @@ decl_module! {
         /// * `amount`: Amount to be transferred to wallet.
         #[weight = 10000]
         pub fn participate_in_round(origin, round_id: T::Hash, amount: T::Balance) -> DispatchResult {
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<WhiteListInvestors<T>>::contains_key(&round_id, &investor_address), <Error<T>>::NotWhiteListed);
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
@@ -360,6 +384,7 @@ decl_module! {
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(!<InvestorShareInfo<T>>::contains_key(&round_id,&investor_address), <Error<T>>::InvestorAlreadyParticipated);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             let round_account_id = Self::round_account_id(round_id.clone());
@@ -404,17 +429,63 @@ decl_module! {
         ///
         /// * `round_id`: Funding round id
         #[weight = T::WeightIDOInfo::show_interest_in_round()]
-        pub fn show_interest_in_round(origin, round_id: T::Hash) -> DispatchResult {
+        pub fn show_interest_in_round(origin, round_id: T::Hash, amount : T::Balance) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            ensure!(!<InterestedParticipants<T>>::contains_key(&round_id,&investor_address), Error::<T>::InvestorAlreadyShownInterest);
+            //Check If investor can invest amount
+            ensure!(T::Currency::ensure_can_withdraw(AssetId::POLKADEX,&investor_address, amount).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
+
+            let funding_round : FundingRound<T> = <InfoFundingRound<T>>::get(round_id);
+
+            let max_amount = funding_round.max_allocation;
+            //Ensure investment amount doesn't exceed max_allocation
+            ensure!(amount <= max_amount, Error::<T>::NotAValidAmount);
+
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
-            InterestedParticipants::<T>::mutate(round_id, |investors| {
-                    investors.push(investor_address.clone());
-                });
-            Self::deposit_event(RawEvent::ShowedInterest(round_id, investor_address));
+
+            InterestedParticipantsAmounts::<T>::mutate(round_id, |interested_participants| {
+                let total_potential_raise : T::Balance = interested_participants.iter()
+                    .map(|(amount, investor)| {*amount * ( investor.len() as u128).saturated_into() })
+                    .fold(T::Balance::default(), |sum, amount| {
+                        sum.saturating_add(amount)
+                    });
+                if total_potential_raise >= funding_round.amount {
+                    let participants = interested_participants.clone();
+                    let replaceable_participants : Vec<(&T::AccountId,&T::Balance)> = participants.range(..amount.clone()).flat_map(|(amount, investors)| {
+                        investors.iter().map( move |investor| {
+                            (investor, amount)
+                        })
+                    }).collect();
+                    let seed = <T as Config>::RandomnessSource::random_seed();
+                    let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
+                    let random_index = rng.gen_range(0..replaceable_participants.len());
+                    let evicted_participant = replaceable_participants[random_index];
+                    <InterestedParticipants<T>>::remove(round_id,evicted_participant.0);
+                    let is_empty_participants = interested_participants.get_mut(evicted_participant.1).and_then(|investors| {
+                        investors.remove(evicted_participant.0);
+                        Some(investors.is_empty())
+                    });
+
+                   match is_empty_participants {
+                        Some(is_empty) => {
+                            if is_empty {
+                                interested_participants.remove(evicted_participant.1);
+                            }
+                        }
+                        _ => {}
+                    };
+
+                }
+                <InterestedParticipants<T>>::insert(round_id,investor_address.clone(), amount.clone());
+                let participants = interested_participants.entry(amount).or_insert(BTreeSet::new());
+                participants.insert(investor_address.clone());
+                Self::deposit_event(RawEvent::ShowedInterest(round_id, investor_address));
+
+            });
+
              Ok(())
         }
 
@@ -520,6 +591,10 @@ decl_error! {
         WithdrawError,
         /// Investor already participated in a round error
         InvestorAlreadyParticipated
+        /// Investor already shown interest
+        InvestorAlreadyShownInterest,
+        /// Investor Account Balance doesnt match interest amount
+        BalanceInsufficientForInteresetedAmount
     }
 }
 
@@ -534,5 +609,11 @@ impl<T: Config> Module<T> {
 
     pub fn round_account_id(hash: T::Hash) -> T::AccountId {
         T::ModuleId::get().into_sub_account(hash)
+    }
+
+    fn incr_nonce() -> u128 {
+        let current_nonce: u128 = <Nonce>::get();
+        <Nonce>::put(current_nonce.saturating_add(1));
+        <Nonce>::get()
     }
 }
