@@ -50,8 +50,7 @@ use frame_system as system;
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
-use polkadex_primitives::BlockNumber;
-use rand::{seq::SliceRandom, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
 use sp_core::H256;
 use sp_runtime::traits::AccountIdConversion;
@@ -435,7 +434,7 @@ decl_module! {
                     });
                 if total_potential_raise >= funding_round.amount {
                     let participants = interested_participants.clone();
-                    let replaceable_participants : Vec<(&T::AccountId,&T::Balance)> = participants.range(..amount.clone()).flat_map(|(amount, investors)| {
+                    let replaceable_participants : Vec<(&T::AccountId,&T::Balance)> = participants.range(..amount).flat_map(|(amount, investors)| {
                         investors.iter().map( move |investor| {
                             (investor, amount)
                         })
@@ -445,23 +444,20 @@ decl_module! {
                     let random_index = rng.gen_range(0..replaceable_participants.len());
                     let evicted_participant = replaceable_participants[random_index];
                     <InterestedParticipants<T>>::remove(round_id,evicted_participant.0);
-                    let is_empty_participants = interested_participants.get_mut(evicted_participant.1).and_then(|investors| {
+                    let is_empty_participants = interested_participants.get_mut(evicted_participant.1).map(|investors| {
                         investors.remove(evicted_participant.0);
-                        Some(investors.is_empty())
+                        investors.is_empty()
                     });
 
-                   match is_empty_participants {
-                        Some(is_empty) => {
-                            if is_empty {
-                                interested_participants.remove(evicted_participant.1);
-                            }
+                    if let Some(is_empty) = is_empty_participants {
+                        if is_empty {
+                            interested_participants.remove(evicted_participant.1);
                         }
-                        _ => {}
-                    };
+                    }
 
                 }
-                <InterestedParticipants<T>>::insert(round_id,investor_address.clone(), amount.clone());
-                let participants = interested_participants.entry(amount).or_insert(BTreeSet::new());
+                <InterestedParticipants<T>>::insert(round_id,investor_address.clone(), amount);
+                let participants = interested_participants.entry(amount).or_insert_with(BTreeSet::new);
                 participants.insert(investor_address.clone());
                 Self::deposit_event(RawEvent::ShowedInterest(round_id, investor_address));
 
