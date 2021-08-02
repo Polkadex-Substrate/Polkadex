@@ -46,7 +46,7 @@ use frame_system::{
 };
 use impls::Author;
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key};
+use orml_traits::parameter_type_with_key;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_basic_channel::inbound as basic_channel_inbound;
@@ -61,7 +61,7 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_substratee_registry;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use pallet_verifier_lightclient::{EthereumDifficultyConfig};
+use pallet_verifier_lightclient::EthereumDifficultyConfig;
 use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
@@ -930,18 +930,6 @@ mod impl_uniswap {
             true
         }
     }
-
-    // parameter_types! {
-    //     pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
-    // }
-
-    // impl orml_currencies::Config for Runtime {
-    //     type Event = Event;
-    //     type MultiCurrency = Tokens;
-    //     type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
-    //     type GetNativeCurrencyId = GetNativeCurrencyId;
-    //     type WeightInfo = ();
-    // }
 }
 
 impl pallet_sudo::Config for Runtime {
