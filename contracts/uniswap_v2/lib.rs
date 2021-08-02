@@ -579,8 +579,11 @@ mod uniswap_v2 {
             };
 
             // ink_env::debug_println(&ink_prelude::format!(
-            //     "------------------------------- \"{:?}\" ",
-            //     ExchangeRate::max_value(), // 0.999999999999999999999999999999999999997
+            //     "------------------------------- \"{:?}\" \"{:?}\" \"{:?}\" \"{:?}\" ",
+            //     max_amount_a,
+            //     max_amount_b,
+            //     max_amount_0,
+            //     max_amount_1
             // ));
 
             let (pool_0_increment, pool_1_increment, share_increment): (Balance, Balance, Balance) =
