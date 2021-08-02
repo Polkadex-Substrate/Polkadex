@@ -348,8 +348,6 @@ fn test_show_interest_in_round_randomized_participants() {
             (2u64, 200),
             (5u64, 200),
             (6u64, 300),
-            (7u64, 300),
-            (8u64, 300),
         ];
 
         for (investor_address,amount) in investors {
@@ -363,8 +361,17 @@ fn test_show_interest_in_round_randomized_participants() {
             );
         }
 
+        let funding_round : FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
+
+        let total_investment_amount : Balance = InterestedParticipants::<Test>::iter_prefix_values(round_id).fold(0_u128, |sum, amount| {
+            sum.saturating_add(amount)
+        });
         let investors_count = InterestedParticipants::<Test>::iter_prefix_values(round_id).count();
+        // Check if an investor was randomly evicted
         assert_eq!(investors_count <= 3,true);
+        assert_eq!(InterestedParticipants::<Test>::contains_key(round_id, 6u64),true);
+        // Check if maximum effective investors are selected
+        assert_eq!(total_investment_amount >= funding_round.amount,true);
     });
 }
 
