@@ -282,13 +282,14 @@ fn test_claim_tokens() {
 
 #[test]
 fn test_show_interest_in_round() {
-    let balance: Balance = 100;
+    let balance: Balance = 500;
     let investor_address: u64 = 4;
     let block_num = 3;
+    let amount : Balance = 200;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
             Error::<Test>::InvestorDoesNotExist
         );
 
@@ -298,7 +299,7 @@ fn test_show_interest_in_round() {
         );
 
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
             Error::<Test>::FundingRoundDoesNotExist
         );
 
@@ -322,11 +323,66 @@ fn test_show_interest_in_round() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
 
         assert_eq!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
             Ok(())
         );
 
-        assert_eq!(InterestedParticipants::<Test>::contains_key(round_id), true);
+    });
+}
+
+#[test]
+fn test_show_interest_in_round_randomized_participants() {
+    let balance: Balance = 500;
+    let block_num = 3;
+    ExtBuilder::default().build().execute_with(|| {
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE.clone()),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                0,
+                balance,
+                balance,
+                balance,
+                balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+
+        let investors : Vec<(u64, Balance)> = vec![
+            (4u64, 200),
+            (2u64, 200),
+            (5u64, 200),
+            (6u64, 300),
+        ];
+
+        for (investor_address,amount) in investors {
+            assert_eq!(
+                PolkadexIdo::register_investor(Origin::signed(investor_address)),
+                Ok(())
+            );
+            assert_eq!(
+                PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
+                Ok(())
+            );
+        }
+
+        let funding_round : FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
+
+        let total_investment_amount : Balance = InterestedParticipants::<Test>::iter_prefix_values(round_id).fold(0_u128, |sum, amount| {
+            sum.saturating_add(amount)
+        });
+        let investors_count = InterestedParticipants::<Test>::iter_prefix_values(round_id).count();
+        // Check if an investor was randomly evicted
+        assert_eq!(investors_count <= 3,true);
+        assert_eq!(InterestedParticipants::<Test>::contains_key(round_id, 6u64),true);
+        // Check if maximum effective investors are selected
+        assert_eq!(total_investment_amount >= funding_round.amount,true);
     });
 }
 
