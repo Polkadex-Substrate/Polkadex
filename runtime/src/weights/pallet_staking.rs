@@ -125,8 +125,8 @@ impl pallet_staking::WeightInfo for WeightInfo {
     fn payout_stakers_alive_staked(n: u32) -> Weight {
         (0_u64)
             .saturating_add((117324000_u64).saturating_mul(n as Weight))
-            .saturating_add(DbWeight::get().reads((5_u64).saturating_mul(n  as Weight)))
-            .saturating_add(DbWeight::get().writes((3_u64).saturating_mul(n  as Weight)))
+            .saturating_add(DbWeight::get().reads((5_u64).saturating_mul(n as Weight)))
+            .saturating_add(DbWeight::get().writes((3_u64).saturating_mul(n as Weight)))
     }
     fn rebond(l: u32) -> Weight {
         (71316000_u64)
@@ -139,24 +139,24 @@ impl pallet_staking::WeightInfo for WeightInfo {
             .saturating_add((51901000_u64).saturating_mul(e as Weight))
             .saturating_add(DbWeight::get().reads(2_u64))
             .saturating_add(DbWeight::get().writes(4_u64))
-            .saturating_add(DbWeight::get().writes((7_u64).saturating_mul(e  as Weight)))
+            .saturating_add(DbWeight::get().writes((7_u64).saturating_mul(e as Weight)))
     }
     fn reap_stash(s: u32) -> Weight {
         (147166000_u64)
             .saturating_add((6661000_u64).saturating_mul(s as Weight))
             .saturating_add(DbWeight::get().reads(4_u64))
             .saturating_add(DbWeight::get().writes(8_u64))
-            .saturating_add(DbWeight::get().writes((1_u64).saturating_mul(s  as Weight)))
+            .saturating_add(DbWeight::get().writes((1_u64).saturating_mul(s as Weight)))
     }
     fn new_era(v: u32, n: u32) -> Weight {
         (0_u64)
             .saturating_add((1440459000_u64).saturating_mul(v as Weight))
             .saturating_add((182580000_u64).saturating_mul(n as Weight))
             .saturating_add(DbWeight::get().reads(10_u64))
-            .saturating_add(DbWeight::get().reads((4_u64).saturating_mul(v  as Weight)))
-            .saturating_add(DbWeight::get().reads((3_u64).saturating_mul(n  as Weight)))
+            .saturating_add(DbWeight::get().reads((4_u64).saturating_mul(v as Weight)))
+            .saturating_add(DbWeight::get().reads((3_u64).saturating_mul(n as Weight)))
             .saturating_add(DbWeight::get().writes(8_u64))
-            .saturating_add(DbWeight::get().writes((3_u64).saturating_mul(v  as Weight)))
+            .saturating_add(DbWeight::get().writes((3_u64).saturating_mul(v as Weight)))
     }
 
     fn get_npos_voters(_v: u32, _n: u32, _s: u32) -> u64 {
