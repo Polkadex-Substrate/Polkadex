@@ -438,10 +438,8 @@ decl_module! {
             ensure!(T::Currency::ensure_can_withdraw(AssetId::POLKADEX,&investor_address, amount).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
 
             let funding_round : FundingRound<T> = <InfoFundingRound<T>>::get(round_id);
-
-            let max_amount = funding_round.max_allocation;
             //Ensure investment amount doesn't exceed max_allocation
-            ensure!(amount <= max_amount, Error::<T>::NotAValidAmount);
+            ensure!(amount <= funding_round.max_allocation && amount >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
@@ -615,5 +613,9 @@ impl<T: Config> Module<T> {
         let current_nonce: u128 = <Nonce>::get();
         <Nonce>::put(current_nonce.saturating_add(1));
         <Nonce>::get()
+    }
+
+    pub fn pallet_account_id() -> T::AccountId {
+        T::ModuleId::get().into_account()
     }
 }
