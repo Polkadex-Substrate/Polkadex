@@ -321,7 +321,7 @@ decl_module! {
                 close_round_block,
             );
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
+            let (round_id, _) = T::Randomness::random(&(Self::pallet_account_id(), current_block_no, team.clone(), Self::incr_nonce()).encode());
             <InfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
@@ -367,7 +367,7 @@ decl_module! {
             ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
-             <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::get_wallet_account(), amount)?;
+             <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &Self::pallet_account_id(), amount)?;
             <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
             <InfoFundingRound<T>>::mutate(round_id, |round_details| {
                 let mut actual_raise = round_details.actual_raise;
@@ -572,9 +572,6 @@ decl_error! {
 }
 
 impl<T: Config> Module<T> {
-    pub fn get_wallet_account() -> T::AccountId {
-        T::ModuleId::get().into_account()
-    }
 
     fn block_to_balance(input: T::BlockNumber) -> T::Balance {
         T::Balance::from(input.saturated_into::<u32>())
