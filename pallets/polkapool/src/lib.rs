@@ -32,7 +32,7 @@ use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 use frame_support::traits::{Filter, Randomness};
 use frame_system::ensure_signed;
-use orml_traits::{MultiCurrency, MultiReservableCurrency, MultiLockableCurrency};
+use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
 use rand::{SeedableRng, seq::SliceRandom};
@@ -42,8 +42,8 @@ use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero}
 use sp_core::H256;
 use sp_std::boxed::Box;
 use sp_std::collections::vec_deque::VecDeque;
-use sp_std::vec::Vec;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -164,7 +164,7 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
         claimable_stakes
     }
 
-    pub fn total_stake(&mut self)-> T::Balance{
+    pub fn total_stake(&mut self) -> T::Balance {
         let mut total: T::Balance = 0u128.saturated_into();
         while let Some(stake) = self.stakes.pop_front() {
             total += stake.staked_amount;
@@ -262,9 +262,14 @@ decl_module! {
             let seed = <T as Config>::RandomnessSource::random_seed();
             let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
             stored_exts.store.shuffle(&mut rng);
+            total_weight = total_weight.saturating_add(base_weight);
             // Start executing
             for ext in stored_exts.store{
-                total_weight += ext.call.get_dispatch_info().weight;
+                total_weight = total_weight.saturating_add(ext.call.get_dispatch_info().weight);
+                if total_weight <= T::MaxAllowedWeight::get() {
+                    total_weight = total_weight.saturating_sub(ext.call.get_dispatch_info().weight);
+                    break;
+                }
                 match ext.call.dispatch(ext.origin.into()) {
                     Ok(post_info) => {
                         Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
@@ -275,7 +280,7 @@ decl_module! {
                 }
 
             }
-            total_weight  += base_weight;
+
             total_weight
         }
 
