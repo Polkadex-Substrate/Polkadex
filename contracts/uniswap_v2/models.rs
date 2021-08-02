@@ -1,4 +1,4 @@
-use fixed::{types::extra::U64, FixedU128};
+use fixed::{types::extra::U32, FixedU128};
 use ink_primitives::Key;
 use ink_primitives::KeyPtr;
 #[cfg(feature = "std")]
@@ -8,8 +8,8 @@ use ink_storage::traits::{PackedLayout, SpreadLayout};
 use primitive_types::H160;
 use scale_info::{build::Fields, Path, Type, TypeInfo};
 
-pub type ExchangeRate = FixedU128<U64>;
-pub type Ratio = FixedU128<U64>;
+pub type ExchangeRate = FixedU128<U32>;
+pub type Ratio = FixedU128<U32>;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct TokenAddress(H160);
