@@ -50,18 +50,18 @@ use frame_system as system;
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::BlockNumber;
+use rand::{seq::SliceRandom, Rng, SeedableRng};
+use rand_chacha::ChaChaRng;
+use sp_core::H256;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
 use sp_runtime::SaturatedConversion;
-use sp_std::prelude::*;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
-use rand::{Rng, seq::SliceRandom, SeedableRng};
-use rand_chacha::ChaChaRng;
-use polkadex_primitives::BlockNumber;
-use sp_core::H256;
+use sp_std::prelude::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -80,14 +80,14 @@ pub trait Config: system::Config + orml_tokens::Config {
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     /// The origin which may attests the investor to take part in the IDO pallet.
-    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
+    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
     /// The treasury mechanism.
     type TreasuryAccountId: Get<Self::AccountId>;
     /// The currency mechanism.
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
-        CurrencyId=AssetId,
-        Balance=Self::Balance,
+        CurrencyId = AssetId,
+        Balance = Self::Balance,
     >;
     /// The native currency ID type
     type NativeCurrencyId: Get<Self::CurrencyId>;
@@ -196,7 +196,6 @@ pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
     account_id: T::AccountId,
     amount: T::Balance,
 }
-
 
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
