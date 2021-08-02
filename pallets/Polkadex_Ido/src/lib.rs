@@ -321,7 +321,7 @@ decl_module! {
                 close_round_block,
             );
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
+            let (round_id, _) = T::Randomness::random(&(Self::pallet_account_id(), current_block_no, team.clone(), Self::incr_nonce()).encode());
             <InfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
@@ -572,9 +572,6 @@ decl_error! {
 }
 
 impl<T: Config> Module<T> {
-    pub fn get_wallet_account() -> T::AccountId {
-        T::ModuleId::get().into_account()
-    }
 
     fn block_to_balance(input: T::BlockNumber) -> T::Balance {
         T::Balance::from(input.saturated_into::<u32>())
