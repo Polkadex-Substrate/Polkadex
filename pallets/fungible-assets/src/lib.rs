@@ -140,7 +140,7 @@ decl_storage! {
     }
 }
 
-decl_event!{
+decl_event! {
     pub enum Event<T>
     where
         <T as system::Config>::AccountId,

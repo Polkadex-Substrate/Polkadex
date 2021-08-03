@@ -20,6 +20,10 @@
 #![allow(clippy::unused_unit)]
 
 use codec::Codec;
+use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
+use frame_support::pallet_prelude::*;
+use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+use frame_support::traits::{Filter, Randomness};
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
@@ -27,59 +31,52 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch,
     traits::{Get, OriginTrait},
 };
-use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
-use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::traits::{Filter, Randomness};
 use frame_system::ensure_signed;
-use orml_traits::{MultiCurrency, MultiReservableCurrency, MultiLockableCurrency};
+use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
-use rand::{SeedableRng, seq::SliceRandom};
+use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
 use sp_arithmetic::traits::*;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
 use sp_std::boxed::Box;
 use sp_std::collections::vec_deque::VecDeque;
-use sp_std::vec::Vec;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// The aggregated origin which the dispatch will take.
-    type Origin: OriginTrait<PalletsOrigin=Self::PalletsOrigin>
-    + From<Self::PalletsOrigin>
-    + IsType<<Self as frame_system::Config>::Origin>;
+    type Origin: OriginTrait<PalletsOrigin = Self::PalletsOrigin>
+        + From<Self::PalletsOrigin>
+        + IsType<<Self as frame_system::Config>::Origin>;
 
     /// The caller origin, overarching type of all pallets origins.
     type PalletsOrigin: From<frame_system::RawOrigin<Self::AccountId>> + Codec + Clone + Eq;
 
     /// The aggregated call type.
     type Call: Parameter
-    + Dispatchable<Origin=<Self as Config>::Origin>
-    + GetDispatchInfo
-    + From<frame_system::Call<Self>>;
+        + Dispatchable<Origin = <Self as Config>::Origin>
+        + GetDispatchInfo
+        + From<frame_system::Call<Self>>;
     /// Balance Type
     type Balance: Parameter
-    + Member
-    + AtLeast32BitUnsigned
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + Clone
-    + Zero
-    + One
-    + PartialOrd
-    + Bounded;
+        + Member
+        + AtLeast32BitUnsigned
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + Clone
+        + Zero
+        + One
+        + PartialOrd
+        + Bounded;
     /// Module that handles tokens
-    type Currency: MultiReservableCurrency<
-        Self::AccountId,
-        CurrencyId=AssetId,
-        Balance=Self::Balance,
-    > + MultiLockableCurrency<Self::AccountId>;
+    type Currency: MultiReservableCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Self::Balance>
+        + MultiLockableCurrency<Self::AccountId>;
     /// Min amount that must be staked
     type MinStakeAmount: Get<Self::Balance>;
     /// Maximum allowed Feeless Transactions in a block
@@ -95,7 +92,7 @@ pub trait Config: frame_system::Config {
     /// Minimum Stake per Call
     type MinStakePerWeight: Get<u128>;
     /// The Governance Origin that can slash stakes
-    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success=Self::AccountId>;
+    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success = Self::AccountId>;
 }
 
 #[derive(Decode, Encode, Copy, Clone)]
@@ -130,7 +127,7 @@ pub struct StakeInfo<T: Config + frame_system::Config> {
 impl<T: Config + frame_system::Config> Default for StakeInfo<T> {
     fn default() -> Self {
         StakeInfo {
-            stakes: VecDeque::new()
+            stakes: VecDeque::new(),
         }
     }
 }
@@ -139,9 +136,7 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
     pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> StakeInfo<T> {
         let mut queue = VecDeque::new();
         queue.push_back(Stake::new(stake, unlock));
-        StakeInfo {
-            stakes: queue
-        }
+        StakeInfo { stakes: queue }
     }
 
     pub fn push(&mut self, stake: T::Balance, unlock: T::BlockNumber) -> Result<(), Error<T>> {
@@ -164,7 +159,7 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
         claimable_stakes
     }
 
-    pub fn total_stake(&mut self)-> T::Balance{
+    pub fn total_stake(&mut self) -> T::Balance {
         let mut total: T::Balance = 0u128.saturated_into();
         while let Some(stake) = self.stakes.pop_front() {
             total += stake.staked_amount;
@@ -172,7 +167,6 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
         total
     }
 }
-
 
 #[derive(Decode, Encode, Copy, Clone)]
 pub struct Ext<Call, Origin> {
@@ -357,13 +351,20 @@ impl<T: Config> Module<T> {
     // Calculates the stake amount and staking period
     // The staking period will vary between 28-56 days. The heavier the transaction, longer the period.
     // A transaction consuming the full allocated weight lock the tokens for 56 days.
-    pub fn calculate_stake_params(stake_price: T::Balance, call_weight: Weight) -> (T::Balance, T::BlockNumber) {
+    pub fn calculate_stake_params(
+        stake_price: T::Balance,
+        call_weight: Weight,
+    ) -> (T::Balance, T::BlockNumber) {
         // Calculate the min requirements
         let stake_amount = stake_price.saturating_mul(call_weight.saturated_into());
         let mut stake_period: T::BlockNumber = T::MinStakePeriod::get().saturated_into(); // 28 days
-        // Add a extra staking period based on the fraction of total weight allocation this call occupies
-        if let Some(allocation_inverse_fraction) = T::MaxAllowedWeight::get().checked_div(call_weight) {
-            if let Some(extra_stake_period) = stake_period.checked_div(&allocation_inverse_fraction.saturated_into()) {
+                                                                                          // Add a extra staking period based on the fraction of total weight allocation this call occupies
+        if let Some(allocation_inverse_fraction) =
+            T::MaxAllowedWeight::get().checked_div(call_weight)
+        {
+            if let Some(extra_stake_period) =
+                stake_period.checked_div(&allocation_inverse_fraction.saturated_into())
+            {
                 stake_period = stake_period.saturating_add(extra_stake_period);
             }
         }
