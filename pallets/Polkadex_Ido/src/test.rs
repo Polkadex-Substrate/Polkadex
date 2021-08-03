@@ -368,22 +368,22 @@ fn test_show_interest_in_round() {
     });
 }
 
+// Register one IDO
+// add some investors and have them to show interest to participate
+// One investor of lowest amount will be randomly eviced
+// verify the most invested was not get eviced
 #[test]
 fn test_show_interest_in_round_randomized_participants() {
-    // Amount to Raise for funding round
     let amount: Balance = 500;
-    // Vesting Per Block
     let vesting_per_block: Balance = 500;
-    // Operator Commission for the funding round
     let operator_commission: Balance = 10;
-    // Token Price
     let token_a_priceper_token_b: Balance = 1;
-    // Close round block
     let close_round_block = 3;
     // Min amount the investor is allow to invest
     let min_allocation: Balance = 100;
     // Max amount the investor is allowed to invest
     let max_allocation: Balance = 400;
+    
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -408,9 +408,8 @@ fn test_show_interest_in_round_randomized_participants() {
         // Creates a list of tuple of investor and amount to invest
         let investors: Vec<(u64, Balance)> =
             vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
-        // For each investor
+
         for (investor_address, amount) in investors {
-            // Register investor
             assert_eq!(
                 PolkadexIdo::register_investor(Origin::signed(investor_address)),
                 Ok(())
