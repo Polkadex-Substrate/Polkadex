@@ -33,9 +33,7 @@
 //! * Stake More tokens or stake longer for buying more tokens
 //! * Set commission for token project
 
-
 #![cfg_attr(not(feature = "std"), no_std)]
-
 // Clippy warning diabled for to many arguments on line#157
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]

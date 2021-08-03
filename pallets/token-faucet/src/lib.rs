@@ -60,7 +60,7 @@ decl_storage! {
 
 // Pallets use events to inform users when important changes are made.
 // https://substrate.dev/docs/en/knowledgebase/runtime/events
-decl_event!{
+decl_event! {
     pub enum Event<T>
     where
         AccountId = <T as frame_system::Config>::AccountId,
