@@ -256,9 +256,14 @@ decl_module! {
             let seed = <T as Config>::RandomnessSource::random_seed();
             let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
             stored_exts.store.shuffle(&mut rng);
+            total_weight = total_weight.saturating_add(base_weight);
             // Start executing
             for ext in stored_exts.store{
-                total_weight += ext.call.get_dispatch_info().weight;
+                total_weight = total_weight.saturating_add(ext.call.get_dispatch_info().weight);
+                if total_weight > T::MaxAllowedWeight::get() {
+                    total_weight = total_weight.saturating_sub(ext.call.get_dispatch_info().weight);
+                    break;
+                }
                 match ext.call.dispatch(ext.origin.into()) {
                     Ok(post_info) => {
                         Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
@@ -269,7 +274,7 @@ decl_module! {
                 }
 
             }
-            total_weight  += base_weight;
+
             total_weight
         }
 

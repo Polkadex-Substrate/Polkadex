@@ -1162,6 +1162,8 @@ impl polkadex_ido::Config for Runtime {
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
 }
 
+
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -1218,6 +1220,9 @@ construct_runtime! {
         VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
         ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>},
         PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>},
+        // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
+        // otherwise it will result in in consistent state of runtime.
+        // Refer: issue #261
         Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>}
     }
 }
