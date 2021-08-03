@@ -83,7 +83,8 @@ decl_error! {
         AlreadyRegistered,
         NotARegisteredMainAccount,
         ProxyLimitReached,
-        MainAccountSignatureNotFound
+        MainAccountSignatureNotFound,
+        AccountIdConversionFailed
     }
 }
 
@@ -95,9 +96,13 @@ decl_storage! {
     add_extra_genesis {
         config(genesis_account): T::AccountId;
         build( |config: &GenesisConfig<T>| {
-
-            let linked_account_object = LinkedAccount::from(AccountId::new(config.genesis_account.clone().encode().as_slice().try_into().unwrap()), AccountId::new(config.genesis_account.clone().encode().as_slice().try_into().unwrap()));
-            <MainAccounts<T>>::insert(&config.genesis_account, linked_account_object);
+           match (config.genesis_account.clone().encode().as_slice().try_into(), config.genesis_account.clone().encode().as_slice().try_into()) {
+                (Ok(x),Ok(y)) => {
+                    let linked_account_object = LinkedAccount::from(AccountId::new(x), AccountId::new(y) );
+                     <MainAccounts<T>>::insert(&config.genesis_account, linked_account_object);
+                }
+                (_,_) => {}
+            }
         });
     }
 }
@@ -216,7 +221,11 @@ impl<T: Config> Module<T> {
         let mut acc: LinkedAccount = <MainAccounts<T>>::get(&main);
         if acc.proxies.len() < T::ProxyLimit::get() {
             acc.proxies.push(AccountId::new(
-                proxy.encode().as_slice().try_into().unwrap(),
+                proxy
+                    .encode()
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| Error::AccountIdConversionFailed)?,
             ));
             <MainAccounts<T>>::insert(main, acc);
         } else {
@@ -234,7 +243,7 @@ impl<T: Config> Module<T> {
                     .proxies
                     .iter()
                     .position(|x| {
-                        *x == AccountId::new(proxy.encode().as_slice().try_into().unwrap())
+                        <AccountId as AsRef<[u8]>>::as_ref(x) == proxy.encode().as_slice()
                     })
                     .unwrap();
                 linked_account.proxies.remove(index);
@@ -255,13 +264,30 @@ impl<T: Config> Module<T> {
         let last_account: T::AccountId = <LastAccount<T>>::get();
         <MainAccounts<T>>::try_mutate(last_account.clone(), |ref mut last_linked_account| {
             let new_linked_account: LinkedAccount = LinkedAccount::from(
-                AccountId::new(last_account.encode().as_slice().try_into().unwrap()),
-                AccountId::new(sender.clone().encode().as_slice().try_into().unwrap()),
+                AccountId::new(
+                    last_account
+                        .encode()
+                        .as_slice()
+                        .try_into()
+                        .map_err(|_| Error::AccountIdConversionFailed)?,
+                ),
+                AccountId::new(
+                    sender
+                        .clone()
+                        .encode()
+                        .as_slice()
+                        .try_into()
+                        .map_err(|_| Error::AccountIdConversionFailed)?,
+                ),
             );
             <MainAccounts<T>>::insert(&sender, new_linked_account);
             <LastAccount<T>>::put(&sender);
             last_linked_account.next = Some(AccountId::new(
-                sender.encode().as_slice().try_into().unwrap(),
+                sender
+                    .encode()
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| Error::AccountIdConversionFailed)?,
             ));
             Ok(())
         })
