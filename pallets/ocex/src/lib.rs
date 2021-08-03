@@ -252,18 +252,15 @@ impl<T: Config> Module<T> {
 
     // Note remove_proxy doesn't check if given main or proxy is already registered
     pub fn remove_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
-        <MainAccounts<T>>::try_mutate(
-            main,
-            |ref mut linked_account: &mut LinkedAccount<T>| {
-                let index = linked_account
-                    .proxies
-                    .iter()
-                    .position(|x| *x == proxy)
-                    .unwrap();
-                linked_account.proxies.remove(index);
-                Ok(())
-            },
-        )
+        <MainAccounts<T>>::try_mutate(main, |ref mut linked_account: &mut LinkedAccount<T>| {
+            let index = linked_account
+                .proxies
+                .iter()
+                .position(|x| *x == proxy)
+                .unwrap();
+            linked_account.proxies.remove(index);
+            Ok(())
+        })
     }
 
     pub fn get_account() -> T::AccountId {
