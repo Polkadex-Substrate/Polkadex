@@ -51,13 +51,13 @@ std = [
 parameter_types! {
     pub const ProxyLimit: usize = 10; // Max sub-accounts per main account
     pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
-    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+    pub const OCEXGENESIS_ACCOUNT: PalletId = PalletId(*b"polka/ga");
 }
 
 impl polkadex_ocex::Config for Runtime {
 	type Event = Event;
 	type OcexId = OcexModuleId;
-	type GenesisAccount = OCEXGenesisAccount;
+	type GenesisAccount = OCEXGENESIS_ACCOUNT;
 	type Currency = Currencies;
 	type ProxyLimit = ProxyLimit;
 }

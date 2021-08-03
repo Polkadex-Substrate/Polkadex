@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -139,7 +140,7 @@ decl_storage! {
     }
 }
 
-decl_event!(
+decl_event! {
     pub enum Event<T>
     where
         <T as system::Config>::AccountId,
@@ -153,7 +154,7 @@ decl_event!(
         AmountBurnt(CurrencyId, AccountId, Balance),
         TokenDepositModified(Balance),
     }
-);
+}
 
 decl_error! {
     pub enum Error for Module<T: Config> {
@@ -245,9 +246,9 @@ decl_module! {
                 let block_diff = current_block_no - vesting.block_no;
                 let amount = Self::block_to_balance(block_diff) * vesting.rate;
                 let amount_to_be_released = if amount > vesting.amount {vesting.amount} else {amount};
-                vesting.amount = vesting.amount - amount;
+                vesting.amount -= amount;
                 orml_tokens::Accounts::<T>::mutate(who, &asset_id, |account_data| {
-                    account_data.free = account_data.free + amount_to_be_released;
+                    account_data.free += amount_to_be_released;
                 });
                 Ok(())
             })
