@@ -383,7 +383,7 @@ fn test_show_interest_in_round_randomized_participants() {
     let min_allocation: Balance = 100;
     // Max amount the investor is allowed to invest
     let max_allocation: Balance = 400;
-    
+
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
