@@ -394,7 +394,7 @@ fn test_show_interest_in_round_randomized_participants() {
         let investors: Vec<(u64, Balance)> =
             vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
         // For each investor
-        for (investor_address, amount) in investors {\
+        for (investor_address, amount) in investors {
             // Register investor
             assert_eq!(
                 PolkadexIdo::register_investor(Origin::signed(investor_address)),
