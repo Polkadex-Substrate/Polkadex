@@ -294,10 +294,13 @@ fn test_show_interest_in_round() {
     let round_id = create_hash_data(&1u32);
     let investor_address: u64 = 4;
     ExtBuilder::default().build().execute_with(|| {
-
         //This should result in an error since the investor is not registered
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, investment_amount),
+            PolkadexIdo::show_interest_in_round(
+                Origin::signed(investor_address),
+                round_id,
+                investment_amount
+            ),
             Error::<Test>::InvestorDoesNotExist
         );
 
@@ -309,7 +312,11 @@ fn test_show_interest_in_round() {
 
         //This should result in an error since the round id is invalid
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, investment_amount),
+            PolkadexIdo::show_interest_in_round(
+                Origin::signed(investor_address),
+                round_id,
+                investment_amount
+            ),
             Error::<Test>::FundingRoundDoesNotExist
         );
 
@@ -351,7 +358,11 @@ fn test_show_interest_in_round() {
         );
 
         assert_eq!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, investment_amount),
+            PolkadexIdo::show_interest_in_round(
+                Origin::signed(investor_address),
+                round_id,
+                investment_amount
+            ),
             Ok(())
         );
     });
