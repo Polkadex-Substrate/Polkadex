@@ -190,12 +190,6 @@ impl<T: Config> FundingRound<T> {
     }
 }
 
-#[derive(Decode, Encode, Clone)]
-pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
-    account_id: T::AccountId,
-    amount: T::Balance,
-}
-
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
         /// A mapping of Investor and its KYC status

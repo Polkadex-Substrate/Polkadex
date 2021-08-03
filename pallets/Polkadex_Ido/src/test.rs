@@ -271,26 +271,41 @@ fn test_claim_tokens() {
 
 #[test]
 fn test_show_interest_in_round() {
-    let balance: Balance = 500;
-    let investor_address: u64 = 4;
-    let block_num = 3;
-    let amount: Balance = 200;
+    // Amount to Raise for funding round
+    let amount: Balance = 500;
+    // Vesting Per Block
+    let vesting_per_block: Balance = 500;
+    // Operator Commission for the funding round
+    let operator_commission: Balance = 10;
+    // Token Price
+    let token_a_priceper_token_b: Balance = 1;
+    // Close round block
+    let close_round_block = 3;
+    // Min amount the investor is allow to invest
     let min_allocation: Balance = 100;
+    // Max amount the investor is allowed to invest
     let max_allocation: Balance = 400;
+    // Investors amount
+    let investment_amount: Balance = 200;
     let round_id = create_hash_data(&1u32);
+    let investor_address: u64 = 4;
     ExtBuilder::default().build().execute_with(|| {
+
+        //This should result in an error since the investor is not registered
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, amount),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, investment_amount),
             Error::<Test>::InvestorDoesNotExist
         );
 
+        //Registers the investor
         assert_eq!(
             PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
+        //This should result in an error since the round id is invalid
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, amount),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, investment_amount),
             Error::<Test>::FundingRoundDoesNotExist
         );
 
@@ -298,15 +313,15 @@ fn test_show_interest_in_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE.clone()),
                 AssetId::POLKADEX,
-                balance,
+                amount,
                 AssetId::POLKADEX,
-                balance,
+                vesting_per_block,
                 0,
                 min_allocation,
                 max_allocation,
-                balance,
-                balance,
-                block_num
+                operator_commission,
+                token_a_priceper_token_b,
+                close_round_block
             ),
             Ok(())
         );
@@ -332,7 +347,7 @@ fn test_show_interest_in_round() {
         );
 
         assert_eq!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, amount),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, investment_amount),
             Ok(())
         );
     });
@@ -340,38 +355,52 @@ fn test_show_interest_in_round() {
 
 #[test]
 fn test_show_interest_in_round_randomized_participants() {
-    let balance: Balance = 500;
-    let block_num = 3;
+    // Amount to Raise for funding round
+    let amount: Balance = 500;
+    // Vesting Per Block
+    let vesting_per_block: Balance = 500;
+    // Operator Commission for the funding round
+    let operator_commission: Balance = 10;
+    // Token Price
+    let token_a_priceper_token_b: Balance = 1;
+    // Close round block
+    let close_round_block = 3;
+    // Min amount the investor is allow to invest
     let min_allocation: Balance = 100;
+    // Max amount the investor is allowed to invest
     let max_allocation: Balance = 400;
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(ALICE.clone()),
                 AssetId::POLKADEX,
-                balance,
+                amount,
                 AssetId::POLKADEX,
-                balance,
+                vesting_per_block,
                 0,
                 min_allocation,
                 max_allocation,
-                balance,
-                balance,
-                block_num
+                operator_commission,
+                token_a_priceper_token_b,
+                close_round_block
             ),
             Ok(())
         );
 
+        // Get round id from
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
 
+        // Creates a list of tuple of investor and amount to invest
         let investors: Vec<(u64, Balance)> =
             vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
-
-        for (investor_address, amount) in investors {
+        // For each investor
+        for (investor_address, amount) in investors {\
+            // Register investor
             assert_eq!(
                 PolkadexIdo::register_investor(Origin::signed(investor_address)),
                 Ok(())
             );
+            // Check if show interest
             assert_eq!(
                 PolkadexIdo::show_interest_in_round(
                     Origin::signed(investor_address),
@@ -384,6 +413,7 @@ fn test_show_interest_in_round_randomized_participants() {
 
         let funding_round: FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
 
+        //Get total amounts investor shown interest
         let total_investment_amount: Balance =
             InterestedParticipants::<Test>::iter_prefix_values(round_id)
                 .fold(0_u128, |sum, amount| sum.saturating_add(amount));
