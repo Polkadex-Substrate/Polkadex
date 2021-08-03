@@ -279,6 +279,8 @@ fn test_show_interest_in_round() {
     let investor_address: u64 = 4;
     let block_num = 3;
     let amount : Balance = 200;
+    let min_allocation : Balance = 100;
+    let max_allocation : Balance = 400;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
@@ -296,6 +298,8 @@ fn test_show_interest_in_round() {
             Error::<Test>::FundingRoundDoesNotExist
         );
 
+
+
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(ALICE.clone()),
@@ -304,8 +308,8 @@ fn test_show_interest_in_round() {
                 AssetId::POLKADEX,
                 balance,
                 0,
-                balance,
-                balance,
+                min_allocation,
+                max_allocation,
                 balance,
                 balance,
                 block_num
@@ -314,6 +318,16 @@ fn test_show_interest_in_round() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        //Check investing with lower than minimum allocation
+        assert_noop!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,min_allocation - 1),
+            Error::<Test>::NotAValidAmount
+        );
+        //Check investing with more than max allocation
+        assert_noop!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,max_allocation + 1),
+            Error::<Test>::NotAValidAmount
+        );
 
         assert_eq!(
             PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
@@ -327,6 +341,8 @@ fn test_show_interest_in_round() {
 fn test_show_interest_in_round_randomized_participants() {
     let balance: Balance = 500;
     let block_num = 3;
+    let min_allocation : Balance = 100;
+    let max_allocation : Balance = 400;
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -336,8 +352,8 @@ fn test_show_interest_in_round_randomized_participants() {
                 AssetId::POLKADEX,
                 balance,
                 0,
-                balance,
-                balance,
+                min_allocation,
+                max_allocation,
                 balance,
                 balance,
                 block_num
