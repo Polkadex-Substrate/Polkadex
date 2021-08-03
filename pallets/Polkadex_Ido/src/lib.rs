@@ -570,7 +570,6 @@ decl_error! {
 }
 
 impl<T: Config> Module<T> {
-
     fn block_to_balance(input: T::BlockNumber) -> T::Balance {
         T::Balance::from(input.saturated_into::<u32>())
     }
