@@ -24,6 +24,7 @@ use frame_system::{EnsureSignedBy, SetCode};
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::AccountId;
 use sp_core::H256;
 use sp_runtime::traits::Zero;
 use sp_runtime::{
@@ -67,7 +68,7 @@ impl system::Config for Test {
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = ();
@@ -132,7 +133,7 @@ impl Config for Test {
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
 
 parameter_types! {
-    pub TreasuryModuleAccount: u64 = 1;
+    pub TreasuryModuleAccount: AccountId = AccountId::new(*b"00045678901234567890123456789012");
 }
 
 parameter_type_with_key! {
@@ -188,12 +189,12 @@ pub type PolkadexOcexPallet = Pallet<Test>;
 //     ext
 // }
 
-pub fn new_test_ext(genesis: u64) -> sp_io::TestExternalities {
+pub fn new_test_ext(genesis: AccountId) -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
     ocex_pallet::GenesisConfig::<Test> {
-        key: genesis,
+        key: genesis.clone(),
         genesis_account: genesis,
     }
     .assimilate_storage(&mut t)

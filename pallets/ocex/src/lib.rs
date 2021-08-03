@@ -19,7 +19,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::StorageMap;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
@@ -31,43 +31,17 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::prelude::*;
 
+use core::convert::TryInto;
 use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::AccountId;
+
+use polkadex_sgx_primitives::LinkedAccount;
 
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod test;
-
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
-pub struct LinkedAccount<T: Config> {
-    prev: T::AccountId,
-    current: T::AccountId,
-    next: Option<T::AccountId>,
-    proxies: Vec<T::AccountId>,
-}
-
-impl<T: Config> LinkedAccount<T> {
-    fn from(prev: T::AccountId, current: T::AccountId) -> Self {
-        LinkedAccount {
-            prev,
-            next: None,
-            current,
-            proxies: vec![],
-        }
-    }
-}
-
-impl<T: Config> Default for LinkedAccount<T> {
-    fn default() -> Self {
-        LinkedAccount {
-            prev: Module::<T>::get_genesis_acc(),
-            current: Module::<T>::get_genesis_acc(),
-            next: None,
-            proxies: vec![],
-        }
-    }
-}
 
 pub trait Config:
     system::Config + orml_tokens::Config + pallet_substratee_registry::Config
@@ -110,21 +84,26 @@ decl_error! {
         AlreadyRegistered,
         NotARegisteredMainAccount,
         ProxyLimitReached,
-        MainAccountSignatureNotFound
+        MainAccountSignatureNotFound,
+        AccountIdConversionFailed
     }
 }
 
 decl_storage! {
     trait Store for Module<T: Config> as OCEX {
         LastAccount get(fn key) config(): T::AccountId;
-        pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount<T>;
+        pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount;
     }
     add_extra_genesis {
         config(genesis_account): T::AccountId;
         build( |config: &GenesisConfig<T>| {
-
-            let linked_account_object = LinkedAccount::from(config.genesis_account.clone(), config.genesis_account.clone());
-            <MainAccounts<T>>::insert(&config.genesis_account, linked_account_object);
+           match (config.genesis_account.clone().encode().as_slice().try_into(), config.genesis_account.clone().encode().as_slice().try_into()) {
+                (Ok(x),Ok(y)) => {
+                    let linked_account_object = LinkedAccount::from(AccountId::new(x), AccountId::new(y) );
+                     <MainAccounts<T>>::insert(&config.genesis_account, linked_account_object);
+                }
+                (_,_) => {}
+            }
         });
     }
 }
@@ -240,9 +219,15 @@ decl_module! {
 impl<T: Config> Module<T> {
     // Note add_proxy doesn't check if given main or proxy is already registered
     pub fn add_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
-        let mut acc: LinkedAccount<T> = <MainAccounts<T>>::get(&main);
+        let mut acc: LinkedAccount = <MainAccounts<T>>::get(&main);
         if acc.proxies.len() < T::ProxyLimit::get() {
-            acc.proxies.push(proxy);
+            acc.proxies.push(AccountId::new(
+                proxy
+                    .encode()
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| Error::AccountIdConversionFailed)?,
+            ));
             <MainAccounts<T>>::insert(main, acc);
         } else {
             return Err(Error::<T>::ProxyLimitReached);
@@ -252,15 +237,20 @@ impl<T: Config> Module<T> {
 
     // Note remove_proxy doesn't check if given main or proxy is already registered
     pub fn remove_proxy_(main: T::AccountId, proxy: T::AccountId) -> Result<(), Error<T>> {
-        <MainAccounts<T>>::try_mutate(main, |ref mut linked_account: &mut LinkedAccount<T>| {
-            let index = linked_account
-                .proxies
-                .iter()
-                .position(|x| *x == proxy)
-                .unwrap();
-            linked_account.proxies.remove(index);
-            Ok(())
-        })
+        <MainAccounts<T>>::try_mutate(
+            main.clone(),
+            |ref mut linked_account: &mut LinkedAccount| {
+                let index = linked_account
+                    .proxies
+                    .iter()
+                    .position(|x| {
+                        <AccountId as AsRef<[u8]>>::as_ref(x) == proxy.encode().as_slice()
+                    })
+                    .unwrap();
+                linked_account.proxies.remove(index);
+                Ok(())
+            },
+        )
     }
 
     pub fn get_account() -> T::AccountId {
@@ -274,11 +264,32 @@ impl<T: Config> Module<T> {
     pub fn register_acc(sender: T::AccountId) -> Result<(), Error<T>> {
         let last_account: T::AccountId = <LastAccount<T>>::get();
         <MainAccounts<T>>::try_mutate(last_account.clone(), |ref mut last_linked_account| {
-            let new_linked_account: LinkedAccount<T> =
-                LinkedAccount::from(last_account, sender.clone());
+            let new_linked_account: LinkedAccount = LinkedAccount::from(
+                AccountId::new(
+                    last_account
+                        .encode()
+                        .as_slice()
+                        .try_into()
+                        .map_err(|_| Error::AccountIdConversionFailed)?,
+                ),
+                AccountId::new(
+                    sender
+                        .clone()
+                        .encode()
+                        .as_slice()
+                        .try_into()
+                        .map_err(|_| Error::AccountIdConversionFailed)?,
+                ),
+            );
             <MainAccounts<T>>::insert(&sender, new_linked_account);
             <LastAccount<T>>::put(&sender);
-            last_linked_account.next = Some(sender);
+            last_linked_account.next = Some(AccountId::new(
+                sender
+                    .encode()
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| Error::AccountIdConversionFailed)?,
+            ));
             Ok(())
         })
     }
