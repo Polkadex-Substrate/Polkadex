@@ -199,6 +199,7 @@ fn test_participate_in_round() {
             Ok(())
         );
 
+        // Investment under minimum amount should return an error
         assert_noop!(
             PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, 50),
             Error::<Test>::NotAValidAmount
@@ -208,6 +209,9 @@ fn test_participate_in_round() {
             PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
             Ok(())
         );
+        // Check if FundingRound was successfully updated after investment
+        let round_info: FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
+        assert_eq!(round_info.actual_raise == balance, true);
     });
 }
 
