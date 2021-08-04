@@ -5575,6 +5575,7 @@ dependencies = [
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
+ "polkadex-sgx-primitives",
  "rustc-hex",
  "serde",
  "sp-core",
@@ -5595,6 +5596,18 @@ dependencies = [
  "sp-application-crypto",
  "sp-core",
  "sp-runtime",
+]
+
+[[package]]
+name = "polkadex-sgx-primitives"
+version = "0.1.0"
+source = "git+https://github.com/Polkadex-Substrate/polkadexTEE-worker?branch=develop#be719699111dbcc6571f22e8f5443cef9f69377f"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "sp-core",
+ "sp-std",
 ]
 
 [[package]]
