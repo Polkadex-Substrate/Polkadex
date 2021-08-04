@@ -1,6 +1,8 @@
-import { expect } from 'chai';
+import chai from 'chai';
 import { network, patract } from 'redspot';
 import BN from 'bn.js';
+const expect = chai.expect;
+chai.use(require('chai-as-promised'));
 
 const { getContractFactory } = patract;
 const { api, getSigners } = network;
@@ -267,5 +269,23 @@ describe('UniswapV2', () => {
     const newAliceBalanceB_2 = await getAccountBalance(Alice.address, tokenB);
     expect(newAliceBalanceA_2).to.eq(newAliceBalanceA.add(expandTo18Decimals(10)));
     expect(newAliceBalanceB_2).to.eq(newAliceBalanceB.sub(new BN('1520470882534060563')));
+  });
+
+  it('Transaction should revert all ran actions when it is in panic', async () => {
+    const { contract, Bob, tokenA, tokenB, getAccountBalance, prepareBalance } = await setup();
+
+    await prepareBalance(Bob.address, new BN(100), new BN(100));
+
+    const orgBobBalanceA = await getAccountBalance(Bob.address, tokenA);
+    const orgBobBalanceB = await getAccountBalance(Bob.address, tokenB);
+
+    await expect(
+      contract.connect(Bob).tx.addLiquidity(tokenA, tokenB, orgBobBalanceA, orgBobBalanceB.add(new BN(1)), 0, true)
+    ).to.be.rejected;
+
+    const newBobBalanceA = await getAccountBalance(Bob.address, tokenA);
+    const newBobBalanceB = await getAccountBalance(Bob.address, tokenB);
+    expect(newBobBalanceA).to.eq(orgBobBalanceA);
+    expect(newBobBalanceB).to.eq(orgBobBalanceB);
   });
 });

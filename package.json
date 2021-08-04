@@ -15,5 +15,8 @@
     "scripts": {
         "build": "npx redspot compile",
         "test": "npx redspot test"
+    },
+    "devDependencies": {
+        "chai-as-promised": "^7.1.1"
     }
 }
