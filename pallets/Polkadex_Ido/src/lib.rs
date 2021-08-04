@@ -349,8 +349,7 @@ decl_module! {
              <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &round_account_id, amount)?;
             <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
             <InfoFundingRound<T>>::mutate(round_id, |round_details| {
-                let mut actual_raise = round_details.actual_raise;
-                actual_raise += amount;
+                round_details.actual_raise += amount;
             });
             Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
             Ok(())
@@ -512,7 +511,7 @@ impl<T: Config> Module<T> {
         T::Balance::from(input.saturated_into::<u32>())
     }
 
-    pub fn round_account_id(hash : T::Hash) -> T::AccountId {
+    pub fn round_account_id(hash: T::Hash) -> T::AccountId {
         T::ModuleId::get().into_sub_account(hash)
     }
 }
