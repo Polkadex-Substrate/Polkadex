@@ -442,13 +442,13 @@ mod uniswap_v2 {
 
         fn pair_info(&mut self, trading_pair: &TradingPair) -> ((Balance, Balance), Balance) {
             let (pool_0, pool_1): (Balance, Balance) = match self.liquidity_pool.get(trading_pair) {
-                Option::Some((p_0, p_1)) => (*p_0, *p_1),
-                Option::None => (Zero::zero(), Zero::zero()),
+                Some((p_0, p_1)) => (*p_0, *p_1),
+                None => (Zero::zero(), Zero::zero()),
             };
 
             let total_shares = match self.total_issuances.get(trading_pair) {
-                Option::Some(share) => *share,
-                Option::None => Zero::zero(),
+                Some(share) => *share,
+                None => Zero::zero(),
             };
 
             ((pool_0, pool_1), total_shares)
@@ -461,8 +461,8 @@ mod uniswap_v2 {
             share_increment: Balance,
         ) -> Result<()> {
             let incentives = match self.dex_incentives.get(&(trading_pair.clone(), who)) {
-                Option::Some(p) => *p,
-                Option::None => Zero::zero(),
+                Some(p) => *p,
+                None => Zero::zero(),
             };
 
             let incentives = incentives
@@ -491,8 +491,8 @@ mod uniswap_v2 {
             share_decrement: Balance,
         ) -> Result<()> {
             let incentives = match self.dex_incentives.get(&(trading_pair.clone(), who)) {
-                Option::Some(p) => *p,
-                Option::None => Zero::zero(),
+                Some(p) => *p,
+                None => Zero::zero(),
             };
 
             let incentives = incentives
@@ -577,14 +577,6 @@ mod uniswap_v2 {
             } else {
                 (max_amount_b, max_amount_a)
             };
-
-            // ink_env::debug_println(&ink_prelude::format!(
-            //     "------------------------------- \"{:?}\" \"{:?}\" \"{:?}\" \"{:?}\" ",
-            //     max_amount_a,
-            //     max_amount_b,
-            //     max_amount_0,
-            //     max_amount_1
-            // ));
 
             let (pool_0_increment, pool_1_increment, share_increment): (Balance, Balance, Balance) =
                 if total_shares.is_zero() {
@@ -756,8 +748,8 @@ mod uniswap_v2 {
             {
                 let (pool_0, pool_1): (Balance, Balance) =
                     match self.liquidity_pool.get(&trading_pair) {
-                        Option::Some((p_0, p_1)) => (*p_0, *p_1),
-                        Option::None => (Zero::zero(), Zero::zero()),
+                        Some((p_0, p_1)) => (*p_0, *p_1),
+                        None => (Zero::zero(), Zero::zero()),
                     };
                 if currency_id_a == trading_pair.first() {
                     (pool_0, pool_1)
@@ -779,8 +771,8 @@ mod uniswap_v2 {
             if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
             {
                 match self.dex_incentives.get(&(trading_pair, account)) {
-                    Option::Some(p) => *p,
-                    Option::None => Zero::zero(),
+                    Some(p) => *p,
+                    None => Zero::zero(),
                 }
             } else {
                 Zero::zero()
@@ -796,8 +788,8 @@ mod uniswap_v2 {
             if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
             {
                 match self.total_issuances.get(&trading_pair) {
-                    Option::Some(p) => *p,
-                    Option::None => Zero::zero(),
+                    Some(p) => *p,
+                    None => Zero::zero(),
                 }
             } else {
                 Zero::zero()
@@ -843,49 +835,5 @@ mod uniswap_v2 {
     /// module and test functions are marked with a `#[test]` attribute.
     /// The below code is technically just normal Rust code.
     #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-        use crate::{
-            constants::{GET_EXCHANGE_FEE, TRADING_PATH_LIMIT},
-            models::{ExchangeRate, Ratio, TokenAddress, TradingPair},
-        };
-        use primitive_types::H160;
-
-        /// We test a simple use case of our contract.
-        #[test]
-        fn add_liquidity_works() {
-            // struct MockedExtension;
-            // impl ink_env::test::ChainExtension for MockedExtension {
-            //     fn func_id(&self) -> u32 {
-            //         0
-            //     }
-            //     /// The chain extension is called with the given input.
-            //     ///
-            //     /// Returns an error code and may fill the `output` buffer with a
-            //     /// SCALE encoded result. The error code is taken from the
-            //     /// `ink_env::chain_extension::FromStatusCode` implementation for
-            //     /// `RandomReadErr`.
-            //     fn call(&mut self, _input: &[u8], output: &mut Vec<u8>) -> u32 {
-            //         let ret: [u8; 32] = [1; 32];
-            //         scale::Encode::encode_to(&ret, output);
-            //         0
-            //     }
-            // }
-            // ink_env::test::register_chain_extension(MockedExtension);
-
-            // let mut uniswap_v2 = UniswapV2::new();
-            // let tokenA: TokenAddress = TokenAddress::from_slice(&[0; 20]);
-            // let tokenB: TokenAddress = TokenAddress::from_slice(&[1; 20]);
-
-            // uniswap_v2.add_liquidity(
-            //     tokenA,
-            //     tokenB,
-            //     100_000_000_000_000,
-            //     20_000_000_000_000,
-            //     0,
-            //     true,
-            // );
-        }
-    }
+    mod tests {}
 }
