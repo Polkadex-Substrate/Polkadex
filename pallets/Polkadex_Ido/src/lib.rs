@@ -343,7 +343,6 @@ decl_module! {
             ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             let round_account_id = Self::round_account_id(round_id.clone());
@@ -511,5 +510,9 @@ impl<T: Config> Module<T> {
 
     fn block_to_balance(input: T::BlockNumber) -> T::Balance {
         T::Balance::from(input.saturated_into::<u32>())
+    }
+
+    pub fn round_account_id(hash : T::Hash) -> T::AccountId {
+        T::ModuleId::get().into_sub_account(hash)
     }
 }
