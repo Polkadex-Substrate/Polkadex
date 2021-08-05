@@ -343,7 +343,10 @@ fn test_show_interest_in_round() {
 
     });
 }
-
+// Show Interest
+// add some investors and have them to show interest to participate
+// One investor of lowest amount will be randomly evicted
+// verify the most invested was not get evicted
 #[test]
 fn test_show_interest_in_round_randomized_participants() {
     let balance: Balance = 500;
