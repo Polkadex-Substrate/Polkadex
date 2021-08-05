@@ -24,7 +24,8 @@ orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module
 pallet-balances = {git = "https://github.com/paritytech/substrate", default-features = false }
 sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false }
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
-
+rand = {default-features = false, version = '0.8.0'}
+rand_chacha = {default-features = false, version = '0.3.0'}
 [dev-dependencies]
 sp-keyring = {  git = "https://github.com/paritytech/substrate", default-features = false }
 frame-support-test = {  git = "https://github.com/paritytech/substrate", default-features = false }
@@ -35,6 +36,8 @@ std = [
     "serde",
     "hex/std",
     "codec/std",
+    "rand/std",
+    "rand_chacha/std",
     "frame-support/std",
     "frame-system/std",
     "sp-core/std",
