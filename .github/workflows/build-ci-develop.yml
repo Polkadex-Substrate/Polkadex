@@ -1,9 +1,9 @@
-name: Build-CI
+name: Build-CI-Develop
 on:
   pull_request:
-    branches: [frank.cicd]
+    branches: [develop]
   push:
-    branches: [frank.cicd]
+    branches: [develop]
 jobs:
   build:
     runs-on: self-hosted
@@ -48,6 +48,6 @@ jobs:
           node-version: 14.17.0
       - name: Install packages
         run: npm install
-      - name: Runtime Upgrade
-        if: github.event_name == 'push'
-        run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
+      # - name: Runtime Upgrade
+      #   if: github.event_name == 'push'
+      #   run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
