@@ -19,24 +19,6 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       #       - name: Install toolchain
       #         run: ./install_rust.sh
-      - name: Build Project
-        # if: github.event_name == 'push'
-        run: cargo build --release
-      - name: Set Node.js version 14.17.0
-        uses: actions/setup-node@v1
-        with:
-          node-version: 14.17.0
-      - name: Install packages
-        run: npm install
-      - name: List files in the repository
-        run: |
-          ls ./target
-      - name: List files in the repository
-        run: |
-          ls ./target/release/wbuild/
-      - name: Runtime Upgrade
-        if: github.event_name == 'pull_request'
-        run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
       - run: cargo clean
       - name: Test Project
         run: cargo test
@@ -57,3 +39,16 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
+      - name: Build Project
+        # if: github.event_name == 'push'
+        run: cargo build --release
+      - name: Set Node.js version 14.17.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.17.0
+      - name: Install packages
+        run: npm install
+      - name: Runtime Upgrade
+        # if: github.event_name == 'push'
+        if: github.event_name == 'pull_request'
+        run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
