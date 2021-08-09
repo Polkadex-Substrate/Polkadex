@@ -610,7 +610,7 @@ impl<T: Config> Module<T> {
 
     fn incr_nonce() -> u128 {
         let current_nonce: u128 = <Nonce>::get();
-        <Nonce>::put(current_nonce.saturating_add(1));
+        <Nonce>::put(current_nonce + 1);
         <Nonce>::get()
     }
 
