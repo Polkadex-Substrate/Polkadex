@@ -41,16 +41,8 @@ async function main() {
       console.log('Events:');
 
       console.log(JSON.stringify(events, null, 2));
-      // Loop through the Vec<EventRecord>
-      // events.forEach((record) => {
-      //   // Extract the phase, event and the event types
-      //   const { event, phase } = record;
-      //   const types = event.typeDef;
 
-      //   // Show what we are busy with
-      //   console.log(`\t${event.section}:${event.method}:: (phase=${phase.toString()})`);
-      //   console.log(`\t\t${event.meta.documentation.toString()}`);
-      // });
+      process.exit(0);
     } else if (status.isFinalized) {
       console.log('Finalized block hash', status.asFinalized.toHex());
 

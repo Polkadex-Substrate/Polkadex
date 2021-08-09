@@ -21,7 +21,7 @@ jobs:
       #         run: ./install_rust.sh
       - name: Build Project
         if: github.event_name == 'push'
-        run: cargo build
+        run: cargo build --release
       - run: cargo clean
       - name: Test Project
         run: cargo test
@@ -42,6 +42,12 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
+      - name: Set Node.js version 14.17.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.17.0
+      - name: Install packages
+        run: npm install
       - name: Runtime Upgrade
-        if: github.event_name == 'pull_request'
-        run: node ./runtime_upgrade.js ${{secrets.SUDO_KEY}} wss://blockchain.polkadex.trade
+        if: github.event_name == 'push'
+        run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
