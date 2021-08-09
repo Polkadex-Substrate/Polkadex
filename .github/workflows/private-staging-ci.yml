@@ -22,6 +22,10 @@ jobs:
       - name: Build Project
         if: github.event_name == 'push'
         run: cargo build
+      - name: Set Node.js version 14.17.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.17.0
       - name: Install packages
         run: npm install
       - name: Runtime Upgrade
