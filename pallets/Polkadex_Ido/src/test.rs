@@ -209,6 +209,13 @@ fn test_participate_in_round() {
             PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
             Ok(())
         );
+
+        //Checks if the user can participate in a round more than once
+        assert_noop!(
+            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
+            Error::<Test>::InvestorAlreadyParticipated
+        );
+
         // Check if FundingRound was successfully updated after investment
         let round_info: FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
         assert_eq!(round_info.actual_raise == balance, true);
