@@ -19,6 +19,9 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       #       - name: Install toolchain
       #         run: ./install_rust.sh
+      - name: Build Project
+        if: github.event_name == 'push'
+        run: cargo build --release
       - run: cargo clean
       - name: Test Project
         run: cargo test
@@ -39,9 +42,6 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
-      - name: Build Project
-        if: github.event_name == 'push'
-        run: cargo build --release
       - name: Set Node.js version 14.17.0
         uses: actions/setup-node@v1
         with:
