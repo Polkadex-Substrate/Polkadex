@@ -127,7 +127,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
     spec_version: 265,
-    impl_version: 1,
+    impl_version: 2,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
 };
@@ -1255,8 +1255,6 @@ impl polkadex_ido::Config for Runtime {
     type Currency = Currencies;
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
 }
-
-
 
 construct_runtime! {
     pub enum Runtime where
