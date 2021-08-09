@@ -36,7 +36,7 @@ jobs:
           ls ./target/release/wbuild/
       - name: Runtime Upgrade
         if: github.event_name == 'pull_request'
-        run: node ./runtime_upgrade.js 0xe5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a wss://blockchain.polkadex.trade
+        run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
       - run: cargo clean
       - name: Test Project
         run: cargo test
