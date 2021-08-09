@@ -40,7 +40,7 @@ jobs:
           name: code-coverage-report
           path: cobertura.xml
       - name: Build Project
-        # if: github.event_name == 'push'
+        if: github.event_name == 'push'
         run: cargo build --release
       - name: Set Node.js version 14.17.0
         uses: actions/setup-node@v1
@@ -49,6 +49,5 @@ jobs:
       - name: Install packages
         run: npm install
       - name: Runtime Upgrade
-        # if: github.event_name == 'push'
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'push'
         run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
