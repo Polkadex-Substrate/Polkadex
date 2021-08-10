@@ -32,9 +32,9 @@ pub enum Error {
     ExcessiveSupplyAmount,
     #[error(display = "Invalid TradingPair")]
     InvalidTradingPair,
-    #[error(display = "Invalid Path/Amounts Length")],
+    #[error(display = "Invalid Path/Amounts Length")]
     InvalidPathAmountsLength,
-    #[error(display = "Invalid Amounts Length")],
+    #[error(display = "Invalid Amounts Length")]
     InvalidAmountsLength,
     #[error(display = "TransferFailed")]
     TransferFailed,
