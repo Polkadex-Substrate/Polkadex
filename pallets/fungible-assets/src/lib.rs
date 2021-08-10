@@ -239,7 +239,6 @@ decl_module! {
         pub fn claim_vesting(origin, identifier: T::Hash, asset_id: T::CurrencyId) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
             let current_block_no = <system::Pallet<T>>::block_number();
-            assert_eq!(1,0,"code in use");
             InfoVesting::<T>::try_mutate((who.clone(), asset_id), identifier, |ref mut vesting| {
                 let block_diff = current_block_no - vesting.block_no;
                 let amount = Self::block_to_balance(block_diff) * vesting.rate;
