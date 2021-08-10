@@ -351,11 +351,14 @@ mod uniswap_v2 {
                 }
                 return Ok(());
             }
-            Ok(())
+            Err(Error::InvalidTradingPair)
         }
 
         fn _swap_by_path(&mut self, path: &[TokenAddress], amounts: &[Balance]) -> Result<()> {
             let mut i: usize = 0;
+            if path.len() != amounts.len() {
+                return Err(Error::InvalidPathAmountsLength);
+            }
             while i + 1 < path.len() {
                 let (supply_currency_id, target_currency_id) = (path[i], path[i + 1]);
                 let (supply_increment, target_decrement) = (amounts[i], amounts[i + 1]);
@@ -380,6 +383,10 @@ mod uniswap_v2 {
             let caller = self.env().caller();
 
             let amounts = self.get_target_amounts(&path, supply_amount, price_impact_limit)?;
+
+            if (amounts.len() < 1) {
+                return Err(Error::InvalidAmountsLength);
+            }
 
             if amounts[amounts.len() - 1] < min_target_amount {
                 return Err(Error::InsufficientTargetAmount);
@@ -415,6 +422,10 @@ mod uniswap_v2 {
             let caller = self.env().caller();
 
             let amounts = self.get_supply_amounts(&path, target_amount, price_impact_limit)?;
+
+            if (amounts.len() < 1) {
+                return Err(Error::InvalidAmountsLength);
+            }
 
             if amounts[0] > max_supply_amount {
                 return Err(Error::ExcessiveSupplyAmount);
