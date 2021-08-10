@@ -25,7 +25,7 @@ async function main() {
     console.log('Proposal status:', status.type);
 
     if (status.isInBlock) {
-      console.error('You have just upgraded your chain');
+      console.log('You have just upgraded your chain');
 
       console.log('Included at block hash', status.asInBlock.toHex());
       console.log('Events:');
