@@ -1,7 +1,5 @@
-name: Build-CI-Develop
+name: Build-CI-Develop-Push
 on:
-  pull_request:
-    branches: [develop]
   push:
     branches: [develop]
 jobs:
@@ -17,27 +15,21 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      #       - name: Install toolchain
-      #         run: ./install_rust.sh
       - name: Build Project
-        if: github.event_name == 'push'
         run: cargo build --release
       - run: cargo clean
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
-        if: github.event_name == 'push'
         uses: actions-rs/tarpaulin@v0.1
         with:
           version: '0.15.0'
-          args: '--exclude polkadex-node node-polkadex-runtime polkadex-primitives  --workspace'
+          args: '--workspace'
       - name: Upload to codecov.io
-        if: github.event_name == 'push'
         uses: codecov/codecov-action@v1.0.2
         with:
           token: ${{secrets.CODECOV_TOKEN}}
       - name: Archive code coverage results
-        if: github.event_name == 'push'
         uses: actions/upload-artifact@v1
         with:
           name: code-coverage-report
@@ -48,6 +40,5 @@ jobs:
           node-version: 14.17.0
       - name: Install packages
         run: npm install
-      # - name: Runtime Upgrade
-      #   if: github.event_name == 'push'
-      #   run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
+      - name: Runtime Upgrade
+        run: node ./runtime_upgrade.js ${{ secrets.INTERNAL_TESTNET_SUDO_KEY }} wss://internaltestnet.polkadex.trade
