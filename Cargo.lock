@@ -2743,7 +2743,7 @@ dependencies = [
 [[package]]
 name = "ias-verify"
 version = "0.1.4"
-source = "git+https://github.com/Polkadex-Substrate/pallet-substratee-registry#b41581c4bbebdb3b6a21e722bcd791a90a09c48d"
+source = "git+https://github.com/Polkadex-Substrate/pallet-substratee-registry?rev=0be425c849bb32c220356f2c51e08dd8adf60def#0be425c849bb32c220356f2c51e08dd8adf60def"
 dependencies = [
  "base64 0.11.0",
  "chrono",
@@ -5145,7 +5145,7 @@ dependencies = [
 [[package]]
 name = "pallet-teerex"
 version = "0.9.0"
-source = "git+https://github.com/Polkadex-Substrate/pallet-substratee-registry#b41581c4bbebdb3b6a21e722bcd791a90a09c48d"
+source = "git+https://github.com/Polkadex-Substrate/pallet-substratee-registry?rev=0be425c849bb32c220356f2c51e08dd8adf60def#0be425c849bb32c220356f2c51e08dd8adf60def"
 dependencies = [
  "frame-support",
  "frame-system",
