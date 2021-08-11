@@ -155,7 +155,7 @@ impl<T: Config> Default for FundingRound<T> {
             min_allocation: T::Balance::default(),
             max_allocation: T::Balance::default(),
             operator_commission: T::Balance::default(),
-            token_a_priceper_token_b: T::Balance::default(),
+            token_a_priceper_token_b: 1_u128.saturated_into(),
             close_round_block: T::BlockNumber::default(),
             actual_raise: Zero::zero(),
         }
@@ -325,6 +325,8 @@ decl_module! {
             token_a_priceper_token_b: T::Balance,
             close_round_block: T::BlockNumber
         ) -> DispatchResult {
+            ensure!(token_a_priceper_token_b > 0_u128.saturated_into(), <Error<T>>::PricePerTokenCantBeZero);
+            ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
                 token_a,
@@ -592,6 +594,12 @@ decl_error! {
         InvestorAlreadyShownInterest,
         /// Investor Account Balance doesnt match interest amount
         BalanceInsufficientForInteresetedAmount
+        BalanceInsufficientForInteresetedAmount,
+        /// Investor already participated in a round error
+        InvestorAlreadyParticipated,
+        /// Price Per Token Error
+        PricePerTokenCantBeZero,
+        MinAllocationMustBeEqualOrLessThanMaxAllocation
     }
 }
 
