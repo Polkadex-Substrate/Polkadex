@@ -610,7 +610,8 @@ impl<T: Config> Module<T> {
 
     fn incr_nonce() -> u128 {
         let current_nonce: u128 = <Nonce>::get();
-        <Nonce>::put(current_nonce + 1);
+        let (nonce,_) = current_nonce.overflowing_add(1);
+        <Nonce>::put(nonce);
         <Nonce>::get()
     }
 
