@@ -1256,8 +1256,6 @@ impl polkadex_ido::Config for Runtime {
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
 }
 
-
-
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
