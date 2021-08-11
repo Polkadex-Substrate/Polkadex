@@ -201,7 +201,7 @@ fn test_participate_in_round() {
 
         // Investment under minimum amount should return an error
         assert_noop!(
-            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, 50),
+            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance - 1),
             Error::<Test>::NotAValidAmount
         );
 

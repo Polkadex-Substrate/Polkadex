@@ -386,6 +386,7 @@ decl_module! {
             ensure!(!<InvestorShareInfo<T>>::contains_key(&round_id,&investor_address), <Error<T>>::InvestorAlreadyParticipated);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
+            ensure!(amount >= funding_round.min_allocation && amount <= funding_round.max_allocation, Error::<T>::NotAValidAmount);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             let round_account_id = Self::round_account_id(round_id.clone());
