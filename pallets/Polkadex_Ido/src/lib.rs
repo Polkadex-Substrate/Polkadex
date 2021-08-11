@@ -381,7 +381,7 @@ decl_module! {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<WhiteListInvestors<T>>::contains_key(&round_id, &investor_address), <Error<T>>::NotWhiteListed);
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
-            ensure!(amount >= max_amount, Error::<T>::NotAValidAmount);
+            ensure!(amount <= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(!<InvestorShareInfo<T>>::contains_key(&round_id,&investor_address), <Error<T>>::InvestorAlreadyParticipated);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
