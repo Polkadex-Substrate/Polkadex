@@ -589,16 +589,14 @@ decl_error! {
         /// Withdraw Error
         WithdrawError,
         /// Investor already participated in a round error
-        InvestorAlreadyParticipated
+        InvestorAlreadyParticipated,
         /// Investor already shown interest
         InvestorAlreadyShownInterest,
         /// Investor Account Balance doesnt match interest amount
-        BalanceInsufficientForInteresetedAmount
         BalanceInsufficientForInteresetedAmount,
-        /// Investor already participated in a round error
-        InvestorAlreadyParticipated,
         /// Price Per Token Error
         PricePerTokenCantBeZero,
+        /// Min allocation cant be greater than Max allocation
         MinAllocationMustBeEqualOrLessThanMaxAllocation
     }
 }
