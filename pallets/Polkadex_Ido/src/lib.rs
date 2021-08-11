@@ -248,7 +248,7 @@ decl_module! {
 
                 if block_number > round_info.close_round_block {
                     <WhiteListInvestors<T>>::remove_prefix(round_id);
-                    <InterestedParticipants<T>>::remove(round_id);
+                    <InterestedParticipants<T>>::remove_prefix(round_id);
                     Self::deposit_event(RawEvent::CleanedupExpiredRound(round_id));
                 }
 
