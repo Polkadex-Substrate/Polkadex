@@ -17,6 +17,7 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 sp-io = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-core = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-std = {  git = "https://github.com/paritytech/substrate", default-features = false }
+sp-api = {  git = "https://github.com/paritytech/substrate", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }

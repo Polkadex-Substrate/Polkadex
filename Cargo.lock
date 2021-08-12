@@ -5777,6 +5777,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rustc-hex",
  "serde",
+ "sp-api",
  "sp-core",
  "sp-io",
  "sp-keyring",

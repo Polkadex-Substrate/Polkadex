@@ -132,6 +132,7 @@ impl Default for InvestorInfo {
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct FundingRound<T: Config> {
     token_a: AssetId,
+    creator : T::AccountId,
     amount: T::Balance,
     token_b: AssetId,
     vesting_per_block: T::Balance,
@@ -148,6 +149,7 @@ impl<T: Config> Default for FundingRound<T> {
     fn default() -> Self {
         FundingRound {
             token_a: AssetId::POLKADEX,
+            creator:T::AccountId::default(),
             amount: T::Balance::default(),
             token_b: AssetId::POLKADEX,
             vesting_per_block: T::Balance::default(),
@@ -165,6 +167,7 @@ impl<T: Config> Default for FundingRound<T> {
 impl<T: Config> FundingRound<T> {
     fn from(
         token_a: AssetId,
+        creator : T::AccountId,
         amount: T::Balance,
         token_b: AssetId,
         vesting_per_block: T::Balance,
@@ -177,6 +180,7 @@ impl<T: Config> FundingRound<T> {
     ) -> Self {
         FundingRound {
             token_a,
+            creator,
             amount,
             token_b,
             vesting_per_block,
@@ -329,8 +333,9 @@ decl_module! {
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
-                token_a.clone(),
-                amount.clone(),
+                token_a,
+                team.clone(),
+                amount,
                 token_b,
                 vesting_per_block,
                 start_block,
@@ -363,10 +368,10 @@ decl_module! {
         pub fn whitelist_investor(origin, round_id: T::Hash, investor_address: T::AccountId, amount: T::Balance) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            ensure!(<InfoProjectTeam<T>>::get(team).eq(&round_id), <Error<T>>::FundingRoundDoesNotBelong);
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(team.eq(&funding_round.creator), <Error<T>>::NotACreater);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
             Self::deposit_event(RawEvent::InvestorWhitelisted(round_id, investor_address));
@@ -522,11 +527,9 @@ decl_module! {
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            ensure!(<InfoProjectTeam<T>>::contains_key(&creator), <Error<T>>::CreaterDoesNotExist);
-            let info_round_id = <InfoProjectTeam<T>>::get(&creator);
-            ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             let round_account_id = Self::round_account_id(round_id.clone());
             ensure!(<T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise).is_ok(), Error::<T>::FundRaisedRedrawn);
             Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
@@ -546,9 +549,6 @@ decl_module! {
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            ensure!(<InfoProjectTeam<T>>::contains_key(&creator), <Error<T>>::CreaterDoesNotExist);
-            let info_round_id = <InfoProjectTeam<T>>::get(&creator);
-            ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
@@ -556,6 +556,7 @@ decl_module! {
             // Check if there is any left to withdraw
             ensure!(remaining_token > Zero::zero(), Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
+            ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             //Transfers to remaining token back to creator after round.
             <T as Config>::Currency::transfer(funding_round.token_a, &round_account_id, &beneficiary, remaining_token)?;
             Self::deposit_event(RawEvent::WithdrawToken(round_id, creator));
@@ -662,5 +663,26 @@ impl<T: Config> Module<T> {
 
     pub fn pallet_account_id() -> T::AccountId {
         T::ModuleId::get().into_account()
+    }
+
+    pub fn rounds_by_investor(account : T::AccountId) -> Vec<(T::Hash, FundingRound<T>)> {
+        <InvestorShareInfo<T>>::iter().filter_map(|(round_id, investor, _)| {
+            if investor != account {
+                None
+            }else{
+                let round_info = <InfoFundingRound<T>>::get(&round_id);
+                Some((round_id,round_info))
+            }
+        }).collect()
+    }
+
+    pub fn rounds_by_creator(account : T::AccountId) -> Vec<(T::Hash, FundingRound<T>)> {
+        <InfoFundingRound<T>>::iter().filter_map(|(round_id, round_info)| {
+            if round_info.creator != account {
+                None
+            }else{
+                Some((round_id,round_info))
+            }
+        }).collect()
     }
 }
