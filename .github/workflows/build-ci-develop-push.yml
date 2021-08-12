@@ -41,4 +41,4 @@ jobs:
       - name: Install packages
         run: npm install
       - name: Runtime Upgrade
-        run: node ./runtime_upgrade.js ${{ secrets.INTERNAL_TESTNET_SUDO_KEY }} wss://internaltestnet.polkadex.trade
+        run: node ./scripts/runtime_upgrade.js ${{ secrets.INTERNAL_TESTNET_SUDO_KEY }} wss://internaltestnet.polkadex.trade
