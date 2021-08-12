@@ -34,11 +34,3 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
-      - name: Set Node.js version 14.17.0
-        uses: actions/setup-node@v1
-        with:
-          node-version: 14.17.0
-      - name: Install packages
-        run: npm install
-      - name: Runtime Upgrade
-        run: node ./runtime_upgrade.js ${{ secrets.SUDO_KEY }} wss://blockchain.polkadex.trade
