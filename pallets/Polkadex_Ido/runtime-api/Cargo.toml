@@ -1,0 +1,18 @@
+[package]
+name = "runtime-api"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+hex = { version = "2.1.0", package = "rustc-hex", default-features = false }
+serde = { version = "1.0.101", optional = true }
+
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
+sp-io = {  git = "https://github.com/paritytech/substrate", default-features = false }
+sp-core = {  git = "https://github.com/paritytech/substrate", default-features = false }
+sp-std = {  git = "https://github.com/paritytech/substrate", default-features = false }
+sp-api = {  git = "https://github.com/paritytech/substrate", default-features = false }

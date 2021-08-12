@@ -1564,6 +1564,15 @@ impl_runtime_apis! {
         }
     }
 
+    impl polkadex_ido_rpc_runtime_api::PolkadexIdoApi<Block> for Runtime {
+        /*fn rounds_by_investor(account : Block::AccountId) -> Vec<(Block::Hash, FundingRound<Block>)>{
+            Vec::new()
+        }
+        fn rounds_by_creator(account : Block::AccountId) -> Vec<(Block::Hash, FundingRound<Block>)>{
+            Vec::new()
+        }*/
+    }
+
     impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             SessionKeys::generate(seed)
