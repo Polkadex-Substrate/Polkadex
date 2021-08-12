@@ -1251,6 +1251,7 @@ impl polkadex_ido::Config for Runtime {
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
     type Randomness = RandomnessCollectiveFlip;
+    type RandomnessSource = RandomnessCollectiveFlip;
     type ModuleId = PolkadexIdoPalletId;
     type Currency = Currencies;
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
