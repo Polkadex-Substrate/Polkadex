@@ -72,7 +72,7 @@ mod benchmarking;
 pub mod weights;
 
 pub use weights::WeightInfo;
-use common::FundingRoundWithPrimitives;
+use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 
 #[cfg(test)]
 mod mock;
@@ -707,12 +707,5 @@ impl<T: Config> Module<T> {
                 Some((round_id,round_info.to_primitive()))
             }
         }).collect()
-    }
-}
-
-sp_api::decl_runtime_apis! {
-    pub trait PolkadexIdoRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
-        fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)>;
-        fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)> ;
     }
 }

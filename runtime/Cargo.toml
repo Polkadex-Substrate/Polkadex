@@ -83,8 +83,8 @@ sp-io = { version = '3.0.0', default-features = false, git = "https://github.com
 
 # Used for the node template's RPCs
 frame-system-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git" }
-
-# Used for runtime benchmarking
+polkadex-ido-runtime-api = {path = "../pallets/Polkadex_Ido/rpc/runtime-api"}
+pallet-polkadex-ido-primitives = {path = "../pallets/Polkadex_Ido/common"}# Used for runtime benchmarking
 frame-benchmarking = { version = "3.1.0", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true }
 frame-system-benchmarking = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true }
 
@@ -205,7 +205,9 @@ std = [
     "chainbridge/std",
     'erc721/std',
     'example/std',
-	'polkadex-ido/std'
+	'polkadex-ido/std',
+    'polkadex-ido-runtime-api/std',
+    'pallet-polkadex-ido-primitives/std'
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

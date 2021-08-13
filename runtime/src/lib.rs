@@ -1564,7 +1564,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl polkadex_ido::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+    impl polkadex-ido-runtime-api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
 
         fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)> {
             PolkadexIdo::rounds_by_investor(account)

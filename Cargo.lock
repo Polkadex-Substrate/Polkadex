@@ -966,19 +966,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "parity-scale-codec",
- "polkadex-primitives",
- "serde",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "concurrent-queue"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4334,6 +4321,7 @@ dependencies = [
  "pallet-membership",
  "pallet-multisig",
  "pallet-offences",
+ "pallet-polkadex-ido-primitives",
  "pallet-polkapool",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
@@ -4356,6 +4344,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-fungible-assets",
  "polkadex-ido",
+ "polkadex-ido-runtime-api",
  "polkadex-ocex",
  "polkadex-primitives",
  "serde",
@@ -4994,6 +4983,19 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-polkadex-ido-primitives"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "serde",
+ "sp-core",
+ "sp-runtime",
  "sp-std",
 ]
 
@@ -5776,7 +5778,6 @@ dependencies = [
 name = "polkadex-ido"
 version = "0.1.0"
 dependencies = [
- "common",
  "frame-benchmarking",
  "frame-support",
  "frame-support-test",
@@ -5785,6 +5786,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-polkadex-ido-primitives",
  "parity-scale-codec",
  "polkadex-primitives",
  "rand 0.8.4",
@@ -5795,6 +5797,17 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polkadex-ido-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "pallet-polkadex-ido-primitives",
+ "parity-scale-codec",
+ "sp-api",
  "sp-runtime",
  "sp-std",
 ]
@@ -6584,12 +6597,12 @@ dependencies = [
 name = "rpc"
 version = "0.1.0"
 dependencies = [
- "common",
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
+ "pallet-polkadex-ido-primitives",
  "parity-scale-codec",
- "polkadex-ido",
+ "polkadex-ido-runtime-api",
  "serde",
  "sp-api",
  "sp-blockchain",

@@ -15,5 +15,5 @@ sp-rpc = {  git = "https://github.com/paritytech/substrate", default-features = 
 sp-blockchain = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-api = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false }
-polkadex-ido = {path = "../../Polkadex_Ido"}
-common = {path = "../../Polkadex_Ido/common"}
+pallet-polkadex-ido-primitives = {path = "../../Polkadex_Ido/common", default-features = false}
+polkadex-ido-runtime-api = {path = "./runtime-api"}

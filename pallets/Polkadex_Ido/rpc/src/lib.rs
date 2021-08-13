@@ -8,9 +8,9 @@ use jsonrpc_core::{Result, Error as RpcError, ErrorCode};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use jsonrpc_derive::rpc;
-use polkadex_ido::{PolkadexIdoRuntimeApi};
+use polkadex_ido_runtime_api::{PolkadexIdoRuntimeApi};
 use codec::Codec;
-use common::FundingRoundWithPrimitives;
+use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 
 const RUNTIME_ERROR: i64 = 1;
 
