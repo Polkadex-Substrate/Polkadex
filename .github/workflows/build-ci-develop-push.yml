@@ -1,6 +1,6 @@
 name: Build-CI-Develop-Push
 on:
-  push:
+  pull_request:
     branches: [develop]
 jobs:
   build:
