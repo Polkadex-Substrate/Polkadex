@@ -63,11 +63,16 @@ use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
 
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaChaRng;
+use sp_core::H256;
+use codec::Codec;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
 
 pub use weights::WeightInfo;
+use common::FundingRoundWithPrimitives;
 
 #[cfg(test)]
 mod mock;
@@ -127,6 +132,8 @@ impl Default for InvestorInfo {
         }
     }
 }
+
+
 
 /// All information for funding round
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -191,6 +198,22 @@ impl<T: Config> FundingRound<T> {
             token_a_priceper_token_b,
             close_round_block,
             actual_raise: Zero::zero(),
+        }
+    }
+
+    fn to_primitive(&self) -> FundingRoundWithPrimitives {
+        FundingRoundWithPrimitives {
+            token_a: self.token_a,
+            amount: self.amount.saturated_into(),
+            token_b: self.token_b,
+            vesting_per_block: self.vesting_per_block.saturated_into(),
+            start_block: self.start_block.saturated_into(),
+            min_allocation: self.min_allocation.saturated_into(),
+            max_allocation: self.max_allocation.saturated_into(),
+            operator_commission: self.operator_commission.saturated_into(),
+            token_a_priceper_token_b: self.token_a_priceper_token_b.saturated_into(),
+            close_round_block: self.close_round_block.saturated_into(),
+            actual_raise: self.actual_raise.saturated_into()
         }
     }
 }
@@ -665,25 +688,31 @@ impl<T: Config> Module<T> {
         T::ModuleId::get().into_account()
     }
 
-    pub fn rounds_by_investor(account : T::AccountId) -> Vec<(T::Hash, FundingRound<T>)> {
+    pub fn rounds_by_investor(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives)> {
         <InvestorShareInfo<T>>::iter().filter_map(|(round_id, investor, _)| {
             if investor != account {
                 None
             }else{
                 let round_info = <InfoFundingRound<T>>::get(&round_id);
-                Some((round_id,round_info))
+                Some((round_id,round_info.to_primitive()))
             }
         }).collect()
     }
 
-    pub fn rounds_by_creator(account : T::AccountId) -> Vec<(T::Hash, FundingRound<T>)> {
+    pub fn rounds_by_creator(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives)> {
         <InfoFundingRound<T>>::iter().filter_map(|(round_id, round_info)| {
             if round_info.creator != account {
                 None
             }else{
-                Some((round_id,round_info))
+                Some((round_id,round_info.to_primitive()))
             }
         }).collect()
     }
 }
 
+sp_api::decl_runtime_apis! {
+    pub trait PolkadexIdoRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
+        fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)>;
+        fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)> ;
+    }
+}

@@ -10,7 +10,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
 hex = { version = "2.1.0", package = "rustc-hex", default-features = false }
-serde = { version = "1.0.101", optional = true }
+serde = { version = "1.0.101", optional = true, features = ["derive"] }
 
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -27,6 +27,7 @@ sp-runtime = {  git = "https://github.com/paritytech/substrate", default-feature
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 rand = {default-features = false, version = '0.8.0'}
 rand_chacha = {default-features = false, version = '0.3.0'}
+common = { path = "../../pallets/Polkadex_Ido/common"}
 [dev-dependencies]
 sp-keyring = {  git = "https://github.com/paritytech/substrate", default-features = false }
 frame-support-test = {  git = "https://github.com/paritytech/substrate", default-features = false }
@@ -44,6 +45,7 @@ std = [
     "sp-core/std",
     "sp-std/std",
     "sp-io/std",
+    "sp-api/std",
     "orml-tokens/std",
     "orml-currencies/std",
     "pallet-balances/std",

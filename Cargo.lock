@@ -966,6 +966,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5763,6 +5776,7 @@ dependencies = [
 name = "polkadex-ido"
 version = "0.1.0"
 dependencies = [
+ "common",
  "frame-benchmarking",
  "frame-support",
  "frame-support-test",
@@ -6567,18 +6581,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime-api"
+name = "rpc"
 version = "0.1.0"
 dependencies = [
- "frame-support",
- "frame-system",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
  "parity-scale-codec",
- "rustc-hex",
+ "polkadex-ido",
  "serde",
  "sp-api",
- "sp-core",
- "sp-io",
- "sp-std",
+ "sp-blockchain",
+ "sp-rpc",
+ "sp-runtime",
 ]
 
 [[package]]

@@ -95,7 +95,7 @@ use sp_std::{convert::TryInto, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-
+use polkadex_ido::FundingRoundWithPrimitives;
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
 
@@ -1564,13 +1564,14 @@ impl_runtime_apis! {
         }
     }
 
-    impl polkadex_ido_rpc_runtime_api::PolkadexIdoApi<Block> for Runtime {
-        /*fn rounds_by_investor(account : Block::AccountId) -> Vec<(Block::Hash, FundingRound<Block>)>{
-            Vec::new()
+    impl polkadex_ido::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+
+        fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)> {
+            PolkadexIdo::rounds_by_investor(account)
         }
-        fn rounds_by_creator(account : Block::AccountId) -> Vec<(Block::Hash, FundingRound<Block>)>{
-            Vec::new()
-        }*/
+        fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)> {
+            PolkadexIdo::rounds_by_creator(account)
+        }
     }
 
     impl sp_session::SessionKeys<Block> for Runtime {

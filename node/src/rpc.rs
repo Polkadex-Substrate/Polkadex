@@ -198,12 +198,16 @@ where
     io.extend_with(sc_sync_state_rpc::SyncStateRpcApi::to_delegate(
         sc_sync_state_rpc::SyncStateRpcHandler::new(
             chain_spec,
-            client,
+            client.clone(),
             shared_authority_set,
             shared_epoch_changes,
             deny_unsafe,
         ),
     ));
+
+    /*io.extend_with(polkadex_ido::rpc::PolkadexIdoRpcApi::to_delegate(
+        polkadex_ido::rpc::PolkadexIdoRpc::new(client),
+    ));*/
 
     io
 }
