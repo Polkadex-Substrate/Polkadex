@@ -29,7 +29,7 @@ structopt = { version = "0.3.8" }
 parking_lot = "0.11.1"
 # local dependencies
 node-polkadex-runtime = { path = '../runtime', version = '3.0.0' }
-#polkadex-ido = { path = '../pallets/Polkadex_Ido'}
+polkadex-ido-rpc = {path = "../pallets/Polkadex_Ido/rpc"}
 
 # Substrate dependencies
 frame-benchmarking = { version = '3.1.0', git = "https://github.com/paritytech/substrate" }

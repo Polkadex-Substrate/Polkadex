@@ -1,9 +1,11 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode};
+#[cfg(feature = "std")]
 use serde::{Serialize, Deserialize};
 pub use polkadex_primitives::{AccountId, Balance, BlockNumber, Hash};
 use polkadex_primitives::assets::AssetId;
-
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct FundingRoundWithPrimitives {
     pub token_a: AssetId,
     pub amount: Balance,

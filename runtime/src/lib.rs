@@ -81,6 +81,7 @@ use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion,
     StaticLookup, Zero,
 };
+use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
 };
@@ -1564,7 +1565,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl polkadex-ido-runtime-api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+    impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
 
         fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives)> {
             PolkadexIdo::rounds_by_investor(account)

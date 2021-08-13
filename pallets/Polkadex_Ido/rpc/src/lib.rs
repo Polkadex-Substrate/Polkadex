@@ -8,7 +8,7 @@ use jsonrpc_core::{Result, Error as RpcError, ErrorCode};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use jsonrpc_derive::rpc;
-use polkadex_ido_runtime_api::{PolkadexIdoRuntimeApi};
+pub use polkadex_ido_runtime_api::PolkadexIdoRuntimeApi;
 use codec::Codec;
 use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 
@@ -40,9 +40,7 @@ impl<C, Block, AccountId, Hash> PolkadexIdoRpcApi<<Block as BlockT>::Hash,  Acco
 for PolkadexIdoRpc<C, Block>
     where
         Block: BlockT,
-        C: Send + Sync + 'static,
-        C: ProvideRuntimeApi<Block>,
-        C: HeaderBackend<Block>,
+        C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
         C::Api: PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
         AccountId : Codec,
         Hash : Codec
