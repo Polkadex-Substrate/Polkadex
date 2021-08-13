@@ -1,0 +1,44 @@
+name: Build-CI-Develop-Push
+on:
+  push:
+    branches: [develop]
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache Rust Dependecies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build Project
+        run: cargo build --release
+      - run: cargo clean
+      - name: Test Project
+        run: cargo test
+      - name: Run Cargo Trampulin
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          version: '0.15.0'
+          args: '--exclude polkadex-node node-polkadex-runtime polkadex-primitives  --workspace'
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v1
+        with:
+          name: code-coverage-report
+          path: cobertura.xml
+      - name: Set Node.js version 14.17.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.17.0
+      - name: Install packages
+        run: npm install
+      - name: Runtime Upgrade
+        run: node ./scripts/runtime_upgrade.js ${{ secrets.INTERNAL_TESTNET_SUDO_KEY }} wss://internaltestnet.polkadex.trade
