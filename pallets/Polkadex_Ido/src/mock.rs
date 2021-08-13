@@ -139,6 +139,7 @@ impl Config for Test {
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
     type Randomness = TestRandomness<Self>;
+    type RandomnessSource = TestRandomness<Self>;
     type ModuleId = PolkadexIdoModuleId;
     type WeightIDOInfo = ();
 }
@@ -179,6 +180,8 @@ impl Default for ExtBuilder {
                 (ALICE, AssetId::POLKADEX, INITIAL_BALANCE),
                 (4, AssetId::POLKADEX, INITIAL_BALANCE),
                 (2, AssetId::POLKADEX, INITIAL_BALANCE),
+                (5, AssetId::POLKADEX, INITIAL_BALANCE),
+                (6, AssetId::POLKADEX, INITIAL_BALANCE),
             ],
         }
     }
@@ -195,6 +198,8 @@ impl ExtBuilder {
                 (ALICE, INITIAL_BALANCE),
                 (4u64, INITIAL_BALANCE),
                 (2u64, INITIAL_BALANCE),
+                (5u64, INITIAL_BALANCE),
+                (6u64, INITIAL_BALANCE),
             ],
         }
         .assimilate_storage(&mut t)

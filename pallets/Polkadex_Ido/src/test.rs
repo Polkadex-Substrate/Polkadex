@@ -201,7 +201,7 @@ fn test_participate_in_round() {
 
         // Investment under minimum amount should return an error
         assert_noop!(
-            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, 50),
+            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance - 1),
             Error::<Test>::NotAValidAmount
         );
 
@@ -209,6 +209,13 @@ fn test_participate_in_round() {
             PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
             Ok(())
         );
+
+        //Checks if the user can participate in a round more than once
+        assert_noop!(
+            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
+            Error::<Test>::InvestorAlreadyParticipated
+        );
+
         // Check if FundingRound was successfully updated after investment
         let round_info: FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
         assert_eq!(round_info.actual_raise == balance, true);
@@ -275,13 +282,16 @@ fn test_claim_tokens() {
 
 #[test]
 fn test_show_interest_in_round() {
-    let balance: Balance = 100;
+    let balance: Balance = 500;
     let investor_address: u64 = 4;
     let block_num = 3;
+    let amount : Balance = 200;
+    let min_allocation : Balance = 100;
+    let max_allocation : Balance = 400;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
             Error::<Test>::InvestorDoesNotExist
         );
 
@@ -291,9 +301,11 @@ fn test_show_interest_in_round() {
         );
 
         assert_noop!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
             Error::<Test>::FundingRoundDoesNotExist
         );
+
+
 
         assert_eq!(
             PolkadexIdo::register_round(
@@ -303,8 +315,55 @@ fn test_show_interest_in_round() {
                 AssetId::POLKADEX,
                 balance,
                 0,
+                min_allocation,
+                max_allocation,
                 balance,
                 balance,
+                block_num
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        //Check investing with lower than minimum allocation
+        assert_noop!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,min_allocation - 1),
+            Error::<Test>::NotAValidAmount
+        );
+        //Check investing with more than max allocation
+        assert_noop!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,max_allocation + 1),
+            Error::<Test>::NotAValidAmount
+        );
+
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
+            Ok(())
+        );
+
+    });
+}
+// Show Interest
+// add some investors and have them to show interest to participate
+// One investor of lowest amount will be randomly evicted
+// verify the most invested was not get evicted
+#[test]
+fn test_show_interest_in_round_randomized_participants() {
+    let balance: Balance = 500;
+    let block_num = 3;
+    let min_allocation : Balance = 100;
+    let max_allocation : Balance = 400;
+    ExtBuilder::default().build().execute_with(|| {
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE.clone()),
+                AssetId::POLKADEX,
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                0,
+                min_allocation,
+                max_allocation,
                 balance,
                 balance,
                 block_num
@@ -314,12 +373,35 @@ fn test_show_interest_in_round() {
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
 
-        assert_eq!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,),
-            Ok(())
-        );
+        let investors : Vec<(u64, Balance)> = vec![
+            (4u64, 200),
+            (2u64, 200),
+            (5u64, 200),
+            (6u64, 300),
+        ];
 
-        assert_eq!(InterestedParticipants::<Test>::contains_key(round_id), true);
+        for (investor_address,amount) in investors {
+            assert_eq!(
+                PolkadexIdo::register_investor(Origin::signed(investor_address)),
+                Ok(())
+            );
+            assert_eq!(
+                PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id,amount),
+                Ok(())
+            );
+        }
+
+        let funding_round : FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
+
+        let total_investment_amount : Balance = InterestedParticipants::<Test>::iter_prefix_values(round_id).fold(0_u128, |sum, amount| {
+            sum.saturating_add(amount)
+        });
+        let investors_count = InterestedParticipants::<Test>::iter_prefix_values(round_id).count();
+        // Check if an investor was randomly evicted
+        assert_eq!(investors_count <= 3,true);
+        assert_eq!(InterestedParticipants::<Test>::contains_key(round_id, 6u64),true);
+        // Check if maximum effective investors are selected
+        assert_eq!(total_investment_amount >= funding_round.amount,true);
     });
 }
 
