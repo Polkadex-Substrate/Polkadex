@@ -1,6 +1,6 @@
 name: Build-CI-Develop-Pull-Request
 on:
-  pull:
+  pull_request:
     branches: [develop]
 jobs:
   build:
