@@ -14,7 +14,7 @@ async function main() {
   const adminPair = keyring.addFromUri(process.argv[2]);
 
   const code = fs
-    .readFileSync('../target/release/wbuild/node-polkadex-runtime/node_polkadex_runtime.compact.wasm')
+    .readFileSync('./target/release/wbuild/node-polkadex-runtime/node_polkadex_runtime.compact.wasm')
     .toString('hex');
   const proposal =
     api.tx.system && api.tx.system.setCode ? api.tx.system.setCode(`0x${code}`) : api.tx.consensus.setCode(`0x${code}`);
