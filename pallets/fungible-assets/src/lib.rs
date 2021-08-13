@@ -28,15 +28,13 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::ensure_signed;
-use sp_runtime::traits::Hash;
-use sp_runtime::traits::Zero;
-use sp_runtime::SaturatedConversion;
-use sp_std::prelude::*;
-
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use orml_traits::{
     BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
 };
+use sp_runtime::traits::{Hash, Saturating, Zero};
+use sp_runtime::SaturatedConversion;
+use sp_std::prelude::*;
 
 #[cfg(test)]
 mod mock;
@@ -241,14 +239,14 @@ decl_module! {
         pub fn claim_vesting(origin, identifier: T::Hash, asset_id: T::CurrencyId) -> DispatchResult {
             let who: T::AccountId = ensure_signed(origin)?;
             let current_block_no = <system::Pallet<T>>::block_number();
-
             InfoVesting::<T>::try_mutate((who.clone(), asset_id), identifier, |ref mut vesting| {
                 let block_diff = current_block_no - vesting.block_no;
                 let amount = Self::block_to_balance(block_diff) * vesting.rate;
                 let amount_to_be_released = if amount > vesting.amount {vesting.amount} else {amount};
-                vesting.amount -= amount;
+                vesting.amount = vesting.amount.saturating_sub(amount_to_be_released);
+
                 orml_tokens::Accounts::<T>::mutate(who, &asset_id, |account_data| {
-                    account_data.free += amount_to_be_released;
+                    account_data.free = account_data.free.saturating_add(amount_to_be_released);
                 });
                 Ok(())
             })

@@ -30,6 +30,12 @@ pub enum Error {
     InvariantCheckFailed,
     #[error(display = "ExcessiveSupplyAmount")]
     ExcessiveSupplyAmount,
+    #[error(display = "Invalid TradingPair")]
+    InvalidTradingPair,
+    #[error(display = "Invalid Path/Amounts Length")]
+    InvalidPathAmountsLength,
+    #[error(display = "Invalid Amounts Length")]
+    InvalidAmountsLength,
     #[error(display = "TransferFailed")]
     TransferFailed,
 }
