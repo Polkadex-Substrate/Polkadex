@@ -6584,6 +6584,7 @@ dependencies = [
 name = "rpc"
 version = "0.1.0"
 dependencies = [
+ "common",
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
