@@ -1,5 +1,5 @@
 const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api');
-const types = require('./typedef.json');
+const types = require('../typedef.json');
 
 const fs = require('fs');
 
