@@ -95,7 +95,7 @@ use sp_std::{convert::TryInto, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-use polkadex_ido::FundingRoundWithPrimitives;
+
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
 

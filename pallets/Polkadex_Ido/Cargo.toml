@@ -10,14 +10,13 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
 hex = { version = "2.1.0", package = "rustc-hex", default-features = false }
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
+serde = { version = "1.0.101", optional = true }
 
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 sp-io = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-core = {  git = "https://github.com/paritytech/substrate", default-features = false }
 sp-std = {  git = "https://github.com/paritytech/substrate", default-features = false }
-sp-api = {  git = "https://github.com/paritytech/substrate", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
@@ -45,7 +44,6 @@ std = [
     "sp-core/std",
     "sp-std/std",
     "sp-io/std",
-    "sp-api/std",
     "orml-tokens/std",
     "orml-currencies/std",
     "pallet-balances/std",
