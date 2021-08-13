@@ -204,16 +204,16 @@ impl<T: Config> FundingRound<T> {
     fn to_primitive(&self) -> FundingRoundWithPrimitives {
         FundingRoundWithPrimitives {
             token_a: self.token_a,
-            amount: self.amount.saturated_into(),
+            amount: self.amount.encode(),
             token_b: self.token_b,
-            vesting_per_block: self.vesting_per_block.saturated_into(),
+            vesting_per_block: self.vesting_per_block.encode(),
             start_block: self.start_block.saturated_into(),
-            min_allocation: self.min_allocation.saturated_into(),
-            max_allocation: self.max_allocation.saturated_into(),
-            operator_commission: self.operator_commission.saturated_into(),
-            token_a_priceper_token_b: self.token_a_priceper_token_b.saturated_into(),
+            min_allocation: self.min_allocation.encode(),
+            max_allocation: self.max_allocation.encode(),
+            operator_commission: self.operator_commission.encode(),
+            token_a_priceper_token_b: self.token_a_priceper_token_b.encode(),
             close_round_block: self.close_round_block.saturated_into(),
-            actual_raise: self.actual_raise.saturated_into()
+            actual_raise: self.actual_raise.encode()
         }
     }
 }

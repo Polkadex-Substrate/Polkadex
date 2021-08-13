@@ -16,9 +16,9 @@ const RUNTIME_ERROR: i64 = 1;
 
 #[rpc]
 pub trait PolkadexIdoRpcApi<BlockHash,AccountId,Hash> {
-    #[rpc(name = "polkadexIdo_getRoundsByInvestor")]
+    #[rpc(name = "polkadexido_getRoundsByInvestor")]
     fn get_rounds_by_investor( &self,account : AccountId, at: Option<BlockHash>) -> Result<Vec<(Hash, FundingRoundWithPrimitives)>>;
-    #[rpc(name = "polkadexIdo_getRoundsByCreator")]
+    #[rpc(name = "polkadexido_getRoundsByCreator")]
     fn get_rounds_by_creator( &self,account : AccountId, at: Option<BlockHash>) -> Result<Vec<(Hash, FundingRoundWithPrimitives)>>;
 }
 
