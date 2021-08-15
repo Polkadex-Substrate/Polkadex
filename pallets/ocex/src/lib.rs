@@ -92,6 +92,7 @@ decl_error! {
 decl_storage! {
     trait Store for Module<T: Config> as OCEX {
         LastAccount get(fn key) config(): T::AccountId;
+        pub ReferralId get(fn get_referral_id): map hasher(blake2_128_concat) Vec<u8> => T::AccountId;
         pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount;
     }
     add_extra_genesis {
@@ -99,7 +100,7 @@ decl_storage! {
         build( |config: &GenesisConfig<T>| {
            match (config.genesis_account.clone().encode().as_slice().try_into(), config.genesis_account.clone().encode().as_slice().try_into()) {
                 (Ok(x),Ok(y)) => {
-                    let linked_account_object = LinkedAccount::from(AccountId::new(x), AccountId::new(y) );
+                    let linked_account_object = LinkedAccount::from(AccountId::new(x), AccountId::new(y), None, None );
                      <MainAccounts<T>>::insert(&config.genesis_account, linked_account_object);
                 }
                 (_,_) => {}
@@ -213,6 +214,28 @@ decl_module! {
             Ok(())
         }
 
+        /// add_referral_id
+        #[weight = 10000]
+        pub fn add_referral_id(origin, account: T::AccountId, referral_id: Vec<u8>) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave); //TODO Chnage error
+            ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
+            ensure!(!<ReferralId<T>>::contains_key(&referral_id), Error::<T>::NotARegisteredEnclave); // TODO Change error
+            let linked_account: LinkedAccount = <MainAccounts<T>>::get(&account);
+            ensure!(linked_account.own_referral_id.is_none(), Error::<T>::NotARegisteredEnclave);
+            Self::add_referral_id_(account, referral_id)?;
+            Ok(())
+        }
+
+        /// remove_referral_id
+        #[weight = 10000]
+        pub fn remove_referral_id(origin, account: T::AccountId) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
+            ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
+            Self::remove_referral_id_(account)?;
+            Ok(())
+        }
     }
 }
 
@@ -280,6 +303,8 @@ impl<T: Config> Module<T> {
                         .try_into()
                         .map_err(|_| Error::AccountIdConversionFailed)?,
                 ),
+                None,
+                None,
             );
             <MainAccounts<T>>::insert(&sender, new_linked_account);
             <LastAccount<T>>::put(&sender);
@@ -290,6 +315,26 @@ impl<T: Config> Module<T> {
                     .try_into()
                     .map_err(|_| Error::AccountIdConversionFailed)?,
             ));
+            Ok(())
+        })
+    }
+    pub fn add_referral_id_(account: T::AccountId, referral_id: Vec<u8>) -> Result<(), Error<T>> {
+        <MainAccounts<T>>::try_mutate(account.clone(), |ref mut current| {
+            current.own_referral_id = Some(referral_id.clone());
+            <ReferralId<T>>::insert(&referral_id, account);
+            Ok(())
+        })
+    }
+
+    pub fn remove_referral_id_(account: T::AccountId) -> Result<(), Error<T>> {
+        <MainAccounts<T>>::try_mutate(account.clone(), |ref mut current| {
+            let referral_id = if let Some(referral_id) = current.own_referral_id.clone() {
+                referral_id
+            } else {
+                return Err(Error::<T>::ProxyLimitReached);
+            };
+            <ReferralId<T>>::remove(referral_id);
+            current.own_referral_id = None;
             Ok(())
         })
     }
