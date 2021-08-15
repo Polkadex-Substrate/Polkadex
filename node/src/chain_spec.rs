@@ -392,9 +392,10 @@ pub fn testnet_genesis(
                     hex!("a0ae39d3c9a86f2aa2e2194d5379561b49cb0482599f02feb257136ff7849bd549").to_vec(),
                     hex!("883d5f8c30dfdd4abf").to_vec(),
                 ],
+                // Take this from Etherscan ( value should be entered in wei)
                 base_fee: Some(U256::from(10u128))
-            }
-            ,
+            },
+            // Take this from Etherscan ( value is same as total_difficulty)
             initial_difficulty: U256::from(34545005277356460u128),
         },
 
