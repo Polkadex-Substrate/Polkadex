@@ -2,7 +2,6 @@ use frame_benchmarking::frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use pallet_verifier_lightclient::EthereumHeader;
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
@@ -12,7 +11,7 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public, U256};
 use sp_runtime::{
     traits::{AccountIdConversion, IdentifyAccount, Verify},
     Perbill,
@@ -25,9 +24,10 @@ use node_polkadex_runtime::{
     BasicInboundChannelConfig, ContractsConfig, CouncilConfig, DemocracyConfig, ERC20PDEXConfig,
     ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, OrmlVestingConfig,
     PolkadexOcexConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
-    SystemConfig, TechnicalCommitteeConfig, TokensConfig, VerifierLightclientConfig,
+    SystemConfig, TechnicalCommitteeConfig, TokensConfig, EthereumLightClientConfig,
     MAX_NOMINATIONS,
 };
+use snowbridge_ethereum_light_client::EthereumHeader;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -373,28 +373,29 @@ pub fn testnet_genesis(
         pallet_treasury: Default::default(),
         pallet_vesting: Default::default(),
         pallet_gilt: Default::default(),
-        // This is Ropsten Config
-        pallet_verifier_lightclient: VerifierLightclientConfig {
+        snowbridge_ethereum_light_client: EthereumLightClientConfig {
             initial_header: EthereumHeader {
-                parent_hash: hex!("c75694f43b710d53e3026151ecd910b4d1614ff6be90bea0e9e25c71d31ddc94").into(),
-                timestamp: 1624172254u64,
-                number: 10473724u64,
-                author: hex!("1cffe205e97976bb9d1ec006f5222360a89353e0").into(),
-                transactions_root: hex!("9e298e62573bb9fb4d774f48aacfef0299b5b2c711708e4c0966eaa3a297d507").into(),
+                parent_hash: hex!("201a013c0f9aa7b2d563f9b64045458216dd8d59ce87065232b261b709af2320").into(),
+                timestamp: 1629005152u64.into(),
+                number: 10839997u64.into(),
+                author: hex!("c778c07d75cdd78bb62e91cb832e6066ef622588").into(),
+                transactions_root: hex!("8b72b2de8762787340674fceb1ce6dce28576952a232c6b5b954a8eab1b485dd").into(),
                 ommers_hash: hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").into(),
-                extra_data: hex!("d683010a02846765746886676f312e3136856c696e7578").into(),
-                state_root: hex!("a7c3b4cda608f234e081945534f2c921ea82ee50ec1e5ec3117edf80e7e1d24b").into(),
-                receipts_root: hex!("a6b13691149babc76431bc992102b658e2992ce48923acd830f189ee95838d2a").into(),
-                logs_bloom: (&hex!("400202000000000000100000800000000000000000200000000000004000000a000400000100011000000040000000002000000000000800000000000420000000080000020100000000000800000002000004000200000000000000000020000400000802040000000000880000280000008000000000000000003000000000200000020002000020000a000100000040008400000080000000000200000200320000100000000020004004220000000000000000000000020000000000000100000002000000000000a00000000000000001000100000000000400000020000012000020100000000000000000002000000080000000000000001000010010")).into(),
-                gas_used: 975581u64.into(),
+                extra_data: hex!("d883010a07846765746888676f312e31362e33856c696e7578").into(),
+                state_root: hex!("754510db018a3ce44049feac37c32d35e4e37dc070ae2b94da3c981a9ba34fda").into(),
+                receipts_root: hex!("10cd3b597dd6c7e3f5b065922f6249c752ce85fa3437f4ebc1a2fb8ec0904a68").into(),
+                logs_bloom: (&hex!("402100406098001000020000880400008240000040004001005390205202001008010908850028006000000004304219000000802200002a028101000835010044000402010648010000000918010020010021400000004280602000808200404862000002420880410001080082082502000e40084105020a000090010060048084000001400000045000800010022080000021010004880000004000c000410200180001200000042006000000000900000000000801c8000008000000080008000002000000010200001c308200020000042000800215005020104e00a0081010000912800003604a080000200001480968080000004000a4102000100880")).into(),
+                gas_used: 7995417u64.into(),
                 gas_limit: 8000000u64.into(),
-                difficulty: 526959644u64.into(),
+                difficulty: 1708392814u64.into(),
                 seal: vec![
-                    hex!("a0ef29b20dc8f835f811fd431be5af023ca83b9ab403838404ad09a86e4e27a52f").to_vec(),
-                    hex!("88124e2d4f2bc1eda9").to_vec(),
+                    hex!("a0ae39d3c9a86f2aa2e2194d5379561b49cb0482599f02feb257136ff7849bd549").to_vec(),
+                    hex!("883d5f8c30dfdd4abf").to_vec(),
                 ],
-            },
-            initial_difficulty: 19755084633726428633088u128.into(),
+                base_fee: Some(U256::from(10u128))
+            }
+            ,
+            initial_difficulty: U256::from(34545005277356460u128),
         },
 
         orml_vesting: OrmlVestingConfig { vesting: vec![] },
@@ -414,7 +415,7 @@ pub fn testnet_genesis(
             key: genesis.clone(),
             genesis_account: genesis,
         },
-        basic_channel_inbound: BasicInboundChannelConfig {
+        basic_inbound_channel: BasicInboundChannelConfig {
             source_channel: hex!["EE9170ABFbf9421Ad6DD07F6BDec9D89F2B581E0"].into(),
         },
         erc20_pdex_migration_pallet: ERC20PDEXConfig {
