@@ -22,7 +22,9 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 #![allow(clippy::from_over_into)]
-pub use artemis_core::MessageId;
+pub use snowbridge_core::MessageId;
+use snowbridge_dispatch::EnsureEthereumAccount;
+pub use snowbridge_ethereum_light_client::EthereumDifficultyConfig;
 use codec::{Decode, Encode};
 use constants::{currency::*, time::*};
 use frame_support::traits::{Filter, OnUnbalanced};
@@ -49,9 +51,7 @@ use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
-use pallet_basic_channel::inbound as basic_channel_inbound;
 use pallet_contracts::weights::WeightInfo;
-use pallet_eth_dispatch::EnsureEthereumAccount;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -61,7 +61,6 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_substratee_registry;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use pallet_verifier_lightclient::EthereumDifficultyConfig;
 use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
@@ -1187,24 +1186,20 @@ impl pallet_gilt::Config for Runtime {
     type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
 }
 
-pub const ROPSTEN_DIFFICULTY_CONFIG: EthereumDifficultyConfig = EthereumDifficultyConfig {
-    byzantium_fork_block: 1700000,
-    constantinople_fork_block: 4230000,
-    muir_glacier_fork_block: 7117117,
-};
+
 
 parameter_types! {
     pub const DescendantsUntilFinalized: u8 = 3;
-    pub const DifficultyConfig: EthereumDifficultyConfig = ROPSTEN_DIFFICULTY_CONFIG;
-    pub const VerifyPoW: bool = true;
+    pub const DifficultyConfig: EthereumDifficultyConfig = EthereumDifficultyConfig::ropsten();
+    pub const VerifyPoW: bool = false;
 }
 
-impl pallet_verifier_lightclient::Config for Runtime {
+impl snowbridge_ethereum_light_client::Config for Runtime {
     type Event = Event;
     type DescendantsUntilFinalized = DescendantsUntilFinalized;
     type DifficultyConfig = DifficultyConfig;
     type VerifyPoW = VerifyPoW;
-    type WeightInfo = weights::verifier_lightclient_weights::WeightInfo<Runtime>;
+    type WeightInfo = weights::ethereum_light_client_weights::WeightInfo<Runtime>;
 }
 
 pub struct CallFilter;
@@ -1215,7 +1210,7 @@ impl Filter<Call> for CallFilter {
     }
 }
 
-impl pallet_eth_dispatch::Config for Runtime {
+impl snowbridge_dispatch::Config for Runtime {
     type Origin = Origin;
     type Event = Event;
     type MessageId = MessageId;
@@ -1223,10 +1218,11 @@ impl pallet_eth_dispatch::Config for Runtime {
     type CallFilter = CallFilter;
 }
 
-impl basic_channel_inbound::Config for Runtime {
+use snowbridge_basic_channel::inbound as basic_inbound_channel;
+impl basic_inbound_channel::Config for Runtime {
     type Event = Event;
-    type Verifier = pallet_verifier_lightclient::Module<Runtime>;
-    type MessageDispatch = pallet_eth_dispatch::Module<Runtime>;
+    type Verifier = snowbridge_ethereum_light_client::Module<Runtime>;
+    type MessageDispatch = snowbridge_dispatch::Module<Runtime>;
     type WeightInfo = weights::basic_channel_inbound_weights::WeightInfo<Runtime>;
 }
 
@@ -1308,9 +1304,9 @@ construct_runtime! {
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},
-        BasicInboundChannel: basic_channel_inbound::{Pallet, Call, Config, Storage, Event},
-        Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
-        VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
+        BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event},
+        Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
+        EthereumLightClient: snowbridge_ethereum_light_client::{Pallet, Call, Storage, Event, Config},
         ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>},
         PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>},
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
@@ -1319,6 +1315,7 @@ construct_runtime! {
         Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>}
     }
 }
+
 
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
@@ -1647,7 +1644,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
             add_benchmark!(params, batches, pallet_vesting, Vesting);
-            add_benchmark!(params, batches, pallet_verifier_lightclient, VerifierLightclient);
+            add_benchmark!(params, batches, pallet_verifier_lightclient, EthereumLightClient);
             add_benchmark!(params, batches, polkadex_ido, PolkadexIdo);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
