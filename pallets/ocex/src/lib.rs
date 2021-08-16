@@ -85,7 +85,10 @@ decl_error! {
         NotARegisteredMainAccount,
         ProxyLimitReached,
         MainAccountSignatureNotFound,
-        AccountIdConversionFailed
+        AccountIdConversionFailed,
+        ReferralIdAlredayRegistered,
+        AccountAlreadyHasReferralId,
+        ReferralIdNotPresent
     }
 }
 
@@ -218,11 +221,11 @@ decl_module! {
         #[weight = 10000]
         pub fn add_referral_id(origin, account: T::AccountId, referral_id: Vec<u8>) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
-            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave); //TODO Chnage error
-            ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
-            ensure!(!<ReferralId<T>>::contains_key(&referral_id), Error::<T>::NotARegisteredEnclave); // TODO Change error
+            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
+            ensure!(<MainAccounts<T>>::contains_key(&account), Error::<T>::NotARegisteredMainAccount);
+            ensure!(!<ReferralId<T>>::contains_key(&referral_id), Error::<T>::ReferralIdAlredayRegistered);
             let linked_account: LinkedAccount = <MainAccounts<T>>::get(&account);
-            ensure!(linked_account.own_referral_id.is_none(), Error::<T>::NotARegisteredEnclave);
+            ensure!(linked_account.own_referral_id.is_none(), Error::<T>::AccountAlreadyHasReferralId);
             Self::add_referral_id_(account, referral_id)?;
             Ok(())
         }
@@ -232,7 +235,7 @@ decl_module! {
         pub fn remove_referral_id(origin, account: T::AccountId) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
             ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
-            ensure!(<MainAccounts<T>>::contains_key(&sender), Error::<T>::NotARegisteredMainAccount);
+            ensure!(<MainAccounts<T>>::contains_key(&account), Error::<T>::NotARegisteredMainAccount);
             Self::remove_referral_id_(account)?;
             Ok(())
         }
@@ -331,7 +334,7 @@ impl<T: Config> Module<T> {
             let referral_id = if let Some(referral_id) = current.own_referral_id.clone() {
                 referral_id
             } else {
-                return Err(Error::<T>::ProxyLimitReached);
+                return Err(Error::<T>::ReferralIdNotPresent);
             };
             <ReferralId<T>>::remove(referral_id);
             current.own_referral_id = None;
