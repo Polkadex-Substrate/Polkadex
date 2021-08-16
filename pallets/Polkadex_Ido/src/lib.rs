@@ -213,7 +213,7 @@ decl_storage! {
         /// For each round, we keep mapping between investors and the block, when they will claim token
         LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
         /// A mapping between investor and claim amount
-        InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::Hash, hasher(identity) T::AccountId => T::Balance;
+        InfoClaimAmount get(fn get_claim_amount): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId => T::Balance;
         /// A mapping between funding round id and its InterestedParticipants plus the amount they are willing to invest
         InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
         /// A mapping between funding round id and amount interested participant are will to invest
@@ -330,8 +330,8 @@ decl_module! {
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
-                token_a : token_a.clone(),
-                amount : amount.clone(),
+                token_a.clone(),
+                amount.clone(),
                 token_b,
                 vesting_per_block,
                 start_block,
@@ -428,11 +428,11 @@ decl_module! {
                 .saturating_mul(investor_share);
 
                 //Check if investor previously claimed the tokens
-                let claimed_tokens = if <InfoClaimAmount<T>>::contains(&round_id, &investor_address) {
+                let claimed_tokens = if <InfoClaimAmount<T>>::contains_key(&round_id, &investor_address) {
                     <InfoClaimAmount<T>>::get(&round_id,&investor_address)
                 }else {
                     Zero::zero()
-                }
+                };
                 // claimable_tokens : is the total amount of token the investor can withdraw(claim)  in their account
                 let claimable_tokens = total_tokens_released_for_given_investor - claimed_tokens;
                 T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens);
@@ -526,8 +526,8 @@ decl_module! {
             ensure!(<InfoProjectTeam<T>>::contains_key(&creator), <Error<T>>::CreaterDoesNotExist);
             let info_round_id = <InfoProjectTeam<T>>::get(&creator);
             ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
-            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
             <T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise)?;
             Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
@@ -552,7 +552,7 @@ decl_module! {
             ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
-            let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1 / funding_round.token_a_priceper_token_b);
+            let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
             let remaining_token = funding_round.amount.saturating_sub(total_tokens_bought_by_investors);
             let round_account_id = Self::round_account_id(round_id.clone());
             //Transfers to remaining token back to creator after round.
