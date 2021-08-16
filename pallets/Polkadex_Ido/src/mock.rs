@@ -27,13 +27,13 @@ use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::arithmetic::Zero;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
+use sp_core::H160;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
-use sp_core::H160;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -179,7 +179,11 @@ impl Default for ExtBuilder {
             endowed_accounts: vec![
                 (ALICE, AssetId::POLKADEX, INITIAL_BALANCE),
                 // Add Custom token to Alice account which will be sold in the ido
-                (ALICE, AssetId::CHAINSAFE(H160::from_low_u64_be(24)), INITIAL_BALANCE),
+                (
+                    ALICE,
+                    AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
+                    INITIAL_BALANCE,
+                ),
                 (4, AssetId::POLKADEX, INITIAL_BALANCE),
                 (2, AssetId::POLKADEX, INITIAL_BALANCE),
                 (5, AssetId::POLKADEX, INITIAL_BALANCE),
