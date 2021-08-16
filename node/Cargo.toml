@@ -85,10 +85,6 @@ pallet-transaction-payment = { default-features = false, version = '3.0.0', git 
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
 sp-authority-discovery = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 
-# Third party dependencies
-pallet-verifier-lightclient = {git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features=false, rev="6ac2106a608bf11c53981b67a106c2afd43bbee6"}
-
-
 [dev-dependencies]
 futures = "0.3.9"
 tempfile = "3.1.0"
