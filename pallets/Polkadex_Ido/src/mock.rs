@@ -33,7 +33,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
-
+use sp_core::H160;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -178,6 +178,8 @@ impl Default for ExtBuilder {
         Self {
             endowed_accounts: vec![
                 (ALICE, AssetId::POLKADEX, INITIAL_BALANCE),
+                // Add Custom token to Alice account which will be sold in the ido
+                (ALICE, AssetId::CHAINSAFE(H160::from_low_u64_be(24)), INITIAL_BALANCE),
                 (4, AssetId::POLKADEX, INITIAL_BALANCE),
                 (2, AssetId::POLKADEX, INITIAL_BALANCE),
                 (5, AssetId::POLKADEX, INITIAL_BALANCE),

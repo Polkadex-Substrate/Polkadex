@@ -416,32 +416,32 @@ decl_module! {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             // Investor can only withdraw after the funding round is closed
-            if current_block_no >= funding_round.close_round_block {
-                let round_account_id = Self::round_account_id(round_id.clone());
-                let investor_share = <InvestorShareInfo<T>>::get(round_id, investor_address.clone());
-                let total_released_block: T::BlockNumber = current_block_no - funding_round.close_round_block;
-                // total_tokens_released_for_given_investor is the total available tokens for their investment
-                // relative to the current block
-                let total_tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
+            let round_account_id = Self::round_account_id(round_id.clone());
+            let investor_share = <InvestorShareInfo<T>>::get(round_id, investor_address.clone());
+            let total_released_block: T::BlockNumber = current_block_no - funding_round.close_round_block;
+            // total_tokens_released_for_given_investor is the total available tokens for their investment
+            // relative to the current block
+            let total_tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
                 .saturating_mul(funding_round.vesting_per_block)
                 .saturating_mul(investor_share);
 
                 //Check if investor previously claimed the tokens
-                let claimed_tokens = if <InfoClaimAmount<T>>::contains_key(&round_id, &investor_address) {
-                    <InfoClaimAmount<T>>::get(&round_id,&investor_address)
+            let claimed_tokens = if <InfoClaimAmount<T>>::contains_key(&round_id, &investor_address) {
+                <InfoClaimAmount<T>>::get(&round_id,&investor_address)
                 }else {
                     Zero::zero()
                 };
                 // claimable_tokens : is the total amount of token the investor can withdraw(claim)  in their account
-                let claimable_tokens = total_tokens_released_for_given_investor - claimed_tokens;
-                T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens);
+            let claimable_tokens = total_tokens_released_for_given_investor - claimed_tokens;
+            T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens);
 
-                <InfoClaimAmount<T>>::insert(round_id, investor_address.clone(), total_tokens_released_for_given_investor);
+            <InfoClaimAmount<T>>::insert(round_id, investor_address.clone(), total_tokens_released_for_given_investor);
                 // TODO : remove
-                <LastClaimBlockInfo<T>>::insert(round_id, investor_address.clone(), current_block_no);
-            }
+            <LastClaimBlockInfo<T>>::insert(round_id, investor_address.clone(), current_block_no);
             Self::deposit_event(RawEvent::TokenClaimed(round_id, investor_address));
+
             Ok(())
         }
 
@@ -529,7 +529,7 @@ decl_module! {
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
-            <T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise)?;
+            ensure!(<T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise).is_ok(), Error::<T>::FundRaisedRedrawn);
             Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
             Ok(())
         }
@@ -554,6 +554,8 @@ decl_module! {
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
             let remaining_token = funding_round.amount.saturating_sub(total_tokens_bought_by_investors);
+            // Check if there is any left to withdraw
+            ensure!(remaining_token > Zero::zero(), Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
             //Transfers to remaining token back to creator after round.
             <T as Config>::Currency::transfer(funding_round.token_a, &round_account_id, &beneficiary, remaining_token)?;
@@ -631,7 +633,11 @@ decl_error! {
         /// TokenA cannot be equal to TokenB
         TokenAEqTokenB,
         /// Block withdrawal when round is active
-        WithdrawalBlocked
+        WithdrawalBlocked,
+        /// Block claim token when round is active,
+        ClaimTokenBlocked,
+        /// FundRaised already Withdrawn
+        FundRaisedRedrawn,
     }
 }
 
