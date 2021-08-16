@@ -2,7 +2,6 @@ use frame_benchmarking::frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use pallet_verifier_lightclient::EthereumHeader;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::Block;
@@ -22,7 +21,7 @@ use node_polkadex_runtime::{
     AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
     DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, PolkadexOcexConfig, SessionConfig,
     SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-    TokensConfig, VerifierLightclientConfig,ERC20PDEXConfig, BasicInboundChannelConfig, wasm_binary_unwrap,
+    TokensConfig, wasm_binary_unwrap,
 };
 use node_polkadex_runtime::constants::currency::*;
 pub use node_polkadex_runtime::GenesisConfig;
@@ -370,30 +369,6 @@ pub fn testnet_genesis(
         pallet_treasury: Default::default(),
         pallet_vesting: Default::default(),
         pallet_gilt: Default::default(),
-        // This is Ropsten Config
-        pallet_verifier_lightclient: VerifierLightclientConfig {
-            initial_header: EthereumHeader {
-                parent_hash: hex!("c75694f43b710d53e3026151ecd910b4d1614ff6be90bea0e9e25c71d31ddc94").into(),
-                timestamp: 1624172254u64.into(),
-                number: 10473724u64.into(),
-                author: hex!("1cffe205e97976bb9d1ec006f5222360a89353e0").into(),
-                transactions_root: hex!("9e298e62573bb9fb4d774f48aacfef0299b5b2c711708e4c0966eaa3a297d507").into(),
-                ommers_hash: hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").into(),
-                extra_data: hex!("d683010a02846765746886676f312e3136856c696e7578").into(),
-                state_root: hex!("a7c3b4cda608f234e081945534f2c921ea82ee50ec1e5ec3117edf80e7e1d24b").into(),
-                receipts_root: hex!("a6b13691149babc76431bc992102b658e2992ce48923acd830f189ee95838d2a").into(),
-                logs_bloom: (&hex!("400202000000000000100000800000000000000000200000000000004000000a000400000100011000000040000000002000000000000800000000000420000000080000020100000000000800000002000004000200000000000000000020000400000802040000000000880000280000008000000000000000003000000000200000020002000020000a000100000040008400000080000000000200000200320000100000000020004004220000000000000000000000020000000000000100000002000000000000a00000000000000001000100000000000400000020000012000020100000000000000000002000000080000000000000001000010010")).into(),
-                gas_used: 975581u64.into(),
-                gas_limit: 8000000u64.into(),
-                difficulty: 526959644u64.into(),
-                seal: vec![
-                    hex!("a0ef29b20dc8f835f811fd431be5af023ca83b9ab403838404ad09a86e4e27a52f").to_vec(),
-                    hex!("88124e2d4f2bc1eda9").to_vec(),
-                ],
-            },
-            initial_difficulty: 19755084633726428633088u128.into(),
-        },
-
         orml_vesting: OrmlVestingConfig { vesting: vec![] },
         orml_tokens: TokensConfig {
             endowed_accounts: vec![
@@ -410,12 +385,6 @@ pub fn testnet_genesis(
         polkadex_ocex: PolkadexOcexConfig {
             key: genesis.clone(),
             genesis_account: genesis,
-        },
-        basic_channel_inbound: BasicInboundChannelConfig {
-            source_channel: hex!["EE9170ABFbf9421Ad6DD07F6BDec9D89F2B581E0"].into(),
-        },
-        erc20_pdex_migration_pallet: ERC20PDEXConfig {
-            address: hex!["3f0839385DB9cBEa8E73AdA6fa0CFe07E321F61d"].into()
         },
     }
 }
