@@ -67,7 +67,7 @@ When running a node via the binary file, data is stored in a local directory typ
 
 This will remove the data folder, note that all chain data is now lost.
 
-## Run as a validator node
+## Run a local network (two nodes)
 
 - Install `subkey`, `jq`
 ```bash
@@ -192,6 +192,9 @@ The development node is a Substrate-based node, so you can interact with it usin
 Start by connecting to it with Polkadot JS Apps. Open a browser to: https://polkadot.js.org/apps/#/explorer. This will open Polkadot JS Apps, which automatically connects to Polkadot MainNet.
 
 Click on the top left corner to open the menu to configure the networks, and then navigate down to open the Development sub-menu. In there, you will want to toggle the "Local Node" option, which points Polkadot JS Apps to ws://127.0.0.1:9944. Next, select the Switch button, and the site should connect to your Polkadex development node.
+
+## How to run a validator
+Here is a guide [Run a validator (Polkadex)](./docs/run-a-validator.md)
 
 ## Contribute :heart_eyes:
 We would love to work with anyone who can contribute their work and improve this project. The details will be shared soon.
