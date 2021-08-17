@@ -17,9 +17,9 @@ const RUNTIME_ERROR: i64 = 1;
 #[rpc]
 pub trait PolkadexIdoRpcApi<BlockHash,AccountId,Hash> {
     #[rpc(name = "polkadexido_getRoundsByInvestor")]
-    fn get_rounds_by_investor( &self,account : AccountId, at: Option<BlockHash>) -> Result<Vec<(Hash, FundingRoundWithPrimitives)>>;
+    fn get_rounds_by_investor( &self,account : AccountId, at: Option<BlockHash>) -> Result<Vec<(Hash, FundingRoundWithPrimitives<AccountId>)>>;
     #[rpc(name = "polkadexido_getRoundsByCreator")]
-    fn get_rounds_by_creator( &self,account : AccountId, at: Option<BlockHash>) -> Result<Vec<(Hash, FundingRoundWithPrimitives)>>;
+    fn get_rounds_by_creator( &self,account : AccountId, at: Option<BlockHash>) -> Result<Vec<(Hash, FundingRoundWithPrimitives<AccountId>)>>;
 }
 
 /// A struct that implements the `SumStorageApi`.
@@ -49,7 +49,7 @@ for PolkadexIdoRpc<C, Block>
         &self,
         account : AccountId,
         at: Option<<Block as BlockT>::Hash>
-    ) -> Result<Vec<(Hash, FundingRoundWithPrimitives)>> {
+    ) -> Result<Vec<(Hash, FundingRoundWithPrimitives<AccountId>)>> {
 
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(||
@@ -65,7 +65,7 @@ for PolkadexIdoRpc<C, Block>
         &self,
         account : AccountId,
         at: Option<<Block as BlockT>::Hash>
-    ) -> Result<Vec<(Hash, FundingRoundWithPrimitives)>> {
+    ) -> Result<Vec<(Hash, FundingRoundWithPrimitives<AccountId>)>> {
 
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(||

@@ -201,19 +201,20 @@ impl<T: Config> FundingRound<T> {
         }
     }
 
-    fn to_primitive(&self) -> FundingRoundWithPrimitives {
+    fn to_primitive(&self) -> FundingRoundWithPrimitives<T::AccountId> {
         FundingRoundWithPrimitives {
             token_a: self.token_a,
-            amount: self.amount.encode(),
+            creator: self.creator.clone(),
+            amount: self.amount.saturated_into(),
             token_b: self.token_b,
-            vesting_per_block: self.vesting_per_block.encode(),
+            vesting_per_block: self.vesting_per_block.saturated_into(),
             start_block: self.start_block.saturated_into(),
-            min_allocation: self.min_allocation.encode(),
-            max_allocation: self.max_allocation.encode(),
-            operator_commission: self.operator_commission.encode(),
-            token_a_priceper_token_b: self.token_a_priceper_token_b.encode(),
+            min_allocation: self.min_allocation.saturated_into(),
+            max_allocation: self.max_allocation.saturated_into(),
+            operator_commission: self.operator_commission.saturated_into(),
+            token_a_priceper_token_b: self.token_a_priceper_token_b.saturated_into(),
             close_round_block: self.close_round_block.saturated_into(),
-            actual_raise: self.actual_raise.encode()
+            actual_raise: self.actual_raise.saturated_into()
         }
     }
 }
@@ -688,8 +689,9 @@ impl<T: Config> Module<T> {
         T::ModuleId::get().into_account()
     }
 
-    pub fn rounds_by_investor(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives)> {
+    pub fn rounds_by_investor(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
         <InvestorShareInfo<T>>::iter().filter_map(|(round_id, investor, _)| {
+            log::
             if investor != account {
                 None
             }else{
@@ -699,7 +701,7 @@ impl<T: Config> Module<T> {
         }).collect()
     }
 
-    pub fn rounds_by_creator(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives)> {
+    pub fn rounds_by_creator(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
         <InfoFundingRound<T>>::iter().filter_map(|(round_id, round_info)| {
             if round_info.creator != account {
                 None
