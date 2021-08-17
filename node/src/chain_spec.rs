@@ -375,28 +375,28 @@ pub fn testnet_genesis(
         pallet_gilt: Default::default(),
         snowbridge_ethereum_light_client: EthereumLightClientConfig {
             initial_header: EthereumHeader {
-                parent_hash: hex!("201a013c0f9aa7b2d563f9b64045458216dd8d59ce87065232b261b709af2320").into(),
-                timestamp: 1629005152u64.into(),
-                number: 10839997u64.into(),
-                author: hex!("c778c07d75cdd78bb62e91cb832e6066ef622588").into(),
-                transactions_root: hex!("8b72b2de8762787340674fceb1ce6dce28576952a232c6b5b954a8eab1b485dd").into(),
+                parent_hash: hex!("92ec9f26c923159794cc808323991db7dd882a15a7d70db0a95eb71df9b209b8").into(),
+                timestamp: 1629122855u64.into(),
+                number: 10848717u64.into(),
+                author: hex!("c01658737f693370d92de84be2bb32949c9a6891").into(),
+                transactions_root: hex!("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").into(),
                 ommers_hash: hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").into(),
-                extra_data: hex!("d883010a07846765746888676f312e31362e33856c696e7578").into(),
-                state_root: hex!("754510db018a3ce44049feac37c32d35e4e37dc070ae2b94da3c981a9ba34fda").into(),
-                receipts_root: hex!("10cd3b597dd6c7e3f5b065922f6249c752ce85fa3437f4ebc1a2fb8ec0904a68").into(),
-                logs_bloom: (&hex!("402100406098001000020000880400008240000040004001005390205202001008010908850028006000000004304219000000802200002a028101000835010044000402010648010000000918010020010021400000004280602000808200404862000002420880410001080082082502000e40084105020a000090010060048084000001400000045000800010022080000021010004880000004000c000410200180001200000042006000000000900000000000801c8000008000000080008000002000000010200001c308200020000042000800215005020104e00a0081010000912800003604a080000200001480968080000004000a4102000100880")).into(),
-                gas_used: 7995417u64.into(),
+                extra_data: hex!("d883010a06846765746888676f312e31362e34856c696e7578").into(),
+                state_root: hex!("2eed2dfe97fa51c2599655c90046b8c3c27798e6506810f20fb0c7b7263c8d3c").into(),
+                receipts_root: hex!("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").into(),
+                logs_bloom: (&hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")).into(),
+                gas_used: 0u64.into(),
                 gas_limit: 8000000u64.into(),
-                difficulty: 1708392814u64.into(),
+                difficulty: 1604500197u64.into(),
                 seal: vec![
-                    hex!("a0ae39d3c9a86f2aa2e2194d5379561b49cb0482599f02feb257136ff7849bd549").to_vec(),
-                    hex!("883d5f8c30dfdd4abf").to_vec(),
+                    hex!("a0a1c64e193f52640ad1b5c4a162eaac6fffdb854e2f1107cb67ffc9bd39ddae8b").to_vec(),
+                    hex!("8813c37d0e520a40d1").to_vec(),
                 ],
                 // Take this from Etherscan ( value should be entered in wei)
-                base_fee: Some(U256::from(10u128))
+                base_fee: Some(U256::from(9u128))
             },
             // Take this from Etherscan ( value is same as total_difficulty)
-            initial_difficulty: U256::from(34545005277356460u128),
+            initial_difficulty: U256::from(34558207564067640u128),
         },
 
         orml_vesting: OrmlVestingConfig { vesting: vec![] },
@@ -417,10 +417,10 @@ pub fn testnet_genesis(
             genesis_account: genesis,
         },
         basic_inbound_channel: BasicInboundChannelConfig {
-            source_channel: hex!["EE9170ABFbf9421Ad6DD07F6BDec9D89F2B581E0"].into(),
+            source_channel: hex!["30E16792D89f1939dEFb60683A44E3917901C849"].into(),
         },
         erc20_pdex_migration_pallet: ERC20PDEXConfig {
-            address: hex!["3f0839385DB9cBEa8E73AdA6fa0CFe07E321F61d"].into()
+            address: hex!["e46B454A908cEd5A795FA7a2D106AcDdcf7ea45e"].into()
         },
     }
 }
