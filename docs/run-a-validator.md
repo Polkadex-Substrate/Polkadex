@@ -1,6 +1,10 @@
 # Run a Validator (Polkadex)
 
-This guide will instruct you how to set up a validator node on the Polkadex network.
+This guide will instruct you how to set up a validator node on the Polkadex Public Testnet.
+
+- <strong>Bootnode IP address</strong>: 13.235.92.50
+- <strong>Bootnode Peer ID</strong>: 12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR
+- <strong>Repo</strong>: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.0
 
 ## Initial Set-up
 
@@ -15,7 +19,7 @@ The transactions weights in Polkadot were benchmarked on standard hardware. It i
 For the full details of the standard hardware please see [here](https://github.com/paritytech/substrate/pull/5848)
 
 - <strong>CPU</strong> - Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
-- <strong>Storage</strong> - A NVMe solid state drive. Should be reasonably sized to deal with blockchain growth. Starting around 80GB - 160GB will be okay for the first six months of Polkadot, but will need to be re-evaluated every six months.
+- <strong>Storage</strong> - A NVMe solid state drive. Should be reasonably sized to deal with blockchain growth. Starting around 80GB - 160GB will be okay for the first six months of Polkadex, but will need to be re-evaluated every six months.
 - <strong>Memory</strong> - 64GB
 
 The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to be equal to other validators that are running the standard.
@@ -52,7 +56,7 @@ Verify your installation.
 rustc --version
 ```
 
-Finally, run this command to install the necessary dependencies for compiling and running the Polkadot node software.
+Finally, run this command to install the necessary dependencies for compiling and running the Polkadex node.
 
 ```
 sudo apt install make clang pkg-config libssl-dev build-essential
@@ -112,22 +116,58 @@ cargo install --force --git https://github.com/paritytech/substrate subkey
 
 ### Synchronize Chain Data
 
+Download `customSpecRaw.json` file for the Polkadex Public Testnet
+
 You can begin syncing your node by running the following command:
 
 ```
-./target/release/polkadex-node --pruning=archive
+./target/release/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --pruning=archive
 ```
 
 if you do not want to start in validator mode right away.
 
 ```
-[TODO] Need log here
+2021-08-17 12:46:37 Polkadex Node    
+2021-08-17 12:46:37 ✌️  version 3.0.0-dbc98eca-x86_64-linux-gnu    
+2021-08-17 12:46:37 ❤️  by Substrate DevHub <https://github.com/substrate-developer-hub>, 2017-2021    
+2021-08-17 12:46:37 📋 Chain specification: Polkadex Public Testnet    
+2021-08-17 12:46:37 🏷 Node name: utopian-ship-1166    
+2021-08-17 12:46:37 👤 Role: FULL    
+2021-08-17 12:46:37 💾 Database: RocksDb at /home/ubuntu/.local/share/polkadex-node/chains/polkadex_udon_net/db    
+2021-08-17 12:46:37 ⛓  Native runtime: node-polkadex-265 (node-polkadex-1.tx2.au10)    
+2021-08-17 12:46:39 🔨 Initializing Genesis block/state (state: 0x4702…ee26, header-hash: 0x4653…f69b)    
+2021-08-17 12:46:39 👴 Loading GRANDPA authority set from genesis on what appears to be first startup.    
+2021-08-17 12:46:39 ⏱  Loaded block-time = 3s from genesis on first-launch    
+2021-08-17 12:46:39 👶 Creating empty BABE epoch changes on what appears to be first startup.    
+2021-08-17 12:46:39 Using default protocol ID "sup" because none is configured in the chain specs    
+2021-08-17 12:46:39 🏷 Local node identity is: 12D3KooWBch6ZrTHS8Svgs2GH8t497BittzFSWbCsgioShh8SiN1    
+2021-08-17 12:46:39 📦 Highest known block at #0    
+2021-08-17 12:46:39 〽️ Prometheus server started at 127.0.0.1:9615    
+2021-08-17 12:46:39 Listening for new connections on 127.0.0.1:9944.    
 ```
 
 Example of node sync:
 
 ```
-[TODO] Need log here
+2021-08-17 12:46:40 🔍 Discovered new external address for our node: /ip4/18.156.36.197/tcp/30333/ws/p2p/12D3KooWBch6ZrTHS8Svgs2GH8t497BittzFSWbCsgioShh8SiN1    
+2021-08-17 12:46:40 [#796] 🗳  Starting signed phase round 2.    
+2021-08-17 12:46:40 [#838] 🗳  Starting unsigned phase(true).    
+2021-08-17 12:46:40 [#882] 🗳  Finalized election round with compute ElectionCompute::OnChain.    
+2021-08-17 12:46:40 [882] 💸 new validator set of size 2 has been processed for era 1    
+2021-08-17 12:46:42 [#1863] 🗳  Starting signed phase round 3.    
+2021-08-17 12:46:42 [#1909] 🗳  Starting unsigned phase(true).    
+2021-08-17 12:46:42 [#1951] 🗳  Finalized election round with compute ElectionCompute::OnChain.    
+2021-08-17 12:46:42 [1951] 💸 new validator set of size 2 has been processed for era 2    
+2021-08-17 12:46:43 ✨ Imported #2631 (0x43ae…7b28)    
+2021-08-17 12:46:44 💤 Idle (4 peers), best: #2631 (0x43ae…7b28), finalized #2629 (0x646d…9efc), ⬇ 155.3kiB/s ⬆ 3.6kiB/s    
+2021-08-17 12:46:45 ✨ Imported #2632 (0xcad3…0e19)    
+2021-08-17 12:46:48 ✨ Imported #2633 (0xedd3…a07d)    
+2021-08-17 12:46:49 💤 Idle (4 peers), best: #2633 (0xedd3…a07d), finalized #2631 (0x43ae…7b28), ⬇ 1.3kiB/s ⬆ 1.4kiB/s    
+2021-08-17 12:46:51 ✨ Imported #2634 (0xb743…0645)    
+2021-08-17 12:46:54 ✨ Imported #2635 (0x46df…4b8a)    
+2021-08-17 12:46:54 ✨ Imported #2635 (0x6e24…6988)    
+2021-08-17 12:46:54 💤 Idle (4 peers), best: #2635 (0x46df…4b8a), finalized #2632 (0xcad3…0e19), ⬇ 1.4kiB/s ⬆ 1.4kiB/s    
+2021-08-17 12:46:59 💤 Idle (4 peers), best: #2635 (0x46df…4b8a), finalized #2633 (0xedd3…a07d), ⬇ 0.8kiB/s ⬆ 0.6kiB/s
 ```
 
 The `--pruning=archive` flag is implied by the `--validator` flag, so it is only required explicitly if you start your node without one of these two options. If you do not set your pruning to archive node, even when not running in validator mode, you will need to re-sync your database when you switch.
@@ -171,10 +211,58 @@ Your bonded account will available under `Stashes`. You should now see a new car
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-./target/release/polkadex-node --validator --name "name on telemetry"
+./target/release/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name "Validator-Turtorial"
+```
+Similarly:
+```
+2021-08-17 12:50:57 Polkadex Node    
+2021-08-17 12:50:57 ✌️  version 3.0.0-dbc98eca-x86_64-linux-gnu    
+2021-08-17 12:50:57 ❤️  by Substrate DevHub <https://github.com/substrate-developer-hub>, 2017-2021    
+2021-08-17 12:50:57 📋 Chain specification: Polkadex Public Testnet    
+2021-08-17 12:50:57 🏷 Node name: Validator-Turtorial    
+2021-08-17 12:50:57 👤 Role: AUTHORITY    
+2021-08-17 12:50:57 💾 Database: RocksDb at /home/ubuntu/.local/share/polkadex-node/chains/polkadex_udon_net/db    
+2021-08-17 12:50:57 ⛓  Native runtime: node-polkadex-265 (node-polkadex-1.tx2.au10)    
+2021-08-17 12:50:57 Using default protocol ID "sup" because none is configured in the chain specs    
+2021-08-17 12:50:57 🏷 Local node identity is: 12D3KooWBch6ZrTHS8Svgs2GH8t497BittzFSWbCsgioShh8SiN1    
+2021-08-17 12:50:57 📦 Highest known block at #2687    
+2021-08-17 12:50:57 〽️ Prometheus server started at 127.0.0.1:9615    
+2021-08-17 12:50:57 Listening for new connections on 127.0.0.1:9944.    
+2021-08-17 12:50:57 👶 Starting BABE Authorship worker
 ```
 
 You can give your validator any name that you like, but note that others will be able to see it, and it will be included in the list of all servers using the same telemetry server. Since numerous people are using telemetry, it is recommended that you choose something likely to be unique.
+
+##### Running a validator as a service
+
+Prepare a `validator.service` file
+```
+nano validator.service
+```
+
+```
+[Unit]
+Description=Polkadex Testnet Validator Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+ExecStart=/home/ubuntu/Polkadex/target/release/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name 'Validator-Turtorial'
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Run a validator as a service
+```
+sudo cp ./validator.service /etc/systemd/system
+sudo systemctl daemon-reload
+sudo systemctl start validator
+sudo systemctl status validator
+```
 
 ### Generating the Session Keys
 You need to tell the chain your Session keys by signing and submitting an extrinsic. This is what associates your validator node with your Controller account on Polkadex.
@@ -204,16 +292,16 @@ You need to tell the chain your Session keys by signing and submitting an extrin
 
 Go to [Staking > Account Actions](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/staking/actions), and click "Set Session Key" on the bonding account you generated earlier. Enter the output from `author_rotateKeys` in the field and click "Set Session Key".
 
-[TODO] need a screenshot here
+![Set Session Key](./screenshots/session_key.png)
 
 Submit this extrinsic and you are now ready to start validating.
 
 ## Validate
 To verify that your node is live and synchronized, head to [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) and find your node. Note that this will show all nodes on the Polkadex network, which is why it is important to select a unique name!
 
-In this example, we used the name `validator-test` and have successfully located it upon searching:
+In this example, we used the name `Validator-Turtorial` and have successfully located it upon searching:
 
-[TODO] need a screenshot here
+![Telemetry](./screenshots/telemetry.png)
 
 ### Setup via Validator Tab
 
@@ -235,8 +323,15 @@ Click "Bond & Validate".
 
 If you go to the "Staking" tab, you will see a list of active validators currently running on the network. At the top of the page, it shows the number of validator slots that are available as well as the number of nodes that have signaled their intention to be a validator. You can go to the "Waiting" tab to double check to see whether your node is listed there.
 
-[TODO] need a screenshot here
+![Waiting](./screenshots/waiting.png)
 
 The validator set is refreshed every era. In the next era, if there is a slot available and your node is selected to join the validator set, your node will become an active validator. Until then, it will remain in the <i>waiting</i> queue. If your validator is not selected to become part of the validator set, it will remain in the <i>waiting</i> queue until it is. There is no need to re-start if you are not selected for the validator set in a particular era. However, it may be necessary to increase the number of PDEX staked or seek out nominators for your validator in order to join the validator set.
 
 <strong>Congratulations!</strong> If you have followed all of these steps, and been selected to be a part of the validator set, you are now running a Polkadex validator!
+
+## FAQ
+
+### How do I clear all my chain data?
+```
+./target/release/polkadex-node purge-chain --chain=/home/ubuntu/customSpecRaw.json
+```
