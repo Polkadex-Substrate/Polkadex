@@ -74,7 +74,7 @@ decl_event!(
         MainAccountRegistered(AccountId),
         ProxyAdded(AccountId,AccountId),
         ProxyRemoved(AccountId,AccountId),
-        UIDUploaded(AccountId, Hash),
+        CIDUploaded(AccountId, Hash),
     }
 );
 
@@ -228,7 +228,7 @@ decl_module! {
             ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
             <Snapshot<T>>::try_mutate(sender.clone(), |ref mut old_cid| {
                 **old_cid = new_cid;
-                Self::deposit_event(RawEvent::UIDUploaded(sender,new_cid));
+                Self::deposit_event(RawEvent::CIDUploaded(sender,new_cid));
                 Ok(())
             })
         }
