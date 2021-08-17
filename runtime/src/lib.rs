@@ -1189,7 +1189,7 @@ impl pallet_gilt::Config for Runtime {
 
 
 parameter_types! {
-    pub const DescendantsUntilFinalized: u8 = 3;
+    pub const DescendantsUntilFinalized: u8 = 1;
     pub const DifficultyConfig: EthereumDifficultyConfig = EthereumDifficultyConfig::ropsten();
     pub const VerifyPoW: bool = false;
 }
