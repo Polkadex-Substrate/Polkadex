@@ -25,9 +25,13 @@ For the full details of the standard hardware please see [here](https://github.c
 
 The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to be equal to other validators that are running the standard.
 
-### Node Prerequisites: Install Rust and Dependencies
+### Node Prerequisites: Install Dependencies and Rust
 
-Once you choose your cloud service provider and set-up your new server, the first thing you will do is install Rust.
+Once you choose your cloud service provider and set-up your new server, the first thing you will do is to install the necessary dependencies.
+
+```
+sudo apt install make clang pkg-config libssl-dev build-essential curl
+```
 
 If you have never installed Rust, you should do this first.
 
@@ -43,8 +47,6 @@ If not, this command will fetch the latest version of Rust and install it.
 curl https://sh.rustup.rs -sSf | sh -s -- -y
 ```
 
-> If you do not have "curl" installed, run "sudo apt install curl"
-
 To configure your shell, run the following command.
 
 ```
@@ -55,12 +57,6 @@ Verify your installation.
 
 ```
 rustc --version
-```
-
-Finally, run this command to install the necessary dependencies for compiling and running the Polkadex node.
-
-```
-sudo apt install make clang pkg-config libssl-dev build-essential
 ```
 
 Note - if you are using OSX and you have Homebrew installed, you can issue the following equivalent command INSTEAD of the previous one:
@@ -93,9 +89,13 @@ sudo ntpq -p
 
 ### Building and Installing the `Polkadex` binary
 
+>If you don't want to build the binary and just download it, use the following command.
+>`curl -o polkadex-node https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/polkadex-node`
+
 You will need to build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.0 release.
 
 ```
+cd $HOME
 git clone https://github.com/Polkadex-Substrate/Polkadex.git
 cd Polkadex
 ```
@@ -104,27 +104,26 @@ Build native code with the cargo release profile.
 
 ```
 git checkout v0.4.0
-./scripts/init.sh
+rustup toolchain add nightly-2021-05-11
+rustup target add wasm32-unknown-unknown --toolchain nightly-2021-05-11
+rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-05-11
 cargo build --release
 ```
 
 <i>This step will take a while (generally 10 - 40 minutes, depending on your hardware).</i>
 
->If you don't want to build the binary and just download it, use the following command.
->`curl -o polkadex-node https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/polkadex-node`
-
 ### Synchronize Chain Data
 
 Download `customSpecRaw.json` file for the Polkadex Public Testnet
 ```
-cd /home/ubuntu
+cd $HOME
 curl -o customSpecRaw.json https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
 ```
 
 You can begin syncing your node by running the following command:
 
 ```
-./target/release/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --pruning=archive
+$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --pruning=archive
 ```
 
 if you do not want to start in validator mode right away.
@@ -214,7 +213,7 @@ Your bonded account will available under `Stashes`. You should now see a new car
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-./target/release/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name "Validator-Turtorial"
+$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name "Validator-Turtorial"
 ```
 Similarly:
 ```
@@ -240,7 +239,7 @@ You can give your validator any name that you like, but note that others will be
 
 Prepare a `validator.service` file
 ```
-nano validator.service
+sudo nano /etc/systemd/system/validator.service
 ```
 
 ```
@@ -252,7 +251,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=/home/ubuntu/Polkadex/target/release/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name 'Validator-Turtorial'
+ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name 'Validator-Turtorial'
 Restart=on-failure
 
 [Install]
@@ -261,7 +260,6 @@ WantedBy=multi-user.target
 
 Run a validator as a service
 ```
-sudo cp ./validator.service /etc/systemd/system
 sudo systemctl daemon-reload
 sudo systemctl start validator
 sudo systemctl status validator
@@ -336,5 +334,5 @@ The validator set is refreshed every era. In the next era, if there is a slot av
 
 ### How do I clear all my chain data?
 ```
-./target/release/polkadex-node purge-chain --chain=/home/ubuntu/customSpecRaw.json
+$HOME/Polkadex/target/release/polkadex-node purge-chain --chain=$HOME/customSpecRaw.json
 ```
