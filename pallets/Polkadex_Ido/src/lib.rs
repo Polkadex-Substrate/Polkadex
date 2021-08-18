@@ -691,7 +691,6 @@ impl<T: Config> Module<T> {
 
     pub fn rounds_by_investor(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
         <InvestorShareInfo<T>>::iter().filter_map(|(round_id, investor, _)| {
-            log::
             if investor != account {
                 None
             }else{
