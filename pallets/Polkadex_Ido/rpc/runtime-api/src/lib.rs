@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 use codec::Codec;
+use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 use sp_std::vec::Vec;
 sp_api::decl_runtime_apis! {
     pub trait PolkadexIdoRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{

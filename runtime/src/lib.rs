@@ -55,6 +55,7 @@ use pallet_eth_dispatch::EnsureEthereumAccount;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 use pallet_session::historical as pallet_session_historical;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
@@ -81,7 +82,6 @@ use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion,
     StaticLookup, Zero,
 };
-use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
 };

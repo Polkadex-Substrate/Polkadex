@@ -38,6 +38,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
 
+use codec::Codec;
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::Weight;
 use frame_support::{
@@ -71,8 +72,8 @@ use codec::Codec;
 mod benchmarking;
 pub mod weights;
 
-pub use weights::WeightInfo;
 use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 mod mock;
@@ -133,13 +134,11 @@ impl Default for InvestorInfo {
     }
 }
 
-
-
 /// All information for funding round
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct FundingRound<T: Config> {
     token_a: AssetId,
-    creator : T::AccountId,
+    creator: T::AccountId,
     amount: T::Balance,
     token_b: AssetId,
     vesting_per_block: T::Balance,
@@ -156,7 +155,7 @@ impl<T: Config> Default for FundingRound<T> {
     fn default() -> Self {
         FundingRound {
             token_a: AssetId::POLKADEX,
-            creator:T::AccountId::default(),
+            creator: T::AccountId::default(),
             amount: T::Balance::default(),
             token_b: AssetId::POLKADEX,
             vesting_per_block: T::Balance::default(),
@@ -174,7 +173,7 @@ impl<T: Config> Default for FundingRound<T> {
 impl<T: Config> FundingRound<T> {
     fn from(
         token_a: AssetId,
-        creator : T::AccountId,
+        creator: T::AccountId,
         amount: T::Balance,
         token_b: AssetId,
         vesting_per_block: T::Balance,
@@ -214,7 +213,7 @@ impl<T: Config> FundingRound<T> {
             operator_commission: self.operator_commission.saturated_into(),
             token_a_priceper_token_b: self.token_a_priceper_token_b.saturated_into(),
             close_round_block: self.close_round_block.saturated_into(),
-            actual_raise: self.actual_raise.saturated_into()
+            actual_raise: self.actual_raise.saturated_into(),
         }
     }
 }
@@ -689,24 +688,32 @@ impl<T: Config> Module<T> {
         T::ModuleId::get().into_account()
     }
 
-    pub fn rounds_by_investor(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
-        <InvestorShareInfo<T>>::iter().filter_map(|(round_id, investor, _)| {
-            if investor != account {
-                None
-            }else{
-                let round_info = <InfoFundingRound<T>>::get(&round_id);
-                Some((round_id,round_info.to_primitive()))
-            }
-        }).collect()
+    pub fn rounds_by_investor(
+        account: T::AccountId,
+    ) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
+        <InvestorShareInfo<T>>::iter()
+            .filter_map(|(round_id, investor, _)| {
+                if investor != account {
+                    None
+                } else {
+                    let round_info = <InfoFundingRound<T>>::get(&round_id);
+                    Some((round_id, round_info.to_primitive()))
+                }
+            })
+            .collect()
     }
 
-    pub fn rounds_by_creator(account : T::AccountId) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
-        <InfoFundingRound<T>>::iter().filter_map(|(round_id, round_info)| {
-            if round_info.creator != account {
-                None
-            }else{
-                Some((round_id,round_info.to_primitive()))
-            }
-        }).collect()
+    pub fn rounds_by_creator(
+        account: T::AccountId,
+    ) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
+        <InfoFundingRound<T>>::iter()
+            .filter_map(|(round_id, round_info)| {
+                if round_info.creator != account {
+                    None
+                } else {
+                    Some((round_id, round_info.to_primitive()))
+                }
+            })
+            .collect()
     }
 }
