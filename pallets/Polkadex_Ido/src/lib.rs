@@ -426,14 +426,14 @@ decl_module! {
                 .saturating_mul(funding_round.vesting_per_block)
                 .saturating_mul(investor_share);
 
-                //Check if investor previously claimed the tokens
+            //Check if investor previously claimed the tokens
             let claimed_tokens = if <InfoClaimAmount<T>>::contains_key(&round_id, &investor_address) {
                 <InfoClaimAmount<T>>::get(&round_id,&investor_address)
                 }else {
                     Zero::zero()
                 };
-                // claimable_tokens : is the total amount of token the investor can withdraw(claim)  in their account
-            let claimable_tokens = total_tokens_released_for_given_investor - claimed_tokens;
+            // claimable_tokens : is the total amount of token the investor can withdraw(claim)  in their account
+            let claimable_tokens = total_tokens_released_for_given_investor.saturating_sub(claimed_tokens);
             T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens);
 
             <InfoClaimAmount<T>>::insert(round_id, investor_address.clone(), total_tokens_released_for_given_investor);

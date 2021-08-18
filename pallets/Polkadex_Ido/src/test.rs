@@ -512,7 +512,7 @@ fn test_withdraw_raise() {
         );
 
         //Test creator withdraw during when fundraising is closed should be successful
-        system::Pallet::<Test>::set_block_number(closing_block_number + 1);
+        system::Pallet::<Test>::set_block_number(closing_block_number);
         assert_eq!(
             PolkadexIdo::withdraw_raise(Origin::signed(ALICE), round_id, investor_address),
             Ok(())
@@ -602,7 +602,7 @@ fn test_withdraw_token() {
         );
 
         //Test creator withdraw tokens during when fundraising is closed should be successful
-        system::Pallet::<Test>::set_block_number(closing_block_number + 1);
+        system::Pallet::<Test>::set_block_number(closing_block_number);
         assert_eq!(
             PolkadexIdo::withdraw_token(Origin::signed(ALICE), round_id, investor_address),
             Ok(())
