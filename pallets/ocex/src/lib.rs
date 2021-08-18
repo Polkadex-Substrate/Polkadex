@@ -65,7 +65,6 @@ decl_event!(
     pub enum Event<T>
     where
         <T as system::Config>::AccountId,
-        <T as system::Config>::Hash,
         <T as orml_tokens::Config>::Balance
     {
         TokenDeposited(AssetId, AccountId, Balance),
@@ -74,7 +73,7 @@ decl_event!(
         MainAccountRegistered(AccountId),
         ProxyAdded(AccountId,AccountId),
         ProxyRemoved(AccountId,AccountId),
-        CIDUploaded(AccountId, Hash),
+        CIDUploaded(AccountId, Vec<u8>),
     }
 );
 
@@ -95,8 +94,7 @@ decl_storage! {
     trait Store for Module<T: Config> as OCEX {
         LastAccount get(fn key) config(): T::AccountId;
         pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount;
-        pub Snapshot get(fn get_snapshot): map hasher(blake2_128_concat) T::AccountId => T::Hash;
-
+        pub Snapshot get(fn get_snapshot): map hasher(blake2_128_concat) T::AccountId => Vec<u8>;
     }
     add_extra_genesis {
         config(genesis_account): T::AccountId;
@@ -223,11 +221,11 @@ decl_module! {
         ///
         /// * `new_cid`: CID to be uploaded for given Enclave Id
         #[weight = 10000]
-        pub fn upload_cid(origin, new_cid: T::Hash) -> DispatchResult{
+        pub fn upload_cid(origin, new_cid: Vec<u8>) -> DispatchResult{
             let sender: T::AccountId = ensure_signed(origin)?;
             ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
             <Snapshot<T>>::try_mutate(sender.clone(), |ref mut old_cid| {
-                **old_cid = new_cid;
+                **old_cid = new_cid.clone();
                 Self::deposit_event(RawEvent::CIDUploaded(sender,new_cid));
                 Ok(())
             })

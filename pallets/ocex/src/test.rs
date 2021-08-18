@@ -207,18 +207,18 @@ fn test_upload_cid() {
     // Happy Path
     new_test_ext(GEN_ACCOUNT).execute_with(|| {
         pallet_substratee_registry::EnclaveIndex::<Test>::insert(OCEX_ACCOUNT_ID, 0u64);
-        let cid = create_hash_data(&5u32);
+        let cid: Vec<u8> = vec![0];
         assert_ok!(PolkadexOcexPallet::upload_cid(
             Origin::signed(OCEX_ACCOUNT_ID.clone()),
-            cid
+            cid.clone()
         ));
         assert_eq!(<Snapshot<Test>>::get(OCEX_ACCOUNT_ID), cid);
 
         // Modify Data
-        let new_cid = create_hash_data(&8u32);
+        let new_cid: Vec<u8> = vec![1];
         assert_ok!(PolkadexOcexPallet::upload_cid(
             Origin::signed(OCEX_ACCOUNT_ID.clone()),
-            new_cid
+            new_cid.clone()
         ));
         assert_eq!(<Snapshot<Test>>::get(OCEX_ACCOUNT_ID), new_cid);
     });
@@ -226,14 +226,10 @@ fn test_upload_cid() {
     //Test Error
     new_test_ext(GEN_ACCOUNT).execute_with(|| {
         // NotARegisteredEnclave
-        let cid = create_hash_data(&5u32);
+        let cid: Vec<u8> = vec![1];
         assert_noop!(
             PolkadexOcexPallet::upload_cid(Origin::signed(OCEX_ACCOUNT_ID.clone()), cid),
             Error::<Test>::NotARegisteredEnclave
         );
     });
-}
-
-fn create_hash_data(data: &u32) -> <mock::Test as frame_system::Config>::Hash {
-    data.using_encoded(<Test as frame_system::Config>::Hashing::hash)
 }
