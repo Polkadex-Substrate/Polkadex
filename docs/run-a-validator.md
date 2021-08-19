@@ -33,7 +33,7 @@ Once you choose your cloud service provider and set-up your new server, the firs
 sudo apt install make clang pkg-config libssl-dev build-essential curl
 ```
 
-If you have never installed Rust, you should do this first.
+If you intend to build from source you need to install Rust first.
 
 If you have already installed Rust, run the following command to make sure you are using the latest version.
 
@@ -47,10 +47,14 @@ If not, this command will fetch the latest version of Rust and install it.
 curl https://sh.rustup.rs -sSf | sh -s -- -y
 ```
 
-To configure your shell, run the following command.
+To to build you need to add some toolschains 
 
 ```
 source $HOME/.cargo/env
+rustup toolchain add nightly-2021-05-11
+rustup target add wasm32-unknown-unknown --toolchain nightly-2021-05-11
+rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-05-11
+
 ```
 
 Verify your installation.
@@ -104,9 +108,6 @@ Build native code with the cargo release profile.
 
 ```
 git checkout v0.4.0
-rustup toolchain add nightly-2021-05-11
-rustup target add wasm32-unknown-unknown --toolchain nightly-2021-05-11
-rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-05-11
 cargo build --release
 ```
 
