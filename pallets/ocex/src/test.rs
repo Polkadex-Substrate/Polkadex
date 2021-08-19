@@ -32,6 +32,7 @@ const PROXY_ACCOUNT_ONE: AccountId = AccountId::new(*b"3456789012345678901234567
 const PROXY_ACCOUNT_TWO: AccountId = AccountId::new(*b"45678901234567890123456789012345");
 const PROXY_ACCOUNT_THREE: AccountId = AccountId::new(*b"56789012345678901234567890123456");
 const NOT_REGISTERED_ACCOUNT: AccountId = AccountId::new(*b"67890123456789012345678901234567");
+const OCEX_ACCOUNT_ID: AccountId = AccountId::new(*b"67890123456789012345678901234590");
 
 #[test]
 fn test_register_account() {
@@ -197,6 +198,38 @@ fn test_remove_proxy() {
                 PROXY_ACCOUNT_ONE
             ),
             Error::<Test>::NotARegisteredMainAccount
+        );
+    });
+}
+
+#[test]
+fn test_upload_cid() {
+    // Happy Path
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
+        pallet_substratee_registry::EnclaveIndex::<Test>::insert(OCEX_ACCOUNT_ID, 0u64);
+        let cid: Vec<u8> = vec![0];
+        assert_ok!(PolkadexOcexPallet::upload_cid(
+            Origin::signed(OCEX_ACCOUNT_ID.clone()),
+            cid.clone()
+        ));
+        assert_eq!(<Snapshot<Test>>::get(OCEX_ACCOUNT_ID), cid);
+
+        // Modify Data
+        let new_cid: Vec<u8> = vec![1];
+        assert_ok!(PolkadexOcexPallet::upload_cid(
+            Origin::signed(OCEX_ACCOUNT_ID.clone()),
+            new_cid.clone()
+        ));
+        assert_eq!(<Snapshot<Test>>::get(OCEX_ACCOUNT_ID), new_cid);
+    });
+
+    //Test Error
+    new_test_ext(GEN_ACCOUNT).execute_with(|| {
+        // NotARegisteredEnclave
+        let cid: Vec<u8> = vec![1];
+        assert_noop!(
+            PolkadexOcexPallet::upload_cid(Origin::signed(OCEX_ACCOUNT_ID.clone()), cid),
+            Error::<Test>::NotARegisteredEnclave
         );
     });
 }
