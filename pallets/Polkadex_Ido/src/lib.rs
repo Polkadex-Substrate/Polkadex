@@ -39,6 +39,7 @@
 #![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
+use frame_support::pallet_prelude::Weight;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
@@ -50,18 +51,17 @@ use frame_system as system;
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaChaRng;
+use sp_core::H256;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
 use sp_runtime::SaturatedConversion;
-use sp_std::prelude::*;
-use frame_support::pallet_prelude::Weight;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaChaRng;
-use sp_core::H256;
+use sp_std::prelude::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -80,14 +80,14 @@ pub trait Config: system::Config + orml_tokens::Config {
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
     /// The origin which may attests the investor to take part in the IDO pallet.
-    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success=Self::AccountId>;
+    type GovernanceOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
     /// The treasury mechanism.
     type TreasuryAccountId: Get<Self::AccountId>;
     /// The currency mechanism.
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
-        CurrencyId=AssetId,
-        Balance=Self::Balance,
+        CurrencyId = AssetId,
+        Balance = Self::Balance,
     >;
     /// The native currency ID type
     type NativeCurrencyId: Get<Self::CurrencyId>;
@@ -197,7 +197,6 @@ pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
     amount: T::Balance,
 }
 
-
 decl_storage! {
     trait Store for Module<T: Config> as PolkadexIdo {
         /// A mapping of Investor and its KYC status
@@ -213,7 +212,7 @@ decl_storage! {
         /// For each round, we keep mapping between investors and the block, when they will claim token
         LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
         /// A mapping between investor and claim amount
-        InfoClaimAmount get(fn get_claim_amount): map hasher(identity) T::AccountId => T::Balance;
+        InfoClaimAmount get(fn get_claim_amount): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId => T::Balance;
         /// A mapping between funding round id and its InterestedParticipants plus the amount they are willing to invest
         InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
         /// A mapping between funding round id and amount interested participant are will to invest
@@ -325,12 +324,13 @@ decl_module! {
             token_a_priceper_token_b: T::Balance,
             close_round_block: T::BlockNumber
         ) -> DispatchResult {
+            ensure!(token_a.ne(&token_b), <Error<T>>::TokenAEqTokenB);
             ensure!(token_a_priceper_token_b > 0_u128.saturated_into(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
-                token_a,
-                amount,
+                token_a.clone(),
+                amount.clone(),
                 token_b,
                 vesting_per_block,
                 start_block,
@@ -342,6 +342,10 @@ decl_module! {
             );
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
+            let round_account_id = Self::round_account_id(round_id.clone());
+            // Transfers tokens to be released to investors from team account to round account
+            // This ensure that the creator has the tokens they are raising funds for
+            ensure!(T::Currency::transfer(token_a, &team, &round_account_id, amount ).is_ok(), <Error<T>>::TransferTokenAFromTeamAccountFailed);
             <InfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(RawEvent::FundingRoundRegistered(round_id));
@@ -390,7 +394,7 @@ decl_module! {
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             let round_account_id = Self::round_account_id(round_id.clone());
-             <T as Config>::Currency::transfer(AssetId::POLKADEX, &investor_address, &round_account_id, amount)?;
+             <T as Config>::Currency::transfer(funding_round.token_b, &investor_address, &round_account_id, amount)?;
             <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
             <InfoFundingRound<T>>::mutate(round_id, |round_details| {
                 round_details.actual_raise += amount;
@@ -411,17 +415,32 @@ decl_module! {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            if current_block_no >= funding_round.start_block {
-                let investor_share = <InvestorShareInfo<T>>::get(round_id, investor_address.clone());
-                let total_released_block: T::BlockNumber = current_block_no - funding_round.start_block;
-                let tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            // Investor can only withdraw after the funding round is closed
+            let round_account_id = Self::round_account_id(round_id.clone());
+            let investor_share = <InvestorShareInfo<T>>::get(round_id, investor_address.clone());
+            let total_released_block: T::BlockNumber = current_block_no - funding_round.close_round_block;
+            // total_tokens_released_for_given_investor is the total available tokens for their investment
+            // relative to the current block
+            let total_tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
                 .saturating_mul(funding_round.vesting_per_block)
                 .saturating_mul(investor_share);
 
-                <InfoClaimAmount<T>>::insert(investor_address.clone(), tokens_released_for_given_investor);
-                <LastClaimBlockInfo<T>>::insert(round_id, investor_address.clone(), current_block_no);
-            }
+            //Check if investor previously claimed the tokens
+            let claimed_tokens = if <InfoClaimAmount<T>>::contains_key(&round_id, &investor_address) {
+                <InfoClaimAmount<T>>::get(&round_id,&investor_address)
+                }else {
+                    Zero::zero()
+                };
+            // claimable_tokens : is the total amount of token the investor can withdraw(claim)  in their account
+            let claimable_tokens = total_tokens_released_for_given_investor.saturating_sub(claimed_tokens);
+            T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens);
+
+            <InfoClaimAmount<T>>::insert(round_id, investor_address.clone(), total_tokens_released_for_given_investor);
+                // TODO : remove
+            <LastClaimBlockInfo<T>>::insert(round_id, investor_address.clone(), current_block_no);
             Self::deposit_event(RawEvent::TokenClaimed(round_id, investor_address));
+
             Ok(())
         }
 
@@ -436,10 +455,11 @@ decl_module! {
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             ensure!(!<InterestedParticipants<T>>::contains_key(&round_id,&investor_address), Error::<T>::InvestorAlreadyShownInterest);
-            //Check If investor can invest amount
-            ensure!(T::Currency::ensure_can_withdraw(AssetId::POLKADEX,&investor_address, amount).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
-
             let funding_round : FundingRound<T> = <InfoFundingRound<T>>::get(round_id);
+
+            //Check If investor can invest amount
+            ensure!(T::Currency::ensure_can_withdraw(funding_round.token_b,&investor_address, amount).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
+
             //Ensure investment amount doesn't exceed max_allocation
             ensure!(amount <= funding_round.max_allocation && amount >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
@@ -498,6 +518,7 @@ decl_module! {
         /// * `beneficiary`: Account Id of Beneficiary
          #[weight = 10000]
         pub fn withdraw_raise(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
@@ -505,8 +526,9 @@ decl_module! {
             let info_round_id = <InfoProjectTeam<T>>::get(&creator);
             ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
-            <T as Config>::Currency::transfer(AssetId::POLKADEX, &round_account_id, &beneficiary, funding_round.actual_raise)?;
+            ensure!(<T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise).is_ok(), Error::<T>::FundRaisedRedrawn);
             Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
             Ok(())
         }
@@ -520,6 +542,7 @@ decl_module! {
         /// * `beneficiary`: Account Id of Beneficiary
          #[weight = 10000]
         pub fn withdraw_token(origin, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
@@ -527,9 +550,14 @@ decl_module! {
             let info_round_id = <InfoProjectTeam<T>>::get(&creator);
             ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
-            let remaining_token = total_raise.saturating_sub(funding_round.actual_raise);
-            <T as Config>::Currency::transfer(AssetId::POLKADEX, &creator, &beneficiary, remaining_token)?;
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
+            let remaining_token = funding_round.amount.saturating_sub(total_tokens_bought_by_investors);
+            // Check if there is any left to withdraw
+            ensure!(remaining_token > Zero::zero(), Error::<T>::WithdrawalBlocked);
+            let round_account_id = Self::round_account_id(round_id.clone());
+            //Transfers to remaining token back to creator after round.
+            <T as Config>::Currency::transfer(funding_round.token_a, &round_account_id, &beneficiary, remaining_token)?;
             Self::deposit_event(RawEvent::WithdrawToken(round_id, creator));
             Ok(())
         }
@@ -598,7 +626,17 @@ decl_error! {
         /// Price Per Token Error
         PricePerTokenCantBeZero,
         /// Min allocation cant be greater than Max allocation
-        MinAllocationMustBeEqualOrLessThanMaxAllocation
+        MinAllocationMustBeEqualOrLessThanMaxAllocation,
+        /// Failed to transfer TokenAFromTeamAccount
+        TransferTokenAFromTeamAccountFailed,
+        /// TokenA cannot be equal to TokenB
+        TokenAEqTokenB,
+        /// Block withdrawal when round is active
+        WithdrawalBlocked,
+        /// Block claim token when round is active,
+        ClaimTokenBlocked,
+        /// FundRaised already Withdrawn
+        FundRaisedRedrawn,
     }
 }
 
@@ -617,7 +655,7 @@ impl<T: Config> Module<T> {
 
     fn incr_nonce() -> u128 {
         let current_nonce: u128 = <Nonce>::get();
-        let (nonce,_) = current_nonce.overflowing_add(1);
+        let (nonce, _) = current_nonce.overflowing_add(1);
         <Nonce>::put(nonce);
         <Nonce>::get()
     }
