@@ -20,6 +20,7 @@
 #![allow(clippy::unused_unit)]
 
 use codec::Encode;
+use core::convert::TryInto;
 use frame_support::StorageMap;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
@@ -28,14 +29,13 @@ use frame_support::{
 use frame_system as system;
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use sp_runtime::traits::AccountIdConversion;
-use sp_std::prelude::*;
-
-use core::convert::TryInto;
+use pallet_substratee_registry::Enclave;
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::AccountId;
-
 use polkadex_sgx_primitives::LinkedAccount;
+use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::Hash;
+use sp_std::prelude::*;
 
 #[cfg(test)]
 mod mock;
@@ -73,6 +73,7 @@ decl_event!(
         MainAccountRegistered(AccountId),
         ProxyAdded(AccountId,AccountId),
         ProxyRemoved(AccountId,AccountId),
+        CIDUploaded(AccountId, Vec<u8>),
     }
 );
 
@@ -93,6 +94,7 @@ decl_storage! {
     trait Store for Module<T: Config> as OCEX {
         LastAccount get(fn key) config(): T::AccountId;
         pub MainAccounts get(fn get_main_accounts): map hasher(blake2_128_concat) T::AccountId => LinkedAccount;
+        pub Snapshot get(fn get_snapshot): map hasher(blake2_128_concat) T::AccountId => Vec<u8>;
     }
     add_extra_genesis {
         config(genesis_account): T::AccountId;
@@ -213,6 +215,21 @@ decl_module! {
             Ok(())
         }
 
+        /// Uploads CID for given Enclave id
+        ///
+        /// # Parameter
+        ///
+        /// * `new_cid`: CID to be uploaded for given Enclave Id
+        #[weight = 10000]
+        pub fn upload_cid(origin, new_cid: Vec<u8>) -> DispatchResult{
+            let sender: T::AccountId = ensure_signed(origin)?;
+            ensure!(pallet_substratee_registry::EnclaveIndex::<T>::contains_key(&sender), Error::<T>::NotARegisteredEnclave);
+            <Snapshot<T>>::try_mutate(sender.clone(), |ref mut old_cid| {
+                **old_cid = new_cid.clone();
+                Self::deposit_event(RawEvent::CIDUploaded(sender,new_cid));
+                Ok(())
+            })
+        }
     }
 }
 
