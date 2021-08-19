@@ -64,10 +64,6 @@ use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
 
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaChaRng;
-use sp_core::H256;
-use codec::Codec;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -222,40 +218,6 @@ impl<T: Config> FundingRound<T> {
 pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
     account_id: T::AccountId,
     amount: T::Balance,
-}
-
-decl_storage! {
-    trait Store for Module<T: Config> as PolkadexIdo {
-        /// A mapping of Investor and its KYC status
-        InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
-        /// A mapping between funding round creator and funding round id
-        InfoProjectTeam get(fn get_team): map hasher(identity) T::AccountId => T::Hash;
-        /// A mapping between round id and funding round information
-        InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
-        /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
-        WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
-        /// For each round, we keep mapping between participants and the amount, they will be using
-        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
-        /// For each round, we keep mapping between investors and the block, when they will claim token
-        LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
-        /// A mapping between investor and claim amount
-        InfoClaimAmount get(fn get_claim_amount): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId => T::Balance;
-        /// A mapping between funding round id and its InterestedParticipants plus the amount they are willing to invest
-        InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
-        /// A mapping between funding round id and amount interested participant are will to invest
-        InterestedParticipantsAmounts get(fn get_interested_particpants_amounts): map hasher(identity) T::Hash => BTreeMap<T::Balance, BTreeSet<T::AccountId>>;
-
-        Nonce get(fn nonce): u128;
-    }
-    add_extra_genesis {
-        config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
-
-        build(|config: &GenesisConfig<T>| {
-            config.endowed_accounts.iter().for_each(|(account_id, currency_id, initial_balance)| {
-                 orml_tokens::Accounts::<T>::mutate(account_id, currency_id, |account_data| account_data.free = *initial_balance)
-            })
-        })
-    }
 }
 
 decl_module! {
@@ -551,8 +513,8 @@ decl_module! {
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
             ensure!(<T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise).is_ok(), Error::<T>::FundRaisedRedrawn);
             Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
@@ -573,18 +535,52 @@ decl_module! {
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
             let remaining_token = funding_round.amount.saturating_sub(total_tokens_bought_by_investors);
             // Check if there is any left to withdraw
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             ensure!(remaining_token > Zero::zero(), Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
-            ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             //Transfers to remaining token back to creator after round.
             <T as Config>::Currency::transfer(funding_round.token_a, &round_account_id, &beneficiary, remaining_token)?;
             Self::deposit_event(RawEvent::WithdrawToken(round_id, creator));
             Ok(())
         }
+    }
+}
+
+decl_storage! {
+    trait Store for Module<T: Config> as PolkadexIdo {
+        /// A mapping of Investor and its KYC status
+        InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
+        /// A mapping between funding round creator and funding round id
+        InfoProjectTeam get(fn get_team): map hasher(identity) T::AccountId => T::Hash;
+        /// A mapping between round id and funding round information
+        InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
+        /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
+        WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        /// For each round, we keep mapping between participants and the amount, they will be using
+        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        /// For each round, we keep mapping between investors and the block, when they will claim token
+        LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
+        /// A mapping between investor and claim amount
+        InfoClaimAmount get(fn get_claim_amount): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId => T::Balance;
+        /// A mapping between funding round id and its InterestedParticipants plus the amount they are willing to invest
+        InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
+        /// A mapping between funding round id and amount interested participant are will to invest
+        InterestedParticipantsAmounts get(fn get_interested_particpants_amounts): map hasher(identity) T::Hash => BTreeMap<T::Balance, BTreeSet<T::AccountId>>;
+
+        Nonce get(fn nonce): u128;
+    }
+    add_extra_genesis {
+        config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
+
+        build(|config: &GenesisConfig<T>| {
+            config.endowed_accounts.iter().for_each(|(account_id, currency_id, initial_balance)| {
+                 orml_tokens::Accounts::<T>::mutate(account_id, currency_id, |account_data| account_data.free = *initial_balance)
+            })
+        })
     }
 }
 

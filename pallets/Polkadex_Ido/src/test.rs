@@ -494,10 +494,6 @@ fn test_withdraw_raise() {
             Ok(())
         );
 
-        assert_noop!(
-            PolkadexIdo::withdraw_raise(Origin::signed(3), round_id, investor_address),
-            Error::<Test>::CreaterDoesNotExist
-        );
 
         assert_noop!(
             PolkadexIdo::withdraw_raise(Origin::signed(4), round_id, 2),
