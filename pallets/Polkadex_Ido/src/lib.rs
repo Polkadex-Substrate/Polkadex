@@ -536,9 +536,9 @@ decl_module! {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
+            // Check if there is any left to withdraw
             let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
             let remaining_token = funding_round.amount.saturating_sub(total_tokens_bought_by_investors);
-            // Check if there is any left to withdraw
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             ensure!(remaining_token > Zero::zero(), Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
