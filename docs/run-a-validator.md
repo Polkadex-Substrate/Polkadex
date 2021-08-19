@@ -126,7 +126,6 @@ You can begin syncing your node by running the following command:
 $HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --pruning=archive
 ```
 
-if you do not want to start in validator mode right away.
 
 ```
 2021-08-17 12:46:37 Polkadex Node    
