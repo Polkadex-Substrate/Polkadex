@@ -2,16 +2,16 @@
 
 This guide will instruct you how to set up a validator node on the Polkadex Public Testnet.
 
-- <strong>Github</strong>: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.0
-- <strong>Bootnode IP address</strong>: 13.235.92.50
-- <strong>Bootnode Peer ID</strong>: 12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR
-- <strong>customSpecRaw.json</strong> https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.0
+- **Bootnode IP address**: 13.235.92.50
+- **Bootnode Peer ID**: 12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
 
 ## Initial Set-up
 
 ### Requirements
 
-The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS provider you prefer, and whichever operating system you are comfortable with. For this guide we will be using <strong>Ubuntu 20.04</strong>, but the instructions should be similar for other platforms.
+The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS provider you prefer, and whichever operating system you are comfortable with. For this guide we will be using **Ubuntu 20.04**, but the instructions should be similar for other platforms.
 
 The transactions weights in Polkadot were benchmarked on standard hardware. It is recommended that validators run at least the standard hardware in order to ensure they are able to process all blocks in time. The following are not minimum requirements but if you decide to run with less than this, you may experience performance issues.
 
@@ -19,9 +19,9 @@ The transactions weights in Polkadot were benchmarked on standard hardware. It i
 
 For the full details of the standard hardware please see [here](https://github.com/paritytech/substrate/pull/5848)
 
-- <strong>CPU</strong> - Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
-- <strong>Storage</strong> - A NVMe solid state drive. Should be reasonably sized to deal with blockchain growth. Starting around 80GB - 160GB will be okay for the first six months of Polkadex, but will need to be re-evaluated every six months.
-- <strong>Memory</strong> - 64GB
+- **CPU** - Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
+- **Storage** - A NVMe solid state drive. Should be reasonably sized to deal with blockchain growth. Starting around 80GB - 160GB will be okay for the first six months of Polkadex, but will need to be re-evaluated every six months.
+- **Memory** - 64GB
 
 The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to match up to other validators that are running the standard.
 
@@ -92,14 +92,14 @@ sudo ntpq -p
 ```
 
 ### Building and Installing the `Polkadex` binary
+#### Using a prebuilt
+If you don't want to build the binary from source and simply prefer to download it, use the following command. Then continue at Synchronize Chain Data
+`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
 
->If you don't want to build the binary and simply prefer to download it, use the following command.
->`curl -o polkadex-node https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/polkadex-node`
-
-You will need to build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.0 release.
+#### Build from source
+To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.0 release.
 
 ```
-cd $HOME
 git clone https://github.com/Polkadex-Substrate/Polkadex.git
 cd Polkadex
 ```
@@ -118,10 +118,10 @@ cargo build --release
 Download `customSpecRaw.json` file for the Polkadex Public Testnet
 ```
 cd $HOME
-curl -o customSpecRaw.json https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
 ```
 
-You can begin syncing your node by running the following command if you do not want to start in validator mode right away:
+You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
 
 ```
 $HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --pruning=archive
@@ -191,10 +191,10 @@ First, go to the [Staking](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockch
 
 ![Bonding Preferences](./screenshots/bonding_preferences.png)
 
-- <strong>Stash account</strong> - Select your Stash account. In this example, we will bond 100 PDEX, where the minimum bonding amount is 100. Make sure that your Stash account contains at least this much. You can, of course, stake more than this.
-- <strong>Controller account</strong> - Select the Controller account created earlier. This account will also need a small amount of PDEX in order to start and stop validating.
-- <strong>Value bonded</strong> - How much PDEX from the Stash account you want to bond/stake. Note that you do not need to bond all of the PDEX in that account. Also note that you can always bond more PDEX later. However, withdrawing any bonded amount requires the duration of the unbonding period. On Polkadex, the planned unbonding period is 28 days.
-- <strong>Payment destination</strong> - The account where the rewards from validating are sent. If you'd like to redirect payments to an account that is neither the controller nor the stash account, set one up. Please note that it is extremely unsafe to set an exchange deposit address as the recipient of the staking rewards.
+- **Stash account** - Select your Stash account. In this example, we will bond 100 PDEX, where the minimum bonding amount is 100. Make sure that your Stash account contains at least this much. You can, of course, stake more than this.
+- **Controller account** - Select the Controller account created earlier. This account will also need a small amount of PDEX in order to start and stop validating.
+- **Value bonded** - How much PDEX from the Stash account you want to bond/stake. Note that you do not need to bond all of the PDEX in that account. Also note that you can always bond more PDEX later. However, withdrawing any bonded amount requires the duration of the unbonding period. On Polkadex, the planned unbonding period is 28 days.
+- **Payment destination** - The account where the rewards from validating are sent. If you'd like to redirect payments to an account that is neither the controller nor the stash account, set one up. Please note that it is extremely unsafe to set an exchange deposit address as the recipient of the staking rewards.
 
 Once everything is filled in properly, click `Bond` and sign the transaction with your Stash account.
 
@@ -208,7 +208,7 @@ Your bonded account will be available under `Stashes`. You should now see a new 
 
 ### Set Session Keys
 
-> <strong>Note:</strong> The session keys are consensus critical, so if you are not sure if your node has the current session keys that you made with the `setKeys` transaction, then you can use one of the two available RPC methods to query your node: [hasKey](https://polkadot.js.org/docs/substrate/rpc/#haskeypublickey-bytes-keytype-text-bool) to check for a specific key or [hasSessionKeys](https://polkadot.js.org/docs/substrate/rpc/#hassessionkeyssessionkeys-bytes-bool) to check the full session key public key string.
+> **Note:** The session keys are consensus critical, so if you are not sure if your node has the current session keys that you made with the `setKeys` transaction, then you can use one of the two available RPC methods to query your node: [hasKey](https://polkadot.js.org/docs/substrate/rpc/#haskeypublickey-bytes-keytype-text-bool) to check for a specific key or [hasSessionKeys](https://polkadot.js.org/docs/substrate/rpc/#hassessionkeyssessionkeys-bytes-bool) to check the full session key public key string.
 
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
@@ -312,7 +312,7 @@ Here you will need to input the Keys from `rotateKeys`, which is the Hex output 
 
 The "reward commission percentage" is the commission percentage that you can declare against your validator's rewards. This is the rate that your validator will be commissioned with.
 
-- <strong>Payment preferences</strong> - You can specify the percentage of the rewards that will get paid to you. The remaining will be split among your nominators.
+- **Payment preferences** - You can specify the percentage of the rewards that will get paid to you. The remaining will be split among your nominators.
 
 > Note: setting a commission rate of 100% suggests that you do not want your validator to receive nominations.
 
@@ -328,7 +328,7 @@ If you go to the "Staking" tab, you will see a list of active validators current
 
 The validator set is refreshed every era. In the next era, if there is a slot available and your node is selected to join the validator set, your node will become an active validator. Until then, it will remain in the <i>waiting</i> queue. If your validator is not selected to become part of the validator set, it will remain in the <i>waiting</i> queue until it is. There is no need to re-start if you are not selected for the validator set in a particular era. However, it may be necessary to increase the number of PDEX staked or seek out nominators for your validator in order to join the validator set.
 
-<strong>Congratulations!</strong> If you have followed all of these steps, and have been selected to be a part of the validator set, you are now running a Polkadex validator!
+**Congratulations!** If you have followed all of these steps, and have been selected to be a part of the validator set, you are now running a Polkadex validator!
 
 ## FAQ
 
