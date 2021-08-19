@@ -193,7 +193,7 @@ First, go to the [Staking](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockch
 - <strong>Stash account</strong> - Select your Stash account. In this example, we will bond 100 PDEX, where the minimum bonding amount is 100. Make sure that your Stash account contains at least this much. You can, of course, stake more than this.
 - <strong>Controller account</strong> - Select the Controller account created earlier. This account will also need a small amount of PDEX in order to start and stop validating.
 - <strong>Value bonded</strong> - How much PDEX from the Stash account you want to bond/stake. Note that you do not need to bond all of the PDEX in that account. Also note that you can always bond more PDEX later. However, withdrawing any bonded amount requires the duration of the unbonding period. On Polkadex, the planned unbonding period is 28 days.
-- <strong>Payment destination</strong> - The account where the rewards from validating are sent. More info here. If you'd like to redirect payments to an account that is neither the controller nor the stash account, set one up. Please note that it is extremely unsafe to set an exchange deposit address as the recipient of the staking rewards.
+- <strong>Payment destination</strong> - The account where the rewards from validating are sent. If you'd like to redirect payments to an account that is neither the controller nor the stash account, set one up. Please note that it is extremely unsafe to set an exchange deposit address as the recipient of the staking rewards.
 
 Once everything is filled in properly, click `Bond` and sign the transaction with your Stash account.
 
