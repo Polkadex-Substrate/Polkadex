@@ -176,7 +176,7 @@ The `--pruning=archive` flag is implied by the `--validator` flag, so it is only
 If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that to the current highest block via [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/explorer).
 
 ## Bond PDEX
-
+[Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/accounts) [Here is an instruction to how](https://www.youtube.com/watch?v=hhUZ40ZWqkE) and transfer some PDEX tokens to the main account
 It is highly recommended that you set your controller and stash accounts as two separate accounts. For this, you will need to create two accounts and make sure each of them have at least enough funds to pay the fees for making transactions. Keep most of your funds in the stash account since it is meant to be the custodian of your staking funds.
 
 Make sure not to bond all your PDEX balance since you will be unable to pay transaction fees from your bonded balance.
