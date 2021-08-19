@@ -22,7 +22,6 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-pub use artemis_core::MessageId;
 use codec::{Decode, Encode};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -48,9 +47,7 @@ use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::{MultiCurrencyExtended, parameter_type_with_key};
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
-use pallet_basic_channel::inbound as basic_channel_inbound;
 use pallet_contracts::weights::WeightInfo;
-use pallet_eth_dispatch::EnsureEthereumAccount;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -60,7 +57,6 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_substratee_registry;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use pallet_verifier_lightclient::{EthereumDifficultyConfig, EthereumHeader};
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use polkadex_primitives::assets::AssetId;
@@ -1055,59 +1051,6 @@ impl pallet_gilt::Config for Runtime {
 	type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
 }
 
-pub const ROPSTEN_DIFFICULTY_CONFIG: EthereumDifficultyConfig = EthereumDifficultyConfig {
-	byzantium_fork_block: 1700000,
-	constantinople_fork_block: 4230000,
-	muir_glacier_fork_block: 7117117,
-};
-
-parameter_types! {
-	pub const DescendantsUntilFinalized: u8 = 3;
-	pub const DifficultyConfig: EthereumDifficultyConfig = ROPSTEN_DIFFICULTY_CONFIG;
-	pub const VerifyPoW: bool = true;
-}
-
-impl pallet_verifier_lightclient::Config for Runtime {
-	type Event = Event;
-	type DescendantsUntilFinalized = DescendantsUntilFinalized;
-	type DifficultyConfig = DifficultyConfig;
-	type VerifyPoW = VerifyPoW;
-	type WeightInfo = weights::verifier_lightclient_weights::WeightInfo<Runtime>;
-}
-
-pub struct CallFilter;
-
-impl Filter<Call> for CallFilter {
-	fn filter(call: &Call) -> bool {
-		match call {
-			Call::ERC20PDEX(_) => true,
-			_ => false
-		}
-	}
-}
-
-impl pallet_eth_dispatch::Config for Runtime {
-	type Origin = Origin;
-	type Event = Event;
-	type MessageId = MessageId;
-	type Call = Call;
-	type CallFilter = CallFilter;
-}
-
-impl basic_channel_inbound::Config for Runtime {
-	type Event = Event;
-	type Verifier = pallet_verifier_lightclient::Module<Runtime>;
-	type MessageDispatch = pallet_eth_dispatch::Module<Runtime>;
-	type WeightInfo = weights::basic_channel_inbound_weights::WeightInfo<Runtime>;
-}
-
-impl erc20_pdex_migration_pallet::Config for Runtime{
-	type Event = Event;
-	type Balance = Balance;
-	type Currency = Currencies;
-	type CallOrigin = EnsureEthereumAccount;
-}
-
 parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100u128;
     pub const GetMaxSupply: Balance = 2_000_000_0u128;
@@ -1179,10 +1122,6 @@ construct_runtime!(
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         Example: example::{Pallet, Call, Event<T>},
         Erc721: erc721::{Pallet, Call, Storage, Event<T>},
-        BasicInboundChannel: basic_channel_inbound::{Pallet, Call, Config, Storage, Event},
-        Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
-        VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
-        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>},
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>}
     }
 );
