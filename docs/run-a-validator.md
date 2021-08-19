@@ -213,7 +213,7 @@ Your bonded account will be available under `Stashes`. You should now see a new 
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name "Validator-Turtorial"
+$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name "Validator-Tutorial"
 ```
 Similarly:
 ```
@@ -221,8 +221,8 @@ Similarly:
 2021-08-17 12:50:57 ✌️  version 3.0.0-dbc98eca-x86_64-linux-gnu    
 2021-08-17 12:50:57 ❤️  by Substrate DevHub <https://github.com/substrate-developer-hub>, 2017-2021    
 2021-08-17 12:50:57 📋 Chain specification: Polkadex Public Testnet    
-2021-08-17 12:50:57 🏷 Node name: Validator-Turtorial    
-2021-08-17 12:50:57 👤 Role: AUTHORITY    
+2021-08-17 12:50:57 🏷 Node name: Validator-Tutorial
+2021-08-17 12:50:57 👤 Role: AUTHORITY
 2021-08-17 12:50:57 💾 Database: RocksDb at /home/ubuntu/.local/share/polkadex-node/chains/polkadex_udon_net/db    
 2021-08-17 12:50:57 ⛓  Native runtime: node-polkadex-265 (node-polkadex-1.tx2.au10)    
 2021-08-17 12:50:57 Using default protocol ID "sup" because none is configured in the chain specs    
@@ -251,7 +251,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name 'Validator-Turtorial'
+ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name 'Validator-Tutorial'
 Restart=on-failure
 
 [Install]
@@ -300,7 +300,7 @@ Submit this extrinsic and you are now ready to start validating.
 ## Validate
 To verify that your node is live and synchronized, head to [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) and find your node. Note that this will show all nodes on the Polkadex network, which is why it is important to select a unique name for your node.
 
-In this example, we used the name `Validator-Turtorial` and have successfully located it upon searching:
+In this example, we used the name `Validator-Tutorial` and have successfully located it upon searching:
 
 ![Telemetry](./screenshots/telemetry.png)
 
