@@ -120,7 +120,7 @@ cd $HOME
 curl -o customSpecRaw.json https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
 ```
 
-You can begin syncing your node by running the following command:
+You can begin syncing your node by running the following command if you do not want to start in validator mode right away:
 
 ```
 $HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --pruning=archive
