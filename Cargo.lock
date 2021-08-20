@@ -8010,7 +8010,7 @@ dependencies = [
 [[package]]
 name = "snowbridge-basic-channel"
 version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git#7f650824bf5bb7db37f2401542a7275bdcb7de27"
 dependencies = [
  "ethabi-decode",
  "frame-support",
@@ -8028,7 +8028,7 @@ dependencies = [
 [[package]]
 name = "snowbridge-core"
 version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git#7f650824bf5bb7db37f2401542a7275bdcb7de27"
 dependencies = [
  "enum-iterator",
  "frame-support",
@@ -8045,7 +8045,7 @@ dependencies = [
 [[package]]
 name = "snowbridge-dispatch"
 version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git#7f650824bf5bb7db37f2401542a7275bdcb7de27"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8061,7 +8061,7 @@ dependencies = [
 [[package]]
 name = "snowbridge-ethereum"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git#7f650824bf5bb7db37f2401542a7275bdcb7de27"
 dependencies = [
  "ethabi-decode",
  "ethash",
@@ -8085,7 +8085,7 @@ dependencies = [
 [[package]]
 name = "snowbridge-ethereum-light-client"
 version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git#7f650824bf5bb7db37f2401542a7275bdcb7de27"
 dependencies = [
  "ethash",
  "frame-support",
