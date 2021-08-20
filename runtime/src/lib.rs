@@ -22,7 +22,9 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 #![allow(clippy::from_over_into)]
-pub use artemis_core::MessageId;
+pub use snowbridge_core::MessageId;
+use snowbridge_dispatch::EnsureEthereumAccount;
+pub use snowbridge_ethereum_light_client::EthereumDifficultyConfig;
 use codec::{Decode, Encode};
 use constants::{currency::*, time::*};
 use frame_support::traits::{Filter, OnUnbalanced};
@@ -49,9 +51,7 @@ use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
-use pallet_basic_channel::inbound as basic_channel_inbound;
 use pallet_contracts::weights::WeightInfo;
-use pallet_eth_dispatch::EnsureEthereumAccount;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -61,7 +61,6 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_substratee_registry;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use pallet_verifier_lightclient::EthereumDifficultyConfig;
 use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
@@ -1187,24 +1186,20 @@ impl pallet_gilt::Config for Runtime {
     type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
 }
 
-pub const ROPSTEN_DIFFICULTY_CONFIG: EthereumDifficultyConfig = EthereumDifficultyConfig {
-    byzantium_fork_block: 1700000,
-    constantinople_fork_block: 4230000,
-    muir_glacier_fork_block: 7117117,
-};
+
 
 parameter_types! {
-    pub const DescendantsUntilFinalized: u8 = 3;
-    pub const DifficultyConfig: EthereumDifficultyConfig = ROPSTEN_DIFFICULTY_CONFIG;
-    pub const VerifyPoW: bool = true;
+    pub const DescendantsUntilFinalized: u8 = 1;
+    pub const DifficultyConfig: EthereumDifficultyConfig = EthereumDifficultyConfig::ropsten();
+    pub const VerifyPoW: bool = false;
 }
 
-impl pallet_verifier_lightclient::Config for Runtime {
+impl snowbridge_ethereum_light_client::Config for Runtime {
     type Event = Event;
     type DescendantsUntilFinalized = DescendantsUntilFinalized;
     type DifficultyConfig = DifficultyConfig;
     type VerifyPoW = VerifyPoW;
-    type WeightInfo = weights::verifier_lightclient_weights::WeightInfo<Runtime>;
+    type WeightInfo = weights::ethereum_light_client_weights::WeightInfo<Runtime>;
 }
 
 pub struct CallFilter;
@@ -1215,7 +1210,7 @@ impl Filter<Call> for CallFilter {
     }
 }
 
-impl pallet_eth_dispatch::Config for Runtime {
+impl snowbridge_dispatch::Config for Runtime {
     type Origin = Origin;
     type Event = Event;
     type MessageId = MessageId;
@@ -1223,10 +1218,11 @@ impl pallet_eth_dispatch::Config for Runtime {
     type CallFilter = CallFilter;
 }
 
-impl basic_channel_inbound::Config for Runtime {
+use snowbridge_basic_channel::inbound as basic_inbound_channel;
+impl basic_inbound_channel::Config for Runtime {
     type Event = Event;
-    type Verifier = pallet_verifier_lightclient::Module<Runtime>;
-    type MessageDispatch = pallet_eth_dispatch::Module<Runtime>;
+    type Verifier = snowbridge_ethereum_light_client::Module<Runtime>;
+    type MessageDispatch = snowbridge_dispatch::Module<Runtime>;
     type WeightInfo = weights::basic_channel_inbound_weights::WeightInfo<Runtime>;
 }
 
@@ -1263,62 +1259,63 @@ construct_runtime! {
         NodeBlock = polkadex_primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Pallet, Call, Event},
-        Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
-        Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
-        ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
-        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        Democracy: pallet_democracy::{Pallet, Call, Storage, Config, Event<T>},
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
-        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config},
-        Offences: pallet_offences::{Pallet, Call, Storage, Event},
-        Historical: pallet_session_historical::{Pallet},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
-        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
-        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>},
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
-        Lottery: pallet_lottery::{Pallet, Call, Storage, Event<T>},
-        Gilt: pallet_gilt::{Pallet, Call, Storage, Event<T>, Config},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+        Utility: pallet_utility::{Pallet, Call, Event} = 1,
+        Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 2,
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
+        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent} = 4,
+        Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 6,
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 7,
+        ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 8,
+        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 9,
+        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
+        Democracy: pallet_democracy::{Pallet, Call, Storage, Config, Event<T>} = 11,
+        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 12,
+        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 13,
+        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
+        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 15,
+        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 16,
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 17,
+        Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>} = 18,
+        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 19,
+        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 20,
+        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config} = 21,
+        Offences: pallet_offences::{Pallet, Call, Storage, Event} = 22,
+        Historical: pallet_session_historical::{Pallet} = 23,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage} = 24,
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 25,
+        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 26,
+        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 27,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 28,
+        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 29,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 30,
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 31,
+        Lottery: pallet_lottery::{Pallet, Call, Storage, Event<T>} = 32,
+        Gilt: pallet_gilt::{Pallet, Call, Storage, Event<T>, Config} = 33,
         // Pallets
-        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>},
-        Currencies: orml_currencies::{Pallet, Call, Event<T>},
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
-        PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
-        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
-        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned},
-        ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
-        Example: example::{Pallet, Call, Event<T>},
-        Erc721: erc721::{Pallet, Call, Storage, Event<T>},
-        BasicInboundChannel: basic_channel_inbound::{Pallet, Call, Config, Storage, Event},
-        Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin},
-        VerifierLightclient: pallet_verifier_lightclient::{Pallet, Call, Storage, Event, Config},
-        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>},
-        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>},
+        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 34,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 35,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 36,
+        PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>} = 37,
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 38,
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 39,
+        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned} = 40,
+        ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>} = 41,
+        Example: example::{Pallet, Call, Event<T>} = 42,
+        Erc721: erc721::{Pallet, Call, Storage, Event<T>} = 43,
+        BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event} = 44,
+        Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 45,
+        EthereumLightClient: snowbridge_ethereum_light_client::{Pallet, Call, Storage, Event, Config} = 46,
+        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>} = 47,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 48,
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
         // otherwise it will result in in consistent state of runtime.
         // Refer: issue #261
-        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>}
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>} = 49
     }
 }
+
 
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
@@ -1647,7 +1644,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
             add_benchmark!(params, batches, pallet_vesting, Vesting);
-            add_benchmark!(params, batches, pallet_verifier_lightclient, VerifierLightclient);
+            add_benchmark!(params, batches, pallet_verifier_lightclient, EthereumLightClient);
             add_benchmark!(params, batches, polkadex_ido, PolkadexIdo);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
