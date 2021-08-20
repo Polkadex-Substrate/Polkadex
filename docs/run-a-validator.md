@@ -239,7 +239,7 @@ You can give your validator any name that you like, but note that others will be
 
 Prepare a `validator.service` file
 ```
-sudo nano /etc/systemd/system/validator.service
+sudo vi /etc/systemd/system/validator.service
 ```
 
 ```
