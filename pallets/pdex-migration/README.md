@@ -9,10 +9,10 @@ The first thing you need to do to add the `pdex-migration` pallet is to import t
 ```
 [dependencies]
 #--snip--
-pallet-verifier-lightclient = { git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
-pallet-eth-dispatch = { package = "artemis-dispatch", git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
-pallet-basic-channel = { package = "artemis-basic-channel", git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
-artemis-core = { git = "https://github.com/Polkadex-Substrate/polkadot-ethereum", default-features = false, rev = "6ac2106a608bf11c53981b67a106c2afd43bbee6" }
+pallet-verifier-lightclient = { git = "https://github.com/Polkadex-Substrate/snowbridge", default-features = false }
+pallet-eth-dispatch = { package = "artemis-dispatch", git = "https://github.com/Polkadex-Substrate/snowbridge", default-features = false }
+pallet-basic-channel = { package = "artemis-basic-channel", git = "https://github.com/Polkadex-Substrate/snowbridge", default-features = false }
+artemis-core = { git = "https://github.com/Polkadex-Substrate/snowbridge", default-features = false }
 
 erc20-pdex-migration-pallet = { path = "https://github.com/Polkadex-Substrate/Polkadex/pallets/pdex-migration", default-features = false }
 ```
