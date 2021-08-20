@@ -47,7 +47,7 @@ If not, this command will fetch the latest version of Rust and install it.
 curl https://sh.rustup.rs -sSf | sh -s -- -y
 ```
 
-To to build you need to add some toolschains 
+Add the required toolchains with rustup
 
 ```
 source $HOME/.cargo/env
