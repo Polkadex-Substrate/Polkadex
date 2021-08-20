@@ -1,0 +1,109 @@
+name: Release_Binaries
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+    outputs:
+      upload_url: ${{steps.create_release.outputs.upload_url}}
+  buildMac:
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache Rust Dependecies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build Project
+        run: |
+             ./scripts/init.sh
+             rustup target add x86_64-apple-darwin --toolchain nightly-2021-05-11
+             cargo build --release
+      - name: PackRelease
+        run: |
+           zip PolkadexNodeMacOS.zip --junk-paths target/release/polkadex-node docs/customSpecRaw.json
+      - name: Archive binary
+        uses: actions/upload-artifact@v1
+        with:
+          name: PolkadexNodeMacOS.zip
+          path: PolkadexNodeMacOS.zip
+      - name: Upload Release Asset
+        id: upload-release-asset0 
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: PolkadexNodeMacOS.zip
+          asset_name: PolkadexNodeMacOS.zip
+          asset_content_type: application/octet-stream 
+  buildUbuntu:
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache Rust Dependecies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build Project
+        run: |
+            ./scripts/init.sh
+            cargo build --release
+            cat docs/customSpecRaw.json > customSpecRaw.json
+#         #  echo ./target/release/polkadex-node build-spec --chain local  >customSpecRaw.json #Todo this is handcrafted
+      - name: PackRelease
+        run: |
+           zip PolkadexNodeUbuntu.zip --junk-paths target/release/polkadex-node  docs/customSpecRaw.json
+      - name: Archive binary
+        uses: actions/upload-artifact@v1
+        with:
+          name: PolkadexNodeUbuntu.zip
+          path: PolkadexNodeUbuntu.zip
+      - name: Archive chainspec
+        uses: actions/upload-artifact@v1
+        with:
+          name: customSpecRaw.json
+          path: customSpecRaw.json
+      - name: Upload Release Asset
+        id: upload-release-asset0 
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: PolkadexNodeUbuntu.zip
+          asset_name: PolkadexNodeUbuntu.zip
+          asset_content_type: application/octet-stream 
+      - name: Upload Release chainspec
+        id: upload-release-asset1 
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: customSpecRaw.json
+          asset_name: customSpecRaw.json
+          asset_content_type: application/json
