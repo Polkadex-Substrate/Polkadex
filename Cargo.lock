@@ -181,80 +181,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be4dc07131ffa69b8072d35f5007352af944213cde02545e2103680baed38fcd"
 
 [[package]]
-name = "artemis-basic-channel"
-version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/polkadot-ethereum?rev=6ac2106a608bf11c53981b67a106c2afd43bbee6#6ac2106a608bf11c53981b67a106c2afd43bbee6"
-dependencies = [
- "artemis-core",
- "artemis-ethereum",
- "ethabi-decode",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "artemis-core"
-version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/polkadot-ethereum?rev=6ac2106a608bf11c53981b67a106c2afd43bbee6#6ac2106a608bf11c53981b67a106c2afd43bbee6"
-dependencies = [
- "artemis-ethereum",
- "enum-iterator",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "artemis-dispatch"
-version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/polkadot-ethereum?rev=6ac2106a608bf11c53981b67a106c2afd43bbee6#6ac2106a608bf11c53981b67a106c2afd43bbee6"
-dependencies = [
- "artemis-core",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "artemis-ethereum"
-version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/polkadot-ethereum?rev=6ac2106a608bf11c53981b67a106c2afd43bbee6#6ac2106a608bf11c53981b67a106c2afd43bbee6"
-dependencies = [
- "ethabi-decode",
- "ethash",
- "ethbloom",
- "ethereum-types",
- "getrandom 0.2.3",
- "hex-literal",
- "libsecp256k1",
- "parity-bytes",
- "parity-scale-codec",
- "rlp",
- "rustc-hex",
- "serde",
- "serde-big-array",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "asn1_der"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4281,9 +4207,6 @@ dependencies = [
 name = "node-polkadex-runtime"
 version = "3.0.0"
 dependencies = [
- "artemis-basic-channel",
- "artemis-core",
- "artemis-dispatch",
  "chainbridge",
  "erc20-pdex-migration-pallet",
  "example-erc721",
@@ -4338,7 +4261,6 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
  "pallet-utility",
- "pallet-verifier-lightclient",
  "pallet-vesting",
  "parity-scale-codec",
  "polkadex-fungible-assets",
@@ -4346,6 +4268,10 @@ dependencies = [
  "polkadex-ocex",
  "polkadex-primitives",
  "serde",
+ "snowbridge-basic-channel",
+ "snowbridge-core",
+ "snowbridge-dispatch",
+ "snowbridge-ethereum-light-client",
  "sp-api",
  "sp-authority-discovery",
  "sp-block-builder",
@@ -5266,26 +5192,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-verifier-lightclient"
-version = "0.1.1"
-source = "git+https://github.com/Polkadex-Substrate/polkadot-ethereum?rev=6ac2106a608bf11c53981b67a106c2afd43bbee6#6ac2106a608bf11c53981b67a106c2afd43bbee6"
-dependencies = [
- "artemis-core",
- "artemis-ethereum",
- "ethash",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "rlp",
- "rustc-hex",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-vesting"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate#e5437efefa82bd8eb567f1245f0a7443ac4e4fe7"
@@ -5805,7 +5711,6 @@ dependencies = [
  "pallet-staking",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
- "pallet-verifier-lightclient",
  "parity-scale-codec",
  "parking_lot 0.11.1",
  "platforms",
@@ -5837,6 +5742,7 @@ dependencies = [
  "sc-transaction-pool",
  "serde",
  "serde_json",
+ "snowbridge-ethereum-light-client",
  "soketto",
  "sp-api",
  "sp-authority-discovery",
@@ -8102,6 +8008,101 @@ dependencies = [
 ]
 
 [[package]]
+name = "snowbridge-basic-channel"
+version = "0.1.1"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+dependencies = [
+ "ethabi-decode",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "snowbridge-core",
+ "snowbridge-ethereum",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "snowbridge-core"
+version = "0.1.1"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+dependencies = [
+ "enum-iterator",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "serde_derive",
+ "snowbridge-ethereum",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "snowbridge-dispatch"
+version = "0.1.1"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "snowbridge-core",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "snowbridge-ethereum"
+version = "0.1.0"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+dependencies = [
+ "ethabi-decode",
+ "ethash",
+ "ethbloom",
+ "ethereum-types",
+ "getrandom 0.2.3",
+ "hex-literal",
+ "libsecp256k1",
+ "parity-bytes",
+ "parity-scale-codec",
+ "rlp",
+ "rustc-hex",
+ "serde",
+ "serde-big-array",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "snowbridge-ethereum-light-client"
+version = "0.1.1"
+source = "git+https://github.com/Polkadex-Substrate/snowbridge.git?branch=gj-relayer#0b80d84fb12631be7dc924002f6462bf334677e0"
+dependencies = [
+ "ethash",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "rlp",
+ "rustc-hex",
+ "serde",
+ "snowbridge-core",
+ "snowbridge-ethereum",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "socket2"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9777,7 +9778,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04f8ab788026715fa63b31960869617cba39117e520eb415b0139543e325ab59"
 dependencies = [
  "cfg-if 0.1.10",
- "rand 0.7.3",
+ "rand 0.3.23",
  "static_assertions",
 ]
 

@@ -97,6 +97,7 @@ EthereumHeader {
 
 `node/src/chain_spec.rs`
 Inside the testnet_genesis function we need to add our pallet's configuration to the returned GenesisConfig object as followed:
+
 ```
     GenesisConfig {
         /* --snip-- */
@@ -142,3 +143,111 @@ Inside the testnet_genesis function we need to add our pallet's configuration to
 First, it checks if the function is called by `pallet_eth_dispatch` pallet. If not, it throws the `DispatchError` error.
 Then, it mints `amount` of `AssetId:POLKADEX` tokens to the given `recipient` Polkadex address.
 Finally, it emits `NativePDEXMinted` event with the various parameters.
+
+## Smart contract (How to deploy Polkadot-Ethereum Bridge smart contracts)
+
+Repo: https://github.com/Polkadex-Substrate/snowbridge/tree/main/ethereum
+
+### Development
+
+Make sure you use a recent node version, e. g. with [nvm](https://github.com/nvm-sh/nvm#installing-and-updating):
+
+```
+nvm install 14.17.0
+nvm use 14.17.0
+```
+
+Install dependencies with yarn:
+
+```
+yarn install
+```
+
+Create an `.env` file using the `env.template` as a template. Note that deploying to ropsten network requires setting the INFURA_PROJECT_ID and MNEMONIC environment variables.
+
+### Testing
+
+Run tests on the hardhat network:
+
+```
+npx hardhat test
+```
+
+### Deployment
+
+Example: Deploy contracts to Ropsten network
+
+```
+npx hardhat deploy --network ropsten
+...
+reusing "ScaleCodec" at 0xc624558eFE2E31baCE1249E1B161A1f1dc58a6ab
+reusing "BasicOutboundChannel" at 0x30E16792D89f1939dEFb60683A44E3917901C849
+deploying "ERC20App" (tx: 0x8436d39495d4331072dd292438d7157d1db46648a289d99636444f92bc3c6de8)...: deployed at 0xe46B454A908cEd5A795FA7a2D106AcDdcf7ea45e with 1478775 gas
+deploying "TestToken" (tx: 0x387e960e8085f124091f25c9364f81d1fd01b94ef93d1b192b039cb3b05dcd18)...: deployed at 0x0c7f69F66AB81BB257198BAa7f42fd1469E002a6 with 1316995 gas
+```
+
+It deploys `ScaleCodec`, `BasicOutboundChannel`, `ERC20App`, `TestToken` contracts to Ropsten network.
+
+### Verify the contracts
+
+We are using `@nomiclabs/hardhat-etherscan` to verify. The env variable `ETHERSCAN_API_KEY` is necessary to use this. You can get this key from etherscan.io
+
+For ScaleCodec:
+
+```
+npx hardhat verify --network ropsten 0xc624558eFE2E31baCE1249E1B161A1f1dc58a6ab
+```
+
+For BasicOutboundChannel:
+
+```
+npx hardhat verify --network ropsten 0x30E16792D89f1939dEFb60683A44E3917901C849
+```
+
+For ERC20App:
+
+```
+npx hardhat verify --network ropsten 0xe46B454A908cEd5A795FA7a2D106AcDdcf7ea45e --constructor-args ./deploy/arguments.js
+```
+
+For TestToken:
+
+```
+npx hardhat verify --network ropsten 0x0c7f69F66AB81BB257198BAa7f42fd1469E002a6 "Test Token" "TEST"
+```
+
+### Demo Token Migration
+
+#### Mint `TEST` token to your account
+
+Go to [`TEST` token contract](https://ropsten.etherscan.io/address/0x0c7f69F66AB81BB257198BAa7f42fd1469E002a6#writeContract).
+Call `mint` function with the following:
+
+- <strong>to (address)</strong>: your account address
+- <strong>\_amount (uint256)</strong>: amount of tokens to mint (1000 \* 10^8)
+
+#### Approve `TEST` token (in your account) to be spent by `ERC20App` contract
+
+Go to [`TEST` token contract](https://ropsten.etherscan.io/address/0x0c7f69F66AB81BB257198BAa7f42fd1469E002a6#writeContract).
+Call `approve` function with the following:
+
+- <strong>spender (address)</strong>: ERC20App contract address (e.g: 0xe46B454A908cEd5A795FA7a2D106AcDdcf7ea45e)
+- <strong>\_amount (uint256)</strong>: amount of tokens to lock (1 \* 10^8)
+
+#### Authorize `ERC20App` as an operator in `BasicOutboundChannel` contract
+
+Go to [`BasicOutboundChannel` token contract](https://ropsten.etherscan.io/address/0x30E16792D89f1939dEFb60683A44E3917901C849#writeContract).
+Call `authorizeOperator` function with the following:
+
+- <strong>operator (address)</strong>: ERC20App contract address (e.g: 0xe46B454A908cEd5A795FA7a2D106AcDdcf7ea45e)
+
+#### Lock `TEST` token in `ERC20App` contract that actually triggers to migration
+
+Go to [`ERC20App` token contract](https://ropsten.etherscan.io/address/0xe46B454A908cEd5A795FA7a2D106AcDdcf7ea45e#writeContract).
+
+Call `lock` function with the following:
+
+- <strong>\_token (address)</strong>: TEST token address (e.g: 0x0c7f69F66AB81BB257198BAa7f42fd1469E002a6)
+- <strong>\_recipient (byte32)</strong>: The public key of the Polkadex account address (e.g: 0xcc816e946438b2b21b8a3073f983ce03ee0feb313ec494e2dec462cfb4e77502)
+- <strong>\_amount (uint256)</strong>: amount of token to lock (e.g: 1 \* 10^8)
+- <strong>\_channelId (uint8)</strong>: 0 (representing OutboundChannel)
