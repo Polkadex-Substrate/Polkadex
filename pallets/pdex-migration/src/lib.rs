@@ -30,6 +30,7 @@ use orml_traits::MultiCurrencyExtended;
 use polkadex_primitives::assets::AssetId;
 use sp_core::{H160, U256};
 use sp_runtime::traits::StaticLookup;
+use orml_traits::MultiCurrency;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -97,9 +98,9 @@ decl_module! {
             }
 
             let recipient = T::Lookup::lookup(recipient)?;
-            // TODO: Convert U256 amount to T::Balance amount
-            // T::Currency::deposit(AssetId::POLKADEX, &recipient, amount)?;
-            Self::deposit_event(RawEvent::NativePDEXMinted(token, sender, recipient, amount,0_u128.saturated_into()));
+            
+            T::Currency::deposit(AssetId::POLKADEX, &recipient, amount.as_u128().saturated_into())?;
+            Self::deposit_event(RawEvent::NativePDEXMinted(token, sender, recipient, amount, 0_u128.saturated_into()));
 
             Ok(())
         }
