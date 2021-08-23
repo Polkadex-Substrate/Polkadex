@@ -103,7 +103,6 @@ polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { package = "pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", default-features = false }
 pallet-polkapool = { path = "../pallets/polkapool", default-features = false }
-token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
 erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 polkadex-ido = { path = "../pallets/Polkadex_Ido", default-features = false }
 
@@ -184,7 +183,6 @@ std = [
     "polkadex-fungible-assets/std",
     "polkadex-ocex/std",
     "pallet-polkapool/std",
-    "token-faucet-pallet/std",
     "chainbridge/std",
     'polkadex-ido/std',
     'polkadex-ido-runtime-api/std',

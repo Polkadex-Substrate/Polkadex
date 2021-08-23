@@ -1210,7 +1210,6 @@ construct_runtime! {
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>} = 37,
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 38,
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 39,
-        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned} = 40,
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>} = 41,
         BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event} = 44,
         Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 45,
@@ -1695,12 +1694,6 @@ impl polkadex_ocex::Config for Runtime {
     type GenesisAccount = OCEXGenesisAccount;
     type Currency = Currencies;
     type ProxyLimit = ProxyLimit;
-}
-
-impl token_faucet_pallet::Config for Runtime {
-    type Event = Event;
-    type Balance = Balance;
-    type Currency = Currencies;
 }
 
 parameter_types! {
