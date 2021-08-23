@@ -292,8 +292,7 @@ impl InstanceFilter<Call> for ProxyType {
             ),
             ProxyType::Governance => matches!(
                 c,
-                Call::Democracy(..)
-                    | Call::Council(..)
+                Call::Council(..)
                     | Call::TechnicalCommittee(..)
                     | Call::Elections(..)
                     | Call::Treasury(..)
@@ -591,56 +590,6 @@ parameter_types! {
     pub const MaxProposals: u32 = 100;
 }
 
-impl pallet_democracy::Config for Runtime {
-    type Proposal = Call;
-    type Event = Event;
-    type Currency = Balances;
-    type EnactmentPeriod = EnactmentPeriod;
-    type LaunchPeriod = LaunchPeriod;
-    type VotingPeriod = VotingPeriod;
-    type MinimumDeposit = MinimumDeposit;
-    /// A straight majority of the council can decide what their next motion is.
-    type ExternalOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>;
-    /// A super-majority can have the next scheduled referendum be a straight majority-carries vote.
-    type ExternalMajorityOrigin =
-        pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>;
-    /// A unanimous council can have the next scheduled referendum be a straight default-carries
-    /// (NTB) vote.
-    type ExternalDefaultOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
-    /// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-    /// be tabled immediately and with a shorter voting/enactment period.
-    type FastTrackOrigin =
-        pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>;
-    type InstantOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>;
-    type InstantAllowed = InstantAllowed;
-    type FastTrackVotingPeriod = FastTrackVotingPeriod;
-    // To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-    type CancellationOrigin =
-        pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>;
-    // To cancel a proposal before it has been passed, the technical committee must be unanimous or
-    // Root must agree.
-    type CancelProposalOrigin = EnsureOneOf<
-        AccountId,
-        EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
-    >;
-    type BlacklistOrigin = EnsureRoot<AccountId>;
-    // Any single technical committee member may veto a coming council proposal, however they can
-    // only do it once and it lasts only for the cool-off period.
-    type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
-    type CooloffPeriod = CooloffPeriod;
-    type PreimageByteDeposit = PreimageByteDeposit;
-    type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-    type Slash = Treasury;
-    type Scheduler = Scheduler;
-    type PalletsOrigin = OriginCaller;
-    type MaxVotes = MaxVotes;
-    type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
-    type MaxProposals = MaxProposals;
-}
 
 parameter_types! {
     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
@@ -1092,24 +1041,6 @@ impl pallet_vesting::Config for Runtime {
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-    pub const LotteryPalletId: PalletId = PalletId(*b"py/lotto");
-    pub const MaxCalls: usize = 10;
-    pub const MaxGenerateRandom: u32 = 10;
-}
-
-impl pallet_lottery::Config for Runtime {
-    type PalletId = LotteryPalletId;
-    type Call = Call;
-    type Currency = Balances;
-    type Randomness = RandomnessCollectiveFlip;
-    type Event = Event;
-    type ManagerOrigin = EnsureRoot<AccountId>;
-    type MaxCalls = MaxCalls;
-    type ValidateCall = Lottery;
-    type MaxGenerateRandom = MaxGenerateRandom;
-    type WeightInfo = pallet_lottery::weights::SubstrateWeight<Runtime>;
-}
 
 parameter_types! {
     pub const AssetDeposit: Balance = 100 * DOLLARS;
@@ -1168,25 +1099,6 @@ impl pallet_polkapool::Config for Runtime {
     type MinStakePerWeight = MinStakePerWeight;
     type GovernanceOrigin = EnsureGovernance;
 }
-
-impl pallet_gilt::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-    type CurrencyBalance = Balance;
-    type AdminOrigin = frame_system::EnsureRoot<AccountId>;
-    type Deficit = ();
-    type Surplus = ();
-    type IgnoredIssuance = IgnoredIssuance;
-    type QueueCount = QueueCount;
-    type MaxQueueLen = MaxQueueLen;
-    type FifoQueueLen = FifoQueueLen;
-    type Period = Period;
-    type MinFreeze = MinFreeze;
-    type IntakePeriod = IntakePeriod;
-    type MaxIntakeBids = MaxIntakeBids;
-    type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
-}
-
 
 
 parameter_types! {
@@ -1271,7 +1183,6 @@ construct_runtime! {
         ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 8,
         Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 9,
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-        Democracy: pallet_democracy::{Pallet, Call, Storage, Config, Event<T>} = 11,
         Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 12,
         TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 13,
         Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
@@ -1292,8 +1203,6 @@ construct_runtime! {
         Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 29,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 30,
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 31,
-        Lottery: pallet_lottery::{Pallet, Call, Storage, Event<T>} = 32,
-        Gilt: pallet_gilt::{Pallet, Call, Storage, Event<T>, Config} = 33,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 34,
         Currencies: orml_currencies::{Pallet, Call, Event<T>} = 35,
@@ -1303,8 +1212,6 @@ construct_runtime! {
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 39,
         TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned} = 40,
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>} = 41,
-        Example: example::{Pallet, Call, Event<T>} = 42,
-        Erc721: erc721::{Pallet, Call, Storage, Event<T>} = 43,
         BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event} = 44,
         Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 45,
         EthereumLightClient: snowbridge_ethereum_light_client::{Pallet, Call, Storage, Event, Config} = 46,
@@ -1633,17 +1540,13 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_bounties, Bounties);
             add_benchmark!(params, batches, pallet_collective, Council);
             add_benchmark!(params, batches, pallet_contracts, Contracts);
-            add_benchmark!(params, batches, pallet_democracy, Democracy);
             add_benchmark!(params, batches, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
             add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
-            add_benchmark!(params, batches, pallet_gilt, Gilt);
             add_benchmark!(params, batches, pallet_grandpa, Grandpa);
             add_benchmark!(params, batches, pallet_identity, Identity);
             add_benchmark!(params, batches, pallet_im_online, ImOnline);
             add_benchmark!(params, batches, pallet_indices, Indices);
-            add_benchmark!(params, batches, pallet_lottery, Lottery);
             add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
-            // add_benchmark!(params, batches, pallet_mmr, Mmr);
             add_benchmark!(params, batches, pallet_multisig, Multisig);
             add_benchmark!(params, batches, pallet_offences, OffencesBench::<Runtime>);
             add_benchmark!(params, batches, pallet_proxy, Proxy);
@@ -1819,20 +1722,6 @@ parameter_types! {
     pub NFTTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(1, &blake2_128(b"NFT"));
 }
 
-impl erc721::Config for Runtime {
-    type Event = Event;
-    type Identifier = NFTTokenId;
-}
-
-impl example::Config for Runtime {
-    type Event = Event;
-    type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
-    type Balance = Balance;
-    type Currency = Currencies;
-    type HashId = HashId;
-    type NativeTokenId = NativeTokenId;
-    type Erc721Id = NFTTokenId;
-}
 
 #[cfg(test)]
 mod tests {
