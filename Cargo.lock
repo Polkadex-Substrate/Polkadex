@@ -791,23 +791,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chainbridge"
-version = "0.0.2"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#a781bdb844233c78c7b81f0646a78ddb1f870626"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-balances",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder-runner",
-]
-
-[[package]]
 name = "chrono"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1502,44 +1485,6 @@ name = "event-listener"
 version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
-
-[[package]]
-name = "example-erc721"
-version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#a781bdb844233c78c7b81f0646a78ddb1f870626"
-dependencies = [
- "chainbridge",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder-runner",
-]
-
-[[package]]
-name = "example-pallet"
-version = "0.0.1"
-source = "git+https://github.com/Polkadex-Substrate/chainbridge-substrate?branch=main#a781bdb844233c78c7b81f0646a78ddb1f870626"
-dependencies = [
- "chainbridge",
- "example-erc721",
- "frame-support",
- "frame-system",
- "orml-traits",
- "parity-scale-codec",
- "polkadex-primitives",
- "serde",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder-runner",
-]
 
 [[package]]
 name = "exit-future"
@@ -3865,9 +3810,6 @@ dependencies = [
 name = "node-polkadex-runtime"
 version = "3.0.0"
 dependencies = [
- "chainbridge",
- "example-erc721",
- "example-pallet",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -3889,15 +3831,12 @@ dependencies = [
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-contracts-rpc-runtime-api",
- "pallet-democracy",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
- "pallet-gilt",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
- "pallet-lottery",
  "pallet-membership",
  "pallet-multisig",
  "pallet-offences",
@@ -3941,7 +3880,6 @@ dependencies = [
  "sp-version",
  "static_assertions",
  "substrate-wasm-builder",
- "token-faucet-pallet",
 ]
 
 [[package]]
@@ -4368,21 +4306,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-democracy"
-version = "3.0.0"
-source = "git+https://github.com/paritytech/substrate#e5437efefa82bd8eb567f1245f0a7443ac4e4fe7"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate#e5437efefa82bd8eb567f1245f0a7443ac4e4fe7"
@@ -4412,20 +4335,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-npos-elections",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-gilt"
-version = "3.0.0"
-source = "git+https://github.com/paritytech/substrate#e5437efefa82bd8eb567f1245f0a7443ac4e4fe7"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "sp-arithmetic",
  "sp-runtime",
  "sp-std",
 ]
@@ -4495,18 +4404,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keyring",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-lottery"
-version = "3.0.0"
-source = "git+https://github.com/paritytech/substrate#e5437efefa82bd8eb567f1245f0a7443ac4e4fe7"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
  "sp-runtime",
  "sp-std",
 ]
@@ -8475,12 +8372,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "substrate-wasm-builder-runner"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54cab12167e32b38a62c5ea5825aa0874cde315f907a46aad2b05aa8ef3d862f"
-
-[[package]]
 name = "subtle"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8655,20 +8546,6 @@ name = "tinyvec_macros"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
-
-[[package]]
-name = "token-faucet-pallet"
-version = "1.0.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "orml-traits",
- "pallet-balances",
- "parity-scale-codec",
- "polkadex-primitives",
- "sp-core",
- "sp-runtime",
-]
 
 [[package]]
 name = "tokio"

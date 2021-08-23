@@ -289,8 +289,7 @@ impl InstanceFilter<Call> for ProxyType {
             ),
 			ProxyType::Governance => matches!(
                 c,
-                Call::Democracy(..)
-                    | Call::Council(..)
+                Call::Council(..)
                     | Call::TechnicalCommittee(..)
                     | Call::Elections(..)
                     | Call::Treasury(..)
@@ -588,56 +587,6 @@ parameter_types! {
     pub const MaxProposals: u32 = 100;
 }
 
-impl pallet_democracy::Config for Runtime {
-	type Proposal = Call;
-	type Event = Event;
-	type Currency = Balances;
-	type EnactmentPeriod = EnactmentPeriod;
-	type LaunchPeriod = LaunchPeriod;
-	type VotingPeriod = VotingPeriod;
-	type MinimumDeposit = MinimumDeposit;
-	/// A straight majority of the council can decide what their next motion is.
-	type ExternalOrigin =
-	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>;
-	/// A super-majority can have the next scheduled referendum be a straight majority-carries vote.
-	type ExternalMajorityOrigin =
-	pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>;
-	/// A unanimous council can have the next scheduled referendum be a straight default-carries
-	/// (NTB) vote.
-	type ExternalDefaultOrigin =
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin =
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>;
-	type InstantOrigin =
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>;
-	type InstantAllowed = InstantAllowed;
-	type FastTrackVotingPeriod = FastTrackVotingPeriod;
-	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-	type CancellationOrigin =
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>;
-	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
-	// Root must agree.
-	type CancelProposalOrigin = EnsureOneOf<
-		AccountId,
-		EnsureRoot<AccountId>,
-		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
-	>;
-	type BlacklistOrigin = EnsureRoot<AccountId>;
-	// Any single technical committee member may veto a coming council proposal, however they can
-	// only do it once and it lasts only for the cool-off period.
-	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
-	type CooloffPeriod = CooloffPeriod;
-	type PreimageByteDeposit = PreimageByteDeposit;
-	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	type Slash = Treasury;
-	type Scheduler = Scheduler;
-	type PalletsOrigin = OriginCaller;
-	type MaxVotes = MaxVotes;
-	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
-	type MaxProposals = MaxProposals;
-}
 
 parameter_types! {
     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
@@ -995,24 +944,6 @@ impl pallet_vesting::Config for Runtime {
 	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-    pub const LotteryPalletId: PalletId = PalletId(*b"py/lotto");
-    pub const MaxCalls: usize = 10;
-    pub const MaxGenerateRandom: u32 = 10;
-}
-
-impl pallet_lottery::Config for Runtime {
-	type PalletId = LotteryPalletId;
-	type Call = Call;
-	type Currency = Balances;
-	type Randomness = RandomnessCollectiveFlip;
-	type Event = Event;
-	type ManagerOrigin = EnsureRoot<AccountId>;
-	type MaxCalls = MaxCalls;
-	type ValidateCall = Lottery;
-	type MaxGenerateRandom = MaxGenerateRandom;
-	type WeightInfo = pallet_lottery::weights::SubstrateWeight<Runtime>;
-}
 
 parameter_types! {
     pub const AssetDeposit: Balance = 100 * DOLLARS;
@@ -1033,23 +964,6 @@ parameter_types! {
     pub const MaxIntakeBids: u32 = 10;
 }
 
-impl pallet_gilt::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type CurrencyBalance = Balance;
-	type AdminOrigin = frame_system::EnsureRoot<AccountId>;
-	type Deficit = ();
-	type Surplus = ();
-	type IgnoredIssuance = IgnoredIssuance;
-	type QueueCount = QueueCount;
-	type MaxQueueLen = MaxQueueLen;
-	type FifoQueueLen = FifoQueueLen;
-	type Period = Period;
-	type MinFreeze = MinFreeze;
-	type IntakePeriod = IntakePeriod;
-	type MaxIntakeBids = MaxIntakeBids;
-	type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
-}
 
 parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100u128;
@@ -1077,52 +991,45 @@ construct_runtime!(
         NodeBlock = polkadex_primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Pallet, Call, Event},
-        Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
-        Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
-        ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
-        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        Democracy: pallet_democracy::{Pallet, Call, Storage, Config, Event<T>},
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
-        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config},
-        Offences: pallet_offences::{Pallet, Call, Storage, Event},
-        Historical: pallet_session_historical::{Pallet},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
-        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
-        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>},
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
-        Lottery: pallet_lottery::{Pallet, Call, Storage, Event<T>},
-        Gilt: pallet_gilt::{Pallet, Call, Storage, Event<T>, Config},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+        Utility: pallet_utility::{Pallet, Call, Event} = 1,
+        Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 2,
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
+        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent} = 4,
+        Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 6,
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 7,
+        ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 8,
+        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 9,
+        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
+        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 11,
+        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 12,
+        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 13,
+        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
+        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 15,
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 16,
+        Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 18,
+        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 19,
+        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config} = 20,
+        Offences: pallet_offences::{Pallet, Call, Storage, Event} = 21,
+        Historical: pallet_session_historical::{Pallet} = 22,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage} = 23,
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 24,
+        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 25,
+        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 26,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 27,
+        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 28,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 29,
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 30,
         // Pallets
-        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>},
-        Currencies: orml_currencies::{Pallet, Call, Event<T>},
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
-        PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>},
-        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
-        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TokenFaucet: token_faucet_pallet::{Pallet, Call, Event<T>, Storage, ValidateUnsigned},
-        ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
-        Example: example::{Pallet, Call, Event<T>},
-        Erc721: erc721::{Pallet, Call, Storage, Event<T>},
-		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>}
+        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 31,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 32,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 33,
+        PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>} = 34,
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 35,
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 36,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 37
     }
 );
 
@@ -1431,17 +1338,13 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_bounties, Bounties);
             add_benchmark!(params, batches, pallet_collective, Council);
             add_benchmark!(params, batches, pallet_contracts, Contracts);
-            add_benchmark!(params, batches, pallet_democracy, Democracy);
             add_benchmark!(params, batches, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
             add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
-            add_benchmark!(params, batches, pallet_gilt, Gilt);
             add_benchmark!(params, batches, pallet_grandpa, Grandpa);
             add_benchmark!(params, batches, pallet_identity, Identity);
             add_benchmark!(params, batches, pallet_im_online, ImOnline);
             add_benchmark!(params, batches, pallet_indices, Indices);
-            add_benchmark!(params, batches, pallet_lottery, Lottery);
             add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
-            // add_benchmark!(params, batches, pallet_mmr, Mmr);
             add_benchmark!(params, batches, pallet_multisig, Multisig);
             add_benchmark!(params, batches, pallet_offences, OffencesBench::<Runtime>);
             add_benchmark!(params, batches, pallet_proxy, Proxy);
@@ -1592,44 +1495,9 @@ impl polkadex_ocex::Config for Runtime {
 	type ProxyLimit = ProxyLimit;
 }
 
-impl token_faucet_pallet::Config for Runtime {
-	type Event = Event;
-	type Balance = Balance;
-	type Currency = Currencies;
-}
-
 parameter_types! {
     pub const ChainId: u8 = 1;
     pub const ProposalLifetime: BlockNumber = 1000;
-}
-
-impl chainbridge::Config for Runtime {
-	type Event = Event;
-	type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
-	type Proposal = Call;
-	type ChainId = ChainId;
-	type ProposalLifetime = ProposalLifetime;
-}
-
-parameter_types! {
-    pub HashId: chainbridge::ResourceId = chainbridge::derive_resource_id(1, &blake2_128(b"hash"));
-    pub NativeTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(0, &blake2_128(b"DAV"));
-    pub NFTTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(1, &blake2_128(b"NFT"));
-}
-
-impl erc721::Config for Runtime {
-	type Event = Event;
-	type Identifier = NFTTokenId;
-}
-
-impl example::Config for Runtime {
-	type Event = Event;
-	type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
-	type Balance = Balance;
-	type Currency = Currencies;
-	type HashId = HashId;
-	type NativeTokenId = NativeTokenId;
-	type Erc721Id = NFTTokenId;
 }
 
 #[cfg(test)]
