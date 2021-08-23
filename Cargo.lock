@@ -4244,6 +4244,7 @@ dependencies = [
  "pallet-membership",
  "pallet-multisig",
  "pallet-offences",
+ "pallet-polkadex-ido-primitives",
  "pallet-polkapool",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
@@ -4265,6 +4266,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-fungible-assets",
  "polkadex-ido",
+ "polkadex-ido-runtime-api",
  "polkadex-ocex",
  "polkadex-primitives",
  "serde",
@@ -4907,6 +4909,18 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-polkadex-ido-primitives"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "serde",
+ "sp-core",
+ "sp-runtime",
  "sp-std",
 ]
 
@@ -5677,6 +5691,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-polkadex-ido-primitives",
  "parity-scale-codec",
  "polkadex-primitives",
  "rand 0.8.4",
@@ -5686,6 +5701,34 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polkadex-ido-rpc"
+version = "0.1.0"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "pallet-polkadex-ido-primitives",
+ "parity-scale-codec",
+ "polkadex-ido-runtime-api",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-rpc",
+ "sp-runtime",
+]
+
+[[package]]
+name = "polkadex-ido-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "pallet-polkadex-ido-primitives",
+ "parity-scale-codec",
+ "sp-api",
  "sp-runtime",
  "sp-std",
 ]
@@ -5714,6 +5757,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.11.1",
  "platforms",
+ "polkadex-ido-rpc",
  "polkadex-primitives",
  "rand 0.7.3",
  "regex",
@@ -7771,9 +7815,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.126"
+version = "1.0.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
+checksum = "f03b9878abf6d14e6779d3f24f07b2cfa90352cfec4acc5aab8f1ac7f146fae8"
 dependencies = [
  "serde_derive",
 ]
@@ -7800,9 +7844,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.126"
+version = "1.0.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "963a7dbc9895aeac7ac90e74f34a5d5261828f79df35cbed41e10189d3804d43"
+checksum = "a024926d3432516606328597e0f224a51355a493b49fdd67e9209187cbe55ecc"
 dependencies = [
  "proc-macro2",
  "quote",
