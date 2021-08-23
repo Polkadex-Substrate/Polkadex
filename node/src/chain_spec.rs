@@ -21,7 +21,7 @@ use node_polkadex_runtime::constants::currency::*;
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
-    BasicInboundChannelConfig, ContractsConfig, CouncilConfig, DemocracyConfig, ERC20PDEXConfig,
+    BasicInboundChannelConfig, ContractsConfig, CouncilConfig, ERC20PDEXConfig,
     ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, OrmlVestingConfig,
     PolkadexOcexConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
     SystemConfig, TechnicalCommitteeConfig, TokensConfig, EthereumLightClientConfig,
@@ -337,7 +337,6 @@ pub fn testnet_genesis(
             stakers,
             ..Default::default()
         },
-        pallet_democracy: DemocracyConfig::default(),
         pallet_elections_phragmen: ElectionsConfig {
             members: endowed_accounts
                 .iter()
@@ -372,7 +371,6 @@ pub fn testnet_genesis(
         pallet_membership_Instance1: Default::default(),
         pallet_treasury: Default::default(),
         pallet_vesting: Default::default(),
-        pallet_gilt: Default::default(),
         snowbridge_ethereum_light_client: EthereumLightClientConfig {
             initial_header: EthereumHeader {
                 parent_hash: hex!("92ec9f26c923159794cc808323991db7dd882a15a7d70db0a95eb71df9b209b8").into(),
