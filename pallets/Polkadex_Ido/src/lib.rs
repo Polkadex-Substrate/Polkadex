@@ -38,6 +38,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
 
+use codec::Codec;
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::Weight;
 use frame_support::{
@@ -67,6 +68,7 @@ use sp_std::prelude::*;
 mod benchmarking;
 pub mod weights;
 
+use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
 pub use weights::WeightInfo;
 
 #[cfg(test)]
@@ -132,6 +134,7 @@ impl Default for InvestorInfo {
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 pub struct FundingRound<T: Config> {
     token_a: AssetId,
+    creator: T::AccountId,
     amount: T::Balance,
     token_b: AssetId,
     vesting_per_block: T::Balance,
@@ -148,6 +151,7 @@ impl<T: Config> Default for FundingRound<T> {
     fn default() -> Self {
         FundingRound {
             token_a: AssetId::POLKADEX,
+            creator: T::AccountId::default(),
             amount: T::Balance::default(),
             token_b: AssetId::POLKADEX,
             vesting_per_block: T::Balance::default(),
@@ -165,6 +169,7 @@ impl<T: Config> Default for FundingRound<T> {
 impl<T: Config> FundingRound<T> {
     fn from(
         token_a: AssetId,
+        creator: T::AccountId,
         amount: T::Balance,
         token_b: AssetId,
         vesting_per_block: T::Balance,
@@ -177,6 +182,7 @@ impl<T: Config> FundingRound<T> {
     ) -> Self {
         FundingRound {
             token_a,
+            creator,
             amount,
             token_b,
             vesting_per_block,
@@ -189,46 +195,29 @@ impl<T: Config> FundingRound<T> {
             actual_raise: Zero::zero(),
         }
     }
+
+    fn to_primitive(&self) -> FundingRoundWithPrimitives<T::AccountId> {
+        FundingRoundWithPrimitives {
+            token_a: self.token_a,
+            creator: self.creator.clone(),
+            amount: self.amount.saturated_into(),
+            token_b: self.token_b,
+            vesting_per_block: self.vesting_per_block.saturated_into(),
+            start_block: self.start_block.saturated_into(),
+            min_allocation: self.min_allocation.saturated_into(),
+            max_allocation: self.max_allocation.saturated_into(),
+            operator_commission: self.operator_commission.saturated_into(),
+            token_a_priceper_token_b: self.token_a_priceper_token_b.saturated_into(),
+            close_round_block: self.close_round_block.saturated_into(),
+            actual_raise: self.actual_raise.saturated_into(),
+        }
+    }
 }
 
 #[derive(Decode, Encode, Clone)]
 pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
     account_id: T::AccountId,
     amount: T::Balance,
-}
-
-decl_storage! {
-    trait Store for Module<T: Config> as PolkadexIdo {
-        /// A mapping of Investor and its KYC status
-        InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
-        /// A mapping between funding round creator and funding round id
-        InfoProjectTeam get(fn get_team): map hasher(identity) T::AccountId => T::Hash;
-        /// A mapping between round id and funding round information
-        InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
-        /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
-        WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
-        /// For each round, we keep mapping between participants and the amount, they will be using
-        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
-        /// For each round, we keep mapping between investors and the block, when they will claim token
-        LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
-        /// A mapping between investor and claim amount
-        InfoClaimAmount get(fn get_claim_amount): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId => T::Balance;
-        /// A mapping between funding round id and its InterestedParticipants plus the amount they are willing to invest
-        InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
-        /// A mapping between funding round id and amount interested participant are will to invest
-        InterestedParticipantsAmounts get(fn get_interested_particpants_amounts): map hasher(identity) T::Hash => BTreeMap<T::Balance, BTreeSet<T::AccountId>>;
-
-        Nonce get(fn nonce): u128;
-    }
-    add_extra_genesis {
-        config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
-
-        build(|config: &GenesisConfig<T>| {
-            config.endowed_accounts.iter().for_each(|(account_id, currency_id, initial_balance)| {
-                 orml_tokens::Accounts::<T>::mutate(account_id, currency_id, |account_data| account_data.free = *initial_balance)
-            })
-        })
-    }
 }
 
 decl_module! {
@@ -329,8 +318,9 @@ decl_module! {
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
-                token_a.clone(),
-                amount.clone(),
+                token_a,
+                team.clone(),
+                amount,
                 token_b,
                 vesting_per_block,
                 start_block,
@@ -363,10 +353,10 @@ decl_module! {
         pub fn whitelist_investor(origin, round_id: T::Hash, investor_address: T::AccountId, amount: T::Balance) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            ensure!(<InfoProjectTeam<T>>::get(team).eq(&round_id), <Error<T>>::FundingRoundDoesNotBelong);
+            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(team.eq(&funding_round.creator), <Error<T>>::NotACreater);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
             Self::deposit_event(RawEvent::InvestorWhitelisted(round_id, investor_address));
@@ -522,10 +512,8 @@ decl_module! {
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            ensure!(<InfoProjectTeam<T>>::contains_key(&creator), <Error<T>>::CreaterDoesNotExist);
-            let info_round_id = <InfoProjectTeam<T>>::get(&creator);
-            ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
             ensure!(<T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise).is_ok(), Error::<T>::FundRaisedRedrawn);
@@ -546,14 +534,12 @@ decl_module! {
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            ensure!(<InfoProjectTeam<T>>::contains_key(&creator), <Error<T>>::CreaterDoesNotExist);
-            let info_round_id = <InfoProjectTeam<T>>::get(&creator);
-            ensure!(info_round_id.eq(&round_id), <Error<T>>::NotACreater);
             let funding_round = <InfoFundingRound<T>>::get(round_id);
-            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
+            // Check if there is any left to withdraw
             let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
             let remaining_token = funding_round.amount.saturating_sub(total_tokens_bought_by_investors);
-            // Check if there is any left to withdraw
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             ensure!(remaining_token > Zero::zero(), Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
             //Transfers to remaining token back to creator after round.
@@ -561,6 +547,40 @@ decl_module! {
             Self::deposit_event(RawEvent::WithdrawToken(round_id, creator));
             Ok(())
         }
+    }
+}
+
+decl_storage! {
+    trait Store for Module<T: Config> as PolkadexIdo {
+        /// A mapping of Investor and its KYC status
+        InfoInvestor get(fn get_investorinfo): map hasher(identity) T::AccountId => InvestorInfo;
+        /// A mapping between funding round creator and funding round id
+        InfoProjectTeam get(fn get_team): map hasher(identity) T::AccountId => T::Hash;
+        /// A mapping between round id and funding round information
+        InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
+        /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
+        WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        /// For each round, we keep mapping between participants and the amount, they will be using
+        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        /// For each round, we keep mapping between investors and the block, when they will claim token
+        LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
+        /// A mapping between investor and claim amount
+        InfoClaimAmount get(fn get_claim_amount): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId => T::Balance;
+        /// A mapping between funding round id and its InterestedParticipants plus the amount they are willing to invest
+        InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
+        /// A mapping between funding round id and amount interested participant are will to invest
+        InterestedParticipantsAmounts get(fn get_interested_particpants_amounts): map hasher(identity) T::Hash => BTreeMap<T::Balance, BTreeSet<T::AccountId>>;
+
+        Nonce get(fn nonce): u128;
+    }
+    add_extra_genesis {
+        config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
+
+        build(|config: &GenesisConfig<T>| {
+            config.endowed_accounts.iter().for_each(|(account_id, currency_id, initial_balance)| {
+                 orml_tokens::Accounts::<T>::mutate(account_id, currency_id, |account_data| account_data.free = *initial_balance)
+            })
+        })
     }
 }
 
@@ -662,5 +682,34 @@ impl<T: Config> Module<T> {
 
     pub fn pallet_account_id() -> T::AccountId {
         T::ModuleId::get().into_account()
+    }
+
+    pub fn rounds_by_investor(
+        account: T::AccountId,
+    ) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
+        <InvestorShareInfo<T>>::iter()
+            .filter_map(|(round_id, investor, _)| {
+                if investor != account {
+                    None
+                } else {
+                    let round_info = <InfoFundingRound<T>>::get(&round_id);
+                    Some((round_id, round_info.to_primitive()))
+                }
+            })
+            .collect()
+    }
+
+    pub fn rounds_by_creator(
+        account: T::AccountId,
+    ) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
+        <InfoFundingRound<T>>::iter()
+            .filter_map(|(round_id, round_info)| {
+                if round_info.creator != account {
+                    None
+                } else {
+                    Some((round_id, round_info.to_primitive()))
+                }
+            })
+            .collect()
     }
 }

@@ -11,5 +11,8 @@ members = [
     'pallets/Polkadex_Ido',
     'pallets/polkapool',
     'runtime',
+    'pallets/Polkadex_Ido/rpc',
+    'pallets/Polkadex_Ido/rpc/runtime-api',
+    'pallets/Polkadex_Ido/common',
     'contracts/uniswap_v2',
 ]
