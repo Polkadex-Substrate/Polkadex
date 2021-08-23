@@ -205,7 +205,7 @@ std = [
     "chainbridge/std",
     'erc721/std',
     'example/std',
-  	'polkadex-ido/std',
+    'polkadex-ido/std',
     'polkadex-ido-runtime-api/std',
     'pallet-polkadex-ido-primitives/std'
 
