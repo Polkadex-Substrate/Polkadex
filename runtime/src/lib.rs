@@ -1210,16 +1210,15 @@ construct_runtime! {
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>} = 34,
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 35,
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 36,
-        ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>} = 37,
-        BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event} = 38,
-        Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 39,
-        EthereumLightClient: snowbridge_ethereum_light_client::{Pallet, Call, Storage, Event, Config} = 40,
-        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>} = 41,
-        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 42,
+        BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event} = 37,
+        Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 38,
+        EthereumLightClient: snowbridge_ethereum_light_client::{Pallet, Call, Storage, Event, Config} = 39,
+        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>} = 40,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 41,
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
         // otherwise it will result in in consistent state of runtime.
         // Refer: issue #261
-        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>} = 43
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>} = 42
     }
 }
 
@@ -1700,21 +1699,6 @@ parameter_types! {
     pub const ChainId: u8 = 1;
     pub const ProposalLifetime: BlockNumber = 1000;
 }
-
-impl chainbridge::Config for Runtime {
-    type Event = Event;
-    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
-    type Proposal = Call;
-    type ChainId = ChainId;
-    type ProposalLifetime = ProposalLifetime;
-}
-
-parameter_types! {
-    pub HashId: chainbridge::ResourceId = chainbridge::derive_resource_id(1, &blake2_128(b"hash"));
-    pub NativeTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(0, &blake2_128(b"DAV"));
-    pub NFTTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(1, &blake2_128(b"NFT"));
-}
-
 
 #[cfg(test)]
 mod tests {
