@@ -60,8 +60,8 @@ fn test_attest_investor() {
 #[test]
 fn test_register_round() {
     let balance: Balance = 100;
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -86,8 +86,8 @@ fn test_register_round() {
 fn test_whitelist_investor() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
@@ -118,6 +118,8 @@ fn test_whitelist_investor() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
         assert_noop!(
             PolkadexIdo::whitelist_investor(
                 Origin::signed(investor_address),
@@ -160,8 +162,8 @@ fn test_participate_in_round() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
     let round_id = create_hash_data(&1u32);
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
             PolkadexIdo::participate_in_round(Origin::signed(ALICE.clone()), round_id, balance),
@@ -186,6 +188,8 @@ fn test_participate_in_round() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        assert_eq!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id), Ok(()));
+        system::Pallet::<Test>::set_block_number(open_block_number);
 
         assert_eq!(
             PolkadexIdo::register_investor(Origin::signed(investor_address)),
@@ -202,6 +206,7 @@ fn test_participate_in_round() {
             Ok(())
         );
 
+        //system::Pallet::<Test>::set_block_number();
         // Investment under minimum amount should return an error
         assert_noop!(
             PolkadexIdo::participate_in_round(
@@ -216,7 +221,6 @@ fn test_participate_in_round() {
             PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
             Ok(())
         );
-
         //Checks if the user can participate in a round more than once
         assert_noop!(
             PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
@@ -224,7 +228,7 @@ fn test_participate_in_round() {
         );
 
         // Check if FundingRound was successfully updated after investment
-        let round_info: FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
+        let (round_info, _ ) = <WhitelistInfoFundingRound<Test>>::get(round_id);
         assert_eq!(round_info.actual_raise == balance, true);
     });
 }
@@ -233,8 +237,8 @@ fn test_participate_in_round() {
 fn test_claim_tokens() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
@@ -252,7 +256,6 @@ fn test_claim_tokens() {
             Error::<Test>::FundingRoundDoesNotExist
         );
 
-        frame_system::Pallet::<Test>::set_block_number(closing_block_number);
 
         assert_eq!(
             PolkadexIdo::register_round(
@@ -272,6 +275,8 @@ fn test_claim_tokens() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(closing_block_number);
 
         assert_eq!(
             PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
@@ -298,8 +303,8 @@ fn test_show_interest_in_round() {
     let min_allocation: Balance = 100;
     let max_allocation: Balance = 400;
     let round_id = create_hash_data(&1u32);
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
             PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, amount),
@@ -334,6 +339,8 @@ fn test_show_interest_in_round() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
         //Check investing with lower than minimum allocation
         assert_noop!(
             PolkadexIdo::show_interest_in_round(
@@ -368,8 +375,8 @@ fn test_show_interest_in_round_randomized_participants() {
     let balance: Balance = 500;
     let min_allocation: Balance = 100;
     let max_allocation: Balance = 400;
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -389,7 +396,8 @@ fn test_show_interest_in_round_randomized_participants() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
-
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
         let investors: Vec<(u64, Balance)> =
             vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
 
@@ -429,10 +437,11 @@ fn test_show_interest_in_round_randomized_participants() {
 fn test_withdraw_raise() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default().build().execute_with(|| {
+        system::Pallet::<Test>::set_block_number(0);
         assert_noop!(
             PolkadexIdo::withdraw_raise(Origin::signed(ALICE), round_id, investor_address),
             Error::<Test>::InvestorDoesNotExist
@@ -465,6 +474,8 @@ fn test_withdraw_raise() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
 
         assert_noop!(
             PolkadexIdo::withdraw_raise(Origin::signed(3), round_id, investor_address),
@@ -477,6 +488,10 @@ fn test_withdraw_raise() {
             &4_u64,
             100000,
         );
+        let vote_period = match <VotingPeriod<Test>>::try_get() {
+            Ok(voting_period ) => voting_period,
+            Err(_) => <Test as Config>::DefaultVotingPeriod::get()
+        };
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(4),
@@ -484,12 +499,12 @@ fn test_withdraw_raise() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                open_block_number * vote_period,
                 balance,
                 balance,
                 balance,
                 balance,
-                closing_block_number
+                closing_block_number * vote_period
             ),
             Ok(())
         );
@@ -520,10 +535,11 @@ fn test_withdraw_raise() {
 fn test_withdraw_token() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 0;
-    let closing_block_number = 5;
+    let open_block_number = 11;
+    let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
     ExtBuilder::default().build().execute_with(|| {
+
         assert_noop!(
             PolkadexIdo::withdraw_token(Origin::signed(ALICE), round_id, investor_address),
             Error::<Test>::InvestorDoesNotExist
@@ -537,6 +553,8 @@ fn test_withdraw_token() {
             PolkadexIdo::withdraw_token(Origin::signed(ALICE), round_id, investor_address),
             Error::<Test>::FundingRoundDoesNotExist
         );
+
+
 
         assert_eq!(
             PolkadexIdo::register_round(
@@ -556,6 +574,8 @@ fn test_withdraw_token() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
 
         assert_noop!(
             PolkadexIdo::withdraw_token(Origin::signed(3), round_id, investor_address),
@@ -568,6 +588,10 @@ fn test_withdraw_token() {
             &4_u64,
             100000,
         );
+        let vote_period = match <VotingPeriod<Test>>::try_get() {
+            Ok(voting_period ) => voting_period,
+            Err(_) => <Test as Config>::DefaultVotingPeriod::get()
+        };
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(4),
@@ -575,12 +599,12 @@ fn test_withdraw_token() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                open_block_number * vote_period,
                 balance,
                 balance,
                 balance,
                 balance,
-                closing_block_number
+                closing_block_number * vote_period
             ),
             Ok(())
         );

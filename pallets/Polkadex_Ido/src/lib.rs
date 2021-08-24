@@ -50,7 +50,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::ensure_signed;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
 use polkadex_primitives::assets::AssetId;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
@@ -63,7 +63,7 @@ use sp_runtime::SaturatedConversion;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
-
+use sp_std::cmp::max;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -90,7 +90,7 @@ pub trait Config: system::Config + orml_tokens::Config {
         Self::AccountId,
         CurrencyId = AssetId,
         Balance = Self::Balance,
-    >;
+    > + MultiReservableCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Self::Balance>;
     /// The native currency ID type
     type NativeCurrencyId: Get<Self::CurrencyId>;
     /// The basic amount of funds that must be reserved for an Polkadex.
@@ -105,6 +105,8 @@ pub trait Config: system::Config + orml_tokens::Config {
     type ModuleId: Get<PalletId>;
     /// Weight information for extrinsics in this pallet.
     type WeightIDOInfo: WeightInfo;
+    /// Default voting period
+    type DefaultVotingPeriod : Get<Self::BlockNumber>;
 }
 
 /// The type of `KYCStatus` that provides level of KYC
@@ -137,6 +139,7 @@ pub struct FundingRound<T: Config> {
     creator: T::AccountId,
     amount: T::Balance,
     token_b: AssetId,
+    vote_end_block : T::BlockNumber,
     vesting_per_block: T::Balance,
     start_block: T::BlockNumber,
     min_allocation: T::Balance,
@@ -154,6 +157,7 @@ impl<T: Config> Default for FundingRound<T> {
             creator: T::AccountId::default(),
             amount: T::Balance::default(),
             token_b: AssetId::POLKADEX,
+            vote_end_block: T::BlockNumber::default(),
             vesting_per_block: T::Balance::default(),
             start_block: T::BlockNumber::default(),
             min_allocation: T::Balance::default(),
@@ -172,6 +176,7 @@ impl<T: Config> FundingRound<T> {
         creator: T::AccountId,
         amount: T::Balance,
         token_b: AssetId,
+        vote_end_block : T::BlockNumber,
         vesting_per_block: T::Balance,
         start_block: T::BlockNumber,
         min_allocation: T::Balance,
@@ -185,6 +190,7 @@ impl<T: Config> FundingRound<T> {
             creator,
             amount,
             token_b,
+            vote_end_block,
             vesting_per_block,
             start_block,
             min_allocation,
@@ -220,6 +226,44 @@ pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
     amount: T::Balance,
 }
 
+#[derive(Decode, Encode, Clone)]
+pub struct Voter<T: Config> {
+    pub account_id : T::AccountId,
+    pub unlocking_block: T::BlockNumber,
+    pub votes: T::Balance,
+    pub amount : T::Balance
+}
+
+
+#[derive(Decode, Encode, Clone)]
+pub struct Votes<T: Config> {
+    ayes: Vec<Voter<T>>,
+    nays: Vec<Voter<T>>,
+}
+
+impl<T: Config> Default for Votes<T> {
+    fn default() -> Self {
+        Votes {
+            ayes: Vec::new(),
+            nays: Vec::new(),
+        }
+    }
+}
+
+#[derive(Decode, Encode, Clone)]
+pub enum Approval {
+    Governance,
+    Community,
+    None
+}
+
+impl Default for Approval {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+
 decl_module! {
     pub struct Module<T: Config> for enum Call where
     origin: T::Origin {
@@ -234,6 +278,21 @@ decl_module! {
             // Clean up WhiteListInvestors and InterestedParticipants in all expired rounds
             for (round_id,round_info) in <InfoFundingRound<T>>::iter() {
 
+                if block_number >= round_info.vote_end_block {
+                    let voting = <RoundVotes<T>>::get(&round_id);
+                    let yes : T::Balance = voting.ayes.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
+                    let no : T::Balance = voting.nays.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
+                    if yes > no {
+                        <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), (round_info,  Approval::Community))
+                    }
+                    // Remove fun
+                    <InfoFundingRound<T>>::remove(&round_id);
+                }
+
+            }
+
+            for (round_id,(round_info, _)) in <WhitelistInfoFundingRound<T>>::iter() {
+
                 if block_number > round_info.close_round_block {
                     <WhiteListInvestors<T>>::remove_prefix(round_id);
                     <InterestedParticipants<T>>::remove_prefix(round_id);
@@ -241,6 +300,7 @@ decl_module! {
                 }
 
             }
+
             return call_weight
         }
 
@@ -313,15 +373,23 @@ decl_module! {
             token_a_priceper_token_b: T::Balance,
             close_round_block: T::BlockNumber
         ) -> DispatchResult {
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let vote_end_block = match <VotingPeriod<T>>::try_get() {
+                Ok(voting_period ) => voting_period.saturating_add(current_block_no),
+                Err(_) => T::DefaultVotingPeriod::get().saturating_add(current_block_no)
+            };
             ensure!(token_a.ne(&token_b), <Error<T>>::TokenAEqTokenB);
             ensure!(token_a_priceper_token_b > 0_u128.saturated_into(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
+            ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
+            ensure!(vote_end_block < start_block, <Error<T>>::StartBlockMustBeGreaterThanVotingPeriod);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
                 token_a,
                 team.clone(),
                 amount,
                 token_b,
+                vote_end_block,
                 vesting_per_block,
                 start_block,
                 min_allocation,
@@ -330,7 +398,6 @@ decl_module! {
                 token_a_priceper_token_b,
                 close_round_block,
             );
-            let current_block_no = <frame_system::Pallet<T>>::block_number();
             let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
             let round_account_id = Self::round_account_id(round_id.clone());
             // Transfers tokens to be released to investors from team account to round account
@@ -352,8 +419,9 @@ decl_module! {
         #[weight = T::WeightIDOInfo::whitelist_investor()]
         pub fn whitelist_investor(origin, round_id: T::Hash, investor_address: T::AccountId, amount: T::Balance) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
-            ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(!<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundNotApproved);
+            ensure!(<WhitelistInfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            let (funding_round, _) = <WhitelistInfoFundingRound<T>>::get(round_id);
             ensure!(team.eq(&funding_round.creator), <Error<T>>::NotACreater);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
@@ -374,19 +442,21 @@ decl_module! {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<WhiteListInvestors<T>>::contains_key(&round_id, &investor_address), <Error<T>>::NotWhiteListed);
+            ensure!(!<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundNotApproved);
+            ensure!(<WhitelistInfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let max_amount = <WhiteListInvestors<T>>::get(round_id, investor_address.clone());
             ensure!(amount <= max_amount, Error::<T>::NotAValidAmount);
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
             ensure!(!<InvestorShareInfo<T>>::contains_key(&round_id,&investor_address), <Error<T>>::InvestorAlreadyParticipated);
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
-            ensure!(current_block_no < funding_round.close_round_block && current_block_no > funding_round.start_block, <Error<T>>::NotAllowed);
+             let (funding_round, _) = <WhitelistInfoFundingRound<T>>::get(round_id);
+            ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
             ensure!(amount >= funding_round.min_allocation && amount <= funding_round.max_allocation, Error::<T>::NotAValidAmount);
             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
             let round_account_id = Self::round_account_id(round_id.clone());
              <T as Config>::Currency::transfer(funding_round.token_b, &investor_address, &round_account_id, amount)?;
             <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
-            <InfoFundingRound<T>>::mutate(round_id, |round_details| {
+            <WhitelistInfoFundingRound<T>>::mutate(round_id, |(round_details,_)| {
                 round_details.actual_raise += amount;
             });
             Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
@@ -402,9 +472,10 @@ decl_module! {
         pub fn claim_tokens(origin, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
-            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            ensure!(!<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundNotApproved);
+            ensure!(<WhitelistInfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            let (funding_round, _) = <WhitelistInfoFundingRound<T>>::get(round_id);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             // Investor can only withdraw after the funding round is closed
             let round_account_id = Self::round_account_id(round_id.clone());
@@ -443,9 +514,10 @@ decl_module! {
         pub fn show_interest_in_round(origin, round_id: T::Hash, amount : T::Balance) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
-            ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            ensure!(!<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundNotApproved);
+            ensure!(<WhitelistInfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             ensure!(!<InterestedParticipants<T>>::contains_key(&round_id,&investor_address), Error::<T>::InvestorAlreadyShownInterest);
-            let funding_round : FundingRound<T> = <InfoFundingRound<T>>::get(round_id);
+            let (funding_round, _) = <WhitelistInfoFundingRound<T>>::get(round_id);
 
             //Check If investor can invest amount
             ensure!(T::Currency::ensure_can_withdraw(funding_round.token_b,&investor_address, amount).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
@@ -511,13 +583,68 @@ decl_module! {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
-            ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(!<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundNotApproved);
+            ensure!(<WhitelistInfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            let (funding_round, _) = <WhitelistInfoFundingRound<T>>::get(round_id);
             ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
             ensure!(<T as Config>::Currency::transfer(funding_round.token_b, &round_account_id, &beneficiary, funding_round.actual_raise).is_ok(), Error::<T>::FundRaisedRedrawn);
             Self::deposit_event(RawEvent::WithdrawRaised(round_id, creator));
+            Ok(())
+        }
+
+        #[weight = 10000]
+        pub fn vote(origin, round_id: T::Hash, amount: T::Balance, vote_multiplier: u8, approve : bool) -> DispatchResult {
+            ensure!(vote_multiplier <=  6,  Error::<T>::PeriodError);
+            let who: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            let voting = <RoundVotes<T>>::get(&round_id);
+            let position_yes = voting.ayes.iter().position(|a| a.account_id == who);
+            let position_no = voting.nays.iter().position(|a| a.account_id == who);
+            // Detects first vote of the member in the motion
+            let is_account_voting_first_time = position_yes.is_none() && position_no.is_none();
+            ensure!(is_account_voting_first_time, Error::<T>::DuplicateVote);
+
+            //Reserves the vote amount will be later returned to user at vote.unlocking_block
+            ensure!(T::Currency::reserve(AssetId::POLKADEX, &who, amount).is_ok(),Error::<T>::FailedToMoveBalanceToReserve);
+            let voter = Voter{
+                account_id : who,
+                unlocking_block: Self::vote_multiplier_to_block_number(vote_multiplier),
+                votes: max(amount, amount.saturating_mul(vote_multiplier.saturated_into())),
+                amount
+            };
+
+            <RoundVotes<T>>::mutate(&round_id, |voting| {
+                if approve {
+                    if position_yes.is_none() {
+                        voting.ayes.push(voter);
+                    }
+                } else {
+                    if position_no.is_none() {
+                        voting.nays.push(voter);
+                    }
+                }
+            });
+
+            Ok(())
+        }
+
+        #[weight = 10000]
+        pub fn set_vote_period(origin, period : T::BlockNumber) -> DispatchResult {
+            T::GovernanceOrigin::ensure_origin(origin)?;
+            <VotingPeriod<T>>::put(period);
+            Ok(())
+        }
+
+        #[weight = 10000]
+        pub fn approve_ido_round(origin, round_id : T::Hash) -> DispatchResult {
+            T::GovernanceOrigin::ensure_origin(origin)?;
+            ensure!(!<WhitelistInfoFundingRound<T>>::contains_key(&round_id), <Error<T>>::RoundAlreadyApproved);
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id), <Error<T>>::FundingRoundDoesNotExist);
+            let funding_round = <InfoFundingRound<T>>::get(&round_id);
+            <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), (funding_round, Approval::Governance));
+            <InfoFundingRound<T>>::remove(&round_id);
             Ok(())
         }
 
@@ -533,8 +660,9 @@ decl_module! {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let creator: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&beneficiary), <Error<T>>::InvestorDoesNotExist);
-            ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            let funding_round = <InfoFundingRound<T>>::get(round_id);
+            ensure!(!<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundNotApproved);
+            ensure!(<WhitelistInfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            let (funding_round, _) = <WhitelistInfoFundingRound<T>>::get(round_id);
             ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             // Check if there is any left to withdraw
             let total_tokens_bought_by_investors = funding_round.actual_raise.saturating_mul(1_u32.saturated_into::<T::Balance>()/ funding_round.token_a_priceper_token_b);
@@ -558,6 +686,8 @@ decl_storage! {
         InfoProjectTeam get(fn get_team): map hasher(identity) T::AccountId => T::Hash;
         /// A mapping between round id and funding round information
         InfoFundingRound get(fn get_funding_round): map hasher(identity) T::Hash => FundingRound<T>;
+        /// Whitelisted info funding round
+        WhitelistInfoFundingRound get(fn get_whitelist_funding_round): map hasher(identity) T::Hash => (FundingRound<T>, Approval);
         /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
         WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
         /// For each round, we keep mapping between participants and the amount, they will be using
@@ -572,6 +702,10 @@ decl_storage! {
         InterestedParticipantsAmounts get(fn get_interested_particpants_amounts): map hasher(identity) T::Hash => BTreeMap<T::Balance, BTreeSet<T::AccountId>>;
 
         Nonce get(fn nonce): u128;
+
+        VotingPeriod get(fn get_voting_period): T::BlockNumber;
+
+        RoundVotes get(fn get_round_votes): map hasher(identity) T::Hash => Votes<T>;
     }
     add_extra_genesis {
         config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -656,7 +790,14 @@ decl_error! {
         /// Block claim token when round is active,
         ClaimTokenBlocked,
         /// FundRaised already Withdrawn
+        StartBlockMustBeLessThanEndblock,
+        StartBlockMustBeGreaterThanVotingPeriod,
+        RoundAlreadyApproved,
         FundRaisedRedrawn,
+        PeriodError,
+        DuplicateVote,
+        FailedToMoveBalanceToReserve,
+        FundingRoundNotApproved
     }
 }
 
@@ -692,7 +833,7 @@ impl<T: Config> Module<T> {
                 if investor != account {
                     None
                 } else {
-                    let round_info = <InfoFundingRound<T>>::get(&round_id);
+                    let (round_info, _) = <WhitelistInfoFundingRound<T>>::get(&round_id);
                     Some((round_id, round_info.to_primitive()))
                 }
             })
@@ -702,8 +843,8 @@ impl<T: Config> Module<T> {
     pub fn rounds_by_creator(
         account: T::AccountId,
     ) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
-        <InfoFundingRound<T>>::iter()
-            .filter_map(|(round_id, round_info)| {
+        <WhitelistInfoFundingRound<T>>::iter()
+            .filter_map(|(round_id, (round_info, _))| {
                 if round_info.creator != account {
                     None
                 } else {
@@ -711,5 +852,17 @@ impl<T: Config> Module<T> {
                 }
             })
             .collect()
+    }
+
+    pub fn vote_multiplier_to_block_number(multiplier : u8 ) -> T::BlockNumber {
+        // 1 day in blocks total seconds (86400 secs) in a day divided by block time (6 secs)
+        let lock_period: u32 = 28 * (86400 / 6);
+        let factor = if multiplier == 0 {
+            (lock_period / 10) as u32
+        } else {
+            lock_period * multiplier as u32
+        };
+        let current_block_no = <frame_system::Pallet<T>>::block_number();
+        current_block_no.saturating_add(factor.saturated_into())
     }
 }
