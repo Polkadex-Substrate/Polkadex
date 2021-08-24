@@ -163,7 +163,7 @@ impl pallet_staking::WeightInfo for WeightInfo {
             .saturating_add(DbWeight::get().writes((3 as Weight).saturating_mul(v as Weight)))
     }
 
-    fn get_npos_voters(v: u32, n: u32, s: u32) -> u64 {
+    fn get_npos_voters(v: u32, n: u32, _s: u32) -> u64 {
         todo!()
     }
 

@@ -27,7 +27,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	RuntimeDebug,
 	traits::{
-		Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier, Randomness,
+		Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier,
 		U128CurrencyToVote,
 	},
 	weights::{
@@ -36,7 +36,7 @@ use frame_support::{
 	},
 };
 use frame_support::{PalletId, traits::InstanceFilter};
-use frame_support::traits::{Filter, OnUnbalanced};
+use frame_support::traits::OnUnbalanced;
 use frame_system::{
 	EnsureOneOf,
 	EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
@@ -44,7 +44,7 @@ use frame_system::{
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{MultiCurrencyExtended, parameter_type_with_key};
+use orml_traits::parameter_type_with_key;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_contracts::weights::WeightInfo;
@@ -54,7 +54,6 @@ use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
-pub use pallet_substratee_registry;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use polkadex_primitives::{AccountId, Signature};
@@ -68,7 +67,6 @@ use sp_core::{
 	u32_trait::{_1, _2, _3, _4, _5},
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_io::hashing::blake2_128;
 use sp_runtime::{
 	ApplyExtrinsicResult, create_runtime_str, FixedPointNumber, generic, impl_opaque_keys, Perbill,
 	Percent, Permill, Perquintill,
@@ -965,26 +963,6 @@ parameter_types! {
 }
 
 
-parameter_types! {
-    pub const GetIDOPDXAmount: Balance = 100u128;
-    pub const GetMaxSupply: Balance = 2_000_000_0u128;
-    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
-}
-
-impl polkadex_ido::Config for Runtime {
-	type Event = Event;
-	type TreasuryAccountId = TreasuryAccountId;
-	type GovernanceOrigin = EnsureGovernance;
-	type NativeCurrencyId = GetNativeCurrencyId;
-	type IDOPDXAmount = GetIDOPDXAmount;
-	type MaxSupply = GetMaxSupply;
-	type Randomness = RandomnessCollectiveFlip;
-	type ModuleId = PolkadexIdoPalletId;
-	type Currency = Currencies;
-	type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
-
-}
-
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -1025,11 +1003,7 @@ construct_runtime!(
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 31,
         Currencies: orml_currencies::{Pallet, Call, Event<T>} = 32,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 33,
-        PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>} = 34,
-        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 35,
-        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 36,
-        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 37
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 33
     }
 );
 
@@ -1357,7 +1331,6 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_utility, Utility);
             add_benchmark!(params, batches, pallet_vesting, Vesting);
             add_benchmark!(params, batches, pallet_verifier_lightclient, VerifierLightclient);
-			add_benchmark!(params, batches, polkadex_ido, PolkadexIdo);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
@@ -1374,10 +1347,7 @@ pub type DigestItem = generic::DigestItem<Hash>;
 
 parameter_types! {
     pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
-    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
-    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
 }
-
 parameter_types! {
     pub TreasuryAccountId: AccountId = PolkadexTreasuryModuleId::get().into_account();
 }
@@ -1399,12 +1369,6 @@ impl EnsureOrigin<Origin> for EnsureGovernance {
 	}
 }
 
-impl polkadex_fungible_assets::Config for Runtime {
-	type Event = Event;
-	type TreasuryAccountId = TreasuryAccountId;
-	type GovernanceOrigin = EnsureGovernance;
-	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
-}
 
 parameter_types! {
     pub MinVestedTransfer: Balance = 100u128;
@@ -1477,22 +1441,8 @@ parameter_types! {
     pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
 }
 
-/// added by SCS
-impl pallet_substratee_registry::Config for Runtime {
-	type Event = Event;
-	type Currency = pallet_balances::Pallet<Runtime>;
-	type MomentsPerDay = MomentsPerDay;
-}
-
 parameter_types! {
     pub const ProxyLimit: usize = 10; // Max sub-accounts per main account
-}
-impl polkadex_ocex::Config for Runtime {
-	type Event = Event;
-	type OcexId = OcexModuleId;
-	type GenesisAccount = OCEXGenesisAccount;
-	type Currency = Currencies;
-	type ProxyLimit = ProxyLimit;
 }
 
 parameter_types! {
