@@ -139,6 +139,7 @@ pub struct FundingRound<T: Config> {
     creator: T::AccountId,
     amount: T::Balance,
     token_b: AssetId,
+    project_info_cid : [u8;32],
     vote_end_block : T::BlockNumber,
     vesting_per_block: T::Balance,
     start_block: T::BlockNumber,
@@ -157,6 +158,7 @@ impl<T: Config> Default for FundingRound<T> {
             creator: T::AccountId::default(),
             amount: T::Balance::default(),
             token_b: AssetId::POLKADEX,
+            project_info_cid: [0;32],
             vote_end_block: T::BlockNumber::default(),
             vesting_per_block: T::Balance::default(),
             start_block: T::BlockNumber::default(),
@@ -172,6 +174,7 @@ impl<T: Config> Default for FundingRound<T> {
 
 impl<T: Config> FundingRound<T> {
     fn from(
+        cid : [u8;32],
         token_a: AssetId,
         creator: T::AccountId,
         amount: T::Balance,
@@ -190,6 +193,7 @@ impl<T: Config> FundingRound<T> {
             creator,
             amount,
             token_b,
+            project_info_cid: cid,
             vote_end_block,
             vesting_per_block,
             start_block,
@@ -362,6 +366,7 @@ decl_module! {
         #[weight = T::WeightIDOInfo::register_round()]
         pub fn register_round(
             origin,
+            cid : [u8;32],
             token_a: AssetId,
             amount: T::Balance,
             token_b: AssetId,
@@ -385,6 +390,7 @@ decl_module! {
             ensure!(vote_end_block < start_block, <Error<T>>::StartBlockMustBeGreaterThanVotingPeriod);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
+                cid,
                 token_a,
                 team.clone(),
                 amount,
