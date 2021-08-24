@@ -596,9 +596,12 @@ decl_module! {
 
         #[weight = 10000]
         pub fn vote(origin, round_id: T::Hash, amount: T::Balance, vote_multiplier: u8, approve : bool) -> DispatchResult {
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
             ensure!(vote_multiplier <=  6,  Error::<T>::PeriodError);
             let who: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            let funding_round = <InfoFundingRound<T>>::get(&round_id);
+            ensure!(current_block_no < funding_round.vote_end_block , Error::<T>::VotingEnded);
             let voting = <RoundVotes<T>>::get(&round_id);
             let position_yes = voting.ayes.iter().position(|a| a.account_id == who);
             let position_no = voting.nays.iter().position(|a| a.account_id == who);
@@ -795,6 +798,7 @@ decl_error! {
         RoundAlreadyApproved,
         FundRaisedRedrawn,
         PeriodError,
+        VotingEnded,
         DuplicateVote,
         FailedToMoveBalanceToReserve,
         FundingRoundNotApproved

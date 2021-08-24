@@ -190,6 +190,10 @@ impl Default for ExtBuilder {
                 (2, AssetId::POLKADEX, INITIAL_BALANCE),
                 (5, AssetId::POLKADEX, INITIAL_BALANCE),
                 (6, AssetId::POLKADEX, INITIAL_BALANCE),
+                (7, AssetId::POLKADEX, INITIAL_BALANCE),
+                (8, AssetId::POLKADEX, INITIAL_BALANCE),
+                (9, AssetId::POLKADEX, INITIAL_BALANCE),
+                (10, AssetId::POLKADEX, INITIAL_BALANCE),
             ],
         }
     }
@@ -208,6 +212,10 @@ impl ExtBuilder {
                 (2u64, INITIAL_BALANCE),
                 (5u64, INITIAL_BALANCE),
                 (6u64, INITIAL_BALANCE),
+                (7u64, INITIAL_BALANCE),
+                (8u64, INITIAL_BALANCE),
+                (9u64, INITIAL_BALANCE),
+                (10u64, INITIAL_BALANCE),
             ],
         }
         .assimilate_storage(&mut t)
