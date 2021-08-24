@@ -1,7 +1,7 @@
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
+use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
 pub use polkadex_ido_runtime_api::PolkadexIdoRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
@@ -24,6 +24,13 @@ pub trait PolkadexIdoRpcApi<BlockHash, AccountId, Hash> {
         account: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<(Hash, FundingRoundWithPrimitives<AccountId>)>>;
+
+    #[rpc(name = "polkadexido_getVotingStat")]
+    fn get_voting_stats(
+        &self,
+        round_id: Hash,
+        at: Option<BlockHash>,
+    ) -> Result<VoteStat>;
 }
 
 /// A struct that implements the `SumStorageApi`.
@@ -76,6 +83,16 @@ where
             self.client.info().best_hash));
 
         let runtime_api_result = api.rounds_by_creator(&at, account);
+        runtime_api_result.map_err(runtime_error_into_rpc_err)
+    }
+
+    fn get_voting_stats(&self, round_id: Hash,at: Option<<Block as BlockT>::Hash>) -> Result<VoteStat> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(||
+            // If the block hash is not supplied assume the best block.
+            self.client.info().best_hash));
+
+        let runtime_api_result = api.votes_stat(&at, round_id);
         runtime_api_result.map_err(runtime_error_into_rpc_err)
     }
 }
