@@ -19,6 +19,7 @@
 use super::*;
 use crate::mock::*;
 use frame_support::assert_noop;
+use frame_support::traits::OnInitialize;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H160;
 use sp_runtime::traits::Hash;
@@ -632,4 +633,104 @@ fn test_withdraw_token() {
 
 fn create_hash_data(data: &u32) -> <mock::Test as frame_system::Config>::Hash {
     data.using_encoded(<Test as frame_system::Config>::Hashing::hash)
+}
+
+#[test]
+fn test_vote_for_round() {
+    let balance: Balance = 100;
+    let open_block_number = 11;
+    let closing_block_number = 50;
+    ExtBuilder::default().build().execute_with(|| {
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                open_block_number,
+                balance,
+                balance,
+                balance,
+                balance,
+                closing_block_number
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        let yes_voters : Vec<u64> = [6,7,8,9].to_vec();
+        let no_voters : Vec<u64> = [4,2,5].to_vec();
+        yes_voters.iter().for_each(|voter| {
+            assert_eq!(
+                PolkadexIdo::vote(Origin::signed(*voter),round_id.clone(), balance, 2, true),
+                Ok(())
+            );
+        });
+        no_voters.iter().for_each(|voter| {
+            assert_eq!(
+                PolkadexIdo::vote(Origin::signed(*voter),round_id.clone(), balance, 2, false),
+                Ok(())
+            );
+        });
+        <PolkadexIdo as OnInitialize<u64>>::on_initialize(open_block_number);
+        assert_eq!(
+            WhitelistInfoFundingRound::<Test>::contains_key(round_id),
+            true
+        );
+        assert_eq!(
+            InfoFundingRound::<Test>::contains_key(round_id),
+            false
+        );
+    });
+}
+
+#[test]
+fn test_vote_for_round_no_vote_majority() {
+    let balance: Balance = 100;
+    let open_block_number = 11;
+    let closing_block_number = 50;
+    ExtBuilder::default().build().execute_with(|| {
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                open_block_number,
+                balance,
+                balance,
+                balance,
+                balance,
+                closing_block_number
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        let no_voters : Vec<u64> = [6,7,8,9].to_vec();
+        let yes_voters : Vec<u64> = [4,2,5].to_vec();
+        yes_voters.iter().for_each(|voter| {
+            assert_eq!(
+                PolkadexIdo::vote(Origin::signed(*voter),round_id.clone(), balance, 2, true),
+                Ok(())
+            );
+        });
+        no_voters.iter().for_each(|voter| {
+            assert_eq!(
+                PolkadexIdo::vote(Origin::signed(*voter),round_id.clone(), balance, 2, false),
+                Ok(())
+            );
+        });
+        <PolkadexIdo as OnInitialize<u64>>::on_initialize(open_block_number);
+        assert_eq!(
+            WhitelistInfoFundingRound::<Test>::contains_key(round_id),
+            false
+        );
+        assert_eq!(
+            InfoFundingRound::<Test>::contains_key(round_id),
+            false
+        );
+    });
 }
