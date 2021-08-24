@@ -38,7 +38,6 @@ pallet-treasury = { default-features = false, version = '3.0.0', git = "https://
 pallet-collective = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 pallet-elections-phragmen = { default-features = false, version = '4.0.0', git = "https://github.com/paritytech/substrate" }
 pallet-membership = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
-pallet-democracy = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 pallet-scheduler = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 pallet-bounties = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-vesting = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
@@ -48,8 +47,6 @@ pallet-proxy = { version = "3.0.0", default-features = false, git = "https://git
 pallet-tips = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-recovery = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-society = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
-pallet-lottery = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
-pallet-gilt = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-contracts = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-election-provider-multi-phase = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-authority-discovery = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
@@ -99,26 +96,8 @@ polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-pr
 polkadex-fungible-assets = { path = "../pallets/fungible-assets", version = "0.1.0", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", default-features = false }
-token-faucet-pallet = { path = "../pallets/token-faucet", default-features = false }
 #erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 polkadex-ido = { path = "../pallets/Polkadex_Ido", default-features = false }
-
-[dependencies.chainbridge]
-default-features = false
-git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
-branch = 'main'
-
-[dependencies.example]
-default-features = false
-git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
-package = 'example-pallet'
-branch = 'main'
-
-[dependencies.erc721]
-default-features = false
-git = 'https://github.com/Polkadex-Substrate/chainbridge-substrate'
-package = 'example-erc721'
-branch = 'main'
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git" }
@@ -150,8 +129,6 @@ std = [
     'pallet-proxy/std',
     'pallet-recovery/std',
     'pallet-society/std',
-    'pallet-lottery/std',
-    'pallet-gilt/std',
     'pallet-utility/std',
     "pallet-bounties/std",
     'pallet-contracts/std',
@@ -165,7 +142,6 @@ std = [
     'pallet-collective/std',
     'pallet-elections-phragmen/std',
     'pallet-membership/std',
-    'pallet-democracy/std',
     'pallet-scheduler/std',
     "pallet-election-provider-multi-phase/std",
     'sp-api/std',
@@ -189,10 +165,6 @@ std = [
     "polkadex-primitives/std",
     "polkadex-fungible-assets/std",
     "polkadex-ocex/std",
-    "token-faucet-pallet/std",
-    "chainbridge/std",
-    'erc721/std',
-    'example/std',
 	'polkadex-ido/std'
 ]
 runtime-benchmarks = [

@@ -19,7 +19,7 @@ use sp_runtime::{
 
 use node_polkadex_runtime::{
     AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
-    DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, PolkadexOcexConfig, SessionConfig,
+    ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, PolkadexOcexConfig, SessionConfig,
     SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
     TokensConfig, wasm_binary_unwrap,
 };
@@ -333,7 +333,6 @@ pub fn testnet_genesis(
             stakers,
             ..Default::default()
         },
-        pallet_democracy: DemocracyConfig::default(),
         pallet_elections_phragmen: ElectionsConfig {
             members: endowed_accounts
                 .iter()
@@ -368,7 +367,6 @@ pub fn testnet_genesis(
         pallet_membership_Instance1: Default::default(),
         pallet_treasury: Default::default(),
         pallet_vesting: Default::default(),
-        pallet_gilt: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting: vec![] },
         orml_tokens: TokensConfig {
             endowed_accounts: vec![
