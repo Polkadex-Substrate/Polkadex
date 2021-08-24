@@ -68,7 +68,7 @@ use sp_std::cmp::max;
 mod benchmarking;
 pub mod weights;
 
-use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
+use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
 pub use weights::WeightInfo;
 
 #[cfg(test)]
@@ -856,6 +856,28 @@ impl<T: Config> Module<T> {
                 }
             })
             .collect()
+    }
+
+    pub fn votes_stat(
+        round_id: T::Hash,
+    ) -> VoteStat {
+        match <RoundVotes<T>>::try_get(&round_id) {
+            Ok(voting) => {
+                let yes : T::Balance = voting.ayes.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
+                let no : T::Balance = voting.nays.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
+
+                VoteStat {
+                    yes: yes.saturated_into(),
+                    no: no.saturated_into()
+                }
+            }
+            Err(_) => {
+                VoteStat {
+                    yes: 0,
+                    no: 0
+                }
+            }
+        }
     }
 
     pub fn vote_multiplier_to_block_number(multiplier : u8 ) -> T::BlockNumber {
