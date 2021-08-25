@@ -19,7 +19,7 @@ use sp_runtime::{
 
 use node_polkadex_runtime::{
     AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
-    ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, PolkadexOcexConfig, SessionConfig,
+    ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, SessionConfig,
     SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
     TokensConfig, wasm_binary_unwrap,
 };
@@ -379,10 +379,6 @@ pub fn testnet_genesis(
                 (endowed_accounts[1].to_owned(), AssetId::BTC, 1000000000000000000u128),
                 (endowed_accounts[1].to_owned(), AssetId::USD, 1000000000000000000u128),
             ],
-        },
-        polkadex_ocex: PolkadexOcexConfig {
-            key: genesis.clone(),
-            genesis_account: genesis,
         },
     }
 }

@@ -4,9 +4,6 @@ panic = 'unwind'
 [workspace]
 members = [
     'node',
-    'pallets/ocex',
-    'pallets/fungible-assets',
     'pallets/pdex-migration',
-	'pallets/Polkadex_Ido',
     'runtime',
 ]
