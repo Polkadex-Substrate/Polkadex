@@ -176,8 +176,16 @@ The `--pruning=archive` flag is implied by the `--validator` flag, so it is only
 
 If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that to the current highest block via [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/explorer).
 
+## Get Test Tokens
+In order to become a validator on the Polkadex Testnet, you will need some PDEX Test Tokens. The Polkadex team has designed a Twitter bot that will serve as a Test Token 'faucet' for this phase of the Testnet. **To claim Test Tokens, copy and paste the text below into a tweet, paste your account/wallet address where it says [ACCOUNT], and post it.** Soon after, you'll receive the PDEX Test Tokens.
+
+```
+👋 Hey @polkadex it's [ACCOUNT] here, give me some #PDEX Test Tokens!
+📲 #PolkadexTestTokens
+```
+
 ## Bond PDEX
-[Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/accounts) [Here is one instruction video how to create accounts] (https://www.youtube.com/watch?v=hhUZ40ZWqkE) and transfer some PDEX tokens to the main account.
+[Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/accounts) [Here is one instruction video how to create accounts](https://www.youtube.com/watch?v=hhUZ40ZWqkE) and transfer some PDEX tokens to the main account.
 It is highly recommended that you set your controller and stash accounts as two separate accounts. For this, you will need to create two accounts and make sure each of them have at least enough funds to pay the fees for making transactions. Keep most of your funds in the stash account since it is meant to be the custodian of your staking funds.
 
 Make sure not to bond all your PDEX balance since you will be unable to pay transaction fees from your bonded balance.
