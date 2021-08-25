@@ -176,12 +176,11 @@ The `--pruning=archive` flag is implied by the `--validator` flag, so it is only
 
 If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that to the current highest block via [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/explorer).
 
-## Get Test Tokens
-In order to become a validator on the Polkadex Testnet, you will need some PDEX Test Tokens. The Polkadex team has designed a Twitter bot that will serve as a Test Token 'faucet' for this phase of the Testnet. **To claim Test Tokens, copy and paste the text below into a tweet, paste your account/wallet address where it says [ACCOUNT], and post it.** Soon after, you'll receive the PDEX Test Tokens.
+## Get Test Tokens on TestNet
+In order to become a validator on the Polkadex Testnet, you will need some Test Tokens. The Polkadex team has designed a Twitter bot that will serve as a Test Token 'faucet' for this phase of the Testnet. **To claim Test Tokens, copy and paste the text below into a tweet, paste your account/wallet address where it says [ACCOUNT], and post it.** Soon after, you'll receive the Polkadex Test Tokens, and a like on the tweet.
 
 ```
-👋 Hey @polkadex it's [ACCOUNT] here, give me some #PDEX Test Tokens!
-📲 #PolkadexTestTokens
+👋 Hey @polkadex it's [ACCOUNT] here, please give me some #PolkadexTestTokens! 📲 
 ```
 
 ## Bond PDEX
