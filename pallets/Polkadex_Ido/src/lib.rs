@@ -285,13 +285,16 @@ decl_module! {
 
             let call_weight: Weight = T::DbWeight::get().reads_writes(1, 1);
             <BallotReserve<T>>::mutate(|ballot_reserve| {
-                let ballot_reserve_clone = ballot_reserve.clone();
-                for (index,reserve) in ballot_reserve_clone.iter().enumerate() {
+                let mut garbage = Vec::new();
+                for (index,reserve) in ballot_reserve.iter().enumerate() {
                     if reserve.unlocking_block == block_number {
                         T::Currency::unreserve(AssetId::POLKADEX, &reserve.voter_account, reserve.amount);
-                        ballot_reserve.remove(index);
+                        garbage.push(index);
                         Self::deposit_event(RawEvent::VoteAmountUnReserved(reserve.voter_account.clone(), reserve.amount));
                     }
+                }
+                for idx in garbage {
+                    ballot_reserve.remove(idx);
                 }
             });
             // Clean up WhiteListInvestors and InterestedParticipants in all expired rounds
@@ -519,7 +522,7 @@ decl_module! {
             T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens);
 
             <InfoClaimAmount<T>>::insert(round_id, investor_address.clone(), total_tokens_released_for_given_investor);
-                // TODO : remove
+            // TODO : remove
             <LastClaimBlockInfo<T>>::insert(round_id, investor_address.clone(), current_block_no);
             Self::deposit_event(RawEvent::TokenClaimed(round_id, investor_address));
 
@@ -646,9 +649,9 @@ decl_module! {
             });
             if approve {
                 if position_yes.is_none() {
-					    voting.ayes.push(voter);
+                    voting.ayes.push(voter);
                 } else {
-					    Err(Error::<T>::DuplicateVote)?
+                    Err(Error::<T>::DuplicateVote)?
                 }
                 if let Some(pos) = position_no {
                     voting.nays.swap_remove(pos);
@@ -660,11 +663,10 @@ decl_module! {
                     Err(Error::<T>::DuplicateVote)?
                 }
                 if let Some(pos) = position_yes {
-                        voting.ayes.swap_remove(pos);
+                    voting.ayes.swap_remove(pos);
                 }
             }
             <RoundVotes<T>>::insert(round_id, voting);
-
             Ok(())
         }
 
