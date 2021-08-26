@@ -30,7 +30,7 @@ The specs posted above are by no means the minimum specs that you could use when
 Once you choose your cloud service provider and set-up your new server, the first thing you will do is install the necessary dependencies.
 
 ```
-sudo apt install make clang pkg-config libssl-dev build-essential curl
+sudo apt install make clang pkg-config libssl-dev build-essential curl git
 ```
 
 If you intend to build from source you need to install Rust first.
