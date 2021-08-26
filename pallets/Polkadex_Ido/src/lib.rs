@@ -214,6 +214,8 @@ impl<T: Config> FundingRound<T> {
             token_b: self.token_b,
             vesting_per_block: self.vesting_per_block.saturated_into(),
             start_block: self.start_block.saturated_into(),
+            vote_end_block: self.vote_end_block.saturated_into(),
+            project_info_cid: self.project_info_cid.clone(),
             min_allocation: self.min_allocation.saturated_into(),
             max_allocation: self.max_allocation.saturated_into(),
             operator_commission: self.operator_commission.saturated_into(),
