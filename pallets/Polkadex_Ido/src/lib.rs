@@ -289,7 +289,7 @@ decl_module! {
                 for (index,reserve) in ballot_reserve_clone.iter().enumerate() {
                     if reserve.unlocking_block == block_number {
                         T::Currency::unreserve(AssetId::POLKADEX, &reserve.voter_account, reserve.amount);
-                        //VoteAmountUnReserved
+                        ballot_reserve.remove(index);
                         Self::deposit_event(RawEvent::VoteAmountUnReserved(reserve.voter_account.clone(), reserve.amount));
                     }
                 }
@@ -623,7 +623,7 @@ decl_module! {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(&round_id);
             ensure!(current_block_no < funding_round.vote_end_block , Error::<T>::VotingEnded);
-            let voting = <RoundVotes<T>>::get(&round_id);
+            let mut voting = <RoundVotes<T>>::get(&round_id);
             let position_yes = voting.ayes.iter().position(|a| a.account_id == who);
             let position_no = voting.nays.iter().position(|a| a.account_id == who);
             // Detects first vote of the member in the motion
@@ -631,9 +631,9 @@ decl_module! {
 
             //Reserves the vote amount will be later returned to user at vote.unlocking_block
             ensure!(T::Currency::reserve(AssetId::POLKADEX, &who, amount).is_ok(),Error::<T>::FailedToMoveBalanceToReserve);
-            let unlocking_block = Self::vote_multiplier_to_block_number(vote_multiplier),
+            let unlocking_block = Self::vote_multiplier_to_block_number(vote_multiplier);
             let voter = Voter{
-                account_id : who,
+                account_id : who.clone(),
                 votes: max(amount, amount.saturating_mul(vote_multiplier.saturated_into())),
             };
             let vote_cast = VoteCast {
@@ -643,29 +643,27 @@ decl_module! {
             };
             <BallotReserve<T>>::mutate(|reserve|{
                 reserve.push(vote_cast);
-            })
-            <RoundVotes<T>>::mutate(&round_id, |voting| {
-
-                if approve {
-				    if position_yes.is_none() {
-					    voting.ayes.push(voter);
-				    } else {
-					    Err(Error::<T>::DuplicateVote)?
-				    }
-                    if let Some(pos) = position_no {
-                        voting.nays.swap_remove(pos);
-                    }
-			    } else {
-                    if position_no.is_none() {
-                        voting.nays.push(voter);
-                    } else {
-                        Err(Error::<T>::DuplicateVote)?
-                    }
-                    if let Some(pos) = position_yes {
-                        voting.ayes.swap_remove(pos);
-                    }
-			    }
             });
+            if approve {
+                if position_yes.is_none() {
+					    voting.ayes.push(voter);
+                } else {
+					    Err(Error::<T>::DuplicateVote)?
+                }
+                if let Some(pos) = position_no {
+                    voting.nays.swap_remove(pos);
+                }
+            } else {
+                if position_no.is_none() {
+                    voting.nays.push(voter);
+                } else {
+                    Err(Error::<T>::DuplicateVote)?
+                }
+                if let Some(pos) = position_yes {
+                        voting.ayes.swap_remove(pos);
+                }
+            }
+            <RoundVotes<T>>::insert(round_id, voting);
 
             Ok(())
         }
@@ -747,7 +745,7 @@ decl_storage! {
 
         RoundVotes get(fn get_round_votes): map hasher(identity) T::Hash => Votes<T>;
 
-        BallotReserve get(fn get_ballot_reserve): Vec<VoteCast>;
+        BallotReserve get(fn get_ballot_reserve): Vec<VoteCast<T>>;
     }
     add_extra_genesis {
         config(endowed_accounts): Vec<(T::AccountId, T::CurrencyId, T::Balance)>;
@@ -765,7 +763,7 @@ decl_event! {
     where
         <T as system::Config>::AccountId,
         <T as system::Config>::Hash,
-        <T as system::Config>::Balance,
+        <T as orml_tokens::Config>::Balance,
     {
         /// Investor has been registered
         InvestorRegistered(AccountId),
