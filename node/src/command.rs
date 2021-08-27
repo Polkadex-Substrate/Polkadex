@@ -54,10 +54,10 @@ impl SubstrateCli for Cli {
                         .into(),
                 )
             }
+            // here add udon and ramen and soba.
             "dev" => Box::new(chain_spec::development_config()),
-            "local" => Box::new(chain_spec::local_testnet_config()),
-            // "fir" | "flaming-fir" => Box::new(chain_spec::flaming_fir_config()?),
-            "staging" => Box::new(chain_spec::staging_testnet_config()),
+            "udon" => Box::new(chain_spec::udon_testnet_config()),
+            "soba" => Box::new(chain_spec::soba_testnet_config()),
             path => Box::new(chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
