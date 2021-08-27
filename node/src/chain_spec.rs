@@ -21,7 +21,7 @@ use node_polkadex_runtime::{
     AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
     ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, SessionConfig,
     SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-    TokensConfig, wasm_binary_unwrap,
+    TokensConfig, wasm_binary_unwrap, TreasuryConfig,TreasuryAccountId,PolkadexTreasuryModuleId,
 };
 use node_polkadex_runtime::constants::currency::*;
 pub use node_polkadex_runtime::GenesisConfig;
@@ -64,7 +64,7 @@ fn session_keys(
     }
 }
 
-fn staging_testnet_config_genesis() -> GenesisConfig {
+fn udon_testnet_config_genesis() -> GenesisConfig {
     // stash, controller, session-key
     // generated with secret:
     // for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
@@ -79,78 +79,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
         ImOnlineId,
         AuthorityDiscoveryId,
     )> = vec![
-        (
-            // 5Fbsd6WXDGiLTxunqeK5BATNiocfCqu9bS1yArVjCgeBLkVy
-            hex!["9c7a2ee14e565db0c69f78c7b4cd839fbf52b607d867e9e9c5a79042898a0d12"].into(),
-            // 5EnCiV7wSHeNhjW3FSUwiJNkcc2SBkPLn5Nj93FmbLtBjQUq
-            hex!["781ead1e2fa9ccb74b44c19d29cb2a7a4b5be3972927ae98cd3877523976a276"].into(),
-            // 5Fb9ayurnxnaXj56CjmyQLBiadfRCqUbL2VWNbbe1nZU6wiC
-            hex!["9becad03e6dcac03cee07edebca5475314861492cdfc96a2144a67bbe9699332"]
-                .unchecked_into(),
-            // 5EZaeQ8djPcq9pheJUhgerXQZt9YaHnMJpiHMRhwQeinqUW8
-            hex!["6e7e4eb42cbd2e0ab4cae8708ce5509580b8c04d11f6758dbf686d50fe9f9106"]
-                .unchecked_into(),
-            // 5EZaeQ8djPcq9pheJUhgerXQZt9YaHnMJpiHMRhwQeinqUW8
-            hex!["6e7e4eb42cbd2e0ab4cae8708ce5509580b8c04d11f6758dbf686d50fe9f9106"]
-                .unchecked_into(),
-            // 5EZaeQ8djPcq9pheJUhgerXQZt9YaHnMJpiHMRhwQeinqUW8
-            hex!["6e7e4eb42cbd2e0ab4cae8708ce5509580b8c04d11f6758dbf686d50fe9f9106"]
-                .unchecked_into(),
-        ),
-        (
-            // 5ERawXCzCWkjVq3xz1W5KGNtVx2VdefvZ62Bw1FEuZW4Vny2
-            hex!["68655684472b743e456907b398d3a44c113f189e56d1bbfd55e889e295dfde78"].into(),
-            // 5Gc4vr42hH1uDZc93Nayk5G7i687bAQdHHc9unLuyeawHipF
-            hex!["c8dc79e36b29395413399edaec3e20fcca7205fb19776ed8ddb25d6f427ec40e"].into(),
-            // 5EockCXN6YkiNCDjpqqnbcqd4ad35nU4RmA1ikM4YeRN4WcE
-            hex!["7932cff431e748892fa48e10c63c17d30f80ca42e4de3921e641249cd7fa3c2f"]
-                .unchecked_into(),
-            // 5DhLtiaQd1L1LU9jaNeeu9HJkP6eyg3BwXA7iNMzKm7qqruQ
-            hex!["482dbd7297a39fa145c570552249c2ca9dd47e281f0c500c971b59c9dcdcd82e"]
-                .unchecked_into(),
-            // 5DhLtiaQd1L1LU9jaNeeu9HJkP6eyg3BwXA7iNMzKm7qqruQ
-            hex!["482dbd7297a39fa145c570552249c2ca9dd47e281f0c500c971b59c9dcdcd82e"]
-                .unchecked_into(),
-            // 5DhLtiaQd1L1LU9jaNeeu9HJkP6eyg3BwXA7iNMzKm7qqruQ
-            hex!["482dbd7297a39fa145c570552249c2ca9dd47e281f0c500c971b59c9dcdcd82e"]
-                .unchecked_into(),
-        ),
-        (
-            // 5DyVtKWPidondEu8iHZgi6Ffv9yrJJ1NDNLom3X9cTDi98qp
-            hex!["547ff0ab649283a7ae01dbc2eb73932eba2fb09075e9485ff369082a2ff38d65"].into(),
-            // 5FeD54vGVNpFX3PndHPXJ2MDakc462vBCD5mgtWRnWYCpZU9
-            hex!["9e42241d7cd91d001773b0b616d523dd80e13c6c2cab860b1234ef1b9ffc1526"].into(),
-            // 5E1jLYfLdUQKrFrtqoKgFrRvxM3oQPMbf6DfcsrugZZ5Bn8d
-            hex!["5633b70b80a6c8bb16270f82cca6d56b27ed7b76c8fd5af2986a25a4788ce440"]
-                .unchecked_into(),
-            // 5DhKqkHRkndJu8vq7pi2Q5S3DfftWJHGxbEUNH43b46qNspH
-            hex!["482a3389a6cf42d8ed83888cfd920fec738ea30f97e44699ada7323f08c3380a"]
-                .unchecked_into(),
-            // 5DhKqkHRkndJu8vq7pi2Q5S3DfftWJHGxbEUNH43b46qNspH
-            hex!["482a3389a6cf42d8ed83888cfd920fec738ea30f97e44699ada7323f08c3380a"]
-                .unchecked_into(),
-            // 5DhKqkHRkndJu8vq7pi2Q5S3DfftWJHGxbEUNH43b46qNspH
-            hex!["482a3389a6cf42d8ed83888cfd920fec738ea30f97e44699ada7323f08c3380a"]
-                .unchecked_into(),
-        ),
-        (
-            // 5HYZnKWe5FVZQ33ZRJK1rG3WaLMztxWrrNDb1JRwaHHVWyP9
-            hex!["f26cdb14b5aec7b2789fd5ca80f979cef3761897ae1f37ffb3e154cbcc1c2663"].into(),
-            // 5EPQdAQ39WQNLCRjWsCk5jErsCitHiY5ZmjfWzzbXDoAoYbn
-            hex!["66bc1e5d275da50b72b15de072a2468a5ad414919ca9054d2695767cf650012f"].into(),
-            // 5DMa31Hd5u1dwoRKgC4uvqyrdK45RHv3CpwvpUC1EzuwDit4
-            hex!["3919132b851ef0fd2dae42a7e734fe547af5a6b809006100f48944d7fae8e8ef"]
-                .unchecked_into(),
-            // 5C4vDQxA8LTck2xJEy4Yg1hM9qjDt4LvTQaMo4Y8ne43aU6x
-            hex!["00299981a2b92f878baaf5dbeba5c18d4e70f2a1fcd9c61b32ea18daf38f4378"]
-                .unchecked_into(),
-            // 5C4vDQxA8LTck2xJEy4Yg1hM9qjDt4LvTQaMo4Y8ne43aU6x
-            hex!["00299981a2b92f878baaf5dbeba5c18d4e70f2a1fcd9c61b32ea18daf38f4378"]
-                .unchecked_into(),
-            // 5C4vDQxA8LTck2xJEy4Yg1hM9qjDt4LvTQaMo4Y8ne43aU6x
-            hex!["00299981a2b92f878baaf5dbeba5c18d4e70f2a1fcd9c61b32ea18daf38f4378"]
-                .unchecked_into(),
-        ),
+  
     ];
 
     // generated with secret: subkey inspect "$secret"/fir
@@ -159,7 +88,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
         "9ee5e5bdc0ec239eb164f865ecc345ce4c88e76ee002e0f7e318097347471809"
     ]
         .into();
-
+// this is the accouint
     let endowed_accounts: Vec<AccountId> = vec![root_key.clone()];
 
     testnet_genesis(
@@ -172,13 +101,13 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 }
 
 /// Staging testnet config.
-pub fn staging_testnet_config() -> ChainSpec {
+pub fn udon_testnet_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
         "Staging Testnet",
-        "staging_testnet",
+        "udon_testnet",
         ChainType::Live,
-        staging_testnet_config_genesis,
+        udon_testnet_config_genesis,
         boot_nodes,
         Some(
             TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
@@ -243,7 +172,9 @@ pub fn testnet_genesis(
     endowed_accounts: Option<Vec<AccountId>>,
     enable_println: bool,
 ) -> GenesisConfig {
-    let genesis: AccountId = OCEXGenesisAccount.into_account();
+    let _genesis: AccountId = OCEXGenesisAccount.into_account();
+    let treasury_accont:AccountId = PolkadexTreasuryModuleId::get().into_account();
+
     let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
         vec![
             get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -300,7 +231,7 @@ pub fn testnet_genesis(
     const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
     const STASH: Balance = ENDOWMENT / 1000;
 
-    GenesisConfig {
+     GenesisConfig {
         frame_system: SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
             changes_trie_config: Default::default(),
@@ -370,16 +301,14 @@ pub fn testnet_genesis(
         orml_vesting: OrmlVestingConfig { vesting: vec![] },
         orml_tokens: TokensConfig {
             endowed_accounts: vec![
+                (treasury_accont.clone(), AssetId::POLKADEX,20_000000_000000000000u128 ),
+                (treasury_accont, AssetId::Asset(276),20u128 ),
                 (endowed_accounts[0].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
-                (endowed_accounts[0].to_owned(), AssetId::DOT, 1000000000000000000u128),
-                (endowed_accounts[0].to_owned(), AssetId::BTC, 1000000000000000000u128),
-                (endowed_accounts[0].to_owned(), AssetId::USD, 1000000000000000000u128),
                 (endowed_accounts[1].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
-                (endowed_accounts[1].to_owned(), AssetId::DOT, 1000000000000000000u128),
-                (endowed_accounts[1].to_owned(), AssetId::BTC, 1000000000000000000u128),
-                (endowed_accounts[1].to_owned(), AssetId::USD, 1000000000000000000u128),
+                // (hex!["5Fxmv9BpagUqM5maYvwU539mxkFGmANdkpZ5Ykb9CH65E6vp"].into(), AssetId::Asset(276)),
             ],
         },
+
     }
 }
 
@@ -408,9 +337,9 @@ pub fn development_config() -> ChainSpec {
     )
 }
 
-fn local_testnet_genesis() -> GenesisConfig {
+fn soba_testnet_genesis() -> GenesisConfig {
     testnet_genesis(
-        vec![
+        vec![    //TODO should they still be here?
             authority_keys_from_seed("Alice"),
             authority_keys_from_seed("Bob"),
         ],
@@ -421,13 +350,13 @@ fn local_testnet_genesis() -> GenesisConfig {
     )
 }
 
-/// Local testnet config (multivalidator Alice + Bob)
-pub fn local_testnet_config() -> ChainSpec {
+/// Local testnet config ()
+pub fn soba_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Local Testnet",
-        "local_testnet",
+        "soba_testnet",
         ChainType::Local,
-        local_testnet_genesis,
+        soba_testnet_genesis,
         vec![],
         None,
         None,
@@ -460,7 +389,7 @@ pub(crate) mod tests {
             "Integration Test",
             "test",
             ChainType::Development,
-            local_testnet_genesis_instant_single,
+            soba_testnet_genesis_instant_single,
             vec![],
             None,
             None,
@@ -475,7 +404,7 @@ pub(crate) mod tests {
             "Integration Test",
             "test",
             ChainType::Development,
-            local_testnet_genesis,
+            soba_testnet_genesis,
             vec![],
             None,
             None,
@@ -490,12 +419,12 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_create_local_testnet_chain_spec() {
-        local_testnet_config().build_storage().unwrap();
+    fn test_create_soba_testnet_chain_spec() {
+        soba_testnet_config().build_storage().unwrap();
     }
 
     #[test]
     fn test_staging_test_net_chain_spec() {
-        staging_testnet_config().build_storage().unwrap();
+        udon_testnet_config().build_storage().unwrap();
     }
 }
