@@ -20,7 +20,7 @@ pub struct FundingRoundWithPrimitives<AccountId> {
     pub vesting_per_block: Balance,
     pub start_block: BlockNumber,
     pub vote_end_block: BlockNumber,
-    pub project_info_cid: [u8;32],
+    pub project_info_cid: Vec<u8>,
     #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
     #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
     pub min_allocation: Balance,
