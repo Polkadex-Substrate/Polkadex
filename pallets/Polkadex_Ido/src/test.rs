@@ -63,7 +63,7 @@ fn test_register_round() {
     let balance: Balance = 100;
     let open_block_number = 11;
     let closing_block_number = 50;
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -92,7 +92,7 @@ fn test_whitelist_investor() {
     let open_block_number = 11;
     let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
             PolkadexIdo::whitelist_investor(
@@ -169,7 +169,7 @@ fn test_participate_in_round() {
     let round_id = create_hash_data(&1u32);
     let open_block_number = 11;
     let closing_block_number = 50;
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
             PolkadexIdo::participate_in_round(Origin::signed(ALICE.clone()), round_id, balance),
@@ -247,7 +247,7 @@ fn test_claim_tokens() {
     let open_block_number = 11;
     let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
             PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
@@ -314,7 +314,7 @@ fn test_show_interest_in_round() {
     let round_id = create_hash_data(&1u32);
     let open_block_number = 11;
     let closing_block_number = 50;
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
             PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, amount),
@@ -388,7 +388,7 @@ fn test_show_interest_in_round_randomized_participants() {
     let max_allocation: Balance = 400;
     let open_block_number = 11;
     let closing_block_number = 50;
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -453,7 +453,7 @@ fn test_withdraw_raise() {
     let open_block_number = 11;
     let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         system::Pallet::<Test>::set_block_number(0);
         assert_noop!(
@@ -473,7 +473,7 @@ fn test_withdraw_raise() {
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
-                cid,
+                cid.clone(),
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
@@ -554,7 +554,7 @@ fn test_withdraw_token() {
     let open_block_number = 11;
     let closing_block_number = 50;
     let round_id = create_hash_data(&1u32);
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
 
         assert_noop!(
@@ -576,7 +576,7 @@ fn test_withdraw_token() {
         assert_eq!(
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
-                cid,
+                cid.clone(),
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
@@ -658,7 +658,7 @@ fn test_vote_for_round() {
     let balance: Balance = 100;
     let open_block_number = 11;
     let closing_block_number = 50;
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -710,7 +710,7 @@ fn test_vote_for_round_no_vote_majority() {
     let balance: Balance = 100;
     let open_block_number = 11;
     let closing_block_number = 50;
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
@@ -762,7 +762,7 @@ fn test_get_reserve_amount() {
     let balance: Balance = 100;
     let open_block_number = 11;
     let closing_block_number = 50;
-    let cid = [0_u8;32];
+    let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(

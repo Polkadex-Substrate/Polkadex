@@ -139,7 +139,7 @@ pub struct FundingRound<T: Config> {
     creator: T::AccountId,
     amount: T::Balance,
     token_b: AssetId,
-    project_info_cid : [u8;32],
+    project_info_cid : Vec<u8>,
     vote_end_block : T::BlockNumber,
     vesting_per_block: T::Balance,
     start_block: T::BlockNumber,
@@ -158,7 +158,7 @@ impl<T: Config> Default for FundingRound<T> {
             creator: T::AccountId::default(),
             amount: T::Balance::default(),
             token_b: AssetId::POLKADEX,
-            project_info_cid: [0;32],
+            project_info_cid:Vec::new(),
             vote_end_block: T::BlockNumber::default(),
             vesting_per_block: T::Balance::default(),
             start_block: T::BlockNumber::default(),
@@ -174,7 +174,7 @@ impl<T: Config> Default for FundingRound<T> {
 
 impl<T: Config> FundingRound<T> {
     fn from(
-        cid : [u8;32],
+        cid : Vec<u8>,
         token_a: AssetId,
         creator: T::AccountId,
         amount: T::Balance,
@@ -386,7 +386,7 @@ decl_module! {
         #[weight = T::WeightIDOInfo::register_round()]
         pub fn register_round(
             origin,
-            cid : [u8;32],
+            cid : Vec<u8>,
             token_a: AssetId,
             amount: T::Balance,
             token_b: AssetId,
