@@ -890,7 +890,7 @@ impl<T: Config> Module<T> {
     pub fn rounds_by_creator(
         account: T::AccountId,
     ) -> Vec<(T::Hash, FundingRoundWithPrimitives<T::AccountId>)> {
-        <WhitelistInfoFundingRound<T>>::iter()
+        let whitelisted_funding_round : Vec<_> = <WhitelistInfoFundingRound<T>>::iter()
             .filter_map(|(round_id, (round_info, _))| {
                 if round_info.creator != account {
                     None
@@ -898,7 +898,22 @@ impl<T: Config> Module<T> {
                     Some((round_id, round_info.to_primitive()))
                 }
             })
-            .collect()
+            .collect();
+
+        let pending_funding_round : Vec<_> = <InfoFundingRound<T>>::iter()
+            .filter_map(|(round_id, round_info)| {
+                if round_info.creator != account {
+                    None
+                } else {
+                    Some((round_id, round_info.to_primitive()))
+                }
+            })
+            .collect();
+
+        let mut mixed_funding_rounds = Vec::new();
+        mixed_funding_rounds.extend_from_slice(&whitelisted_funding_round);
+        mixed_funding_rounds.extend_from_slice(&pending_funding_round);
+        mixed_funding_rounds
     }
 
     pub fn votes_stat(

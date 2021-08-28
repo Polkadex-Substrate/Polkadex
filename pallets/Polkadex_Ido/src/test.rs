@@ -756,3 +756,33 @@ fn test_vote_for_round_no_vote_majority() {
         );
     });
 }
+
+#[test]
+fn test_get_reserve_amount() {
+    let balance: Balance = 100;
+    let open_block_number = 11;
+    let closing_block_number = 50;
+    let cid = [0_u8;32];
+    ExtBuilder::default().build().execute_with(|| {
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                cid,
+                AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                open_block_number,
+                balance,
+                balance,
+                balance,
+                balance,
+                closing_block_number
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        let yes_voters : Vec<u64> = [4,2,5].to_vec();
+    });
+}
