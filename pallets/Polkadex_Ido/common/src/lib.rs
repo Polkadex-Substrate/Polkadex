@@ -19,6 +19,8 @@ pub struct FundingRoundWithPrimitives<AccountId> {
     #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
     pub vesting_per_block: Balance,
     pub start_block: BlockNumber,
+    pub vote_end_block: BlockNumber,
+    pub project_info_cid: Vec<u8>,
     #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
     #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
     pub min_allocation: Balance,
@@ -52,4 +54,17 @@ fn deserialize_from_string<'de, D: Deserializer<'de>, T: std::str::FromStr>(
     let s = String::deserialize(deserializer)?;
     s.parse::<T>()
         .map_err(|_| serde::de::Error::custom("Parse from string failed"))
+}
+
+
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+pub struct VoteStat {
+    #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
+    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
+    pub yes: Balance,
+    #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
+    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
+    pub no: Balance,
 }
