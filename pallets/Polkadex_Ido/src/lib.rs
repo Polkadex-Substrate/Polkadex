@@ -63,7 +63,7 @@ use sp_runtime::SaturatedConversion;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
-use sp_std::cmp::max;
+use sp_std::cmp::{max, min};
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -141,6 +141,7 @@ pub struct FundingRound<T: Config> {
     token_b: AssetId,
     project_info_cid : Vec<u8>,
     vote_end_block : T::BlockNumber,
+    vesting_end_block : T::BlockNumber,
     vesting_per_block: T::Balance,
     start_block: T::BlockNumber,
     min_allocation: T::Balance,
@@ -160,6 +161,7 @@ impl<T: Config> Default for FundingRound<T> {
             token_b: AssetId::POLKADEX,
             project_info_cid:Vec::new(),
             vote_end_block: T::BlockNumber::default(),
+            vesting_end_block: T::BlockNumber::default(),
             vesting_per_block: T::Balance::default(),
             start_block: T::BlockNumber::default(),
             min_allocation: T::Balance::default(),
@@ -180,6 +182,7 @@ impl<T: Config> FundingRound<T> {
         amount: T::Balance,
         token_b: AssetId,
         vote_end_block : T::BlockNumber,
+        vesting_end_block: T::BlockNumber,
         vesting_per_block: T::Balance,
         start_block: T::BlockNumber,
         min_allocation: T::Balance,
@@ -188,6 +191,7 @@ impl<T: Config> FundingRound<T> {
         token_a_priceper_token_b: T::Balance,
         close_round_block: T::BlockNumber,
     ) -> Self {
+
         FundingRound {
             token_a,
             creator,
@@ -195,6 +199,7 @@ impl<T: Config> FundingRound<T> {
             token_b,
             project_info_cid: cid,
             vote_end_block,
+            vesting_end_block,
             vesting_per_block,
             start_block,
             min_allocation,
@@ -215,6 +220,7 @@ impl<T: Config> FundingRound<T> {
             vesting_per_block: self.vesting_per_block.saturated_into(),
             start_block: self.start_block.saturated_into(),
             vote_end_block: self.vote_end_block.saturated_into(),
+            vesting_end_block: self.vesting_end_block.saturated_into(),
             project_info_cid: self.project_info_cid.clone(),
             min_allocation: self.min_allocation.saturated_into(),
             max_allocation: self.max_allocation.saturated_into(),
@@ -405,11 +411,16 @@ decl_module! {
             };
             ensure!(token_a.ne(&token_b), <Error<T>>::TokenAEqTokenB);
             // CID len must be less than or equal to 68
-            ensure!(cid.len() <= 68, <Error<T>>::CidReachedMaxSize);
+            ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
             ensure!(token_a_priceper_token_b > 0_u128.saturated_into(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
             ensure!(vote_end_block < start_block, <Error<T>>::StartBlockMustBeGreaterThanVotingPeriod);
+            ensure!(vesting_per_block > Zero::zero(), <Error<T>>::VestingPerBlockMustGreaterThanZero);
+
+            let vesting_period : u32 = (amount / vesting_per_block ).saturated_into();
+            let vesting_period : T::BlockNumber = vesting_period.saturated_into();
+            let vesting_end_block : T::BlockNumber = vesting_period.saturating_add(close_round_block);
             let team: T::AccountId = ensure_signed(origin)?;
             let funding_round: FundingRound<T> = FundingRound::from(
                 cid,
@@ -418,6 +429,7 @@ decl_module! {
                 amount,
                 token_b,
                 vote_end_block,
+                vesting_end_block,
                 vesting_per_block,
                 start_block,
                 min_allocation,
@@ -508,7 +520,9 @@ decl_module! {
             // Investor can only withdraw after the funding round is closed
             let round_account_id = Self::round_account_id(round_id.clone());
             let investor_share = <InvestorShareInfo<T>>::get(round_id, investor_address.clone());
-            let total_released_block: T::BlockNumber = current_block_no - funding_round.close_round_block;
+            // ensure the claiming block number falls with in the vesting period
+            let claim_block : T::BlockNumber = min(current_block_no, funding_round.vesting_end_block);
+            let total_released_block: T::BlockNumber = claim_block - funding_round.close_round_block;
             // total_tokens_released_for_given_investor is the total available tokens for their investment
             // relative to the current block
             let total_tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
@@ -554,7 +568,9 @@ decl_module! {
             ensure!(amount <= funding_round.max_allocation && amount >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            ensure!(current_block_no < funding_round.close_round_block && current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
+            // Ensure investors can only show interest during the voting period of the round
+            // Investors who shows interested are randomly selected (whitelisted)  to participate in the round at round start block
+            ensure!(current_block_no < funding_round.start_block, <Error<T>>::NotAllowed);
 
             InterestedParticipantsAmounts::<T>::mutate(round_id, |interested_participants| {
                 let total_potential_raise : T::Balance = interested_participants.iter()
@@ -847,7 +863,8 @@ decl_error! {
         DuplicateVote,
         FailedToMoveBalanceToReserve,
         FundingRoundNotApproved,
-        CidReachedMaxSize
+        CidReachedMaxSize,
+        VestingPerBlockMustGreaterThanZero
     }
 }
 
