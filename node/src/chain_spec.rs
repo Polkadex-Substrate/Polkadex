@@ -84,8 +84,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 
     // generated with secret: subkey inspect "$secret"/fir
     let root_key: AccountId = hex![
-        // 5Ff3iXP75ruzroPWRP2FYBHWnmGGBSb63857BgnzCoXNxfPo
-        "9ee5e5bdc0ec239eb164f865ecc345ce4c88e76ee002e0f7e318097347471809"
+        // 5Ggr5JRSxCSZvwTc9Xkjca5bWkkmG1btufW22uLm5tArfV9y
+        "cc816e946438b2b21b8a3073f983ce03ee0feb313ec494e2dec462cfb4e77502"
     ]
         .into();
 // this is the accouint
