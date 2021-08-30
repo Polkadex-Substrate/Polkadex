@@ -23,6 +23,7 @@ use frame_support::traits::OnInitialize;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H160;
 use sp_runtime::traits::Hash;
+use polkadex_primitives::assets::AssetId::POLKADEX;
 
 #[test]
 fn test_register_investor() {
@@ -757,6 +758,11 @@ fn test_vote_for_round_no_vote_majority() {
     });
 }
 
+
+/// Test whether the voter will receive amount when the vote stake period ends
+/// voter adds vote with amount
+/// chain processed to on_initialize for the unlocking_block of the voters amount staked
+/// check whether the total_balance - free_balance is zero
 #[test]
 fn test_get_reserve_amount() {
     let balance: Balance = 100;
@@ -783,6 +789,13 @@ fn test_get_reserve_amount() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
-        let yes_voters : Vec<u64> = [4,2,5].to_vec();
+        PolkadexIdo::vote(Origin::signed(4),round_id, balance, 2, false);
+        let unlocking_block = PolkadexIdo::vote_multiplier_to_block_number(2);
+        let reserve_balance = <Test as Config>::Currency::total_balance(AssetId::POLKADEX,&4_u64 ) - <Test as Config>::Currency::free_balance(AssetId::POLKADEX,&4_u64 );
+
+        assert_eq!(reserve_balance, balance);
+        <PolkadexIdo as OnInitialize<u64>>::on_initialize(unlocking_block);
+        let reserve_balance = <Test as Config>::Currency::total_balance(AssetId::POLKADEX,&4_u64 ) - <Test as Config>::Currency::free_balance(AssetId::POLKADEX,&4_u64 );
+        assert_eq!(reserve_balance, 0);
     });
 }
