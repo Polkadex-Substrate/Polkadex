@@ -52,7 +52,7 @@ frame_support::construct_runtime!(
 );
 
 pub type Balance = u128;
-
+pub type BlockNumber = u64;
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
 }
@@ -65,7 +65,7 @@ impl system::Config for Test {
     type Origin = Origin;
     type Call = Call;
     type Index = u64;
-    type BlockNumber = u64;
+    type BlockNumber = BlockNumber;
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = AccountId;
@@ -121,6 +121,7 @@ parameter_types! {
 parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100u128;
     pub const GetMaxSupply: Balance = 200u128;
+    pub const DefaultVotingPeriod : BlockNumber = 5;
 }
 
 pub struct OneToFive;
@@ -142,6 +143,7 @@ impl Config for Test {
     type RandomnessSource = TestRandomness<Self>;
     type ModuleId = PolkadexIdoModuleId;
     type WeightIDOInfo = ();
+    type DefaultVotingPeriod = DefaultVotingPeriod;
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
@@ -188,6 +190,10 @@ impl Default for ExtBuilder {
                 (2, AssetId::POLKADEX, INITIAL_BALANCE),
                 (5, AssetId::POLKADEX, INITIAL_BALANCE),
                 (6, AssetId::POLKADEX, INITIAL_BALANCE),
+                (7, AssetId::POLKADEX, INITIAL_BALANCE),
+                (8, AssetId::POLKADEX, INITIAL_BALANCE),
+                (9, AssetId::POLKADEX, INITIAL_BALANCE),
+                (10, AssetId::POLKADEX, INITIAL_BALANCE),
             ],
         }
     }
@@ -206,6 +212,10 @@ impl ExtBuilder {
                 (2u64, INITIAL_BALANCE),
                 (5u64, INITIAL_BALANCE),
                 (6u64, INITIAL_BALANCE),
+                (7u64, INITIAL_BALANCE),
+                (8u64, INITIAL_BALANCE),
+                (9u64, INITIAL_BALANCE),
+                (10u64, INITIAL_BALANCE),
             ],
         }
         .assimilate_storage(&mut t)

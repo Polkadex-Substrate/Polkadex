@@ -55,7 +55,7 @@ use pallet_contracts::weights::WeightInfo;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
+use pallet_polkadex_ido_primitives::*;
 use pallet_session::historical as pallet_session_historical;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
@@ -1150,6 +1150,7 @@ parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100_u128;
     pub const GetMaxSupply: Balance = 2_000_000_u128;
     pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
 }
 
 impl polkadex_ido::Config for Runtime {
@@ -1164,6 +1165,7 @@ impl polkadex_ido::Config for Runtime {
     type ModuleId = PolkadexIdoPalletId;
     type Currency = Currencies;
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
+    type DefaultVotingPeriod = DefaultVotingPeriod;
 }
 
 construct_runtime! {
@@ -1474,6 +1476,10 @@ impl_runtime_apis! {
         }
         fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
             PolkadexIdo::rounds_by_creator(account)
+        }
+
+        fn votes_stat(round_id: Hash) -> VoteStat {
+            PolkadexIdo::votes_stat(round_id)
         }
     }
 
