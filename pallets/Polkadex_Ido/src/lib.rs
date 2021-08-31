@@ -753,7 +753,7 @@ decl_storage! {
 
         Nonce get(fn nonce): u128;
 
-        VotingPeriod get(fn get_voting_period): T::BlockNumber;
+        VotingPeriod get(fn get_voting_period): T::BlockNumber = T::DefaultVotingPeriod::get();
 
         RoundVotes get(fn get_round_votes): map hasher(identity) T::Hash => Votes<T>;
 
