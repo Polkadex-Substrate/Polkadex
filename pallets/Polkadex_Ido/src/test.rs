@@ -236,7 +236,7 @@ fn test_participate_in_round() {
         );
 
         // Check if FundingRound was successfully updated after investment
-        let (round_info, _ ) = <WhitelistInfoFundingRound<Test>>::get(round_id);
+        let round_info = <WhitelistInfoFundingRound<Test>>::get(round_id);
         assert_eq!(round_info.actual_raise == balance, true);
     });
 }
