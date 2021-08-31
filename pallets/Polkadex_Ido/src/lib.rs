@@ -313,7 +313,12 @@ decl_module! {
                     let yes : T::Balance = voting.ayes.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
                     let no : T::Balance = voting.nays.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
                     if yes > no {
-                        <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), (round_info,  Approval::Community))
+                        <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), (round_info,  Approval::Community));
+                        for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
+                            <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
+                        }
+                        //Clean up InterestedParticipants after whitelisting
+                        <InterestedParticipants<T>>::remove_prefix(round_id);
                     }
                     // Remove fun
                     <InfoFundingRound<T>>::remove(&round_id);
@@ -322,14 +327,13 @@ decl_module! {
             }
 
             for (round_id,(round_info, _)) in <WhitelistInfoFundingRound<T>>::iter() {
-
                 if block_number > round_info.close_round_block {
                     <WhiteListInvestors<T>>::remove_prefix(round_id);
-                    <InterestedParticipants<T>>::remove_prefix(round_id);
                     Self::deposit_event(RawEvent::CleanedupExpiredRound(round_id));
                 }
-
             }
+
+
 
             return call_weight
         }
