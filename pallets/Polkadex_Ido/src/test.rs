@@ -236,7 +236,7 @@ fn test_participate_in_round() {
         );
 
         // Check if FundingRound was successfully updated after investment
-        let (round_info, _ ) = <WhitelistInfoFundingRound<Test>>::get(round_id);
+        let round_info = <WhitelistInfoFundingRound<Test>>::get(round_id);
         assert_eq!(round_info.actual_raise == balance, true);
     });
 }
@@ -352,7 +352,6 @@ fn test_show_interest_in_round() {
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
-        system::Pallet::<Test>::set_block_number(open_block_number);
         //Check investing with lower than minimum allocation
         assert_noop!(
             PolkadexIdo::show_interest_in_round(
@@ -411,7 +410,6 @@ fn test_show_interest_in_round_randomized_participants() {
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
-        system::Pallet::<Test>::set_block_number(open_block_number);
         let investors: Vec<(u64, Balance)> =
             vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
 
