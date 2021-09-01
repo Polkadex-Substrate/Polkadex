@@ -400,7 +400,7 @@ decl_module! {
                 Err(_) => T::DefaultVotingPeriod::get().saturating_add(current_block_no)
             };
             ensure!(token_a.ne(&token_b), <Error<T>>::TokenAEqTokenB);
-            // CID len must be less than or equal to 68
+            // CID len must be less than or equal to 100
             ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
             ensure!(token_a_priceper_token_b > 0_u128.saturated_into(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
