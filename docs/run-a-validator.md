@@ -2,9 +2,9 @@
 
 This guide will instruct you how to set up a validator node on the Polkadex Public Testnet.
 
-- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.0
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.1-rc2
 - **Bootnode IP address**: 13.235.92.50
-- **Bootnode Peer ID**: 12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR
+- **Bootnode Peer ID**: 12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby
 - **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
 
 ## Initial Set-up
@@ -107,7 +107,7 @@ cd Polkadex
 Build native code with the cargo release profile.
 
 ```
-git checkout v0.4.0
+git checkout v0.4.1-rc2
 cargo build --release
 ```
 
@@ -118,13 +118,13 @@ cargo build --release
 Download `customSpecRaw.json` file for the Polkadex Public Testnet
 ```
 cd $HOME
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc2/customSpecRaw.json
 ```
 
 You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
 
 ```
-$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --pruning=archive
+$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby --pruning=archive
 ```
 
 
@@ -180,7 +180,7 @@ If you are interested in determining how much longer you have to go, your server
 In order to become a validator on the Polkadex Testnet, you will need some Test Tokens. The Polkadex team has designed a Twitter bot that will serve as a Test Token 'faucet' for this phase of the Testnet. **To claim Test Tokens, copy and paste the text below into a tweet, paste your account/wallet address where it says [ACCOUNT], and post it.** Soon after, you'll receive the Polkadex Test Tokens, and a like on the tweet.
 
 ```
-👋 Hey @polkadex it's [ACCOUNT] here, please give me some #PolkadexTestTokens! 📲 
+👋 Hey @polkadex I would like to try the new test net. Please give me some #PolkadexTestTokens to my account [ACCOUNT]. Thanks for working hard!
 ```
 
 ## Bond PDEX
@@ -220,7 +220,7 @@ Your bonded account will be available under `Stashes`. You should now see a new 
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name "Validator-Tutorial"
+$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby --validator --name "Validator-Tutorial"
 ```
 Similarly:
 ```
@@ -258,7 +258,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBRsL9KPkMeWxTMq5aSbgUWEMgwzWpWDA6EqQ6A2KTDoR --validator --name 'Validator-Tutorial'
+ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby --validator --name 'Validator-Tutorial'
 Restart=on-failure
 
 [Install]

@@ -140,8 +140,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 pub fn udon_testnet_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
-        "Staging Testnet",
-        "udon_testnet",
+        "Polkadex Test Net",
+        "polkadex_udon_testnet",
         ChainType::Live,
         udon_testnet_config_genesis,
         boot_nodes,
