@@ -2,29 +2,30 @@ use frame_benchmarking::frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-pub use polkadex_primitives::{AccountId, Balance, Signature};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::Block;
+pub use polkadex_primitives::{AccountId, Balance, Signature};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, Pair, Public, sr25519};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{
-    Perbill,
     traits::{AccountIdConversion, IdentifyAccount, Verify},
+    Perbill,
 };
 
-use node_polkadex_runtime::{
-    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
-    ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, MAX_NOMINATIONS, OrmlVestingConfig, SessionConfig,
-    SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-    TokensConfig, wasm_binary_unwrap,
-};
 use node_polkadex_runtime::constants::currency::*;
 pub use node_polkadex_runtime::GenesisConfig;
+use node_polkadex_runtime::{
+    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig,
+    CouncilConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig,
+    OrmlVestingConfig, PolkadexTreasuryModuleId, SessionConfig, SessionKeys, StakerStatus,
+    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig,
+    MAX_NOMINATIONS,
+};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -64,7 +65,7 @@ fn session_keys(
     }
 }
 
-fn staging_testnet_config_genesis() -> GenesisConfig {
+fn udon_testnet_config_genesis() -> GenesisConfig {
     // stash, controller, session-key
     // generated with secret:
     // for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
@@ -78,7 +79,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
         BabeId,
         ImOnlineId,
         AuthorityDiscoveryId,
-    )> = vec![
+    )> = vec![ 
         (
             // 5Fbsd6WXDGiLTxunqeK5BATNiocfCqu9bS1yArVjCgeBLkVy
             hex!["9c7a2ee14e565db0c69f78c7b4cd839fbf52b607d867e9e9c5a79042898a0d12"].into(),
@@ -155,11 +156,11 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 
     // generated with secret: subkey inspect "$secret"/fir
     let root_key: AccountId = hex![
-        // 5Ff3iXP75ruzroPWRP2FYBHWnmGGBSb63857BgnzCoXNxfPo
-        "9ee5e5bdc0ec239eb164f865ecc345ce4c88e76ee002e0f7e318097347471809"
+        // 5Ggr5JRSxCSZvwTc9Xkjca5bWkkmG1btufW22uLm5tArfV9y
+        "cc816e946438b2b21b8a3073f983ce03ee0feb313ec494e2dec462cfb4e77502"
     ]
-        .into();
-
+    .into();
+    // this is the accouint
     let endowed_accounts: Vec<AccountId> = vec![root_key.clone()];
 
     testnet_genesis(
@@ -172,13 +173,13 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 }
 
 /// Staging testnet config.
-pub fn staging_testnet_config() -> ChainSpec {
+pub fn udon_testnet_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
         "Staging Testnet",
-        "staging_testnet",
+        "udon_testnet",
         ChainType::Live,
-        staging_testnet_config_genesis,
+        udon_testnet_config_genesis,
         boot_nodes,
         Some(
             TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
@@ -199,8 +200,8 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 
 /// Helper function to generate an account ID from seed
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-    where
-        AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+where
+    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
@@ -226,6 +227,7 @@ pub fn authority_keys_from_seed(
     )
 }
 
+#[allow(non_upper_case_globals)]
 pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
 
 /// Helper function to create GenesisConfig for testing
@@ -243,7 +245,93 @@ pub fn testnet_genesis(
     endowed_accounts: Option<Vec<AccountId>>,
     enable_println: bool,
 ) -> GenesisConfig {
-    let genesis: AccountId = OCEXGenesisAccount.into_account();
+    let _genesis: AccountId = OCEXGenesisAccount.into_account();
+    let treasury_accont: AccountId = PolkadexTreasuryModuleId::get().into_account();
+    let mut investor_balances = vec![
+       (hex!["e4cdc8abc0405db44c1a6886a2f2c59012fa3b98c07b61d63cc7f9e437ba243e"].into(), 18000050000000000),
+       (hex!["b26562a2e476fea86b26b2e47f12d279deb0ca7812bd1dad5b4fc8a909e10b22"].into(), 240000050000000000),
+       (hex!["e83adffb6338272e981cbc0c6cc03fd4e5e8447497b6b531b9436870c6079758"].into(), 18000050000000000),
+       (hex!["e613dd948e7baacc02c97db737ad43af7024f5ae595d06f1611ce827c300b17f"].into(), 360000050000000000),
+       (hex!["182400644f4780a65a43e00f9630152fe0ab2323d0dacd04e808ceccf462f416"].into(), 105000050000000000),
+       (hex!["b8779ddd7bc8dc00dc0e220b6b07b509553c3cdbdad3e384cc1ba2187cbca53f"].into(), 5625050000000000),
+       (hex!["62168680c9ed6e456fa59bd01525a53dd6fa991757e920482016e7db6caebd45"].into(), 13125050000000000),
+       (hex!["1c2eaec3bd844d93d29d442c1ecc431e8502ce7b13f950ae203ee63ff2a1750a"].into(), 52500050000000000),
+       (hex!["78d4caac9c5b562190901aafb9f2c74780c5831a89257254ca225729e755d919"].into(), 52500050000000000),
+       (hex!["1a8538e949213a4034bca131957bbfe8bc45107be4e93c86f92353fccff90039"].into(), 52500050000000000),
+       (hex!["fac6591fd5605154f1a77fc142d66d9c2f7b11f5c0bc61a3ac8ab46099e87e3a"].into(), 15750050000000000),
+       (hex!["ccb97ce4726461ad53c0ec9277b1ba3f7f88b0a11f847f1ca17d358e6e4d0a05"].into(), 191250050000000000),
+       (hex!["08a1c86a2c789eeb1295c3b3ba63b2cde5d23fa6c80d8f87246c21a11fa3ba1d"].into(), 105000050000000000),
+       (hex!["082cb53d6299dc033e467de007bfd5c4c0d24135aa85d2f1d983008ff78fbb66"].into(), 127500050000000000),
+       (hex!["48cb52f3831917977aec38d9c3a3c73c8253b82523af35d44b7122e674677f05"].into(), 52500050000000000),
+       (hex!["0617b168a08acd31e3323ff63cb6e8e7682ba002ca0184a59a0ebc6dcf4e7f2b"].into(), 52500050000000000),
+       (hex!["b2fa882baef6358e3b4379c290fc989093da5f62b0c8cc57bb972fa7232efe10"].into(), 26250050000000000),
+       (hex!["ecd0a0fba2f97d02d81fa3408e7e1f4a40b36d58fb7b999f0d0f5e073b810d3d"].into(), 95625050000000000),
+       (hex!["0838d06bad89b000120bea3e2cbf59e342f518a3f76becfa8c35bfd386e79825"].into(), 52500050000000000),
+       (hex!["60285b86e8196e4e20565440e2ded16459a8f1e8b6c5ce8bacb4a5b11eee8b05"].into(), 75750050000000000),
+       (hex!["68732830b518f410592bfb6f623e9864e9c021bc4adfe4845916932024bf9119"].into(), 7875050000000000),
+       (hex!["bc13c9a902a524609f064014695f2b6548a17d7e8bb12a834220559bc38bbc5d"].into(), 42000050000000000),
+       (hex!["daeb89c994d06f7e996e2c3e9e1fe685765e40f083432fbcdcb7f77bc1f9a378"].into(), 7875050000000000),
+       (hex!["3ceab1c17a4302ac0471e943279bd993adf12af6d2010a4f73bbdf428fba914f"].into(), 30000050000000000),
+       (hex!["baf1346f012c29003aeb63ac2503fbfafcd0dc182e98053b34f8bb08510ca73f"].into(), 45840050000000000),
+       (hex!["969554a9c50959bc434b99051b9803cc911ba3cad6c0e1d2ab2b8bcbbd1f057e"].into(), 60000050000000000),
+       (hex!["724513af8211cbaaeb17e7bbff8f2286718135d4ebe10e556c5b2076dbbd342d"].into(), 60000050000000000),
+       (hex!["eab1d6b0efce910517067712d026e42ab5f84ffd068b80d3cd55cd7c95d4db68"].into(), 60000050000000000),
+       (hex!["3ee90311650ce54b81d70f77537dc255c130ac9f5f5933cc6e2cedcb00ebdf5d"].into(), 150000050000000000),
+       (hex!["a0cc2a61879f21b7924392cfea5c35b47781f795ca24d179188c6d3f2a67952b"].into(), 60000050000000000),
+       (hex!["2c6ce334da34c1ffdfb9cfb9962afdc9decf8f36b8d5282c2dbdef7c7b1aee53"].into(), 60000050000000000),
+       (hex!["aa36b0d46767a839e11f18d8f15d373ed1f63abb33324edd87ebdc5fcfabd812"].into(), 60000050000000000),
+       (hex!["ac6b20cfc19c17ca6d84edf5a082e242bdbb33c8f7f321e96f7764d3a9006d5a"].into(), 2812550000000000),
+       (hex!["9a82629aac0895e5998542537f6b5b3a1c2c6fd46e827d409de88aacf9755a0e"].into(), 2812550000000000),
+       (hex!["8039b9f35380bc3c20206d25c44006bd98e1252d7cb80acd6290b4f9c17bcd4c"].into(), 50000050000000000),
+       (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 50000050000000000),
+       (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 50000050000000000),
+       (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 400000050000000000),
+    ];
+    let investor_vesting = vec![
+       (hex!["e4cdc8abc0405db44c1a6886a2f2c59012fa3b98c07b61d63cc7f9e437ba243e"].into(), 1000, 28800, 3, 6000000000000000),
+       (hex!["b26562a2e476fea86b26b2e47f12d279deb0ca7812bd1dad5b4fc8a909e10b22"].into(), 1000, 28800, 3, 80000000000000000),
+       (hex!["e83adffb6338272e981cbc0c6cc03fd4e5e8447497b6b531b9436870c6079758"].into(), 1000, 28800, 3, 6000000000000000),
+       (hex!["e613dd948e7baacc02c97db737ad43af7024f5ae595d06f1611ce827c300b17f"].into(), 1000, 28800, 3, 120000000000000000),
+       (hex!["182400644f4780a65a43e00f9630152fe0ab2323d0dacd04e808ceccf462f416"].into(), 1000, 28800, 3, 35000000000000000),
+       (hex!["b8779ddd7bc8dc00dc0e220b6b07b509553c3cdbdad3e384cc1ba2187cbca53f"].into(), 1000, 28800, 3, 1875000000000000),
+       (hex!["62168680c9ed6e456fa59bd01525a53dd6fa991757e920482016e7db6caebd45"].into(), 1000, 28800, 3, 4375000000000000),
+       (hex!["1c2eaec3bd844d93d29d442c1ecc431e8502ce7b13f950ae203ee63ff2a1750a"].into(), 1000, 28800, 3, 17500000000000000),
+       (hex!["78d4caac9c5b562190901aafb9f2c74780c5831a89257254ca225729e755d919"].into(), 1000, 28800, 3, 17500000000000000),
+       (hex!["1a8538e949213a4034bca131957bbfe8bc45107be4e93c86f92353fccff90039"].into(), 1000, 28800, 3, 17500000000000000),
+       (hex!["fac6591fd5605154f1a77fc142d66d9c2f7b11f5c0bc61a3ac8ab46099e87e3a"].into(), 1000, 28800, 3, 5250000000000000),
+       (hex!["ccb97ce4726461ad53c0ec9277b1ba3f7f88b0a11f847f1ca17d358e6e4d0a05"].into(), 1000, 28800, 3, 63750000000000000),
+       (hex!["08a1c86a2c789eeb1295c3b3ba63b2cde5d23fa6c80d8f87246c21a11fa3ba1d"].into(), 1000, 28800, 3, 35000000000000000),
+       (hex!["082cb53d6299dc033e467de007bfd5c4c0d24135aa85d2f1d983008ff78fbb66"].into(), 1000, 28800, 3, 42500000000000000),
+       (hex!["48cb52f3831917977aec38d9c3a3c73c8253b82523af35d44b7122e674677f05"].into(), 1000, 28800, 3, 17500000000000000),
+       (hex!["0617b168a08acd31e3323ff63cb6e8e7682ba002ca0184a59a0ebc6dcf4e7f2b"].into(), 1000, 28800, 3, 17500000000000000),
+       (hex!["b2fa882baef6358e3b4379c290fc989093da5f62b0c8cc57bb972fa7232efe10"].into(), 1000, 28800, 3, 8750000000000000),
+       (hex!["ecd0a0fba2f97d02d81fa3408e7e1f4a40b36d58fb7b999f0d0f5e073b810d3d"].into(), 1000, 28800, 3, 31875000000000000),
+       (hex!["0838d06bad89b000120bea3e2cbf59e342f518a3f76becfa8c35bfd386e79825"].into(), 1000, 28800, 3, 17500000000000000),
+       (hex!["60285b86e8196e4e20565440e2ded16459a8f1e8b6c5ce8bacb4a5b11eee8b05"].into(), 1000, 28800, 3, 25250000000000000),
+       (hex!["68732830b518f410592bfb6f623e9864e9c021bc4adfe4845916932024bf9119"].into(), 1000, 28800, 3, 2625000000000000),
+       (hex!["bc13c9a902a524609f064014695f2b6548a17d7e8bb12a834220559bc38bbc5d"].into(), 1000, 28800, 3, 14000000000000000),
+       (hex!["daeb89c994d06f7e996e2c3e9e1fe685765e40f083432fbcdcb7f77bc1f9a378"].into(), 1000, 28800, 3, 2625000000000000),
+       (hex!["3ceab1c17a4302ac0471e943279bd993adf12af6d2010a4f73bbdf428fba914f"].into(), 1000, 28800, 3, 10000000000000000),
+       (hex!["baf1346f012c29003aeb63ac2503fbfafcd0dc182e98053b34f8bb08510ca73f"].into(), 1000, 28800, 3, 15280000000000000),
+       (hex!["969554a9c50959bc434b99051b9803cc911ba3cad6c0e1d2ab2b8bcbbd1f057e"].into(), 1000, 28800, 3, 20000000000000000),
+       (hex!["724513af8211cbaaeb17e7bbff8f2286718135d4ebe10e556c5b2076dbbd342d"].into(), 1000, 28800, 3, 20000000000000000),
+       (hex!["eab1d6b0efce910517067712d026e42ab5f84ffd068b80d3cd55cd7c95d4db68"].into(), 1000, 28800, 3, 20000000000000000),
+       (hex!["3ee90311650ce54b81d70f77537dc255c130ac9f5f5933cc6e2cedcb00ebdf5d"].into(), 1000, 28800, 3, 50000000000000000),
+       (hex!["a0cc2a61879f21b7924392cfea5c35b47781f795ca24d179188c6d3f2a67952b"].into(), 1000, 28800, 3, 20000000000000000),
+       (hex!["2c6ce334da34c1ffdfb9cfb9962afdc9decf8f36b8d5282c2dbdef7c7b1aee53"].into(), 1000, 28800, 3, 20000000000000000),
+       (hex!["aa36b0d46767a839e11f18d8f15d373ed1f63abb33324edd87ebdc5fcfabd812"].into(), 1000, 28800, 3, 20000000000000000),
+       (hex!["ac6b20cfc19c17ca6d84edf5a082e242bdbb33c8f7f321e96f7764d3a9006d5a"].into(), 1000, 28800, 3, 937500000000000),
+       (hex!["9a82629aac0895e5998542537f6b5b3a1c2c6fd46e827d409de88aacf9755a0e"].into(), 1000, 28800, 3, 937500000000000),
+       (hex!["8039b9f35380bc3c20206d25c44006bd98e1252d7cb80acd6290b4f9c17bcd4c"].into(), 1000, 28800, 1, 5000000000000000),
+       (hex!["8039b9f35380bc3c20206d25c44006bd98e1252d7cb80acd6290b4f9c17bcd4c"].into(), 2650600, 28800, 4, 11250000000000000),
+       (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 1000, 28800, 1, 5000000000000000),
+       (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 2650600, 28800, 4, 11250000000000000),
+       (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 1000, 28800, 1, 5000000000000000),
+       (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 2650600, 28800, 4, 11250000000000000),
+       (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 1000, 28800, 1, 40000000000000000),
+       (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 2650600, 28800, 4, 90000000000000000),
+    ];
+
     let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
         vec![
             get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -297,21 +385,25 @@ pub fn testnet_genesis(
 
     let num_endowed_accounts = endowed_accounts.len();
 
-    const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
+    const ENDOWMENT: Balance = 10_000_000 * PDEX;
     const STASH: Balance = ENDOWMENT / 1000;
-
+    let mut balances_vec:Vec<(AccountId,Balance)> = endowed_accounts
+                .iter()
+                .cloned()
+                .map(|x| (x, ENDOWMENT))
+                .collect();
+                
+    balances_vec.push((treasury_accont.clone(),100000000*PDEX));
+    balances_vec.append(&mut investor_balances);
     GenesisConfig {
         frame_system: SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
             changes_trie_config: Default::default(),
         },
         pallet_balances: BalancesConfig {
-            balances: endowed_accounts
-                .iter()
-                .cloned()
-                .map(|x| (x, ENDOWMENT))
-                .collect(),
+            balances: balances_vec,
         },
+
         pallet_indices: IndicesConfig { indices: vec![] },
         pallet_session: SessionConfig {
             keys: initial_authorities
@@ -354,7 +446,9 @@ pub fn testnet_genesis(
             // println should only be enabled on development chains
             current_schedule: pallet_contracts::Schedule::default().enable_println(enable_println),
         },
-        pallet_sudo: SudoConfig { key: root_key.clone() },
+        pallet_sudo: SudoConfig {
+            key: root_key.clone(),
+        },
         pallet_babe: BabeConfig {
             authorities: vec![],
             epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -367,19 +461,8 @@ pub fn testnet_genesis(
         pallet_membership_Instance1: Default::default(),
         pallet_treasury: Default::default(),
         pallet_vesting: Default::default(),
-        orml_vesting: OrmlVestingConfig { vesting: vec![] },
-        orml_tokens: TokensConfig {
-            endowed_accounts: vec![
-                (endowed_accounts[0].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
-                (endowed_accounts[0].to_owned(), AssetId::DOT, 1000000000000000000u128),
-                (endowed_accounts[0].to_owned(), AssetId::BTC, 1000000000000000000u128),
-                (endowed_accounts[0].to_owned(), AssetId::USD, 1000000000000000000u128),
-                (endowed_accounts[1].to_owned(), AssetId::POLKADEX, 1000000000000000000u128),
-                (endowed_accounts[1].to_owned(), AssetId::DOT, 1000000000000000000u128),
-                (endowed_accounts[1].to_owned(), AssetId::BTC, 1000000000000000000u128),
-                (endowed_accounts[1].to_owned(), AssetId::USD, 1000000000000000000u128),
-            ],
-        },
+        orml_vesting: OrmlVestingConfig { vesting: investor_vesting },
+        orml_tokens: Default::default(),
     }
 }
 
@@ -408,9 +491,10 @@ pub fn development_config() -> ChainSpec {
     )
 }
 
-fn local_testnet_genesis() -> GenesisConfig {
+fn soba_testnet_genesis() -> GenesisConfig {
     testnet_genesis(
         vec![
+            //TODO should they still be here?
             authority_keys_from_seed("Alice"),
             authority_keys_from_seed("Bob"),
         ],
@@ -421,13 +505,13 @@ fn local_testnet_genesis() -> GenesisConfig {
     )
 }
 
-/// Local testnet config (multivalidator Alice + Bob)
-pub fn local_testnet_config() -> ChainSpec {
+/// Local testnet config ()
+pub fn soba_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Local Testnet",
-        "local_testnet",
+        "soba_testnet",
         ChainType::Local,
-        local_testnet_genesis,
+        soba_testnet_genesis,
         vec![],
         None,
         None,
@@ -438,11 +522,8 @@ pub fn local_testnet_config() -> ChainSpec {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use sp_runtime::BuildStorage;
-
-    use crate::service::{new_full_base, new_light_base, NewFullBase};
-
     use super::*;
+    use sp_runtime::BuildStorage;
 
     fn local_testnet_genesis_instant_single() -> GenesisConfig {
         testnet_genesis(
@@ -475,7 +556,7 @@ pub(crate) mod tests {
             "Integration Test",
             "test",
             ChainType::Development,
-            local_testnet_genesis,
+            soba_testnet_genesis,
             vec![],
             None,
             None,
@@ -486,16 +567,16 @@ pub(crate) mod tests {
 
     #[test]
     fn test_create_development_chain_spec() {
-        development_config().build_storage().unwrap();
+        assert!(!development_config().build_storage().is_err());
     }
 
     #[test]
-    fn test_create_local_testnet_chain_spec() {
-        local_testnet_config().build_storage().unwrap();
+    fn test_create_soba_testnet_chain_spec() {
+        assert!(!soba_testnet_config().build_storage().is_err());
     }
 
     #[test]
     fn test_staging_test_net_chain_spec() {
-        staging_testnet_config().build_storage().unwrap();
+        assert!(!udon_testnet_config().build_storage().is_err());
     }
 }

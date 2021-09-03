@@ -18,20 +18,17 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::pallet_prelude::*;
+use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+use frame_support::sp_runtime::SaturatedConversion;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
-use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage,
-};
-use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::SaturatedConversion;
-use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage};
+use orml_traits::MultiCurrencyExtended;
 use polkadex_primitives::assets::AssetId;
 use sp_core::{H160, U256};
 use sp_runtime::traits::StaticLookup;
-
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
@@ -39,26 +36,26 @@ pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// Balance Type
     type Balance: Parameter
-    + Member
-    + AtLeast32BitUnsigned
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize;
+        + Member
+        + AtLeast32BitUnsigned
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize;
     /// Module that handles tokens
     type Currency: MultiCurrencyExtended<
         Self::AccountId,
-        CurrencyId=AssetId,
-        Balance=Self::Balance,
+        CurrencyId = AssetId,
+        Balance = Self::Balance,
     >;
 
-    type CallOrigin: EnsureOrigin<Self::Origin, Success=H160>;
+    type CallOrigin: EnsureOrigin<Self::Origin, Success = H160>;
 }
 
 decl_storage! {
-	trait Store for Module<T: Config> as NativePDEXMigration {
-		/// Address of ERC20 to Native PDEX migration contract
-		Address get(fn address) config(): H160;
-	}
+    trait Store for Module<T: Config> as NativePDEXMigration {
+        /// Address of ERC20 to Native PDEX migration contract
+        Address get(fn address) config(): H160;
+    }
 }
 
 // Pallets use events to inform users when important changes are made.
@@ -77,7 +74,7 @@ decl_event!(
 decl_error! {
     pub enum Error for Module<T: Config> {
         /// The submitted payload could not be decoded.
-		InvalidPayload,
+        InvalidPayload,
     }
 }
 
@@ -92,18 +89,18 @@ decl_module! {
         fn deposit_event() = default;
 
         #[weight = 10000]
-		pub fn mint(origin, token: H160, sender: H160, recipient: <T::Lookup as StaticLookup>::Source, amount: U256) -> DispatchResult {
-			let who = T::CallOrigin::ensure_origin(origin)?;
-			if who != Address::get() {
-				return Err(DispatchError::BadOrigin.into());
-			}
+        pub fn mint(origin, token: H160, sender: H160, recipient: <T::Lookup as StaticLookup>::Source, amount: U256) -> DispatchResult {
+            let who = T::CallOrigin::ensure_origin(origin)?;
+            if who != Address::get() {
+                return Err(DispatchError::BadOrigin.into());
+            }
 
-			let recipient = T::Lookup::lookup(recipient)?;
+            let recipient = T::Lookup::lookup(recipient)?;
             // TODO: Convert U256 amount to T::Balance amount
-			// T::Currency::deposit(AssetId::POLKADEX, &recipient, amount)?;
-			Self::deposit_event(RawEvent::NativePDEXMinted(token, sender, recipient, amount,0_u128.saturated_into()));
+            // T::Currency::deposit(AssetId::POLKADEX, &recipient, amount)?;
+            Self::deposit_event(RawEvent::NativePDEXMinted(token, sender, recipient, amount,0_u128.saturated_into()));
 
-			Ok(())
-		}
+            Ok(())
+        }
     }
 }
