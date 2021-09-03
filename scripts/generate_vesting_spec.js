@@ -16,8 +16,8 @@ const isValidSubstrateAddress = (address) => {
 
 async function main() {
   const inputFilePath = process.argv[2];
-  const blockStartDate = process.argv[3] || '15/09/2021';
-  const blockDuration = 3000;
+  const blockStartDate = process.argv[3] || '16/10/2021';
+  const blockDuration = 3; // seconds
   const investors = [];
   const dates = [
     '16/10/2021',
@@ -30,13 +30,17 @@ async function main() {
     '16/07/2023',
     '17/10/2023'
   ];
+  // const vestingtime = 365.25 * 24 / 4 * 60 * 60 / blockDuration;  // 3 months
+  const vestingtime = (3600) / blockDuration;  // Blocks / hour
+
+  const PdexUnit = "000000000";
 
   const getBlockNumber = (str) => {
     const [d0, m0, y0] = blockStartDate.split('/');
     const [d1, m1, y1] = str.split('/');
     const t0 = new Date(y0, m0, d0, 0, 0, 0, 0);
     const t1 = new Date(y1, m1, d1, 0, 0, 0, 0);
-    return (t1.getTime() - t0.getTime()) / blockDuration;
+    return (t1.getTime() - t0.getTime()) / blockDuration /1000;
   };
 
   fs.createReadStream(inputFilePath)
@@ -48,50 +52,53 @@ async function main() {
           const hexPublicKey = u8aToHex(publicKey);
 
           if (!isValidSubstrateAddress(hexPublicKey)) {
-            throw `Invalid Substrate address: ${row.Address}`;
+            throw `Invalid Substrate address: ${row.Address} for ${row.Investors}`;
           }
 
           let total = 0;
           const amounts = dates.map((d) => {
-            const amount = row[d].length ? parseFloat(row[d]) : 0;
+            const amount =Math.trunc(1000 * (row[d].length ? parseFloat(row[d]) : 0 ));
             total += amount;
             return amount;
           });
+          let comment =  "        /* "+row.Address+"  -  "+row.Investors+" */\n";  // TODO check for -d flag
           investors.push({
-            address: hexPublicKey,
+            address: hexPublicKey.substr(2),
             amounts,
-            total
+            total,
+            comment,
           });
         }
       } catch (err) {
-        console.error(err);
-        process.exit();
+        console.error("/* TODO "+err+"*/");
+        // process.exit();
       }
     })
     .on('end', function () {
-      let balances = `balances: vec![
+      let balances = `    let mut investor_balances = vec![
 `;
-      let vesting = `vesting: vec![
+      let vesting = `    let investor_vesting = vec![
 `;
       investors.map((inv) => {
-        balances += `   (hex!["${inv.address}"].into(), ${inv.total}),
+        balances += `${inv.comment}       (hex!["${inv.address}"].into(), ${inv.total}${PdexUnit}),
 `;
         let value = inv.amounts[0];
         let stIndex = 0;
         for (let i = 1; i < inv.amounts.length; i++) {
           if (value !== inv.amounts[i]) {
-            vesting += `    (hex!["${inv.address}"].into(), ${getBlockNumber(dates[stIndex])}, ${
-              (30 * 24 * 60 * 60) / blockDuration
-            }, ${i - stIndex}, ${value}),
+            vesting += `${inv.comment}       (hex!["${inv.address}"].into(), ${getBlockNumber(dates[stIndex])}, ${vestingtime}, ${i - stIndex}, ${value}${PdexUnit}),
 `;
             stIndex = i;
             value = inv.amounts[i];
           }
+          // else{
+          //   console.log("Problem"+inv.Investors);
+          // }
         }
       });
 
-      balances += `]`;
-      vesting += `]`;
+      balances += `    ];`;
+      vesting += `    ];`;
 
       console.log(balances);
       console.log(vesting);
