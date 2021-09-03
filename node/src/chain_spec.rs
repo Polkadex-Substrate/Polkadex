@@ -442,7 +442,10 @@ pub fn testnet_genesis(
                 .collect(),
             phantom: Default::default(),
         },
-        pallet_contracts: Default::default(),
+        pallet_contracts: ContractsConfig {
+            // println should only be enabled on development chains
+            current_schedule: pallet_contracts::Schedule::default().enable_println(enable_println),
+        },
         pallet_sudo: SudoConfig {
             key: root_key.clone(),
         },
