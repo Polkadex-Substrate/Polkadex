@@ -18,7 +18,7 @@
 
 use sc_cli::{KeySubcommand, RunCmd, SignCmd, VanityCmd, VerifyCmd};
 use structopt::StructOpt;
-
+// wire up here somewhere....
 /// An overarching CLI command definition.
 #[derive(Debug, StructOpt)]
 pub struct Cli {
