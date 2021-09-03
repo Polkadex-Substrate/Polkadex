@@ -80,7 +80,9 @@ async function main() {
       let vesting = `    let investor_vesting = vec![
 `;
       investors.map((inv) => {
-        balances += `${inv.comment}       (hex!["${inv.address}"].into(), ${inv.total}${PdexUnit}),
+         // TODO Technical dept this will add 0.2 tokens as free to all acount
+         // to be able to pay for the fee to release the tokens.
+        balances += `${inv.comment}       (hex!["${inv.address}"].into(), ${inv.total+20}${PdexUnit}),
 `;
         let value = inv.amounts[0];
         let stIndex = 0;
