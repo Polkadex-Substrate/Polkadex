@@ -19,7 +19,7 @@
 use super::*;
 use crate::mock::*;
 use frame_support::assert_noop;
-use frame_support::traits::OnInitialize;
+use frame_support::traits::{OnInitialize,OnFinalize};
 use polkadex_primitives::assets::AssetId;
 use sp_core::H160;
 use sp_runtime::traits::Hash;
@@ -162,14 +162,12 @@ fn test_whitelist_investor() {
 fn test_participate_in_round() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let round_id = create_hash_data(&1u32);
     let funding_period = 10;
+    let amount: Balance = 200;
+    let min_allocation: Balance = 100;
+    let max_allocation: Balance = 400;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
-        assert_noop!(
-            PolkadexIdo::participate_in_round(Origin::signed(ALICE.clone()), round_id, balance),
-            Error::<Test>::NotWhiteListed
-        );
 
         assert_eq!(
             PolkadexIdo::register_round(
@@ -180,56 +178,38 @@ fn test_participate_in_round() {
                 AssetId::POLKADEX,
                 balance,
                 funding_period,
-                balance,
-                balance,
+                min_allocation,
+                max_allocation,
                 10.saturated_into(),
             ),
             Ok(())
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let open_block_number = funding_round.start_block;
+        let closing_block_number = funding_round.close_round_block;
         assert_eq!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id), Ok(()));
-        system::Pallet::<Test>::set_block_number(open_block_number);
+
 
         assert_eq!(
             PolkadexIdo::register_investor(Origin::signed(investor_address)),
             Ok(())
         );
 
+        system::Pallet::<Test>::set_block_number(open_block_number);
         assert_eq!(
-            PolkadexIdo::whitelist_investor(
-                Origin::signed(ALICE.clone()),
-                round_id,
-                investor_address,
-                balance
-            ),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, amount),
             Ok(())
         );
 
-        //system::Pallet::<Test>::set_block_number();
-        // Investment under minimum amount should return an error
-        assert_noop!(
-            PolkadexIdo::participate_in_round(
-                Origin::signed(investor_address),
-                round_id,
-                balance - 1
-            ),
-            Error::<Test>::NotAValidAmount
-        );
 
-        assert_eq!(
-            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
-            Ok(())
-        );
-        //Checks if the user can participate in a round more than once
-        assert_noop!(
-            PolkadexIdo::participate_in_round(Origin::signed(investor_address), round_id, balance),
-            Error::<Test>::InvestorAlreadyParticipated
-        );
+        <PolkadexIdo as OnFinalize<u64>>::on_finalize(closing_block_number);
 
         // Check if FundingRound was successfully updated after investment
         let round_info = <WhitelistInfoFundingRound<Test>>::get(round_id);
-        assert_eq!(round_info.actual_raise == balance, true);
+        println!("{}", round_info.actual_raise);
+        assert_eq!(round_info.actual_raise == amount, true);
     });
 }
 
@@ -275,7 +255,6 @@ fn test_claim_tokens() {
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
         let funding_round = <InfoFundingRound<Test>>::get(&round_id);
-        let open_block_number = funding_round.start_block;
         let closing_block_number = funding_round.close_round_block;
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
         system::Pallet::<Test>::set_block_number(closing_block_number);
@@ -341,6 +320,11 @@ fn test_show_interest_in_round() {
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        let funding_round = <WhitelistInfoFundingRound<Test>>::get(round_id);
+
+        let open_block_number = funding_round.start_block;
+        frame_system::Pallet::<Test>::set_block_number(open_block_number);
+
         //Check investing with lower than minimum allocation
         assert_noop!(
             PolkadexIdo::show_interest_in_round(
@@ -399,6 +383,10 @@ fn test_show_interest_in_round_randomized_participants() {
         let investors: Vec<(u64, Balance)> =
             vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
 
+        let funding_round: FundingRound<Test> = <WhitelistInfoFundingRound<Test>>::get(round_id);
+
+        system::Pallet::<Test>::set_block_number(funding_round.start_block);
+
         for (investor_address, amount) in investors {
             assert_eq!(
                 PolkadexIdo::register_investor(Origin::signed(investor_address)),
@@ -414,7 +402,9 @@ fn test_show_interest_in_round_randomized_participants() {
             );
         }
 
-        let funding_round: FundingRound<Test> = <InfoFundingRound<Test>>::get(round_id);
+
+
+
 
         let total_investment_amount: Balance =
             InterestedParticipants::<Test>::iter_prefix_values(round_id)
