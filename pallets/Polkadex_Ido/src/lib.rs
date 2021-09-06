@@ -146,7 +146,6 @@ pub struct FundingRound<T: Config> {
     start_block: T::BlockNumber,
     min_allocation: T::Balance,
     max_allocation: T::Balance,
-    operator_commission: T::Balance,
     token_a_priceper_token_b: T::Balance,
     close_round_block: T::BlockNumber,
     actual_raise: T::Balance,
@@ -166,7 +165,6 @@ impl<T: Config> Default for FundingRound<T> {
             start_block: T::BlockNumber::default(),
             min_allocation: T::Balance::default(),
             max_allocation: T::Balance::default(),
-            operator_commission: T::Balance::default(),
             token_a_priceper_token_b: 1_u128.saturated_into(),
             close_round_block: T::BlockNumber::default(),
             actual_raise: Zero::zero(),
@@ -187,7 +185,6 @@ impl<T: Config> FundingRound<T> {
         start_block: T::BlockNumber,
         min_allocation: T::Balance,
         max_allocation: T::Balance,
-        operator_commission: T::Balance,
         token_a_priceper_token_b: T::Balance,
         close_round_block: T::BlockNumber,
     ) -> Self {
@@ -204,7 +201,6 @@ impl<T: Config> FundingRound<T> {
             start_block,
             min_allocation,
             max_allocation,
-            operator_commission,
             token_a_priceper_token_b,
             close_round_block,
             actual_raise: Zero::zero(),
@@ -224,7 +220,6 @@ impl<T: Config> FundingRound<T> {
             project_info_cid: self.project_info_cid.clone(),
             min_allocation: self.min_allocation.saturated_into(),
             max_allocation: self.max_allocation.saturated_into(),
-            operator_commission: self.operator_commission.saturated_into(),
             token_a_priceper_token_b: self.token_a_priceper_token_b.saturated_into(),
             close_round_block: self.close_round_block.saturated_into(),
             actual_raise: self.actual_raise.saturated_into(),
@@ -292,17 +287,28 @@ decl_module! {
                 }
             });
             // Clean up WhiteListInvestors and InterestedParticipants in all expired rounds
-            for (round_id,round_info) in <InfoFundingRound<T>>::iter() {
+            for (round_id,funding_round) in <InfoFundingRound<T>>::iter() {
 
-                if block_number >= round_info.vote_end_block {
+                if block_number >= funding_round.vote_end_block {
+                    let mut funding_round = funding_round.clone();
                     let voting = <RoundVotes<T>>::get(&round_id);
                     let yes : T::Balance = voting.ayes.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
                     let no : T::Balance = voting.nays.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
                     if yes > no {
-                        <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), round_info);
                         for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
                             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
+                            let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
+                            let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
+                            let round_account_id = Self::round_account_id(round_id.clone());
+                            if <T as Config>::Currency::transfer(funding_round.token_b, &investor_address, &round_account_id, amount).is_ok() {
+                                <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
+                                funding_round.actual_raise += amount;
+                                Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
+                            }else {
+                                Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
+                            }
                         }
+                        <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), funding_round.clone());
                         //Clean up InterestedParticipants after whitelisting
                         <InterestedParticipants<T>>::remove_prefix(round_id);
                     }
@@ -387,12 +393,10 @@ decl_module! {
             amount: T::Balance,
             token_b: AssetId,
             vesting_per_block: T::Balance,
-            start_block: T::BlockNumber,
+            funding_period: T::BlockNumber,
             min_allocation: T::Balance,
             max_allocation: T::Balance,
-            operator_commission: T::Balance,
             token_a_priceper_token_b: T::Balance,
-            close_round_block: T::BlockNumber
         ) -> DispatchResult {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let vote_end_block = match <VotingPeriod<T>>::try_get() {
@@ -400,6 +404,9 @@ decl_module! {
                 Err(_) => T::DefaultVotingPeriod::get().saturating_add(current_block_no)
             };
             ensure!(token_a.ne(&token_b), <Error<T>>::TokenAEqTokenB);
+
+            let start_block = vote_end_block.clone().saturating_add(1_u128.saturated_into());
+            let close_round_block = vote_end_block.clone() + funding_period;
 
             // CID len must be less than or equal to 100
             ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
@@ -425,7 +432,6 @@ decl_module! {
                 start_block,
                 min_allocation,
                 max_allocation,
-                operator_commission,
                 token_a_priceper_token_b,
                 close_round_block,
             );
@@ -468,7 +474,7 @@ decl_module! {
         ///
         /// * `round_id`: Funding round id
         /// * `amount`: Amount to be transferred to wallet.
-        #[weight = 10000]
+        /*#[weight = 10000]
         pub fn participate_in_round(origin, round_id: T::Hash, amount: T::Balance) -> DispatchResult {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let investor_address: T::AccountId = ensure_signed(origin)?;
@@ -492,7 +498,7 @@ decl_module! {
             });
             Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
             Ok(())
-        }
+        }*/
 
         /// Investor claiming for a particular funding round.
         ///
@@ -798,7 +804,7 @@ decl_event! {
         WithdrawToken(Hash, AccountId),
         CleanedupExpiredRound(Hash),
         VoteAmountUnReserved(AccountId,Balance),
-
+        ParticipatedInRoundFailed(Hash, AccountId),
     }
 }
 

@@ -62,24 +62,21 @@ fn test_attest_investor() {
 #[test]
 fn test_register_round() {
     let balance: Balance = 100;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
-                Origin::signed(ALICE.clone()),
+                Origin::signed(ALICE),
                 cid,
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
@@ -90,8 +87,7 @@ fn test_register_round() {
 fn test_whitelist_investor() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let round_id = create_hash_data(&1u32);
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
@@ -107,23 +103,22 @@ fn test_whitelist_investor() {
 
         assert_eq!(
             PolkadexIdo::register_round(
-                Origin::signed(ALICE.clone()),
+                Origin::signed(ALICE),
                 cid,
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
-
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let open_block_number = funding_round.start_block;
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
         system::Pallet::<Test>::set_block_number(open_block_number);
         assert_noop!(
@@ -168,8 +163,7 @@ fn test_participate_in_round() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
     let round_id = create_hash_data(&1u32);
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
@@ -179,18 +173,16 @@ fn test_participate_in_round() {
 
         assert_eq!(
             PolkadexIdo::register_round(
-                Origin::signed(ALICE.clone()),
+                Origin::signed(ALICE),
                 cid,
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
@@ -245,8 +237,7 @@ fn test_participate_in_round() {
 fn test_claim_tokens() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let round_id = create_hash_data(&1u32);
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
@@ -268,23 +259,24 @@ fn test_claim_tokens() {
 
         assert_eq!(
             PolkadexIdo::register_round(
-                Origin::signed(ALICE.clone()),
+                Origin::signed(ALICE),
                 cid,
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let open_block_number = funding_round.start_block;
+        let closing_block_number = funding_round.close_round_block;
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
         system::Pallet::<Test>::set_block_number(closing_block_number);
 
@@ -313,8 +305,7 @@ fn test_show_interest_in_round() {
     let min_allocation: Balance = 100;
     let max_allocation: Balance = 400;
     let round_id = create_hash_data(&1u32);
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_noop!(
@@ -334,18 +325,16 @@ fn test_show_interest_in_round() {
 
         assert_eq!(
             PolkadexIdo::register_round(
-                Origin::signed(ALICE.clone()),
+                Origin::signed(ALICE),
                 cid,
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 min_allocation,
                 max_allocation,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
@@ -386,24 +375,21 @@ fn test_show_interest_in_round_randomized_participants() {
     let balance: Balance = 500;
     let min_allocation: Balance = 100;
     let max_allocation: Balance = 400;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
             PolkadexIdo::register_round(
-                Origin::signed(ALICE.clone()),
+                Origin::signed(ALICE),
                 cid,
                 AssetId::CHAINSAFE(H160::from_low_u64_be(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 min_allocation,
                 max_allocation,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
@@ -449,8 +435,7 @@ fn test_show_interest_in_round_randomized_participants() {
 fn test_withdraw_raise() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let round_id = create_hash_data(&1u32);
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
@@ -477,17 +462,18 @@ fn test_withdraw_raise() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let open_block_number = funding_round.start_block;
+        let closing_block_number = funding_round.close_round_block;
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
         system::Pallet::<Test>::set_block_number(open_block_number);
 
@@ -514,12 +500,10 @@ fn test_withdraw_raise() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number * vote_period,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number * vote_period
+                10.saturated_into(),
             ),
             Ok(())
         );
@@ -550,8 +534,7 @@ fn test_withdraw_raise() {
 fn test_withdraw_token() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period = 10;
     let round_id = create_hash_data(&1u32);
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
@@ -580,17 +563,18 @@ fn test_withdraw_token() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let open_block_number = funding_round.start_block;
+        let closing_block_number = funding_round.close_round_block;
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
         system::Pallet::<Test>::set_block_number(open_block_number);
 
@@ -617,12 +601,10 @@ fn test_withdraw_token() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number * vote_period,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number * vote_period
+                10.saturated_into(),
             ),
             Ok(())
         );
@@ -655,8 +637,7 @@ fn create_hash_data(data: &u32) -> <mock::Test as frame_system::Config>::Hash {
 #[test]
 fn test_vote_for_round() {
     let balance: Balance = 100;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period : BlockNumber = 10;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
@@ -667,17 +648,17 @@ fn test_vote_for_round() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let open_block_number = funding_round.start_block;
         let yes_voters : Vec<u64> = [6,7,8,9].to_vec();
         let no_voters : Vec<u64> = [4,2,5].to_vec();
         yes_voters.iter().for_each(|voter| {
@@ -707,8 +688,7 @@ fn test_vote_for_round() {
 #[test]
 fn test_vote_for_round_no_vote_majority() {
     let balance: Balance = 100;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period : BlockNumber = 10;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
@@ -719,17 +699,19 @@ fn test_vote_for_round_no_vote_majority() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
+
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let open_block_number = funding_round.start_block;
+
         let no_voters : Vec<u64> = [6,7,8,9].to_vec();
         let yes_voters : Vec<u64> = [4,2,5].to_vec();
         yes_voters.iter().for_each(|voter| {
@@ -764,8 +746,7 @@ fn test_vote_for_round_no_vote_majority() {
 #[test]
 fn test_get_reserve_amount() {
     let balance: Balance = 100;
-    let open_block_number = 11;
-    let closing_block_number = 50;
+    let funding_period : BlockNumber = 10;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
@@ -776,12 +757,10 @@ fn test_get_reserve_amount() {
                 balance,
                 AssetId::POLKADEX,
                 balance,
-                open_block_number,
+                funding_period,
                 balance,
                 balance,
-                balance,
-                balance,
-                closing_block_number
+                10.saturated_into(),
             ),
             Ok(())
         );
