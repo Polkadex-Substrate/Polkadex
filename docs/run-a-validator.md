@@ -4,8 +4,8 @@ This guide will instruct you how to set up a validator node on the Polkadex Publ
 
 - **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.1-rc2
 - **Bootnode IP address**: 13.235.92.50
-- **Bootnode Peer ID**: 12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/customSpecRaw.json
+- **Bootnode Peer ID**: 12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc3/customSpecRaw.json
 
 ## Initial Set-up
 
@@ -94,10 +94,10 @@ sudo ntpq -p
 ### Building and Installing the `Polkadex` binary
 #### Using a prebuilt
 If you don't want to build the binary from source and simply prefer to download it, use the following command. Then continue at Synchronize Chain Data
-`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.0/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
+`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc3/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
 
 #### Build from source
-To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.0 release.
+To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.1-rc3 release.
 
 ```
 git clone https://github.com/Polkadex-Substrate/Polkadex.git
@@ -118,13 +118,13 @@ cargo build --release
 Download `customSpecRaw.json` file for the Polkadex Public Testnet
 ```
 cd $HOME
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc2/customSpecRaw.json
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc3/customSpecRaw.json
 ```
 
 You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
 
 ```
-$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby --pruning=archive
+$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M --pruning=archive
 ```
 
 
@@ -220,7 +220,7 @@ Your bonded account will be available under `Stashes`. You should now see a new 
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby --validator --name "Validator-Tutorial"
+$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M --validator --name "Validator-Tutorial"
 ```
 Similarly:
 ```
@@ -258,7 +258,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWL8Kcdvrhp5JyTYFeXSS5HR9csJnaLmJWRJYxnKakjBby --validator --name 'Validator-Tutorial'
+ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M --validator --name 'Validator-Tutorial'
 Restart=on-failure
 
 [Install]
