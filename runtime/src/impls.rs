@@ -189,11 +189,12 @@ mod multiplier_tests {
             let mut fm = Multiplier::one();
             // See the example in the doc of `TargetedFeeAdjustment`. are at least 0.234, hence
             // `fm > 1.234`.
+            // BlockTime increased from 3 to 12s ==> decreaced to 0.050
             for _ in 0..DAYS {
                 let next = runtime_multiplier_update(fm);
                 fm = next;
             }
-            assert!(fm > Multiplier::saturating_from_rational(1234, 1000));
+            assert!(fm > Multiplier::saturating_from_rational(1050, 1000));
         })
     }
 
