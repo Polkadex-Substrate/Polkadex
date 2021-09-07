@@ -2,7 +2,6 @@ use frame_benchmarking::frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
 use sc_chain_spec::ChainSpecExtension;
@@ -23,7 +22,7 @@ use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig,
     CouncilConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig,
     OrmlVestingConfig, PolkadexTreasuryModuleId, SessionConfig, SessionKeys, StakerStatus,
-    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig,
+    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
     MAX_NOMINATIONS,
 };
 
