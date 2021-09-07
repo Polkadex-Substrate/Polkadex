@@ -339,7 +339,13 @@ decl_module! {
             let who: T::AccountId = ensure_signed(origin)?;
             ensure!(!<InfoInvestor<T>>::contains_key(&who), Error::<T>::InvestorAlreadyRegistered);
             let amount: T::Balance = T::IDOPDXAmount::get();
-            <T as Config>::Currency::transfer(AssetId::POLKADEX, &who, &Self::get_wallet_account(), amount)?;
+            if <T as Config>::Currency::total_issuance(AssetId::POLKADEX) > T::MaxSupply::get()
+            {
+                ensure!(T::Currency::withdraw(AssetId::POLKADEX,&who,amount).is_ok(),  Error::<T>::WithdrawError);
+            }
+            else {
+                <T as Config>::Currency::transfer(AssetId::POLKADEX, &who, &T::TreasuryAccountId::get(), amount)?;
+            }
             let investor_info = InvestorInfo::default();
             <InfoInvestor<T>>::insert(who.clone(), investor_info);
             Self::deposit_event(RawEvent::InvestorRegistered(who));
