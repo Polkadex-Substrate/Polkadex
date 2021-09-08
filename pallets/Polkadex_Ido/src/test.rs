@@ -627,7 +627,7 @@ fn create_hash_data(data: &u32) -> <mock::Test as frame_system::Config>::Hash {
 #[test]
 fn test_vote_for_round() {
     let balance: Balance = 100;
-    let funding_period : BlockNumber = 10;
+    let funding_period : BlockNumber = 20;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
@@ -678,7 +678,7 @@ fn test_vote_for_round() {
 #[test]
 fn test_vote_for_round_no_vote_majority() {
     let balance: Balance = 100;
-    let funding_period : BlockNumber = 10;
+    let funding_period : BlockNumber = 80;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(
@@ -736,7 +736,7 @@ fn test_vote_for_round_no_vote_majority() {
 #[test]
 fn test_get_reserve_amount() {
     let balance: Balance = 100;
-    let funding_period : BlockNumber = 10;
+    let funding_period : BlockNumber = 20;
     let cid = [0_u8;32].to_vec();
     ExtBuilder::default().build().execute_with(|| {
         assert_eq!(

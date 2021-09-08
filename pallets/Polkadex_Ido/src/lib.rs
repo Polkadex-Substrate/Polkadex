@@ -405,7 +405,7 @@ decl_module! {
             ensure!(token_a.ne(&token_b), <Error<T>>::TokenAEqTokenB);
 
             let start_block = vote_end_block.clone().saturating_add(1_u128.saturated_into());
-            let close_round_block = vote_end_block.clone() + funding_period;
+            let close_round_block = vote_end_block.saturating_add(funding_period);
 
             // CID len must be less than or equal to 100
             ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
