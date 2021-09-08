@@ -2,10 +2,10 @@
 
 This guide will instruct you how to set up a validator node on the Polkadex Public Testnet.
 
-- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.1-rc4
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.1-rc5
 - **Bootnode IP address**: 13.235.92.50
 - **Bootnode Peer ID**: 12D3KooWC7VKBTWDXXic5yRevk8WS8DrDHevvHYyXaUCswM18wKd
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc4/customSpecRaw.json
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc5/customSpecRaw.json
 
 ## Initial Set-up
 
@@ -94,10 +94,10 @@ sudo ntpq -p
 ### Building and Installing the `Polkadex` binary
 #### Using a prebuilt
 If you don't want to build the binary from source and simply prefer to download it, use the following command. Then continue at Synchronize Chain Data
-`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc4/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
+`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc5/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
 
 #### Build from source
-To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.1-rc4 release.
+To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.1-rc5 release.
 
 ```
 git clone https://github.com/Polkadex-Substrate/Polkadex.git
@@ -107,7 +107,7 @@ cd Polkadex
 Build native code with the cargo release profile.
 
 ```
-git checkout v0.4.1-rc4
+git checkout v0.4.1-rc5
 cargo build --release
 ```
 
@@ -118,7 +118,7 @@ cargo build --release
 Download `customSpecRaw.json` file for the Polkadex Public Testnet
 ```
 cd $HOME
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc4/customSpecRaw.json
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc5/customSpecRaw.json
 ```
 
 You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
