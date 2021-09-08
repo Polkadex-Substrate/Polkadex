@@ -17,7 +17,7 @@ const isValidSubstrateAddress = (address) => {
 async function main() {
   const inputFilePath = process.argv[2];
   const blockStartDate = process.argv[3] || '16/10/2021';
-  const blockDuration = 3; // seconds
+  const blockDuration = 12; // seconds
   const investors = [];
   const dates = [
     '16/10/2021',
@@ -31,7 +31,7 @@ async function main() {
     '17/10/2023'
   ];
   // const vestingtime = 365.25 * 24 / 4 * 60 * 60 / blockDuration;  // 3 months
-  const vestingtime = (3600) / blockDuration;  // Blocks / hour
+  const vestingtime = (3600*24) / blockDuration;  // Blocks / hour
 
   const PdexUnit = "000000000";
 
@@ -40,7 +40,7 @@ async function main() {
     const [d1, m1, y1] = str.split('/');
     const t0 = new Date(y0, m0, d0, 0, 0, 0, 0);
     const t1 = new Date(y1, m1, d1, 0, 0, 0, 0);
-    return (t1.getTime() - t0.getTime()) / blockDuration /1000;
+    return 100+(t1.getTime() - t0.getTime()) / blockDuration /1000;
   };
 
   fs.createReadStream(inputFilePath)
@@ -61,7 +61,7 @@ async function main() {
             total += amount;
             return amount;
           });
-          let comment =  "        /* "+row.Address+"  -  "+row.Investors+" */\n";  // TODO check for -d flag
+          let comment = ""; // "        /* "+row.Address+"  -  "+row.Investors+" */\n";  // TODO check for -d flag
           investors.push({
             address: hexPublicKey.substr(2),
             amounts,
@@ -82,7 +82,7 @@ async function main() {
       investors.map((inv) => {
          // TODO Technical dept this will add 0.2 tokens as free to all acount
          // to be able to pay for the fee to release the tokens.
-        balances += `${inv.comment}       (hex!["${inv.address}"].into(), ${inv.total+20}${PdexUnit}),
+        balances += `${inv.comment}       (hex!["${inv.address}"].into(), ${inv.total+50}${PdexUnit}),
 `;
         let value = inv.amounts[0];
         let stIndex = 0;
