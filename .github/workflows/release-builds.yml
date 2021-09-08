@@ -72,6 +72,7 @@ jobs:
         run: |
             ./scripts/init.sh
             cargo build --release
+            cat extras/customSpecRaw.json > customSpecRaw.json
       - name: PackRelease
         run: |
            zip PolkadexNodeUbuntu.zip --junk-paths target/release/polkadex-node  extras/customSpecRaw.json extras/polkadex.service
