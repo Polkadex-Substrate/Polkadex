@@ -39,7 +39,7 @@ jobs:
              cargo build --release
       - name: PackRelease
         run: |
-           zip PolkadexNodeMacOS.zip --junk-paths target/release/polkadex-node docs/customSpecRaw.json
+           zip PolkadexNodeMacOS.zip --junk-paths target/release/polkadex-node extras/customSpecRaw.json
       - name: Archive binary
         uses: actions/upload-artifact@v1
         with:
@@ -72,11 +72,9 @@ jobs:
         run: |
             ./scripts/init.sh
             cargo build --release
-            cat docs/customSpecRaw.json > customSpecRaw.json
-#         #  echo ./target/release/polkadex-node build-spec --chain local  >customSpecRaw.json #Todo this is handcrafted
       - name: PackRelease
         run: |
-           zip PolkadexNodeUbuntu.zip --junk-paths target/release/polkadex-node  docs/customSpecRaw.json
+           zip PolkadexNodeUbuntu.zip --junk-paths target/release/polkadex-node  extras/customSpecRaw.json extras/polkadex.service
       - name: Archive binary
         uses: actions/upload-artifact@v1
         with:
