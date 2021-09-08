@@ -73,7 +73,6 @@ use sp_core::{
     OpaqueMetadata, H160,
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_io::hashing::blake2_128;
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::generic::Era;
 use sp_runtime::traits::AccountIdConversion;
@@ -789,7 +788,6 @@ impl pallet_contracts::Config for Runtime {
 
 mod impl_uniswap {
     use super::*;
-    use codec::Encode;
     use frame_support::log::error;
     use orml_traits::MultiCurrency;
     use pallet_contracts::chain_extension::{

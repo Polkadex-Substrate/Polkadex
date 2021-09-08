@@ -29,12 +29,10 @@ use frame_support::{
 use frame_system as system;
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_substratee_registry::Enclave;
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::AccountId;
 use polkadex_sgx_primitives::LinkedAccount;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
 
 #[cfg(test)]
