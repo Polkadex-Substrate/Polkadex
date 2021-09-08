@@ -4,7 +4,7 @@ This guide will instruct you how to set up a validator node on the Polkadex Publ
 
 - **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.1-rc2
 - **Bootnode IP address**: 13.235.92.50
-- **Bootnode Peer ID**: 12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M
+- **Bootnode Peer ID**: 12D3KooWH7RZYHZQjTdmzYxwPgsByESN3T71poD9vPauHwBM2xGt
 - **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc3/customSpecRaw.json
 
 ## Initial Set-up
@@ -124,7 +124,7 @@ curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4
 You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
 
 ```
-$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M --pruning=archive
+$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWH7RZYHZQjTdmzYxwPgsByESN3T71poD9vPauHwBM2xGt --pruning=archive
 ```
 
 
@@ -151,7 +151,7 @@ $HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --b
 Example of node sync:
 
 ```
-2021-08-17 12:46:40 🔍 Discovered new external address for our node: /ip4/18.156.36.197/tcp/30333/ws/p2p/12D3KooWBch6ZrTHS8Svgs2GH8t497BittzFSWbCsgioShh8SiN1    
+2021-08-17 12:46:40 🔍 Discovered new external address for our node: /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWH7RZYHZQjTdmzYxwPgsByESN3T71poD9vPauHwBM2xGt
 2021-08-17 12:46:40 [#796] 🗳  Starting signed phase round 2.    
 2021-08-17 12:46:40 [#838] 🗳  Starting unsigned phase(true).    
 2021-08-17 12:46:40 [#882] 🗳  Finalized election round with compute ElectionCompute::OnChain.    
@@ -220,7 +220,7 @@ Your bonded account will be available under `Stashes`. You should now see a new 
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M --validator --name "Validator-Tutorial"
+$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWH7RZYHZQjTdmzYxwPgsByESN3T71poD9vPauHwBM2xGt --validator --name "Validator-Tutorial"
 ```
 Similarly:
 ```
@@ -258,7 +258,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.92.50/tcp/30333/p2p/12D3KooWBaX1TZ2NguwsAM7QrjxHXkeKiqG7i2TMbyi3xpxQat8M --validator --name 'Validator-Tutorial'
+ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWH7RZYHZQjTdmzYxwPgsByESN3T71poD9vPauHwBM2xGt --validator --name 'Validator-Tutorial'
 Restart=on-failure
 
 [Install]
