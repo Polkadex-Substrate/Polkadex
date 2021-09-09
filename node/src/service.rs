@@ -619,29 +619,30 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 mod tests {
     use crate::service::{new_full_base, new_light_base, NewFullBase};
     use codec::Encode;
-    use node_polkadex_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
-    use node_polkadex_runtime::{Address, BalancesCall, Call, UncheckedExtrinsic};
     use polkadex_primitives::{Block, DigestItem, Signature};
+    use node_polkadex_runtime::{
+        constants::{currency::CENTS, time::SLOT_DURATION},
+        Address, BalancesCall, Call, UncheckedExtrinsic,
+    };
     use sc_client_api::BlockBackend;
+    use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};
     use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
     use sc_consensus_epochs::descendent_query;
     use sc_keystore::LocalKeystore;
     use sc_service_test::TestNetNode;
-    use sp_consensus::{
-        BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy, Proposer,
-    };
+    use sc_transaction_pool_api::{ChainEvent, MaintainedTransactionPool};
+    use sp_consensus::{BlockOrigin, Environment, Proposer};
     use sp_core::{crypto::Pair as CryptoPair, Public, H256};
     use sp_inherents::InherentDataProvider;
     use sp_keyring::AccountKeyring;
     use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
     use sp_runtime::{
         generic::{BlockId, Digest, Era, SignedPayload},
-        traits::Verify,
-        traits::{Block as BlockT, Header as HeaderT},
+        key_types::BABE,
+        traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
+        RuntimeAppPublic,
     };
-    use sp_runtime::{key_types::BABE, traits::IdentifyAccount, RuntimeAppPublic};
     use sp_timestamp;
-    use sp_transaction_pool::{ChainEvent, MaintainedTransactionPool};
     use std::{borrow::Cow, convert::TryInto, sync::Arc};
 
     type AccountPublic = <Signature as Verify>::Signer;
@@ -673,19 +674,14 @@ mod tests {
             chain_spec,
             |config| {
                 let mut setup_handles = None;
-                let NewFullBase {
-                    task_manager,
-                    client,
-                    network,
-                    transaction_pool,
-                    ..
-                } = new_full_base(
-                    config,
-                    |block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
-                     babe_link: &sc_consensus_babe::BabeLink<Block>| {
-                        setup_handles = Some((block_import.clone(), babe_link.clone()));
-                    },
-                )?;
+                let NewFullBase { task_manager, client, network, transaction_pool, .. } =
+                    new_full_base(
+                        config,
+                        |block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
+                         babe_link: &sc_consensus_babe::BabeLink<Block>| {
+                            setup_handles = Some((block_import.clone(), babe_link.clone()));
+                        },
+                    )?;
 
                 let node = sc_service_test::TestNetComponents::new(
                     task_manager,
@@ -711,10 +707,7 @@ mod tests {
                 let parent_number = *parent_header.number();
 
                 futures::executor::block_on(service.transaction_pool().maintain(
-                    ChainEvent::NewBestBlock {
-                        hash: parent_header.hash(),
-                        tree_route: None,
-                    },
+                    ChainEvent::NewBestBlock { hash: parent_header.hash(), tree_route: None },
                 ));
 
                 let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
@@ -751,10 +744,10 @@ mod tests {
                         .unwrap();
 
                     if let Some(babe_pre_digest) =
-                        sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
-                            .map(|(digest, _)| digest)
+                    sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
+                        .map(|(digest, _)| digest)
                     {
-                        break (babe_pre_digest, epoch_descriptor);
+                        break (babe_pre_digest, epoch_descriptor)
                     }
 
                     slot += 1;
@@ -769,24 +762,17 @@ mod tests {
                     .create_inherent_data()
                     .expect("Creates inherent data");
 
-                digest.push(<DigestItem as CompatibleDigestItem>::babe_pre_digest(
-                    babe_pre_digest,
-                ));
+                digest.push(<DigestItem as CompatibleDigestItem>::babe_pre_digest(babe_pre_digest));
 
                 let new_block = futures::executor::block_on(async move {
                     let proposer = proposer_factory.init(&parent_header).await;
                     proposer
                         .unwrap()
-                        .propose(
-                            inherent_data,
-                            digest,
-                            std::time::Duration::from_secs(1),
-                            None,
-                        )
+                        .propose(inherent_data, digest, std::time::Duration::from_secs(1), None)
                         .await
                 })
-                .expect("Error making test block")
-                .block;
+                    .expect("Error making test block")
+                    .block;
 
                 let (new_header, new_body) = new_block.deconstruct();
                 let pre_hash = new_header.hash();
@@ -799,10 +785,10 @@ mod tests {
                     &alice.to_public_crypto_pair(),
                     &to_sign,
                 )
-                .unwrap()
-                .unwrap()
-                .try_into()
-                .unwrap();
+                    .unwrap()
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
                 let item = <DigestItem as CompatibleDigestItem>::babe_seal(signature);
                 slot += 1;
 
@@ -851,15 +837,7 @@ mod tests {
                 let raw_payload = SignedPayload::from_raw(
                     function,
                     extra,
-                    (
-                        spec_version,
-                        transaction_version,
-                        genesis_hash,
-                        genesis_hash,
-                        (),
-                        (),
-                        (),
-                    ),
+                    (spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
                 );
                 let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
                 let (function, extra, _) = raw_payload.deconstruct();
@@ -876,13 +854,8 @@ mod tests {
         sc_service_test::consensus(
             crate::chain_spec::tests::integration_test_config_with_two_authorities(),
             |config| {
-                let NewFullBase {
-                    task_manager,
-                    client,
-                    network,
-                    transaction_pool,
-                    ..
-                } = new_full_base(config, |_, _| ())?;
+                let NewFullBase { task_manager, client, network, transaction_pool, .. } =
+                    new_full_base(config, |_, _| ())?;
                 Ok(sc_service_test::TestNetComponents::new(
                     task_manager,
                     client,
