@@ -77,9 +77,11 @@ frame-system = {  git = "https://github.com/paritytech/substrate", branch = "mas
 pallet-transaction-payment = {  git = "https://github.com/paritytech/substrate", branch = "master" }
 sc-transaction-pool-api = {  git = "https://github.com/paritytech/substrate", branch = "master" }
 sp-authority-discovery = {  git = "https://github.com/paritytech/substrate", branch = "master" }
+
 #Primitives
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master'}
 sc-executor = {  git = "https://github.com/paritytech/substrate", branch = "master" }
+
 
 sc-cli = {  git = "https://github.com/paritytech/substrate", branch = "master", features = ["wasmtime"] }
 node-executor = {  git = "https://github.com/paritytech/substrate", branch = "master", features = ["wasmtime"] }
@@ -87,6 +89,7 @@ sc-service = {  git = "https://github.com/paritytech/substrate", branch = "maste
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "master", default-features= false, features = [
 	"memory-tracker",
 ] }
+
 
 [dev-dependencies]
 futures = "0.3.9"
@@ -102,6 +105,7 @@ sc-keystore =  {  git = "https://github.com/paritytech/substrate", branch = "mas
 sc-consensus = {  git = "https://github.com/paritytech/substrate", branch = "master" }
 sc-consensus-babe =  {  git = "https://github.com/paritytech/substrate", branch = "master" }
 sc-consensus-epochs =  {  git = "https://github.com/paritytech/substrate", branch = "master" }
+
 
 [features]
 default = []
