@@ -303,7 +303,7 @@ decl_module! {
             }
 
             for (round_id,funding_round) in <WhitelistInfoFundingRound<T>>::iter() {
-                if block_number == funding_round.close_round_block {
+                if block_number >= funding_round.close_round_block && !<InfoFundingRoundEnded<T>>::contains_key(round_id) {
                     let mut funding_round = funding_round.clone();
                     for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
                             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
@@ -322,6 +322,7 @@ decl_module! {
                             }
                     }
                     <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), funding_round);
+                    <InfoFundingRoundEnded<T>>::insert(round_id, true);
                 }
             }
             return call_weight
@@ -721,6 +722,9 @@ decl_storage! {
         InterestedParticipants get(fn get_interested_particpants): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  =>  T::Balance;
         /// A mapping between funding round id and amount interested participant are will to invest
         InterestedParticipantsAmounts get(fn get_interested_particpants_amounts): map hasher(identity) T::Hash => BTreeMap<T::Balance, BTreeSet<T::AccountId>>;
+
+        /// Only for debugging will be removed
+        InfoFundingRoundEnded get(fn get_funding_round_ended): map hasher(identity) T::Hash => bool;
 
         Nonce get(fn nonce): u128;
 
