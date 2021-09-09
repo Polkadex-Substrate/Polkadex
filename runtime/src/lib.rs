@@ -37,7 +37,7 @@ use frame_support::{
     },
 };
 use frame_support::{PalletId, traits::InstanceFilter};
-use frame_support::traits::{OnUnbalanced, Contains};
+use frame_support::traits::{OnUnbalanced, Contains, Everything};
 use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
@@ -119,7 +119,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 267,
+    spec_version: 268,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -198,7 +198,7 @@ parameter_types! {
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
 impl frame_system::Config for Runtime {
-    type BaseCallFilter = ();
+    type BaseCallFilter = Everything;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type DbWeight = RocksDbWeight;
@@ -548,7 +548,7 @@ sp_npos_elections::generate_solution_type!(
 	>(16)
 );
 pub const MAX_NOMINATIONS: u32 =
-    <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
+    <NposCompactSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
 
 
 parameter_types! {
@@ -601,7 +601,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
         pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
     >;
     type WeightInfo = ();
-    type CompactSolution = NposCompactSolution16;
+    type Solution = NposCompactSolution16;
 }
 
 parameter_types! {
@@ -854,8 +854,13 @@ impl pallet_offences::Config for Runtime {
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
 }
+parameter_types! {
+    	pub const MaxAuthorities: u32 = 100;
+}
 
-impl pallet_authority_discovery::Config for Runtime {}
+impl pallet_authority_discovery::Config for Runtime {
+    type MaxAuthorities = MaxAuthorities;
+}
 
 impl pallet_grandpa::Config for Runtime {
     type Event = Event;
@@ -928,6 +933,9 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    // `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
+    // highest number of schedules that encodes less than 2^10.
+    const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
