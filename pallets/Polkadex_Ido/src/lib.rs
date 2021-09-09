@@ -299,15 +299,9 @@ decl_module! {
                         <InfoFundingRound<T>>::remove(&round_id);
                         Self::deposit_event(RawEvent::CleanedupExpiredRound(round_id));
                     }
-
                 }
-
             }
-            return call_weight
-        }
 
-
-        fn on_finalize(block_number: T::BlockNumber) {
             for (round_id,funding_round) in <WhitelistInfoFundingRound<T>>::iter() {
                 if block_number == funding_round.close_round_block {
                     let mut funding_round = funding_round.clone();
@@ -316,18 +310,23 @@ decl_module! {
                             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
                             let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
                             let round_account_id = Self::round_account_id(round_id.clone());
-                            if <T as Config>::Currency::transfer(funding_round.token_b, &investor_address, &round_account_id, amount).is_ok() {
-                                <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
-                                funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount);
-                                Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
-                            }else {
-                                Self::deposit_event(RawEvent::ParticipatedInRoundFailed(round_id, investor_address));
+                            match <T as Config>::Currency::transfer(funding_round.token_b, &investor_address, &round_account_id, amount) {
+                                Ok(_) => {
+                                     <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
+                                    funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount);
+                                    Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
+                                }
+                                Err(error) => {
+                                    Self::deposit_event(RawEvent::ParticipatedInRoundFailed(round_id, investor_address, format!("{:?}", error)));
+                                }
                             }
                     }
                     <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), funding_round);
                 }
             }
-		}
+            return call_weight
+        }
+
 
         /// Registers a new investor to allow participating in funding round.
         ///
@@ -769,7 +768,7 @@ decl_event! {
         WithdrawToken(Hash, AccountId),
         CleanedupExpiredRound(Hash),
         VoteAmountUnReserved(AccountId,Balance),
-        ParticipatedInRoundFailed(Hash, AccountId),
+        ParticipatedInRoundFailed(Hash, AccountId, String),
     }
 }
 

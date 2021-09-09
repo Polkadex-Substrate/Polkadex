@@ -204,7 +204,7 @@ fn test_participate_in_round() {
         );
 
 
-        <PolkadexIdo as OnFinalize<u64>>::on_finalize(closing_block_number);
+        <PolkadexIdo as OnInitialize<u64>>::on_initialize(closing_block_number);
 
         // Check if FundingRound was successfully updated after investment
         let round_info = <WhitelistInfoFundingRound<Test>>::get(round_id);
