@@ -16,8 +16,9 @@ sp-runtime = { default-features = false,  git = "https://github.com/paritytech/s
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate" ,rev = "08cac0089d7539b29098b6ce773faf79a7944690"  }
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate" ,rev = "08cac0089d7539b29098b6ce773faf79a7944690"  }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate"  ,rev = "08cac0089d7539b29098b6ce773faf79a7944690" }
+
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false, version = "0.4.1-dev" }
+orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false }
 
 [features]
 default = ['std']
