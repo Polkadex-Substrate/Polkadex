@@ -21,11 +21,11 @@
 pub mod currency {
     use polkadex_primitives::Balance;
 
-	pub const PDEX: Balance = 100_000_000_000;
+    pub const PDEX: Balance = 100_000_000_000;
     pub const UNITS: Balance = PDEX;
-	pub const DOLLARS: Balance = PDEX; // 100_000_000_000
-	pub const CENTS: Balance = DOLLARS / 100; // 1000_000_000
-	pub const MILLICENTS: Balance = CENTS / 1_000; // 1000_000
+    pub const DOLLARS: Balance = PDEX; // 100_000_000_000
+    pub const CENTS: Balance = DOLLARS / 100; // 1000_000_000
+    pub const MILLICENTS: Balance = CENTS / 1_000; // 1000_000
 
     pub const fn deposit(items: u32, bytes: u32) -> Balance {
         items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS

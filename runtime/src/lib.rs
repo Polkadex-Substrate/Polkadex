@@ -964,24 +964,23 @@ construct_runtime!(
         TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
         Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 15,
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 16,
-        // FIXME: Indices
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 18,
-        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 19,
-        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 20,
-        Offences: pallet_offences::{Pallet, Storage, Event} = 21,
-        Historical: pallet_session_historical::{Pallet} = 22,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 23,
-        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 24,
-        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 25,
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 26,
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 27,
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 28,
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 29,
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 30,
+        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 18,
+        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 19,
+        Offences: pallet_offences::{Pallet, Storage, Event} = 20,
+        Historical: pallet_session_historical::{Pallet} = 21,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 22,
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 23,
+        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 24,
+        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 26,
+        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 27,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 28,
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 29,
         // Pallets
-        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 31,
-        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 32,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 33
+        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 31,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32
     }
 );
 
