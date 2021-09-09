@@ -532,9 +532,7 @@ decl_module! {
             ensure!(amount <= funding_round.max_allocation && amount >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            // Ensure investors can only show interest during the voting period of the round
-            // Investors who shows interested are randomly selected (whitelisted)  to participate in the round at round start block
-            ensure!(current_block_no >= funding_round.start_block, <Error<T>>::NotAllowed);
+            ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
 
             InterestedParticipantsAmounts::<T>::mutate(round_id, |interested_participants| {
                 let total_potential_raise : T::Balance = interested_participants.iter()

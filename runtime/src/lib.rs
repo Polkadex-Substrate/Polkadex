@@ -1150,7 +1150,7 @@ parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100_u128;
     pub const GetMaxSupply: Balance = 2_000_000_u128;
     pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
-    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+    pub const DefaultVotingPeriod : BlockNumber = 10; // One week
 }
 
 impl polkadex_ido::Config for Runtime {
