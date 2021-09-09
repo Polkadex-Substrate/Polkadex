@@ -317,7 +317,7 @@ decl_module! {
                                     Self::deposit_event(RawEvent::ParticipatedInRound(round_id, investor_address));
                                 }
                                 Err(error) => {
-                                    Self::deposit_event(RawEvent::ParticipatedInRoundFailed(round_id, investor_address, format!("{:?}", error)));
+                                    Self::deposit_event(RawEvent::ParticipatedInRoundFailed(round_id, investor_address,  error));
                                 }
                             }
                     }
@@ -768,7 +768,7 @@ decl_event! {
         WithdrawToken(Hash, AccountId),
         CleanedupExpiredRound(Hash),
         VoteAmountUnReserved(AccountId,Balance),
-        ParticipatedInRoundFailed(Hash, AccountId, String),
+        ParticipatedInRoundFailed(Hash, AccountId,sp_runtime::DispatchError),
     }
 }
 
