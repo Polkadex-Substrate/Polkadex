@@ -22,6 +22,7 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 #![allow(clippy::from_over_into)]
+
 pub use snowbridge_core::MessageId;
 use snowbridge_dispatch::EnsureEthereumAccount;
 pub use snowbridge_ethereum_light_client::EthereumDifficultyConfig;
@@ -152,7 +153,7 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 pub struct DealWithFees;
 
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
             // for fees, 80% to treasury, 20% to author
             let mut split = fees.ration(80, 20);
@@ -369,7 +370,7 @@ impl pallet_babe::Config for Runtime {
     )>>::IdentificationTuple;
 
     type HandleEquivocation =
-        pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+    pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
     type WeightInfo = ();
 }
@@ -415,7 +416,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
-        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 parameter_types! {
@@ -802,9 +803,9 @@ mod impl_uniswap {
             func_id: u32,
             env: Environment<E, InitState>,
         ) -> Result<RetVal, DispatchError>
-        where
-            <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
-            <E as Ext>::T: orml_currencies::Config,
+            where
+                <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+                <E as Ext>::T: orml_currencies::Config,
         {
             match func_id {
                 0 => {
@@ -891,8 +892,8 @@ parameter_types! {
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
-where
-    Call: From<LocalCall>,
+    where
+        Call: From<LocalCall>,
 {
     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
         call: Call,
@@ -942,8 +943,8 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-where
-    Call: From<C>,
+    where
+        Call: From<C>,
 {
     type Extrinsic = UncheckedExtrinsic;
     type OverarchingCall = Call;
@@ -974,7 +975,7 @@ impl pallet_grandpa::Config for Runtime {
     type KeyOwnerProofSystem = Historical;
 
     type KeyOwnerProof =
-        <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+    <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
     type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
         KeyTypeId,
@@ -1068,6 +1069,23 @@ impl Filter<Call> for FeelessTxnFilter {
     }
 }
 
+pub struct DynamicStaking;
+
+impl pallet_polkapool::traits::DynamicStaker<Call, Balance> for DynamicStaking {
+    /// Filters the claim_feeless_transaction call
+    fn filter(call: &Call) -> bool {
+        matches!(call, Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(_,_)))
+    }
+
+    /// Gets the stake amount from the feeless transaction call
+    fn get_stake(call: &Call) -> Balance {
+        match call {
+            Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(stake, _)) => *stake,
+            _ => Balance::zero()
+        }
+    }
+}
+
 parameter_types! {
     pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
         RuntimeBlockWeights::get().max_block;
@@ -1094,6 +1112,7 @@ impl pallet_polkapool::Config for Runtime {
     type MaxStakes = MaxStakes;
     type RandomnessSource = RandomnessCollectiveFlip;
     type CallFilter = FeelessTxnFilter;
+    type DynamicStaking = DynamicStaking;
     type MinStakePerWeight = MinStakePerWeight;
     type GovernanceOrigin = EnsureGovernance;
 }
@@ -1130,6 +1149,7 @@ impl snowbridge_dispatch::Config for Runtime {
 }
 
 use snowbridge_basic_channel::inbound as basic_inbound_channel;
+
 impl basic_inbound_channel::Config for Runtime {
     type Event = Event;
     type Verifier = snowbridge_ethereum_light_client::Module<Runtime>;
@@ -1713,10 +1733,9 @@ mod tests {
     #[test]
     fn validate_transaction_submitter_bounds() {
         fn is_submit_signed_transaction<T>()
-        where
-            T: CreateSignedTransaction<Call>,
-        {
-        }
+            where
+                T: CreateSignedTransaction<Call>,
+        {}
 
         is_submit_signed_transaction::<Runtime>();
     }

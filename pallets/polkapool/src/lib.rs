@@ -20,10 +20,6 @@
 #![allow(clippy::unused_unit)]
 
 use codec::Codec;
-use frame_support::dispatch::{Dispatchable, GetDispatchInfo};
-use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::traits::{Filter, Randomness};
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
@@ -31,52 +27,61 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch,
     traits::{Get, OriginTrait},
 };
+use frame_support::dispatch::{Dispatchable, DispatchInfo, GetDispatchInfo, PostDispatchInfo};
+use frame_support::pallet_prelude::*;
+use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+use frame_support::traits::{Filter, Randomness};
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::BlockNumber;
-use rand::{seq::SliceRandom, SeedableRng};
+use rand::{SeedableRng, seq::SliceRandom};
 use rand_chacha::ChaChaRng;
 use sp_arithmetic::traits::*;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
+use sp_runtime::traits::{SignedExtension, DispatchInfoOf};
 use sp_std::boxed::Box;
 use sp_std::collections::vec_deque::VecDeque;
 use sp_std::vec;
 use sp_std::vec::Vec;
+
+use crate::traits::DynamicStaker;
+
+pub mod traits;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
     /// Because this pallet emits events, it depends on the runtime's definition of an event.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// The aggregated origin which the dispatch will take.
-    type Origin: OriginTrait<PalletsOrigin = Self::PalletsOrigin>
-        + From<Self::PalletsOrigin>
-        + IsType<<Self as frame_system::Config>::Origin>;
+    type Origin: OriginTrait<PalletsOrigin=Self::PalletsOrigin>
+    + From<Self::PalletsOrigin>
+    + IsType<<Self as frame_system::Config>::Origin>;
 
     /// The caller origin, overarching type of all pallets origins.
     type PalletsOrigin: From<frame_system::RawOrigin<Self::AccountId>> + Codec + Clone + Eq;
 
     /// The aggregated call type.
     type Call: Parameter
-        + Dispatchable<Origin = <Self as Config>::Origin>
-        + GetDispatchInfo
-        + From<frame_system::Call<Self>>;
+    + Dispatchable<Origin=<Self as Config>::Origin>
+    + GetDispatchInfo
+    + From<frame_system::Call<Self>>;
     /// Balance Type
     type Balance: Parameter
-        + Member
-        + AtLeast32BitUnsigned
-        + Default
-        + Copy
-        + MaybeSerializeDeserialize
-        + Clone
-        + Zero
-        + One
-        + PartialOrd
-        + Bounded;
+    + Member
+    + AtLeast32BitUnsigned
+    + Default
+    + Copy
+    + MaybeSerializeDeserialize
+    + Clone
+    + Zero
+    + One
+    + PartialOrd
+    + Bounded;
     /// Module that handles tokens
-    type Currency: MultiReservableCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Self::Balance>
-        + MultiLockableCurrency<Self::AccountId>;
+    type Currency: MultiReservableCurrency<Self::AccountId, CurrencyId=AssetId, Balance=Self::Balance>
+    + MultiLockableCurrency<Self::AccountId>;
     /// Min amount that must be staked
     type MinStakeAmount: Get<Self::Balance>;
     /// Maximum allowed Feeless Transactions in a block
@@ -89,10 +94,13 @@ pub trait Config: frame_system::Config {
     type RandomnessSource: Randomness<H256, BlockNumber>;
     /// Call Filter
     type CallFilter: Filter<<Self as Config>::Call>;
+    /// DynamicStaking Config
+    type DynamicStaking: DynamicStaker<<Self as Config>::Call, Self::Balance>;
+    /// Contains function to retrieve
     /// Minimum Stake per Call
     type MinStakePerWeight: Get<u128>;
     /// The Governance Origin that can slash stakes
-    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success = Self::AccountId>;
+    type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success=Self::AccountId>;
 }
 
 #[derive(Decode, Encode, Copy, Clone)]
@@ -363,16 +371,73 @@ impl<T: Config> Module<T> {
         // Calculate the min requirements
         let stake_amount = stake_price.saturating_mul(call_weight.saturated_into());
         let mut stake_period: T::BlockNumber = T::MinStakePeriod::get().saturated_into(); // 28 days
-                                                                                          // Add a extra staking period based on the fraction of total weight allocation this call occupies
+        // Add a extra staking period based on the fraction of total weight allocation this call occupies
         if let Some(allocation_inverse_fraction) =
-            T::MaxAllowedWeight::get().checked_div(call_weight)
+        T::MaxAllowedWeight::get().checked_div(call_weight)
         {
             if let Some(extra_stake_period) =
-                stake_period.checked_div(&allocation_inverse_fraction.saturated_into())
+            stake_period.checked_div(&allocation_inverse_fraction.saturated_into())
             {
                 stake_period = stake_period.saturating_add(extra_stake_period);
             }
         }
         (stake_amount, stake_period)
+    }
+}
+
+#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+pub struct DynamicStaking<T: Config>(#[codec(compact)] T::Balance);
+
+impl<T: Config> DynamicStaking<T> where <T as Config>::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo> {
+    /// NOTE: The function below is modified from paritytech's pallet transaction payment
+    /// Get an appropriate priority for a transaction with the given length and info.
+    ///
+    /// This will try and optimise the `stake/weight` `stake/length`, whichever is consuming more of the
+    /// maximum corresponding limit.
+    ///
+    /// For example, if a transaction consumed 1/4th of the block length and half of the weight, its
+    /// final priority is `stake * min(2, 4) = fee * 2`. If it consumed `1/4th` of the block length
+    /// and the entire block weight `(1/1)`, its priority is `stake * min(1, 4) = fee * 1`. This means
+    ///  that the transaction which consumes more resources (either length or weight) with the same
+    /// `fee` ends up having lower priority.
+    fn calculate_priority(len: usize, info: &DispatchInfoOf<<T as Config>::Call>, stake: T::Balance) -> TransactionPriority {
+        let weight_saturation = T::BlockWeights::get().max_block / info.weight.max(1);
+        let max_block_length = *T::BlockLength::get().max.get(DispatchClass::Normal);
+        let len_saturation = max_block_length as u64 / (len as u64).max(1);
+        let coefficient: T::Balance =
+            weight_saturation.min(len_saturation).saturated_into::<T::Balance>();
+        stake.saturating_mul(coefficient).saturated_into::<TransactionPriority>()
+    }
+}
+
+impl<T: Config> sp_std::fmt::Debug for DynamicStaking<T> {
+    #[cfg(feature = "std")]
+    fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+        write!(f, "DynamicStaking<{:?}>", self.0)
+    }
+    #[cfg(not(feature = "std"))]
+    fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+        Ok(())
+    }
+}
+
+impl<T: Config> SignedExtension for DynamicStaking<T> where <T as Config>::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo> {
+    const IDENTIFIER: &'static str = "DynamicStaking";
+    type AccountId = T::AccountId;
+    type Call = <T as Config>::Call;
+    type AdditionalSigned = ();
+    type Pre = ();
+
+    fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> {
+        Ok(())
+    }
+
+    fn validate(&self, _who: &Self::AccountId, call: &<T as Config>::Call, info: &DispatchInfoOf<<T as Config>::Call>, len: usize) -> TransactionValidity {
+        if T::DynamicStaking::filter(call) {
+            let stake: T::Balance = T::DynamicStaking::get_stake(call);
+            Ok(ValidTransaction { priority: Self::calculate_priority(len, info, stake), ..Default::default() })
+        } else {
+            Ok(ValidTransaction::default())
+        }
     }
 }
