@@ -1373,7 +1373,7 @@ parameter_types! {
 
 pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
-    fn contains(account: &AccountId) -> bool {
+    fn contains(_account: &AccountId) -> bool {
         false
     }
 }
