@@ -42,6 +42,12 @@ use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
 };
+pub use artemis_core::MessageId;
+use pallet_eth_dispatch::EnsureEthereumAccount;
+pub use polkadex_primitives::{Balance};
+
+pub struct CallFilter;
+
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use orml_currencies::BasicCurrencyAdapter;
@@ -940,6 +946,29 @@ impl pallet_vesting::Config for Runtime {
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
+impl Filter<Call> for CallFilter {
+    fn filter(call: &Call) -> bool {
+        match call {
+            Call::ERC20PDEX(_) => true,
+            _ => false
+        }
+    }
+}
+
+impl pallet_eth_dispatch::Config for Runtime {
+    type Origin = Origin;
+    type Event = Event;
+    type MessageId = MessageId;
+    type Call = Call;
+    type CallFilter = CallFilter;
+}
+
+impl erc20_pdex_migration_pallet::Config for Runtime{
+    type Event = Event;
+    type Balance = Balance;
+    type Currency = Currencies;
+    type CallOrigin = EnsureEthereumAccount;
+}
 
 construct_runtime!(
     pub enum Runtime where
@@ -980,7 +1009,9 @@ construct_runtime!(
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
         Currencies: orml_currencies::{Pallet, Call, Event<T>} = 31,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32,
+        Dispatch: pallet_eth_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 33,
+        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>} = 40
     }
 );
 

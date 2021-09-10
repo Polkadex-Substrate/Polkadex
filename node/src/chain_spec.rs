@@ -427,6 +427,37 @@ pub fn testnet_genesis(
         vesting: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting: investor_vesting },
         tokens: Default::default(),
+        snowbridge_ethereum_light_client: EthereumLightClientConfig {
+            initial_header: EthereumHeader {
+                parent_hash: hex!("c4d3710696f955f77ef4448fde22c2d2ab01e4505e75d93d18f18be8bcd321fc").into(),
+                timestamp: 1631284527u64.into(),
+                number: 11008890u64.into(),
+                author: hex!("2830b5a3b5242bc2c64c390594ed971e7ded47d2").into(),
+                transactions_root: hex!("e172b597e7f4ec55d0985a1cb70ee575ef990516125decac0a2e2922f162f19f").into(),
+                ommers_hash: hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").into(),
+                extra_data: hex!("d883010a08846765746888676f312e31362e34856c696e7578").into(),
+                state_root: hex!("c780c9e149865b63e7917acfbcfab154fb5bad8bc319c9bd0a0ae5c9df233e09").into(),
+                receipts_root: hex!("37b79ceee9c587061d759d11e1ff3d0871f6f65298b72ca90a739874d5a37976").into(),
+                logs_bloom: (&hex!("0020000100074000000000008004000002000000400000000001000200040008001080000004200000820000000080000000000000000000220000004020000204001000000020000000000800010020100000040040000000000000120000000020010002100000000000000200080000020a0000010404000000904000002400800000000000010040000000000800000000001100400801000040100100000202080000001000000000000000000400200400000401a8000000008000000000000412000408000010000008040000040000000000001004000002000020000210000800100008001000080000000040002800000004000001010800080000")).into(),
+                gas_used: 1984736u64.into(),
+                gas_limit: 8000000u64.into(),
+                difficulty: 920585805u64.into(),
+                seal: vec![
+                        hex!("a05af21eeb78736ce3e3fc1eee2ecbe047f7d55d10d5f85f24137490f08ee6c8a7").to_vec(),
+                        hex!("88a28ec5f6e96da8f7").to_vec(),
+                ],
+                // Take this from Etherscan ( value should be entered in wei)
+                base_fee: Some(U256::from(10u128))
+            },
+            // Take this from Etherscan ( value is same as total_difficulty)
+            initial_difficulty: U256::from(34729443238220433u128),
+        },
+        basic_inbound_channel: BasicInboundChannelConfig {
+            source_channel: hex!["b371cCeCB79914d2640c57994D9fd819Cb0a48B0"].into(),
+        },
+        erc20_pdex_migration_pallet: ERC20PDEXConfig {
+            address: hex!["e92763D8bfD8583e9c5E64736480D0dAF5F67F42"].into()
+        },
     }
 }
 
