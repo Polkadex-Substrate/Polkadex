@@ -41,10 +41,13 @@ pub struct Extensions {
     pub fork_blocks: sc_client_api::ForkBlocks<Block>,
     /// Known bad block hashes.
     pub bad_blocks: sc_client_api::BadBlocks<Block>,
+	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
+
 }
 
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+
 
 fn session_keys(
     grandpa: GrandpaId,
