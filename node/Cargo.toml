@@ -82,6 +82,7 @@ sp-authority-discovery = {  git = "https://github.com/paritytech/substrate", bra
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master'}
 sc-executor = {  git = "https://github.com/paritytech/substrate", branch = "master" }
 
+snowbridge-ethereum-light-client = { git = "https://github.com/Polkadex-Substrate/snowbridge.git", branch = "frank.merge-upstream", default-features = false }
 
 sc-cli = {  git = "https://github.com/paritytech/substrate", branch = "master", features = ["wasmtime"] }
 node-executor = {  git = "https://github.com/paritytech/substrate", branch = "master", features = ["wasmtime"] }
