@@ -19,7 +19,7 @@ use sp_runtime::{
 use node_polkadex_runtime::constants::currency::*;
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
-    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig,
+    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
     CouncilConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig,
     OrmlVestingConfig, PolkadexTreasuryModuleId, SessionConfig, SessionKeys, StakerStatus,
     StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
@@ -41,14 +41,13 @@ pub struct Extensions {
     pub fork_blocks: sc_client_api::ForkBlocks<Block>,
     /// Known bad block hashes.
     pub bad_blocks: sc_client_api::BadBlocks<Block>,
+	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
+
 }
 
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
-// /// Flaming Fir testnet generator
-// pub fn flaming_fir_config() -> Result<ChainSpec, String> {
-//     ChainSpec::from_json_bytes(&include_bytes!("../res/flaming-fir.json")[..])
-// }
+
 
 fn session_keys(
     grandpa: GrandpaId,
@@ -206,7 +205,7 @@ pub fn testnet_genesis(
     initial_nominators: Vec<AccountId>,
     root_key: AccountId,
     endowed_accounts: Option<Vec<AccountId>>,
-    enable_println: bool,
+    _enable_println: bool,
 ) -> GenesisConfig {
     let _genesis: AccountId = OCEXGenesisAccount.into_account();
     let treasury_accont: AccountId = PolkadexTreasuryModuleId::get().into_account();
@@ -365,16 +364,16 @@ pub fn testnet_genesis(
     balances_vec.push((treasury_accont.clone(),100000000*PDEX));
     balances_vec.append(&mut investor_balances);
     GenesisConfig {
-        frame_system: SystemConfig {
+        system: SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
             changes_trie_config: Default::default(),
         },
-        pallet_balances: BalancesConfig {
+        balances: BalancesConfig {
             balances: balances_vec,
         },
 
-        pallet_indices: IndicesConfig { indices: vec![] },
-        pallet_session: SessionConfig {
+        indices: IndicesConfig { indices: vec![] },
+        session: SessionConfig {
             keys: initial_authorities
                 .iter()
                 .map(|x| {
@@ -386,7 +385,7 @@ pub fn testnet_genesis(
                 })
                 .collect::<Vec<_>>(),
         },
-        pallet_staking: StakingConfig {
+        staking: StakingConfig {
             validator_count: initial_authorities.len() as u32 * 2,
             minimum_validator_count: initial_authorities.len() as u32,
             invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
@@ -394,7 +393,7 @@ pub fn testnet_genesis(
             stakers,
             ..Default::default()
         },
-        pallet_elections_phragmen: ElectionsConfig {
+        elections: ElectionsConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
@@ -402,8 +401,8 @@ pub fn testnet_genesis(
                 .map(|member| (member, STASH))
                 .collect(),
         },
-        pallet_collective_Instance1: CouncilConfig::default(),
-        pallet_collective_Instance2: TechnicalCommitteeConfig {
+        council: CouncilConfig::default(),
+        technical_committee: TechnicalCommitteeConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
@@ -411,27 +410,23 @@ pub fn testnet_genesis(
                 .collect(),
             phantom: Default::default(),
         },
-        pallet_contracts: ContractsConfig {
-            // println should only be enabled on development chains
-            current_schedule: pallet_contracts::Schedule::default().enable_println(enable_println),
-        },
-        pallet_sudo: SudoConfig {
+        sudo: SudoConfig {
             key: root_key.clone(),
         },
-        pallet_babe: BabeConfig {
+        babe: BabeConfig {
             authorities: vec![],
             epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
         },
-        pallet_im_online: ImOnlineConfig { keys: vec![] },
-        pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-        pallet_grandpa: GrandpaConfig {
+        im_online: ImOnlineConfig { keys: vec![] },
+        authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+        grandpa: GrandpaConfig {
             authorities: vec![],
         },
-        pallet_membership_Instance1: Default::default(),
-        pallet_treasury: Default::default(),
-        pallet_vesting: Default::default(),
+        technical_membership: Default::default(),
+        treasury: Default::default(),
+        vesting: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting: investor_vesting },
-        orml_tokens: Default::default(),
+        tokens: Default::default(),
     }
 }
 
