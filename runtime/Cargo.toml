@@ -48,6 +48,8 @@ pallet-recovery = { default-features = false, git = "https://github.com/parityte
 pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+
+# Snowbridge Dependencies
 snowbridge-ethereum-light-client = { git = "https://github.com/Polkadex-Substrate/snowbridge", branch = "frank.merge-upstream", default-features = false }
 snowbridge-dispatch = { git = "https://github.com/Polkadex-Substrate/snowbridge", branch = "frank.merge-upstream", default-features = false }
 snowbridge-basic-channel = { git = "https://github.com/Polkadex-Substrate/snowbridge", branch = "frank.merge-upstream", default-features = false }
