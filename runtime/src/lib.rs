@@ -280,7 +280,7 @@ impl InstanceFilter<Call> for ProxyType {
             ProxyType::NonTransfer => !matches!(
                 c,
                 Call::Balances(..)
-                    | Call::Vesting(pallet_vesting::Call::vested_transfer(..))
+                    // | Call::Vesting(pallet_vesting::Call::vested_transfer(..))
                     | Call::Indices(pallet_indices::Call::transfer(..))
             ),
             ProxyType::Governance => matches!(
@@ -1230,7 +1230,6 @@ impl_runtime_apis! {
 
             let mut list = Vec::<BenchmarkList>::new();
     
-            // list_benchmark!(list,extra, pallet_assets, Assets);
             list_benchmark!(list,extra, pallet_babe, Babe);
             list_benchmark!(list,extra, pallet_balances, Balances);
             list_benchmark!(list,extra, pallet_bounties, Bounties);
@@ -1291,7 +1290,6 @@ impl_runtime_apis! {
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&config, &whitelist);
 
-            // add_benchmark!(params, batches, pallet_assets, Assets);
             add_benchmark!(params, batches, pallet_babe, Babe);
             add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_bounties, Bounties);
