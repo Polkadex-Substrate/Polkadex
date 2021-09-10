@@ -23,12 +23,12 @@ pub mod currency {
 
 	pub const PDEX: Balance = 100_000_000_000;
 	pub const UNITS: Balance = PDEX;
-	pub const DOLLARS: Balance = PDEX; // 100_000_000_000
-	pub const CENTS: Balance = DOLLARS / 100; // 1000_000_000
-	pub const MILLICENTS: Balance = CENTS / 1_000; // 1000_000
+	pub const DOLLAR: Balance = PDEX; // 100_000_000_000
+	pub const CENT: Balance = DOLLAR / 100; // 1000_000_000
+	pub const MILLICENT: Balance = CENT / 1_000; // 1000_000
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
+		items as Balance * 15 * CENT + (bytes as Balance) * 6 * CENT
 	}
 }
 
@@ -65,7 +65,7 @@ pub mod time {
 
 	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
 	//       Attempting to do so will brick block production.
-	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
+	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTE;
 	pub const EPOCH_DURATION_IN_SLOTS: u32 = {
 		const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
 
@@ -73,7 +73,7 @@ pub mod time {
 	};
 
 	// These time units are defined in number of blocks.
-	pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
-	pub const HOURS: BlockNumber = MINUTES * 60;
-	pub const DAYS: BlockNumber = HOURS * 24;
+	pub const MINUTE: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
+	pub const HOUR: BlockNumber = MINUTE * 60;
+	pub const DAY: BlockNumber = HOUR * 24;
 }

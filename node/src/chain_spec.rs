@@ -694,7 +694,7 @@ pub fn testnet_genesis(
 		.map(|x| &x.0)
 		.chain(initial_nominators.iter())
 		.for_each(|x| {
-			if !endowed_accounts.contains(&x) {
+			if !endowed_accounts.contains(x) {
 				endowed_accounts.push(x.clone())
 			}
 		});
@@ -725,7 +725,7 @@ pub fn testnet_genesis(
 	let mut balances_vec: Vec<(AccountId, Balance)> =
 		endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect();
 
-	balances_vec.push((treasury_accont.clone(), 100000000 * PDEX));
+	balances_vec.push((treasury_accont, 100000000 * PDEX));
 	balances_vec.append(&mut investor_balances);
 	GenesisConfig {
 		system: SystemConfig {
@@ -772,7 +772,7 @@ pub fn testnet_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		sudo: SudoConfig { key: root_key.clone() },
+		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
 			authorities: vec![],
 			epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),

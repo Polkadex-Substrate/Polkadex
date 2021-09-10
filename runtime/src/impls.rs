@@ -185,7 +185,7 @@ mod multiplier_tests {
 			// See the example in the doc of `TargetedFeeAdjustment`. are at least 0.234, hence
 			// `fm > 1.234`.
 			// BlockTime increased from 3 to 12s ==> decreaced to 0.050
-			for _ in 0..DAYS {
+			for _ in 0..DAY {
 				let next = runtime_multiplier_update(fm);
 				fm = next;
 			}
@@ -227,9 +227,9 @@ mod multiplier_tests {
 					iterations,
 					fm,
 					adjusted_fee,
-					adjusted_fee / MILLICENTS,
-					adjusted_fee / CENTS,
-					adjusted_fee / DOLLARS,
+					adjusted_fee / MILLICENT,
+					adjusted_fee / CENT,
+					adjusted_fee / DOLLAR,
 				);
 			}
 		});
@@ -321,7 +321,7 @@ mod multiplier_tests {
 
 	#[test]
 	fn weight_to_fee_should_not_overflow_on_large_weights() {
-		let kb = 1024 as Weight;
+		let kb = 1024;
 		let mb = kb * kb;
 		let max_fm = Multiplier::saturating_from_integer(i128::max_value());
 

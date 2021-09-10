@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
@@ -93,7 +94,7 @@ decl_module! {
 		pub fn mint(origin, token: H160, sender: H160, recipient: <T::Lookup as StaticLookup>::Source, amount: U256) -> DispatchResult {
 			let who = T::CallOrigin::ensure_origin(origin)?;
 			if who != Address::get() {
-				return Err(DispatchError::BadOrigin.into());
+				return Err(DispatchError::BadOrigin);
 			}
 
 			let recipient = T::Lookup::lookup(recipient)?;

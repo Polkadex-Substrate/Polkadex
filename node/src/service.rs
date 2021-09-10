@@ -26,10 +26,12 @@ use node_executor::ExecutorDispatch;
 use node_polkadex_runtime::RuntimeApi;
 use polkadex_primitives::Block;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use sc_consensus_babe;
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
-use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
+use sc_service::{
+	config::Configuration, error::Error as ServiceError, RpcExtensionBuilder, RpcHandlers,
+	TaskManager,
+};
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
@@ -45,31 +47,25 @@ type FullGrandpaBlockImport =
 type LightClient =
 	sc_service::TLightClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
 
-pub fn new_partial(
-	config: &Configuration,
-) -> Result<
-	sc_service::PartialComponents<
-		FullClient,
-		FullBackend,
-		FullSelectChain,
-		sc_consensus::DefaultImportQueue<Block, FullClient>,
-		sc_transaction_pool::FullPool<Block, FullClient>,
+type PartialComponents = sc_service::PartialComponents<
+	FullClient,
+	FullBackend,
+	FullSelectChain,
+	sc_consensus::DefaultImportQueue<Block, FullClient>,
+	sc_transaction_pool::FullPool<Block, FullClient>,
+	(
+		Box<dyn RpcExtensionBuilder<Output = node_rpc::IoHandler> + Send>,
 		(
-			impl Fn(
-				node_rpc::DenyUnsafe,
-				sc_rpc::SubscriptionTaskExecutor,
-			) -> Result<node_rpc::IoHandler, sc_service::Error>,
-			(
-				sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
-				grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
-				sc_consensus_babe::BabeLink<Block>,
-			),
-			grandpa::SharedVoterState,
-			Option<Telemetry>,
+			sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
+			grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
+			sc_consensus_babe::BabeLink<Block>,
 		),
-	>,
-	ServiceError,
-> {
+		grandpa::SharedVoterState,
+		Option<Telemetry>,
+	),
+>;
+
+pub fn new_partial(config: &Configuration) -> Result<PartialComponents, ServiceError> {
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -89,7 +85,7 @@ pub fn new_partial(
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
-			&config,
+			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 		)?;
@@ -210,7 +206,7 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry),
+		other: (Box::new(rpc_extensions_builder), import_setup, rpc_setup, telemetry),
 	})
 }
 
@@ -291,11 +287,11 @@ pub fn new_full_base(
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend: backend.clone(),
+		backend,
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		network: network.clone(),
-		rpc_extensions_builder: Box::new(rpc_extensions_builder),
+		rpc_extensions_builder,
 		transaction_pool: transaction_pool.clone(),
 		task_manager: &mut task_manager,
 		on_demand: None,
@@ -440,20 +436,15 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	new_full_base(config, |_, _| ()).map(|NewFullBase { task_manager, .. }| task_manager)
 }
 
-pub fn new_light_base(
-	mut config: Configuration,
-) -> Result<
-	(
-		TaskManager,
-		RpcHandlers,
-		Arc<LightClient>,
-		Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-		Arc<
-			sc_transaction_pool::LightPool<Block, LightClient, sc_network::config::OnDemand<Block>>,
-		>,
-	),
-	ServiceError,
-> {
+type LightClientConfig = (
+	TaskManager,
+	RpcHandlers,
+	Arc<LightClient>,
+	Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+	Arc<sc_transaction_pool::LightPool<Block, LightClient, sc_network::config::OnDemand<Block>>>,
+);
+
+pub fn new_light_base(mut config: Configuration) -> Result<LightClientConfig, ServiceError> {
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -515,7 +506,7 @@ pub fn new_light_base(
 		babe_block_import,
 		Some(Box::new(justification_import)),
 		client.clone(),
-		select_chain.clone(),
+		select_chain,
 		move |_, ()| async move {
 			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
@@ -600,7 +591,7 @@ mod tests {
 	use crate::service::{new_full_base, new_light_base, NewFullBase};
 	use codec::Encode;
 	use node_polkadex_runtime::{
-		constants::{currency::CENTS, time::SLOT_DURATION},
+		constants::{currency::CENT, time::SLOT_DURATION},
 		Address, BalancesCall, Call, UncheckedExtrinsic,
 	};
 	use polkadex_primitives::{Block, DigestItem, Signature};
@@ -785,7 +776,7 @@ mod tests {
 					.expect("error importing test block");
 			},
 			|service, _| {
-				let amount = 5 * CENTS;
+				let amount = 5 * CENT;
 				let to: Address = AccountPublic::from(bob.public()).into_account().into();
 				let from: Address = AccountPublic::from(charlie.public()).into_account().into();
 				let genesis_hash = service.client().block_hash(0).unwrap().unwrap();
