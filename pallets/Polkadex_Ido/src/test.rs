@@ -160,7 +160,7 @@ fn test_whitelist_investor() {
 
 #[test]
 fn test_participate_in_round() {
-    let balance: Balance = 100;
+    let balance: Balance = 600;
     let investor_address: u64 = 4;
     let funding_period = 10;
     let amount: Balance = 200;
@@ -193,13 +193,32 @@ fn test_participate_in_round() {
 
 
         assert_eq!(
-            PolkadexIdo::register_investor(Origin::signed(investor_address)),
+            PolkadexIdo::register_investor(Origin::signed(4_u64)),
+            Ok(())
+        );
+        assert_eq!(
+            PolkadexIdo::register_investor(Origin::signed(2_u64)),
+            Ok(())
+        );
+        assert_eq!(
+            PolkadexIdo::register_investor(Origin::signed(5_u64)),
             Ok(())
         );
 
+
         system::Pallet::<Test>::set_block_number(open_block_number);
         assert_eq!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, amount),
+            PolkadexIdo::show_interest_in_round(Origin::signed(4_u64), round_id, amount),
+            Ok(())
+        );
+
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(2_u64), round_id, amount),
+            Ok(())
+        );
+
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(5_u64), round_id, amount),
             Ok(())
         );
 
@@ -209,7 +228,7 @@ fn test_participate_in_round() {
         // Check if FundingRound was successfully updated after investment
         let round_info = <WhitelistInfoFundingRound<Test>>::get(round_id);
         println!("{}", round_info.actual_raise);
-        assert_eq!(round_info.actual_raise == amount, true);
+        assert_eq!(round_info.actual_raise == (3 * amount), true);
     });
 }
 

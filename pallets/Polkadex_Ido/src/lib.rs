@@ -45,6 +45,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
     ensure,
+    log,
     traits::{EnsureOrigin, Get, Randomness},
     PalletId,
 };
@@ -59,7 +60,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
-use sp_runtime::SaturatedConversion;
+use sp_runtime::{SaturatedConversion, Permill};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
@@ -308,8 +309,9 @@ decl_module! {
                     for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
                             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
                             let total_raise = funding_round.amount.saturating_mul(funding_round.token_a_priceper_token_b);
-                            let investor_share = amount.checked_div(&total_raise).unwrap_or_else(Zero::zero);
+                            let investor_share = Permill::from_rational_approximation(amount,total_raise);
                             let round_account_id = Self::round_account_id(round_id.clone());
+
                             match <T as Config>::Currency::transfer(funding_round.token_b, &investor_address, &round_account_id, amount) {
                                 Ok(_) => {
                                      <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
@@ -489,9 +491,8 @@ decl_module! {
             let total_released_block: T::BlockNumber = claim_block - funding_round.close_round_block;
             // total_tokens_released_for_given_investor is the total available tokens for their investment
             // relative to the current block
-            let total_tokens_released_for_given_investor: T::Balance = Self::block_to_balance(total_released_block)
-                .saturating_mul(funding_round.vesting_per_block)
-                .saturating_mul(investor_share);
+            let total_tokens_released_for_given_investor: T::Balance = investor_share.mul_floor(Self::block_to_balance(total_released_block)
+                .saturating_mul(funding_round.vesting_per_block));
 
             //Check if investor previously claimed the tokens
             let claimed_tokens = if <InfoClaimAmount<T>>::contains_key(&round_id, &investor_address) {
@@ -542,7 +543,7 @@ decl_module! {
                     });
                 if total_potential_raise >= funding_round.amount {
                     let participants = interested_participants.clone();
-                    let replaceable_participants : Vec<(&T::AccountId,&T::Balance)> = participants.range(..amount.clone()).flat_map(|(amount, investors)| {
+                    let replaceable_participants : Vec<(&T::AccountId,&T::Balance)> = participants.range(..=amount.clone()).flat_map(|(amount, investors)| {
                         investors.iter().map( move |investor| {
                             (investor, amount)
                         })
@@ -713,7 +714,7 @@ decl_storage! {
         /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
         WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
         /// For each round, we keep mapping between participants and the amount, they will be using
-        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
+        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => Permill;
         /// For each round, we keep mapping between investors and the block, when they will claim token
         LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
         /// A mapping between investor and claim amount
@@ -771,6 +772,7 @@ decl_event! {
         /// Transferred remaining tokens
         WithdrawToken(Hash, AccountId),
         CleanedupExpiredRound(Hash),
+        RoundWhitelisted(Hash),
         VoteAmountUnReserved(AccountId,Balance),
         ParticipatedInRoundFailed(Hash, AccountId,sp_runtime::DispatchError),
     }
