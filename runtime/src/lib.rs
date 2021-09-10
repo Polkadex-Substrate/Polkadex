@@ -370,7 +370,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-    pub const IndexDeposit: Balance = 1 * PDEX;
+    pub const IndexDeposit: Balance = PDEX;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -382,7 +382,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * PDEX;
+	pub const ExistentialDeposit: Balance = PDEX;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
@@ -400,7 +400,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+    pub const TransactionByteFee: Balance = 10 * MILLICENT;
 	// TODO, Update this as per polkadot
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
     pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
@@ -528,7 +528,7 @@ parameter_types! {
 	// 0.01 PDEX per KB of solution data.
 	pub const SignedDepositByte: Balance = deposit(0, 10) / 1024;
 	// Each good submission will get 1 DOT as reward
-	pub SignedRewardBase: Balance = 1 * UNITS;
+	pub SignedRewardBase: Balance = UNITS;
 	// fallback: emergency phase.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
 		pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
@@ -605,22 +605,22 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 }
 
 parameter_types! {
-    pub const LaunchPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
-    pub const VotingPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
-    pub const FastTrackVotingPeriod: BlockNumber = 3 * 24 * 60 * MINUTES;
+    pub const LaunchPeriod: BlockNumber = 28 * 24 * 60 * MINUTE;
+    pub const VotingPeriod: BlockNumber = 28 * 24 * 60 * MINUTE;
+    pub const FastTrackVotingPeriod: BlockNumber = 3 * 24 * 60 * MINUTE;
     pub const InstantAllowed: bool = true;
-    pub const MinimumDeposit: Balance = 100 * DOLLARS;
-    pub const EnactmentPeriod: BlockNumber = 30 * 24 * 60 * MINUTES;
-    pub const CooloffPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
+    pub const MinimumDeposit: Balance = 100 * DOLLAR;
+    pub const EnactmentPeriod: BlockNumber = 30 * 24 * 60 * MINUTE;
+    pub const CooloffPeriod: BlockNumber = 28 * 24 * 60 * MINUTE;
     // One cent: $10,000 / MB
-    pub const PreimageByteDeposit: Balance = 1 * CENTS;
+    pub const PreimageByteDeposit: Balance = CENT;
     pub const MaxVotes: u32 = 100;
     pub const MaxProposals: u32 = 100;
 }
 
 
 parameter_types! {
-    pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+    pub const CouncilMotionDuration: BlockNumber = 5 * DAY;
     pub const CouncilMaxProposals: u32 = 100;
     pub const CouncilMaxMembers: u32 = 100;
 }
@@ -639,12 +639,12 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
-    pub const CandidacyBond: Balance = 10 * DOLLARS;
+    pub const CandidacyBond: Balance = 10 * DOLLAR;
     // 1 storage item created, key size is 32 bytes, value size is 16+16.
     pub const VotingBondBase: Balance = deposit(1, 64);
     // additional data per vote is 32 bytes (account id).
     pub const VotingBondFactor: Balance = deposit(0, 32);
-    pub const TermDuration: BlockNumber = 7 * DAYS;
+    pub const TermDuration: BlockNumber = 7 * DAY;
     pub const DesiredMembers: u32 = 13;
     pub const DesiredRunnersUp: u32 = 7;
     pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
@@ -674,7 +674,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TechnicalMotionDuration: BlockNumber = 5 * DAYS;
+    pub const TechnicalMotionDuration: BlockNumber = 5 * DAY;
     pub const TechnicalMaxProposals: u32 = 100;
     pub const TechnicalMaxMembers: u32 = 100;
 }
@@ -713,20 +713,20 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
-    pub const ProposalBondMinimum: Balance = 1 * DOLLARS;
-    pub const SpendPeriod: BlockNumber = 1 * DAYS;
+    pub const ProposalBondMinimum: Balance = DOLLAR;
+    pub const SpendPeriod: BlockNumber = DAY;
     pub const Burn: Permill = Permill::from_percent(50);
-    pub const TipCountdown: BlockNumber = 1 * DAYS;
+    pub const TipCountdown: BlockNumber = DAY;
     pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = 1 * DOLLARS;
-    pub const DataDepositPerByte: Balance = 1 * CENTS;
-    pub const BountyDepositBase: Balance = 1 * DOLLARS;
-    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+    pub const TipReportDepositBase: Balance = DOLLAR;
+    pub const DataDepositPerByte: Balance = CENT;
+    pub const BountyDepositBase: Balance = DOLLAR;
+    pub const BountyDepositPayoutDelay: BlockNumber = DAY;
     pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
+    pub const BountyUpdatePeriod: BlockNumber = 14 * DAY;
     pub const MaximumReasonLength: u32 = 16384;
     pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-    pub const BountyValueMinimum: Balance = 5 * DOLLARS;
+    pub const BountyValueMinimum: Balance = 5 * DOLLAR;
     pub const MaxApprovals: u32 = 100;
 }
 
@@ -822,7 +822,7 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature.into(), extra)))
+        Some((call, (address, signature, extra)))
     }
 }
 
@@ -887,8 +887,8 @@ impl pallet_grandpa::Config for Runtime {
 
 parameter_types! {
     pub const BasicDeposit: Balance = 10 * PDEX;       // 258 bytes on-chain
-    pub const FieldDeposit: Balance = 250 * CENTS;        // 66 bytes on-chain
-    pub const SubAccountDeposit: Balance = 2 * DOLLARS;   // 53 bytes on-chain
+    pub const FieldDeposit: Balance = 250 * CENT;        // 66 bytes on-chain
+    pub const SubAccountDeposit: Balance = 2 * DOLLAR;   // 53 bytes on-chain
     pub const MaxSubAccounts: u32 = 100;
     pub const MaxAdditionalFields: u32 = 100;
     pub const MaxRegistrars: u32 = 20;
@@ -911,7 +911,7 @@ impl pallet_identity::Config for Runtime {
 
 parameter_types! {
     pub const ConfigDepositBase: Balance = 5 * PDEX;
-    pub const FriendDepositFactor: Balance = 50 * CENTS;
+    pub const FriendDepositFactor: Balance = 50 * CENT;
     pub const MaxFriends: u16 = 9;
     pub const RecoveryDeposit: Balance = 5 * PDEX;
 }
