@@ -324,7 +324,8 @@ pub fn testnet_genesis(
     let mut treasury_funds: u128 = 10_200_000 * PDEX;
     treasury_funds = treasury_funds - adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT);
 
-
+    println!("Tokens taken from treasury: {}",adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT));
+    println!("Token remaining in treasury: {}",treasury_funds);
     // Treasury Account Id
     pub const TREASURY_PALLET_ID: PalletId = PalletId(*b"py/trsry");
     let treasury_account: AccountId = TREASURY_PALLET_ID.into_account();
@@ -345,6 +346,7 @@ pub fn testnet_genesis(
     for (_, balance) in &claims {
         total_claims = total_claims + balance;
     }
+    println!("Total Investor Tokens: {}",total_claims);
     // assert_eq!(total_claims, 6_627_105 * PDEX, "Total claims is configured correctly");
 
     endowed_accounts.append(claims.as_mut());
@@ -356,7 +358,7 @@ pub fn testnet_genesis(
         total_supply = total_supply + balance.clone()
     }
 
-    // assert_eq!(total_supply + ERC20_PDEX_SUPPLY, 20_000_000 * PDEX, "Total supply is not 20 million");
+    assert_eq!(total_supply + ERC20_PDEX_SUPPLY, 20_000_000 * PDEX, "Total supply is not 20 million");
 
     let vesting = get_vesting_terms();
 
@@ -424,7 +426,8 @@ pub fn testnet_genesis(
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
     // 3 months in terms of 12s blocks is 648,000 blocks, i.e. period = 648,000
     // who, start, period, period_count, per_period
-    vec![ (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 1, 30, 1, 3655828 * PDEX)]
+    // vec![ (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 1, 30, 1, 3655828 * PDEX)]
+    vec![]
 }
 
 pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
