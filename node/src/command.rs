@@ -16,11 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 use crate::service::new_partial;
-use crate::service::Executor;
+use node_executor::ExecutorDispatch;
 use crate::{chain_spec, cli::Cli, cli::Subcommand, service};
 use node_polkadex_runtime::Block;
 use sc_cli::{ChainSpec, Result, Role, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
+// use node_polkadex_runtime::RuntimeApi;
+
+
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
         "Polkadex Node".into()
@@ -39,7 +42,7 @@ impl SubstrateCli for Cli {
     }
 
     fn support_url() -> String {
-        "support.anonymous.an".into()
+        "business@polkadex.trade".into()
     }
 
     fn copyright_start_year() -> i32 {
@@ -54,7 +57,6 @@ impl SubstrateCli for Cli {
                         .into(),
                 )
             }
-            // here add udon and ramen and soba.
             "dev" => Box::new(chain_spec::development_config()),
             "udon" => Box::new(chain_spec::udon_testnet_config()),
             "soba" => Box::new(chain_spec::soba_testnet_config()),
@@ -84,17 +86,17 @@ pub fn run() -> Result<()> {
                 }
                 .map_err(sc_cli::Error::Service)
             })
-        }
+        },
         // Some(Subcommand::Inspect(cmd)) => {
         //     let runner = cli.create_runner(cmd)?;
         //
-        //     runner.sync_run(|config| cmd.run::<Block, RuntimeApi, Executor>(config))
-        // }
+        //     runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
+        // },
         Some(Subcommand::Benchmark(cmd)) => {
             if cfg!(feature = "runtime-benchmarks") {
                 let runner = cli.create_runner(cmd)?;
 
-                runner.sync_run(|config| cmd.run::<Block, Executor>(config))
+                runner.sync_run(|config| cmd.run::<Block, ExecutorDispatch>(config))
             } else {
                 Err("Benchmarking wasn't enabled when building the node. \
 				You can enable it with `--features runtime-benchmarks`."
@@ -182,7 +184,7 @@ pub fn run() -> Result<()> {
                     sc_service::TaskManager::new(config.task_executor.clone(), registry)
                         .map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
-                Ok((cmd.run::<Block, Executor>(config), task_manager))
+                Ok((cmd.run::<Block, ExecutorDispatch>(config), task_manager))
             })
         }
     }
