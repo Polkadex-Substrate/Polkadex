@@ -846,7 +846,7 @@ impl pallet_offences::Config for Runtime {
     type OnOffenceHandler = Staking;
 }
 parameter_types! {
-    	pub const MaxAuthorities: u32 = 100;
+    	pub const MaxAuthorities: u32 = 100_000;
 }
 
 impl pallet_authority_discovery::Config for Runtime {
@@ -957,7 +957,7 @@ impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
 
 impl orml_vesting::Config for Runtime {
     type Event = Event;
-    type Currency = pallet_balances::Pallet<Runtime>;
+    type Currency = Balances;
     type MinVestedTransfer = MinVestedTransfer;
     type VestedTransferOrigin = EnsureRootOrTreasury;
     type WeightInfo = ();
