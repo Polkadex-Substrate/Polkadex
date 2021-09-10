@@ -26,12 +26,10 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{traits::AtLeast32BitUnsigned, SaturatedConversion},
+    traits::{Currency, ReservableCurrency}
 };
-use orml_traits::MultiCurrencyExtended;
-use polkadex_primitives::assets::AssetId;
 use sp_core::{H160, U256};
 use sp_runtime::traits::StaticLookup;
-
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
 	/// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -44,11 +42,7 @@ pub trait Config: frame_system::Config {
 		+ Copy
 		+ MaybeSerializeDeserialize;
 	/// Module that handles tokens
-	type Currency: MultiCurrencyExtended<
-		Self::AccountId,
-		CurrencyId = AssetId,
-		Balance = Self::Balance,
-	>;
+	type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 	type CallOrigin: EnsureOrigin<Self::Origin, Success = H160>;
 }
@@ -98,7 +92,7 @@ decl_module! {
             }
 
             let recipient = T::Lookup::lookup(recipient)?;
-            T::Currency::deposit(AssetId::POLKADEX, &recipient, amount.as_u128().saturated_into())?;
+            T::Currency::deposit_creating(&recipient, amount.as_u128().saturated_into());
             Self::deposit_event(RawEvent::NativePDEXMinted(token, sender, recipient, amount, 0_u128.saturated_into()));
 
             Ok(())
