@@ -17,9 +17,6 @@ sp-core = { default-features = false, git = "https://github.com/paritytech/subst
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate" ,branch="master"  }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate"  ,branch="master" }
 
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
-
 [features]
 default = ['std']
 std = [
@@ -27,6 +24,4 @@ std = [
     'frame-support/std',
     'frame-system/std',
     'sp-runtime/std',
-    'orml-traits/std',
-    'polkadex-primitives/std',
 ]

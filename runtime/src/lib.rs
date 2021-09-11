@@ -37,11 +37,15 @@ use frame_support::{
     },
 };
 use frame_support::{PalletId, traits::InstanceFilter};
-use frame_support::traits::{OnUnbalanced, Contains, Everything};
+use frame_support::traits::{Filter, OnUnbalanced, Contains, Everything};
 use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
 };
+pub use snowbridge_core::MessageId;
+use snowbridge_dispatch::EnsureEthereumAccount;
+pub use snowbridge_ethereum_light_client::EthereumDifficultyConfig;
+
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use orml_currencies::BasicCurrencyAdapter;
@@ -940,6 +944,51 @@ impl pallet_vesting::Config for Runtime {
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
+parameter_types! {
+    pub const DescendantsUntilFinalized: u8 = 1;
+    pub const DifficultyConfig: EthereumDifficultyConfig = EthereumDifficultyConfig::ropsten();
+    pub const VerifyPoW: bool = false;
+}
+
+impl snowbridge_ethereum_light_client::Config for Runtime {
+    type Event = Event;
+    type DescendantsUntilFinalized = DescendantsUntilFinalized;
+    type DifficultyConfig = DifficultyConfig;
+    type VerifyPoW = VerifyPoW;
+    type WeightInfo = weights::ethereum_light_client_weights::WeightInfo<Runtime>;
+}
+
+pub struct CallFilter;
+
+impl Filter<Call> for CallFilter {
+    fn filter(call: &Call) -> bool {
+        matches!(call, Call::ERC20PDEX(_))
+    }
+}
+
+impl snowbridge_dispatch::Config for Runtime {
+    type Origin = Origin;
+    type Event = Event;
+    type MessageId = MessageId;
+    type Call = Call;
+    type CallFilter = CallFilter;
+}
+
+use snowbridge_basic_channel::inbound as basic_inbound_channel;
+
+impl basic_inbound_channel::Config for Runtime {
+    type Event = Event;
+    type Verifier = snowbridge_ethereum_light_client::Module<Runtime>;
+    type MessageDispatch = snowbridge_dispatch::Module<Runtime>;
+    type WeightInfo = weights::basic_channel_inbound_weights::WeightInfo<Runtime>;
+}
+
+impl erc20_pdex_migration_pallet::Config for Runtime{
+    type Event = Event;
+    type Balance = Balance;
+    type Currency = Balances;
+    type CallOrigin = EnsureEthereumAccount;
+}
 
 construct_runtime!(
     pub enum Runtime where
@@ -980,7 +1029,11 @@ construct_runtime!(
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
         Currencies: orml_currencies::{Pallet, Call, Event<T>} = 31,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32,
+        Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 33,
+        BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event} = 34,
+        EthereumLightClient: snowbridge_ethereum_light_client::{Pallet, Call, Storage, Event, Config} = 35,
+        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>} = 40
     }
 );
 
