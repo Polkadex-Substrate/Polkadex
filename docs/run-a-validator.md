@@ -298,7 +298,7 @@ You can restart your node at this point.
 
 You need to tell the chain your Session keys by signing and submitting an extrinsic. This is what associates your validator with your Controller account.
 
-Go to [Staking > Account Actions](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/staking/actions), and click "Set Session Key" on the bonding account you generated earlier. Enter the output from `author_rotateKeys` in the field and click "Set Session Key".
+Go to [Staking > Account Actions](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/staking/actions), and click "Session Key" on the bonding account you generated earlier. Enter the output from `author_rotateKeys` in the field and click "Set Session Key".
 
 ![Set Session Key](./screenshots/session_key.png)
 
