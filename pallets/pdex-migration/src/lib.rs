@@ -26,10 +26,12 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{traits::AtLeast32BitUnsigned, SaturatedConversion},
-    traits::{Currency, ReservableCurrency}
 };
+use orml_traits::MultiCurrencyExtended;
+use polkadex_primitives::assets::AssetId;
 use sp_core::{H160, U256};
 use sp_runtime::traits::StaticLookup;
+
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Config: frame_system::Config {
 	/// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -42,7 +44,11 @@ pub trait Config: frame_system::Config {
 		+ Copy
 		+ MaybeSerializeDeserialize;
 	/// Module that handles tokens
-	type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+	type Currency: MultiCurrencyExtended<
+		Self::AccountId,
+		CurrencyId = AssetId,
+		Balance = Self::Balance,
+	>;
 
 	type CallOrigin: EnsureOrigin<Self::Origin, Success = H160>;
 }
@@ -78,24 +84,25 @@ decl_error! {
 // These functions materialize as "extrinsics", which are often compared to transactions.
 // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 decl_module! {
-    pub struct Module<T: Config> for enum Call where origin: T::Origin {
-        // Errors must be initialized if they are used by the pallet.
-        type Error = Error<T>;
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
+		// Errors must be initialized if they are used by the pallet.
+		type Error = Error<T>;
 
-        fn deposit_event() = default;
+		fn deposit_event() = default;
 
-        #[weight = 10000]
-        pub fn mint(origin, token: H160, sender: H160, recipient: <T::Lookup as StaticLookup>::Source, amount: U256) -> DispatchResult {
-            let who = T::CallOrigin::ensure_origin(origin)?;
-            if who != Address::get() {
-                return Err(DispatchError::BadOrigin.into());
-            }
+		#[weight = 10000]
+		pub fn mint(origin, token: H160, sender: H160, recipient: <T::Lookup as StaticLookup>::Source, amount: U256) -> DispatchResult {
+			let who = T::CallOrigin::ensure_origin(origin)?;
+			if who != Address::get() {
+				return Err(DispatchError::BadOrigin);
+			}
 
-            let recipient = T::Lookup::lookup(recipient)?;
-            T::Currency::deposit_creating(&recipient, amount.as_u128().saturated_into());
-            Self::deposit_event(RawEvent::NativePDEXMinted(token, sender, recipient, amount, 0_u128.saturated_into()));
+			let recipient = T::Lookup::lookup(recipient)?;
+			// TODO: Convert U256 amount to T::Balance amount
+			// T::Currency::deposit(AssetId::POLKADEX, &recipient, amount)?;
+			Self::deposit_event(RawEvent::NativePDEXMinted(token, sender, recipient, amount,0_u128.saturated_into()));
 
-            Ok(())
-        }
-    }
+			Ok(())
+		}
+	}
 }

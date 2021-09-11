@@ -10,7 +10,7 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public, U256};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
@@ -18,13 +18,11 @@ use sp_runtime::{
 
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
-constants::currency::*, wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BasicInboundChannelConfig,
-	BalancesConfig, CouncilConfig, ElectionsConfig, ERC20PDEXConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig,
+	constants::currency::*, wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig,
+	BalancesConfig, CouncilConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig,
 	OrmlVestingConfig, PolkadexTreasuryModuleId, SessionConfig, SessionKeys, StakerStatus,
-	StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, MAX_NOMINATIONS, EthereumLightClientConfig
+	StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, MAX_NOMINATIONS,
 };
-
-use snowbridge_ethereum_light_client::EthereumHeader;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -787,37 +785,6 @@ pub fn testnet_genesis(
 		vesting: Default::default(),
 		orml_vesting: OrmlVestingConfig { vesting: investor_vesting },
 		tokens: Default::default(),
-		ethereum_light_client: EthereumLightClientConfig {
-            initial_header: EthereumHeader {
-				parent_hash: hex!("c1210731a8d26089ec773f89bea888bf2890515dc20572221ded05719d19e4f4").into(),
-				timestamp: 1631299273u64.into(),
-				number: 11010246u64.into(),
-				author: hex!("c778c07d75cdd78bb62e91cb832e6066ef622588").into(),
-				transactions_root: hex!("413cd38423391bb65b455ab95e9405a3b9951dcc63fdfc68dd0c51920ab815d0").into(),
-				ommers_hash: hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").into(),
-				extra_data: hex!("d883010a08846765746888676f312e31362e33856c696e7578").into(),
-				state_root: hex!("87627657760a55920f39157913d599f15f8a674b02ef85523718d2965efccbf3").into(),
-				receipts_root: hex!("f3132d402328bb85d10a4878b584e72d585937bc54147692a7981056913a2465").into(),
-				logs_bloom: (&hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")).into(),
-				gas_used: 67159u64.into(),
-				gas_limit: 8000000u64.into(),
-				difficulty: 1217149416u64.into(),
-				seal: vec![
-						hex!("a00822bd8c70e66dec595b064aa654a4268d440984a454ed7882088d0b432b2b6f").to_vec(),
-						hex!("8831e9af96c7844c16").to_vec(),
-				],
-                // Take this from Etherscan ( value should be entered in wei)
-                base_fee: Some(U256::from(8u128))
-            },
-            // Take this from Etherscan ( value is same as total_difficulty)
-            initial_difficulty: U256::from(34730880012898948u128),
-        },
-		basic_inbound_channel: BasicInboundChannelConfig {
-            source_channel: hex!["b371cCeCB79914d2640c57994D9fd819Cb0a48B0"].into(),
-        },
-		erc20pdex: ERC20PDEXConfig {
-            address: hex!["e92763D8bfD8583e9c5E64736480D0dAF5F67F42"].into()
-        },
 	}
 }
 
