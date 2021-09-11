@@ -49,6 +49,12 @@ pallet-society = { default-features = false, git = "https://github.com/paritytec
 pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 
+# Snowbridge Dependencies
+snowbridge-ethereum-light-client = { git = "https://github.com/Polkadex-Substrate/snowbridge", branch = "frank.merge-upstream", default-features = false }
+snowbridge-dispatch = { git = "https://github.com/Polkadex-Substrate/snowbridge", branch = "frank.merge-upstream", default-features = false }
+snowbridge-basic-channel = { git = "https://github.com/Polkadex-Substrate/snowbridge", branch = "frank.merge-upstream", default-features = false }
+snowbridge-core = { git = "https://github.com/Polkadex-Substrate/snowbridge", branch = "frank.merge-upstream", default-features = false }
+
 #end added
 #frame
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -91,7 +97,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
 
-#erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
+erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -158,7 +164,12 @@ std = [
     "orml-currencies/std",
     "orml-tokens/std",
     "orml-traits/std",
-    "polkadex-primitives/std"
+    "polkadex-primitives/std",
+    'snowbridge-ethereum-light-client/std',
+    'snowbridge-dispatch/std',
+    'snowbridge-basic-channel/std',
+    'snowbridge-core/std',
+    'erc20-pdex-migration-pallet/std',
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
