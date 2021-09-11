@@ -21,6 +21,7 @@ pub mod pallet_balances;
 pub mod pallet_bounties;
 pub mod pallet_collective;
 pub mod pallet_elections_phragmen;
+pub mod pallet_grandpa;
 pub mod pallet_identity;
 pub mod pallet_im_online;
 pub mod pallet_indices;

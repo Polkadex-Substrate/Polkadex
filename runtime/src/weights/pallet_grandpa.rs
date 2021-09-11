@@ -33,7 +33,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions for pallet_grandpa.
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_grandpa::WeightInfo for WeightInfo<T> {
-	fn check_equivocation_proof(_x: u32, ) -> Weight {
+	fn report_equivocation(_x: u32, ) -> Weight {
 		(77_622_000 as Weight)
 	}
 	// Storage: Grandpa Stalled (r:0 w:1)
