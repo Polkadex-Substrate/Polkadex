@@ -1354,7 +1354,7 @@ impl orml_vesting::Config for Runtime {
     type Currency = pallet_balances::Pallet<Runtime>;
     type MinVestedTransfer = MinVestedTransfer;
     type VestedTransferOrigin = EnsureRootOrPolkadexTreasury;
-    type WeightInfo = (); //todo orml
+    type WeightInfo = weights::orml_vesting::WeightInfo<Runtime>;
     type MaxVestingSchedules = MaxVestingSchedules;
     type BlockNumberProvider = SusbtrateBlockNumberProvider;
 }
@@ -1383,7 +1383,7 @@ impl orml_tokens::Config for Runtime {
     type Balance = Balance;
     type Amount = Amount;
     type CurrencyId = AssetId;
-    type WeightInfo = (); //todo orml
+    type WeightInfo = weights::orml_tokens::WeightInfo<Runtime>;
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
     type MaxLocks = MaxLocks;
@@ -1399,7 +1399,7 @@ impl orml_currencies::Config for Runtime {
     type MultiCurrency = Tokens;
     type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
     type GetNativeCurrencyId = GetNativeCurrencyId;
-    type WeightInfo = (); //todo orml
+    type WeightInfo = weights::orml_currencies::WeightInfo<Runtime>;
 }
 
 #[cfg(test)]

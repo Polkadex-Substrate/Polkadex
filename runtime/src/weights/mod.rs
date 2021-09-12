@@ -34,3 +34,6 @@ pub mod pallet_staking;
 pub mod pallet_timestamp;
 pub mod pallet_treasury;
 pub mod pallet_utility;
+pub mod orml_currencies;
+pub mod orml_tokens;
+pub mod orml_vesting;
