@@ -158,4 +158,5 @@ runtime-benchmarks = [
     "pallet-timestamp/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
     "frame-election-provider-support/runtime-benchmarks",
+    "erc20-pdex-migration-pallet/runtime-benchmarks"
 ]

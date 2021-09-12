@@ -33,6 +33,8 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
 mod benchmarking;
 
 const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
@@ -44,6 +46,8 @@ pub trait Config: frame_system::Config + pallet_balances::Config + pallet_sudo::
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     /// Lock Period
     type LockPeriod: Get<<Self as frame_system::Config>::BlockNumber>;
+    /// Weight Info for PDEX migration
+    type WeightInfo;
 }
 
 decl_storage! {
@@ -103,47 +107,47 @@ decl_module! {
         fn deposit_event() = default;
 
         #[weight = 10000]
-        pub fn set_migration_operational_status(origin, status: bool) -> DispatchResult {
+        pub fn set_migration_operational_status(origin, status: bool) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Operational::put(status);
-            Ok(())
+            Ok(Pays::No.into())
         }
 
         #[weight = 10000]
-        pub fn set_relayer_status(origin, relayer: T::AccountId, status: bool) -> DispatchResult {
+        pub fn set_relayer_status(origin, relayer: T::AccountId, status: bool) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Relayers::<T>::insert(&relayer,status);
             Self::deposit_event(RawEvent::RelayerStatusUpdated(relayer,status));
-            Ok(())
+            Ok(Pays::No.into())
         }
 
         #[weight = 10000]
-        pub fn mint(origin, beneficiary: T::AccountId, amount: T::Balance, eth_tx: T::Hash) -> DispatchResult {
+        pub fn mint(origin, beneficiary: T::AccountId, amount: T::Balance, eth_tx: T::Hash) -> DispatchResultWithPostInfo {
             let relayer = ensure_signed(origin)?;
             if Self::operational(){
                 Self::process_migration(relayer,beneficiary,amount,eth_tx)?;
-                Ok(())
+                Ok(Pays::No.into())
             }else{
                 Err(Error::<T>::NotOperational)?
             }
         }
 
         #[weight = 10000]
-        pub fn unlock(origin) -> DispatchResult {
+        pub fn unlock(origin) -> DispatchResultWithPostInfo {
             let beneficiary = ensure_signed(origin)?;
             if Self::operational(){
                 Self::process_unlock(beneficiary)?;
-                Ok(())
+                Ok(Pays::No.into())
             }else{
                 Err(Error::<T>::NotOperational)?
             }
         }
 
         #[weight = 10000]
-        pub fn remove_minted_tokens(origin, beneficiary: T::AccountId) -> DispatchResult {
+        pub fn remove_minted_tokens(origin, beneficiary: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Self::remove_fradulent_tokens(beneficiary)?;
-            Ok(())
+            Ok(Pays::No.into())
         }
     }
 }

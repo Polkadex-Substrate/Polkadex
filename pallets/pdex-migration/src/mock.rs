@@ -83,6 +83,7 @@ parameter_types! {
 impl pdex_migration::Config for Test {
     type Event = Event;
     type LockPeriod = LockPeriod;
+    type WeightInfo = ();
 }
 
 impl pallet_sudo::Config for Test {
