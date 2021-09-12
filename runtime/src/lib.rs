@@ -882,7 +882,8 @@ impl pallet_grandpa::Config for Runtime {
         ReportLongevity,
     >;
 
-    type WeightInfo = (); //todo grandpa
+    type WeightInfo = weights::pallet_grandpa::WeightInfo<Runtime>;
+
 }
 
 parameter_types! {
