@@ -1248,9 +1248,9 @@ impl_runtime_apis! {
             list_benchmark!(list,extra, pallet_timestamp, Timestamp);
             list_benchmark!(list,extra, pallet_treasury, Treasury);
             list_benchmark!(list,extra, pallet_utility, Utility);
-            list_benchmark!(list,extra, pallet_orml_vesting, Utility);
-            list_benchmark!(list,extra, pallet_orml_token, Utility);
-            list_benchmark!(list,extra, pallet_orml_curencies, Utility);
+            list_benchmark!(list,extra, orml_vesting, Utility);
+            list_benchmark!(list,extra, orml_token, Utility);
+            list_benchmark!(list,extra, orml_curencies, Utility);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1308,9 +1308,9 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
-            add_benchmark!(params, batches, pallet_orml_vesting, Utility);
-            add_benchmark!(params, batches, pallet_orml_token, Utility);
-            add_benchmark!(params, batches, pallet_orml_curencies, Utility);
+            add_benchmark!(params, batches, orml_vesting, Utility);
+            add_benchmark!(params, batches, orml_token, Utility);
+            add_benchmark!(params, batches, orml_curencies, Utility);
 
             
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
