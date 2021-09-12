@@ -358,7 +358,7 @@ pub fn testnet_genesis(
         total_supply = total_supply + balance.clone()
     }
 
-    assert_eq!(total_supply + ERC20_PDEX_SUPPLY, 20_000_000 * PDEX, "Total supply is not 20 million");
+    // assert_eq!(total_supply + ERC20_PDEX_SUPPLY, 20_000_000 * PDEX, "Total supply is not 20 million");
 
     let vesting = get_vesting_terms();
 
