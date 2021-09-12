@@ -425,6 +425,7 @@ pub fn testnet_genesis(
 
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
     // 3 months in terms of 12s blocks is 648,000 blocks, i.e. period = 648,000
+    let OCT_16_2021
     // who, start, period, period_count, per_period
     // vec![ (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 1, 30, 1, 3655828 * PDEX)]
     vec![]

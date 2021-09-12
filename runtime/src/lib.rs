@@ -964,8 +964,15 @@ impl orml_vesting::Config for Runtime {
     type MaxVestingSchedules = MaxVestingSchedules;
     type BlockNumberProvider = SusbtrateBlockNumberProvider;
 }
+parameter_types! {
+    pub const LockPeriod: BlockNumber = 201600;
+}
 
 
+impl erc20_pdex_migration_pallet::Config for Runtime {
+    type Event = Event;
+    type LockPeriod = LockPeriod;
+}
 
 construct_runtime!(
     pub enum Runtime where
