@@ -30,9 +30,6 @@ pub struct FundingRoundWithPrimitives<AccountId> {
     pub max_allocation: Balance,
     #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
     #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
-    pub operator_commission: Balance,
-    #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
-    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
     pub token_a_priceper_token_b: Balance,
     pub close_round_block: BlockNumber,
     #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
