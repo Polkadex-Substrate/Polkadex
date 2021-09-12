@@ -1390,6 +1390,7 @@ dependencies = [
 name = "erc20-pdex-migration-pallet"
 version = "1.0.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-balances",

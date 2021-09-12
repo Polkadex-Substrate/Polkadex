@@ -77,7 +77,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-    pub const LockPeriod: u64 = 10;
+    pub const LockPeriod: u64 = 201600;
 }
 
 impl pdex_migration::Config for Test {
