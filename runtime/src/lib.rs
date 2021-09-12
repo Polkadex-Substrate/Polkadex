@@ -364,8 +364,7 @@ impl pallet_babe::Config for Runtime {
 
     type HandleEquivocation =
     pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
-
-    type WeightInfo = ();
+    type WeightInfo = weights::pallet_babe::WeightInfo<Runtime>;
     type DisabledValidators = Session;
 }
 
@@ -378,7 +377,7 @@ impl pallet_indices::Config for Runtime {
     type Currency = Balances;
     type Deposit = IndexDeposit;
     type Event = Event;
-    type WeightInfo = pallet_indices::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = weights::pallet_indices::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -396,7 +395,8 @@ impl pallet_balances::Config for Runtime {
     type MaxLocks = MaxLocks;
     type MaxReserves = MaxReserves;
     type ReserveIdentifier = [u8; 8];
-    type WeightInfo = ();
+    type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
+
 }
 
 parameter_types! {
@@ -423,7 +423,7 @@ impl pallet_timestamp::Config for Runtime {
     type Moment = Moment;
     type OnTimestampSet = Babe;
     type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = weights::pallet_timestamp::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -513,7 +513,8 @@ impl pallet_staking::Config for Runtime {
     type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
     type NextNewSession = Session;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
-    type WeightInfo = ();
+    type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
+
 }
 
 parameter_types! {
@@ -601,6 +602,8 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
         pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
     >;
     type WeightInfo = ();
+    //TODO type WeightInfo = pallet_pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
+
     type Solution = NposCompactSolution16;
 }
 
@@ -882,7 +885,7 @@ impl pallet_grandpa::Config for Runtime {
         ReportLongevity,
     >;
 
-    type WeightInfo = ();
+    type WeightInfo = (); //todo grandpa
 }
 
 parameter_types! {
@@ -1353,7 +1356,7 @@ impl orml_vesting::Config for Runtime {
     type Currency = pallet_balances::Pallet<Runtime>;
     type MinVestedTransfer = MinVestedTransfer;
     type VestedTransferOrigin = EnsureRootOrPolkadexTreasury;
-    type WeightInfo = ();
+    type WeightInfo = (); //todo orml
     type MaxVestingSchedules = MaxVestingSchedules;
     type BlockNumberProvider = SusbtrateBlockNumberProvider;
 }
@@ -1382,7 +1385,7 @@ impl orml_tokens::Config for Runtime {
     type Balance = Balance;
     type Amount = Amount;
     type CurrencyId = AssetId;
-    type WeightInfo = ();
+    type WeightInfo = (); //todo orml
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
     type MaxLocks = MaxLocks;
@@ -1398,7 +1401,7 @@ impl orml_currencies::Config for Runtime {
     type MultiCurrency = Tokens;
     type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
     type GetNativeCurrencyId = GetNativeCurrencyId;
-    type WeightInfo = ();
+    type WeightInfo = (); //todo orml
 }
 
 #[cfg(test)]
