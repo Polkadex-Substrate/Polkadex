@@ -194,5 +194,9 @@ runtime-benchmarks = [
 	# "pallet-offences-benchmarking",
 	# "pallet-session-benchmarking",
 	"frame-system-benchmarking",
+    "orml-vesting/runtime-benchmarks",
+    # "orml-currencies/runtime-benchmarks",
+    "orml-tokens/runtime-benchmarks",
+    # "orml-traits/runtime-benchmarks",
 	"hex-literal",
 ]
