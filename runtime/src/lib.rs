@@ -364,7 +364,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-    pub const IndexDeposit: Balance = 1 * PDEX;
+    pub const IndexDeposit: Balance = PDEX;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -376,7 +376,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * PDEX;
+	pub const ExistentialDeposit: Balance = PDEX;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
@@ -538,7 +538,7 @@ parameter_types! {
 	// 0.01 PDEX per KB of solution data.
 	pub const SignedDepositByte: Balance = deposit(0, 10) / 1024;
 	// Each good submission will get 1 DOT as reward
-	pub SignedRewardBase: Balance = 1 * UNITS;
+	pub SignedRewardBase: Balance = UNITS;
 	// fallback: emergency phase.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
 		pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
@@ -813,7 +813,7 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature.into(), extra)))
+        Some((call, (address, signature, extra)))
     }
 }
 
