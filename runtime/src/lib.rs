@@ -600,7 +600,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
     >;
-    type WeightInfo = ();
+    type WeightInfo =  weights::pallet_election_provider_multi_phase::WeightInfo<Runtime>;
     type Solution = NposCompactSolution16;
 }
 
@@ -689,7 +689,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type MaxProposals = TechnicalMaxProposals;
     type MaxMembers = TechnicalMaxMembers;
     type DefaultVote = pallet_collective::PrimeDefaultVote;
-    //type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
     type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
 }
 
@@ -1354,7 +1353,7 @@ impl orml_vesting::Config for Runtime {
     type Currency = pallet_balances::Pallet<Runtime>;
     type MinVestedTransfer = MinVestedTransfer;
     type VestedTransferOrigin = EnsureRootOrPolkadexTreasury;
-    type WeightInfo = weights::orml_vesting::WeightInfo<Runtime>;
+    type WeightInfo = ();
     type MaxVestingSchedules = MaxVestingSchedules;
     type BlockNumberProvider = SusbtrateBlockNumberProvider;
 }
@@ -1383,7 +1382,7 @@ impl orml_tokens::Config for Runtime {
     type Balance = Balance;
     type Amount = Amount;
     type CurrencyId = AssetId;
-    type WeightInfo = weights::orml_tokens::WeightInfo<Runtime>;
+    type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
     type MaxLocks = MaxLocks;
@@ -1399,7 +1398,7 @@ impl orml_currencies::Config for Runtime {
     type MultiCurrency = Tokens;
     type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
     type GetNativeCurrencyId = GetNativeCurrencyId;
-    type WeightInfo = weights::orml_currencies::WeightInfo<Runtime>;
+    type WeightInfo = ();
 }
 
 #[cfg(test)]
