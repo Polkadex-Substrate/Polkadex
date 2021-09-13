@@ -27,7 +27,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch,
     traits::{Get, OriginTrait},
 };
-use frame_support::dispatch::{Dispatchable, DispatchInfo, GetDispatchInfo, PostDispatchInfo};
+use frame_support::dispatch::{Dispatchable, DispatchInfo, GetDispatchInfo, PostDispatchInfo, DispatchError};
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 use frame_support::traits::{Filter, Randomness};
@@ -216,10 +216,11 @@ decl_event!(
         AccountId = <T as frame_system::Config>::AccountId,
         Balance = <T as Config>::Balance,
         Call = <T as Config>::Call,
-        PostInfo = <<T as Config>::Call as Dispatchable>::PostInfo,
+        PostInfo = <<T as Config>::Call as Dispatchable>::PostInfo
     {
         FeelessExtrinsicAccepted(Call),
-        FeelessCallFailedToExecute(PostInfo),
+        FeelessExtrinsicOverWeight(Call),
+        FeelessCallFailedToExecute(PostInfo,DispatchError),
         FeelessCallExecutedSuccessfully(PostInfo),
         FeelessExtrinsicsExecuted(Vec<Call>),
         StakeSlashed(AccountId, Balance),
@@ -270,19 +271,18 @@ decl_module! {
                 total_weight = total_weight.saturating_add(ext.call.get_dispatch_info().weight);
                 if total_weight > T::MaxAllowedWeight::get() {
                     total_weight = total_weight.saturating_sub(ext.call.get_dispatch_info().weight);
-                    break;
-                }
-                match ext.call.dispatch(ext.origin.into()) {
-                    Ok(post_info) => {
-                        Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
+                    Self::deposit_event(RawEvent::FeelessExtrinsicOverWeight(ext.call));
+                }else {
+                     match ext.call.dispatch(ext.origin.into()) {
+                        Ok(post_info) => {
+                            Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
+                        }
+                        Err(post_info_with_error) => {
+                            Self::deposit_event(RawEvent::FeelessCallFailedToExecute(post_info_with_error.post_info, post_info_with_error.error));
+                        }
                     }
-                    Err(post_info_with_error) => {
-                        Self::deposit_event(RawEvent::FeelessCallFailedToExecute(post_info_with_error.post_info));
-                    }
                 }
-
             }
-
             total_weight
         }
 
