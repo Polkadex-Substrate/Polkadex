@@ -1,0 +1,4 @@
+1. Implement rust-ipfs in worker
+2. configure the inherents and runtime api
+3. Install in runtime and client
+4. Start documenting and testing

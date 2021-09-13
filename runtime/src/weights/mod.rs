@@ -16,10 +16,11 @@
 //! A list of the different weight modules for our runtime.
 
 pub mod frame_system;
-pub mod pallet_balances;
 pub mod pallet_babe;
+pub mod pallet_balances;
 pub mod pallet_bounties;
 pub mod pallet_collective;
+pub mod pallet_election_provider_multi_phase;
 pub mod pallet_elections_phragmen;
 pub mod pallet_grandpa;
 pub mod pallet_identity;
@@ -34,4 +35,3 @@ pub mod pallet_staking;
 pub mod pallet_timestamp;
 pub mod pallet_treasury;
 pub mod pallet_utility;
-pub mod pallet_election_provider_multi_phase;

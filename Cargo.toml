@@ -5,7 +5,10 @@ panic = 'unwind'
 members = [
     'node',
     'pallets/pdex-migration',
+    'pallets/ipfs-pallet',
+    'pallets/ipfs-client',
     'runtime',
+    'offchain-ipfs-primitives'
 ]
 
 
