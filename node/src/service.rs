@@ -619,6 +619,7 @@ mod tests {
 	type AccountPublic = <Signature as Verify>::Signer;
 
 	#[test]
+	#[ignore]
 	// It is "ignored", but the node-cli ignored tests are running on the CI.
 	// This can be run locally with `cargo test --release -p node-cli test_sync -- --ignored`.
 	fn test_sync() {
@@ -819,6 +820,7 @@ mod tests {
 	}
 
 	#[test]
+	#[ignore]
 	fn test_consensus() {
 		sc_service_test::consensus(
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
