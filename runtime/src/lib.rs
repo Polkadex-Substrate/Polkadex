@@ -33,19 +33,18 @@ use frame_support::{
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        DispatchClass, IdentityFee, Weight,
+        DispatchClass, Weight,
     },
 };
+
 use frame_support::{PalletId, traits::InstanceFilter};
-use frame_support::traits::{OnUnbalanced, Contains, Everything};
+use frame_support::traits::{OnUnbalanced, Everything};
 use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
 };
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
-use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
@@ -58,9 +57,10 @@ pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdj
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
-use polkadex_primitives::assets::AssetId;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use frame_support::weights::WeightToFeeCoefficient;
+use smallvec::smallvec;
 use sp_core::{
     crypto::KeyTypeId,
     OpaqueMetadata,
@@ -74,8 +74,7 @@ use sp_runtime::{
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::curve::PiecewiseLinear;
-use sp_runtime::generic::Era;
-use sp_runtime::traits::{self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, Zero, BlockNumberProvider};
+use sp_runtime::traits::{self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, BlockNumberProvider};
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
@@ -87,7 +86,7 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use impls::Author;
+use frame_support::weights::{WeightToFeePolynomial, WeightToFeeCoefficients};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -113,7 +112,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("node"),
-    impl_name: create_runtime_str!("node"),
+    impl_name: create_runtime_str!("polkadex-official"),
     authoring_version: 10,
     // Per convention: if the runtime behavior changes, increment spec_version
     // and set impl_version to 0. If only runtime
@@ -144,18 +143,14 @@ pub fn native_version() -> NativeVersion {
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
-
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
-        if let Some(fees) = fees_then_tips.next() {
-            // for fees, 80% to treasury, 20% to author
-            let mut split = fees.ration(80, 20);
+        if let Some(mut fees) = fees_then_tips.next() {
             if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any, 80% to treasury, 20% to author (though this can be anything)
-                tips.ration_merge_into(80, 20, &mut split);
+                tips.merge_into(&mut fees);
             }
-            Treasury::on_unbalanced(split.0);
-            Author::on_unbalanced(split.1);
+            // Sent everything to treasury
+            Treasury::on_unbalanced(fees);
         }
     }
 }
@@ -166,8 +161,8 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
 /// by  Operational  extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
+/// We allow for 4 seconds of compute with a 12 second average block time.
+const MAXIMUM_BLOCK_WEIGHT: Weight = 4 * WEIGHT_PER_SECOND;
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 2400;
@@ -261,10 +256,10 @@ parameter_types! {
 /// The type used to represent the kinds of proxying allowed.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug,MaxEncodedLen)]
 pub enum ProxyType {
-    Any,
-    NonTransfer,
-    Governance,
-    Staking,
+    Any = 0,
+    NonTransfer = 1,
+    Governance = 2,
+    Staking = 3,
 }
 
 impl Default for ProxyType {
@@ -276,11 +271,10 @@ impl Default for ProxyType {
 impl InstanceFilter<Call> for ProxyType {
     fn filter(&self, c: &Call) -> bool {
         match self {
-            ProxyType::Any => true,
+            ProxyType::Any => false,
             ProxyType::NonTransfer => !matches!(
                 c,
                 Call::Balances(..)
-                    | Call::Vesting(pallet_vesting::Call::vested_transfer(..))
                     | Call::Indices(pallet_indices::Call::transfer(..))
             ),
             ProxyType::Governance => matches!(
@@ -400,19 +394,33 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionByteFee: Balance = 10 * MILLICENT;
-	// TODO, Update this as per polkadot
+    pub const TransactionByteFee: Balance = 10 * MILLICENTS;
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-    pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+    pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
     pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
+}
+
+pub struct WeightToFee;
+impl WeightToFeePolynomial for WeightToFee {
+    type Balance = Balance;
+    fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+        // Extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
+        let p = CENTS;
+        let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
+        smallvec![WeightToFeeCoefficient {
+				degree: 1,
+				negative: false,
+				coeff_frac: Perbill::from_rational(p % q, q),
+				coeff_integer: p / q,
+			}]
+    }
 }
 
 impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
     type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate =
-    TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    type WeightToFee = WeightToFee;
+    type FeeMultiplierUpdate = TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 parameter_types! {
@@ -472,8 +480,8 @@ pallet_staking_reward_curve::build! {
     const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
         min_inflation: 0_025_000,
         max_inflation: 0_100_000,
-		// Before, we launch the products we want 75% of supply to be staked
-        ideal_stake: 0_750_000,
+		// Before, we launch the products we want 50% of supply to be staked
+        ideal_stake: 0_500_000,
         falloff: 0_050_000,
         max_piece_count: 40,
         test_precision: 0_005_000,
@@ -481,9 +489,11 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
+    // Six session in a an era (24 hrs)
     pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-    pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
-    pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+    // 28 era for unbonding (28 days)
+    pub const BondingDuration: pallet_staking::EraIndex = 28;
+    pub const SlashDeferDuration: pallet_staking::EraIndex = 27;
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     pub const MaxNominatorRewardedPerValidator: u32 = 256;
 }
@@ -587,8 +597,8 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type RewardHandler = (); // nothing to do upon rewards
     type SolutionImprovementThreshold = SolutionImprovementThreshold;
     type MinerMaxIterations = MinerMaxIterations;
-    type MinerMaxWeight = OffchainSolutionWeightLimit; // For now use the one from staking. TODO
-    type MinerMaxLength = OffchainSolutionLengthLimit; // TODO
+    type MinerMaxWeight = OffchainSolutionWeightLimit;
+    type MinerMaxLength = OffchainSolutionLengthLimit;
     type OffchainRepeat = OffchainRepeat;
     type MinerTxPriority = NposSolutionPriority;
     type DataProvider = Staking;
@@ -605,28 +615,12 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 }
 
 parameter_types! {
-    pub const LaunchPeriod: BlockNumber = 28 * 24 * 60 * MINUTE;
-    pub const VotingPeriod: BlockNumber = 28 * 24 * 60 * MINUTE;
-    pub const FastTrackVotingPeriod: BlockNumber = 3 * 24 * 60 * MINUTE;
-    pub const InstantAllowed: bool = true;
-    pub const MinimumDeposit: Balance = 100 * DOLLAR;
-    pub const EnactmentPeriod: BlockNumber = 30 * 24 * 60 * MINUTE;
-    pub const CooloffPeriod: BlockNumber = 28 * 24 * 60 * MINUTE;
-    // One cent: $10,000 / MB
-    pub const PreimageByteDeposit: Balance = CENT;
-    pub const MaxVotes: u32 = 100;
-    pub const MaxProposals: u32 = 100;
-}
-
-
-parameter_types! {
-    pub const CouncilMotionDuration: BlockNumber = 5 * DAY;
+    pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
     pub const CouncilMaxProposals: u32 = 100;
     pub const CouncilMaxMembers: u32 = 100;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
-
 impl pallet_collective::Config<CouncilCollective> for Runtime {
     type Origin = Origin;
     type Proposal = Call;
@@ -639,14 +633,14 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
-    pub const CandidacyBond: Balance = 10 * DOLLAR;
+    pub const CandidacyBond: Balance = 100 * PDEX;
     // 1 storage item created, key size is 32 bytes, value size is 16+16.
     pub const VotingBondBase: Balance = deposit(1, 64);
     // additional data per vote is 32 bytes (account id).
     pub const VotingBondFactor: Balance = deposit(0, 32);
-    pub const TermDuration: BlockNumber = 7 * DAY;
+    pub const TermDuration: BlockNumber = 7 * DAYS;
     pub const DesiredMembers: u32 = 13;
-    pub const DesiredRunnersUp: u32 = 7;
+    pub const DesiredRunnersUp: u32 = 20;
     pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 
@@ -674,13 +668,12 @@ impl pallet_elections_phragmen::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TechnicalMotionDuration: BlockNumber = 5 * DAY;
+    pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
     pub const TechnicalMaxProposals: u32 = 100;
     pub const TechnicalMaxMembers: u32 = 100;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
-
 impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type Origin = Origin;
     type Proposal = Call;
@@ -713,20 +706,20 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
-    pub const ProposalBondMinimum: Balance = DOLLAR;
-    pub const SpendPeriod: BlockNumber = DAY;
-    pub const Burn: Permill = Permill::from_percent(50);
-    pub const TipCountdown: BlockNumber = DAY;
+    pub const ProposalBondMinimum: Balance = 100 * PDEX;
+    pub const SpendPeriod: BlockNumber = 24 * DAYS;
+    pub const Burn: Permill = Permill::from_percent(1);
+    pub const TipCountdown: BlockNumber = 1 * DAYS;
     pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = DOLLAR;
-    pub const DataDepositPerByte: Balance = CENT;
-    pub const BountyDepositBase: Balance = DOLLAR;
-    pub const BountyDepositPayoutDelay: BlockNumber = DAY;
+    pub const TipReportDepositBase: Balance = 1 * PDEX;
+    pub const DataDepositPerByte: Balance = 1 * CENTS;
+    pub const BountyDepositBase: Balance = 1 * PDEX;
+    pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
     pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-    pub const BountyUpdatePeriod: BlockNumber = 14 * DAY;
+    pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
     pub const MaximumReasonLength: u32 = 16384;
     pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-    pub const BountyValueMinimum: Balance = 5 * DOLLAR;
+    pub const BountyValueMinimum: Balance = 10 * PDEX;
     pub const MaxApprovals: u32 = 100;
 }
 
@@ -738,11 +731,7 @@ impl pallet_treasury::Config for Runtime {
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
     >;
-    type RejectOrigin = EnsureOneOf<
-        AccountId,
-        EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
-    >;
+    type RejectOrigin = EnsureRootOrHalfCouncil;
     type Event = Event;
     type OnSlash = ();
     type ProposalBond = ProposalBond;
@@ -804,12 +793,14 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
             // The `System::block_number` is initialized with `n+1`,
             // so the actual block number is `n`.
             .saturating_sub(1);
-        let era = Era::mortal(period, current_block);
         let extra = (
             frame_system::CheckSpecVersion::<Runtime>::new(),
             frame_system::CheckTxVersion::<Runtime>::new(),
             frame_system::CheckGenesis::<Runtime>::new(),
-            frame_system::CheckEra::<Runtime>::from(era),
+            frame_system::CheckMortality::<Runtime>::from(generic::Era::mortal(
+                period,
+                current_block
+            )),
             frame_system::CheckNonce::<Runtime>::from(nonce),
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
@@ -855,7 +846,7 @@ impl pallet_offences::Config for Runtime {
     type OnOffenceHandler = Staking;
 }
 parameter_types! {
-    	pub const MaxAuthorities: u32 = 100;
+    	pub const MaxAuthorities: u32 = 100_000;
 }
 
 impl pallet_authority_discovery::Config for Runtime {
@@ -887,9 +878,9 @@ impl pallet_grandpa::Config for Runtime {
 }
 
 parameter_types! {
-    pub const BasicDeposit: Balance = 10 * PDEX;       // 258 bytes on-chain
-    pub const FieldDeposit: Balance = 250 * CENT;        // 66 bytes on-chain
-    pub const SubAccountDeposit: Balance = 2 * DOLLAR;   // 53 bytes on-chain
+    pub const BasicDeposit: Balance = deposit(1,258);       // 258 bytes on-chain
+    pub const FieldDeposit: Balance = deposit(0,66);        // 66 bytes on-chain
+    pub const SubAccountDeposit: Balance = deposit(1,53);   // 53 bytes on-chain
     pub const MaxSubAccounts: u32 = 100;
     pub const MaxAdditionalFields: u32 = 100;
     pub const MaxRegistrars: u32 = 20;
@@ -912,7 +903,7 @@ impl pallet_identity::Config for Runtime {
 
 parameter_types! {
     pub const ConfigDepositBase: Balance = 5 * PDEX;
-    pub const FriendDepositFactor: Balance = 50 * CENT;
+    pub const FriendDepositFactor: Balance = 50 * CENTS;
     pub const MaxFriends: u16 = 9;
     pub const RecoveryDeposit: Balance = 5 * PDEX;
 }
@@ -927,20 +918,63 @@ impl pallet_recovery::Config for Runtime {
     type RecoveryDeposit = RecoveryDeposit;
 }
 
-// FIXME: Do we need this?
-impl pallet_vesting::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-    type BlockNumberToBalance = ConvertInto;
-    type MinVestedTransfer = MinVestedTransfer;
-    type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
-    // `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
-    // highest number of schedules that encodes less than 2^10.
-    const MAX_VESTING_SCHEDULES: u32 = 28;
+parameter_types! {
+	pub MinVestedTransfer: Balance = PDEX;
+	pub const MaxVestingSchedules: u32 = 300;
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
+pub struct SusbtrateBlockNumberProvider;
+impl BlockNumberProvider for SusbtrateBlockNumberProvider{
+    type BlockNumber = BlockNumber;
 
+    fn current_block_number() -> Self::BlockNumber {
+        System::block_number()
+    }
+}
+
+pub struct EnsureRootOrTreasury;
+impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
+    type Success = AccountId;
+
+    fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+        Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+            RawOrigin::Root => Ok(TreasuryPalletId::get().into_account()),
+            RawOrigin::Signed(caller) => {
+                if caller == TreasuryPalletId::get().into_account() {
+                    Ok(caller)
+                } else {
+                    Err(Origin::from(Some(caller)))
+                }
+            }
+            r => Err(Origin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn successful_origin() -> Origin {
+        Origin::from(RawOrigin::Signed(Default::default()))
+    }
+}
+
+impl orml_vesting::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type MinVestedTransfer = MinVestedTransfer;
+    type VestedTransferOrigin = EnsureRootOrTreasury;
+    type WeightInfo = ();
+    type MaxVestingSchedules = MaxVestingSchedules;
+    type BlockNumberProvider = SusbtrateBlockNumberProvider;
+}
+parameter_types! {
+    pub const LockPeriod: BlockNumber = 201600;
+}
+
+
+impl erc20_pdex_migration_pallet::Config for Runtime {
+    type Event = Event;
+    type LockPeriod = LockPeriod;
+    type WeightInfo = ();
+}
 
 construct_runtime!(
     pub enum Runtime where
@@ -970,21 +1004,19 @@ construct_runtime!(
         AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 19,
         Offences: pallet_offences::{Pallet, Storage, Event} = 20,
         Historical: pallet_session_historical::{Pallet} = 21,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 22,
         Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 23,
         Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 24,
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 26,
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 27,
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 28,
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 29,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 25,
+        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 26,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 27,
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
-        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
-        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 31,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32
+        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 30,
     }
 );
-
+/// Digest item type.
+pub type DigestItem = generic::DigestItem<Hash>;
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
 /// Block header type as expected by this runtime.
@@ -1004,7 +1036,7 @@ pub type SignedExtra = (
     frame_system::CheckSpecVersion<Runtime>,
     frame_system::CheckTxVersion<Runtime>,
     frame_system::CheckGenesis<Runtime>,
-    frame_system::CheckEra<Runtime>,
+    frame_system::CheckMortality<Runtime>,
     frame_system::CheckNonce<Runtime>,
     frame_system::CheckWeight<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
@@ -1249,7 +1281,6 @@ impl_runtime_apis! {
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&config, &whitelist);
 
-            add_benchmark!(params, batches, pallet_assets, Assets);
             add_benchmark!(params, batches, pallet_babe, Babe);
             add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_bounties, Bounties);
@@ -1271,135 +1302,12 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
-            add_benchmark!(params, batches, pallet_vesting, Vesting);
-            add_benchmark!(params, batches, pallet_verifier_lightclient, VerifierLightclient);
+            add_benchmark!(params, batches, erc20_pdex_migration_pallet, PDEXMigration);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
         }
     }
-}
-
-const MODULE_ID: PalletId = PalletId(*b"cb/gover");
-
-pub type Amount = i128;
-
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
-
-parameter_types! {
-    pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
-}
-parameter_types! {
-    pub TreasuryAccountId: AccountId = PolkadexTreasuryModuleId::get().into_account();
-}
-pub struct EnsureGovernance;
-
-impl EnsureOrigin<Origin> for EnsureGovernance {
-    type Success = AccountId;
-    fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
-        let bridge_id = MODULE_ID.into_account();
-        Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-            RawOrigin::Signed(who) if who == bridge_id => Ok(bridge_id),
-            r => Err(Origin::from(r)),
-        })
-    }
-
-    #[cfg(feature = "runtime-benchmarks")]
-    fn successful_origin() -> Origin {
-        Origin::from(RawOrigin::Signed(Default::default()))
-    }
-}
-
-pub struct EnsureRootOrPolkadexTreasury;
-
-impl EnsureOrigin<Origin> for EnsureRootOrPolkadexTreasury {
-    type Success = AccountId;
-
-    fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
-        Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-            RawOrigin::Signed(caller) => {
-                if caller == PolkadexTreasuryModuleId::get().into_account() {
-                    Ok(caller)
-                } else {
-                    Err(Origin::from(Some(caller)))
-                }
-            }
-            r => Err(Origin::from(r)),
-        })
-    }
-
-    #[cfg(feature = "runtime-benchmarks")]
-    fn successful_origin() -> Origin {
-        Origin::from(RawOrigin::Signed(Default::default()))
-    }
-}
-parameter_types! {
-	pub MinVestedTransfer: Balance = 0;
-	pub const MaxVestingSchedules: u32 = 300;
-}
-
-pub struct SusbtrateBlockNumberProvider;
-
-impl BlockNumberProvider for SusbtrateBlockNumberProvider{
-    type BlockNumber = BlockNumber;
-
-    fn current_block_number() -> Self::BlockNumber {
-        System::block_number()
-    }
-}
-
-impl orml_vesting::Config for Runtime {
-    type Event = Event;
-    type Currency = pallet_balances::Pallet<Runtime>;
-    type MinVestedTransfer = MinVestedTransfer;
-    type VestedTransferOrigin = EnsureRootOrPolkadexTreasury;
-    type WeightInfo = ();
-    type MaxVestingSchedules = MaxVestingSchedules;
-    type BlockNumberProvider = SusbtrateBlockNumberProvider;
-}
-
-parameter_type_with_key! {
-    pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
-        match currency_id {
-            AssetId::POLKADEX => PDEX,
-            AssetId::Asset(_) => Zero::zero()
-        }
-    };
-}
-parameter_types! {
-    pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
-}
-
-pub struct DustRemovalWhitelist;
-impl Contains<AccountId> for DustRemovalWhitelist {
-    fn contains(_account: &AccountId) -> bool {
-        false
-    }
-}
-
-impl orml_tokens::Config for Runtime {
-    type Event = Event;
-    type Balance = Balance;
-    type Amount = Amount;
-    type CurrencyId = AssetId;
-    type WeightInfo = ();
-    type ExistentialDeposits = ExistentialDeposits;
-    type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
-    type MaxLocks = MaxLocks;
-    type DustRemovalWhitelist = DustRemovalWhitelist;
-}
-
-parameter_types! {
-    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
-}
-
-impl orml_currencies::Config for Runtime {
-    type Event = Event;
-    type MultiCurrency = Tokens;
-    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
-    type GetNativeCurrencyId = GetNativeCurrencyId;
-    type WeightInfo = ();
 }
 
 #[cfg(test)]

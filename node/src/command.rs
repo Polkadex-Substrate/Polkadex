@@ -52,21 +52,24 @@ impl SubstrateCli for Cli {
 		2017
 	}
 
-	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		let spec = match id {
-			"" =>
-				return Err(
-					"Please specify which chain you want to run, e.g. --dev or --chain=local"
-						.into(),
-				),
-			"dev" => Box::new(chain_spec::development_config()),
-			"udon" => Box::new(chain_spec::udon_testnet_config()),
-			"soba" => Box::new(chain_spec::soba_testnet_config()),
-			path =>
-				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
-		};
-		Ok(spec)
-	}
+    fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+        let spec = match id {
+            "" => {
+                return Err(
+                    "Please specify which chain you want to run, e.g. --dev or --chain=local"
+                        .into(),
+                )
+            }
+            "dev" => Box::new(chain_spec::development_config()),
+            "udon" => Box::new(chain_spec::udon_testnet_config()),
+            "soba" => Box::new(chain_spec::soba_testnet_config()),
+            "mainnet" => Box::new(chain_spec::mainnet_testnet_config()),
+            path => Box::new(chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
+        };
+        Ok(spec)
+    }
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
 		&node_polkadex_runtime::VERSION

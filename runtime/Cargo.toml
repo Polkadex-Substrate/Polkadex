@@ -3,7 +3,7 @@ name = "node-polkadex-runtime"
 version = "3.0.0"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2018"
-license = "Unlicense"
+license = "GNU GPL v3"
 homepage = "https://polkadex.trade"
 repository = "https://github.com/Polkadex-Substrate/Polkadex"
 
@@ -15,6 +15,7 @@ codec = { package = "parity-scale-codec", version = "2.2.0", default-features = 
 hex-literal = { version = "0.3.3", optional = true }
 static_assertions = "1.1.0"
 log = { version = "0.4.14", default-features = false }
+smallvec = "1.6.1"
 #pallets
 #added
 pallet-authorship = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -23,7 +24,6 @@ pallet-balances = { default-features = false, git = "https://github.com/parityte
 pallet-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-im-online = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-offences = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-staking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -39,13 +39,11 @@ pallet-elections-phragmen = { default-features = false, git = "https://github.co
 pallet-membership = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-bounties = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-vesting = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-indices = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-identity = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-proxy = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-tips = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-recovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 
@@ -84,14 +82,10 @@ frame-system-benchmarking = { default-features = false, git = "https://github.co
 
 # ORML Pallets
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
-orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
-
-#erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
+erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -115,18 +109,15 @@ std = [
     'pallet-grandpa/std',
     'pallet-im-online/std',
     'pallet-offences/std',
-    'pallet-randomness-collective-flip/std',
     'pallet-session/std',
     'pallet-staking/std',
     'pallet-authority-discovery/std',
     'pallet-multisig/std',
     'pallet-sudo/std',
-    'pallet-vesting/std',
     'pallet-indices/std',
     'pallet-identity/std',
     'pallet-proxy/std',
     'pallet-recovery/std',
-    'pallet-society/std',
     'pallet-utility/std',
     "pallet-bounties/std",
     'pallet-tips/std',
@@ -155,9 +146,6 @@ std = [
     "sp-npos-elections/std",
 
     "orml-vesting/std",
-    "orml-currencies/std",
-    "orml-tokens/std",
-    "orml-traits/std",
     "polkadex-primitives/std"
 ]
 runtime-benchmarks = [
@@ -170,4 +158,5 @@ runtime-benchmarks = [
     "pallet-timestamp/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
     "frame-election-provider-support/runtime-benchmarks",
+    "erc20-pdex-migration-pallet/runtime-benchmarks"
 ]
