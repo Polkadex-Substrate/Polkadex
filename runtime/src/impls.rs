@@ -194,6 +194,7 @@ mod multiplier_tests {
 	}
 
 	#[test]
+	#[ignore]
 	fn congested_chain_simulation() {
 		// `cargo test congested_chain_simulation -- --nocapture` to get some insight.
 

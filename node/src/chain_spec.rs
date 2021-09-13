@@ -18,7 +18,7 @@ use node_polkadex_runtime::{
     OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
     StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
-
+use log::info;
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::constants::currency::PDEX;
 use sp_runtime::traits::AccountIdConversion;
@@ -324,8 +324,8 @@ pub fn testnet_genesis(
     let mut treasury_funds: u128 = 10_200_000 * PDEX;
     treasury_funds = treasury_funds - adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT);
 
-    println!("Tokens taken from treasury: {}",adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT));
-    println!("Token remaining in treasury: {}",treasury_funds);
+    info!("🧮 Tokens taken from treasury:  {:>22}",adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT));
+    info!("🧮 Token remaining in treasury: {:>22}",treasury_funds);
     // Treasury Account Id
     pub const TREASURY_PALLET_ID: PalletId = PalletId(*b"py/trsry");
     let treasury_account: AccountId = TREASURY_PALLET_ID.into_account();
@@ -346,7 +346,8 @@ pub fn testnet_genesis(
     for (_, balance) in &claims {
         total_claims = total_claims + balance;
     }
-    println!("Total Investor Tokens: {}",total_claims);
+
+    info!("🧮 Total Investor Tokens:       {:>22}",total_claims);
     // assert_eq!(total_claims, 6_627_105 * PDEX, "Total claims is configured correctly");
 
     endowed_accounts.append(claims.as_mut());
@@ -358,7 +359,7 @@ pub fn testnet_genesis(
         total_supply = total_supply + balance.clone()
     }
 
-    // assert_eq!(total_supply + ERC20_PDEX_SUPPLY, 20_000_000 * PDEX, "Total supply is not 20 million");
+    info!("🧮  Assert Total supply is 20 million: {} == {} ", total_supply + ERC20_PDEX_SUPPLY , 20_000_000 * PDEX);
 
     let vesting = get_vesting_terms();
 
