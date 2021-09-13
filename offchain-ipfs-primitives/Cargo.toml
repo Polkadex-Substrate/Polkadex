@@ -1,0 +1,29 @@
+[package]
+name = "offchain-ipfs-primitives"
+version = "0.1.0"
+authors = ["Gautham <gautham@polkadex.trade>"]
+edition = "2018"
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+
+[dependencies]
+codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+
+sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-application-crypto = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-inherents = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+thiserror = "1.0.29"
+cid = {version="0.7.0", default-features = false, features = ["scale-codec"]}
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"sp-api/std",
+	"sp-application-crypto/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-std/std",
+]
