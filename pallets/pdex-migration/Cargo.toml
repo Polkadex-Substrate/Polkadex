@@ -11,14 +11,16 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive"] }
-frame-support = { default-features = false,  git = "https://github.com/paritytech/substrate" , branch="master" }
-sp-runtime = { default-features = false,  git = "https://github.com/paritytech/substrate" ,branch="master"  }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate" ,branch="master"  }
-pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate" ,branch="master"  }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate"  ,branch="master" }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
 
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'main', default-features = false }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
+[dev-dependencies]
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 
 [features]
 default = ['std']
@@ -27,6 +29,7 @@ std = [
     'frame-support/std',
     'frame-system/std',
     'sp-runtime/std',
-    'orml-traits/std',
-    'polkadex-primitives/std',
+    'pallet-balances/std',
+    'pallet-sudo/std'
 ]
+runtime-benchmarks = ["frame-benchmarking"]

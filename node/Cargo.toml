@@ -4,7 +4,7 @@ version = "3.0.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2018"
-license = "Unlicense"
+license = "GNU GPL v3"
 build = "build.rs"
 homepage = "https://polkadex.trade"
 repository = "https://github.com/Polkadex-Substrate/Polkadex/"
@@ -27,11 +27,13 @@ log = "0.4.8"
 rand = "0.7.2"
 structopt = { version = "0.3.8" }
 parking_lot = "0.11.1"
+itertools = "0.10.1"
 # local dependencies
 node-polkadex-runtime = { path = '../runtime', version = '3.0.0' }
 
 # Substrate dependencies
 frame-benchmarking = {  git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-support = {  git = "https://github.com/paritytech/substrate", branch = "master" }
 frame-benchmarking-cli = {  git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-im-online = {  git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-staking = {  git = "https://github.com/paritytech/substrate", branch = "master" }

@@ -591,7 +591,7 @@ mod tests {
 	use crate::service::{new_full_base, new_light_base, NewFullBase};
 	use codec::Encode;
 	use node_polkadex_runtime::{
-		constants::{currency::CENT, time::SLOT_DURATION},
+		constants::{currency::CENTS, time::SLOT_DURATION},
 		Address, BalancesCall, Call, UncheckedExtrinsic,
 	};
 	use polkadex_primitives::{Block, DigestItem, Signature};
@@ -621,7 +621,6 @@ mod tests {
 	#[test]
 	// It is "ignored", but the node-cli ignored tests are running on the CI.
 	// This can be run locally with `cargo test --release -p node-cli test_sync -- --ignored`.
-	#[ignore]
 	fn test_sync() {
 		let keystore_path = tempfile::tempdir().expect("Creates keystore path");
 		let keystore: SyncCryptoStorePtr =
@@ -776,7 +775,7 @@ mod tests {
 					.expect("error importing test block");
 			},
 			|service, _| {
-				let amount = 5 * CENT;
+				let amount = 5 * CENTS;
 				let to: Address = AccountPublic::from(bob.public()).into_account().into();
 				let from: Address = AccountPublic::from(charlie.public()).into_account().into();
 				let genesis_hash = service.client().block_hash(0).unwrap().unwrap();
@@ -820,7 +819,6 @@ mod tests {
 	}
 
 	#[test]
-	#[ignore]
 	fn test_consensus() {
 		sc_service_test::consensus(
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),

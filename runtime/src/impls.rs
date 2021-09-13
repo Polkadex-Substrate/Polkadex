@@ -185,7 +185,7 @@ mod multiplier_tests {
 			// See the example in the doc of `TargetedFeeAdjustment`. are at least 0.234, hence
 			// `fm > 1.234`.
 			// BlockTime increased from 3 to 12s ==> decreaced to 0.050
-			for _ in 0..DAY {
+			for _ in 0..DAYS {
 				let next = runtime_multiplier_update(fm);
 				fm = next;
 			}
@@ -194,7 +194,6 @@ mod multiplier_tests {
 	}
 
 	#[test]
-	#[ignore]
 	fn congested_chain_simulation() {
 		// `cargo test congested_chain_simulation -- --nocapture` to get some insight.
 
@@ -227,9 +226,9 @@ mod multiplier_tests {
 					iterations,
 					fm,
 					adjusted_fee,
-					adjusted_fee / MILLICENT,
-					adjusted_fee / CENT,
-					adjusted_fee / DOLLAR,
+					adjusted_fee / MILLICENTS,
+					adjusted_fee / CENTS,
+					adjusted_fee / DOLLARS,
 				);
 			}
 		});
