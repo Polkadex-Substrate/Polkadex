@@ -147,22 +147,22 @@ impl<B, C, BE, AccountId> IPFSWorker<B, C, BE, AccountId>
                     }
 
                     // Check latest CID changes
-                    if let Ok(latest_cid) = self.client.runtime_api().get_latest_cid(&at) {
+                    if let Ok(Some(latest_cid)) = self.client.runtime_api().get_latest_cid(&at) {
                         if let Some(saved_latest_cid) = self.latest_cid.clone() {
                             if saved_latest_cid != latest_cid {
                                 // TODO: Handle the recieved data, find a non-blocking way of syncing cids
-                                self.ipfs_client.get(latest_cid);
+                                self.ipfs_client.get(&latest_cid);
                                 // TODO: verify the integrity of data recieved via IPFS
                                 // TODO: Create an inherent approving the cid
                             }
                         }
                     }
                     // Check Approved CID changes
-                    if let Ok(approved_cid) = self.client.runtime_api().get_approved_cid(&at) {
+                    if let Ok(Some(approved_cid)) = self.client.runtime_api().get_approved_cid(&at) {
                         if let Some(saved_approved_cid) = self.approved_cid.clone() {
                             if saved_approved_cid != approved_cid {
                                 // TODO: Handle the recieved data, find a non-blocking way of syncing cids
-                                self.ipfs_client.get(latest_cid);
+                                self.ipfs_client.get(&approved_cid);
                                 // TODO: Parse and Store the balance state to disc
                             }
                         }
