@@ -621,7 +621,6 @@ mod tests {
 	#[test]
 	// It is "ignored", but the node-cli ignored tests are running on the CI.
 	// This can be run locally with `cargo test --release -p node-cli test_sync -- --ignored`.
-	#[ignore]
 	fn test_sync() {
 		let keystore_path = tempfile::tempdir().expect("Creates keystore path");
 		let keystore: SyncCryptoStorePtr =
@@ -820,7 +819,6 @@ mod tests {
 	}
 
 	#[test]
-	#[ignore]
 	fn test_consensus() {
 		sc_service_test::consensus(
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
