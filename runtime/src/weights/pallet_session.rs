@@ -25,14 +25,14 @@ use frame_support::weights::{constants::RocksDbWeight as DbWeight, Weight};
 pub struct WeightInfo;
 
 impl pallet_session::WeightInfo for WeightInfo {
-	fn set_keys() -> Weight {
-		88_411_000_u64
-			.saturating_add(DbWeight::get().reads(6_u64))
-			.saturating_add(DbWeight::get().writes(5_u64))
-	}
-	fn purge_keys() -> Weight {
-		51_843_000_u64
-			.saturating_add(DbWeight::get().reads(2_u64))
-			.saturating_add(DbWeight::get().writes(5_u64))
-	}
+    fn set_keys() -> Weight {
+        (88_411_000 as Weight)
+            .saturating_add(DbWeight::get().reads(6 as Weight))
+            .saturating_add(DbWeight::get().writes(5 as Weight))
+    }
+    fn purge_keys() -> Weight {
+        (51_843_000 as Weight)
+            .saturating_add(DbWeight::get().reads(2 as Weight))
+            .saturating_add(DbWeight::get().writes(5 as Weight))
+    }
 }
