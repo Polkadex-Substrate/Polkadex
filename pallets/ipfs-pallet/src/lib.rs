@@ -16,7 +16,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_core::H256;
 use sp_std::{prelude::*, result};
 use cid::Cid;
 pub use pallet::*;
@@ -30,7 +29,6 @@ pub mod pallet {
         sp_runtime::traits::AtLeast32BitUnsigned,
     };
     use frame_system::pallet_prelude::*;
-    use sp_core::H256;
 
     use offchain_ipfs_primitives::inherents::{INHERENT_IDENTIFIER, InherentError, InherentType};
 
@@ -76,23 +74,22 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn enclave_multi_addr)]
-    pub(super) type EnclaveIPFSMultiAddrs<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<String>, ValueQuery>;
+    pub(super) type EnclaveIPFSMultiAddrs<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Vec<u8>>, ValueQuery>;
 
     #[pallet::genesis_config]
-    pub struct GenesisConfig<T: Config> {
-        operational_status: bool,
-        dummy: T::Hash,
+    pub struct GenesisConfig {
+        pub operational_status: bool,
     }
 
     #[cfg(feature = "std")]
-    impl<T: Config> Default for GenesisConfig<T> {
+    impl Default for GenesisConfig {
         fn default() -> Self {
-            Self { operational_status: true, dummy: T::Hash::default() }
+            Self { operational_status: true }
         }
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> GenesisBuild<T> for GenesisConfig {
         fn build(&self) {
             <OperationalStatus<T>>::put(true);
         }
@@ -102,11 +99,12 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Enclave inserts a new multiaddr to runtime
         #[pallet::weight(10_000)]
-        pub fn add_enclave_multiaddr(origin: OriginFor<T>, multiaddr: Vec<String>) -> DispatchResult {
+        pub fn add_enclave_multiaddr(origin: OriginFor<T>, multiaddr: Vec<Vec<u8>>) -> DispatchResult {
             let enclave = ensure_signed(origin)?;
             // TODO: Make sure the enclave is registered
             // TODO: Remember to delete it when it's not used anymore otherwise we are wasting runtime storage
             <EnclaveIPFSMultiAddrs<T>>::insert(enclave, multiaddr);
+
             Ok(())
         }
 
@@ -148,7 +146,7 @@ pub mod pallet {
 
         /// Users use this function to claim their balances
         #[pallet::weight(10_000)]
-        pub fn redeem_claim(origin: OriginFor<T>, balance: T::Balance, user: T::AccountId) -> DispatchResult {
+        pub fn redeem_claim(origin: OriginFor<T>, _balance: T::Balance, user: T::AccountId) -> DispatchResult {
             // TODO: This functions should be further extended to support multiple
             // 		token claims since the user will have multiple tokens balances
             ensure_none(origin)?; // TODO: Do we need the validator to sign this inherent?
@@ -233,7 +231,7 @@ impl<T: Config> Pallet<T> {
         <UserClaims<T>>::iter_keys().collect()
     }
     /// Get all Multiaddress
-    pub fn collect_enclave_multiaddrs() -> Vec<(T::AccountId,Vec<String>)> {
+    pub fn collect_enclave_multiaddrs() -> Vec<(T::AccountId,Vec<Vec<u8>>)> {
         <EnclaveIPFSMultiAddrs<T>>::iter_keys().zip(<EnclaveIPFSMultiAddrs<T>>::iter_values()).collect()
     }
 }

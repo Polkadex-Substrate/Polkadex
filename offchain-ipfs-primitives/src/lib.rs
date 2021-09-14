@@ -18,10 +18,13 @@
 
 use codec::Decode;
 use cid::Cid;
+use sp_std::vec::Vec;
+use polkadex_primitives::AccountId;
+
 pub mod inherents;
 
 sp_api::decl_runtime_apis! {
-	pub trait IpfsApi<AccountId: Decode>
+	pub trait IpfsApi
 	{
         /// Provides the thea account
         fn get_latest_cid() -> Option<Cid>;
@@ -32,6 +35,6 @@ sp_api::decl_runtime_apis! {
         /// Get all user claims
         fn collect_user_claims() -> Vec<AccountId>;
         /// Get all enclave multiaddrs
-        fn collect_enclave_multiaddrs() -> Vec<(AccountId,Vec<String>)>;
+        fn collect_enclave_multiaddrs() -> Vec<(AccountId,Vec<Vec<u8>>)>;
 	}
 }

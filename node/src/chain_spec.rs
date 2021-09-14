@@ -2,8 +2,8 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use node_polkadex_runtime::{
 	wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
-	IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig, SessionConfig, SessionKeys,
-	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	IndicesConfig, OrmlVestingConfig, SessionConfig, SessionKeys,
+	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, IPFSConfig
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadex_primitives::Block;
@@ -397,10 +397,13 @@ pub fn testnet_genesis(
 		technical_membership: Default::default(),
 		treasury: Default::default(),
 		orml_vesting: OrmlVestingConfig { vesting },
-		pdex_migration: PDEXMigrationConfig {
-			max_tokens: ERC20_PDEX_SUPPLY,
-			operation_status: false,
-		},
+		// pdex_migration: PDEXMigrationConfig {
+		// 	max_tokens: ERC20_PDEX_SUPPLY,
+		// 	operation_status: false,
+		// },
+		ipfs: IPFSConfig {
+			operational_status: false,
+		}
 	}
 }
 

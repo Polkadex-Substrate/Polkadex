@@ -16,7 +16,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", default-features = f
 sp-inherents = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
 thiserror = "1.0.29"
 cid = {version="0.7.0", default-features = false, features = ["scale-codec"]}
-
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
 [features]
 default = ["std"]
 std = [
@@ -26,4 +26,5 @@ std = [
 	"sp-core/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"polkadex-primitives/std"
 ]

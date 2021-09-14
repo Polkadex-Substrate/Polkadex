@@ -24,7 +24,7 @@ use crate::rpc as node_rpc;
 use futures::prelude::*;
 use node_executor::ExecutorDispatch;
 use node_polkadex_runtime::RuntimeApi;
-use polkadex_primitives::Block;
+use polkadex_primitives::{Block, AccountId};
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
@@ -37,6 +37,7 @@ use std::sync::Arc;
 
 use sc_consensus_babe::SlotProportion;
 use sc_telemetry::{Telemetry, TelemetryWorker};
+use std::marker::PhantomData;
 
 type FullClient =
 	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
@@ -287,7 +288,7 @@ pub fn new_full_base(
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend,
+		backend: backend.clone(),
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		network: network.clone(),
@@ -426,6 +427,17 @@ pub fn new_full_base(
 			.spawn_essential_handle()
 			.spawn_blocking("grandpa-voter", grandpa::run_grandpa_voter(grandpa_config)?);
 	}
+
+	// Start IPFS Worker here
+	let ipfs_params = ipfs_client::IPFSParams{
+		client: client.clone(),
+		backend,
+		_block: PhantomData
+	};
+	// IPFS worker is not an essential task
+	task_manager
+		.spawn_handle()
+		.spawn_blocking("offchain-ipfs", ipfs_client::start_offchain_ipfs::<_, _, _>(ipfs_params));
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })
