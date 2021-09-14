@@ -30,7 +30,7 @@ use frame_support::{
 use frame_support::dispatch::{Dispatchable, DispatchInfo, GetDispatchInfo, PostDispatchInfo};
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-use frame_support::traits::{Filter, Randomness};
+use frame_support::traits::{Contains, Randomness};
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
 use polkadex_primitives::assets::AssetId;
@@ -93,7 +93,7 @@ pub trait Config: frame_system::Config {
     /// Randomness Source
     type RandomnessSource: Randomness<H256, BlockNumber>;
     /// Call Filter
-    type CallFilter: Filter<<Self as Config>::Call>;
+    type CallFilter: Contains<<Self as Config>::Call>;
     /// DynamicStaking Config
     type DynamicStaking: DynamicStaker<<Self as Config>::Call, Self::Balance>;
     /// Contains function to retrieve
@@ -294,7 +294,7 @@ decl_module! {
         pub fn claim_feeless_transaction(origin, stake_price: <T as Config>::Balance, call: Box<<T as Config>::Call>) -> dispatch::DispatchResult {
             let who = ensure_signed(origin.clone())?;
             ensure!(origin.clone().into().is_ok(),Error::<T>::BadOrigin);
-            ensure!(T::CallFilter::filter(&call), Error::<T>::InvalidCall);
+            ensure!(T::CallFilter::contains(&call), Error::<T>::InvalidCall);
 
             let call_weight =  call.get_dispatch_info().weight;
 
