@@ -27,8 +27,10 @@ use sp_runtime::traits::Block;
 use offchain_ipfs_primitives::IpfsApi;
 use std::marker::PhantomData;
 use codec::Codec;
+use crate::inherents::InherentDataProvider;
 
 mod worker;
+pub mod inherents;
 
 pub trait Client<B, BE>:
 	BlockchainEvents<B> + HeaderBackend<B> + Finalizer<B, BE> + ProvideRuntimeApi<B> + Send + Sync
@@ -74,7 +76,7 @@ where
 {
 	let IPFSParams { client,
 		backend,
-		 _block,
+		 _block, ..
 	} = ipfs_params;
 
 	let worker_params = worker::WorkerParams { client, backend, block: _block };

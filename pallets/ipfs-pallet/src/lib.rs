@@ -214,7 +214,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    /// Provides the thea account
+    /// Provides the latest cid
     pub fn get_latest_cid() -> Option<Cid> {
         <LatestCID<T>>::get()
     }

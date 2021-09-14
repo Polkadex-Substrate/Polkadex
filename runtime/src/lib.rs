@@ -1112,7 +1112,7 @@ pub type Executive = frame_executive::Executive<
 
 impl_runtime_apis! {
     impl offchain_ipfs_primitives::IpfsApi<Block> for Runtime {
-    /// Provides the thea account
+    /// Provides the latest cid
     fn get_latest_cid() -> Option<Cid>{
         IPFS::get_latest_cid()
     }
