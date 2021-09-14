@@ -53,36 +53,33 @@ where
 	// empty
 }
 
-pub struct IPFSParams<B, BE, C, AccountId>
+pub struct IPFSParams<B, BE, C>
 where
 	B: Block,
 	BE: Backend<B>,
 	C: Client<B, BE>,
-	C::Api: IpfsApi<B, AccountId>,
-	AccountId: Codec,
+	C::Api: IpfsApi<B>,
 {
 	pub client: Arc<C>,
 	pub backend: Arc<BE>,
-	pub block: PhantomData<B>,
-	pub accountid: PhantomData<AccountId>,
+	pub _block: PhantomData<B>,
 }
 
-pub async fn start_offchain_ipfs<B, BE, C, AccountId>(ipfs_params: IPFSParams<B, BE, C,AccountId>)
+pub async fn start_offchain_ipfs<B, BE, C>(ipfs_params: IPFSParams<B, BE, C>)
 where
 	B: Block,
 	BE: Backend<B>,
 	C: Client<B, BE>,
-	C::Api: IpfsApi<B,AccountId>,
-	AccountId: Codec + Eq + std::hash::Hash,
+	C::Api: IpfsApi<B>,
 {
 	let IPFSParams { client,
 		backend,
-		block,
-		accountid} = ipfs_params;
+		 _block,
+	} = ipfs_params;
 
-	let worker_params = worker::WorkerParams { client, backend, block };
+	let worker_params = worker::WorkerParams { client, backend, block: _block };
 
-	let worker = worker::IPFSWorker::<_, _, _,_>::new(worker_params).await;
+	let worker = worker::IPFSWorker::<_, _, _>::new(worker_params).await;
 
 	worker.run().await
 }

@@ -24,6 +24,7 @@
 #![recursion_limit = "256"]
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use cid::Cid;
 use frame_support::{
     construct_runtime, parameter_types,
     RuntimeDebug,
@@ -143,6 +144,7 @@ pub fn native_version() -> NativeVersion {
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
+
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
         if let Some(mut fees) = fees_then_tips.next() {
@@ -254,7 +256,7 @@ parameter_types! {
 }
 
 /// The type used to represent the kinds of proxying allowed.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug,MaxEncodedLen)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen)]
 pub enum ProxyType {
     Any = 0,
     NonTransfer = 1,
@@ -390,7 +392,6 @@ impl pallet_balances::Config for Runtime {
     type MaxReserves = MaxReserves;
     type ReserveIdentifier = [u8; 8];
     type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
-
 }
 
 parameter_types! {
@@ -401,6 +402,7 @@ parameter_types! {
 }
 
 pub struct WeightToFee;
+
 impl WeightToFeePolynomial for WeightToFee {
     type Balance = Balance;
     fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
@@ -498,13 +500,21 @@ parameter_types! {
     pub const MaxNominatorRewardedPerValidator: u32 = 256;
 }
 
+
+
+use frame_election_provider_support::onchain;
+
+impl onchain::Config for Runtime {
+    type Accuracy = Perbill;
+    type DataProvider = Staking;
+}
+
 impl pallet_staking::Config for Runtime {
     type Currency = Balances;
     type UnixTime = Timestamp;
     type CurrencyToVote = U128CurrencyToVote;
     type ElectionProvider = ElectionProviderMultiPhase;
-    type GenesisElectionProvider = frame_election_provider_support::onchain::OnChainSequentialPhragmen<
-        pallet_election_provider_multi_phase::OnChainConfig<Self>>;
+    type GenesisElectionProvider = onchain::OnChainSequentialPhragmen<Self>;
     const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
     type RewardRemainder = Treasury;
     type Event = Event;
@@ -540,8 +550,8 @@ parameter_types! {
 	// Each good submission will get 1 DOT as reward
 	pub SignedRewardBase: Balance = UNITS;
 	// fallback: emergency phase.
-	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-		pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
+	// pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
+	// 	pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
 	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(5u32, 10_000);
 
 	// miner configs
@@ -581,6 +591,33 @@ parameter_types! {
 		.get(DispatchClass::Normal);
 }
 
+/// Maximum number of iterations for balancing that will be executed in the embedded OCW
+/// miner of election provider multi phase.
+pub const MINER_MAX_ITERATIONS: u32 = 10;
+
+/// A source of random balance for NposSolver, which is meant to be run by the OCW election miner.
+pub struct OffchainRandomBalancing;
+
+impl frame_support::pallet_prelude::Get<Option<(usize, sp_npos_elections::ExtendedBalance)>>
+for OffchainRandomBalancing
+{
+    fn get() -> Option<(usize, sp_npos_elections::ExtendedBalance)> {
+        use sp_runtime::traits::TrailingZeroInput;
+        let iters = match MINER_MAX_ITERATIONS {
+            0 => 0,
+            max @ _ => {
+                let seed = sp_io::offchain::random_seed();
+                let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
+                    .expect("input is padded with zeroes; qed") %
+                    max.saturating_add(1);
+                random as usize
+            }
+        };
+
+        Some((iters, 0))
+    }
+}
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
@@ -593,25 +630,30 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type SignedDepositByte = SignedDepositByte;
     type SignedDepositWeight = ();
     type SignedMaxWeight = Self::MinerMaxWeight;
-    type SlashHandler = (); // burn slashes
-    type RewardHandler = (); // nothing to do upon rewards
+    type SlashHandler = ();
+    // burn slashes
+    type RewardHandler = ();
+    // nothing to do upon rewards
     type SolutionImprovementThreshold = SolutionImprovementThreshold;
-    type MinerMaxIterations = MinerMaxIterations;
     type MinerMaxWeight = OffchainSolutionWeightLimit;
     type MinerMaxLength = OffchainSolutionLengthLimit;
     type OffchainRepeat = OffchainRepeat;
     type MinerTxPriority = NposSolutionPriority;
     type DataProvider = Staking;
-    type OnChainAccuracy = Perbill;
-    type Fallback = Fallback;
+    type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
     type BenchmarkingConfig = ();
     type ForceOrigin = EnsureOneOf<
         AccountId,
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
     >;
-    type WeightInfo =  weights::pallet_election_provider_multi_phase::WeightInfo<Runtime>;
+    type WeightInfo = weights::pallet_election_provider_multi_phase::WeightInfo<Runtime>;
     type Solution = NposCompactSolution16;
+    type Solver = frame_election_provider_support::SequentialPhragmen<
+        AccountId,
+        pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
+        OffchainRandomBalancing,
+    >;
 }
 
 parameter_types! {
@@ -621,6 +663,7 @@ parameter_types! {
 }
 
 type CouncilCollective = pallet_collective::Instance1;
+
 impl pallet_collective::Config<CouncilCollective> for Runtime {
     type Origin = Origin;
     type Proposal = Call;
@@ -674,6 +717,7 @@ parameter_types! {
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
+
 impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type Origin = Origin;
     type Proposal = Call;
@@ -799,7 +843,7 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
             frame_system::CheckGenesis::<Runtime>::new(),
             frame_system::CheckMortality::<Runtime>::from(generic::Era::mortal(
                 period,
-                current_block
+                current_block,
             )),
             frame_system::CheckNonce::<Runtime>::from(nonce),
             frame_system::CheckWeight::<Runtime>::new(),
@@ -874,7 +918,6 @@ impl pallet_grandpa::Config for Runtime {
     >;
 
     type WeightInfo = weights::pallet_grandpa::WeightInfo<Runtime>;
-
 }
 
 parameter_types! {
@@ -924,7 +967,8 @@ parameter_types! {
 }
 
 pub struct SusbtrateBlockNumberProvider;
-impl BlockNumberProvider for SusbtrateBlockNumberProvider{
+
+impl BlockNumberProvider for SusbtrateBlockNumberProvider {
     type BlockNumber = BlockNumber;
 
     fn current_block_number() -> Self::BlockNumber {
@@ -933,6 +977,7 @@ impl BlockNumberProvider for SusbtrateBlockNumberProvider{
 }
 
 pub struct EnsureRootOrTreasury;
+
 impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
     type Success = AccountId;
 
@@ -965,15 +1010,21 @@ impl orml_vesting::Config for Runtime {
     type MaxVestingSchedules = MaxVestingSchedules;
     type BlockNumberProvider = SusbtrateBlockNumberProvider;
 }
-parameter_types! {
-    pub const LockPeriod: BlockNumber = 201600;
-}
 
+// parameter_types! {
+//     pub const LockPeriod: BlockNumber = 201600;
+// }
+//
+//
+// impl erc20_pdex_migration_pallet::Config for Runtime {
+//     type Event = Event;
+//     type LockPeriod = LockPeriod;
+//     type WeightInfo = ();
+// }
 
-impl erc20_pdex_migration_pallet::Config for Runtime {
+impl ipfs_pallet::Config for Runtime {
     type Event = Event;
-    type LockPeriod = LockPeriod;
-    type WeightInfo = ();
+    type Balance = Balance;
 }
 
 construct_runtime!(
@@ -1012,7 +1063,8 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
-        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 30,
+        // PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Call, Config<T>, Storage, Event<T>} = 30,
+        IPFS: ipfs_pallet::{Pallet, Storage, Call, Event<T>, Config, Inherent} = 31,
     }
 );
 /// Digest item type.
@@ -1057,7 +1109,31 @@ pub type Executive = frame_executive::Executive<
     (),
 >;
 
+
 impl_runtime_apis! {
+    impl offchain_ipfs_primitives::IpfsApi<Block> for Runtime {
+    /// Provides the thea account
+    fn get_latest_cid() -> Option<Cid>{
+        IPFS::get_latest_cid()
+    }
+    /// True if the exchange is operational
+    fn check_emergency_closure() -> bool{
+        IPFS::check_emergency_closure()
+    }
+    /// Approved CID
+    fn get_approved_cid() -> Option<Cid>{
+        IPFS::get_approved_cid()
+    }
+    /// Get all user claims
+    fn collect_user_claims() -> Vec<AccountId>{
+        IPFS::collect_user_claims()
+    }
+    /// Get all enclave multiaddrs
+    fn collect_enclave_multiaddrs() -> Vec<(AccountId,Vec<Vec<u8>>)>{
+        IPFS::collect_enclave_multiaddrs()
+    }
+}
+
     impl sp_api::Core<Block> for Runtime {
         fn version() -> RuntimeVersion {
             VERSION

@@ -37,6 +37,7 @@ use sp_runtime::{
 use offchain_ipfs_primitives::IpfsApi;
 
 use crate::Client;
+use polkadex_primitives::AccountId;
 
 pub(crate) struct WorkerParams<B, BE, C>
     where
@@ -47,12 +48,11 @@ pub(crate) struct WorkerParams<B, BE, C>
     pub block: PhantomData<B>,
 }
 
-pub(crate) struct IPFSWorker<B, C, BE, AccountId>
+pub(crate) struct IPFSWorker<B, C, BE>
     where
         B: Block,
         BE: Backend<B>,
         C: Client<B, BE>,
-        AccountId: Codec,
 {
     client: Arc<C>,
     backend: Arc<BE>,
@@ -68,16 +68,14 @@ pub(crate) struct IPFSWorker<B, C, BE, AccountId>
     approved_cid: Option<Cid>,
     // keep rustc happy
     _backend: PhantomData<BE>,
-    _account: PhantomData<AccountId>,
 }
 
-impl<B, C, BE, AccountId> IPFSWorker<B, C, BE, AccountId>
+impl<B, C, BE> IPFSWorker<B, C, BE>
     where
         B: Block,
         BE: Backend<B>,
         C: Client<B, BE>,
-        C::Api: IpfsApi<B, AccountId>,
-        AccountId: Codec,
+        C::Api: IpfsApi<B>,
 {
     pub(crate) async fn new(worker_params: WorkerParams<B, BE, C>) -> Self {
         let WorkerParams { client, backend, block } = worker_params;
@@ -101,18 +99,16 @@ impl<B, C, BE, AccountId> IPFSWorker<B, C, BE, AccountId>
             latest_cid: None,
             approved_cid: None,
             _backend: PhantomData,
-            _account: PhantomData,
         }
     }
 }
 
-impl<B, C, BE, AccountId> IPFSWorker<B, C, BE, AccountId>
+impl<B, C, BE> IPFSWorker<B, C, BE>
     where
         B: Block,
         BE: Backend<B>,
         C: Client<B, BE>,
-        C::Api: IpfsApi<B, AccountId>,
-        AccountId: Codec + Eq + std::hash::Hash,
+        C::Api: IpfsApi<B>,
 {
     fn handle_finality_notification(&mut self, notification: FinalityNotification<B>) {
         trace!(target: "offchain-ipfs", "🥩 Finality notification: {:?}", notification);

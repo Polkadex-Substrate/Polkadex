@@ -2537,6 +2537,7 @@ dependencies = [
  "offchain-ipfs-primitives",
  "parity-scale-codec",
  "parking_lot 0.11.2",
+ "polkadex-primitives",
  "rand 0.8.4",
  "sc-client-api",
  "sc-keystore",
@@ -4033,6 +4034,7 @@ dependencies = [
 name = "node-polkadex-runtime"
 version = "3.0.0"
 dependencies = [
+ "cid 0.7.0",
  "erc20-pdex-migration-pallet",
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -4042,7 +4044,9 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal",
+ "ipfs-pallet",
  "log",
+ "offchain-ipfs-primitives",
  "orml-vesting",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -4313,6 +4317,7 @@ version = "0.1.0"
 dependencies = [
  "cid 0.7.0",
  "parity-scale-codec",
+ "polkadex-primitives",
  "sp-api",
  "sp-application-crypto",
  "sp-core",
@@ -5419,6 +5424,7 @@ dependencies = [
  "frame-system",
  "futures 0.3.17",
  "hex-literal",
+ "ipfs-client",
  "itertools",
  "jsonrpc-core",
  "log",
