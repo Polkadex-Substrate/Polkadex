@@ -24,7 +24,7 @@ use crate::rpc as node_rpc;
 use futures::prelude::*;
 use node_executor::ExecutorDispatch;
 use node_polkadex_runtime::RuntimeApi;
-use polkadex_primitives::{Block, AccountId};
+use polkadex_primitives::{Block};
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
