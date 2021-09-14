@@ -26,7 +26,7 @@ pub mod inherents;
 sp_api::decl_runtime_apis! {
 	pub trait IpfsApi
 	{
-        /// Provides the thea account
+        /// Provides the cid account
         fn get_latest_cid() -> Option<Cid>;
         /// True if the exchange is operational
         fn check_emergency_closure() -> bool;

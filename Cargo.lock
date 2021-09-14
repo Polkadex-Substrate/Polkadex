@@ -2529,10 +2529,12 @@ dependencies = [
 name = "ipfs-client"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "fnv",
  "futures 0.3.17",
  "hex",
  "ipfs-embed",
+ "lazy_static",
  "log",
  "offchain-ipfs-primitives",
  "parity-scale-codec",
@@ -2551,6 +2553,7 @@ dependencies = [
  "sp-blockchain",
  "sp-consensus",
  "sp-core",
+ "sp-inherents",
  "sp-keystore",
  "sp-runtime",
  "substrate-prometheus-endpoint",

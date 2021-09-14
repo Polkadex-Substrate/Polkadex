@@ -1,1 +1,1 @@
-# Thea Pallet
+# IPFS Pallet

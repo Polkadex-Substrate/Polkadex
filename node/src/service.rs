@@ -343,7 +343,9 @@ pub fn new_full_base(
                             slot_duration,
                         );
 
-					Ok((timestamp, slot, uncles))
+					let ipfs = ipfs_client::inherents::get_ipfs_inherent_data();
+
+					Ok((timestamp, slot, uncles, ipfs))
 				}
 			},
 			force_authoring,
@@ -432,7 +434,7 @@ pub fn new_full_base(
 	let ipfs_params = ipfs_client::IPFSParams{
 		client: client.clone(),
 		backend,
-		_block: PhantomData
+		_block: PhantomData,
 	};
 	// IPFS worker is not an essential task
 	task_manager
