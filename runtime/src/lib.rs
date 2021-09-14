@@ -1065,7 +1065,8 @@ pub struct FeelessTxnFilter;
 impl Filter<Call> for FeelessTxnFilter {
     fn filter(call: &Call) -> bool {
         // TODO: Pass only whitelisted contracts via governance
-        matches!(call, Call::Contracts(_))
+        // matches!(call, Call::Contracts(_))
+        true
     }
 }
 
