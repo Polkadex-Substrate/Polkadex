@@ -10,7 +10,14 @@ It can be built using [cargo-contract](https://github.com/paritytech/cargo-contr
 cargo +nightly-2021-06-21 contract build
 ```
 
-## Testing
+## Integration testing with Redspot
+
+```
+yarn install
+yarn test
+```
+
+## Unit testing (not yet implemented)
 
 Use cargo to test:
 
