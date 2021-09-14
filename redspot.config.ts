@@ -8,7 +8,7 @@ export default {
   defaultNetwork: 'development', // default network
   contract: {
     ink: {
-      toolchain: 'nightly',      // specify the toolchain version for contract compliation
+      toolchain: 'nightly-2021-06-21', // specify the toolchain version for contract compliation
       sources: ['contracts/**/*'] // the directory where contracts locate
     }
   },
@@ -18,9 +18,8 @@ export default {
       endpoint: 'ws://127.0.0.1:9944',
       types: types,
       gasLimit: '400000000000', // default gasLimit
-      explorerUrl:
-        'https://polkadot.js.org/apps/#/explorer/query/?rpc=ws://127.0.0.1:9944/'
-    },
+      explorerUrl: 'https://polkadot.js.org/apps/#/explorer/query/?rpc=ws://127.0.0.1:9944/'
+    }
   },
   mocha: {
     timeout: 60000
