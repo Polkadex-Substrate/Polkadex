@@ -27,7 +27,7 @@ orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-libra
 pallet-balances = {git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", default-features = false }
 timestamp= {git = "https://github.com/paritytech/substrate.git", package = "pallet-timestamp", version = "4.0.0-dev", default-features = false}
-polkadex-sgx-primitives = {path = "../../../polkadex-primitives", default-features=false}
+polkadex-sgx-primitives = {git = "https://github.com/Polkadex-Substrate/polkadexTEE-worker", branch = "develop", default-features=false}
 
 [dev-dependencies]
 sp-keyring = {  git = "https://github.com/paritytech/substrate", default-features = false }
