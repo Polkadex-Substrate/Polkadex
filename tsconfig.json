@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+      "resolveJsonModule": true,
+      "target": "es5",
+      "module": "commonjs",
+      "strict": true,
+      "esModuleInterop": true,
+      "outDir": "dist",
+      "noImplicitAny": false
+    },
+    "include": [
+      "**/*.ts"
+    ],
+    "exclude": [
+      "node_modules"
+    ],
+    "files": [
+      "./redspot.config.ts",
+    ]
+  }
