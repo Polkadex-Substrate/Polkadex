@@ -14,7 +14,7 @@ use sp_runtime::{traits::{IdentifyAccount, Verify}, Perbill};
 use node_polkadex_runtime::{SessionKeys};
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
-    CouncilConfig, IndicesConfig,
+    CouncilConfig, IndicesConfig, PolkadexOcexConfig,
     OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
     StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
@@ -176,6 +176,9 @@ pub fn authority_keys_from_seed(
         get_from_seed::<AuthorityDiscoveryId>(seed),
     )
 }
+
+#[allow(non_upper_case_globals)]
+pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(

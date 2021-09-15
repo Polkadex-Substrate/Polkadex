@@ -1011,6 +1011,7 @@ construct_runtime!(
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 27,
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 36,
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
         PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 30,
     }
@@ -1308,6 +1309,23 @@ impl_runtime_apis! {
             Ok(batches)
         }
     }
+}
+
+parameter_types! {
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+}
+
+
+parameter_types! {
+    pub const ProxyLimit: usize = 10; // Max sub-accounts per main account
+}
+impl polkadex_ocex::Config for Runtime {
+    type Event = Event;
+    type OcexId = OcexModuleId;
+    type GenesisAccount = OCEXGenesisAccount;
+    type Currency = Currencies;
+    type ProxyLimit = ProxyLimit;
 }
 
 #[cfg(test)]
