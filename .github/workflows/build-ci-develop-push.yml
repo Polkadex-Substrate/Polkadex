@@ -1,7 +1,7 @@
 name: Build-CI-Develop-Push-To-Chain
 on:
   push:
-    branches: [develop,integrate-gh-actions]
+    branches: [develop]
 jobs:
   build:
     runs-on: self-hosted
