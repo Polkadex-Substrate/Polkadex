@@ -27,6 +27,7 @@ pallet-offences = { default-features = false, git = "https://github.com/parityte
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-staking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-staking-reward-curve = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -74,6 +75,8 @@ frame-election-provider-support = { default-features = false, git = "https://git
 
 # Used for the node template's RPCs
 frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+polkadex-ido-runtime-api = {path = "../pallets/Polkadex_Ido/rpc/runtime-api", default-features = false}
+pallet-polkadex-ido-primitives = {path = "../pallets/Polkadex_Ido/common",  default-features = false}
 
 # Used for runtime benchmarking
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
@@ -88,7 +91,7 @@ orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-libra
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
 erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
-
+polkadex-ido = { path = "../pallets/Polkadex_Ido", default-features = false }
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
@@ -128,6 +131,7 @@ std = [
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-treasury/std',
     'pallet-collective/std',
+    'pallet-randomness-collective-flip/std',
     'pallet-elections-phragmen/std',
     'frame-election-provider-support/std',
     'pallet-membership/std',
@@ -150,7 +154,10 @@ std = [
     "orml-vesting/std",
     "orml-tokens/std",
     "orml-currencies/std",
-    "polkadex-primitives/std"
+    "polkadex-primitives/std",
+    'polkadex-ido/std',
+    'polkadex-ido-runtime-api/std',
+    'pallet-polkadex-ido-primitives/std'
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

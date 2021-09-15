@@ -40,7 +40,7 @@
 
 use codec::Codec;
 use codec::{Decode, Encode};
-use frame_support::pallet_prelude::Weight;
+use frame_support::pallet_prelude::*;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,

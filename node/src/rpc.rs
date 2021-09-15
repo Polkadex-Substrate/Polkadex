@@ -130,6 +130,7 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 {
+	use pallet_contracts_rpc::{Contracts, ContractsApi};
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 	// use pallet_mmr_rpc::{MmrApi, Mmr};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
@@ -177,6 +178,11 @@ where
 			deny_unsafe,
 		)?,
 	));
+
+	io.extend_with(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
+		polkadex_ido_rpc::PolkadexIdoRpc::new(client),
+	));
+
 
 	Ok(io)
 }

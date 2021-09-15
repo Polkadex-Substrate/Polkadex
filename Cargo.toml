@@ -7,6 +7,9 @@ members = [
     'pallets/pdex-migration',
     'pallets/Polkadex_Ido',
     'runtime',
+    'pallets/Polkadex_Ido/rpc',
+    'pallets/Polkadex_Ido/rpc/runtime-api',
+    'pallets/Polkadex_Ido/common',
 ]
 
 
