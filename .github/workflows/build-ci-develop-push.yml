@@ -1,0 +1,31 @@
+name: Build-CI-Develop-Push-To-Chain
+on:
+  push:
+    branches: [develop,integrate-gh-actions]
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache Rust Dependecies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install toolchain
+        run: ./scripts/init.sh
+      - name: Set Node.js version 14.17.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.17.0
+      - name: Build Project
+        run: |
+          cargo clean
+          cargo build --release
+      - name: Install packages
+        run: npm install
+      - name: Runtime Upgrade
+        run: node ./scripts/runtime_upgrade.js ${{ secrets.INTERNAL_TESTNET_SUDO_KEY }} wss://internaltestnet.polkadex.trade
