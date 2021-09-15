@@ -38,7 +38,8 @@ use frame_support::{
 };
 
 use frame_support::{PalletId, traits::InstanceFilter};
-use frame_support::traits::{OnUnbalanced, Everything};
+use frame_support::traits::{OnUnbalanced, Everything, Nothing};
+use orml_traits::parameter_type_with_key;
 use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
@@ -67,6 +68,7 @@ use sp_core::{
     u32_trait::{_1, _2, _3, _4, _5},
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
+use polkadex_primitives::assets::AssetId;
 use sp_runtime::{
     ApplyExtrinsicResult, create_runtime_str, FixedPointNumber, generic, impl_opaque_keys, Perbill,
     Percent, Permill, Perquintill,
@@ -969,6 +971,39 @@ parameter_types! {
     pub const LockPeriod: BlockNumber = 201600;
 }
 
+parameter_type_with_key! {
+    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+        Zero::zero()
+    };
+}
+parameter_types! {
+    pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
+
+impl orml_tokens::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Amount = Amount;
+    type CurrencyId = AssetId;
+    type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
+    type MaxLocks = ();
+    type DustRemovalWhitelist = Nothing;
+}
+
+parameter_types! {
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+}
+
+impl orml_currencies::Config for Runtime {
+    type Event = Event;
+    type MultiCurrency = Tokens;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type WeightInfo = ();
+}
+
 
 impl erc20_pdex_migration_pallet::Config for Runtime {
     type Event = Event;
@@ -1012,6 +1047,8 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 32,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 33,
         PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 30,
     }
 );

@@ -5,6 +5,7 @@ panic = 'unwind'
 members = [
     'node',
     'pallets/pdex-migration',
+    'pallets/Polkadex_Ido',
     'runtime',
 ]
 
