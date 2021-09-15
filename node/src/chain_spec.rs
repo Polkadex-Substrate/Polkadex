@@ -21,13 +21,12 @@ use node_polkadex_runtime::constants::currency::*;
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
-    BasicInboundChannelConfig, ContractsConfig, CouncilConfig, ERC20PDEXConfig,
+     ContractsConfig, CouncilConfig,
     ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, OrmlVestingConfig,
     PolkadexOcexConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
-    SystemConfig, TechnicalCommitteeConfig, TokensConfig, EthereumLightClientConfig,
+    SystemConfig, TechnicalCommitteeConfig, TokensConfig,
     MAX_NOMINATIONS,
 };
-use snowbridge_ethereum_light_client::EthereumHeader;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -371,31 +370,6 @@ pub fn testnet_genesis(
         pallet_membership_Instance1: Default::default(),
         pallet_treasury: Default::default(),
         pallet_vesting: Default::default(),
-        snowbridge_ethereum_light_client: EthereumLightClientConfig {
-            initial_header: EthereumHeader {
-                parent_hash: hex!("92ec9f26c923159794cc808323991db7dd882a15a7d70db0a95eb71df9b209b8").into(),
-                timestamp: 1629122855u64.into(),
-                number: 10848717u64.into(),
-                author: hex!("c01658737f693370d92de84be2bb32949c9a6891").into(),
-                transactions_root: hex!("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").into(),
-                ommers_hash: hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").into(),
-                extra_data: hex!("d883010a06846765746888676f312e31362e34856c696e7578").into(),
-                state_root: hex!("2eed2dfe97fa51c2599655c90046b8c3c27798e6506810f20fb0c7b7263c8d3c").into(),
-                receipts_root: hex!("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").into(),
-                logs_bloom: (&hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")).into(),
-                gas_used: 0u64.into(),
-                gas_limit: 8000000u64.into(),
-                difficulty: 1604500197u64.into(),
-                seal: vec![
-                    hex!("a0a1c64e193f52640ad1b5c4a162eaac6fffdb854e2f1107cb67ffc9bd39ddae8b").to_vec(),
-                    hex!("8813c37d0e520a40d1").to_vec(),
-                ],
-                // Take this from Etherscan ( value should be entered in wei)
-                base_fee: Some(U256::from(9u128))
-            },
-            // Take this from Etherscan ( value is same as total_difficulty)
-            initial_difficulty: U256::from(34558207564067640u128),
-        },
 
         orml_vesting: OrmlVestingConfig { vesting: vec![] },
         orml_tokens: TokensConfig {
@@ -414,12 +388,7 @@ pub fn testnet_genesis(
             key: genesis.clone(),
             genesis_account: genesis,
         },
-        basic_inbound_channel: BasicInboundChannelConfig {
-            source_channel: hex!["30E16792D89f1939dEFb60683A44E3917901C849"].into(),
-        },
-        erc20_pdex_migration_pallet: ERC20PDEXConfig {
-            address: hex!["e46B454A908cEd5A795FA7a2D106AcDdcf7ea45e"].into()
-        },
+
     }
 }
 
