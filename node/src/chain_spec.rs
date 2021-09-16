@@ -11,10 +11,9 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{traits::{IdentifyAccount, Verify}, Perbill};
-use node_polkadex_runtime::{SessionKeys};
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
-    CouncilConfig, IndicesConfig,
+    CouncilConfig, IndicesConfig,TokensConfig,SessionKeys,
     OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
     StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
