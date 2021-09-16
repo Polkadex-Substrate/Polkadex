@@ -423,7 +423,7 @@ pub fn testnet_genesis(
         orml_vesting: OrmlVestingConfig { vesting },
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
-            operation_status: false
+            operational: false
         }
     }
 }

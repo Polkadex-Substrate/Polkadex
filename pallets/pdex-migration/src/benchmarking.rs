@@ -1,12 +1,12 @@
-#![cfg(feature = "runtime-benchmarks")]
+//! Benchmarking setup for pallet-template
+
 use super::*;
-use frame_benchmarking::{account, benchmarks, whitelisted_caller};
+
 use frame_system::RawOrigin;
-use crate::mock::{new_test_ext, PDEX, Origin};
-use crate::mock::PDEXMigration;
-use frame_support::assert_ok;
-use sp_core::H256;
-use sp_runtime::traits::Saturating;
+use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
+#[allow(unused)]
+use crate::Pallet as Template;
+
 benchmarks! {
     set_migration_operational_status {
 
@@ -76,13 +76,8 @@ benchmarks! {
     }: _(RawOrigin::Root,beneficiary)
 }
 
-#[test]
-pub fn test_benchmarks(){
-    new_test_ext().execute_with(|| {
-        assert_ok!(PDEXMigration::test_benchmark_set_migration_operational_status());
-        assert_ok!(PDEXMigration::test_benchmark_set_relayer_status());
-        assert_ok!(PDEXMigration::test_benchmark_mint());
-        assert_ok!(PDEXMigration::test_benchmark_unlock());
-        assert_ok!(PDEXMigration::test_benchmark_remove_minted_tokens());
-    })
-}
+impl_benchmark_test_suite!(
+	Template,
+	crate::mock::new_test_ext(),
+	crate::mock::Test,
+);
