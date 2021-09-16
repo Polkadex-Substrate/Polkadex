@@ -426,10 +426,8 @@ pub fn testnet_genesis(
             max_tokens: ERC20_PDEX_SUPPLY,
             operation_status: false
         },
-        orml_tokens: TokensConfig {
-            endowed_accounts: vec![
-                (endowed_accounts[0].to_owned(), AssetId::Asset(24), 1000000000000000000u128),
-            ],
+        tokens: TokensConfig {
+            balances: vec![],
         },
     }
 }
