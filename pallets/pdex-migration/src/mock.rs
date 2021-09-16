@@ -2,11 +2,12 @@ use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
-    testing::Header,
-    traits::{BlakeTwo256, IdentityLookup},
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use crate as pdex_migration;
+use crate::pallet as pdex_migration;
+
 use frame_support::traits::GenesisBuild;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -33,29 +34,29 @@ parameter_types! {
 }
 
 impl system::Config for Test {
-    type BaseCallFilter = frame_support::traits::Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type DbWeight = ();
-    type Origin = Origin;
-    type Call = Call;
-    type Index = u64;
-    type BlockNumber = u64;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
-    type AccountId = u64;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
-    type Event = Event;
-    type BlockHashCount = BlockHashCount;
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<Balance>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = SS58Prefix;
-    type OnSetCode = ();
+	type BaseCallFilter = frame_support::traits::Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
+	type DbWeight = ();
+	type Origin = Origin;
+	type Call = Call;
+	type Index = u64;
+	type BlockNumber = u64;
+	type Hash = H256;
+	type Hashing = BlakeTwo256;
+	type AccountId = u64;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type Header = Header;
+	type Event = Event;
+	type BlockHashCount = BlockHashCount;
+	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
 }
 pub const PDEX: Balance = 1000_000_000_000;
 parameter_types! {
@@ -65,15 +66,15 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Test {
-    type Balance = Balance;
-    type DustRemoval = ();
-    type Event = Event;
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Pallet<Test>;
-    type MaxLocks = MaxLocks;
-    type MaxReserves = MaxReserves;
-    type ReserveIdentifier = [u8; 8];
-    type WeightInfo = ();
+	type Balance = Balance;
+	type DustRemoval = ();
+	type Event = Event;
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = frame_system::Pallet<Test>;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -81,28 +82,24 @@ parameter_types! {
 }
 
 impl pdex_migration::Config for Test {
-    type Event = Event;
-    type LockPeriod = LockPeriod;
-    type WeightInfo = ();
+	type Event = Event;
+	type LockPeriod = LockPeriod;
+	type WeightInfo = ();
 }
 
 impl pallet_sudo::Config for Test {
-    type Event = Event;
-    type Call = Call;
+	type Event = Event;
+	type Call = Call;
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let alice = 1u64;
-    let mut t= system::GenesisConfig::default().build_storage::<Test>().unwrap();
-    pallet_balances::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
-    pallet_sudo::GenesisConfig::<Test>{
-        key: alice
-    }.assimilate_storage(&mut t).unwrap();
-    pdex_migration::GenesisConfig::<Test>{
-        operation_status: false,
-        max_tokens: 3_172_895*PDEX
-    }
-        .assimilate_storage(&mut t).unwrap();
-    t.into()
+	let alice = 1u64;
+	let mut t= system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	pallet_balances::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
+	pallet_sudo::GenesisConfig::<Test>{
+		key: alice
+	}.assimilate_storage(&mut t).unwrap();
+	pdex_migration::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
+	t.into()
 }

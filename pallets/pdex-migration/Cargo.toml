@@ -3,7 +3,7 @@ authors = ['Polkadex Authors']
 description = 'FRAME pallet for migrating ERC20 PDEX to Native PDEX'
 edition = '2018'
 homepage = 'https://polkadex.trade'
-name = 'erc20-pdex-migration-pallet'
+name = 'pdex-migration'
 version = '1.0.0'
 
 [package.metadata.docs.rs]
@@ -25,11 +25,11 @@ sp-io = { default-features = false, git = "https://github.com/paritytech/substra
 [features]
 default = ['std']
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'pallet-balances/std',
-    'pallet-sudo/std'
+	'codec/std',
+	'frame-support/std',
+	'frame-system/std',
+	'sp-runtime/std',
+	'pallet-balances/std',
+	'pallet-sudo/std'
 ]
 runtime-benchmarks = ["frame-benchmarking"]

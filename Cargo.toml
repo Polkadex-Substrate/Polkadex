@@ -4,8 +4,8 @@ panic = 'unwind'
 [workspace]
 members = [
     'node',
-    'pallets/pdex-migration',
     'runtime',
+    "pallets/pdex-migration"
 ]
 
 

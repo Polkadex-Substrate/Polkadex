@@ -1387,21 +1387,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "erc20-pdex-migration-pallet"
-version = "1.0.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-balances",
- "pallet-sudo",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "errno"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3658,7 +3643,6 @@ dependencies = [
 name = "node-polkadex-runtime"
 version = "3.0.0"
 dependencies = [
- "erc20-pdex-migration-pallet",
  "frame-benchmarking",
  "frame-election-provider-support",
  "frame-executive",
@@ -3698,6 +3682,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
+ "pdex-migration",
  "polkadex-primitives",
  "smallvec",
  "sp-api",
@@ -4871,6 +4856,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d95f5254224e617595d2cc3cc73ff0a5eaf2637519e25f03388154e9378b6ffa"
 dependencies = [
  "crypto-mac 0.11.1",
+]
+
+[[package]]
+name = "pdex-migration"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-sudo",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]

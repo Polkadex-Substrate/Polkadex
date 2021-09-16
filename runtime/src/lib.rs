@@ -969,8 +969,7 @@ parameter_types! {
     pub const LockPeriod: BlockNumber = 201600;
 }
 
-
-impl erc20_pdex_migration_pallet::Config for Runtime {
+impl pdex_migration::pallet::Config for Runtime {
     type Event = Event;
     type LockPeriod = LockPeriod;
     type WeightInfo = ();
@@ -1012,7 +1011,7 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
-        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 30,
+        PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
     }
 );
 /// Digest item type.
@@ -1302,7 +1301,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
-            add_benchmark!(params, batches, erc20_pdex_migration_pallet, PDEXMigration);
+            add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
