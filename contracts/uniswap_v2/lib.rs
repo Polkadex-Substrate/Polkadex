@@ -21,7 +21,7 @@ mod uniswap_v2 {
     use ink_prelude::vec;
     use ink_prelude::vec::Vec;
     use ink_storage::collections::HashMap;
-    use num_traits::{One, Zero};
+    use num_traits::{Zero};
     use primitive_types::U256;
 
     #[ink(storage)]
@@ -384,7 +384,7 @@ mod uniswap_v2 {
 
             let amounts = self.get_target_amounts(&path, supply_amount, price_impact_limit)?;
 
-            if (amounts.len() < 1) {
+            if amounts.len() < 1 {
                 return Err(Error::InvalidAmountsLength);
             }
 
@@ -423,7 +423,7 @@ mod uniswap_v2 {
 
             let amounts = self.get_supply_amounts(&path, target_amount, price_impact_limit)?;
 
-            if (amounts.len() < 1) {
+            if amounts.len() < 1 {
                 return Err(Error::InvalidAmountsLength);
             }
 
@@ -570,7 +570,7 @@ mod uniswap_v2 {
             max_amount_a: Balance,
             max_amount_b: Balance,
             min_share_increment: Balance,
-            stake_increment_share: bool,
+            _stake_increment_share: bool,
         ) -> Result<()> {
             let caller = self.env().caller();
 
@@ -690,7 +690,7 @@ mod uniswap_v2 {
             remove_share: Balance,
             min_withdrawn_a: Balance,
             min_withdrawn_b: Balance,
-            by_unstake: bool,
+            _by_unstake: bool,
         ) -> Result<()> {
             let caller = self.env().caller();
 
