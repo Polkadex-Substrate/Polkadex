@@ -1,4 +1,5 @@
 //! Benchmarking setup for pallet-template
+use mock::PDEX;
 
 use super::*;
 
@@ -11,7 +12,7 @@ use frame_support::traits::{EnsureOrigin, Get, UnfilteredDispatchable};
 // use frame_system::{self, EventRecord, RawOrigin};
 // use orml_tokens::{AccountData, Accounts};
 // use sp_runtime::traits::Bounded;
-// use sp_runtime::traits::One;
+
 use frame_benchmarking::account;
 // use crate::pallet::Call;
 use frame_system::Call;
@@ -19,7 +20,7 @@ use frame_system::Pallet;
 use sp_runtime::testing::H256;
 use frame_system::Origin;
 // use crate::mock::PDEX;
-use crate::pallet as PDEXMigration;
+use crate::pallet::Call as PDEXMigration;
 // use runtime::PDEX;
 #[allow(unused)]
 // use crate::Pallet as Template;
