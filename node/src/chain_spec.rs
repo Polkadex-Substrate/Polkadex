@@ -116,6 +116,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 
     testnet_genesis(
         initial_authorities,
+        20000,
+        vec![],
         vec![],
         root_key,
     )
@@ -179,6 +181,8 @@ pub fn authority_keys_from_seed(
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
         vec![authority_keys_from_seed("Alice")],
+        1_000_000_000,
+        vec![get_account_id_from_seed::<sr25519::Public>("Bob"), get_account_id_from_seed::<sr25519::Public>("Dave"), get_account_id_from_seed::<sr25519::Public>("Ferdie"),get_account_id_from_seed::<sr25519::Public>("Charlie"), get_account_id_from_seed::<sr25519::Public>("Eve")],
         vec![],
         get_account_id_from_seed::<sr25519::Public>("Alice"),
     )
@@ -205,6 +209,8 @@ fn soba_testnet_genesis() -> GenesisConfig {
             authority_keys_from_seed("Alice"),
             authority_keys_from_seed("Bob"),
         ],
+        20_000,
+        vec![],
         vec![],
         get_account_id_from_seed::<sr25519::Public>("Alice"),
     )
@@ -273,7 +279,7 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
                 .unchecked_into(),
         ), ];
     let root_key = hex!["a2f6199c36e89dd066de2582ae6f705783f040c1fc06f30455532258886bfa76"].into();
-    testnet_genesis(initial_authorities, vec![], root_key)
+    testnet_genesis(initial_authorities,20000, vec![], vec![], root_key)
 }
 
 pub fn mainnet_testnet_config() -> ChainSpec {
@@ -313,10 +319,12 @@ pub fn testnet_genesis(
         ImOnlineId,
         AuthorityDiscoveryId,
     )>,
+    endowment : u128,
+    initial_accounts : Vec<AccountId>,
     _initial_nominators: Vec<AccountId>,
     root_key: AccountId,
 ) -> GenesisConfig {
-    const ENDOWMENT: u128 = 20_000 * PDEX;
+    let ENDOWMENT: u128 =  endowment * PDEX;
     const STASH: u128 = 2 * PDEX;
     // Total Supply in ERC20
     const ERC20_PDEX_SUPPLY: u128 = 3_172_895 * PDEX;
@@ -333,6 +341,9 @@ pub fn testnet_genesis(
     let mut inital_validators_endowment = initial_authorities
         .iter()
         .map(|k| (k.0.clone(), ENDOWMENT)).collect_vec();
+    let mut initial_accounts = initial_accounts
+        .iter()
+        .map(|k| (k.clone(), ENDOWMENT)).collect_vec();
     let mut endowed_accounts = vec![
         //      Root Key
         (root_key.clone(), ENDOWMENT),
@@ -353,6 +364,7 @@ pub fn testnet_genesis(
     endowed_accounts.append(claims.as_mut());
     // Endow to validators
     endowed_accounts.append(&mut inital_validators_endowment);
+    endowed_accounts.append(&mut initial_accounts);
 
     let mut total_supply: u128 = 0;
     for (_, balance) in &endowed_accounts {
@@ -370,7 +382,7 @@ pub fn testnet_genesis(
             changes_trie_config: Default::default(),
         },
         balances: BalancesConfig {
-            balances: endowed_accounts,
+            balances: endowed_accounts.clone(),
         },
 
         indices: IndicesConfig { indices: vec![] },
@@ -427,7 +439,9 @@ pub fn testnet_genesis(
             operation_status: false
         },
         tokens: TokensConfig {
-            balances: vec![],
+            balances: vec![
+                (endowed_accounts[0].0.clone(), AssetId::Asset(10), 1000000000000000000u128)
+            ],
         },
     }
 }
@@ -498,6 +512,8 @@ pub(crate) mod tests {
     fn local_testnet_genesis_instant_single() -> GenesisConfig {
         testnet_genesis(
             vec![authority_keys_from_seed("Alice")],
+            20000,
+            vec![],
             vec![],
             get_account_id_from_seed::<sr25519::Public>("Alice"),
         )

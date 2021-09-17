@@ -3752,7 +3752,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-ido",
  "polkadex-ido-runtime-api",
- "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main)",
+ "polkadex-primitives",
  "smallvec",
  "sp-api",
  "sp-authority-discovery",
@@ -4519,7 +4519,7 @@ name = "pallet-polkadex-ido-primitives"
 version = "0.1.0"
 dependencies = [
  "parity-scale-codec",
- "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main)",
+ "polkadex-primitives",
  "serde",
  "sp-core",
  "sp-runtime",
@@ -5163,7 +5163,7 @@ dependencies = [
  "pallet-balances",
  "pallet-polkadex-ido-primitives",
  "parity-scale-codec",
- "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=main)",
+ "polkadex-primitives",
  "rand 0.8.4",
  "rand_chacha 0.3.1",
  "rustc-hex",
@@ -5231,7 +5231,7 @@ dependencies = [
  "parking_lot 0.11.2",
  "platforms",
  "polkadex-ido-rpc",
- "polkadex-primitives 0.1.0 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=gj-substrate-master)",
+ "polkadex-primitives",
  "rand 0.7.3",
  "regex",
  "sc-authority-discovery",
@@ -5281,19 +5281,6 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "tempfile",
-]
-
-[[package]]
-name = "polkadex-primitives"
-version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=gj-substrate-master#a36166b4786317c832f4dace9b828a558c651af2"
-dependencies = [
- "frame-system",
- "parity-scale-codec",
- "serde",
- "sp-application-crypto",
- "sp-core",
- "sp-runtime",
 ]
 
 [[package]]
