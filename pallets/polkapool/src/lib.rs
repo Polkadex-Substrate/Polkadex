@@ -41,6 +41,8 @@ use sp_arithmetic::traits::*;
 use sp_arithmetic::traits::{Bounded, One, SaturatedConversion, Saturating, Zero};
 use sp_core::H256;
 use sp_runtime::traits::{SignedExtension, DispatchInfoOf};
+// REVIEW: There is a prelude that contains (most of) what you want here.
+// use sp_std::prelude::*;
 use sp_std::boxed::Box;
 use sp_std::collections::vec_deque::VecDeque;
 use sp_std::vec;
@@ -68,6 +70,7 @@ pub trait Config: frame_system::Config {
     + GetDispatchInfo
     + From<frame_system::Call<Self>>;
     /// Balance Type
+	// REVIEW: Maybe bind to `BaseArithmetic`?
     type Balance: Parameter
     + Member
     + AtLeast32BitUnsigned
@@ -87,6 +90,7 @@ pub trait Config: frame_system::Config {
     /// Maximum allowed Feeless Transactions in a block
     type MaxAllowedWeight: Get<Weight>;
     /// Min Stake Period
+	// REVIEW: nitpick: as you use `T::BlockNumber` in the code below, this should be `Self::BlockNubmer`
     type MinStakePeriod: Get<BlockNumber>;
     /// Max number of stakes per account
     type MaxStakes: Get<usize>;
@@ -103,6 +107,7 @@ pub trait Config: frame_system::Config {
     type GovernanceOrigin: EnsureOrigin<<Self as Config>::Origin, Success=Self::AccountId>;
 }
 
+// REVIEW: doc comments
 #[derive(Decode, Encode, Copy, Clone)]
 pub struct Stake<T: Config + frame_system::Config> {
     pub staked_amount: T::Balance,
@@ -118,7 +123,7 @@ impl<T: Config + frame_system::Config> Default for Stake<T> {
     }
 }
 
-impl<T: Config + frame_system::Config> Stake<T> {
+impl<T: Config + frame_system::Config> Stake<T> {slash_stake
     pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> Stake<T> {
         Stake {
             staked_amount: stake,
@@ -127,6 +132,7 @@ impl<T: Config + frame_system::Config> Stake<T> {
     }
 }
 
+// REVIEW: doc comments
 #[derive(Decode, Encode, Clone)]
 pub struct StakeInfo<T: Config + frame_system::Config> {
     stakes: VecDeque<Stake<T>>,
@@ -141,12 +147,15 @@ impl<T: Config + frame_system::Config> Default for StakeInfo<T> {
 }
 
 impl<T: Config + frame_system::Config> StakeInfo<T> {
+	// REVIEW: This seems unused.
+	// REVIEW: doc comments
     pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> StakeInfo<T> {
         let mut queue = VecDeque::new();
         queue.push_back(Stake::new(stake, unlock));
         StakeInfo { stakes: queue }
     }
 
+	// REVIEW: doc comments
     pub fn push(&mut self, stake: T::Balance, unlock: T::BlockNumber) -> Result<(), Error<T>> {
         if self.stakes.len() < T::MaxStakes::get() {
             self.stakes.push_back(Stake::new(stake, unlock));
@@ -155,8 +164,11 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
         Err(Error::<T>::MaxStakesExceededForAccount)
     }
 
+	// REVIEW: doc comments
     pub fn claimable_stakes(&mut self, current_block: T::BlockNumber) -> Vec<Stake<T>> {
         let mut claimable_stakes = vec![];
+		// REVIEW: How is it guaranteed that stakes are sorted by `unlocking_block`? (Because it
+		// looks like you rely on it for the function to work correctly.)
         while let Some(stake) = self.stakes.pop_front() {
             if stake.unlocking_block <= current_block {
                 claimable_stakes.push(stake);
@@ -167,6 +179,8 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
         claimable_stakes
     }
 
+	// REVIEW: doc comments
+	// REVIEW: Why does this modify `self`, looks like a regular sum to me, you could just iterate.
     pub fn total_stake(&mut self) -> T::Balance {
         let mut total: T::Balance = 0u128.saturated_into();
         while let Some(stake) = self.stakes.pop_front() {
@@ -176,6 +190,8 @@ impl<T: Config + frame_system::Config> StakeInfo<T> {
     }
 }
 
+// REVIEW: doc comments
+// REVIEW: I don't think it's fair to assume a `Call` is `Copy`.
 #[derive(Decode, Encode, Copy, Clone)]
 pub struct Ext<Call, Origin> {
     pub call: Call,
@@ -203,6 +219,7 @@ decl_storage! {
     trait Store for Module<T: Config> as Polkapool {
         /// All users and their staked amount
         /// (when they can claim, accountId => Balance)
+		// REVIEW: Based on the usage I would recommend storing an `Option<StakeInfo<T>>`.
         pub StakedUsers get(fn staked_users):  map hasher(blake2_128_concat) T::AccountId => StakeInfo<T>;
 
         /// Feeless Extrinsics stored for next block
@@ -218,10 +235,13 @@ decl_event!(
         Call = <T as Config>::Call,
         PostInfo = <<T as Config>::Call as Dispatchable>::PostInfo
     {
+		// REVIEW: I would recommend choosing a consistent identifier for a call and then include it
+		// in all events related to that call.
         FeelessExtrinsicAccepted(Call),
         FeelessExtrinsicOverWeight(Call),
         FeelessCallFailedToExecute(PostInfo,DispatchError),
         FeelessCallExecutedSuccessfully(PostInfo),
+		// REVIEW: This is unused. I would recommend to remove it as it is very heavy.
         FeelessExtrinsicsExecuted(Vec<Call>),
         StakeSlashed(AccountId, Balance),
         Unstaked(AccountId, Balance),
@@ -268,13 +288,21 @@ decl_module! {
             total_weight = total_weight.saturating_add(base_weight);
             // Start executing
             for ext in stored_exts.store{
-                total_weight = total_weight.saturating_add(ext.call.get_dispatch_info().weight);
+				total_weight = total_weight.saturating_add(ext.call.get_dispatch_info().weight);
                 if total_weight > T::MaxAllowedWeight::get() {
+					// REVIEW: This combination of `saturating_add` and `saturating_sub` is not idempotent
+					// (i.e. `total_weight` might be different after than it was before).
                     total_weight = total_weight.saturating_sub(ext.call.get_dispatch_info().weight);
+					// REVIEW: A `Call` can be fairly big because it includes its parameters. I would
+					// instead chose an identifier (e.g. a hash or index) to put in events.
                     Self::deposit_event(RawEvent::FeelessExtrinsicOverWeight(ext.call));
                 }else {
                      match ext.call.dispatch(ext.origin.into()) {
                         Ok(post_info) => {
+							// REVIEW: Would probably be good to adjust `total_weight` based on the
+							// `post_info` weight (which can be different from pre dispatch estimated
+							// weight).
+							// Especially for smart contract calls.
                             Self::deposit_event(RawEvent::FeelessCallExecutedSuccessfully(post_info));
                         }
                         Err(post_info_with_error) => {
@@ -307,7 +335,9 @@ decl_module! {
             let current_block: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 
             // Load account Info
-            let mut staked_info: StakeInfo<T> = Self::staked_users(who.clone());
+            let mut staked_info: StakeInfo<T> = Self::staked_users(&who); // REVIEW: avoid the copy
+			// REVIEW: This does not guarantee that the staked_info is sorted.
+			// REVIEW: nitpick: use saturating add
             staked_info.push(stake_amount,stake_period+current_block)?;
 
              //Reserve stake amount
@@ -333,11 +363,14 @@ decl_module! {
         #[weight = 10000]
         pub fn unstake(origin) -> DispatchResult {
             let who = ensure_signed(origin.clone())?;
+			// REVIEW: What is this meant to do?
             ensure!(origin.into().is_ok(),Error::<T>::BadOrigin);
             ensure!(<StakedUsers<T>>::contains_key(&who),Error::<T>::StakeNotFound);
             let mut stake_info: StakeInfo<T> = <StakedUsers<T>>::get(&who);
             let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
             let mut total: T::Balance = 0u128.saturated_into();
+			// REVIEW: This does not store the updated StakeInfo in the storage. A user can
+			// `unreserve` all balance by repeatedly calling this.
             for stake in stake_info.claimable_stakes(current_block_no){
                 T::Currency::unreserve(AssetId::POLKADEX, &who, stake.staked_amount);
                 total += stake.staked_amount;
@@ -346,14 +379,21 @@ decl_module! {
             Ok(())
         }
 
+		// REVIEW: Using governance to slash stake means your response time to misbehavior will be
+		// slow. I would advise you to come up with a faster mechanism that can react to abuse in
+		// a timely fashion.
+		// You also just slash the complete stake which means you need to make a binary decision.
         /// ## Slash Stake
         /// Slash stake of account by the Governance
         #[weight = 10000]
         pub fn slash_stake(origin, account: T::AccountId) -> DispatchResult {
             let origin = <T as Config>::Origin::from(origin);
             T::GovernanceOrigin::ensure_origin(origin)?;
+			// REVIEW: This will (try to) slash 0 for non-existent accounts. Not sure it makes sense
+			// to call `Currency::withdraw` and deposit the event if it is 0 anyway.
             let mut stake_info: StakeInfo<T> = <StakedUsers<T>>::take(&account);
             T::Currency::withdraw(AssetId::POLKADEX,&account,stake_info.total_stake())?;
+			// REVIEW: Because `total_stake` (line above) mutates I would expect this to always be 0.
             Self::deposit_event(RawEvent::StakeSlashed(account,stake_info.total_stake()));
             Ok(())
         }
