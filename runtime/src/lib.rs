@@ -1278,7 +1278,7 @@ impl_runtime_apis! {
             list_benchmark!(list,extra, pallet_utility, Utility);
  
             list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-            // list_benchmark!(list,extra, erc20_pdex_migration_pallet, PDEXMigration);
+            list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 

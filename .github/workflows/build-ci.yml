@@ -20,9 +20,10 @@ jobs:
       - name: Install toolchain
         run: ./scripts/init.sh
       - name: Build Project
-        if: github.event_name == 'push'
-        run: cargo build
-      - run: cargo clean
+        run: |
+            cargo clean
+            cargo build --release --features runtime-benchmarks
+            cargo build
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
