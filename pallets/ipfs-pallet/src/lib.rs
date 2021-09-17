@@ -121,7 +121,8 @@ pub mod pallet {
         /// In case, CID is wrong, the given block will be rejected and the validator which inserted the inherent is penalized by staking mechanism.
         #[pallet::weight(10_000)]
         pub fn approve_cid(origin: OriginFor<T>, cid: Cid) -> DispatchResult {
-            ensure_none(origin)?; // TODO: Do we need the validator to sign this inherent?
+            ensure_none(origin)?; // TODO: Do we need the validator to sign this inherent? --> No, the inherent is just accepted as part of the block
+			// REVIEW: You need to check the `OperationalStatus` here.
             <ApprovedCID<T>>::put(cid);
             Ok(())
         }
@@ -226,12 +227,16 @@ impl<T: Config> Pallet<T> {
     pub fn get_approved_cid() -> Option<Cid> {
         <ApprovedCID<T>>::get()
     }
+	// REVIEW: Iterating storage is expensive, you'll want to avoid doing this as much as possible
+	// and probably note it in the doc comments of the functions.
     /// Get all user claims
     pub fn collect_user_claims() -> Vec<T::AccountId> {
         <UserClaims<T>>::iter_keys().collect()
     }
     /// Get all Multiaddress
     pub fn collect_enclave_multiaddrs() -> Vec<(T::AccountId,Vec<Vec<u8>>)> {
+		// REVIEW: `::iter` should be enough
+		// https://paritytech.github.io/substrate/frame_support/storage/trait.IterableStorageMap.html#tymethod.iter
         <EnclaveIPFSMultiAddrs<T>>::iter_keys().zip(<EnclaveIPFSMultiAddrs<T>>::iter_values()).collect()
     }
 }
