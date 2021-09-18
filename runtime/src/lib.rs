@@ -23,9 +23,7 @@
 #![recursion_limit = "256"]
 #![allow(clippy::from_over_into)]
 
-pub use snowbridge_core::MessageId;
-use snowbridge_dispatch::EnsureEthereumAccount;
-pub use snowbridge_ethereum_light_client::EthereumDifficultyConfig;
+
 use codec::{Decode, Encode};
 use constants::{currency::*, time::*};
 use frame_support::traits::{Filter, OnUnbalanced};
@@ -1120,52 +1118,6 @@ impl pallet_polkapool::Config for Runtime {
 
 
 parameter_types! {
-    pub const DescendantsUntilFinalized: u8 = 1;
-    pub const DifficultyConfig: EthereumDifficultyConfig = EthereumDifficultyConfig::ropsten();
-    pub const VerifyPoW: bool = false;
-}
-
-impl snowbridge_ethereum_light_client::Config for Runtime {
-    type Event = Event;
-    type DescendantsUntilFinalized = DescendantsUntilFinalized;
-    type DifficultyConfig = DifficultyConfig;
-    type VerifyPoW = VerifyPoW;
-    type WeightInfo = weights::ethereum_light_client_weights::WeightInfo<Runtime>;
-}
-
-pub struct CallFilter;
-
-impl Filter<Call> for CallFilter {
-    fn filter(call: &Call) -> bool {
-        matches!(call, Call::ERC20PDEX(_))
-    }
-}
-
-impl snowbridge_dispatch::Config for Runtime {
-    type Origin = Origin;
-    type Event = Event;
-    type MessageId = MessageId;
-    type Call = Call;
-    type CallFilter = CallFilter;
-}
-
-use snowbridge_basic_channel::inbound as basic_inbound_channel;
-
-impl basic_inbound_channel::Config for Runtime {
-    type Event = Event;
-    type Verifier = snowbridge_ethereum_light_client::Module<Runtime>;
-    type MessageDispatch = snowbridge_dispatch::Module<Runtime>;
-    type WeightInfo = weights::basic_channel_inbound_weights::WeightInfo<Runtime>;
-}
-
-impl erc20_pdex_migration_pallet::Config for Runtime {
-    type Event = Event;
-    type Balance = Balance;
-    type Currency = Currencies;
-    type CallOrigin = EnsureEthereumAccount;
-}
-
-parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100_u128;
     pub const GetMaxSupply: Balance = 2_000_000_u128;
     pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
@@ -1231,10 +1183,6 @@ construct_runtime! {
         PolkadexFungibleAsset: polkadex_fungible_assets::{Pallet, Call, Storage, Event<T>} = 34,
         SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 35,
         PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 36,
-        BasicInboundChannel: basic_inbound_channel::{Pallet, Call, Config, Storage, Event} = 37,
-        Dispatch: snowbridge_dispatch::{Pallet, Call, Storage, Event<T>, Origin} = 38,
-        EthereumLightClient: snowbridge_ethereum_light_client::{Pallet, Call, Storage, Event, Config} = 39,
-        ERC20PDEX: erc20_pdex_migration_pallet::{Pallet, Call, Storage, Config, Event<T>} = 40,
         PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 41,
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
         // otherwise it will result in in consistent state of runtime.
