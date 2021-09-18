@@ -114,7 +114,9 @@ pub mod pallet {
         /// Lock on minted tokens is not yet expired
         LiquidityRestrictions,
         /// Invalid Ethereum Tx Hash, Zero Hash
-        InvalidTxHash
+        InvalidTxHash,
+        /// Given Eth Transaction is already processed
+        AlreadyProcessedEthBurnTx
     }
 
     #[pallet::hooks]
@@ -144,6 +146,7 @@ pub mod pallet {
         pub fn mint(origin: OriginFor<T>, beneficiary: T::AccountId, amount: T::Balance, eth_tx: T::Hash) -> DispatchResultWithPostInfo {
             let relayer = ensure_signed(origin)?;
             ensure!(eth_tx != T::Hash::default(), Error::<T>::InvalidTxHash);
+            ensure!(EthTxns::<T>::get(eth_tx) == 3, Error::<T>::AlreadyProcessedEthBurnTx);
             if Self::operational() {
                 Self::process_migration(relayer, beneficiary, amount, eth_tx)?;
                 Ok(Pays::No.into())
