@@ -113,6 +113,8 @@ pub mod pallet {
         UnknownBeneficiary,
         /// Lock on minted tokens is not yet expired
         LiquidityRestrictions,
+        /// Invalid Ethereum Tx Hash, Zero Hash
+        InvalidTxHash
     }
 
     #[pallet::hooks]
@@ -141,6 +143,7 @@ pub mod pallet {
         #[pallet::weight(10000)]
         pub fn mint(origin: OriginFor<T>, beneficiary: T::AccountId, amount: T::Balance, eth_tx: T::Hash) -> DispatchResultWithPostInfo {
             let relayer = ensure_signed(origin)?;
+            ensure!(eth_tx != T::Hash::default(), Error::<T>::InvalidTxHash);
             if Self::operational() {
                 Self::process_migration(relayer, beneficiary, amount, eth_tx)?;
                 Ok(Pays::No.into())
@@ -211,7 +214,7 @@ pub mod pallet {
                         pallet_balances::Pallet::<T>::set_lock(MIGRATION_LOCK,
                                                                &beneficiary,
                                                                amount,
-                                                               WithdrawReasons::FEE);
+                                                               WithdrawReasons::TRANSACTION_PAYMENT);
                         let current_blocknumber: T::BlockNumber = frame_system::Pallet::<T>::current_block_number();
                         LockedTokenHolders::<T>::insert(beneficiary.clone(), current_blocknumber);
                         // Reduce possible mintable tokens
