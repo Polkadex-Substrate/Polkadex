@@ -213,11 +213,12 @@ pub mod pallet {
                     if num_votes == 3 { // We need all three relayers to agree on this burn transaction
                         // Mint tokens
                         let _positive_imbalance = pallet_balances::Pallet::<T>::deposit_creating(&beneficiary, amount);
+                        let reasons = WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE;
                         // Lock tokens for 28 days
                         pallet_balances::Pallet::<T>::set_lock(MIGRATION_LOCK,
                                                                &beneficiary,
                                                                amount,
-                                                               WithdrawReasons::TRANSACTION_PAYMENT);
+                                                               reasons);
                         let current_blocknumber: T::BlockNumber = frame_system::Pallet::<T>::current_block_number();
                         LockedTokenHolders::<T>::insert(beneficiary.clone(), current_blocknumber);
                         // Reduce possible mintable tokens
