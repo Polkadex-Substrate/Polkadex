@@ -117,6 +117,9 @@ pub fn mint_works() {
 		let invalid_amount = (3_172_895 + 1) * PDEX;
 		let valid_amount = 100 * PDEX;
 		let eth_hash = H256::random();
+		assert_eq!(EthTxns::<Test>::get(eth_hash).approvals,0);
+		assert_eq!(EthTxns::<Test>::get(eth_hash).approvers.len(),0);
+		assert!(!EthTxns::<Test>::get(eth_hash).approvers.contains(&relayer));
 		// Check if operational flag is working
 		assert_noop!(
 			PDEXMigration::mint(Origin::signed(relayer), beneficiary,valid_amount,eth_hash),
@@ -137,18 +140,18 @@ pub fn mint_works() {
 		// Check if vote for a successful transaction is incremented
 		let initial_total_issuance = pallet_balances::Pallet::<Test>::total_issuance();
 		assert_ok!(PDEXMigration::mint(Origin::signed(relayer), beneficiary,valid_amount,eth_hash));
-		assert_eq!(EthTxns::<Test>::get(&eth_hash), 1);
+		assert_eq!(EthTxns::<Test>::get(&eth_hash).approvals, 1);
 		assert_eq!(pallet_balances::Pallet::<Test>::total_issuance(), initial_total_issuance);
 		// Ensure no new tokens are created yet
 		// Register remaining two relayers
 		assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer2,true));
 		assert_ok!(PDEXMigration::mint(Origin::signed(relayer2), beneficiary,valid_amount,eth_hash));
-		assert_eq!(EthTxns::<Test>::get(&eth_hash), 2);
+		assert_eq!(EthTxns::<Test>::get(&eth_hash).approvals, 2);
 		assert_eq!(pallet_balances::Pallet::<Test>::total_issuance(), initial_total_issuance);
 		assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer3,true));
-		assert_ok!(PDEXMigration::mint(Origin::signed(relayer), beneficiary,valid_amount,eth_hash));
-		assert_eq!(EthTxns::<Test>::get(&eth_hash), 3);
-		// Ensure total issueance increased by valid_amount
+		assert_ok!(PDEXMigration::mint(Origin::signed(relayer3), beneficiary,valid_amount,eth_hash));
+		assert_eq!(EthTxns::<Test>::get(&eth_hash).approvals, 3);
+		// Ensure total issuance increased by valid_amount
 		assert_eq!(pallet_balances::Pallet::<Test>::total_issuance(), initial_total_issuance + valid_amount);
 		// Ensure the user cannot move the funds until unlocked
 		assert_noop!(
