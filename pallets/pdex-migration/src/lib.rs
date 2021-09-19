@@ -22,6 +22,8 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use sp_runtime::SaturatedConversion;
     use sp_runtime::traits::{BlockNumberProvider, Zero};
+    use sp_std::vec::Vec;
+    use sp_std::vec;
 
     const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
 
