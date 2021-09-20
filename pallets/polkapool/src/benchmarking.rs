@@ -1,5 +1,7 @@
 //! Benchmarking setup for pallet-polkapool
 
+// REVIEW: add pallet benchmarks
+
 use super::*;
 
 use frame_system::RawOrigin;
