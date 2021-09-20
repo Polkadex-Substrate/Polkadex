@@ -165,6 +165,8 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     }
 }
 
+// REVIEW: I'm not sure this is a fair assumption with 10% for contracts deletion and up to
+// 80% for feeless txs.
 /// We assume that ~10% of the block weight is consumed by `on_initialize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
 const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
@@ -575,6 +577,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 }
 
 parameter_types! {
+	// REVIEW: nitpick: use `DAYS` constant
     pub const LaunchPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
     pub const VotingPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
     pub const FastTrackVotingPeriod: BlockNumber = 3 * 24 * 60 * MINUTES;
@@ -751,6 +754,7 @@ parameter_types! {
     pub const MaxDepth: u32 = 32;
     pub const MaxValueSize: u32 = 16 * 1024;
     // The lazy deletion runs inside on_initialize.
+	// REVIEW: You might want to reduce this as you are expecting heavy `on_initialize` usage.
     pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
         RuntimeBlockWeights::get().max_block;
     // The weight needed for decoding the queue should be less or equal than a fifth
@@ -812,6 +816,7 @@ mod impl_uniswap {
                     let input_data = env.read(68)?;
 
                     let token_addr: H160 = H160::from_slice(&input_data[0..20]);
+					// REVIEW: There should be no unwrap in the runtime.
                     let from: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
                     let to: AccountId = PalletId(*b"polkadex").into_account();
                     let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
@@ -1068,6 +1073,8 @@ impl Filter<Call> for FeelessTxnFilter {
     }
 }
 
+// REVIEW: nitpick: The naming clash with the struct and associated type of the same name in the
+// polkapool pallet is a little confusing.
 pub struct DynamicStaking;
 
 impl pallet_polkapool::traits::DynamicStaker<Call, Balance> for DynamicStaking {
@@ -1094,6 +1101,7 @@ parameter_types! {
     pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
     pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
         RuntimeBlockWeights::get().max_block;
+	// REVIEW: nitpick: use `DAYS` constant
     pub const MinStakePeriod: BlockNumber = 360000u32; // 28 days
     pub const MaxStakes: usize = 50;
 }
@@ -1121,6 +1129,7 @@ parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100_u128;
     pub const GetMaxSupply: Balance = 2_000_000_u128;
     pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+	// REVIEW: nitpick: use `DAYS` constant
     pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
 }
 
@@ -1207,6 +1216,7 @@ pub type BlockId = generic::BlockId<Block>;
 /// When you change this, you **MUST** modify [`sign`] in `bin/node/testing/src/keyring.rs`!
 ///
 /// [`sign`]: <../../testing/src/keyring.rs.html>
+// REVIEW: DynamicStaking SignedExtension is missing here.
 pub type SignedExtra = (
     frame_system::CheckSpecVersion<Runtime>,
     frame_system::CheckTxVersion<Runtime>,
