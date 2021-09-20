@@ -425,9 +425,8 @@ pub fn testnet_genesis(
 
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
     // 3 months in terms of 12s blocks is 648,000 blocks, i.e. period = 648,000
-    const THREE_MONTHS: u32 = 648_000/3000; // We are approximating a month to 30 days.
-
-    const OCT_16_2021: u32 = 144_000/3000; // 20 days from block 0, implies 144_000 blocks
+    const THREE_MONTHS: u32 = 648_000/3000; // We are approximating a month to 30 days. // TODO: Change it before mainnet
+    const OCT_16_2021: u32 = 144_000/3000; // 20 days from block 0, implies 144_000 blocks // TODO: Change it before mainnet
     const JAN_16_2022: u32 = OCT_16_2021 + THREE_MONTHS;
     const APR_16_2022: u32 = JAN_16_2022 + THREE_MONTHS;
     const JUL_16_2022: u32 = APR_16_2022 + THREE_MONTHS;
