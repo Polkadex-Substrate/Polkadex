@@ -14,13 +14,13 @@ use frame_support::traits::{EnsureOrigin, Get, UnfilteredDispatchable};
 // use sp_runtime::traits::Bounded;
 
 use frame_benchmarking::account;
-// use crate::pallet::Call;
+use crate::pallet::Pallet;
 use frame_system::Call;
-use frame_system::Pallet;
+// use frame_system::Pallet;
 use sp_runtime::testing::H256;
 use frame_system::Origin;
 // use crate::mock::PDEX;
-use crate::pallet::Call as PDEXMigration;
+use crate::pallet::Pallet as PDEXMigration;
 // use runtime::PDEX;
 #[allow(unused)]
 // use crate::Pallet as Template;
@@ -71,7 +71,7 @@ benchmarks! {
         assert_ok!(PDEXMigration::mint(Origin::signed(relayer2), beneficiary,100*PDEX,H256::zero()));
         assert_ok!(PDEXMigration::mint(Origin::signed(relayer3), beneficiary,100*PDEX,H256::zero()));
 
-        frame_system::Pallet::<T>::set_block_number(frame_system::Pallet::<T>::current_block_number()+T::LockPeriod::get());
+        // frame_system::Pallet::<T>::set_block_number(frame_system::Pallet::<T>::current_block_number()+T::LockPeriod::get());
 
         let beneficiary: T::AccountId = whitelisted_caller();
     }: _(RawOrigin::Signed(beneficiary))
