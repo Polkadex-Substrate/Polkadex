@@ -1278,7 +1278,7 @@ impl_runtime_apis! {
             list_benchmark!(list,extra, pallet_utility, Utility);
  
             list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-            // list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
+            list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1338,7 +1338,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
-            // add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+            add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
