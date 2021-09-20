@@ -1,0 +1,1369 @@
+{
+  "metadataVersion": "0.1.0",
+  "source": {
+    "hash": "0x414f6e7f6514356627408b3429635ef70b47db2547307db052b00f7ac5c41766",
+    "language": "ink! 3.0.0-rc3",
+    "compiler": "rustc 1.55.0-nightly"
+  },
+  "contract": {
+    "name": "uniswap_v2",
+    "version": "0.1.0",
+    "authors": [
+      "Frank Li <frank@polkadex.trade>"
+    ]
+  },
+  "spec": {
+    "constructors": [
+      {
+        "args": [],
+        "docs": [
+          "Constructor"
+        ],
+        "name": [
+          "new"
+        ],
+        "selector": "0x9bae9d5e"
+      }
+    ],
+    "docs": [],
+    "events": [
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "who",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "currency_id_0",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "pool_0_increment",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "currency_id_1",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "pool_1_increment",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "share_increment",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          }
+        ],
+        "docs": [
+          " Emitted when Adding liquidity success. \\[who, currency_id_0, pool_0_increment, currency_id_1, pool_1_increment, share_increment\\]."
+        ],
+        "name": "LiquidityAdded"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "who",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "currency_id_0",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "pool_0_decrement",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "currency_id_1",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "pool_1_decrement",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "remove_share",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          }
+        ],
+        "docs": [
+          " Emitted when Removing liquidity from the trading pool success. \\[who, currency_id_0, pool_0_decrement, currency_id_1, pool_1_decrement, share_decrement\\]"
+        ],
+        "name": "LiquidityRemoved"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "who",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "path",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 21
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "supply",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "target",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          }
+        ],
+        "docs": [
+          " Use supply currency to swap target currency. \\[trader, trading_path, supply_currency_amount, target_currency_amount\\]"
+        ],
+        "name": "Swap"
+      }
+    ],
+    "messages": [
+      {
+        "args": [
+          {
+            "name": "currency_id_a",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "currency_id_b",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "max_amount_a",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "max_amount_b",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "min_share_increment",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "stake_increment_share",
+            "type": {
+              "displayName": [
+                "bool"
+              ],
+              "type": 17
+            }
+          }
+        ],
+        "docs": [
+          " Add liquidity to trading pair",
+          " - `currency_id_a`: currency id A.",
+          " - `currency_id_b`: currency id B.",
+          " - `max_amount_a`: maximum amount of currency_id_a is allowed to inject to liquidity pool.",
+          " - `max_amount_b`: maximum amount of currency_id_b is allowed to inject to liquidity pool.",
+          " - `min_share_increment`: minimum acceptable share amount.",
+          " - `stake_increment_share`: indicates whether to stake increased dex share to earn incentives"
+        ],
+        "mutates": true,
+        "name": [
+          "add_liquidity"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 18
+        },
+        "selector": "0x264cd04b"
+      },
+      {
+        "args": [
+          {
+            "name": "currency_id_a",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "currency_id_b",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "remove_share",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "min_withdrawn_a",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "min_withdrawn_b",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "by_unstake",
+            "type": {
+              "displayName": [
+                "bool"
+              ],
+              "type": 17
+            }
+          }
+        ],
+        "docs": [
+          " Remove liquidity from specific liquidity pool in the form of burning",
+          " shares, and withdrawing currencies in trading pairs from liquidity",
+          " pool in proportion, and withdraw liquidity incentive interest.",
+          "",
+          " - `currency_id_a`: currency id A.",
+          " - `currency_id_b`: currency id B.",
+          " - `remove_share`: liquidity amount to remove.",
+          " - `min_withdrawn_a`: minimum acceptable withrawn for currency_id_a.",
+          " - `min_withdrawn_b`: minimum acceptable withrawn for currency_id_b.",
+          " - `by_unstake`: this flag indicates whether to withdraw share which is on incentives."
+        ],
+        "mutates": true,
+        "name": [
+          "remove_liquidity"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 18
+        },
+        "selector": "0xbdd16bfa"
+      },
+      {
+        "args": [
+          {
+            "name": "path",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 21
+            }
+          },
+          {
+            "name": "supply_amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "min_target_amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          }
+        ],
+        "docs": [
+          " Swap with exact supply amount",
+          "",
+          " - `path`: trading path.",
+          " - `supply_amount`: exact supply amount.",
+          " - `min_target_amount`: acceptable minimum target amount."
+        ],
+        "mutates": true,
+        "name": [
+          "swap_with_exact_supply"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 18
+        },
+        "selector": "0xeb584474"
+      },
+      {
+        "args": [
+          {
+            "name": "path",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 21
+            }
+          },
+          {
+            "name": "target_amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          },
+          {
+            "name": "max_supply_amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          }
+        ],
+        "docs": [
+          " Swap with exact target amount",
+          "",
+          " - `path`: trading path.",
+          " - `target_amount`: exact target amount.",
+          " - `max_supply_amount`: acceptable maximum supply amount."
+        ],
+        "mutates": true,
+        "name": [
+          "swap_with_exact_target"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 18
+        },
+        "selector": "0x08c7c80f"
+      },
+      {
+        "args": [
+          {
+            "name": "currency_id_a",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "currency_id_b",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_liquidity"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [],
+          "type": 12
+        },
+        "selector": "0x71706a12"
+      },
+      {
+        "args": [
+          {
+            "name": "currency_id_a",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "currency_id_b",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "account",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_dex_incentive"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Balance"
+          ],
+          "type": 13
+        },
+        "selector": "0x09c0b878"
+      },
+      {
+        "args": [
+          {
+            "name": "currency_id_a",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "currency_id_b",
+            "type": {
+              "displayName": [
+                "TokenAddress"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_total_issuance"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Balance"
+          ],
+          "type": 13
+        },
+        "selector": "0x5e508d11"
+      },
+      {
+        "args": [
+          {
+            "name": "path",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 21
+            }
+          },
+          {
+            "name": "supply_amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_swap_target_amount"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Option"
+          ],
+          "type": 22
+        },
+        "selector": "0x62ce5354"
+      },
+      {
+        "args": [
+          {
+            "name": "path",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 21
+            }
+          },
+          {
+            "name": "target_amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 13
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_swap_supply_amount"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Option"
+          ],
+          "type": 22
+        },
+        "selector": "0x1ae7c549"
+      }
+    ]
+  },
+  "storage": {
+    "struct": {
+      "fields": [
+        {
+          "layout": {
+            "cell": {
+              "key": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "ty": 1
+            }
+          },
+          "name": "owner"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x0100000000000000000000000000000000000000000000000000000000000000",
+                              "ty": 4
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x0200000000000000000000000000000000000000000000000000000000000000",
+                                      "ty": 5
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x0200000001000000000000000000000000000000000000000000000000000000",
+                                          "ty": 6
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x0300000000000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x0300000001000000000000000000000000000000000000000000000000000000",
+                          "ty": 11
+                        }
+                      },
+                      "offset": "0x0200000001000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
+          "name": "liquidity_pool"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x0300000001000000000000000000000000000000000000000000000000000000",
+                              "ty": 4
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
+                                      "ty": 5
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x0400000002000000000000000000000000000000000000000000000000000000",
+                                          "ty": 6
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x0500000001000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x0500000002000000000000000000000000000000000000000000000000000000",
+                          "ty": 14
+                        }
+                      },
+                      "offset": "0x0400000002000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
+          "name": "total_issuances"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x0500000002000000000000000000000000000000000000000000000000000000",
+                              "ty": 4
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
+                                      "ty": 5
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x0600000003000000000000000000000000000000000000000000000000000000",
+                                          "ty": 15
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x0700000002000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x0700000003000000000000000000000000000000000000000000000000000000",
+                          "ty": 14
+                        }
+                      },
+                      "offset": "0x0600000003000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
+          "name": "dex_incentives"
+        }
+      ]
+    }
+  },
+  "types": [
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "type": 2,
+              "typeName": "[u8; 32]"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ink_env",
+        "types",
+        "AccountId"
+      ]
+    },
+    {
+      "def": {
+        "array": {
+          "len": 32,
+          "type": 3
+        }
+      }
+    },
+    {
+      "def": {
+        "primitive": "u8"
+      }
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "last_vacant",
+              "type": 5,
+              "typeName": "Index"
+            },
+            {
+              "name": "len",
+              "type": 5,
+              "typeName": "u32"
+            },
+            {
+              "name": "len_entries",
+              "type": 5,
+              "typeName": "u32"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Header"
+      ]
+    },
+    {
+      "def": {
+        "primitive": "u32"
+      }
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 10,
+                  "typeName": "VacantEntry"
+                }
+              ],
+              "name": "Vacant"
+            },
+            {
+              "fields": [
+                {
+                  "type": 7,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Occupied"
+            }
+          ]
+        }
+      },
+      "params": [
+        7
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Entry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "type": 8,
+              "typeName": "TokenAddress"
+            },
+            {
+              "type": 8,
+              "typeName": "TokenAddress"
+            }
+          ]
+        }
+      },
+      "path": [
+        "uniswap_v2",
+        "models",
+        "TradingPair"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "type": 9,
+              "typeName": "[u8; 20]"
+            }
+          ]
+        }
+      },
+      "path": [
+        "pool",
+        "TokenAddress"
+      ]
+    },
+    {
+      "def": {
+        "array": {
+          "len": 20,
+          "type": 3
+        }
+      }
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "next",
+              "type": 5,
+              "typeName": "Index"
+            },
+            {
+              "name": "prev",
+              "type": 5,
+              "typeName": "Index"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "VacantEntry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "value",
+              "type": 12,
+              "typeName": "V"
+            },
+            {
+              "name": "key_index",
+              "type": 5,
+              "typeName": "KeyIndex"
+            }
+          ]
+        }
+      },
+      "params": [
+        12
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "hashmap",
+        "ValueEntry"
+      ]
+    },
+    {
+      "def": {
+        "tuple": [
+          13,
+          13
+        ]
+      }
+    },
+    {
+      "def": {
+        "primitive": "u128"
+      }
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "value",
+              "type": 13,
+              "typeName": "V"
+            },
+            {
+              "name": "key_index",
+              "type": 5,
+              "typeName": "KeyIndex"
+            }
+          ]
+        }
+      },
+      "params": [
+        13
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "hashmap",
+        "ValueEntry"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 10,
+                  "typeName": "VacantEntry"
+                }
+              ],
+              "name": "Vacant"
+            },
+            {
+              "fields": [
+                {
+                  "type": 16,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Occupied"
+            }
+          ]
+        }
+      },
+      "params": [
+        16
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Entry"
+      ]
+    },
+    {
+      "def": {
+        "tuple": [
+          7,
+          1
+        ]
+      }
+    },
+    {
+      "def": {
+        "primitive": "bool"
+      }
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 19,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 20,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        19,
+        20
+      ],
+      "path": [
+        "Result"
+      ]
+    },
+    {
+      "def": {
+        "tuple": []
+      }
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "discriminant": 0,
+              "name": "InvalidTokenAddress"
+            },
+            {
+              "discriminant": 1,
+              "name": "InvalidLiquidityIncrement"
+            },
+            {
+              "discriminant": 2,
+              "name": "ArithmeticOverflow"
+            },
+            {
+              "discriminant": 3,
+              "name": "ArithmeticUnderflow"
+            },
+            {
+              "discriminant": 4,
+              "name": "UnacceptableShareIncrement"
+            },
+            {
+              "discriminant": 5,
+              "name": "UnacceptableLiquidityWithdrawn"
+            },
+            {
+              "discriminant": 6,
+              "name": "InvalidTradingPathLength"
+            },
+            {
+              "discriminant": 7,
+              "name": "ZeroTargetAmount"
+            },
+            {
+              "discriminant": 8,
+              "name": "ExceedPriceImpactLimit"
+            },
+            {
+              "discriminant": 9,
+              "name": "InsufficientLiquidity"
+            },
+            {
+              "discriminant": 10,
+              "name": "InsufficientTargetAmount"
+            },
+            {
+              "discriminant": 11,
+              "name": "InvariantCheckFailed"
+            },
+            {
+              "discriminant": 12,
+              "name": "ExcessiveSupplyAmount"
+            },
+            {
+              "discriminant": 13,
+              "name": "InvalidTradingPair"
+            },
+            {
+              "discriminant": 14,
+              "name": "InvalidPathAmountsLength"
+            },
+            {
+              "discriminant": 15,
+              "name": "InvalidAmountsLength"
+            },
+            {
+              "discriminant": 16,
+              "name": "TransferFailed"
+            }
+          ]
+        }
+      },
+      "path": [
+        "uniswap_v2",
+        "errors",
+        "Error"
+      ]
+    },
+    {
+      "def": {
+        "sequence": {
+          "type": 8
+        }
+      }
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "name": "None"
+            },
+            {
+              "fields": [
+                {
+                  "type": 13,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Some"
+            }
+          ]
+        }
+      },
+      "params": [
+        13
+      ],
+      "path": [
+        "Option"
+      ]
+    }
+  ]
+}

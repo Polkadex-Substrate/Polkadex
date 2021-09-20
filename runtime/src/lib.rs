@@ -29,7 +29,7 @@ use frame_support::{
     RuntimeDebug,
     traits::{
         Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier,
-        U128CurrencyToVote,
+        U128CurrencyToVote, Nothing, Contains
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -43,10 +43,13 @@ use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
 };
+use orml_currencies::BasicCurrencyAdapter;
+use orml_traits::parameter_type_with_key;
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
+use pallet_contracts::weights::WeightInfo;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -55,6 +58,7 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use sp_api::impl_runtime_apis;
@@ -64,17 +68,18 @@ use smallvec::smallvec;
 use sp_core::{
     crypto::KeyTypeId,
     OpaqueMetadata,
-    u32_trait::{_1, _2, _3, _4, _5},
+    u32_trait::{_1, _2, _3, _4, _5}
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
     ApplyExtrinsicResult, create_runtime_str, FixedPointNumber, generic, impl_opaque_keys, Perbill,
     Percent, Permill, Perquintill,
 };
+use core::convert::TryInto;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::curve::PiecewiseLinear;
-use sp_runtime::traits::{self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, BlockNumberProvider};
+use sp_runtime::traits::{self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, BlockNumberProvider, Zero};
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
@@ -756,6 +761,148 @@ impl pallet_bounties::Config for Runtime {
     type WeightInfo = weights::pallet_bounties::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+    pub TombstoneDeposit: Balance = deposit(
+        1,
+        <pallet_contracts::Pallet<Runtime>>::contract_info_size(),
+    );
+    pub DepositPerContract: Balance = TombstoneDeposit::get();
+    pub const DepositPerStorageByte: Balance = deposit(0, 1);
+    pub const DepositPerStorageItem: Balance = deposit(1, 0);
+    pub RentFraction: Perbill = Perbill::from_rational(1u32, 30 * DAYS);
+    pub const SurchargeReward: Balance = 150 * MILLICENTS;
+    pub const SignedClaimHandicap: u32 = 2;
+    pub const MaxDepth: u32 = 32;
+    pub const MaxValueSize: u32 = 16 * 1024;
+    // The lazy deletion runs inside on_initialize.
+    pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
+        RuntimeBlockWeights::get().max_block;
+    // The weight needed for decoding the queue should be less or equal than a fifth
+    // of the overall weight dedicated to the lazy deletion.
+    pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
+            <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(1) -
+            <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(0)
+        )) / 5) as u32;
+    pub MaxCodeSize: u32 = 128 * 1024;
+    pub const ContractDeposit: u64 = 16;
+    pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
+}
+
+impl pallet_contracts::Config for Runtime {
+    type Time = Timestamp;
+    type Randomness = RandomnessCollectiveFlip;
+    type Currency = Balances;
+    type Event = Event;
+    type WeightPrice = pallet_transaction_payment::Pallet<Self>;
+    type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
+    type ChainExtension = impl_uniswap::CustomChainExtension;
+    type DeletionQueueDepth = DeletionQueueDepth;
+    type DeletionWeightLimit = DeletionWeightLimit;
+    type ContractDeposit = ContractDeposit;
+    type Call = Call;
+    /// The safest default is to allow no calls at all.
+    ///
+    /// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+    /// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+    /// change because that would break already deployed contracts. The `Call` structure itself
+    /// is not allowed to change the indices of existing pallets, too.
+    type CallFilter = Nothing;
+    type Schedule = Schedule;
+    type CallStack = [pallet_contracts::Frame<Self>; 31];
+}
+
+mod impl_uniswap {
+    use super::*;
+    use frame_support::log::error;
+    use orml_traits::MultiCurrency;
+    use pallet_contracts::chain_extension::{
+        ChainExtension, Environment, Ext, InitState, RetVal, SysConfig, UncheckedFrom,
+    };
+    use sp_runtime::DispatchError;
+
+    pub struct CustomChainExtension;
+
+    impl ChainExtension<Runtime> for CustomChainExtension {
+        fn call<E: Ext>(
+            func_id: u32,
+            env: Environment<E, InitState>,
+        ) -> Result<RetVal, DispatchError>
+            where
+                <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+                <E as Ext>::T: orml_tokens::Config,
+        {
+            match func_id {
+                0 => {
+                    // deposit
+                    let mut env = env.buf_in_buf_out();
+                    let input_data = env.read(68)?;
+
+                    let token_addr: u64 = u64::from_le_bytes(input_data[0..20].try_into().unwrap());
+                    let from: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
+                    let to: AccountId = PalletId(*b"polkadex").into_account();
+                    let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
+                    log::info!("-------------- {:?} {:?} {:?}", token_addr, to, amount);
+
+                    match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
+                        AssetId::Asset(token_addr),
+                        &from,
+                        &to,
+                        amount,
+                    ) {
+                        Ok(res) => {
+                            log::info!("ChainExtension success {:?}", res);
+                            env.write(&[0], false, None)?;
+                        }
+                        Err(err) => {
+                            log::info!("ChainExtension error {:?}", err);
+                            return Err(DispatchError::Other(
+                                "ChainExtension failed to call transfer",
+                            ));
+                        }
+                    }
+                }
+
+                1 => {
+                    // withdraw
+                    let mut env = env.buf_in_buf_out();
+                    let input_data = env.read(68)?;
+
+                    let token_addr: u64 = u64::from_le_bytes(input_data[0..20].try_into().unwrap());
+                    let from: AccountId = PalletId(*b"polkadex").into_account();
+                    let to: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
+                    let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
+                    log::info!("-------------- {:?} {:?} {:?}", token_addr, from, amount);
+
+                    match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
+                        AssetId::Asset(token_addr),
+                        &from,
+                        &to,
+                        amount,
+                    ) {
+                        Ok(_) => {
+                            env.write(&[0], false, None)?;
+                        }
+                        Err(_) => {
+                            return Err(DispatchError::Other(
+                                "ChainExtension failed to call transfer",
+                            ));
+                        }
+                    }
+                }
+
+                _ => {
+                    error!("Called an unregistered `func_id`: {:}", func_id);
+                    return Err(DispatchError::Other("Unimplemented func_id"));
+                }
+            }
+            Ok(RetVal::Converging(0))
+        }
+
+        fn enabled() -> bool {
+            true
+        }
+    }
+}
 
 impl pallet_sudo::Config for Runtime {
     type Event = Event;
@@ -969,11 +1116,130 @@ parameter_types! {
     pub const LockPeriod: BlockNumber = 201600;
 }
 
+parameter_type_with_key! {
+    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+        Zero::zero()
+    };
+}
+parameter_types! {
+    pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		*a == TreasuryModuleAccount::get()
+	}
+}
+
+impl orml_tokens::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Amount = Amount;
+    type CurrencyId = AssetId;
+    type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
+    type MaxLocks = MaxLocks;
+    type DustRemovalWhitelist = DustRemovalWhitelist;
+}
+
+parameter_types! {
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+}
+
+impl orml_currencies::Config for Runtime {
+    type Event = Event;
+    type MultiCurrency = Tokens;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type WeightInfo = ();
+}
 
 impl erc20_pdex_migration_pallet::Config for Runtime {
     type Event = Event;
     type LockPeriod = LockPeriod;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const AssetDeposit: Balance = 100 * DOLLARS;
+    pub const ApprovalDeposit: Balance = DOLLARS;
+    pub const StringLimit: u32 = 50;
+    pub const MetadataDepositBase: Balance = 10 * DOLLARS;
+    pub const MetadataDepositPerByte: Balance = DOLLARS;
+}
+
+parameter_types! {
+    pub IgnoredIssuance: Balance = Treasury::pot();
+    pub const QueueCount: u32 = 300;
+    pub const MaxQueueLen: u32 = 1000;
+    pub const FifoQueueLen: u32 = 500;
+    pub const Period: BlockNumber = 30 * DAYS;
+    pub const MinFreeze: Balance = 100 * DOLLARS;
+    pub const IntakePeriod: BlockNumber = 10;
+    pub const MaxIntakeBids: u32 = 10;
+}
+
+pub struct FeelessTxnFilter;
+
+impl Contains<Call> for FeelessTxnFilter {
+    fn contains(call: &Call) -> bool {
+        // TODO: Pass only whitelisted contracts via governance
+        // matches!(call, Call::Contracts(_))
+        true
+    }
+}
+
+pub struct DynamicStaking;
+
+impl pallet_polkapool::traits::DynamicStaker<Call, Balance> for DynamicStaking {
+    /// Filters the claim_feeless_transaction call
+    fn filter(call: &Call) -> bool {
+        matches!(call, Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(_,_)))
+    }
+
+    /// Gets the stake amount from the feeless transaction call
+    fn get_stake(call: &Call) -> Balance {
+        match call {
+            Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(stake, _)) => *stake,
+            _ => Balance::zero()
+        }
+    }
+}
+
+parameter_types! {
+    pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
+        RuntimeBlockWeights::get().max_block;
+    pub const MaxAllowedTxns: usize = 50;
+    pub const MinStakePerWeight: u128 = 10_000;
+    pub const MinStakePeriodPerWeight: u32 = 1;
+    pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
+    pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
+        RuntimeBlockWeights::get().max_block;
+    pub const MinStakePeriod: BlockNumber = 360000u32; // 28 days
+    pub const MaxStakes: usize = 50;
+}
+
+impl pallet_polkapool::Config for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type PalletsOrigin = OriginCaller;
+    type Call = Call;
+    type Balance = Balance;
+    type Currency = Currencies;
+    type MinStakeAmount = MinStakeAmount;
+    type MaxAllowedWeight = MaxAllowedWeight;
+    type MinStakePeriod = MinStakePeriod;
+    type MaxStakes = MaxStakes;
+    type RandomnessSource = RandomnessCollectiveFlip;
+    type CallFilter = FeelessTxnFilter;
+    type DynamicStaking = DynamicStaking;
+    type MinStakePerWeight = MinStakePerWeight;
+    type GovernanceOrigin = EnsureGovernance;
+}
+
+impl pallet_randomness_collective_flip::Config for Runtime {
 }
 
 construct_runtime!(
@@ -1012,7 +1278,15 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
-        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 30,
+        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
+        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 31,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 33,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 34,
+        // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
+        // otherwise it will result in in consistent state of runtime.
+        // Refer: issue #261
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>} = 42
     }
 );
 /// Digest item type.
@@ -1213,6 +1487,41 @@ impl_runtime_apis! {
         }
     }
 
+    impl pallet_contracts_rpc_runtime_api::ContractsApi<
+        Block, AccountId, Balance, BlockNumber, Hash,
+    >
+        for Runtime
+    {
+        fn call(
+            origin: AccountId,
+            dest: AccountId,
+            value: Balance,
+            gas_limit: u64,
+            input_data: Vec<u8>,
+        ) -> pallet_contracts_primitives::ContractExecResult {
+            let debug = true;
+            Contracts::bare_call(origin, dest, value, gas_limit, input_data, debug)
+        }
+
+        fn instantiate(
+            origin: AccountId,
+            endowment: Balance,
+            gas_limit: u64,
+            code: pallet_contracts_primitives::Code<Hash>,
+            data: Vec<u8>,
+            salt: Vec<u8>,
+         ) -> pallet_contracts_primitives::ContractInstantiateResult<AccountId> {
+            Contracts::bare_instantiate(origin, endowment, gas_limit, code, data, salt, true)
+         }
+
+        fn get_storage(
+            address: AccountId,
+            key: [u8; 32],
+        ) -> pallet_contracts_primitives::GetStorageResult {
+            Contracts::get_storage(address, key)
+        }
+    }
+
 
     impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
         Block,
@@ -1285,6 +1594,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_bounties, Bounties);
             add_benchmark!(params, batches, pallet_collective, Council);
+            add_benchmark!(params, batches, pallet_contracts, Contracts);
             add_benchmark!(params, batches, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
             add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
             add_benchmark!(params, batches, pallet_grandpa, Grandpa);
@@ -1307,6 +1617,34 @@ impl_runtime_apis! {
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
         }
+    }
+}
+
+const MODULE_ID: PalletId = PalletId(*b"cb/gover");
+
+pub type Amount = i128;
+
+parameter_types! {
+    pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+}
+
+pub struct EnsureGovernance;
+
+impl EnsureOrigin<Origin> for EnsureGovernance {
+    type Success = AccountId;
+    fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+        let bridge_id = MODULE_ID.into_account();
+        Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+            RawOrigin::Signed(who) if who == bridge_id => Ok(bridge_id),
+            r => Err(Origin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn successful_origin() -> Origin {
+        Origin::from(RawOrigin::Signed(Default::default()))
     }
 }
 

@@ -44,9 +44,12 @@ pallet-identity = { default-features = false, git = "https://github.com/parityte
 pallet-proxy = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-tips = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-recovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-contracts = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-
+pallet-contracts-primitives = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-contracts-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 #end added
 #frame
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -82,9 +85,13 @@ frame-system-benchmarking = { default-features = false, git = "https://github.co
 
 # ORML Pallets
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
+orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
+pallet-polkapool = { path = "../pallets/polkapool", default-features = false }
 erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
 
 [build-dependencies]
@@ -109,6 +116,7 @@ std = [
     'pallet-grandpa/std',
     'pallet-im-online/std',
     'pallet-offences/std',
+    'pallet-randomness-collective-flip/std',
     'pallet-session/std',
     'pallet-staking/std',
     'pallet-authority-discovery/std',
@@ -120,6 +128,9 @@ std = [
     'pallet-recovery/std',
     'pallet-utility/std',
     "pallet-bounties/std",
+    'pallet-contracts/std',
+    'pallet-contracts-primitives/std',
+    'pallet-contracts-rpc-runtime-api/std',
     'pallet-tips/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment/std',
@@ -146,6 +157,9 @@ std = [
     "sp-npos-elections/std",
 
     "orml-vesting/std",
+    "orml-currencies/std",
+    "orml-tokens/std",
+    "orml-traits/std",
     "polkadex-primitives/std"
 ]
 runtime-benchmarks = [
