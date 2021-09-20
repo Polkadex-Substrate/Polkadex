@@ -18,12 +18,11 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional= true}
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional= true }
 
 [dev-dependencies]
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 
 [features]
 default = ['std']
@@ -36,11 +35,10 @@ std = [
 	'pallet-sudo/std'
 ]
 runtime-benchmarks = [
-	'sp-core/std',
-	'sp-io/std',
     "frame-benchmarking",
     'frame-support/runtime-benchmarks',
     'frame-system/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
     'pallet-balances/runtime-benchmarks',
 ]
+try-runtime = ["frame-support/try-runtime"]

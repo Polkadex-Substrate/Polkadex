@@ -1,30 +1,25 @@
 //! Benchmarking setup for pallet-template
-use mock::PDEX;
-
-use super::*;
-
-use frame_system::RawOrigin;
-use frame_support::{assert_noop, assert_ok, error::BadOrigin};
-use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
-
-// use frame_benchmarking::({account, benchmarks, impl_benchmark_test_suite, whitelist_account});
-use frame_support::traits::{EnsureOrigin, Get, UnfilteredDispatchable};
-// use frame_system::{self, EventRecord, RawOrigin};
-// use orml_tokens::{AccountData, Accounts};
-// use sp_runtime::traits::Bounded;
-
-use frame_benchmarking::account;
-use crate::pallet::Pallet;
-use frame_system::Call;
-// use frame_system::Pallet;
+#![cfg(feature = "runtime-benchmarks")]
+// use crate::pallet as PDEXMigration;
+use super::pallet::Pallet;
+use crate::mock::PDEXMigration;
+use crate::mock::{Origin,PDEX};
+// use sp_core::H256;
 use sp_runtime::testing::H256;
-use frame_system::Origin;
-// use crate::mock::PDEX;
-use crate::pallet::Pallet as PDEXMigration;
-// use runtime::PDEX;
+use pallet::{Config,Call};
+use super::*;
+use sp_runtime::traits::Saturating;
+use sp_runtime::traits::BlockNumberProvider;
+use frame_support::{
+	traits::Get,
+};
+
+pub use frame_benchmarking::{
+	account, benchmarks, impl_benchmark_test_suite, whitelist_account,whitelisted_caller,
+};
+use frame_system::RawOrigin;
+use frame_support::assert_ok;
 #[allow(unused)]
-// use crate::Pallet as Template;
-use crate::pallet::Config;
 
 benchmarks! {
     set_migration_operational_status {
@@ -71,7 +66,7 @@ benchmarks! {
         assert_ok!(PDEXMigration::mint(Origin::signed(relayer2), beneficiary,100*PDEX,H256::zero()));
         assert_ok!(PDEXMigration::mint(Origin::signed(relayer3), beneficiary,100*PDEX,H256::zero()));
 
-        // frame_system::Pallet::<T>::set_block_number(frame_system::Pallet::<T>::current_block_number()+T::LockPeriod::get());
+        frame_system::Pallet::<T>::set_block_number(frame_system::Pallet::<T>::current_block_number()+T::LockPeriod::get());
 
         let beneficiary: T::AccountId = whitelisted_caller();
     }: _(RawOrigin::Signed(beneficiary))
@@ -95,8 +90,8 @@ benchmarks! {
     }: _(RawOrigin::Root,beneficiary)
 }
 
-impl_benchmark_test_suite!(
-	Template,
-	crate::mock::new_test_ext(),
-	crate::mock::Test,
-);
+// impl_benchmark_test_suite!(
+// 	PDEXMigration,
+// 	crate::mock::new_test_ext(),
+// 	crate::mock::Test,
+// );
