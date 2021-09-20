@@ -788,8 +788,6 @@ parameter_types! {
     pub MaxCodeSize: u32 = 128 * 1024;
     pub const ContractDeposit: u64 = 16;
     pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
-
-    //pub const RentPayment: u32 = 10000; // TODO: Change this to the correct value and type
 }
 
 impl pallet_contracts::Config for Runtime {
@@ -802,6 +800,7 @@ impl pallet_contracts::Config for Runtime {
     type ChainExtension = impl_uniswap::CustomChainExtension;
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
+
     type Call = Call;
     type TombstoneDeposit = TombstoneDeposit;
     type RentFraction = RentFraction;
@@ -810,9 +809,7 @@ impl pallet_contracts::Config for Runtime {
     type DepositPerContract = DepositPerContract;
     type DepositPerStorageByte = DepositPerStorageByte;
     type DepositPerStorageItem = DepositPerStorageItem;
-
     type RentPayment = DealWithFees;
-
     /// The safest default is to allow no calls at all.
     ///
     /// Runtimes should whitelist dispatchables that are allowed to be called from contracts
@@ -1668,7 +1665,6 @@ impl polkadex_ocex::Config for Runtime {
     type GenesisAccount = OCEXGenesisAccount;
     type Currency = Currencies;
     type ProxyLimit = ProxyLimit;
-}
 
     pub struct EnsureGovernance;
 
