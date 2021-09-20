@@ -123,7 +123,7 @@ impl<T: Config + frame_system::Config> Default for Stake<T> {
     }
 }
 
-impl<T: Config + frame_system::Config> Stake<T> {slash_stake
+impl<T: Config + frame_system::Config> Stake<T> {
     pub fn new(stake: T::Balance, unlock: T::BlockNumber) -> Stake<T> {
         Stake {
             staked_amount: stake,
