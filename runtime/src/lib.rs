@@ -1278,7 +1278,7 @@ impl_runtime_apis! {
             list_benchmark!(list,extra, pallet_utility, Utility);
  
             list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-            list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
+            // list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1291,12 +1291,12 @@ impl_runtime_apis! {
             // Trying to add benchmarks directly to the Session Pallet caused cyclic dependency
             // issues. To get around that, we separated the Session benchmarks into its own crate,
             // which is why we need these two lines below.
-            use pallet_session_benchmarking::Pallet as SessionBench;
-            use pallet_offences_benchmarking::Pallet as OffencesBench;
+            // use pallet_session_benchmarking::Pallet as SessionBench;
+            // use pallet_offences_benchmarking::Pallet as OffencesBench;
             use frame_system_benchmarking::Pallet as SystemBench;
 
-            impl pallet_session_benchmarking::Config for Runtime {}
-            impl pallet_offences_benchmarking::Config for Runtime {}
+            // impl pallet_session_benchmarking::Config for Runtime {}
+            // impl pallet_offences_benchmarking::Config for Runtime {}
             impl frame_system_benchmarking::Config for Runtime {}
 
             let whitelist: Vec<TrackedStorageKey> = vec![
@@ -1338,7 +1338,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
-            add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+            // add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

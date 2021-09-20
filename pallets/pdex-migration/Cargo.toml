@@ -41,6 +41,6 @@ runtime-benchmarks = [
     'frame-system/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
     'pallet-balances/runtime-benchmarks',
-	'sp-io/std',
+	# 'sp-io/std',
 ]
 try-runtime = ["frame-support/try-runtime"]
