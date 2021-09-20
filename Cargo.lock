@@ -3946,7 +3946,7 @@ checksum = "28988d872ab76095a6e6ac88d99b54fd267702734fd7ffe610ca27f533ddb95a"
 [[package]]
 name = "orml-vesting"
 version = "0.4.1-dev"
-source = "git+https://github.com/Gauthamastro/open-runtime-module-library.git?branch=gj-substrate-master#7fde7abbf21354eefd1c7d3ece19d08d15d70424"
+source = "git+https://github.com/Gauthamastro/open-runtime-module-library.git?branch=gj-substrate-master#20c36287560c733a58fc82c428a9f34e1ca6276c"
 dependencies = [
  "frame-support",
  "frame-system",
