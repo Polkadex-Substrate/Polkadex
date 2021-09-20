@@ -81,7 +81,7 @@ sc-transaction-pool-api = {  git = "https://github.com/paritytech/substrate", ta
 sp-authority-discovery = {  git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
 
 #Primitives
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives", branch = "substrate-monthly-2021-09+1", default-features=false}
 sc-executor = {  git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "0.10.0-dev" }
 
 
@@ -99,7 +99,6 @@ tempfile = "3.1.0"
 assert_cmd = "1.0"
 nix = "0.19"
 serde_json = "1.0.68"
-#serde_json = "1.0"
 regex = "1"
 platforms = "1.1"
 async-std = { version = "1.6.5", features = ["attributes"] }

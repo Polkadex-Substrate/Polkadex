@@ -16,7 +16,7 @@ use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
     CouncilConfig, IndicesConfig, PolkadexOcexConfig,
     OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
-    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig
 };
 use log::info;
 pub use node_polkadex_runtime::GenesisConfig;
@@ -319,6 +319,7 @@ pub fn testnet_genesis(
     _initial_nominators: Vec<AccountId>,
     root_key: AccountId,
 ) -> GenesisConfig {
+    let genesis: AccountId = OCEXGenesisAccount.into_account();
     const ENDOWMENT: u128 = 20_000 * PDEX;
     const STASH: u128 = 2 * PDEX;
     // Total Supply in ERC20
@@ -427,7 +428,12 @@ pub fn testnet_genesis(
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
             operation_status: false
-        }
+        },
+        polkadex_ocex: PolkadexOcexConfig {
+            key: genesis.clone(),
+            genesis_account: genesis,
+        },
+        tokens: TokensConfig{ balances: vec![] }
     }
 }
 

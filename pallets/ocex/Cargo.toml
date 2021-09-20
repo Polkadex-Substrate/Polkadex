@@ -18,15 +18,16 @@ sp-io = {  git = "https://github.com/paritytech/substrate", tag = "monthly-2021-
 sp-core = {  git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false }
 sp-std = {  git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false }
 sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false }
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives", branch = "substrate-monthly-2021-09+1", default-features=false}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false, optional = true }
-orml-tokens = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git", branch = "gj-substrate-master",  default-features = false }
-orml-currencies = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git", branch = "gj-substrate-master", default-features = false }
-orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git", branch = "gj-substrate-master", default-features = false }
+orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1",  default-features = false }
+orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1", default-features = false }
+orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1", default-features = false }
+
 pallet-balances = {git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false }
-pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", default-features = false }
+pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", branch = "substrate-monthly-2021-09+1", default-features = false }
 timestamp= {git = "https://github.com/paritytech/substrate.git", package = "pallet-timestamp",tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false}
-polkadex-sgx-primitives = { path = "../../../polkadex-sgx-primitives", default-features=false}
+polkadex-sgx-primitives = {git = "https://github.com/Polkadex-Substrate/polkadexTEE-worker", branch = "monthly-2021-09+1", default-features=false}
 
 [dev-dependencies]
 sp-keyring = {  git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false }

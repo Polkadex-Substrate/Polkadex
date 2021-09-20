@@ -32,8 +32,9 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::AccountId;
 use polkadex_sgx_primitives::LinkedAccount;
-use sp_runtime::traits::AccountIdConversion;
+//use sp_runtime::traits::AccountIdConversion;
 use sp_std::prelude::*;
+use crate::sp_api_hidden_includes_decl_storage::hidden_include::sp_runtime::traits::AccountIdConversion;
 
 #[cfg(test)]
 mod mock;
