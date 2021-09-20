@@ -230,7 +230,7 @@ pub mod pallet {
                     if burn_details.approvals == 3 { // We need all three relayers to agree on this burn transaction
                         // Mint tokens
                         let _positive_imbalance = pallet_balances::Pallet::<T>::deposit_creating(&beneficiary, amount);
-                        let reasons = WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE;
+                        let reasons = WithdrawReasons::TRANSFER;
                         // Lock tokens for 28 days
                         pallet_balances::Pallet::<T>::set_lock(MIGRATION_LOCK,
                                                                &beneficiary,
