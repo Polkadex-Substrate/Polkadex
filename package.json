@@ -1,22 +1,22 @@
 {
     "name": "polkadex",
     "dependencies": {
-        "@redspot/chai": "^0.11.5",
-        "@redspot/decimals": "^0.11.5",
-        "@redspot/gas-reporter": "^0.11.5",
-        "@redspot/patract": "^0.11.5",
-        "@types/chai": "^4.2.14",
-        "@types/mocha": "^8.0.3",
-        "bn.js": "^5.2.0",
-        "chai": "^4.2.0",
-        "redspot": "^0.11.5",
-        "typescript": "^4.0.2"
+      "@redspot/chai": "^0.11.5",
+      "@redspot/decimals": "^0.11.5",
+      "@redspot/gas-reporter": "^0.11.5",
+      "@redspot/patract": "^0.11.5",
+      "@types/chai": "^4.2.14",
+      "@types/mocha": "^8.0.3",
+      "bn.js": "^5.2.0",
+      "chai": "^4.2.0",
+      "redspot": "^0.11.5",
+      "typescript": "^4.0.2"
     },
     "scripts": {
-        "build": "npx redspot compile",
-        "test": "npx redspot test"
+      "build": "npx redspot compile",
+      "test": "npx redspot test"
     },
     "devDependencies": {
-        "chai-as-promised": "^7.1.1"
+      "chai-as-promised": "^7.1.1"
     }
-}
+  }
