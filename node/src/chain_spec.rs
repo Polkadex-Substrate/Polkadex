@@ -439,7 +439,7 @@ pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
 pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
     let claims = vec![
         (hex!["e4cdc8abc0405db44c1a6886a2f2c59012fa3b98c07b61d63cc7f9e437ba243e"].into(), 3 * 6_000 * PDEX),
-        (hex!["b26562a2e476fea86b26b2e47f12d279deb0ca7812bd1dad5b4fc8a909e10b22"].into(), 3 * 800_000 * PDEX),
+        (hex!["b26562a2e476fea86b26b2e47f12d279deb0ca7812bd1dad5b4fc8a909e10b22"].into(), 3 * 80_000 * PDEX),
         (hex!["e83adffb6338272e981cbc0c6cc03fd4e5e8447497b6b531b9436870c6079758"].into(), 3 * 6_000 * PDEX),
         (hex!["e613dd948e7baacc02c97db737ad43af7024f5ae595d06f1611ce827c300b17f"].into(), 3 * 120_000 * PDEX),
         (hex!["182400644f4780a65a43e00f9630152fe0ab2323d0dacd04e808ceccf462f416"].into(), 3 * 35_000 * PDEX),

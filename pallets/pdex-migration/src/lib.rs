@@ -3,7 +3,6 @@
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
-
 #[cfg(test)]
 mod mock;
 
@@ -18,14 +17,29 @@ mod mock;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use codec::{Decode, Encode};
     use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
-    use frame_support::traits::{LockableCurrency, Currency, WithdrawReasons};
-    use sp_runtime::traits::{Zero, BlockNumberProvider};
+    use frame_support::traits::{Currency, LockableCurrency, WithdrawReasons};
     use frame_support::traits::fungible::Mutate;
+    use frame_system::pallet_prelude::*;
     use sp_runtime::SaturatedConversion;
+    use sp_runtime::traits::{BlockNumberProvider, Zero};
+    use sp_std::vec::Vec;
+    use sp_std::vec;
 
     const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
+
+    #[derive(Encode, Decode, Debug)]
+    pub struct BurnTxDetails<T: Config> {
+        pub(crate) approvals: u16,
+        pub(crate) approvers: Vec<T::AccountId>,
+    }
+
+    impl<T: Config> Default for BurnTxDetails<T> {
+        fn default() -> Self {
+            Self { approvals: 0, approvers: vec![] }
+        }
+    }
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -52,7 +66,7 @@ pub mod pallet {
     /// Flag that enables the migration
     #[pallet::storage]
     #[pallet::getter(fn operational)]
-    pub(super) type Operational<T:Config> = StorageValue<_, bool, ValueQuery>;
+    pub(super) type Operational<T: Config> = StorageValue<_, bool, ValueQuery>;
 
     /// Maximum Mintable tokens
     #[pallet::storage]
@@ -67,7 +81,7 @@ pub mod pallet {
     /// Processed Eth Burn Transactions
     #[pallet::storage]
     #[pallet::getter(fn eth_txs)]
-    pub(super) type EthTxns<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, u16, ValueQuery>;
+    pub(super) type EthTxns<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, BurnTxDetails<T>, ValueQuery>;
 
     // In FRAME v2.
     #[pallet::genesis_config]
@@ -100,6 +114,7 @@ pub mod pallet {
         NotOperational,
         NativePDEXMintedAndLocked(T::AccountId, T::AccountId, T::Balance),
         RevertedMintedTokens(T::AccountId),
+        TokenBurnDetected(T::Hash, T::AccountId),
     }
 
     // Errors inform users that something went wrong.
@@ -115,6 +130,10 @@ pub mod pallet {
         UnknownBeneficiary,
         /// Lock on minted tokens is not yet expired
         LiquidityRestrictions,
+        /// Invalid Ethereum Tx Hash, Zero Hash
+        InvalidTxHash,
+        /// Given Eth Transaction is already processed
+        AlreadyProcessedEthBurnTx,
     }
 
     #[pallet::hooks]
@@ -143,8 +162,11 @@ pub mod pallet {
         #[pallet::weight(10000)]
         pub fn mint(origin: OriginFor<T>, beneficiary: T::AccountId, amount: T::Balance, eth_tx: T::Hash) -> DispatchResultWithPostInfo {
             let relayer = ensure_signed(origin)?;
+            ensure!(eth_tx != T::Hash::default(), Error::<T>::InvalidTxHash);
             if Self::operational() {
-                Self::process_migration(relayer, beneficiary, amount, eth_tx)?;
+                let burn_details = EthTxns::<T>::get(eth_tx);
+                ensure!(!burn_details.approvers.contains(&relayer), Error::<T>::AlreadyProcessedEthBurnTx);
+                Self::process_migration(relayer, beneficiary, amount, eth_tx, burn_details)?;
                 Ok(Pays::No.into())
             } else {
                 Err(Error::<T>::NotOperational)?
@@ -198,32 +220,35 @@ pub mod pallet {
         pub fn process_migration(relayer: T::AccountId,
                                  beneficiary: T::AccountId,
                                  amount: T::Balance,
-                                 eth_hash: T::Hash) -> Result<(), Error<T>> {
+                                 eth_hash: T::Hash,
+                                 mut burn_details: BurnTxDetails<T> ) -> Result<(), Error<T>> {
             let relayer_status = Relayers::<T>::get(&relayer);
 
             if relayer_status {
                 let mut mintable_tokens = Self::mintable_tokens();
                 if amount <= mintable_tokens {
-                    let mut num_votes = EthTxns::<T>::get(&eth_hash);
-                    num_votes = num_votes + 1;
-                    if num_votes == 3 { // We need all three relayers to agree on this burn transaction
+                    burn_details.approvals = burn_details.approvals + 1;
+                    burn_details.approvers.push(relayer.clone());
+                    if burn_details.approvals == 3 { // We need all three relayers to agree on this burn transaction
                         // Mint tokens
                         let _positive_imbalance = pallet_balances::Pallet::<T>::deposit_creating(&beneficiary, amount);
+                        let reasons = WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE;
                         // Lock tokens for 28 days
                         pallet_balances::Pallet::<T>::set_lock(MIGRATION_LOCK,
                                                                &beneficiary,
                                                                amount,
-                                                               WithdrawReasons::FEE);
+                                                               reasons);
                         let current_blocknumber: T::BlockNumber = frame_system::Pallet::<T>::current_block_number();
                         LockedTokenHolders::<T>::insert(beneficiary.clone(), current_blocknumber);
                         // Reduce possible mintable tokens
                         mintable_tokens = mintable_tokens - amount;
                         // Set reduced mintable tokens
                         MintableTokens::<T>::put(mintable_tokens);
-                        EthTxns::<T>::insert(&eth_hash, num_votes);
+                        EthTxns::<T>::insert(&eth_hash, burn_details);
                         Self::deposit_event(Event::NativePDEXMintedAndLocked(relayer, beneficiary, amount));
                     } else {
-                        EthTxns::<T>::insert(&eth_hash, num_votes);
+                        EthTxns::<T>::insert(&eth_hash, burn_details);
+                        Self::deposit_event(Event::TokenBurnDetected(eth_hash, relayer));
                     }
                     Ok(())
                 } else {
@@ -249,4 +274,4 @@ pub mod pallet {
             }
         }
     }
- }
+}
