@@ -16,7 +16,7 @@ use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
     CouncilConfig, IndicesConfig, PolkadexOcexConfig,
     OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
-    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig
 };
 use log::info;
 pub use node_polkadex_runtime::GenesisConfig;
@@ -118,7 +118,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
     testnet_genesis(
         initial_authorities,
         vec![],
-        root_key,
+        root_key
     )
 }
 
@@ -184,7 +184,7 @@ fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
         vec![authority_keys_from_seed("Alice")],
         vec![],
-        get_account_id_from_seed::<sr25519::Public>("Alice"),
+        get_account_id_from_seed::<sr25519::Public>("Alice")
     )
 }
 
@@ -210,7 +210,7 @@ fn soba_testnet_genesis() -> GenesisConfig {
             authority_keys_from_seed("Bob"),
         ],
         vec![],
-        get_account_id_from_seed::<sr25519::Public>("Alice"),
+        get_account_id_from_seed::<sr25519::Public>("Alice")
     )
 }
 
@@ -317,7 +317,7 @@ pub fn testnet_genesis(
         AuthorityDiscoveryId,
     )>,
     _initial_nominators: Vec<AccountId>,
-    root_key: AccountId,
+    root_key: AccountId
 ) -> GenesisConfig {
     const ENDOWMENT: u128 = 20_000 * PDEX;
     const STASH: u128 = 2 * PDEX;
@@ -424,6 +424,9 @@ pub fn testnet_genesis(
         technical_membership: Default::default(),
         treasury: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting },
+        tokens: TokensConfig {
+            balances: vec![],
+        },
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
             operation_status: false
@@ -498,7 +501,7 @@ pub(crate) mod tests {
         testnet_genesis(
             vec![authority_keys_from_seed("Alice")],
             vec![],
-            get_account_id_from_seed::<sr25519::Public>("Alice"),
+            get_account_id_from_seed::<sr25519::Public>("Alice")
         )
     }
 

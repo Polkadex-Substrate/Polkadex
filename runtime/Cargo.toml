@@ -45,8 +45,12 @@ pallet-identity = { default-features = false, git = "https://github.com/parityte
 pallet-proxy = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
 pallet-tips = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
 pallet-recovery = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
+pallet-contracts = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
 pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
+pallet-contracts-primitives = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
+pallet-contracts-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
+pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
 
 #end added
 #frame
@@ -147,10 +151,8 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     "sp-npos-elections/std",
-
     "orml-vesting/std",
     "polkadex-primitives/std",
-
     "polkadex-ocex/std",
 ]
 runtime-benchmarks = [
