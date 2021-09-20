@@ -1,28 +1,29 @@
+use frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
+use itertools::Itertools;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
+use polkadex_primitives::Block;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
-use sp_runtime::{traits::{IdentifyAccount, Verify}, Perbill};
-use node_polkadex_runtime::{SessionKeys};
-use node_polkadex_runtime::{
-    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
-    CouncilConfig, IndicesConfig,
-    OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
-    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-};
-use log::info;
-pub use node_polkadex_runtime::GenesisConfig;
-use node_polkadex_runtime::constants::currency::PDEX;
+use sp_core::{crypto::UncheckedInto, Pair, Public, sr25519};
+use sp_runtime::{Perbill, traits::{IdentifyAccount, Verify}};
 use sp_runtime::traits::AccountIdConversion;
-use frame_support::PalletId;
+
+use node_polkadex_runtime::{
+    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
+    IndicesConfig, OrmlVestingConfig,
+    PDEXMigrationConfig, SessionConfig, StakerStatus, StakingConfig,
+    SudoConfig, SystemConfig, TechnicalCommitteeConfig, wasm_binary_unwrap,
+};
+use node_polkadex_runtime::constants::currency::PDEX;
+pub use node_polkadex_runtime::GenesisConfig;
+use node_polkadex_runtime::SessionKeys;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -296,8 +297,6 @@ pub fn mainnet_testnet_config() -> ChainSpec {
     )
 }
 
-use itertools::Itertools;
-
 fn adjust_treasury_balance_for_initial_validators(initial_validators: usize, endowment: u128) -> u128 {
     // The extra one is for root_key
     (initial_validators + 1) as u128 * endowment
@@ -316,7 +315,7 @@ pub fn testnet_genesis(
     _initial_nominators: Vec<AccountId>,
     root_key: AccountId,
 ) -> GenesisConfig {
-    const ENDOWMENT: u128 = 20_000 * PDEX;
+    const ENDOWMENT: u128 = 100 * PDEX;
     const STASH: u128 = 2 * PDEX;
     // Total Supply in ERC20
     const ERC20_PDEX_SUPPLY: u128 = 3_172_895 * PDEX;
@@ -324,8 +323,6 @@ pub fn testnet_genesis(
     let mut treasury_funds: u128 = 10_200_000 * PDEX;
     treasury_funds = treasury_funds - adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT);
 
-    info!("🧮 Tokens taken from treasury:  {:>22}",adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT));
-    info!("🧮 Token remaining in treasury: {:>22}",treasury_funds);
     // Treasury Account Id
     pub const TREASURY_PALLET_ID: PalletId = PalletId(*b"py/trsry");
     let treasury_account: AccountId = TREASURY_PALLET_ID.into_account();
@@ -347,8 +344,7 @@ pub fn testnet_genesis(
         total_claims = total_claims + balance;
     }
 
-    info!("🧮 Total Investor Tokens:       {:>22}",total_claims);
-    // assert_eq!(total_claims, 6_627_105 * PDEX, "Total claims is configured correctly");
+    assert_eq!(total_claims, 6_627_105 * PDEX, "Total claims is configured correctly");
 
     endowed_accounts.append(claims.as_mut());
     // Endow to validators
@@ -359,8 +355,7 @@ pub fn testnet_genesis(
         total_supply = total_supply + balance.clone()
     }
 
-    info!("🧮  Assert Total supply is 20 million: {} == {} ", total_supply + ERC20_PDEX_SUPPLY , 20_000_000 * PDEX);
-
+    assert_eq!(total_supply + ERC20_PDEX_SUPPLY , 20_000_000 * PDEX,"Total Supply Not equal to 20 million");
     let vesting = get_vesting_terms();
 
     GenesisConfig {
@@ -423,17 +418,114 @@ pub fn testnet_genesis(
         orml_vesting: OrmlVestingConfig { vesting },
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
-            operational: false
-        }
+            operational: false,
+        },
     }
 }
 
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
     // 3 months in terms of 12s blocks is 648,000 blocks, i.e. period = 648,000
-    // TODO:
+    const THREE_MONTHS: u32 = 648_000/3000; // We are approximating a month to 30 days.
+
+    const OCT_16_2021: u32 = 144_000/3000; // 20 days from block 0, implies 144_000 blocks
+    const JAN_16_2022: u32 = OCT_16_2021 + THREE_MONTHS;
+    const APR_16_2022: u32 = JAN_16_2022 + THREE_MONTHS;
+    const JUL_16_2022: u32 = APR_16_2022 + THREE_MONTHS;
+    const OCT_16_2022: u32 = JUL_16_2022 + THREE_MONTHS;
+
     // who, start, period, period_count, per_period
-    // vec![ (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 1, 30, 1, 3655828 * PDEX)]
-    vec![]
+    vec![
+        // Oct 16 2021 Tranche
+        (hex!["e4cdc8abc0405db44c1a6886a2f2c59012fa3b98c07b61d63cc7f9e437ba243e"].into(), 0, OCT_16_2021, 1, 6_000 * PDEX),
+        (hex!["b26562a2e476fea86b26b2e47f12d279deb0ca7812bd1dad5b4fc8a909e10b22"].into(), 0, OCT_16_2021, 1, 80_000 * PDEX),
+        (hex!["e83adffb6338272e981cbc0c6cc03fd4e5e8447497b6b531b9436870c6079758"].into(), 0, OCT_16_2021, 1, 6_000 * PDEX),
+        (hex!["e613dd948e7baacc02c97db737ad43af7024f5ae595d06f1611ce827c300b17f"].into(), 0, OCT_16_2021, 1, 120_000 * PDEX),
+        (hex!["182400644f4780a65a43e00f9630152fe0ab2323d0dacd04e808ceccf462f416"].into(), 0, OCT_16_2021, 1, 35_000 * PDEX),
+        (hex!["b8779ddd7bc8dc00dc0e220b6b07b509553c3cdbdad3e384cc1ba2187cbca53f"].into(), 0, OCT_16_2021, 1, 1875 * PDEX),
+        (hex!["62168680c9ed6e456fa59bd01525a53dd6fa991757e920482016e7db6caebd45"].into(), 0, OCT_16_2021, 1, 4375 * PDEX),
+        (hex!["1c2eaec3bd844d93d29d442c1ecc431e8502ce7b13f950ae203ee63ff2a1750a"].into(), 0, OCT_16_2021, 1, 17500 * PDEX),
+        (hex!["78d4caac9c5b562190901aafb9f2c74780c5831a89257254ca225729e755d919"].into(), 0, OCT_16_2021, 1, 17500 * PDEX),
+        (hex!["1a8538e949213a4034bca131957bbfe8bc45107be4e93c86f92353fccff90039"].into(), 0, OCT_16_2021, 1, 17500 * PDEX),
+        (hex!["fac6591fd5605154f1a77fc142d66d9c2f7b11f5c0bc61a3ac8ab46099e87e3a"].into(), 0, OCT_16_2021, 1, 5250 * PDEX),
+        (hex!["ccb97ce4726461ad53c0ec9277b1ba3f7f88b0a11f847f1ca17d358e6e4d0a05"].into(), 0, OCT_16_2021, 1, 63750 * PDEX),
+        (hex!["08a1c86a2c789eeb1295c3b3ba63b2cde5d23fa6c80d8f87246c21a11fa3ba1d"].into(), 0, OCT_16_2021, 1, 35000 * PDEX),
+        (hex!["082cb53d6299dc033e467de007bfd5c4c0d24135aa85d2f1d983008ff78fbb66"].into(), 0, OCT_16_2021, 1, 42500 * PDEX),
+        (hex!["48cb52f3831917977aec38d9c3a3c73c8253b82523af35d44b7122e674677f05"].into(), 0, OCT_16_2021, 1, 17500 * PDEX),
+        (hex!["0617b168a08acd31e3323ff63cb6e8e7682ba002ca0184a59a0ebc6dcf4e7f2b"].into(), 0, OCT_16_2021, 1, 17500 * PDEX),
+        (hex!["0a1f6fa0345ceac40338c78bdfc68a211898921032d30e1b4492090c29962505"].into(), 0, OCT_16_2021, 1, 10625 * PDEX),
+        (hex!["b2fa882baef6358e3b4379c290fc989093da5f62b0c8cc57bb972fa7232efe10"].into(), 0, OCT_16_2021, 1, 8750 * PDEX),
+        (hex!["ecd0a0fba2f97d02d81fa3408e7e1f4a40b36d58fb7b999f0d0f5e073b810d3d"].into(), 0, OCT_16_2021, 1, 31875 * PDEX),
+        (hex!["0838d06bad89b000120bea3e2cbf59e342f518a3f76becfa8c35bfd386e79825"].into(), 0, OCT_16_2021, 1, 17500 * PDEX),
+        (hex!["60285b86e8196e4e20565440e2ded16459a8f1e8b6c5ce8bacb4a5b11eee8b05"].into(), 0, OCT_16_2021, 1, 25250 * PDEX),
+        (hex!["68732830b518f410592bfb6f623e9864e9c021bc4adfe4845916932024bf9119"].into(), 0, OCT_16_2021, 1, 2625 * PDEX),
+        (hex!["bc13c9a902a524609f064014695f2b6548a17d7e8bb12a834220559bc38bbc5d"].into(), 0, OCT_16_2021, 1, 14000 * PDEX),
+        (hex!["daeb89c994d06f7e996e2c3e9e1fe685765e40f083432fbcdcb7f77bc1f9a378"].into(), 0, OCT_16_2021, 1, 2625 * PDEX),
+        (hex!["3ceab1c17a4302ac0471e943279bd993adf12af6d2010a4f73bbdf428fba914f"].into(), 0, OCT_16_2021, 1, 10000 * PDEX),
+        (hex!["baf1346f012c29003aeb63ac2503fbfafcd0dc182e98053b34f8bb08510ca73f"].into(), 0, OCT_16_2021, 1, 15280 * PDEX),
+        (hex!["969554a9c50959bc434b99051b9803cc911ba3cad6c0e1d2ab2b8bcbbd1f057e"].into(), 0, OCT_16_2021, 1, 20000 * PDEX),
+        (hex!["724513af8211cbaaeb17e7bbff8f2286718135d4ebe10e556c5b2076dbbd342d"].into(), 0, OCT_16_2021, 1, 20000 * PDEX),
+        (hex!["cc0056b00683900613556f57c5324a2882fa9b5f50702e61ffade0b1102f0674"].into(), 0, OCT_16_2021, 1, 10000 * PDEX),
+        (hex!["eab1d6b0efce910517067712d026e42ab5f84ffd068b80d3cd55cd7c95d4db68"].into(), 0, OCT_16_2021, 1, 20000 * PDEX),
+        (hex!["3ee90311650ce54b81d70f77537dc255c130ac9f5f5933cc6e2cedcb00ebdf5d"].into(), 0, OCT_16_2021, 1, 50000 * PDEX),
+        (hex!["a0cc2a61879f21b7924392cfea5c35b47781f795ca24d179188c6d3f2a67952b"].into(), 0, OCT_16_2021, 1, 20000 * PDEX),
+        (hex!["2c6ce334da34c1ffdfb9cfb9962afdc9decf8f36b8d5282c2dbdef7c7b1aee53"].into(), 0, OCT_16_2021, 1, 20000 * PDEX),
+        (hex!["aa36b0d46767a839e11f18d8f15d373ed1f63abb33324edd87ebdc5fcfabd812"].into(), 0, OCT_16_2021, 1, 20000 * PDEX),
+        (hex!["7a56462554bef5d4f946a3c2ea1798398303aaf49e2d80d272096fb04cd95d06"].into(), 0, OCT_16_2021, 1, 375 * PDEX),
+        (hex!["9a82629aac0895e5998542537f6b5b3a1c2c6fd46e827d409de88aacf9755a0e"].into(), 0, OCT_16_2021, 1, 9375 * (PDEX / 10)),
+
+        (hex!["8039b9f35380bc3c20206d25c44006bd98e1252d7cb80acd6290b4f9c17bcd4c"].into(), 0, OCT_16_2021, 1, 5000 * PDEX),
+        (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 0, OCT_16_2021, 1, 5000 * PDEX),
+        (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 0, OCT_16_2021, 1, 5000 * PDEX),
+        (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 0, OCT_16_2021, 1, 40000 * PDEX),
+        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 0, OCT_16_2021, 1, 4669425 * (PDEX / 10)),
+
+        // After Oct 16 2021
+        (hex!["e4cdc8abc0405db44c1a6886a2f2c59012fa3b98c07b61d63cc7f9e437ba243e"].into(), OCT_16_2021, THREE_MONTHS, 2, 6_000 * PDEX),
+        (hex!["b26562a2e476fea86b26b2e47f12d279deb0ca7812bd1dad5b4fc8a909e10b22"].into(), OCT_16_2021, THREE_MONTHS, 2, 80_000 * PDEX),
+        (hex!["e83adffb6338272e981cbc0c6cc03fd4e5e8447497b6b531b9436870c6079758"].into(), OCT_16_2021, THREE_MONTHS, 2, 6_000 * PDEX),
+        (hex!["e613dd948e7baacc02c97db737ad43af7024f5ae595d06f1611ce827c300b17f"].into(), OCT_16_2021, THREE_MONTHS, 2, 120_000 * PDEX),
+        (hex!["182400644f4780a65a43e00f9630152fe0ab2323d0dacd04e808ceccf462f416"].into(), OCT_16_2021, THREE_MONTHS, 2, 35_000 * PDEX),
+        (hex!["b8779ddd7bc8dc00dc0e220b6b07b509553c3cdbdad3e384cc1ba2187cbca53f"].into(), OCT_16_2021, THREE_MONTHS, 2, 1875 * PDEX),
+        (hex!["62168680c9ed6e456fa59bd01525a53dd6fa991757e920482016e7db6caebd45"].into(), OCT_16_2021, THREE_MONTHS, 2, 4375 * PDEX),
+        (hex!["1c2eaec3bd844d93d29d442c1ecc431e8502ce7b13f950ae203ee63ff2a1750a"].into(), OCT_16_2021, THREE_MONTHS, 2, 17500 * PDEX),
+        (hex!["78d4caac9c5b562190901aafb9f2c74780c5831a89257254ca225729e755d919"].into(), OCT_16_2021, THREE_MONTHS, 2, 17500 * PDEX),
+        (hex!["1a8538e949213a4034bca131957bbfe8bc45107be4e93c86f92353fccff90039"].into(), OCT_16_2021, THREE_MONTHS, 2, 17500 * PDEX),
+        (hex!["fac6591fd5605154f1a77fc142d66d9c2f7b11f5c0bc61a3ac8ab46099e87e3a"].into(), OCT_16_2021, THREE_MONTHS, 2, 5250 * PDEX),
+        (hex!["ccb97ce4726461ad53c0ec9277b1ba3f7f88b0a11f847f1ca17d358e6e4d0a05"].into(), OCT_16_2021, THREE_MONTHS, 2, 63750 * PDEX),
+        (hex!["08a1c86a2c789eeb1295c3b3ba63b2cde5d23fa6c80d8f87246c21a11fa3ba1d"].into(), OCT_16_2021, THREE_MONTHS, 2, 35000 * PDEX),
+        (hex!["082cb53d6299dc033e467de007bfd5c4c0d24135aa85d2f1d983008ff78fbb66"].into(), OCT_16_2021, THREE_MONTHS, 2, 42500 * PDEX),
+        (hex!["48cb52f3831917977aec38d9c3a3c73c8253b82523af35d44b7122e674677f05"].into(), OCT_16_2021, THREE_MONTHS, 2, 17500 * PDEX),
+        (hex!["0617b168a08acd31e3323ff63cb6e8e7682ba002ca0184a59a0ebc6dcf4e7f2b"].into(), OCT_16_2021, THREE_MONTHS, 2, 17500 * PDEX),
+        (hex!["0a1f6fa0345ceac40338c78bdfc68a211898921032d30e1b4492090c29962505"].into(), OCT_16_2021, THREE_MONTHS, 2, 10625 * PDEX),
+        (hex!["b2fa882baef6358e3b4379c290fc989093da5f62b0c8cc57bb972fa7232efe10"].into(), OCT_16_2021, THREE_MONTHS, 2, 8750 * PDEX),
+        (hex!["ecd0a0fba2f97d02d81fa3408e7e1f4a40b36d58fb7b999f0d0f5e073b810d3d"].into(), OCT_16_2021, THREE_MONTHS, 2, 31875 * PDEX),
+        (hex!["0838d06bad89b000120bea3e2cbf59e342f518a3f76becfa8c35bfd386e79825"].into(), OCT_16_2021, THREE_MONTHS, 2, 17500 * PDEX),
+        (hex!["60285b86e8196e4e20565440e2ded16459a8f1e8b6c5ce8bacb4a5b11eee8b05"].into(), OCT_16_2021, THREE_MONTHS, 2, 25250 * PDEX),
+        (hex!["68732830b518f410592bfb6f623e9864e9c021bc4adfe4845916932024bf9119"].into(), OCT_16_2021, THREE_MONTHS, 2, 2625 * PDEX),
+        (hex!["bc13c9a902a524609f064014695f2b6548a17d7e8bb12a834220559bc38bbc5d"].into(), OCT_16_2021, THREE_MONTHS, 2, 14000 * PDEX),
+        (hex!["daeb89c994d06f7e996e2c3e9e1fe685765e40f083432fbcdcb7f77bc1f9a378"].into(), OCT_16_2021, THREE_MONTHS, 2, 2625 * PDEX),
+        (hex!["3ceab1c17a4302ac0471e943279bd993adf12af6d2010a4f73bbdf428fba914f"].into(), OCT_16_2021, THREE_MONTHS, 2, 10000 * PDEX),
+        (hex!["baf1346f012c29003aeb63ac2503fbfafcd0dc182e98053b34f8bb08510ca73f"].into(), OCT_16_2021, THREE_MONTHS, 2, 15280 * PDEX),
+        (hex!["969554a9c50959bc434b99051b9803cc911ba3cad6c0e1d2ab2b8bcbbd1f057e"].into(), OCT_16_2021, THREE_MONTHS, 2, 20000 * PDEX),
+        (hex!["724513af8211cbaaeb17e7bbff8f2286718135d4ebe10e556c5b2076dbbd342d"].into(), OCT_16_2021, THREE_MONTHS, 2, 20000 * PDEX),
+        (hex!["cc0056b00683900613556f57c5324a2882fa9b5f50702e61ffade0b1102f0674"].into(), OCT_16_2021, THREE_MONTHS, 2, 10000 * PDEX),
+        (hex!["eab1d6b0efce910517067712d026e42ab5f84ffd068b80d3cd55cd7c95d4db68"].into(), OCT_16_2021, THREE_MONTHS, 2, 20000 * PDEX),
+        (hex!["3ee90311650ce54b81d70f77537dc255c130ac9f5f5933cc6e2cedcb00ebdf5d"].into(), OCT_16_2021, THREE_MONTHS, 2, 50000 * PDEX),
+        (hex!["a0cc2a61879f21b7924392cfea5c35b47781f795ca24d179188c6d3f2a67952b"].into(), OCT_16_2021, THREE_MONTHS, 2, 20000 * PDEX),
+        (hex!["2c6ce334da34c1ffdfb9cfb9962afdc9decf8f36b8d5282c2dbdef7c7b1aee53"].into(), OCT_16_2021, THREE_MONTHS, 2, 20000 * PDEX),
+        (hex!["aa36b0d46767a839e11f18d8f15d373ed1f63abb33324edd87ebdc5fcfabd812"].into(), OCT_16_2021, THREE_MONTHS, 2, 20000 * PDEX),
+        (hex!["7a56462554bef5d4f946a3c2ea1798398303aaf49e2d80d272096fb04cd95d06"].into(), OCT_16_2021, THREE_MONTHS, 2, 375 * PDEX),
+        (hex!["9a82629aac0895e5998542537f6b5b3a1c2c6fd46e827d409de88aacf9755a0e"].into(), OCT_16_2021, THREE_MONTHS, 2, 9375 * (PDEX / 10)),
+        (hex!["8039b9f35380bc3c20206d25c44006bd98e1252d7cb80acd6290b4f9c17bcd4c"].into(), OCT_16_2021, THREE_MONTHS, 4, 11250 * PDEX),
+        (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), OCT_16_2021, THREE_MONTHS, 4, 11250 * PDEX),
+        (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), OCT_16_2021, THREE_MONTHS, 4, 11250 * PDEX),
+        (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), OCT_16_2021, THREE_MONTHS, 4, 90000 * PDEX),
+        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), OCT_16_2021, THREE_MONTHS, 2, 5481925 * (PDEX / 10)),
+
+        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), APR_16_2022, THREE_MONTHS, 1, 146250 * PDEX),
+        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), JUL_16_2022, THREE_MONTHS, 1, 506250 * PDEX),
+        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), OCT_16_2022, THREE_MONTHS, 4, 360000 * PDEX),
+    ]
 }
 
 pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
@@ -454,7 +546,6 @@ pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
         (hex!["082cb53d6299dc033e467de007bfd5c4c0d24135aa85d2f1d983008ff78fbb66"].into(), 3 * 42500 * PDEX),
         (hex!["48cb52f3831917977aec38d9c3a3c73c8253b82523af35d44b7122e674677f05"].into(), 3 * 17500 * PDEX),
         (hex!["0617b168a08acd31e3323ff63cb6e8e7682ba002ca0184a59a0ebc6dcf4e7f2b"].into(), 3 * 17500 * PDEX),
-
         (hex!["0a1f6fa0345ceac40338c78bdfc68a211898921032d30e1b4492090c29962505"].into(), 3 * 10625 * PDEX),
         (hex!["b2fa882baef6358e3b4379c290fc989093da5f62b0c8cc57bb972fa7232efe10"].into(), 3 * 8750 * PDEX),
         (hex!["ecd0a0fba2f97d02d81fa3408e7e1f4a40b36d58fb7b999f0d0f5e073b810d3d"].into(), 3 * 31875 * PDEX),
@@ -466,7 +557,6 @@ pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
         (hex!["3ceab1c17a4302ac0471e943279bd993adf12af6d2010a4f73bbdf428fba914f"].into(), 3 * 10000 * PDEX),
         (hex!["baf1346f012c29003aeb63ac2503fbfafcd0dc182e98053b34f8bb08510ca73f"].into(), 3 * 15280 * PDEX),
         (hex!["969554a9c50959bc434b99051b9803cc911ba3cad6c0e1d2ab2b8bcbbd1f057e"].into(), 3 * 20000 * PDEX),
-
         (hex!["724513af8211cbaaeb17e7bbff8f2286718135d4ebe10e556c5b2076dbbd342d"].into(), 3 * 20000 * PDEX),
         (hex!["cc0056b00683900613556f57c5324a2882fa9b5f50702e61ffade0b1102f0674"].into(), 3 * 10000 * PDEX),
         (hex!["eab1d6b0efce910517067712d026e42ab5f84ffd068b80d3cd55cd7c95d4db68"].into(), 3 * 20000 * PDEX),
@@ -474,22 +564,22 @@ pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
         (hex!["a0cc2a61879f21b7924392cfea5c35b47781f795ca24d179188c6d3f2a67952b"].into(), 3 * 20000 * PDEX),
         (hex!["2c6ce334da34c1ffdfb9cfb9962afdc9decf8f36b8d5282c2dbdef7c7b1aee53"].into(), 3 * 20000 * PDEX),
         (hex!["aa36b0d46767a839e11f18d8f15d373ed1f63abb33324edd87ebdc5fcfabd812"].into(), 3 * 20000 * PDEX),
-
         (hex!["7a56462554bef5d4f946a3c2ea1798398303aaf49e2d80d272096fb04cd95d06"].into(), 3 * 375 * PDEX),
-        (hex!["9a82629aac0895e5998542537f6b5b3a1c2c6fd46e827d409de88aacf9755a0e"].into(), 3 * 938 * PDEX),
+        (hex!["9a82629aac0895e5998542537f6b5b3a1c2c6fd46e827d409de88aacf9755a0e"].into(), 3 * 9375 * (PDEX / 10)),
         (hex!["8039b9f35380bc3c20206d25c44006bd98e1252d7cb80acd6290b4f9c17bcd4c"].into(), 50000 * PDEX),
         (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 50000 * PDEX),
         (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 50000 * PDEX),
         (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 400000 * PDEX),
-        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 3655828 * PDEX),
+        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 36558275 * (PDEX/10)),
     ];
     claims
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::*;
     use sp_runtime::BuildStorage;
+
+    use super::*;
 
     fn local_testnet_genesis_instant_single() -> GenesisConfig {
         testnet_genesis(
