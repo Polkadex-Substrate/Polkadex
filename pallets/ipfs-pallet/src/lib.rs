@@ -121,7 +121,8 @@ pub mod pallet {
         /// In case, CID is wrong, the given block will be rejected and the validator which inserted the inherent is penalized by staking mechanism.
         #[pallet::weight(10_000)]
         pub fn approve_cid(origin: OriginFor<T>, cid: Cid) -> DispatchResult {
-            ensure_none(origin)?; // TODO: Do we need the validator to sign this inherent?
+            ensure_none(origin)?; // TODO: Do we need the validator to sign this inherent? --> No, the inherent is just accepted as part of the block
+			// REVIEW: You need to check the `OperationalStatus` here.
             <ApprovedCID<T>>::put(cid);
             Ok(())
         }
@@ -173,6 +174,10 @@ pub mod pallet {
             Some(Call::approve_cid(inherent_data))
         }
 
+		// REVIEW: This design is fine for a sovereign chain, but in the context of Polkadex aiming
+		// to be a parachain you will need to adjust the inherent to be checkable by the Polkadot
+		// validators. The suggested method would be to only allow setting (and not approving) the
+		// CID by the block producer and then have the Polkadex collators vote on the validity.
         fn check_inherent(
             call: &Self::Call,
             data: &InherentData,
@@ -226,12 +231,17 @@ impl<T: Config> Pallet<T> {
     pub fn get_approved_cid() -> Option<Cid> {
         <ApprovedCID<T>>::get()
     }
+	// REVIEW: Iterating storage is expensive, you'll want to avoid doing this as much as possible
+	// and probably note it in the doc comments of the functions.
+	// It seems this is used for the RPC, which is fine.
     /// Get all user claims
     pub fn collect_user_claims() -> Vec<T::AccountId> {
         <UserClaims<T>>::iter_keys().collect()
     }
     /// Get all Multiaddress
     pub fn collect_enclave_multiaddrs() -> Vec<(T::AccountId,Vec<Vec<u8>>)> {
+		// REVIEW: `::iter` should be enough
+		// https://paritytech.github.io/substrate/frame_support/storage/trait.IterableStorageMap.html#tymethod.iter
         <EnclaveIPFSMultiAddrs<T>>::iter_keys().zip(<EnclaveIPFSMultiAddrs<T>>::iter_values()).collect()
     }
 }
