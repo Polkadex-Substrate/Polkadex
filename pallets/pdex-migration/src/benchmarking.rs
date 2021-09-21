@@ -10,10 +10,8 @@ use crate::pallet as PDEXMigration;
 use crate::pallet::{Config,Call,Pallet};
 use frame_support::traits::Get;
 use sp_runtime::traits::Saturating;
+use frame_support::assert_ok;
 
-// 3  | use crate::pallet::Pallet;
-//    |
-// 3  | use frame_system::Pallet;
 benchmarks! {
     set_migration_operational_status {
 
@@ -24,6 +22,7 @@ benchmarks! {
     }: _ (RawOrigin::Root, relayer, true)
 
     mint {
+
         let beneficiary: T::AccountId = whitelisted_caller();
         let eth_hash: T::Hash = T::Hash::default();
         let relayer3: T::AccountId = account("relayer3",0,0);
