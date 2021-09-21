@@ -174,6 +174,10 @@ pub mod pallet {
             Some(Call::approve_cid(inherent_data))
         }
 
+		// REVIEW: This design is fine for a sovereign chain, but in the context of Polkadex aiming
+		// to be a parachain you will need to adjust the inherent to be checkable by the Polkadot
+		// validators. The suggested method would be to only allow setting (and not approving) the
+		// CID by the block producer and then have the Polkadex collators vote on the validity.
         fn check_inherent(
             call: &Self::Call,
             data: &InherentData,
@@ -229,6 +233,7 @@ impl<T: Config> Pallet<T> {
     }
 	// REVIEW: Iterating storage is expensive, you'll want to avoid doing this as much as possible
 	// and probably note it in the doc comments of the functions.
+	// It seems this is used for the RPC, which is fine.
     /// Get all user claims
     pub fn collect_user_claims() -> Vec<T::AccountId> {
         <UserClaims<T>>::iter_keys().collect()
