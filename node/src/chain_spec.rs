@@ -424,9 +424,10 @@ pub fn testnet_genesis(
 }
 
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
+    const TIMESCALING_FACTOR: u32 = 80; // TODO: Change it before mainnet
     // 3 months in terms of 12s blocks is 648,000 blocks, i.e. period = 648,000
-    const THREE_MONTHS: u32 = 648_000 / 3000; // We are approximating a month to 30 days. // TODO: Change it before mainnet
-    const OCT_16_2021: u32 = 144_000 / 3000; // 20 days from block 0, implies 144_000 blocks // TODO: Change it before mainnet
+    const THREE_MONTHS: u32 = 648_000 / TIMESCALING_FACTOR; // We are approximating a month to 30 days.
+    const OCT_16_2021: u32 = 144_000 / TIMESCALING_FACTOR; // 20 days from block 0, implies 144_000 blocks
     const JAN_16_2022: u32 = OCT_16_2021 + THREE_MONTHS;
     const APR_16_2022: u32 = JAN_16_2022 + THREE_MONTHS;
     const JUL_16_2022: u32 = APR_16_2022 + THREE_MONTHS;
@@ -475,7 +476,7 @@ pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
         (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 0, OCT_16_2021, 1, 5000 * PDEX),
         (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 0, OCT_16_2021, 1, 5000 * PDEX),
         // (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 0, OCT_16_2021, 1, 40000 * PDEX), // They will validate for us
-        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 0, OCT_16_2021, 1, 4669425 * (PDEX / 10)),
+        // (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 0, OCT_16_2021, 1, 4669425 * (PDEX / 10)),
 
         // After Oct 16 2021
         (hex!["e4cdc8abc0405db44c1a6886a2f2c59012fa3b98c07b61d63cc7f9e437ba243e"].into(), OCT_16_2021, THREE_MONTHS, 2, 6_000 * PDEX),
