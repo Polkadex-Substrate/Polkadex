@@ -19,6 +19,7 @@ frame-system = { default-features = false, git = "https://github.com/paritytech/
 pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
 sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional =true }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional =true }
 
 [dev-dependencies]
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
