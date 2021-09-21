@@ -11,11 +11,11 @@ RUN cd Polkadex && \
     apt-get install -y jq && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
         export PATH="$PATH:$HOME/.cargo/bin" && \
-        rustup toolchain install nightly-2021-05-11 && \
-        rustup target add wasm32-unknown-unknown --toolchain nightly-2021-05-11 && \
+        rustup toolchain install nightly-2021-06-28 && \
+        rustup target add wasm32-unknown-unknown --toolchain nightly-2021-06-28 && \
         rustup default stable && \
-        cargo update -p sp-std --precise e5437efefa82bd8eb567f1245f0a7443ac4e4fe7 && \
-        cargo +nightly-2021-05-11 build --release
+        cargo update -p sp-std --precise 88c64e06471cc12aa9b25290f24d5566bcb5dd82 && \
+        cargo +nightly-2021-06-28 build --release
 
 # /\-Build Stage | Final Stage-\/
 
