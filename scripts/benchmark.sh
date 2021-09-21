@@ -6,7 +6,7 @@ cargo build --release --features runtime-benchmarks
 install -d benchout
 for i in `./target/release/polkadex-node benchmark --chain dev --list | sed s/,.*// |sort |uniq` ; do
    echo Try $i
-   ./target/release/polkadex-node benchmark \
+   echo ./target/release/polkadex-node benchmark \
       --chain dev \
       --execution wasm \
       --wasm-execution compiled \
