@@ -22,19 +22,19 @@ codec = {default-features = false, features = ['derive'], package = 'parity-scal
 rand = {default-features = false, version = '0.8.0'}
 rand_chacha = {default-features = false, version = '0.3.0'}
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
-frame-support = {default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
-frame-system = {default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
-sp-arithmetic = {default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
-sp-core = {default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
-sp-std = {default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
-pallet-babe = { default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = "https://github.com/paritytech/substrate" }
-sp-consensus-vrf = { default-features = false, tag = "monthly-2021-09+1", version = "0.10.0-dev", git = "https://github.com/paritytech/substrate" }
-sp-runtime = {default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+frame-benchmarking = {default-features = false, optional = true,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+frame-support = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+frame-system = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+sp-arithmetic = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+sp-core = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+sp-std = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+pallet-babe = { default-features = false,branch = "master", version = "4.0.0-dev", git = "https://github.com/paritytech/substrate" }
+sp-consensus-vrf = { default-features = false,branch = "master", version = "0.10.0-dev", git = "https://github.com/paritytech/substrate" }
+sp-runtime = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
 
 [dev-dependencies]
 serde = '1.0.119'
-sp-io = {default-features = false, tag = "monthly-2021-09+1", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+sp-io = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
 
 [features]
 default = ['std']

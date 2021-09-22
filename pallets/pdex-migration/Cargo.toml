@@ -11,16 +11,16 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive"] }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
-pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
-pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
-frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", optional = true }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
 
 [dev-dependencies]
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 
 [features]
 default = ['std']
