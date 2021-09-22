@@ -11,11 +11,9 @@ use sp_runtime::{
 use crate::pallet as pdex_migration;
 
 use frame_support::traits::GenesisBuild;
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
-
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -29,12 +27,10 @@ frame_support::construct_runtime!(
 		PDEXMigration: pdex_migration::{Pallet, Call, Config<T>, Storage, Event<T>},
 	}
 );
-
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 42;
 }
-
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -66,7 +62,6 @@ parameter_types! {
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
-
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
@@ -78,17 +73,14 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
 }
-
 parameter_types! {
     pub const LockPeriod: u64 = 201600;
 }
-
 impl pdex_migration::Config for Test {
 	type Event = Event;
 	type LockPeriod = LockPeriod;
 	type WeightInfo = ();
 }
-
 impl pallet_sudo::Config for Test {
 	type Event = Event;
 	type Call = Call;
