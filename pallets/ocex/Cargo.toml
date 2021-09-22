@@ -20,9 +20,9 @@ sp-std = {  git = "https://github.com/paritytech/substrate", tag = "monthly-2021
 sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false }
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives", branch = "substrate-monthly-2021-09+1", default-features=false}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false, optional = true }
-orml-tokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1",  default-features = false }
-orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1", default-features = false }
-orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1", default-features = false }
+orml-currencies = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master", default-features = false }
+orml-tokens = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master", default-features = false }
+orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master", default-features = false }
 
 pallet-balances = {git = "https://github.com/paritytech/substrate", tag = "monthly-2021-09+1", version = "4.0.0-dev", default-features = false }
 pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", branch = "substrate-monthly-2021-09+1", default-features = false }
@@ -47,6 +47,7 @@ std = [
     "polkadex-primitives/std",
     "orml-tokens/std",
     "orml-currencies/std",
+    "orml-traits/std",
     "pallet-balances/std",
     "pallet-substratee-registry/std",
 ]

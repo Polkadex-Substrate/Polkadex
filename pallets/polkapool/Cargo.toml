@@ -14,8 +14,8 @@ targets = ['x86_64-unknown-linux-gnu']
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives", branch = "substrate-monthly-2021-09+1", default-features=false}
 
 # # ORML
-orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1", default-features = false }
-orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library", branch = "substrate-monthly-2021-09+1", default-features = false }
+orml-currencies = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master", default-features = false }
+orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master", default-features = false }
 
 # external dependencies
 codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
