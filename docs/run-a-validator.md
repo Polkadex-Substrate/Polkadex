@@ -2,10 +2,10 @@
 
 This guide will instruct you how to set up a validator node on the Polkadex Public Testnet.
 
-- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.1-rc5
-- **Bootnode IP address**: 13.235.92.50
-- **Bootnode Peer ID**: 12D3KooWC7VKBTWDXXic5yRevk8WS8DrDHevvHYyXaUCswM18wKd
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc5/customSpecRaw.json
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.2-rc2
+- **Bootnode IP address**: 13.235.190.203
+- **Bootnode Peer ID**: 12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.2-rc2/customSpecRaw.json
 
 ## Initial Set-up
 
@@ -51,9 +51,9 @@ Add the required toolchains with rustup
 
 ```
 source $HOME/.cargo/env
-rustup toolchain add nightly-2021-05-11
-rustup target add wasm32-unknown-unknown --toolchain nightly-2021-05-11
-rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-05-11
+rustup toolchain add nightly-2021-06-28
+rustup target add wasm32-unknown-unknown --toolchain nightly-2021-06-28
+rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-06-28
 
 ```
 
@@ -94,10 +94,10 @@ sudo ntpq -p
 ### Building and Installing the `Polkadex` binary
 #### Using a prebuilt
 If you don't want to build the binary from source and simply prefer to download it, use the following command. Then continue at Synchronize Chain Data
-`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc5/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
+`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.2-rc2/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
 
 #### Build from source
-To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.1-rc5 release.
+To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.2-rc2 release.
 
 ```
 git clone https://github.com/Polkadex-Substrate/Polkadex.git
@@ -107,7 +107,7 @@ cd Polkadex
 Build native code with the cargo release profile.
 
 ```
-git checkout v0.4.1-rc5
+git checkout v0.4.2-rc2
 cargo build --release
 ```
 
@@ -118,13 +118,13 @@ cargo build --release
 Download `customSpecRaw.json` file for the Polkadex Public Testnet
 ```
 cd $HOME
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.1-rc5/customSpecRaw.json
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.2-rc2/customSpecRaw.json
 ```
 
 You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
 
 ```
-$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWC7VKBTWDXXic5yRevk8WS8DrDHevvHYyXaUCswM18wKd --pruning=archive
+$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7 --pruning=archive
 ```
 
 
@@ -151,7 +151,7 @@ $HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --b
 Example of node sync:
 
 ```
-2021-08-17 12:46:40 🔍 Discovered new external address for our node: /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWC7VKBTWDXXic5yRevk8WS8DrDHevvHYyXaUCswM18wKd
+2021-08-17 12:46:40 🔍 Discovered new external address for our node: /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7
 2021-08-17 12:46:40 [#796] 🗳  Starting signed phase round 2.    
 2021-08-17 12:46:40 [#838] 🗳  Starting unsigned phase(true).    
 2021-08-17 12:46:40 [#882] 🗳  Finalized election round with compute ElectionCompute::OnChain.    
@@ -176,12 +176,6 @@ The `--pruning=archive` flag is implied by the `--validator` flag, so it is only
 
 If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that to the current highest block via [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/explorer).
 
-## Get Test Tokens on TestNet
-In order to become a validator on the Polkadex Testnet, you will need some Test Tokens. The Polkadex team has designed a Twitter bot that will serve as a Test Token 'faucet' for this phase of the Testnet. **To claim Test Tokens, copy and paste the text below into a tweet, paste your account/wallet address where it says [ACCOUNT], and post it.** Soon after, you'll receive the Polkadex Test Tokens, and a like on the tweet.
-
-```
-👋 Hey @polkadex I would like to try the new test net. Please give me some #PolkadexTestTokens to my account [ACCOUNT]. Thanks for working hard!
-```
 
 ## Bond PDEX
 [Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/accounts) [Here is one instruction video how to create accounts](https://www.youtube.com/watch?v=hhUZ40ZWqkE) and transfer some PDEX tokens to the main account.
@@ -220,7 +214,7 @@ Your bonded account will be available under `Stashes`. You should now see a new 
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWC7VKBTWDXXic5yRevk8WS8DrDHevvHYyXaUCswM18wKd --validator --name "Validator-Tutorial"
+$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7 --validator --name "Validator-Tutorial"
 ```
 Similarly:
 ```
@@ -258,7 +252,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --rpc-cors=all --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWC7VKBTWDXXic5yRevk8WS8DrDHevvHYyXaUCswM18wKd --validator --name 'Validator-Tutorial'
+ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7 --validator --name 'Validator-Tutorial'
 Restart=on-failure
 
 [Install]
