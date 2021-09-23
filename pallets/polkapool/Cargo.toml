@@ -34,7 +34,7 @@ sp-runtime = {default-features = false,branch = "master", version = "4.0.0-dev",
 
 [dev-dependencies]
 serde = '1.0.119'
-sp-io = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+sp-io = {default-features = false, branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
 
 [features]
 default = ['std']
