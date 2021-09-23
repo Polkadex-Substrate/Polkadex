@@ -1192,7 +1192,7 @@ parameter_types! {
 pub struct FeelessTxnFilter;
 
 impl Contains<Call> for FeelessTxnFilter {
-    fn contains(call: &Call) -> bool {
+    fn contains(_call: &Call) -> bool {
         // TODO: Pass only whitelisted contracts via governance
         // matches!(call, Call::Contracts(_))
         true
@@ -1495,9 +1495,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl pallet_contracts_rpc_runtime_api::ContractsApi<
-        Block, AccountId, Balance, BlockNumber, Hash,
-    >
+    impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash>
         for Runtime
     {
         fn call(
@@ -1520,7 +1518,7 @@ impl_runtime_apis! {
             salt: Vec<u8>,
          ) -> pallet_contracts_primitives::ContractInstantiateResult<AccountId,BlockNumber> {
             Contracts::bare_instantiate(origin, endowment, gas_limit, code, data, salt, true, true)
-         }
+        }
 
         fn get_storage(
             address: AccountId,
@@ -1532,8 +1530,8 @@ impl_runtime_apis! {
            address: AccountId,
         ) -> pallet_contracts_primitives::RentProjectionResult<BlockNumber> {
 			Contracts::rent_projection(address)
-	}
-     }
+	    }
+    }
 
     impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
         Block,
