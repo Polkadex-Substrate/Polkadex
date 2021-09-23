@@ -789,26 +789,34 @@ parameter_types! {
 }
 
 impl pallet_contracts::Config for Runtime {
-    type Time = Timestamp;
-    type Randomness = RandomnessCollectiveFlip;
-    type Currency = Balances;
-    type Event = Event;
-    type WeightPrice = pallet_transaction_payment::Pallet<Self>;
-    type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    type ChainExtension = impl_uniswap::CustomChainExtension;
-    type DeletionQueueDepth = DeletionQueueDepth;
-    type DeletionWeightLimit = DeletionWeightLimit;
-    type ContractDeposit = ContractDeposit;
-    type Call = Call;
-    /// The safest default is to allow no calls at all.
-    ///
-    /// Runtimes should whitelist dispatchables that are allowed to be called from contracts
-    /// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
-    /// change because that would break already deployed contracts. The `Call` structure itself
-    /// is not allowed to change the indices of existing pallets, too.
-    type CallFilter = Nothing;
-    type Schedule = Schedule;
-    type CallStack = [pallet_contracts::Frame<Self>; 31];
+	type Time = Timestamp;
+	type Randomness = RandomnessCollectiveFlip;
+	type Currency = Balances;
+	type Event = Event;
+	type Call = Call;
+	/// The safest default is to allow no calls at all.
+	///
+	/// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+	/// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+	/// change because that would break already deployed contracts. The `Call` structure itself
+	/// is not allowed to change the indices of existing pallets, too.
+	type CallFilter = Nothing;
+	type RentPayment = ();
+	type SignedClaimHandicap = SignedClaimHandicap;
+	type TombstoneDeposit = TombstoneDeposit;
+	type DepositPerContract = DepositPerContract;
+	type DepositPerStorageByte = DepositPerStorageByte;
+	type DepositPerStorageItem = DepositPerStorageItem;
+	type RentFraction = RentFraction;
+	type SurchargeReward = SurchargeReward;
+	type CallStack = [pallet_contracts::Frame<Self>; 31];
+	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
+	type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
+	type ChainExtension = ();
+	type DeletionQueueDepth = DeletionQueueDepth;
+	type DeletionWeightLimit = DeletionWeightLimit;
+	type Schedule = Schedule;
+
 }
 
 mod impl_uniswap {
@@ -1510,8 +1518,8 @@ impl_runtime_apis! {
             code: pallet_contracts_primitives::Code<Hash>,
             data: Vec<u8>,
             salt: Vec<u8>,
-         ) -> pallet_contracts_primitives::ContractInstantiateResult<AccountId> {
-            Contracts::bare_instantiate(origin, endowment, gas_limit, code, data, salt, true)
+         ) -> pallet_contracts_primitives::ContractInstantiateResult<AccountId,BlockNumber> {
+            Contracts::bare_instantiate(origin, endowment, gas_limit, code, data, salt, true, true)
          }
 
         fn get_storage(
@@ -1520,8 +1528,12 @@ impl_runtime_apis! {
         ) -> pallet_contracts_primitives::GetStorageResult {
             Contracts::get_storage(address, key)
         }
-    }
-
+        fn rent_projection(
+           address: AccountId,
+        ) -> pallet_contracts_primitives::RentProjectionResult<BlockNumber> {
+			Contracts::rent_projection(address)
+	}
+     }
 
     impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
         Block,
