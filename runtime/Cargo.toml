@@ -77,6 +77,8 @@ sp-npos-elections = { default-features = false, git = "https://github.com/parity
 frame-election-provider-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 #end added
 
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+
 # Used for the node template's RPCs
 frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 
@@ -100,9 +102,6 @@ pallet-substratee-registry = { package="pallet-teerex", git = "https://github.co
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
-
-[dev-dependencies]
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 
 [features]

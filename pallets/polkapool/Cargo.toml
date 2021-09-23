@@ -30,11 +30,12 @@ sp-core = {default-features = false,branch = "master", version = "4.0.0-dev", gi
 sp-std = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
 pallet-babe = { default-features = false,branch = "master", version = "4.0.0-dev", git = "https://github.com/paritytech/substrate" }
 sp-consensus-vrf = { default-features = false,branch = "master", version = "0.10.0-dev", git = "https://github.com/paritytech/substrate" }
-sp-runtime = {default-features = false,branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
 
 [dev-dependencies]
 serde = '1.0.119'
 sp-io = {default-features = false, branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+sp-runtime = {default-features = false, branch = "master", version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate'}
+
 
 [features]
 default = ['std']
