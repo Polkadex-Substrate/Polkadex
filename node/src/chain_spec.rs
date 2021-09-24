@@ -15,7 +15,7 @@ use node_polkadex_runtime::{SessionKeys};
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
     CouncilConfig, IndicesConfig,
-    OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
+    OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,PolkadexOcexConfig,
     StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig
 };
 use log::info;
@@ -303,6 +303,9 @@ fn adjust_treasury_balance_for_initial_validators(initial_validators: usize, end
     (initial_validators + 1) as u128 * endowment
 }
 
+#[allow(non_upper_case_globals)]
+pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
     initial_authorities: Vec<(
@@ -318,6 +321,7 @@ pub fn testnet_genesis(
 ) -> GenesisConfig {
     const ENDOWMENT: u128 = 20_000 * PDEX;
     const STASH: u128 = 2 * PDEX;
+    let genesis: AccountId = OCEXGenesisAccount.into_account();
     // Total Supply in ERC20
     const ERC20_PDEX_SUPPLY: u128 = 3_172_895 * PDEX;
     // Total funds in treasury also includes 2_000_000 PDEX for parachain auctions
@@ -427,7 +431,11 @@ pub fn testnet_genesis(
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
             operation_status: false
-        }
+        },
+        polkadex_ocex: PolkadexOcexConfig {
+            key: genesis.clone(),
+            genesis_account: genesis,
+        },
     }
 }
 
