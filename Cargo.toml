@@ -5,6 +5,7 @@ panic = 'unwind'
 members = [
     'node',
     'pallets/pdex-migration',
+    'pallets/ocex',
     'runtime',
     'contracts/uniswap_v2',
 ]

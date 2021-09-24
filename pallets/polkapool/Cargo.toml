@@ -11,7 +11,7 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 # Polkadex Primitives
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master', default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'master', default-features = false }
 
 # # ORML
 # orml-tokens = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master", default-features = false }
