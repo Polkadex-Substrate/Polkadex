@@ -19,8 +19,7 @@
 use super::*;
 
 use crate as ocex_pallet;
-use frame_support::{ord_parameter_types, parameter_types, traits::{Contains, Everything}};
-use frame_system::{EnsureSignedBy, SetCode};
+use frame_support::{parameter_types, traits::{Contains, Everything}};
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;

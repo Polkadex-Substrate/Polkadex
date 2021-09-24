@@ -20,10 +20,7 @@ use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
 
 use super::*;
-use orml_traits::MultiCurrency;
-use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::AccountId;
-use sp_core::H160;
 
 const GEN_ACCOUNT: AccountId = AccountId::new(*b"01234567890123456789012345678901");
 const NEW_ACCOUNT: AccountId = AccountId::new(*b"12345678901234567890123456789012");

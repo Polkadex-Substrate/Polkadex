@@ -1185,7 +1185,7 @@ parameter_types! {
 pub struct FeelessTxnFilter;
 
 impl Contains<Call> for FeelessTxnFilter {
-    fn contains(call: &Call) -> bool {
+    fn contains(_call: &Call) -> bool {
         // TODO: Pass only whitelisted contracts via governance
         // matches!(call, Call::Contracts(_))
         true
