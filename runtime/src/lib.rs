@@ -90,6 +90,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
+pub use pallet_substratee_registry;
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeePolynomial, WeightToFeeCoefficients};
 
@@ -1250,6 +1251,28 @@ impl pallet_polkapool::Config for Runtime {
 impl pallet_randomness_collective_flip::Config for Runtime {
 }
 
+parameter_types! {
+    pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
+}
+
+/// added by SCS
+impl pallet_substratee_registry::Config for Runtime {
+    type Event = Event;
+    type Currency = pallet_balances::Pallet<Runtime>;
+    type MomentsPerDay = MomentsPerDay;
+}
+
+parameter_types! {
+    pub const ProxyLimit: usize = 10; // Max sub-accounts per main account
+}
+impl polkadex_ocex::Config for Runtime {
+    type Event = Event;
+    type OcexId = OcexModuleId;
+    type GenesisAccount = OCEXGenesisAccount;
+    type Currency = Currencies;
+    type ProxyLimit = ProxyLimit;
+}
+
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -1291,6 +1314,8 @@ construct_runtime!(
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
         Currencies: orml_currencies::{Pallet, Call, Event<T>} = 33,
         Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 34,
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 35,
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 36,
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
         // otherwise it will result in in consistent state of runtime.
         // Refer: issue #261

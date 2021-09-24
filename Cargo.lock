@@ -429,6 +429,12 @@ checksum = "5024ee8015f02155eee35c711107ddd9a9bf3cb689cf2a9089c97e79b6e1ae83"
 
 [[package]]
 name = "base64"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
+
+[[package]]
+name = "base64"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
@@ -1537,6 +1543,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "failure"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d32e9bd16cc02eae7db7ef620b392808b89f6a5e16bb3497d159c6b92a0f4f86"
+dependencies = [
+ "backtrace",
+]
+
+[[package]]
 name = "fake-simd"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1982,7 +1997,7 @@ checksum = "3a1387e07917c711fb4ee4f48ea0adb04a3c9739e53ef85bf43ae1edc2937a8b"
 dependencies = [
  "futures-io",
  "rustls",
- "webpki",
+ "webpki 0.21.4",
 ]
 
 [[package]]
@@ -2339,7 +2354,22 @@ dependencies = [
  "rustls-native-certs",
  "tokio",
  "tokio-rustls",
- "webpki",
+ "webpki 0.21.4",
+]
+
+[[package]]
+name = "ias-verify"
+version = "0.1.4"
+source = "git+https://github.com/Polkadex-Substrate/pallet-substratee-registry?branch=substrate-master#31cddb89c1f07d0c2c092525634100ff535c953b"
+dependencies = [
+ "base64 0.11.0",
+ "chrono",
+ "frame-support",
+ "parity-scale-codec",
+ "serde_json",
+ "sp-core",
+ "sp-std",
+ "webpki 0.21.0",
 ]
 
 [[package]]
@@ -3009,7 +3039,7 @@ dependencies = [
  "prost",
  "prost-build",
  "rand 0.7.3",
- "ring",
+ "ring 0.16.20",
  "rw-stream-sink",
  "sha2 0.9.8",
  "smallvec",
@@ -3975,6 +4005,7 @@ dependencies = [
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
+ "pallet-teerex",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-payment",
@@ -3982,6 +4013,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
+ "polkadex-ocex",
  "polkadex-primitives",
  "smallvec",
  "sp-api",
@@ -4895,6 +4927,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-teerex"
+version = "0.9.0"
+source = "git+https://github.com/Polkadex-Substrate/pallet-substratee-registry?branch=substrate-master#31cddb89c1f07d0c2c092525634100ff535c953b"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "ias-verify",
+ "log",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-timestamp"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#dd297887c653e344c566e976c050b01f7dea8eef"
@@ -5494,9 +5543,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "polkadex-ocex"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-teerex",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "polkadex-sgx-primitives",
+ "rustc-hex",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "polkadex-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=gj-substrate-master#a36166b4786317c832f4dace9b828a558c651af2"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives?branch=master#a36166b4786317c832f4dace9b828a558c651af2"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -5504,6 +5578,18 @@ dependencies = [
  "sp-application-crypto",
  "sp-core",
  "sp-runtime",
+]
+
+[[package]]
+name = "polkadex-sgx-primitives"
+version = "0.1.0"
+source = "git+https://github.com/Polkadex-Substrate/polkadexTEE-worker?branch=mz-substrate-master#0ca7ab7097de07232ba282cf9d1f9c47c02bfcf2"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "sp-core",
+ "sp-std",
 ]
 
 [[package]]
@@ -5690,7 +5776,7 @@ dependencies = [
  "prost",
  "prost-types",
  "tempfile",
- "which",
+ "which 4.2.2",
 ]
 
 [[package]]
@@ -6081,6 +6167,19 @@ checksum = "e9c17925a9027d298a4603d286befe3f9dc0e8ed02523141914eb628798d6e5b"
 
 [[package]]
 name = "ring"
+version = "0.16.9"
+source = "git+https://github.com/scs/webpki-nostd.git#935d31c36fa9b6d55a3226572eaf2b3ded7cf437"
+dependencies = [
+ "cc",
+ "libc",
+ "spin",
+ "untrusted",
+ "which 3.1.1",
+ "winapi 0.3.9",
+]
+
+[[package]]
+name = "ring"
 version = "0.16.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
@@ -6167,9 +6266,9 @@ checksum = "35edb675feee39aec9c99fa5ff985081995a06d594114ae14cbe797ad7b7a6d7"
 dependencies = [
  "base64 0.13.0",
  "log",
- "ring",
+ "ring 0.16.20",
  "sct",
- "webpki",
+ "webpki 0.21.4",
 ]
 
 [[package]]
@@ -7289,7 +7388,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b362b83898e0e69f38515b82ee15aa80636befe47c3b6d3d89a911e78fc228ce"
 dependencies = [
- "ring",
+ "ring 0.16.20",
  "untrusted",
 ]
 
@@ -7567,7 +7666,7 @@ dependencies = [
  "chacha20poly1305",
  "rand 0.8.4",
  "rand_core 0.6.3",
- "ring",
+ "ring 0.16.20",
  "rustc_version 0.3.3",
  "sha2 0.9.8",
  "subtle",
@@ -8742,7 +8841,7 @@ checksum = "bc6844de72e57df1980054b38be3a9f4702aba4858be64dd700181a8a6d0e1b6"
 dependencies = [
  "rustls",
  "tokio",
- "webpki",
+ "webpki 0.21.4",
 ]
 
 [[package]]
@@ -9518,11 +9617,21 @@ dependencies = [
 
 [[package]]
 name = "webpki"
+version = "0.21.0"
+source = "git+https://github.com/scs/webpki-nostd.git#935d31c36fa9b6d55a3226572eaf2b3ded7cf437"
+dependencies = [
+ "ring 0.16.20",
+ "ring 0.16.9",
+ "untrusted",
+]
+
+[[package]]
+name = "webpki"
 version = "0.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8e38c0608262c46d4a56202ebabdeb094cef7e560ca7a226c6bf055188aa4ea"
 dependencies = [
- "ring",
+ "ring 0.16.20",
  "untrusted",
 ]
 
@@ -9532,7 +9641,7 @@ version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aabe153544e473b775453675851ecc86863d2a81d786d741f6b76778f2a48940"
 dependencies = [
- "webpki",
+ "webpki 0.21.4",
 ]
 
 [[package]]
@@ -9542,6 +9651,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d743fdedc5c64377b5fc2bc036b01c7fd642205a0d96356034ae3404d49eb7fb"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "which"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d011071ae14a2f6671d0b74080ae0cd8ebf3a6f8c9589a2cd45f23126fe29724"
+dependencies = [
+ "failure",
+ "libc",
 ]
 
 [[package]]
