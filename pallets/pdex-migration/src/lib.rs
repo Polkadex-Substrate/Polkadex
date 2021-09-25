@@ -144,14 +144,17 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10000)]
+        #[pallet::weight((1_765_000 as Weight)
+        .saturating_add(T::DbWeight::get().writes(1 as Weight)))]
         pub fn set_migration_operational_status(origin: OriginFor<T>, status: bool) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Operational::<T>::put(status);
             Ok(Pays::No.into())
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(  (33_012_000 as Weight)
+        .saturating_add(T::DbWeight::get().reads(3 as Weight))
+        .saturating_add(T::DbWeight::get().writes(2 as Weight)))]
         pub fn set_relayer_status(origin: OriginFor<T>, relayer: T::AccountId, status: bool) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Relayers::<T>::insert(&relayer, status);
@@ -183,8 +186,9 @@ pub mod pallet {
                 Err(Error::<T>::NotOperational)?
             }
         }
-
-        #[pallet::weight(10000)]
+        #[pallet::weight((40_395_000 as Weight)
+        .saturating_add(T::DbWeight::get().reads(3 as Weight))
+        .saturating_add(T::DbWeight::get().writes(2 as Weight)))]
         pub fn remove_minted_tokens(origin: OriginFor<T>, beneficiary: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Self::remove_fradulent_tokens(beneficiary)?;
