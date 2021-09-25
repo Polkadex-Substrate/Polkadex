@@ -19,7 +19,7 @@
 use super::*;
 
 use crate as ocex_pallet;
-use frame_support::{ord_parameter_types, parameter_types};
+use frame_support::{ord_parameter_types, parameter_types, traits::{Contains, Everything}};
 use frame_system::{EnsureSignedBy, SetCode};
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
@@ -59,7 +59,7 @@ parameter_types! {
 }
 
 impl system::Config for Test {
-    type BaseCallFilter = ();
+    type BaseCallFilter = Everything;
     type BlockWeights = ();
     type BlockLength = ();
     type Origin = Origin;
@@ -87,6 +87,7 @@ impl system::Config for Test {
 parameter_types! {
     pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
+    pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Test {
@@ -99,6 +100,8 @@ impl pallet_balances::Config for Test {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Pallet<Test>;
     type WeightInfo = ();
+    type MaxReserves = MaxReserves;
+    type ReserveIdentifier = [u8; 8];
 }
 
 parameter_types! {
@@ -136,6 +139,13 @@ parameter_types! {
     pub TreasuryModuleAccount: AccountId = AccountId::new(*b"00045678901234567890123456789012");
 }
 
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+    fn contains(a: &AccountId) -> bool {
+        *a == TreasuryModuleAccount::get()
+    }
+}
+
 parameter_type_with_key! {
     pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
         Zero::zero()
@@ -150,6 +160,8 @@ impl orml_tokens::Config for Test {
     type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
+    type MaxLocks = MaxLocks;
+    type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
 parameter_types! {
