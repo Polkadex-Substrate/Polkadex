@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=/home/ubuntu/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWC7VKBTWDXXic5yRevk8WS8DrDHevvHYyXaUCswM18wKd --name "Battery Included" --validator --telemetry-url 'wss://telemetry.polkadot.io/submit/ 0'
+ExecStart=/home/ubuntu/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7 --name "Battery Included" --validator --telemetry-url 'wss://telemetry.polkadot.io/submit/ 0'
 Restart=on-failure
 
 [Install]
