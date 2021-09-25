@@ -1,6 +1,7 @@
-use crate::pallet as pdex_migration;
+#![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
-// #![cfg_attr(not(feature = "std"), no_std)]
+use crate::pallet as pdex_migration;
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
