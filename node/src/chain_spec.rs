@@ -229,7 +229,6 @@ pub fn soba_testnet_config() -> ChainSpec {
 
 
 fn mainnet_genesis_constuctor() -> GenesisConfig {
-    // TODO: Change this with our validator accounts before launch
     let initial_authorities: Vec<(
         AccountId,
         AccountId,
@@ -274,7 +273,7 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
             hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
                 .unchecked_into(),
         ), ];
-    let root_key = hex!["c2ddb84ed7692123f5f6746c81cd0850932553416515ecd71fbe66c128eafa73"].into();
+    let root_key = hex!["70a5f4e786b47baf52d5a34742bb8312139cfe1c747fbeb3912c197d38c53332"].into();
     testnet_genesis(initial_authorities, vec![], root_key)
 }
 
@@ -424,10 +423,9 @@ pub fn testnet_genesis(
 }
 
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
-    const TIMESCALING_FACTOR: u32 = 80; // TODO : Change it before mainnet
     // 3 months in terms of 12s blocks is 648,000 blocks, i.e. period = 648,000
-    const THREE_MONTHS: u32 = 648_000 / TIMESCALING_FACTOR; // We are approximating a month to 30 days.
-    const OCT_16_2021: u32 = 144_000 / TIMESCALING_FACTOR; // 20 days from block 0, implies 144_000 blocks
+    const THREE_MONTHS: u32 = 648_000; // We are approximating a month to 30 days.
+    const OCT_16_2021: u32 = 144_000; // 20 days from block 0, implies 144_000 blocks
     const JAN_16_2022: u32 = OCT_16_2021 + THREE_MONTHS;
     const APR_16_2022: u32 = JAN_16_2022 + THREE_MONTHS;
     const JUL_16_2022: u32 = APR_16_2022 + THREE_MONTHS;
@@ -476,7 +474,7 @@ pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
         (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 0, OCT_16_2021, 1, 5000 * PDEX),
         (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 0, OCT_16_2021, 1, 5000 * PDEX),
         // (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 0, OCT_16_2021, 1, 40000 * PDEX), // They will validate for us
-        // (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 0, OCT_16_2021, 1, 4669425 * (PDEX / 10)),
+        // (hex!["fa5d4dae5bd8de8f480a59c41a2c1a373be2a311ee84e01c6645b90716055c10"].into(), 0, OCT_16_2021, 1, 4669425 * (PDEX / 10)),
 
         // After Oct 16 2021
         (hex!["e4cdc8abc0405db44c1a6886a2f2c59012fa3b98c07b61d63cc7f9e437ba243e"].into(), OCT_16_2021, THREE_MONTHS, 2, 6_000 * PDEX),
@@ -519,11 +517,11 @@ pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
         (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), OCT_16_2021, THREE_MONTHS, 4, 11250 * PDEX),
         (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), OCT_16_2021, THREE_MONTHS, 4, 11250 * PDEX),
         (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), OCT_16_2021, THREE_MONTHS, 4, 90000 * PDEX),
-        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), OCT_16_2021, THREE_MONTHS, 2, 5481925 * (PDEX / 10)),
+        (hex!["fa5d4dae5bd8de8f480a59c41a2c1a373be2a311ee84e01c6645b90716055c10"].into(), OCT_16_2021, THREE_MONTHS, 2, 5481925 * (PDEX / 10)),
 
-        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), APR_16_2022, THREE_MONTHS, 1, 146250 * PDEX),
-        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), JUL_16_2022, THREE_MONTHS, 1, 506250 * PDEX),
-        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), OCT_16_2022, THREE_MONTHS, 4, 360000 * PDEX),
+        (hex!["fa5d4dae5bd8de8f480a59c41a2c1a373be2a311ee84e01c6645b90716055c10"].into(), APR_16_2022, THREE_MONTHS, 1, 146250 * PDEX),
+        (hex!["fa5d4dae5bd8de8f480a59c41a2c1a373be2a311ee84e01c6645b90716055c10"].into(), JUL_16_2022, THREE_MONTHS, 1, 506250 * PDEX),
+        (hex!["fa5d4dae5bd8de8f480a59c41a2c1a373be2a311ee84e01c6645b90716055c10"].into(), OCT_16_2022, THREE_MONTHS, 4, 360000 * PDEX),
     ]
 }
 
@@ -569,7 +567,7 @@ pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
         (hex!["ec3cfd6b94a36adf49492caae5c59005b04e88a936c6106c4feca1631b5d6025"].into(), 50000 * PDEX),
         (hex!["8a442ebbcdb3aeace616292a957f36462e1e4c69e11de340527bfb617b01e068"].into(), 50000 * PDEX),
         (hex!["2c6789aa288e153564fe1ad4f824d8b760171db53d4e7500e2d3f9d51e979e03"].into(), 400000 * PDEX),
-        (hex!["148d5e55a937b6a6c80db86b28bc55f7336b17b13225e80468eef71d01c79341"].into(), 36558275 * (PDEX / 10)),
+        (hex!["fa5d4dae5bd8de8f480a59c41a2c1a373be2a311ee84e01c6645b90716055c10"].into(), 36558275 * (PDEX / 10)),
     ];
     claims
 }
