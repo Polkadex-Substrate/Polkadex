@@ -35,3 +35,4 @@ pub mod pallet_timestamp;
 pub mod pallet_treasury;
 pub mod pallet_utility;
 pub mod pallet_election_provider_multi_phase;
+pub mod pdex_migration;

@@ -972,7 +972,7 @@ parameter_types! {
 impl pdex_migration::pallet::Config for Runtime {
     type Event = Event;
     type LockPeriod = LockPeriod;
-    type WeightInfo = ();
+    type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
 }
 
 construct_runtime!(

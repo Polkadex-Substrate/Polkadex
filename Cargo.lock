@@ -4885,6 +4885,7 @@ dependencies = [
  "pallet-balances",
  "pallet-sudo",
  "parity-scale-codec",
+ "rand 0.7.3",
  "sp-core",
  "sp-io",
  "sp-runtime",
