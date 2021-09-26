@@ -1,8 +1,20 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
+use crate::pallet as pdex_migration;
+use frame_support::weights::Weight;
+
+pub mod weights;
+
+/// Weight functions needed for pdex_migration.
+pub trait WeightInfo {
+    fn set_migration_operational_status() -> Weight;
+    fn set_relayer_status() -> Weight;
+    fn mint() -> Weight;
+    fn unlock() -> Weight;
+    fn remove_minted_tokens() -> Weight;
+}
+
 #[cfg(test)]
 mod mock;
 
@@ -11,7 +23,6 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -24,6 +35,8 @@ pub mod pallet {
     use sp_runtime::traits::{BlockNumberProvider, Zero};
     use sp_std::vec::Vec;
     use sp_std::vec;
+    use sp_core::H256;
+    use crate::WeightInfo;
 
     const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
 
@@ -49,7 +62,7 @@ pub mod pallet {
         #[pallet::constant]
         type LockPeriod: Get<<Self as frame_system::Config>::BlockNumber>;
         /// Weight Info for PDEX migration
-        type WeightInfo;
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -142,14 +155,14 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_migration_operational_status())]
         pub fn set_migration_operational_status(origin: OriginFor<T>, status: bool) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Operational::<T>::put(status);
             Ok(Pays::No.into())
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::set_relayer_status())]
         pub fn set_relayer_status(origin: OriginFor<T>, relayer: T::AccountId, status: bool) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Relayers::<T>::insert(&relayer, status);
@@ -157,7 +170,7 @@ pub mod pallet {
             Ok(Pays::No.into())
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::mint())]
         pub fn mint(origin: OriginFor<T>, beneficiary: T::AccountId, amount: T::Balance, eth_tx: T::Hash) -> DispatchResultWithPostInfo {
             let relayer = ensure_signed(origin)?;
             ensure!(eth_tx != T::Hash::default(), Error::<T>::InvalidTxHash);
@@ -171,7 +184,7 @@ pub mod pallet {
             }
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::unlock())]
         pub fn unlock(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let beneficiary = ensure_signed(origin)?;
             if Self::operational() {
@@ -181,8 +194,7 @@ pub mod pallet {
                 Err(Error::<T>::NotOperational)?
             }
         }
-
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::remove_minted_tokens())]
         pub fn remove_minted_tokens(origin: OriginFor<T>, beneficiary: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             Self::remove_fradulent_tokens(beneficiary)?;
@@ -273,3 +285,4 @@ pub mod pallet {
         }
     }
 }
+
