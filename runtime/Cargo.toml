@@ -60,6 +60,8 @@ sp-session = { default-features = false, git = "https://github.com/paritytech/su
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features =false}
+
 
 #added
 sp-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -78,6 +80,7 @@ frame-system-rpc-runtime-api = { default-features = false, git = "https://github
 # Used for runtime benchmarking
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
 frame-system-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
+pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
 
 
 # ORML Pallets
@@ -91,7 +94,10 @@ pdex-migration = { path = "../pallets/pdex-migration", default-features = false 
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
 [dev-dependencies]
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "master" }
+# sp-io = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master" }
+# pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
+pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master"}
 
 
 [features]
@@ -154,10 +160,30 @@ runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
     "frame-system-benchmarking",
     "frame-system/runtime-benchmarks",
-    "hex-literal",
-    "pallet-balances/runtime-benchmarks",
-    "pallet-timestamp/runtime-benchmarks",
+    "pallet-election-provider-multi-phase/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
+    "pallet-babe/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-bounties/runtime-benchmarks",
+    "pallet-collective/runtime-benchmarks",
+    "pallet-elections-phragmen/runtime-benchmarks",
+    "pallet-grandpa/runtime-benchmarks",
+    "pallet-identity/runtime-benchmarks",
+    "pallet-im-online/runtime-benchmarks",
+    "pallet-indices/runtime-benchmarks",
+    "pallet-membership/runtime-benchmarks",
+    "pallet-multisig/runtime-benchmarks",
+    "pallet-proxy/runtime-benchmarks",
+    "pallet-scheduler/runtime-benchmarks",
+    'pallet-society/runtime-benchmarks',
+    "pallet-staking/runtime-benchmarks",
+    "pallet-timestamp/runtime-benchmarks",
+    "pallet-tips/runtime-benchmarks",
+    "pallet-treasury/runtime-benchmarks",
+    "pallet-utility/runtime-benchmarks",
+    "frame-system-benchmarking",
+    "orml-vesting/runtime-benchmarks",
+    "hex-literal",
     "frame-election-provider-support/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks"
 ]

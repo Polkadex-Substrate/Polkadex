@@ -3672,6 +3672,7 @@ dependencies = [
  "pallet-recovery",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-society",
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
@@ -4050,6 +4051,7 @@ name = "pallet-bounties"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-treasury",
@@ -4063,6 +4065,7 @@ name = "pallet-collective"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -4172,11 +4175,13 @@ name = "pallet-election-provider-multi-phase"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-election-provider-support",
  "frame-support",
  "frame-system",
  "log",
  "parity-scale-codec",
+ "rand 0.7.3",
  "sp-arithmetic",
  "sp-core",
  "sp-io",
@@ -4184,6 +4189,8 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "static_assertions",
+ "strum 0.21.0",
+ "strum_macros 0.21.1",
 ]
 
 [[package]]
@@ -4191,6 +4198,7 @@ name = "pallet-elections-phragmen"
 version = "5.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -4258,6 +4266,7 @@ name = "pallet-im-online"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -4276,6 +4285,7 @@ name = "pallet-indices"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4352,6 +4362,7 @@ name = "pallet-multisig"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4381,6 +4392,7 @@ name = "pallet-proxy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4468,6 +4480,7 @@ name = "pallet-staking"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-election-provider-support",
  "frame-support",
  "frame-system",
@@ -4475,6 +4488,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-session",
  "parity-scale-codec",
+ "rand_chacha 0.2.2",
  "serde",
  "sp-application-crypto",
  "sp-io",
@@ -4529,6 +4543,7 @@ name = "pallet-tips"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-treasury",
@@ -4604,6 +4619,7 @@ name = "pallet-treasury"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "impl-trait-for-tuples",
@@ -4632,6 +4648,7 @@ name = "pallet-utility"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4868,6 +4885,7 @@ dependencies = [
  "pallet-balances",
  "pallet-sudo",
  "parity-scale-codec",
+ "rand 0.7.3",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -7485,7 +7503,7 @@ dependencies = [
  "lazy_static",
  "sp-core",
  "sp-runtime",
- "strum",
+ "strum 0.20.0",
 ]
 
 [[package]]
@@ -7891,14 +7909,32 @@ version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7318c509b5ba57f18533982607f24070a55d353e90d4cae30c467cdb2ad5ac5c"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.20.1",
 ]
+
+[[package]]
+name = "strum"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aaf86bbcfd1fa9670b7a129f64fc0c9fcbbfe4f1bc4210e9e98fe71ffc12cde2"
 
 [[package]]
 name = "strum_macros"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee8bc6b87a5112aeeab1f4a9f7ab634fe6cbefc4850006df31267f4cfb9e3149"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d06aaeeee809dbc59eb4556183dd927df67db1540de5be8d3ec0b6636358a5ec"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -8468,7 +8504,7 @@ version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f559b464de2e2bdabcac6a210d12e9b5a5973c251e102c44c585c71d51bd78e"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "rand 0.8.4",
  "static_assertions",
 ]

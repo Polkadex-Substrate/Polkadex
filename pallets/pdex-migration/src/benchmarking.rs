@@ -1,83 +1,124 @@
 //! Benchmarking setup for pallet-template
 
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use frame_support::assert_ok;
+use frame_support::pallet_prelude::*;
+use frame_support::traits::Get;
+use frame_system::pallet_prelude::*;
+use frame_system::RawOrigin;
+use rand::RngCore;
+use rand::SeedableRng;
+// use frame_system::Origin;
+use sp_core::H256;
+use sp_runtime::SaturatedConversion;
+use sp_runtime::traits::BlockNumberProvider;
+
+use crate::pallet::{Call, Config, Pallet};
+use crate::pallet::*;
+use crate::pallet::Pallet as PDEXMigration;
+
 use super::*;
 
-use frame_system::RawOrigin;
-use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
-#[allow(unused)]
-use crate::Pallet as Template;
-
+// use crate::pallet::Call as PDEXMigration;
+// use crate::mock::{
+//     // PDEXMigration,
+//     PDEX
+// };
+pub const PDEX: u128 = 1000_000_000_000;
 benchmarks! {
     set_migration_operational_status {
 
     }: _(RawOrigin::Root, true)
 
     set_relayer_status {
-        let relayer = account("relayer",0,0);
+        let relayer : T::AccountId = account("relayer",0,0);
     }: _ (RawOrigin::Root, relayer, true)
 
     mint {
-        let relayer1 = account("relayer1",0,0);
-        let relayer2  = account("relayer2",0,0);
-        let relayer3 = account("relayer3",0,0);
-        let beneficiary = whitelisted_caller();
-        assert_ok!(PDEXMigration::set_migration_operational_status(Origin::root(),true));
-        // Register relayers
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer1,true));
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer2,true));
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer3,true));
-
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer1), beneficiary,100*PDEX,H256::zero()));
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer2), beneficiary,100*PDEX,H256::zero()));
-
-        let beneficiary: T::AccountId = whitelisted_caller();
-        let eth_hash: T::Hash = T::Hash::default();
+        let relayer1: T::AccountId = account("relayer1",0,0);
+        let relayer2: T::AccountId = account("relayer2",0,0);
         let relayer3: T::AccountId = account("relayer3",0,0);
-        let amount: T::Balance = <T as pallet_balances::Config>::ExistentialDeposit::get().saturating_mul(100u32.into());
-    }: _(RawOrigin::Signed(relayer3),beneficiary,amount,eth_hash)
+        let beneficiary: T::AccountId  = whitelisted_caller();
+        let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
+        let mut random_slice = [0u8; 32];
+        let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
+        rng.fill_bytes(&mut random_slice);
+        let mut eth_hash: T::Hash = T::Hash::default();
+        eth_hash.as_mut().copy_from_slice(&random_slice);
+
+
+            assert_ok!(PDEXMigration::<T>::set_migration_operational_status(RawOrigin::Root.into(),true));
+            // Register relayers
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer1.clone(),true));
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer2.clone(),true));
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer3.clone(),true));
+
+            assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer1).into(), beneficiary.clone(),amount,eth_hash));
+            assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer2).into(), beneficiary.clone(),amount,eth_hash));
+
+    }: _(RawOrigin::Signed(relayer3),beneficiary,amount,eth_hash.into())
 
 
     unlock {
-        let relayer1 = account("relayer1",0,0);
-        let relayer2  = account("relayer2",0,0);
-        let relayer3 = account("relayer3",0,0);
-        let beneficiary = whitelisted_caller();
-        assert_ok!(PDEXMigration::set_migration_operational_status(Origin::root(),true));
-        // Register relayers
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer1,true));
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer2,true));
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer3,true));
+        let relayer1 : T::AccountId = account("relayer1",0,0);
+        let relayer2  : T::AccountId = account("relayer2",0,0);
+        let relayer3 : T::AccountId = account("relayer3",0,0);
+        let beneficiary : T::AccountId  = whitelisted_caller();
 
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer1), beneficiary,100*PDEX,H256::zero()));
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer2), beneficiary,100*PDEX,H256::zero()));
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer3), beneficiary,100*PDEX,H256::zero()));
+        let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
+        let mut random_slice = [0u8; 32];
+        let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
+        rng.fill_bytes(&mut random_slice);
+        let mut eth_hash: T::Hash = T::Hash::default();
+        eth_hash.as_mut().copy_from_slice(&random_slice);
+
+           assert_ok!(PDEXMigration::<T>::set_migration_operational_status(RawOrigin::Root.into(),true));
+            // Register relayers
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer1.clone(),true));
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer2.clone(),true));
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer3.clone(),true));
+
+          assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer1).into(), beneficiary.clone(),amount,eth_hash));
+            assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer2).into(), beneficiary.clone(),amount,eth_hash));
+            assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer3).into(), beneficiary.clone(),amount,eth_hash));
 
         frame_system::Pallet::<T>::set_block_number(frame_system::Pallet::<T>::current_block_number()+T::LockPeriod::get());
 
-        let beneficiary: T::AccountId = whitelisted_caller();
     }: _(RawOrigin::Signed(beneficiary))
 
     remove_minted_tokens {
-        let relayer1 = account("relayer1",0,0);
-        let relayer2  = account("relayer2",0,0);
-        let relayer3 = account("relayer3",0,0);
-        let beneficiary = whitelisted_caller();
-        assert_ok!(PDEXMigration::set_migration_operational_status(Origin::root(),true));
-        // Register relayers
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer1,true));
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer2,true));
-        assert_ok!(PDEXMigration::set_relayer_status(Origin::root(),relayer3,true));
+        let relayer1: T::AccountId = account("relayer1",0,0);
+        let relayer2  : T::AccountId = account("relayer2",0,0);
+        let relayer3 : T::AccountId = account("relayer3",0,0);
+        let beneficiary: T::AccountId  = whitelisted_caller();
+      let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
+        let mut random_slice = [0u8; 32];
+        let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
+        rng.fill_bytes(&mut random_slice);
+        let mut eth_hash: T::Hash = T::Hash::default();
+        eth_hash.as_mut().copy_from_slice(&random_slice);
 
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer1), beneficiary,100*PDEX,H256::zero()));
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer2), beneficiary,100*PDEX,H256::zero()));
-        assert_ok!(PDEXMigration::mint(Origin::signed(relayer3), beneficiary,100*PDEX,H256::zero()));
+           assert_ok!(PDEXMigration::<T>::set_migration_operational_status(RawOrigin::Root.into(),true));
+            // Register relayers
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer1.clone(),true));
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer2.clone(),true));
+            assert_ok!(PDEXMigration::<T>::set_relayer_status(RawOrigin::Root.into(),relayer3.clone(),true));
 
-        let beneficiary: T::AccountId = whitelisted_caller();
+          assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer1).into(), beneficiary.clone(),amount,eth_hash));
+            assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer2).into(), beneficiary.clone(),amount,eth_hash));
+            assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer3).into(), beneficiary.clone(),amount,eth_hash));
+
     }: _(RawOrigin::Root,beneficiary)
 }
+#[cfg(test)]
+mod tests {
+    use crate::mock::*;
 
-impl_benchmark_test_suite!(
-	Template,
-	crate::mock::new_test_ext(),
-	crate::mock::Test,
-);
+    use super::*;
+
+    impl_benchmark_test_suite!(
+        Template,
+        crate::mock::new_test_ext(),
+        crate::mock::Test,
+    );
+}
