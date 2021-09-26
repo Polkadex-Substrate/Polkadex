@@ -57,6 +57,7 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 pub const PDEX: Balance = 1000_000_000_000;
+
 parameter_types! {
 	pub const ExistentialDeposit: Balance = 1 * PDEX;
 	pub const MaxLocks: u32 = 50;
@@ -79,7 +80,7 @@ parameter_types! {
 impl pdex_migration::Config for Test {
 	type Event = Event;
 	type LockPeriod = LockPeriod;
-	type WeightInfo = ();
+	type WeightInfo = crate::weights::WeightInfo<Test>;
 
 }
 impl pallet_sudo::Config for Test {
