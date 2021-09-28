@@ -18,69 +18,69 @@ log = { version = "0.4.14", default-features = false }
 smallvec = "1.6.1"
 #pallets
 #added
-pallet-authorship = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-babe = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-im-online = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-offences = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-staking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-staking-reward-curve = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-treasury = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-collective = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-elections-phragmen = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-membership = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-bounties = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-indices = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-identity = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-proxy = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-tips = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-recovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-authorship = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-babe = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-balances = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-grandpa = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-im-online = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-offences = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-session = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-staking = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-multisig = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-staking-reward-curve = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-sudo = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-utility = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-timestamp = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-transaction-payment = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-treasury = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-collective = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-elections-phragmen = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-membership = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-scheduler = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-bounties = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-indices = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-identity = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-proxy = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-tips = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-recovery = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-authority-discovery = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 
 #end added
 #frame
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-support = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+frame-system = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+frame-executive = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 #sp
-sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-offchain = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-session = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features =false}
+sp-api = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-offchain = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-runtime = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-session = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-std = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-transaction-pool = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-version = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-io = { git = "https://github.com/Polkadex-Substrate/substrate", branch = "master", default-features =false}
 
 
 #added
-sp-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-consensus-babe = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-npos-elections = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-election-provider-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-authority-discovery = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-block-builder = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-consensus-babe = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-core = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-inherents = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-staking = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-npos-elections = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+frame-election-provider-support = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 #end added
 
 # Used for the node template's RPCs
-frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 
 # Used for runtime benchmarking
-frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-frame-system-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
+frame-benchmarking = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master", optional = true }
+frame-system-benchmarking = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master", optional = true }
+pallet-society = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master", optional = true }
 
 
 # ORML Pallets
@@ -91,13 +91,13 @@ polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-pr
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
+substrate-wasm-builder = { git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 
 [dev-dependencies]
-# sp-io = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "master" }
-# pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master"}
+# sp-io = { git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-core = { git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+# pallet-society = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master", optional = true }
+pallet-society = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master"}
 
 
 [features]
