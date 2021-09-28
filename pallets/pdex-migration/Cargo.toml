@@ -11,19 +11,19 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive"] }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-core = { default-features= false, git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-support = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-runtime = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-balances = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-std = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+frame-system = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-sudo = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+frame-benchmarking = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master", optional = true }
+sp-io = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+sp-core = { default-features= false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 rand = { version = "0.7.2", default-features = false }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "master"}
+sp-core = { git = "https://github.com/Polkadex-Substrate/substrate", branch = "master"}
 
 [features]
 default = ['std']
