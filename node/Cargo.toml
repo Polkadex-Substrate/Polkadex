@@ -81,7 +81,7 @@ sc-transaction-pool-api = {  git = "https://github.com/Polkadex-Substrate/substr
 sp-authority-discovery = {  git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 
 #Primitives
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'gj-substrate-master'}
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'mainnet-release'}
 sc-executor = {  git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 
 
