@@ -157,13 +157,14 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     "sp-npos-elections/std",
-
+    "erc20-pdex-migration-pallet/std",
     "orml-vesting/std",
     "orml-currencies/std",
     "orml-tokens/std",
     "orml-traits/std",
     "polkadex-primitives/std",
     "polkadex-ocex/std",
+	"pallet-substratee-registry/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
