@@ -7,6 +7,8 @@ Wants=network-online.target
 User=ubuntu
 Group=ubuntu
 ExecStart=/home/ubuntu/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --name "Battery Included" --validator'
+#For fullnode
+#ExecStart=/home/ubuntu/polkadex-node --chain=/home/ubuntu/customSpecRaw.json --rpc-cors all --name "Full Node"'
 Restart=on-failure
 
 [Install]
