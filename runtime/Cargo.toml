@@ -164,6 +164,7 @@ std = [
     "orml-traits/std",
     "polkadex-primitives/std",
     "polkadex-ocex/std",
+	"pallet-substratee-registry/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
