@@ -19,42 +19,6 @@ jobs:
           prerelease: false
     outputs:
       upload_url: ${{steps.create_release.outputs.upload_url}}
-  buildMac:
-    needs: prepare
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Cache Rust Dependecies
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Build Project
-        run: |
-             ./scripts/init.sh
-             rustup target add x86_64-apple-darwin --toolchain nightly-2021-05-11
-             cargo build --release
-      - name: PackRelease
-        run: |
-           zip PolkadexNodeMacOS.zip --junk-paths target/release/polkadex-node extras/customSpecRaw.json
-      - name: Archive binary
-        uses: actions/upload-artifact@v1
-        with:
-          name: PolkadexNodeMacOS.zip
-          path: PolkadexNodeMacOS.zip
-      - name: Upload Release Asset
-        id: upload-release-asset0 
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: PolkadexNodeMacOS.zip
-          asset_name: PolkadexNodeMacOS.zip
-          asset_content_type: application/octet-stream 
   buildUbuntu:
     runs-on: ubuntu-latest
     needs: prepare
