@@ -1,11 +1,10 @@
 # Run a Validator (Polkadex)
 
-This guide will instruct you how to set up a validator node on the Polkadex Public Testnet.
+This guide will instruct you how to set up a validator node on the Polkadex using the released binary.
 
-- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v0.4.2-rc2
-- **Bootnode IP address**: 13.235.190.203
-- **Bootnode Peer ID**: 12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.2-rc2/customSpecRaw.json
+
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v1.0.2
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.2/customSpecRaw.json
 
 ## Initial Set-up
 
@@ -13,7 +12,7 @@ This guide will instruct you how to set up a validator node on the Polkadex Publ
 
 The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS provider you prefer, and whichever operating system you are comfortable with. For this guide we will be using **Ubuntu 20.04**, but the instructions should be similar for other platforms.
 
-The transaction weights in Polkadot were benchmarked on standard hardware. It is recommended that validators run at least the standard hardware in order to ensure they are able to process all blocks in time. The following are not minimum requirements but if you decide to run with less than this, you may experience performance issues.
+The transaction weights in Polkadex were benchmarked on standard hardware. It is recommended that validators run at least the standard hardware in order to ensure they are able to process all blocks in time. The following are not minimum requirements but if you decide to run with less than this, you may experience performance issues.
 
 #### Standard Hardware
 
@@ -25,109 +24,23 @@ For the full details of the standard hardware please see [here](https://github.c
 
 The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to match up to other validators that are running the standard.
 
-### Node Prerequisites: Install Dependencies and Rust
-
 Once you choose your cloud service provider and set-up your new server, the first thing you will do is install the necessary dependencies.
 
 ```
-sudo apt install make clang pkg-config libssl-dev build-essential curl git
-```
-
-If you intend to build from source you need to install Rust first.
-
-If you have already installed Rust, run the following command to make sure you are using the latest version.
+sudo apt-get install curl unzip
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.2/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
 
 ```
-rustup update
-```
-
-If not, this command will fetch the latest version of Rust and install it.
-
-```
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-```
-
-Add the required toolchains with rustup
-
-```
-source $HOME/.cargo/env
-rustup toolchain add nightly-2021-06-28
-rustup target add wasm32-unknown-unknown --toolchain nightly-2021-06-28
-rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-06-28
-
-```
-
-Verify your installation.
-
-```
-rustc --version
-```
-
-Note - if you are using OSX and you have Homebrew installed, you can issue the following equivalent command INSTEAD of the previous one:
-
-```
-brew install cmake pkg-config openssl git llvm
-```
-
-### Install & Configure Network Time Protocol (NTP) Client
-
-[NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) is a networking protocol designed to synchronize the clocks of computers over a network. NTP allows you to synchronize the clocks of all the systems within the network. Currently it is required that validators' local clocks stay reasonably in sync, so you should be running NTP or a similar service. You can check whether you have the NTP client by running:
-
-If you are using Ubuntu 18.04 / 20.04, NTP Client should be installed by default.
-
-```
-timedatectl
-```
-
-If NTP is installed and running, you should see `System clock synchronized: yes` or a similar message. If you do not see it, you can install it by executing:
-
-```
-sudo apt-get install ntp
-```
-
-ntpd will be started automatically after install. You can query ntpd for status information to verify that everything is working:
-
-```
-sudo ntpq -p
-```
-
-### Building and Installing the `Polkadex` binary
-#### Using a prebuilt
-If you don't want to build the binary from source and simply prefer to download it, use the following command. Then continue at Synchronize Chain Data
-`curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.2-rc2/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
-
-#### Build from source
-To build the `Polkadex` binary from the [Polkadex-Substrate/Polkadex](https://github.com/Polkadex-Substrate/Polkadex) repository on GitHub using the source code available in the v0.4.2-rc2 release.
-
-```
-git clone https://github.com/Polkadex-Substrate/Polkadex.git
-cd Polkadex
-```
-
-Build native code with the cargo release profile.
-
-```
-git checkout v0.4.2-rc2
-cargo build --release
-```
-
-<i>This step will take a while (generally 10 - 40 minutes, depending on your hardware).</i>
 
 ### Synchronize Chain Data
-
-Download `customSpecRaw.json` file for the Polkadex Public Testnet
-```
-cd $HOME
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v0.4.2-rc2/customSpecRaw.json
-```
 
 You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
 
 ```
-$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7 --pruning=archive
+$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --pruning=archive
 ```
 
-
+This is an example output from the testnet:
 ```
 2021-08-17 12:46:37 Polkadex Node    
 2021-08-17 12:46:37 ✌️  version 3.0.0-dbc98eca-x86_64-linux-gnu    
@@ -174,11 +87,11 @@ Example of node sync:
 
 The `--pruning=archive` flag is implied by the `--validator` flag, so it is only required explicitly if you start your node without one of these two options. If you do not set your pruning to archive node, even when not running in validator mode, you will need to re-sync your database when you switch.
 
-If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that to the current highest block via [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/explorer).
+If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that to the current highest block via [Telemetry](https://telemetry.polkadot.io/#list/0x3920bcb4960a1eef5580cd5367ff3f430eef052774f78468852f7b9cb39f8a3c)or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/explorer).
 
 
 ## Bond PDEX
-[Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/accounts) [Here is one instruction video how to create accounts](https://www.youtube.com/watch?v=hhUZ40ZWqkE) and transfer some PDEX tokens to the main account.
+[Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/accounts) [Here is one instruction video how to create accounts](https://www.youtube.com/watch?v=hhUZ40ZWqkE) and transfer some PDEX tokens to the main account.
 It is highly recommended that you set your controller and stash accounts as two separate accounts. For this, you will need to create two accounts and make sure each of them have at least enough funds to pay the fees for making transactions. Keep most of your funds in the stash account since it is meant to be the custodian of your staking funds.
 
 Make sure not to bond all your PDEX balance since you will be unable to pay transaction fees from your bonded balance.
@@ -188,11 +101,11 @@ It is now time to set up your validator. You will want to do the following:
 - Bond the PDEX from your Stash account. These PDEX will be put at stake for the security of the network and can be slashed.
 - Select the Controller. This is the account that will decide when to start or stop validating.
 
-First, go to the [Staking](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/staking/actions) section. Click on "Account Actions", and then the "+ Stash" button.
+First, go to the [Staking](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/staking/actions) section. Click on "Account Actions", and then the "+ Stash" button.
 
 ![Bonding Preferences](./screenshots/bonding_preferences.png)
 
-- **Stash account** - Select your Stash account. In this example, we will bond 100 PDEX, where the minimum bonding amount is 100. Make sure that your Stash account contains at least this much. You can, of course, stake more than this.
+- **Stash account** - Select your Stash account. In this example, we will bond 100 PDEX, where the minimum bonding amount is 1. Make sure that your Stash account contains at least this much. You can, of course, stake more than this.
 - **Controller account** - Select the Controller account created earlier. This account will also need a small amount of PDEX in order to start and stop validating.
 - **Value bonded** - How much PDEX from the Stash account you want to bond/stake? You do not need to bond all of the PDEX in that account. Also note that you can always bond more PDEX later. However, withdrawing any bonded amount requires the duration of the unbonding period. On Polkadex, the planned unbonding period is 28 days.
 - **Payment destination** - The account where the rewards from validating are sent. If you'd like to redirect payments to an account that is neither the controller nor the stash account, set one up. Please note that it is extremely unsafe to set an exchange deposit address as the recipient of the staking rewards.
@@ -214,7 +127,7 @@ Your bonded account will be available under `Stashes`. You should now see a new 
 Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
 
 ```
-$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7 --validator --name "Validator-Tutorial"
+$HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --validator --name "Validator-Tutorial"
 ```
 Similarly:
 ```
@@ -252,7 +165,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --bootnodes /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7 --validator --name 'Validator-Tutorial'
+ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --name 'Validator-Tutorial'
 Restart=on-failure
 
 [Install]
@@ -262,8 +175,10 @@ WantedBy=multi-user.target
 Run a validator as a service
 ```
 sudo systemctl daemon-reload
+sudo systemctl enable validator
 sudo systemctl start validator
 sudo systemctl status validator
+
 ```
 
 ### Generating the Session Keys
@@ -292,14 +207,14 @@ You can restart your node at this point.
 
 You need to tell the chain your Session keys by signing and submitting an extrinsic. This is what associates your validator with your Controller account.
 
-Go to [Staking > Account Actions](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fblockchain.polkadex.trade#/staking/actions), and click "Session Key" on the bonding account you generated earlier. Enter the output from `author_rotateKeys` in the field and click "Set Session Key".
+Go to [Staking > Account Actions](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/staking/actions), and click "Session Key" on the bonding account you generated earlier. Enter the output from `author_rotateKeys` in the field and click "Set Session Key".
 
 ![Set Session Key](./screenshots/session_key.png)
 
 Submit this extrinsic and you are now ready to start validating.
 
 ## Validate
-To verify that your node is live and synchronized, head to [Telemetry](https://telemetry.polkadot.io/#list/Polkadex%20Public%20Testnet) and find your node. Note that this will show all nodes on the Polkadex network, which is why it is important to select a unique name for your node.
+To verify that your node is live and synchronized, head to [Telemetry](https://telemetry.polkadot.io/#list/0x3920bcb4960a1eef5580cd5367ff3f430eef052774f78468852f7b9cb39f8a3c) and find your node. Note that this will show all nodes on the Polkadex network, which is why it is important to select a unique name for your node.
 
 In this example, we used the name `Validator-Tutorial` and have successfully located it upon searching:
 
