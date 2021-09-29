@@ -157,7 +157,7 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     "sp-npos-elections/std",
-
+    "erc20-pdex-migration-pallet/std",
     "orml-vesting/std",
     "orml-currencies/std",
     "orml-tokens/std",
