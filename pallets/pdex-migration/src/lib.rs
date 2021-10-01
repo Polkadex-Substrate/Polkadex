@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use crate::pallet as pdex_migration;
 use frame_support::weights::Weight;
 
 pub mod weights;
@@ -35,7 +34,6 @@ pub mod pallet {
     use sp_runtime::traits::{BlockNumberProvider, Zero};
     use sp_std::vec::Vec;
     use sp_std::vec;
-    use sp_core::H256;
     use crate::WeightInfo;
 
     const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";

@@ -125,17 +125,19 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 
 /// Staging testnet config.
 pub fn udon_testnet_config() -> ChainSpec {
-    let boot_nodes = vec![];
+    let boot_nodes = vec![
+            "/ip4/54.176.87.85/tcp/30333/ws/p2p/12D3KooWNfCP1m8mov5sYn3ofFxR6xSZ5Dif7jHQwpfMTWFB9AYP".parse().unwrap(),
+            "/ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7".parse().unwrap(),
+            "/ip4/18.198.113.243/tcp/30333/ws/p2p/12D3KooWCFfmkPDCgPQoxYdviDfLhSy9huvJTxrdL7zuukFqE2Nk".parse().unwrap(),
+            "/ip4/52.28.14.93/tcp/30333/p2p/12D3KooWDkrQ1XEk2if4sxdKZ5d1mi5ZLtUnjW8wS3UzH7Mi3dFx".parse().unwrap(),
+    ];
     ChainSpec::from_genesis(
-        "Polkadex Test Net",
+        "Polkadex Canary Net",
         "polkadex_udon_testnet",
         ChainType::Live,
         udon_testnet_config_genesis,
         boot_nodes,
-        Some(
-            TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-                .expect("Staging telemetry url is valid; qed"),
-        ),
+        None,
         None,
         None,
         Default::default(),
