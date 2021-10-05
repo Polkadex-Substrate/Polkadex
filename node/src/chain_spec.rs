@@ -391,7 +391,7 @@ pub fn testnet_genesis(
                 .map(|x| x.0.clone()).collect(),
             stakers: initial_authorities
                 .iter()
-                .map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+                .map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))// stash, controller, balance, status
                 .collect(),
             slash_reward_fraction: Perbill::from_percent(10),
             ..Default::default()

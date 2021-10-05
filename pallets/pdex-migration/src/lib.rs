@@ -31,9 +31,10 @@ pub mod pallet {
     use frame_support::traits::fungible::Mutate;
     use frame_system::pallet_prelude::*;
     use sp_runtime::SaturatedConversion;
-    use sp_runtime::traits::{BlockNumberProvider, Zero};
-    use sp_std::vec::Vec;
+    use sp_runtime::traits::{BlockNumberProvider, Saturating, Zero};
     use sp_std::vec;
+    use sp_std::vec::Vec;
+
     use crate::WeightInfo;
 
     const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
@@ -241,10 +242,12 @@ pub mod pallet {
                         // Mint tokens
                         let _positive_imbalance = pallet_balances::Pallet::<T>::deposit_creating(&beneficiary, amount);
                         let reasons = WithdrawReasons::TRANSFER;
+                        // Loads the previous locked balance for migration if any, else return zero
+                        let previous_balance: T::Balance = Self::previous_locked_balance(&beneficiary);
                         // Lock tokens for 28 days
                         pallet_balances::Pallet::<T>::set_lock(MIGRATION_LOCK,
                                                                &beneficiary,
-                                                               amount,
+                                                               amount.saturating_add(previous_balance),
                                                                reasons);
                         let current_blocknumber: T::BlockNumber = frame_system::Pallet::<T>::current_block_number();
                         LockedTokenHolders::<T>::insert(beneficiary.clone(), current_blocknumber);
@@ -280,6 +283,19 @@ pub mod pallet {
             } else {
                 Err(Error::<T>::UnknownBeneficiary)
             }
+        }
+
+        pub fn previous_locked_balance(who: &T::AccountId) -> T::Balance {
+            let mut prev_locked_amount: T::Balance = T::Balance::zero();
+
+            let locks = pallet_balances::Locks::<T>::get(who);
+            // Loop is fine, since pallet_balances guarantee that it is not more than MAXLOCKS
+            for lock in locks {
+                if lock.id == MIGRATION_LOCK{
+                    prev_locked_amount = lock.amount;
+                }
+            }
+            return prev_locked_amount;
         }
     }
 }
