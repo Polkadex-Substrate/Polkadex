@@ -23,7 +23,7 @@ orml-currencies = { git = "https://github.com/Gauthamastro/open-runtime-module-l
 orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git", default-features = false, branch="gj-substrate-master" }
 pallet-balances = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
 sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",branch = 'main', default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",branch = 'master', default-features = false }
 rand = {default-features = false, version = '0.8.0'}
 rand_chacha = {default-features = false, version = '0.3.0'}
 pallet-polkadex-ido-primitives = { path = "../../pallets/Polkadex_Ido/common", default-features = false}

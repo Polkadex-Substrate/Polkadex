@@ -11,9 +11,9 @@ serde = { version = "1.0.68", optional = true }
 jsonrpc-core = "18.0.0"
 jsonrpc-core-client = "18.0.0"
 jsonrpc-derive = "18.0.0"
-sp-rpc = {  git = "https://github.com/paritytech/substrate", default-features = false ,branch = "master"}
-sp-blockchain = {  git = "https://github.com/paritytech/substrate", default-features = false ,branch = "master"}
-sp-api = {  git = "https://github.com/paritytech/substrate", default-features = false ,branch = "master"}
+sp-rpc = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
+sp-blockchain = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
+sp-api = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
 sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false,branch = "master" }
 pallet-polkadex-ido-primitives = {path = "../../Polkadex_Ido/common", default-features = false}
 polkadex-ido-runtime-api = {path = "./runtime-api"}

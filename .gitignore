@@ -17,3 +17,5 @@
 
 .idea
 
+/node_modules
+/artifcats

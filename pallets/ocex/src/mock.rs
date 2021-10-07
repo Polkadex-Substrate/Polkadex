@@ -18,23 +18,20 @@
 
 use super::*;
 
-use crate as polkadex_ido;
-use frame_support::PalletId;
-use frame_support::{traits::{Contains, Everything}};
-use frame_support::{parameter_types, traits::SortedMembers};
-use frame_support_test::TestRandomness;
-use frame_system::EnsureSignedBy;
+use crate as ocex_pallet;
+use frame_support::{parameter_types, traits::{Contains, Everything}};
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::arithmetic::Zero;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
-use sp_core::H160;
+use polkadex_primitives::AccountId;
 use sp_core::H256;
+use sp_runtime::traits::Zero;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::convert::From;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -45,7 +42,9 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Pallet, Call, Storage, Event<T>},
-        PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>},
+        Timestamp: timestamp::{Pallet, Call, Storage, Inherent},
+        Ocex: ocex_pallet::{Pallet, Call, Event<T>},
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>},
         Currencies: orml_currencies::{Pallet, Call, Event<T>},
         OrmlToken: orml_tokens::{Pallet, Call, Storage, Event<T>},
         PalletBalances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
@@ -53,12 +52,11 @@ frame_support::construct_runtime!(
 );
 
 pub type Balance = u128;
-pub type BlockNumber = u64;
+
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
 }
 
-type AccountId = u64;
 impl system::Config for Test {
     type BaseCallFilter = Everything;
     type BlockWeights = ();
@@ -66,7 +64,7 @@ impl system::Config for Test {
     type Origin = Origin;
     type Call = Call;
     type Index = u64;
-    type BlockNumber = BlockNumber;
+    type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = AccountId;
@@ -86,16 +84,13 @@ impl system::Config for Test {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 0;
+    pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
     pub const MaxReserves: u32 = 50;
-    // pub const ExistentialDeposit: Balance = 1 * PDEX;
 }
 
 impl pallet_balances::Config for Test {
-    type MaxReserves = MaxReserves;
     type MaxLocks = MaxLocks;
-    type ReserveIdentifier = u64;
     /// The type for recording an account's balance.
     type Balance = Balance;
     /// The ubiquitous event type.
@@ -104,6 +99,8 @@ impl pallet_balances::Config for Test {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Pallet<Test>;
     type WeightInfo = ();
+    type MaxReserves = MaxReserves;
+    type ReserveIdentifier = [u8; 8];
 }
 
 parameter_types! {
@@ -120,41 +117,25 @@ impl orml_currencies::Config for Test {
 
 parameter_types! {
     pub const TresuryAccount: u64 = 9;
-    pub const PolkadexIdoModuleId: PalletId = PalletId(*b"polk/ido");
 }
 
 parameter_types! {
-    pub const GetIDOPDXAmount: Balance = 100u128;
-    pub const GetMaxSupply: Balance = 200u128;
-    pub const DefaultVotingPeriod : BlockNumber = 5;
+    pub const ProxyLimit: usize = 2; // Max sub-accounts per main account
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
 }
-
-pub struct OneToFive;
-impl SortedMembers<u64> for OneToFive {
-    fn sorted_members() -> Vec<u64> {
-        vec![1, 2, 3, 4, 5]
-    }
-}
-
 impl Config for Test {
     type Event = ();
-    type TreasuryAccountId = TresuryAccount;
-    type GovernanceOrigin = EnsureSignedBy<OneToFive, u64>;
-    type Currency = OrmlToken;
-    type NativeCurrencyId = GetNativeCurrencyId;
-    type IDOPDXAmount = GetIDOPDXAmount;
-    type MaxSupply = GetMaxSupply;
-    type Randomness = TestRandomness<Self>;
-    type RandomnessSource = TestRandomness<Self>;
-    type ModuleId = PolkadexIdoModuleId;
-    type WeightIDOInfo = ();
-    type DefaultVotingPeriod = DefaultVotingPeriod;
+    type OcexId = OcexModuleId;
+    type GenesisAccount = OCEXGenesisAccount;
+    type Currency = Currencies;
+    type ProxyLimit = ProxyLimit;
 }
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
 
 parameter_types! {
-    pub TreasuryModuleAccount: u64 = 1;
+    pub TreasuryModuleAccount: AccountId = AccountId::new(*b"00045678901234567890123456789012");
 }
 
 pub struct DustRemovalWhitelist;
@@ -172,77 +153,62 @@ parameter_type_with_key! {
 
 impl orml_tokens::Config for Test {
     type Event = ();
-    type MaxLocks = MaxLocks;
-    type DustRemovalWhitelist = DustRemovalWhitelist;
     type Balance = Balance;
     type Amount = i128;
     type CurrencyId = AssetId;
     type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
+    type MaxLocks = MaxLocks;
+    type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
-pub const ALICE: AccountId = 1;
-pub const INITIAL_BALANCE: Balance = 1_000_000;
-
-pub struct ExtBuilder {
-    endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+parameter_types! {
+        pub const MinimumPeriod: u64 = 6000 / 2;
 }
 
-impl Default for ExtBuilder {
-    fn default() -> Self {
-        Self {
-            endowed_accounts: vec![
-                (ALICE, AssetId::POLKADEX, INITIAL_BALANCE),
-                // Add Custom token to Alice account which will be sold in the ido
-                (
-                    ALICE,
-                    AssetId::Asset(24),
-                    INITIAL_BALANCE,
-                ),
-                (4, AssetId::POLKADEX, INITIAL_BALANCE),
-                (2, AssetId::POLKADEX, INITIAL_BALANCE),
-                (5, AssetId::POLKADEX, INITIAL_BALANCE),
-                (6, AssetId::POLKADEX, INITIAL_BALANCE),
-                (7, AssetId::POLKADEX, INITIAL_BALANCE),
-                (8, AssetId::POLKADEX, INITIAL_BALANCE),
-                (9, AssetId::POLKADEX, INITIAL_BALANCE),
-                (10, AssetId::POLKADEX, INITIAL_BALANCE),
-            ],
-        }
-    }
+pub type Moment = u64;
+
+impl timestamp::Config for Test {
+    type Moment = Moment;
+    type OnTimestampSet = ();
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
-impl ExtBuilder {
-    pub fn build(self) -> sp_io::TestExternalities {
-        let mut t = frame_system::GenesisConfig::default()
-            .build_storage::<Test>()
-            .unwrap();
+parameter_types! {
+    pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
+}
 
-        pallet_balances::GenesisConfig::<Test> {
-            balances: vec![
-                (ALICE, INITIAL_BALANCE),
-                (4u64, INITIAL_BALANCE),
-                (2u64, INITIAL_BALANCE),
-                (5u64, INITIAL_BALANCE),
-                (6u64, INITIAL_BALANCE),
-                (7u64, INITIAL_BALANCE),
-                (8u64, INITIAL_BALANCE),
-                (9u64, INITIAL_BALANCE),
-                (10u64, INITIAL_BALANCE),
-            ],
-        }
-        .assimilate_storage(&mut t)
+/// added by SCS
+impl pallet_substratee_registry::Config for Test {
+    type Event = ();
+    type Currency = PalletBalances;
+    type MomentsPerDay = MomentsPerDay;
+}
+
+pub type PolkadexOcexPallet = Pallet<Test>;
+
+// Build test environment by setting the root `key` for the Genesis.
+// pub fn new_test_ext() -> sp_io::TestExternalities {
+//     let storage = system::GenesisConfig::default()
+//         .build_storage::<Test>()
+//         .unwrap();
+//
+//     let mut ext: sp_io::TestExternalities = storage.into();
+//     ext.execute_with(|| System::set_block_number(1));
+//     ext
+// }
+
+pub fn new_test_ext(genesis: AccountId) -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::default()
+        .build_storage::<Test>()
         .unwrap();
-
-        super::GenesisConfig::<Test> {
-            endowed_accounts: self.endowed_accounts,
-        }
-        .assimilate_storage(&mut t)
-        .unwrap();
-
-        let mut ext = sp_io::TestExternalities::new(t);
-        ext.execute_with(|| System::set_block_number(1));
-        ext
+    ocex_pallet::GenesisConfig::<Test> {
+        key: genesis.clone(),
+        genesis_account: genesis,
     }
+    .assimilate_storage(&mut t)
+    .unwrap();
+    t.into()
 }

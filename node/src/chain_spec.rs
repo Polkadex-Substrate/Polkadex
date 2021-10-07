@@ -11,14 +11,16 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{traits::{IdentifyAccount, Verify}, Perbill};
+use node_polkadex_runtime::constants::currency::*;
+pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
-    CouncilConfig, IndicesConfig,TokensConfig,SessionKeys,
-    OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,
-    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+    CouncilConfig, IndicesConfig,
+    // ElectionsConfig, GrandpaConfig, ImOnlineConfig, 
+    OrmlVestingConfig, SessionConfig, SessionKeys, StakerStatus, PDEXMigrationConfig,PolkadexOcexConfig,
+    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig
 };
 use log::info;
-pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::constants::currency::PDEX;
 use sp_runtime::traits::AccountIdConversion;
 use frame_support::PalletId;
@@ -116,10 +118,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 
     testnet_genesis(
         initial_authorities,
-        20000,
         vec![],
-        vec![],
-        root_key,
+        root_key
     )
 }
 
@@ -181,10 +181,8 @@ pub fn authority_keys_from_seed(
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
         vec![authority_keys_from_seed("Alice")],
-        1_000_000_000,
-        vec![get_account_id_from_seed::<sr25519::Public>("Bob"), get_account_id_from_seed::<sr25519::Public>("Dave"), get_account_id_from_seed::<sr25519::Public>("Ferdie"),get_account_id_from_seed::<sr25519::Public>("Charlie"), get_account_id_from_seed::<sr25519::Public>("Eve")],
         vec![],
-        get_account_id_from_seed::<sr25519::Public>("Alice"),
+        get_account_id_from_seed::<sr25519::Public>("Alice")
     )
 }
 
@@ -209,10 +207,8 @@ fn soba_testnet_genesis() -> GenesisConfig {
             authority_keys_from_seed("Alice"),
             authority_keys_from_seed("Bob"),
         ],
-        20_000,
         vec![],
-        vec![],
-        get_account_id_from_seed::<sr25519::Public>("Alice"),
+        get_account_id_from_seed::<sr25519::Public>("Alice")
     )
 }
 
@@ -279,7 +275,7 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
                 .unchecked_into(),
         ), ];
     let root_key = hex!["a2f6199c36e89dd066de2582ae6f705783f040c1fc06f30455532258886bfa76"].into();
-    testnet_genesis(initial_authorities,20000, vec![], vec![], root_key)
+    testnet_genesis(initial_authorities, vec![], root_key)
 }
 
 pub fn mainnet_testnet_config() -> ChainSpec {
@@ -309,6 +305,9 @@ fn adjust_treasury_balance_for_initial_validators(initial_validators: usize, end
     (initial_validators + 1) as u128 * endowment
 }
 
+#[allow(non_upper_case_globals)]
+pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
     initial_authorities: Vec<(
@@ -319,13 +318,12 @@ pub fn testnet_genesis(
         ImOnlineId,
         AuthorityDiscoveryId,
     )>,
-    endowment : u128,
-    initial_accounts : Vec<AccountId>,
     _initial_nominators: Vec<AccountId>,
-    root_key: AccountId,
+    root_key: AccountId
 ) -> GenesisConfig {
-    let ENDOWMENT: u128 =  endowment * PDEX;
+    const ENDOWMENT: u128 = 20_000 * PDEX;
     const STASH: u128 = 2 * PDEX;
+    let genesis: AccountId = OCEXGenesisAccount.into_account();
     // Total Supply in ERC20
     const ERC20_PDEX_SUPPLY: u128 = 3_172_895 * PDEX;
     // Total funds in treasury also includes 2_000_000 PDEX for parachain auctions
@@ -341,9 +339,6 @@ pub fn testnet_genesis(
     let mut inital_validators_endowment = initial_authorities
         .iter()
         .map(|k| (k.0.clone(), ENDOWMENT)).collect_vec();
-    let mut initial_accounts = initial_accounts
-        .iter()
-        .map(|k| (k.clone(), ENDOWMENT)).collect_vec();
     let mut endowed_accounts = vec![
         //      Root Key
         (root_key.clone(), ENDOWMENT),
@@ -364,7 +359,6 @@ pub fn testnet_genesis(
     endowed_accounts.append(claims.as_mut());
     // Endow to validators
     endowed_accounts.append(&mut inital_validators_endowment);
-    endowed_accounts.append(&mut initial_accounts);
 
     let mut total_supply: u128 = 0;
     for (_, balance) in &endowed_accounts {
@@ -382,7 +376,7 @@ pub fn testnet_genesis(
             changes_trie_config: Default::default(),
         },
         balances: BalancesConfig {
-            balances: endowed_accounts.clone(),
+            balances: endowed_accounts,
         },
 
         indices: IndicesConfig { indices: vec![] },
@@ -434,14 +428,20 @@ pub fn testnet_genesis(
         technical_membership: Default::default(),
         treasury: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting },
+
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
             operation_status: false
         },
-        tokens: TokensConfig {
-            balances: vec![
-                (endowed_accounts[0].0.clone(), AssetId::Asset(10), 1000000000000000000u128)
-            ],
+    	tokens: TokensConfig {
+            balances : vec![],
+            // endowed_accounts: vec![
+            //     (endowed_accounts[0].to_owned(), AssetId::Asset(24), 1000000000000000000u128),
+            // ],
+        },
+        polkadex_ocex: PolkadexOcexConfig {
+            key: genesis.clone(),
+            genesis_account: genesis,
         },
     }
 }
@@ -512,10 +512,8 @@ pub(crate) mod tests {
     fn local_testnet_genesis_instant_single() -> GenesisConfig {
         testnet_genesis(
             vec![authority_keys_from_seed("Alice")],
-            20000,
             vec![],
-            vec![],
-            get_account_id_from_seed::<sr25519::Public>("Alice"),
+            get_account_id_from_seed::<sr25519::Public>("Alice")
         )
     }
 
