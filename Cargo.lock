@@ -4014,6 +4014,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
+ "pallet-assets",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",

@@ -50,6 +50,7 @@ pallet-election-provider-multi-phase = { default-features = false, git = "https:
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-contracts-primitives = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-contracts-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-assets = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 # pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 #end added
 #frame
@@ -148,6 +149,7 @@ std = [
     'frame-election-provider-support/std',
     'pallet-membership/std',
     'pallet-scheduler/std',
+    'pallet-assets/std',
     "pallet-election-provider-multi-phase/std",
     'sp-api/std',
     'sp-block-builder/std',
