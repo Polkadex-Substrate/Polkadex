@@ -1177,7 +1177,7 @@ impl erc20_pdex_migration_pallet::Config for Runtime {
 }
 
 parameter_types! {
-    pub const GetIDOPDXAmount: Balance = 100_u128;
+    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
     pub const GetMaxSupply: Balance = 2_000_000_u128;
     pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
     pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
