@@ -1815,7 +1815,7 @@ dependencies = [
 [[package]]
 name = "frame-support-test"
 version = "3.0.0"
-source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
+source = "git+https://github.com/paritytech/substrate?branch=master#dd297887c653e344c566e976c050b01f7dea8eef"
 dependencies = [
  "frame-metadata",
  "frame-support",
@@ -1835,7 +1835,7 @@ dependencies = [
 [[package]]
 name = "frame-support-test-pallet"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=master#88c64e06471cc12aa9b25290f24d5566bcb5dd82"
+source = "git+https://github.com/paritytech/substrate?branch=master#dd297887c653e344c566e976c050b01f7dea8eef"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5686,7 +5686,7 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives?branch=master#a36166b4786317c832f4dace9b828a558c651af2"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives?branch=master#03396125d317a964a0fee071864ecd033580e9c0"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -9194,8 +9194,8 @@ version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f559b464de2e2bdabcac6a210d12e9b5a5973c251e102c44c585c71d51bd78e"
 dependencies = [
- "cfg-if 0.1.10",
- "rand 0.7.3",
+ "cfg-if 1.0.0",
+ "rand 0.8.4",
  "static_assertions",
 ]
 

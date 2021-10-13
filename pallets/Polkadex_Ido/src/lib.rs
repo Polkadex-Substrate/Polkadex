@@ -399,6 +399,7 @@ decl_module! {
             max_allocation: T::Balance,
             token_a_priceper_token_b: T::Balance,
         ) -> DispatchResult {
+
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let vote_end_block = match <VotingPeriod<T>>::try_get() {
                 Ok(voting_period ) => voting_period.saturating_add(current_block_no),
@@ -416,11 +417,19 @@ decl_module! {
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
             ensure!(vote_end_block < start_block, <Error<T>>::StartBlockMustBeGreaterThanVotingPeriod);
             ensure!(vesting_per_block > Zero::zero(), <Error<T>>::VestingPerBlockMustGreaterThanZero);
+            let team: T::AccountId = ensure_signed(origin)?;
+
+            // Mint random token if user selects none: TODO: Remove in production, only for beta testes
+            let token_a = if token_a == AssetId::None {
+                Self::create_random_token(&team, amount)?
+            }else {
+                token_a
+            };
 
             let vesting_period : u32 = (amount / vesting_per_block ).saturated_into();
             let vesting_period : T::BlockNumber = vesting_period.saturated_into();
             let vesting_end_block : T::BlockNumber = vesting_period.saturating_add(close_round_block);
-            let team: T::AccountId = ensure_signed(origin)?;
+
             let funding_round: FundingRound<T> = FundingRound::from(
                 cid,
                 token_a,
@@ -438,6 +447,7 @@ decl_module! {
             );
             let (round_id, _) = T::Randomness::random(&(Self::get_wallet_account(), current_block_no, team.clone(), Self::incr_nonce()).encode());
             let round_account_id = Self::round_account_id(round_id.clone());
+
             // Transfers tokens to be released to investors from team account to round account
             // This ensure that the creator has the tokens they are raising funds for
             ensure!(T::Currency::transfer(token_a, &team, &round_account_id, amount ).is_ok(), <Error<T>>::TransferTokenAFromTeamAccountFailed);
@@ -831,7 +841,8 @@ decl_error! {
         FailedToMoveBalanceToReserve,
         FundingRoundNotApproved,
         CidReachedMaxSize,
-        VestingPerBlockMustGreaterThanZero
+        VestingPerBlockMustGreaterThanZero,
+        MintNativeTokenForbidden
     }
 }
 
@@ -935,5 +946,19 @@ impl<T: Config> Module<T> {
         };
         let current_block_no = <frame_system::Pallet<T>>::block_number();
         current_block_no.saturating_add(factor.saturated_into())
+    }
+
+    pub fn create_random_token(who: &T::AccountId, amount : T::Balance) -> Result<AssetId, sp_runtime::DispatchError> {
+        let seed = <T as Config>::RandomnessSource::random_seed();
+        let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
+        let random_asset_id : u64 = rng.gen();
+        let new_asset = AssetId::Asset(random_asset_id);
+        Self::mint_token(who, new_asset, amount)?;
+        Ok(new_asset)
+    }
+
+    pub fn mint_token(who: &T::AccountId,asset_id : AssetId, amount : T::Balance) -> DispatchResult{
+        ensure!(asset_id.ne(&AssetId::POLKADEX), <Error<T>>::MintNativeTokenForbidden);
+        T::Currency::deposit(asset_id, who, amount)
     }
 }
