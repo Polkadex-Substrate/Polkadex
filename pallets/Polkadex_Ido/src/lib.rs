@@ -390,7 +390,7 @@ decl_module! {
         pub fn register_round(
             origin,
             cid : Vec<u8>,
-            token_a: AssetId,
+            token_a: Option<AssetId>,
             amount: T::Balance,
             token_b: AssetId,
             vesting_per_block: T::Balance,
@@ -399,6 +399,14 @@ decl_module! {
             max_allocation: T::Balance,
             token_a_priceper_token_b: T::Balance,
         ) -> DispatchResult {
+
+            let team: T::AccountId = ensure_signed(origin)?;
+
+            let token_a = if let Some(token_a) = token_a {
+               token_a
+            }else {
+                 Self::create_random_token()?
+            };
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let vote_end_block = match <VotingPeriod<T>>::try_get() {
@@ -417,14 +425,10 @@ decl_module! {
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
             ensure!(vote_end_block < start_block, <Error<T>>::StartBlockMustBeGreaterThanVotingPeriod);
             ensure!(vesting_per_block > Zero::zero(), <Error<T>>::VestingPerBlockMustGreaterThanZero);
-            let team: T::AccountId = ensure_signed(origin)?;
+
 
             // Mint random token if user selects none: TODO: Remove in production, only for beta testes
-            let token_a = if token_a == AssetId::None {
-                Self::create_random_token(&team, amount)?
-            }else {
-                token_a
-            };
+             Self::mint_token(&team, token_a.clone(), amount)?;
 
             let vesting_period : u32 = (amount / vesting_per_block ).saturated_into();
             let vesting_period : T::BlockNumber = vesting_period.saturated_into();
@@ -948,12 +952,11 @@ impl<T: Config> Module<T> {
         current_block_no.saturating_add(factor.saturated_into())
     }
 
-    pub fn create_random_token(who: &T::AccountId, amount : T::Balance) -> Result<AssetId, sp_runtime::DispatchError> {
+    pub fn create_random_token() -> Result<AssetId, sp_runtime::DispatchError> {
         let seed = <T as Config>::RandomnessSource::random_seed();
         let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
         let random_asset_id : u64 = rng.gen();
         let new_asset = AssetId::Asset(random_asset_id);
-        Self::mint_token(who, new_asset, amount)?;
         Ok(new_asset)
     }
 
