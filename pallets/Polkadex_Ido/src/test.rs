@@ -69,7 +69,7 @@ fn test_register_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -105,7 +105,7 @@ fn test_whitelist_investor() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -173,7 +173,7 @@ fn test_participate_in_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -260,7 +260,7 @@ fn test_claim_tokens() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -325,7 +325,7 @@ fn test_show_interest_in_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -385,7 +385,7 @@ fn test_show_interest_in_round_randomized_participants() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -467,7 +467,7 @@ fn test_withdraw_raise() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid.clone(),
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -505,7 +505,7 @@ fn test_withdraw_raise() {
             PolkadexIdo::register_round(
                 Origin::signed(4),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -568,7 +568,7 @@ fn test_withdraw_token() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid.clone(),
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -606,7 +606,7 @@ fn test_withdraw_token() {
             PolkadexIdo::register_round(
                 Origin::signed(4),
                 cid,
-                AssetId::Asset(24),
+                Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -653,7 +653,7 @@ fn test_vote_for_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -704,7 +704,7 @@ fn test_vote_for_round_no_vote_majority() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
@@ -762,7 +762,7 @@ fn test_get_reserve_amount() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               AssetId::Asset(24),
+               Some(AssetId::Asset(24)),
                 balance,
                 AssetId::POLKADEX,
                 balance,
