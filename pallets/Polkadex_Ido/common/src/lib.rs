@@ -74,7 +74,7 @@ fn serialize_as_custom_tuple<S: Serializer>(
         }
         AssetId::Asset(id) => {
             let mut s = serializer.serialize_struct("asset", 1)?;
-            s.serialize_field("asset" , &id.to_string().to_s);
+            s.serialize_field("asset" , &id.to_string());
             s.end()
         }
     }
