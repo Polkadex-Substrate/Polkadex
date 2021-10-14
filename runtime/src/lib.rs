@@ -1016,8 +1016,9 @@ impl orml_currencies::Config for Runtime {
     type GetNativeCurrencyId = GetNativeCurrencyId;
     type WeightInfo = ();
 }
+
 impl pdex_migration::pallet::Config for Runtime {
-    type Event = Event;
+    type Event = orml_vesting::Event<Runtime>;
     type LockPeriod = LockPeriod;
     type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
 }
@@ -1059,21 +1060,6 @@ impl Contains<Call> for FeelessTxnFilter {
 
 pub struct DynamicStaking;
 
-impl pallet_polkapool::traits::DynamicStaker<Call, Balance> for DynamicStaking {
-    /// Filters the claim_feeless_transaction call
-    fn filter(call: &Call) -> bool {
-        matches!(call, Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(_,_)))
-    }
-
-    /// Gets the stake amount from the feeless transaction call
-    fn get_stake(call: &Call) -> Balance {
-        match call {
-            Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(stake, _)) => *stake,
-            _ => Balance::zero()
-        }
-    }
-}
-
 parameter_types! {
     pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
         RuntimeBlockWeights::get().max_block;
@@ -1101,47 +1087,8 @@ impl polkadex_ido::Config for Runtime {
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
     type DefaultVotingPeriod = DefaultVotingPeriod;
 }
-impl pallet_polkapool::Config for Runtime {
-    type Event = Event;
-    type Origin = Origin;
-    type PalletsOrigin = OriginCaller;
-    type Call = Call;
-    type Balance = Balance;
-    type Currency = Currencies;
-    type MinStakeAmount = MinStakeAmount;
-    type MaxAllowedWeight = MaxAllowedWeight;
-    type MinStakePeriod = MinStakePeriod;
-    type MaxStakes = MaxStakes;
-    type RandomnessSource = RandomnessCollectiveFlip;
-    type CallFilter = FeelessTxnFilter;
-    type DynamicStaking = DynamicStaking;
-    type MinStakePerWeight = MinStakePerWeight;
-    type GovernanceOrigin = EnsureGovernance;
-}
 
 impl pallet_randomness_collective_flip::Config for Runtime {
-}
-
-parameter_types! {
-    pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
-}
-
-/// added by SCS
-impl pallet_substratee_registry::Config for Runtime {
-    type Event = Event;
-    type Currency = pallet_balances::Pallet<Runtime>;
-    type MomentsPerDay = MomentsPerDay;
-}
-
-parameter_types! {
-    pub const ProxyLimit: usize = 10; // Max sub-accounts per main account
-}
-impl polkadex_ocex::Config for Runtime {
-    type Event = Event;
-    type OcexId = OcexModuleId;
-    type GenesisAccount = OCEXGenesisAccount;
-    type Currency = Currencies;
-    type ProxyLimit = ProxyLimit;
 }
 
 construct_runtime!(
@@ -1180,11 +1127,10 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
-        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 29,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 30,
-        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 31,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32,
-        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 33,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 29,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 30,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 31,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 32,
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
         // otherwise it will result in in consistent state of runtime.
         // Refer: issue #261
