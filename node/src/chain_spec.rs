@@ -5,7 +5,6 @@ use itertools::Itertools;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
-use polkadex_primitives::Block;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
@@ -14,9 +13,6 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_runtime::traits::AccountIdConversion;
 
-use node_polkadex_runtime::{
-    PDEXMigrationConfig,
-};
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{traits::{IdentifyAccount, Verify}, Perbill};
 use node_polkadex_runtime::constants::currency::*;
@@ -24,16 +20,11 @@ pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
     CouncilConfig, IndicesConfig,
-    // ElectionsConfig, GrandpaConfig, ImOnlineConfig, 
-    OrmlVestingConfig, SessionConfig, SessionKeys, StakerStatus, PDEXMigrationConfig,PolkadexOcexConfig,
+    OrmlVestingConfig, SessionConfig, SessionKeys, StakerStatus, PDEXMigrationConfig,
     StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig
 };
 use log::info;
 use node_polkadex_runtime::constants::currency::PDEX;
-use sp_runtime::traits::AccountIdConversion;
-use frame_support::PalletId;
-pub use node_polkadex_runtime::GenesisConfig;
-use node_polkadex_runtime::SessionKeys;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -306,7 +297,6 @@ pub fn mainnet_testnet_config() -> ChainSpec {
     )
 }
 
-use itertools::Itertools;
 use polkadex_primitives::assets::AssetId;
 
 fn adjust_treasury_balance_for_initial_validators(initial_validators: usize, endowment: u128) -> u128 {
@@ -434,17 +424,13 @@ pub fn testnet_genesis(
 
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
-            operation: false
+            operational: false
         },
     	tokens: TokensConfig {
             balances : vec![],
             // endowed_accounts: vec![
             //     (endowed_accounts[0].to_owned(), AssetId::Asset(24), 1000000000000000000u128),
             // ],
-        },
-        polkadex_ocex: PolkadexOcexConfig {
-            key: genesis.clone(),
-            genesis_account: genesis,
         },
     }
 }

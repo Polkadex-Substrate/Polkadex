@@ -976,7 +976,11 @@ impl orml_vesting::Config for Runtime {
 parameter_types! {
     pub const LockPeriod: BlockNumber = 201600;
 }
-
+impl pdex_migration::pallet::Config for Runtime {
+    type Event = Event;
+    type LockPeriod = LockPeriod;
+    type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
+}
 parameter_type_with_key! {
     pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
         Zero::zero()
@@ -1017,11 +1021,7 @@ impl orml_currencies::Config for Runtime {
     type WeightInfo = ();
 }
 
-impl pdex_migration::pallet::Config for Runtime {
-    type Event = orml_vesting::Event<Runtime>;
-    type LockPeriod = LockPeriod;
-    type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
-}
+
 
 parameter_types! {
     pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
@@ -1127,10 +1127,11 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 29,
-        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 30,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 31,
-        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 32,
+	PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 30,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 31,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 33,
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
         // otherwise it will result in in consistent state of runtime.
         // Refer: issue #261
@@ -1488,8 +1489,6 @@ const MODULE_ID: PalletId = PalletId(*b"cb/gover");
 
 parameter_types! {
     pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
-    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
-    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
 }
 
 pub struct EnsureGovernance;
