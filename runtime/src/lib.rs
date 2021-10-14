@@ -39,12 +39,12 @@ use frame_support::{
 
 use frame_support::{PalletId, traits::InstanceFilter};
 use frame_support::traits::{OnUnbalanced, Everything};
+use orml_traits::parameter_type_with_key;
 use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
 };
-use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
+
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 #[cfg(any(feature = "std", test))]
@@ -54,6 +54,9 @@ use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthority
 use pallet_grandpa::fg_primitives;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
+use pallet_polkadex_ido_primitives::*;
+use sp_runtime::traits::Zero;
+use orml_currencies::BasicCurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -79,7 +82,7 @@ use core::convert::TryInto;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::curve::PiecewiseLinear;
-use sp_runtime::traits::{self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, BlockNumberProvider, Zero};
+use sp_runtime::traits::{self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, BlockNumberProvider};
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
@@ -124,7 +127,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 268,
+    spec_version: 269,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -386,6 +389,8 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 
+pub type Amount = i128;
+
 impl pallet_balances::Config for Runtime {
     type Balance = Balance;
     type DustRemoval = ();
@@ -547,7 +552,7 @@ parameter_types! {
 	pub SignedRewardBase: Balance = UNITS;
 	// fallback: emergency phase.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-		pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
+		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
 	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(5u32, 10_000);
 
 	// miner configs
@@ -1172,6 +1177,12 @@ impl erc20_pdex_migration_pallet::Config for Runtime {
 }
 
 parameter_types! {
+    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
+    pub const GetMaxSupply: Balance = 2_000_000_u128;
+    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+}
+parameter_types! {
     pub const AssetDeposit: Balance = 100 * DOLLARS;
     pub const ApprovalDeposit: Balance = DOLLARS;
     pub const StringLimit: u32 = 50;
@@ -1230,6 +1241,20 @@ parameter_types! {
     pub const MaxStakes: usize = 50;
 }
 
+impl polkadex_ido::Config for Runtime {
+    type Event = Event;
+    type TreasuryAccountId = TreasuryModuleAccount;
+    type GovernanceOrigin = EnsureRootOrTreasury;
+    type NativeCurrencyId = GetNativeCurrencyId;
+    type IDOPDXAmount = GetIDOPDXAmount;
+    type MaxSupply = GetMaxSupply;
+    type Randomness = RandomnessCollectiveFlip;
+    type RandomnessSource = RandomnessCollectiveFlip;
+    type ModuleId = PolkadexIdoPalletId;
+    type Currency = Currencies;
+    type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
+    type DefaultVotingPeriod = DefaultVotingPeriod;
+}
 impl pallet_polkapool::Config for Runtime {
     type Event = Event;
     type Origin = Origin;
@@ -1309,17 +1334,18 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
-        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
-        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 31,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
-        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 33,
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 34,
-        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 35,
-        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 36,
+        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 30,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 31,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 32,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 33,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 34,
+        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 35,
+        SubstrateeRegistry: pallet_substratee_registry::{Pallet, Call, Storage, Event<T>} = 36,
+        PolkadexOcex: polkadex_ocex::{Pallet, Call, Storage, Config<T>, Event<T>} = 37,
         // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
         // otherwise it will result in in consistent state of runtime.
         // Refer: issue #261
-        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>} = 42
+        Polkapool: pallet_polkapool::{Pallet, Call, Storage, Event<T>} = 38
     }
 );
 /// Digest item type.
@@ -1570,6 +1596,20 @@ impl_runtime_apis! {
         }
     }
 
+    impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+
+        fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+            PolkadexIdo::rounds_by_investor(account)
+        }
+        fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+            PolkadexIdo::rounds_by_creator(account)
+        }
+
+        fn votes_stat(round_id: Hash) -> VoteStat {
+            PolkadexIdo::votes_stat(round_id)
+        }
+    }
+
     impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             SessionKeys::generate(seed)
@@ -1657,7 +1697,7 @@ impl_runtime_apis! {
 
 const MODULE_ID: PalletId = PalletId(*b"cb/gover");
 
-pub type Amount = i128;
+// pub type Amount = i128;
 
 parameter_types! {
     pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
