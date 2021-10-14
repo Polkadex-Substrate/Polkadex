@@ -123,6 +123,7 @@ where
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	// C::Api: pallet_mmr_rpc::MmrRuntimeApi<Block, <Block as sp_runtime::traits::Block>::Hash>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
+	C::Api: polkadex_ido_rpc::PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
 	C::Api: BabeApi<Block>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + 'static,
@@ -171,12 +172,17 @@ where
 	io.extend_with(sc_sync_state_rpc::SyncStateRpcApi::to_delegate(
 		sc_sync_state_rpc::SyncStateRpcHandler::new(
 			chain_spec,
-			client,
+			client.clone(),
 			shared_authority_set,
 			shared_epoch_changes,
 			deny_unsafe,
 		)?,
 	));
+
+	io.extend_with(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
+		polkadex_ido_rpc::PolkadexIdoRpc::new(client),
+	));
+
 
 	Ok(io)
 }

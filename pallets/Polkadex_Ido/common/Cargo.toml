@@ -1,0 +1,26 @@
+[package]
+name = "pallet-polkadex-ido-primitives"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+serde = { version = "1.0.68", features = ["derive"], optional = true }
+
+# Substrate Dependencies (This crate should not rely on frame)
+sp-core = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"  }
+sp-std = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"  }
+sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"  }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'master', default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "serde",
+]

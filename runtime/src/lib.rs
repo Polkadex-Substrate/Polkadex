@@ -29,7 +29,7 @@ use frame_support::{
     RuntimeDebug,
     traits::{
         Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier,
-        U128CurrencyToVote,
+        U128CurrencyToVote, Nothing, Contains
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -39,6 +39,7 @@ use frame_support::{
 
 use frame_support::{PalletId, traits::InstanceFilter};
 use frame_support::traits::{OnUnbalanced, Everything};
+use orml_traits::parameter_type_with_key;
 use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
@@ -51,10 +52,14 @@ use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthority
 use pallet_grandpa::fg_primitives;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
+use pallet_polkadex_ido_primitives::*;
+use sp_runtime::traits::Zero;
+use orml_currencies::BasicCurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Signature};
 pub use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use sp_api::impl_runtime_apis;
@@ -71,6 +76,7 @@ use sp_runtime::{
     ApplyExtrinsicResult, create_runtime_str, FixedPointNumber, generic, impl_opaque_keys, Perbill,
     Percent, Permill, Perquintill,
 };
+use core::convert::TryInto;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::curve::PiecewiseLinear;
@@ -118,7 +124,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 268,
+    spec_version: 269,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -380,6 +386,8 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 
+pub type Amount = i128;
+
 impl pallet_balances::Config for Runtime {
     type Balance = Balance;
     type DustRemoval = ();
@@ -541,7 +549,7 @@ parameter_types! {
 	pub SignedRewardBase: Balance = UNITS;
 	// fallback: emergency phase.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-		pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
+		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
 	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(5u32, 10_000);
 
 	// miner configs
@@ -969,10 +977,171 @@ parameter_types! {
     pub const LockPeriod: BlockNumber = 201600;
 }
 
+parameter_type_with_key! {
+    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+        Zero::zero()
+    };
+}
+parameter_types! {
+    pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		*a == TreasuryModuleAccount::get()
+	}
+}
+
+impl orml_tokens::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Amount = Amount;
+    type CurrencyId = AssetId;
+    type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
+    type MaxLocks = MaxLocks;
+    type DustRemovalWhitelist = DustRemovalWhitelist;
+}
+
+parameter_types! {
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+}
+
+impl orml_currencies::Config for Runtime {
+    type Event = Event;
+    type MultiCurrency = Tokens;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type WeightInfo = ();
+}
 impl pdex_migration::pallet::Config for Runtime {
     type Event = Event;
     type LockPeriod = LockPeriod;
     type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
+    pub const GetMaxSupply: Balance = 2_000_000_u128;
+    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+}
+parameter_types! {
+    pub const AssetDeposit: Balance = 100 * DOLLARS;
+    pub const ApprovalDeposit: Balance = DOLLARS;
+    pub const StringLimit: u32 = 50;
+    pub const MetadataDepositBase: Balance = 10 * DOLLARS;
+    pub const MetadataDepositPerByte: Balance = DOLLARS;
+}
+
+parameter_types! {
+    pub IgnoredIssuance: Balance = Treasury::pot();
+    pub const QueueCount: u32 = 300;
+    pub const MaxQueueLen: u32 = 1000;
+    pub const FifoQueueLen: u32 = 500;
+    pub const Period: BlockNumber = 30 * DAYS;
+    pub const MinFreeze: Balance = 100 * DOLLARS;
+    pub const IntakePeriod: BlockNumber = 10;
+    pub const MaxIntakeBids: u32 = 10;
+}
+
+pub struct FeelessTxnFilter;
+
+impl Contains<Call> for FeelessTxnFilter {
+    fn contains(_call: &Call) -> bool {
+        // TODO: Pass only whitelisted contracts via governance
+        // matches!(call, Call::Contracts(_))
+        true
+    }
+}
+
+pub struct DynamicStaking;
+
+impl pallet_polkapool::traits::DynamicStaker<Call, Balance> for DynamicStaking {
+    /// Filters the claim_feeless_transaction call
+    fn filter(call: &Call) -> bool {
+        matches!(call, Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(_,_)))
+    }
+
+    /// Gets the stake amount from the feeless transaction call
+    fn get_stake(call: &Call) -> Balance {
+        match call {
+            Call::Polkapool(pallet_polkapool::Call::claim_feeless_transaction(stake, _)) => *stake,
+            _ => Balance::zero()
+        }
+    }
+}
+
+parameter_types! {
+    pub MaximumFeelessWeightAllocation: Weight = Perbill::from_percent(80) *
+        RuntimeBlockWeights::get().max_block;
+    pub const MaxAllowedTxns: usize = 50;
+    pub const MinStakePerWeight: u128 = 10_000;
+    pub const MinStakePeriodPerWeight: u32 = 1;
+    pub const MinStakeAmount: Balance = constants::currency::DOLLARS;
+    pub MaxAllowedWeight: Weight = Perbill::from_percent(20) *
+        RuntimeBlockWeights::get().max_block;
+    pub const MinStakePeriod: BlockNumber = 360000u32; // 28 days
+    pub const MaxStakes: usize = 50;
+}
+
+impl polkadex_ido::Config for Runtime {
+    type Event = Event;
+    type TreasuryAccountId = TreasuryModuleAccount;
+    type GovernanceOrigin = EnsureRootOrTreasury;
+    type NativeCurrencyId = GetNativeCurrencyId;
+    type IDOPDXAmount = GetIDOPDXAmount;
+    type MaxSupply = GetMaxSupply;
+    type Randomness = RandomnessCollectiveFlip;
+    type RandomnessSource = RandomnessCollectiveFlip;
+    type ModuleId = PolkadexIdoPalletId;
+    type Currency = Currencies;
+    type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
+    type DefaultVotingPeriod = DefaultVotingPeriod;
+}
+impl pallet_polkapool::Config for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type PalletsOrigin = OriginCaller;
+    type Call = Call;
+    type Balance = Balance;
+    type Currency = Currencies;
+    type MinStakeAmount = MinStakeAmount;
+    type MaxAllowedWeight = MaxAllowedWeight;
+    type MinStakePeriod = MinStakePeriod;
+    type MaxStakes = MaxStakes;
+    type RandomnessSource = RandomnessCollectiveFlip;
+    type CallFilter = FeelessTxnFilter;
+    type DynamicStaking = DynamicStaking;
+    type MinStakePerWeight = MinStakePerWeight;
+    type GovernanceOrigin = EnsureGovernance;
+}
+
+impl pallet_randomness_collective_flip::Config for Runtime {
+}
+
+parameter_types! {
+    pub const MomentsPerDay: Moment = 86_400_000; // [ms/d]
+}
+
+/// added by SCS
+impl pallet_substratee_registry::Config for Runtime {
+    type Event = Event;
+    type Currency = pallet_balances::Pallet<Runtime>;
+    type MomentsPerDay = MomentsPerDay;
+}
+
+parameter_types! {
+    pub const ProxyLimit: usize = 10; // Max sub-accounts per main account
+}
+impl polkadex_ocex::Config for Runtime {
+    type Event = Event;
+    type OcexId = OcexModuleId;
+    type GenesisAccount = OCEXGenesisAccount;
+    type Currency = Currencies;
+    type ProxyLimit = ProxyLimit;
 }
 
 construct_runtime!(
@@ -1011,7 +1180,14 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
-        PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+        PDEXMigration: erc20_pdex_migration_pallet::{Pallet, Storage, Call, Event<T>,Config<T>} = 29,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 30,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 31,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 32,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 33,
+        // IMPORTANT: Polkapool should be always at the bottom, don't add pallet after polkapool
+        // otherwise it will result in in consistent state of runtime.
+        // Refer: issue #261
     }
 );
 /// Digest item type.
@@ -1225,6 +1401,20 @@ impl_runtime_apis! {
         }
     }
 
+    impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+
+        fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+            PolkadexIdo::rounds_by_investor(account)
+        }
+        fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+            PolkadexIdo::rounds_by_creator(account)
+        }
+
+        fn votes_stat(round_id: Hash) -> VoteStat {
+            PolkadexIdo::votes_stat(round_id)
+        }
+    }
+
     impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             SessionKeys::generate(seed)
@@ -1343,6 +1533,34 @@ impl_runtime_apis! {
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
         }
+    }
+}
+
+const MODULE_ID: PalletId = PalletId(*b"cb/gover");
+
+// pub type Amount = i128;
+
+parameter_types! {
+    pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+}
+
+pub struct EnsureGovernance;
+
+impl EnsureOrigin<Origin> for EnsureGovernance {
+    type Success = AccountId;
+    fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+        let bridge_id = MODULE_ID.into_account();
+        Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+            RawOrigin::Signed(who) if who == bridge_id => Ok(bridge_id),
+            r => Err(Origin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn successful_origin() -> Origin {
+        Origin::from(RawOrigin::Signed(Default::default()))
     }
 }
 

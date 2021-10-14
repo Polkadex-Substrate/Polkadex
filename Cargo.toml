@@ -4,11 +4,16 @@ panic = 'unwind'
 [workspace]
 members = [
     'node',
+    'pallets/pdex-migration',
+    'pallets/Polkadex_Ido',
     'runtime',
-    "pallets/pdex-migration"
+    'pallets/Polkadex_Ido/rpc',
+    'pallets/Polkadex_Ido/rpc/runtime-api',
+    'pallets/Polkadex_Ido/common',
 ]
-
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
 orml-vesting = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master"}
-
+orml-currencies = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master"}
+orml-tokens = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master"}
+orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git",  branch="gj-substrate-master"}

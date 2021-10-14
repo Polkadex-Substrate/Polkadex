@@ -1,0 +1,61 @@
+[package]
+name = "polkadex-ido"
+version = "0.1.0"
+authors = ["Anonymous"]
+edition = "2018"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { version = "2.2.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+hex = { version = "2.1.0", package = "rustc-hex", default-features = false }
+serde = { version = "1.0.68", optional = true }
+
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master"  }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-io = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-core = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-std = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "master" }
+orml-tokens = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git", default-features = false, branch="gj-substrate-master" }
+orml-currencies = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git", default-features = false, branch="gj-substrate-master" }
+orml-traits = { git = "https://github.com/Gauthamastro/open-runtime-module-library.git", default-features = false, branch="gj-substrate-master" }
+pallet-balances = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+sp-runtime = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",branch = 'master', default-features = false }
+rand = {default-features = false, version = '0.8.0'}
+rand_chacha = {default-features = false, version = '0.3.0'}
+pallet-polkadex-ido-primitives = { path = "../../pallets/Polkadex_Ido/common", default-features = false}
+[dev-dependencies]
+sp-keyring = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+frame-support-test = {  git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
+
+[features]
+default = ["std"]
+std = [
+    "serde",
+    "hex/std",
+    "codec/std",
+    "rand/std",
+    "rand_chacha/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-io/std",
+    "orml-tokens/std",
+    "orml-currencies/std",
+    "pallet-balances/std",
+    "sp-runtime/std",
+    "polkadex-primitives/std",
+	'frame-benchmarking/std',
+    'pallet-polkadex-ido-primitives/std'
+]
+runtime-benchmarks = [
+	"frame-benchmarking",
+	"frame-system/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

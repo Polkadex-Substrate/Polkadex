@@ -3,6 +3,7 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use itertools::Itertools;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
 use polkadex_primitives::Block;
 use sc_chain_spec::ChainSpecExtension;
@@ -11,17 +12,26 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, Pair, Public, sr25519};
-use sp_runtime::{Perbill, traits::{IdentifyAccount, Verify}};
 use sp_runtime::traits::AccountIdConversion;
 
 use node_polkadex_runtime::{
-    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
-    IndicesConfig, OrmlVestingConfig,
-    PDEXMigrationConfig, SessionConfig, StakerStatus, StakingConfig,
-    SudoConfig, SystemConfig, TechnicalCommitteeConfig, wasm_binary_unwrap,
+    PDEXMigrationConfig,
 };
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
+use sp_runtime::{traits::{IdentifyAccount, Verify}, Perbill};
+use node_polkadex_runtime::constants::currency::*;
+pub use node_polkadex_runtime::GenesisConfig;
+use node_polkadex_runtime::{
+    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
+    CouncilConfig, IndicesConfig,
+    // ElectionsConfig, GrandpaConfig, ImOnlineConfig, 
+    OrmlVestingConfig, SessionConfig, SessionKeys, StakerStatus, PDEXMigrationConfig,PolkadexOcexConfig,
+    StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig
+};
+use log::info;
 use node_polkadex_runtime::constants::currency::PDEX;
+use sp_runtime::traits::AccountIdConversion;
+use frame_support::PalletId;
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::SessionKeys;
 
@@ -296,6 +306,9 @@ pub fn mainnet_testnet_config() -> ChainSpec {
     )
 }
 
+use itertools::Itertools;
+use polkadex_primitives::assets::AssetId;
+
 fn adjust_treasury_balance_for_initial_validators(initial_validators: usize, endowment: u128) -> u128 {
     // The extra one is for root_key
     (initial_validators + 1) as u128 * endowment
@@ -321,6 +334,7 @@ pub fn testnet_genesis(
     // Total funds in treasury also includes 2_000_000 PDEX for parachain auctions
     let mut treasury_funds: u128 = 10_200_000 * PDEX;
     treasury_funds = treasury_funds - adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT);
+
 
     // Treasury Account Id
     pub const TREASURY_PALLET_ID: PalletId = PalletId(*b"py/trsry");
@@ -354,8 +368,10 @@ pub fn testnet_genesis(
         total_supply = total_supply + balance.clone()
     }
 
-    assert_eq!(total_supply + ERC20_PDEX_SUPPLY, 20_000_000 * PDEX, "Total Supply Not equal to 20 million");
+    info!("🧮  Assert Total supply is 20 million: {} == {} ", total_supply + ERC20_PDEX_SUPPLY , 20_000_000 * PDEX);
+
     let vesting = get_vesting_terms();
+
 
     GenesisConfig {
         system: SystemConfig {
@@ -415,9 +431,20 @@ pub fn testnet_genesis(
         technical_membership: Default::default(),
         treasury: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting },
+
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
-            operational: false,
+            operation: false
+        },
+    	tokens: TokensConfig {
+            balances : vec![],
+            // endowed_accounts: vec![
+            //     (endowed_accounts[0].to_owned(), AssetId::Asset(24), 1000000000000000000u128),
+            // ],
+        },
+        polkadex_ocex: PolkadexOcexConfig {
+            key: genesis.clone(),
+            genesis_account: genesis,
         },
     }
 }

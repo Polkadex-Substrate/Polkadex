@@ -20,7 +20,7 @@ structopt = { version = "0.3.8", optional = true }
 # third-party dependencies
 jsonrpc-core = "18.0.0"
 codec = { package = "parity-scale-codec", version = "2.2.0" }
-serde = { version = "1.0.102", features = ["derive"] }
+serde = { version = "1.0.68", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.3.1"
 log = "0.4.8"
@@ -30,6 +30,7 @@ parking_lot = "0.11.1"
 itertools = "0.10.1"
 # local dependencies
 node-polkadex-runtime = { path = '../runtime', version = '3.0.0' }
+polkadex-ido-rpc = {path = "../pallets/Polkadex_Ido/rpc"}
 
 # Substrate dependencies
 frame-benchmarking = {  git = "https://github.com/paritytech/substrate", branch = "master" }
