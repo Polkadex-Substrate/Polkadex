@@ -11,15 +11,16 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{traits::{IdentifyAccount, Verify}, Perbill};
-use node_polkadex_runtime::{SessionKeys};
+use node_polkadex_runtime::constants::currency::*;
+pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
     CouncilConfig, IndicesConfig,
-    OrmlVestingConfig, SessionConfig, StakerStatus, PDEXMigrationConfig,PolkadexOcexConfig,
+    // ElectionsConfig, GrandpaConfig, ImOnlineConfig, 
+    OrmlVestingConfig, SessionConfig, SessionKeys, StakerStatus, PDEXMigrationConfig,PolkadexOcexConfig,
     StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig
 };
 use log::info;
-pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::constants::currency::PDEX;
 use sp_runtime::traits::AccountIdConversion;
 use frame_support::PalletId;
@@ -297,6 +298,7 @@ pub fn mainnet_testnet_config() -> ChainSpec {
 }
 
 use itertools::Itertools;
+use polkadex_primitives::assets::AssetId;
 
 fn adjust_treasury_balance_for_initial_validators(initial_validators: usize, endowment: u128) -> u128 {
     // The extra one is for root_key
@@ -367,6 +369,7 @@ pub fn testnet_genesis(
 
     let vesting = get_vesting_terms();
 
+
     GenesisConfig {
         system: SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
@@ -425,12 +428,16 @@ pub fn testnet_genesis(
         technical_membership: Default::default(),
         treasury: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting },
-        tokens: TokensConfig {
-            balances: vec![],
-        },
+
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
             operation_status: false
+        },
+    	tokens: TokensConfig {
+            balances : vec![],
+            // endowed_accounts: vec![
+            //     (endowed_accounts[0].to_owned(), AssetId::Asset(24), 1000000000000000000u128),
+            // ],
         },
         polkadex_ocex: PolkadexOcexConfig {
             key: genesis.clone(),

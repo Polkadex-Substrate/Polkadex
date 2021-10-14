@@ -27,6 +27,7 @@ pallet-offences = { default-features = false, git = "https://github.com/parityte
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-staking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-staking-reward-curve = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -49,7 +50,8 @@ pallet-election-provider-multi-phase = { default-features = false, git = "https:
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-contracts-primitives = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-contracts-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+pallet-assets = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+# pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 #end added
 #frame
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -77,6 +79,8 @@ frame-election-provider-support = { default-features = false, git = "https://git
 
 # Used for the node template's RPCs
 frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+polkadex-ido-runtime-api = {path = "../pallets/Polkadex_Ido/rpc/runtime-api", default-features = false}
+pallet-polkadex-ido-primitives = {path = "../pallets/Polkadex_Ido/common",  default-features = false}
 
 # Used for runtime benchmarking
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
@@ -93,6 +97,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'master', default-features = false }
 pallet-polkapool = { path = "../pallets/polkapool", default-features = false }
 erc20-pdex-migration-pallet = { path = "../pallets/pdex-migration", default-features = false }
+polkadex-ido = { path = "../pallets/Polkadex_Ido", default-features = false }
 polkadex-ocex = { path = "../pallets/ocex", default-features = false }
 pallet-substratee-registry = { package="pallet-teerex", git = "https://github.com/Polkadex-Substrate/pallet-substratee-registry", branch = "substrate-master", default-features = false }
 
@@ -139,10 +144,12 @@ std = [
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-treasury/std',
     'pallet-collective/std',
+    'pallet-randomness-collective-flip/std',
     'pallet-elections-phragmen/std',
     'frame-election-provider-support/std',
     'pallet-membership/std',
     'pallet-scheduler/std',
+    'pallet-assets/std',
     "pallet-election-provider-multi-phase/std",
     'sp-api/std',
     'sp-block-builder/std',
@@ -164,7 +171,10 @@ std = [
     "orml-traits/std",
     "polkadex-primitives/std",
     "polkadex-ocex/std",
-	"pallet-substratee-registry/std",
+    "pallet-substratee-registry/std",
+    "polkadex-ido/std",
+    "polkadex-ido-runtime-api/std",
+    "pallet-polkadex-ido-primitives/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
