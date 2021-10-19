@@ -76,7 +76,7 @@ fn test_register_round() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -112,7 +112,7 @@ fn test_whitelist_investor() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -180,7 +180,7 @@ fn test_participate_in_round() {
                 funding_period,
                 min_allocation,
                 max_allocation,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -267,7 +267,7 @@ fn test_claim_tokens() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -332,7 +332,7 @@ fn test_show_interest_in_round() {
                 funding_period,
                 min_allocation,
                 max_allocation,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -392,7 +392,7 @@ fn test_show_interest_in_round_randomized_participants() {
                 funding_period,
                 min_allocation,
                 max_allocation,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -474,7 +474,7 @@ fn test_withdraw_raise() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -512,7 +512,7 @@ fn test_withdraw_raise() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -575,7 +575,7 @@ fn test_withdraw_token() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -613,7 +613,7 @@ fn test_withdraw_token() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -660,7 +660,7 @@ fn test_vote_for_round() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -711,7 +711,7 @@ fn test_vote_for_round_no_vote_majority() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
@@ -746,7 +746,11 @@ fn test_vote_for_round_no_vote_majority() {
         );
     });
 }
+pub const PDEX: Balance = 1_000_000_000_000;
 
+fn f64_to_balance(value : f64) -> Balance {
+    Permill::from_float(value).mul_ceil( PDEX)
+}
 
 /// Test whether the voter will receive amount when the vote stake period ends
 /// voter adds vote with amount
@@ -769,7 +773,7 @@ fn test_get_reserve_amount() {
                 funding_period,
                 balance,
                 balance,
-                10.saturated_into(),
+                f64_to_balance(10.0),
             ),
             Ok(())
         );
