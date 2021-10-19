@@ -296,6 +296,74 @@ fn test_claim_tokens() {
 }
 
 #[test]
+fn test_claim_edge_case_tokens() {
+    let balance: Balance = 100;
+    let investor_address: u64 = 4;
+    let funding_period = 10;
+    let round_id = create_hash_data(&1u32);
+    let cid = [0_u8;32].to_vec();
+    ExtBuilder::default().build().execute_with(|| {
+        assert_noop!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Error::<Test>::InvestorDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
+            Ok(())
+        );
+
+        assert_noop!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Error::<Test>::FundingRoundDoesNotExist
+        );
+
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                cid,
+                Some(AssetId::Asset(24)),
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                funding_period,
+                balance,
+                balance,
+                f64_to_balance(0.250),
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let closing_block_number = funding_round.close_round_block;
+        let open_block_number = funding_round.start_block;
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
+
+        // Investor invests 25 PDEX, will get 100% share (100 in Asset(24) tokens)  since 25 / 0.25 = 100
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, 25_u128.saturated_into()),
+            Ok(())
+        );
+        <PolkadexIdo as OnInitialize<u64>>::on_initialize(closing_block_number);
+        system::Pallet::<Test>::set_block_number(closing_block_number + 1);
+
+        assert_eq!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Ok(())
+        );
+
+        // Test investor will get all available(100 Assets(24) tokens) token  Asset(24),
+        assert_eq!(
+            <Test as Config>::Currency::free_balance(AssetId::Asset(24),&investor_address ),
+            balance
+        );
+
+    });
+}
+#[test]
 fn test_show_interest_in_round() {
     let balance: Balance = 500;
     let investor_address: u64 = 4;
