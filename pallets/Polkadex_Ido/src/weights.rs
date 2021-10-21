@@ -39,75 +39,75 @@
 #![allow(unused_imports)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for polkadex_ido.
 pub trait WeightInfo {
-    fn register_investor() -> Weight;
-    fn register_round() -> Weight;
-    fn whitelist_investor() -> Weight;
-    fn claim_tokens() -> Weight;
-    fn show_interest_in_round() -> Weight;
+	fn register_investor() -> Weight;
+	fn register_round() -> Weight;
+	fn whitelist_investor() -> Weight;
+	fn claim_tokens() -> Weight;
+	fn show_interest_in_round() -> Weight;
 }
 
 /// Weights for polkadex_ido using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-    fn register_investor() -> Weight {
-        (25_000_000_u64)
-            .saturating_add(T::DbWeight::get().reads(1_u64))
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
-    fn register_round() -> Weight {
-        (24_000_000_u64)
-            .saturating_add(T::DbWeight::get().reads(1_u64))
-            .saturating_add(T::DbWeight::get().writes(2_u64))
-    }
-    fn whitelist_investor() -> Weight {
-        (29_000_000_u64)
-            .saturating_add(T::DbWeight::get().reads(3_u64))
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
-    fn claim_tokens() -> Weight {
-        (33_000_000_u64)
-            .saturating_add(T::DbWeight::get().reads(4_u64))
-            .saturating_add(T::DbWeight::get().writes(2_u64))
-    }
-    fn show_interest_in_round() -> Weight {
-        (26_000_000_u64)
-            .saturating_add(T::DbWeight::get().reads(3_u64))
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
+	fn register_investor() -> Weight {
+		(25_000_000_u64)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn register_round() -> Weight {
+		(24_000_000_u64)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	fn whitelist_investor() -> Weight {
+		(29_000_000_u64)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn claim_tokens() -> Weight {
+		(33_000_000_u64)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	fn show_interest_in_round() -> Weight {
+		(26_000_000_u64)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    fn register_investor() -> Weight {
-        (25_000_000_u64)
-            .saturating_add(RocksDbWeight::get().reads(1_u64))
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
-    }
-    fn register_round() -> Weight {
-        (24_000_000_u64)
-            .saturating_add(RocksDbWeight::get().reads(1_u64))
-            .saturating_add(RocksDbWeight::get().writes(2_u64))
-    }
-    fn whitelist_investor() -> Weight {
-        (29_000_000_u64)
-            .saturating_add(RocksDbWeight::get().reads(3_u64))
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
-    }
-    fn claim_tokens() -> Weight {
-        (33_000_000_u64)
-            .saturating_add(RocksDbWeight::get().reads(4_u64))
-            .saturating_add(RocksDbWeight::get().writes(2_u64))
-    }
-    fn show_interest_in_round() -> Weight {
-        (26_000_000_u64)
-            .saturating_add(RocksDbWeight::get().reads(3_u64))
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
-    }
+	fn register_investor() -> Weight {
+		(25_000_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn register_round() -> Weight {
+		(24_000_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	fn whitelist_investor() -> Weight {
+		(29_000_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn claim_tokens() -> Weight {
+		(33_000_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	fn show_interest_in_round() -> Weight {
+		(26_000_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
 }
