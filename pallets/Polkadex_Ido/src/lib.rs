@@ -60,7 +60,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
-use sp_runtime::{SaturatedConversion, Permill, Perbill};
+use sp_runtime::{SaturatedConversion, Permill, Perbill, Perquintill};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
@@ -228,10 +228,19 @@ impl<T: Config> FundingRound<T> {
     }
 
     fn token_a_price_per_1e12_token_b(&self) -> Perbill {
-        Perbill::from_rational(self.token_a_priceper_token_b, 1_000_000_000_000_u128.saturated_into())
+        let token_a_priceper_token_b : u128 =  self.token_a_priceper_token_b.saturated_into();
+        Perbill::from_float(token_a_priceper_token_b as f64 / PDEX as f64 )
     }
-}
 
+    fn token_a_price_per_1e12_token_b_balance(&self) -> T::Balance {
+        let token_a_priceper_token_b : u128 =  self.token_a_priceper_token_b.saturated_into();
+        let  p = (token_a_priceper_token_b as f64 / PDEX as f64) as u128;
+        p.saturated_into()
+    }
+
+
+}
+const PDEX : u128 = 1_000_000_000_000;
 #[derive(Decode, Encode, Clone)]
 pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
     account_id: T::AccountId,
@@ -312,7 +321,12 @@ decl_module! {
                     let mut funding_round = funding_round.clone();
                     for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
                             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
-                            let total_raise = funding_round.token_a_price_per_1e12_token_b().mul_floor(funding_round.amount);
+                            let total_raise = if PDEX.saturated_into::<T::Balance>() < funding_round.token_a_priceper_token_b {
+                                funding_round.token_a_price_per_1e12_token_b().mul_floor(funding_round.amount)
+                            }else {
+                                funding_round.token_a_price_per_1e12_token_b_balance().saturating_mul(funding_round.amount)
+                            };
+
                             let investor_share = Permill::from_rational_approximation(amount,total_raise);
                             let round_account_id = Self::round_account_id(round_id.clone());
 
@@ -421,13 +435,12 @@ decl_module! {
 
             let start_block = vote_end_block.clone().saturating_add(1_u128.saturated_into());
             let close_round_block = vote_end_block.saturating_add(funding_period);
-
             // Ensures that
-            let token_a_priceper_token_b_perbill = Perbill::from_rational(token_a_priceper_token_b, 1_000_000_000_000_u128.saturated_into());
+            let token_a_priceper_token_b_perquintill = Perbill::from_rational(token_a_priceper_token_b, 1_000_000_000_000_u128.saturated_into());
 
             // CID len must be less than or equal to 100
             ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
-            ensure!(!token_a_priceper_token_b_perbill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
+            ensure!(!token_a_priceper_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
             ensure!(vote_end_block < start_block, <Error<T>>::StartBlockMustBeGreaterThanVotingPeriod);
@@ -550,7 +563,11 @@ decl_module! {
             //Check If investor can invest amount
             ensure!(T::Currency::ensure_can_withdraw(funding_round.token_b,&investor_address, amount).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
             // Max and Min allocation must be in token A to avoid the investor for under investing or over investing
-            let amount_in_token_a = funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(amount);
+            let amount_in_token_a = if PDEX.saturated_into::<T::Balance>() < funding_round.token_a_priceper_token_b {
+                funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(funding_round.amount)
+            }else {
+                funding_round.amount / funding_round.token_a_price_per_1e12_token_b_balance()
+            };
             //Ensure investment amount doesn't exceed max_allocation
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
@@ -710,7 +727,11 @@ decl_module! {
             let funding_round = <WhitelistInfoFundingRound<T>>::get(round_id);
             ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             // Check if there is any left to withdraw
-            let total_tokens_bought_by_investors = funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(funding_round.actual_raise);
+            let total_tokens_bought_by_investors = if PDEX.saturated_into::<T::Balance>() < funding_round.token_a_priceper_token_b {
+                 funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(funding_round.amount)
+            }else {
+                funding_round.amount / funding_round.token_a_price_per_1e12_token_b_balance()
+            };
             let remaining_token = funding_round.amount.saturating_sub(total_tokens_bought_by_investors);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             ensure!(remaining_token > Zero::zero(), Error::<T>::WithdrawalBlocked);
@@ -854,7 +875,7 @@ decl_error! {
         FundingRoundNotApproved,
         CidReachedMaxSize,
         VestingPerBlockMustGreaterThanZero,
-        MintNativeTokenForbidden
+        MintNativeTokenForbidden,
     }
 }
 

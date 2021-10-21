@@ -24,6 +24,7 @@ use polkadex_primitives::assets::AssetId;
 use sp_core::H160;
 use sp_runtime::traits::Hash;
 use polkadex_primitives::assets::AssetId::POLKADEX;
+use frame_benchmarking::frame_support::sp_runtime::PerThing;
 
 #[test]
 fn test_register_investor() {
@@ -296,7 +297,7 @@ fn test_claim_tokens() {
 }
 
 #[test]
-fn test_claim_edge_case_tokens() {
+fn test_claim_edge_case_lower_tokens() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;
     let funding_period = 10;
@@ -345,6 +346,74 @@ fn test_claim_edge_case_tokens() {
         // Investor invests 25 PDEX, will get 100% share (100 in Asset(24) tokens)  since 25 / 0.25 = 100
         assert_eq!(
             PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, 25_u128.saturated_into()),
+            Ok(())
+        );
+        <PolkadexIdo as OnInitialize<u64>>::on_initialize(closing_block_number);
+        system::Pallet::<Test>::set_block_number(closing_block_number + 1);
+
+        assert_eq!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Ok(())
+        );
+
+        // Test investor will get all available(100 Assets(24) tokens) token  Asset(24),
+        assert_eq!(
+            <Test as Config>::Currency::free_balance(AssetId::Asset(24),&investor_address ),
+            balance
+        );
+
+    });
+}
+
+#[test]
+fn test_claim_edge_case_high_tokens() {
+    let balance: Balance = 100;
+    let investor_address: u64 = 4;
+    let funding_period = 10;
+    let round_id = create_hash_data(&1u32);
+    let cid = [0_u8;32].to_vec();
+    ExtBuilder::default().build().execute_with(|| {
+        assert_noop!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Error::<Test>::InvestorDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
+            Ok(())
+        );
+
+        assert_noop!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Error::<Test>::FundingRoundDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                cid,
+                Some(AssetId::Asset(24)),
+                balance,
+                AssetId::POLKADEX,
+                balance,
+                funding_period,
+                balance,
+                balance,
+                f64_to_balance(100.0),
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let closing_block_number = funding_round.close_round_block;
+        let open_block_number = funding_round.start_block;
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
+
+        // Investor invests 25 PDEX, will get 100% share (100 in Asset(24) tokens)  since 25 / 0.25 = 100
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, (balance * 100).saturated_into()),
             Ok(())
         );
         <PolkadexIdo as OnInitialize<u64>>::on_initialize(closing_block_number);
@@ -817,7 +886,7 @@ fn test_vote_for_round_no_vote_majority() {
 pub const PDEX: Balance = 1_000_000_000_000;
 
 fn f64_to_balance(value : f64) -> Balance {
-    Permill::from_float(value).mul_ceil( PDEX)
+    Perquintill::from_float(value).mul_floor( PDEX)
 }
 
 /// Test whether the voter will receive amount when the vote stake period ends
