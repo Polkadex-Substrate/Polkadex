@@ -321,7 +321,7 @@ decl_module! {
                     let mut funding_round = funding_round.clone();
                     for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
                             <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
-                            let total_raise = if PDEX.saturated_into::<T::Balance>() < funding_round.token_a_priceper_token_b {
+                            let total_raise = if PDEX.saturated_into::<T::Balance>() >= funding_round.token_a_priceper_token_b {
                                 funding_round.token_a_price_per_1e12_token_b().mul_floor(funding_round.amount)
                             }else {
                                 funding_round.token_a_price_per_1e12_token_b_balance().saturating_mul(funding_round.amount)
@@ -563,10 +563,10 @@ decl_module! {
             //Check If investor can invest amount
             ensure!(T::Currency::ensure_can_withdraw(funding_round.token_b,&investor_address, amount).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
             // Max and Min allocation must be in token A to avoid the investor for under investing or over investing
-            let amount_in_token_a = if PDEX.saturated_into::<T::Balance>() < funding_round.token_a_priceper_token_b {
-                funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(funding_round.amount)
+            let amount_in_token_a = if PDEX.saturated_into::<T::Balance>() >= funding_round.token_a_priceper_token_b {
+                funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(amount)
             }else {
-                funding_round.amount / funding_round.token_a_price_per_1e12_token_b_balance()
+                amount / funding_round.token_a_price_per_1e12_token_b_balance()
             };
             //Ensure investment amount doesn't exceed max_allocation
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
@@ -727,7 +727,7 @@ decl_module! {
             let funding_round = <WhitelistInfoFundingRound<T>>::get(round_id);
             ensure!(creator.eq(&funding_round.creator), <Error<T>>::NotACreater);
             // Check if there is any left to withdraw
-            let total_tokens_bought_by_investors = if PDEX.saturated_into::<T::Balance>() < funding_round.token_a_priceper_token_b {
+            let total_tokens_bought_by_investors = if PDEX.saturated_into::<T::Balance>() >= funding_round.token_a_priceper_token_b {
                  funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(funding_round.amount)
             }else {
                 funding_round.amount / funding_round.token_a_price_per_1e12_token_b_balance()

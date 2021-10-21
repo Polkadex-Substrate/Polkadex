@@ -181,7 +181,7 @@ fn test_participate_in_round() {
                 funding_period,
                 min_allocation,
                 max_allocation,
-                f64_to_balance(10.0),
+                f64_to_balance(1.0),
             ),
             Ok(())
         );
@@ -399,7 +399,7 @@ fn test_claim_edge_case_high_tokens() {
                 funding_period,
                 balance,
                 balance,
-                f64_to_balance(100.0),
+                f64_to_balance(5.5),
             ),
             Ok(())
         );
@@ -411,9 +411,8 @@ fn test_claim_edge_case_high_tokens() {
         PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
         system::Pallet::<Test>::set_block_number(open_block_number);
 
-        // Investor invests 25 PDEX, will get 100% share (100 in Asset(24) tokens)  since 25 / 0.25 = 100
         assert_eq!(
-            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, (balance * 100).saturated_into()),
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, (balance * 5).saturated_into()),
             Ok(())
         );
         <PolkadexIdo as OnInitialize<u64>>::on_initialize(closing_block_number);
@@ -469,7 +468,7 @@ fn test_show_interest_in_round() {
                 funding_period,
                 min_allocation,
                 max_allocation,
-                f64_to_balance(10.0),
+                f64_to_balance(1.0),
             ),
             Ok(())
         );
@@ -529,7 +528,7 @@ fn test_show_interest_in_round_randomized_participants() {
                 funding_period,
                 min_allocation,
                 max_allocation,
-                f64_to_balance(10.0),
+                f64_to_balance(1.0),
             ),
             Ok(())
         );
@@ -886,7 +885,7 @@ fn test_vote_for_round_no_vote_majority() {
 pub const PDEX: Balance = 1_000_000_000_000;
 
 fn f64_to_balance(value : f64) -> Balance {
-    Perquintill::from_float(value).mul_floor( PDEX)
+    ((value * PDEX as f64) as u128).saturated_into()
 }
 
 /// Test whether the voter will receive amount when the vote stake period ends
