@@ -229,7 +229,7 @@ impl<T: Config> FundingRound<T> {
 
     fn token_a_price_per_1e12_token_b(&self) -> Perbill {
         let token_a_priceper_token_b : u128 =  self.token_a_priceper_token_b.saturated_into();
-        Perbill::from_float(token_a_priceper_token_b as f64 / PDEX as f64 )
+        Perbill::from_rational(token_a_priceper_token_b,PDEX )
     }
 
     fn token_a_price_per_1e12_token_b_balance(&self) -> T::Balance {
