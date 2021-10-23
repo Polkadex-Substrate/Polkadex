@@ -186,7 +186,6 @@ where
 		polkadex_ido_rpc::PolkadexIdoRpc::new(client),
 	));
 
-
 	Ok(io)
 }
 
