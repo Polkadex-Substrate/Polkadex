@@ -297,6 +297,77 @@ fn test_claim_tokens() {
 }
 
 #[test]
+fn test_claim_edge_case_small_investment() {
+    let amount: Balance = 1000000000000000_u128.saturated_into();
+    let price : Balance = 1_000_000;
+    let min_allocation : Balance = 10;
+    let max_allocation : Balance = 1000000000000000000_u128.saturated_into();
+    let investor_address: u64 = 4;
+    let funding_period = 10;
+    let round_id = create_hash_data(&1u32);
+    let cid = [0_u8;32].to_vec();
+    ExtBuilder::default().build().execute_with(|| {
+        assert_noop!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Error::<Test>::InvestorDoesNotExist
+        );
+
+        assert_eq!(
+            PolkadexIdo::register_investor(Origin::signed(investor_address)),
+            Ok(())
+        );
+
+        assert_noop!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Error::<Test>::FundingRoundDoesNotExist
+        );
+
+
+        assert_eq!(
+            PolkadexIdo::register_round(
+                Origin::signed(ALICE),
+                cid,
+                Some(AssetId::Asset(24)),
+                amount,
+                AssetId::POLKADEX,
+                500,
+                funding_period,
+                min_allocation,
+                max_allocation,
+                price,
+            ),
+            Ok(())
+        );
+
+        let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
+
+        let funding_round = <InfoFundingRound<Test>>::get(&round_id);
+        let closing_block_number = funding_round.close_round_block;
+        let vesting_end_block_number = funding_round.vesting_end_block;
+        let open_block_number = funding_round.start_block;
+        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        system::Pallet::<Test>::set_block_number(open_block_number);
+
+        // Investor invests 25 PDEX, will get 100% share (100 in Asset(24) tokens)  since 25 / 0.25 = 100
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(Origin::signed(investor_address), round_id, min_allocation),
+            Ok(())
+        );
+        <PolkadexIdo as OnInitialize<u64>>::on_initialize(closing_block_number);
+        system::Pallet::<Test>::set_block_number(vesting_end_block_number + 1);
+
+        assert_eq!(
+            PolkadexIdo::claim_tokens(Origin::signed(investor_address), round_id,),
+            Ok(())
+        );
+
+        let investors_rounds = PolkadexIdo::rounds_by_investor(investor_address);
+        assert_eq!(investors_rounds[0].0, round_id);
+        assert!(<Test as Config>::Currency::free_balance(AssetId::Asset(24),&investor_address ) > 0_u128, true)
+    });
+}
+
+#[test]
 fn test_claim_edge_case_lower_tokens() {
     let balance: Balance = 100;
     let investor_address: u64 = 4;

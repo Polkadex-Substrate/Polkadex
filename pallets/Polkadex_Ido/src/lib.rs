@@ -327,7 +327,7 @@ decl_module! {
                                 funding_round.token_a_price_per_1e12_token_b_balance().saturating_mul(funding_round.amount)
                             };
 
-                            let investor_share = Permill::from_rational_approximation(amount,total_raise);
+                            let investor_share = Perquintill::from_rational_approximation(amount.saturated_into::<u64>(),total_raise.saturated_into::<u64>());
                             let round_account_id = Self::round_account_id(round_id.clone());
 
                             match <T as Config>::Currency::transfer(funding_round.token_b, &investor_address, &round_account_id, amount) {
@@ -526,7 +526,7 @@ decl_module! {
             // total_tokens_released_for_given_investor is the total available tokens for their investment
             // relative to the current block
             let total_tokens_released_for_given_investor: T::Balance = investor_share.mul_floor(Self::block_to_balance(total_released_block)
-                .saturating_mul(funding_round.vesting_per_block));
+            .saturating_mul(funding_round.vesting_per_block).saturated_into::<u64>()).saturated_into();
 
             //Check if investor previously claimed the tokens
             let claimed_tokens = if <InfoClaimAmount<T>>::contains_key(&round_id, &investor_address) {
@@ -644,6 +644,7 @@ decl_module! {
         pub fn vote(origin, round_id: T::Hash, amount: T::Balance, vote_multiplier: u8, approve : bool) -> DispatchResult {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             ensure!(vote_multiplier <=  6,  Error::<T>::PeriodError);
+            ensure!(!amount.is_zero(),  Error::<T>::VoteCannotBeZero);
             let who: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(&round_id);
@@ -757,7 +758,7 @@ decl_storage! {
         /// For each round, we keep mapping between whitelist investors and the amount, they will be investing
         WhiteListInvestors get(fn get_whitelist_investors): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::Balance;
         /// For each round, we keep mapping between participants and the amount, they will be using
-        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => Permill;
+        InvestorShareInfo get(fn get_investor_share_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => Perquintill;
         /// For each round, we keep mapping between investors and the block, when they will claim token
         LastClaimBlockInfo get(fn get_last_claim_block_info): double_map hasher(identity) T::Hash, hasher(identity) T::AccountId  => T::BlockNumber;
         /// A mapping between investor and claim amount
@@ -876,6 +877,7 @@ decl_error! {
         CidReachedMaxSize,
         VestingPerBlockMustGreaterThanZero,
         MintNativeTokenForbidden,
+        VoteCannotBeZero
     }
 }
 
