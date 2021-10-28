@@ -72,7 +72,7 @@ impl TypeInfo for TokenAddress {
     fn type_info() -> Type {
         Type::builder()
             .path(Path::new("TokenAddress", "pool"))
-            .composite(Fields::unnamed().field_of::<[u8; 20]>("[u8; 20]"))
+            .composite(Fields::unnamed().field(|f| f.ty::<[u8; 20]>().type_name("[u8; 20]")))
     }
 }
 

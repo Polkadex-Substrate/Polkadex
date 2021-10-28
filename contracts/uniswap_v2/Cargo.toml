@@ -3,26 +3,21 @@ name = "uniswap_v2"
 version = "0.1.0"
 authors = ["Frank Li <frank@polkadex.trade>"]
 edition = "2018"
+resolver = "2"
 
 [profile.release]
 overflow-checks = false
 
 [dependencies]
-ink_primitives = { version = "=3.0.0-rc3", default-features = false }
-ink_metadata = { version = "=3.0.0-rc3", default-features = false, features = [
-    "derive",
-], optional = true }
-ink_env = { version = "=3.0.0-rc3", default-features = false }
-ink_storage = { version = "=3.0.0-rc3", default-features = false }
-ink_lang = { version = "=3.0.0-rc3", default-features = false }
-ink_prelude = { version = "=3.0.0-rc3", default-features = false }
+ink_primitives = { version = "3.0.0-rc6", default-features = false }
+ink_metadata = { version = "3.0.0-rc6", default-features = false, features = ["derive"], optional = true }
+ink_env = { version = "3.0.0-rc6", default-features = false }
+ink_storage = { version = "3.0.0-rc6", default-features = false }
+ink_lang = { version = "3.0.0-rc6", default-features = false }
+ink_prelude = { version = "=3.0.0-rc6", default-features = false }
 
-scale = { package = "parity-scale-codec", version = "2.0.1", default-features = false, features = [
-    "derive",
-] }
-scale-info = { version = "0.6.0", default-features = false, features = [
-    "derive",
-], optional = false }
+scale = { package = "parity-scale-codec", version = "2.1", default-features = false, features = ["derive", "full"] }
+scale-info = { version = "1.0.0", default-features = false, features = ["derive"], optional = false }
 
 err-derive = { version = "0.3.0", default-features = false }
 
@@ -53,5 +48,6 @@ std = [
     "ink_primitives/std",
     "ink_prelude/std",
     "scale/std",
+    "scale-info/std",
 ]
 ink-as-dependency = []

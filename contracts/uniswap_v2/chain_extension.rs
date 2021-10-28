@@ -1,3 +1,4 @@
+
 use crate::{errors::Error, models::TokenAddress};
 use ink_env::Environment;
 use ink_lang as ink;
@@ -43,6 +44,7 @@ impl Environment for CustomEnvironment {
     type Hash = <ink_env::DefaultEnvironment as Environment>::Hash;
     type BlockNumber = <ink_env::DefaultEnvironment as Environment>::BlockNumber;
     type Timestamp = <ink_env::DefaultEnvironment as Environment>::Timestamp;
+    type RentFraction = <ink_env::DefaultEnvironment as Environment>::RentFraction;
 
     type ChainExtension = CurrencyExtension;
 }
