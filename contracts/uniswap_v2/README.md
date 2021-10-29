@@ -5,7 +5,7 @@ An ink! smart contract for polkapool which implements uniswap v2. The flow is in
 ## Building
 It can be built using [cargo-contract](https://github.com/paritytech/cargo-contract) with the following command:
 ```
-cargo +nightly-2021-06-21 contract build
+cargo +nightly-2021-10-20 contract build
 ```
 
 ## Integration testing with Redspot

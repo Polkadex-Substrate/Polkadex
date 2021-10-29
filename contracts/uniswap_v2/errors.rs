@@ -1,7 +1,7 @@
 use err_derive::Error;
 
 /// Error types
-#[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode, err_derive::Error)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode, Error)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum Error {
     #[error(display = "TokenAddress is invalid")]
