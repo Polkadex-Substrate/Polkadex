@@ -849,16 +849,16 @@ mod impl_uniswap {
                 0 => {
                     // deposit
                     let mut env = env.buf_in_buf_out();
-                    let input_data = env.read(68)?;
+                    let input_data = env.read(64)?;
 
-                    let token_addr: u64 = u64::from_le_bytes(input_data[0..20].try_into().unwrap());
-                    let from: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
+                    let asset_id: u64 = u64::from_le_bytes(input_data[0..16].try_into().unwrap());
+                    let from: AccountId = AccountId::new(input_data[16..48].try_into().unwrap());
                     let to: AccountId = PalletId(*b"polkadex").into_account();
-                    let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
-                    log::info!("-------------- {:?} {:?} {:?}", token_addr, to, amount);
+                    let amount: Balance = u128::from_le_bytes(input_data[48..].try_into().unwrap());
+                    log::info!("-------------- {:?} {:?} {:?}", asset_id, to, amount);
 
                     match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
-                        AssetId::Asset(token_addr),
+                        asset_id,
                         &from,
                         &to,
                         amount,
@@ -879,16 +879,16 @@ mod impl_uniswap {
                 1 => {
                     // withdraw
                     let mut env = env.buf_in_buf_out();
-                    let input_data = env.read(68)?;
+                    let input_data = env.read(64)?;
 
-                    let token_addr: u64 = u64::from_le_bytes(input_data[0..20].try_into().unwrap());
+                    let asset_id: u64 = u64::from_le_bytes(input_data[0..16].try_into().unwrap());
                     let from: AccountId = PalletId(*b"polkadex").into_account();
-                    let to: AccountId = AccountId::new(input_data[20..52].try_into().unwrap());
-                    let amount: Balance = u128::from_le_bytes(input_data[52..].try_into().unwrap());
-                    log::info!("-------------- {:?} {:?} {:?}", token_addr, from, amount);
+                    let to: AccountId = AccountId::new(input_data[16..48].try_into().unwrap());
+                    let amount: Balance = u128::from_le_bytes(input_data[48..].try_into().unwrap());
+                    log::info!("-------------- {:?} {:?} {:?}", asset_id, from, amount);
 
                     match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
-                        AssetId::Asset(token_addr),
+                        asset_id,
                         &from,
                         &to,
                         amount,

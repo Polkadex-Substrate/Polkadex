@@ -1,5 +1,5 @@
 
-use crate::{errors::Error, models::TokenAddress};
+use crate::{errors::Error, models::AssetId};
 use ink_env::Environment;
 use ink_lang as ink;
 
@@ -10,13 +10,13 @@ pub trait CurrencyExtension {
 
     #[ink(extension = 0, returns_result = false)]
     fn deposit(
-        token_address: TokenAddress,
+        asset_id: AssetId,
         from: <ink_env::DefaultEnvironment as Environment>::AccountId,
         amount: <ink_env::DefaultEnvironment as Environment>::Balance,
     ) -> ();
     #[ink(extension = 1, returns_result = false)]
     fn withdraw(
-        token_address: TokenAddress,
+        asset_id: AssetId,
         to: <ink_env::DefaultEnvironment as Environment>::AccountId,
         amount: <ink_env::DefaultEnvironment as Environment>::Balance,
     ) -> ();

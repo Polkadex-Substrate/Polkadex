@@ -128,6 +128,27 @@ impl core::ops::DerefMut for TokenAddress {
     }
 }
 
+
+#[derive(scale::Encode, scale::Decode, Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, PackedLayout, SpreadLayout)]
+pub enum AssetId {
+    /// PDEX the native currency of the chain
+    POLKADEX,
+    /// Generic enumerated assed
+    /// Range 0 - 0x00000000FFFFFFFF (2^32)-1 is reserved for protected tokens
+    /// the values under 1000 are used for ISO 4217 Numeric Curency codes
+    Asset(u64),
+}
+
+impl TypeInfo for AssetId {
+    type Identity = Self;
+
+    fn type_info() -> Type {
+        Type::builder()
+            .path(Path::new("AssetId", "Id"))
+            .composite(Fields::unnamed().field(|f| f.ty::<[u8; 20]>().type_name("[u8; 20]")))
+    }
+}
+
 #[derive(
     Debug,
     Clone,
@@ -141,29 +162,44 @@ impl core::ops::DerefMut for TokenAddress {
     SpreadLayout,
 )]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub struct TradingPair(TokenAddress, TokenAddress);
+pub struct TradingPair(AssetId, AssetId);
 
 impl TradingPair {
     pub fn from_currency_ids(
-        currency_id_a: TokenAddress,
-        currency_id_b: TokenAddress,
+        currency_id_a: AssetId,
+        currency_id_b: AssetId,
     ) -> Option<Self> {
-        if currency_id_a != currency_id_b {
-            if currency_id_a > currency_id_b {
-                Some(TradingPair(currency_id_b, currency_id_a))
-            } else {
-                Some(TradingPair(currency_id_a, currency_id_b))
+        match currency_id_a {
+            AssetId::POLKADEX => {
+                match currency_id_b {
+                    AssetId::POLKADEX => None,
+                    AssetId::Asset(y) => Some(TradingPair(currency_id_a, currency_id_b))
+                }
+            },
+            AssetId::Asset(x) => {
+                match currency_id_b {
+                    AssetId::POLKADEX => Some(TradingPair(currency_id_b, currency_id_a)),
+                    AssetId::Asset(y) => {
+                        if x != y {
+                            if x > y {
+                                Some(TradingPair(currency_id_b, currency_id_a))
+                            } else {
+                                Some(TradingPair(currency_id_a, currency_id_b))
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                }
             }
-        } else {
-            None
         }
     }
 
-    pub fn first(&self) -> TokenAddress {
+    pub fn first(&self) -> AssetId {
         self.0
     }
 
-    pub fn second(&self) -> TokenAddress {
+    pub fn second(&self) -> AssetId {
         self.1
     }
 }

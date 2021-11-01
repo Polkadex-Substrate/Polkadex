@@ -15,7 +15,7 @@ mod uniswap_v2 {
     use super::*;
     use crate::{
         constants::{GET_EXCHANGE_FEE, TRADING_PATH_LIMIT},
-        models::{ExchangeRate, Ratio, TokenAddress, TradingPair},
+        models::{ExchangeRate, Ratio, AssetId, TradingPair},
     };
     use core::convert::TryInto;
     use ink_prelude::vec;
@@ -40,9 +40,9 @@ mod uniswap_v2 {
     #[ink(event)]
     pub struct LiquidityAdded {
         who: AccountId,
-        currency_id_0: TokenAddress,
+        currency_id_0: AssetId,
         pool_0_increment: Balance,
-        currency_id_1: TokenAddress,
+        currency_id_1: AssetId,
         pool_1_increment: Balance,
         share_increment: Balance,
     }
@@ -51,9 +51,9 @@ mod uniswap_v2 {
     #[ink(event)]
     pub struct LiquidityRemoved {
         who: AccountId,
-        currency_id_0: TokenAddress,
+        currency_id_0: AssetId,
         pool_0_decrement: Balance,
-        currency_id_1: TokenAddress,
+        currency_id_1: AssetId,
         pool_1_decrement: Balance,
         remove_share: Balance,
     }
@@ -62,7 +62,7 @@ mod uniswap_v2 {
     #[ink(event)]
     pub struct Swap {
         who: AccountId,
-        path: Vec<TokenAddress>,
+        path: Vec<AssetId>,
         supply: Balance,
         target: Balance,
     }
@@ -89,8 +89,8 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn add_liquidity(
             &mut self,
-            currency_id_a: TokenAddress,
-            currency_id_b: TokenAddress,
+            currency_id_a: AssetId,
+            currency_id_b: AssetId,
             max_amount_a: Balance,
             max_amount_b: Balance,
             min_share_increment: Balance,
@@ -120,8 +120,8 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn remove_liquidity(
             &mut self,
-            currency_id_a: TokenAddress,
-            currency_id_b: TokenAddress,
+            currency_id_a: AssetId,
+            currency_id_b: AssetId,
             remove_share: Balance,
             min_withdrawn_a: Balance,
             min_withdrawn_b: Balance,
@@ -146,7 +146,7 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn swap_with_exact_supply(
             &mut self,
-            path: Vec<TokenAddress>,
+            path: Vec<AssetId>,
             supply_amount: Balance,
             min_target_amount: Balance,
         ) -> Result<()> {
@@ -162,7 +162,7 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn swap_with_exact_target(
             &mut self,
-            path: Vec<TokenAddress>,
+            path: Vec<AssetId>,
             target_amount: Balance,
             max_supply_amount: Balance,
         ) -> Result<()> {
@@ -222,7 +222,7 @@ mod uniswap_v2 {
 
         pub fn get_target_amounts(
             &self,
-            path: &Vec<TokenAddress>,
+            path: &Vec<AssetId>,
             supply_amount: Balance,
             price_impact_limit: Option<Ratio>,
         ) -> Result<Vec<Balance>> {
@@ -266,7 +266,7 @@ mod uniswap_v2 {
 
         pub fn get_supply_amounts(
             &self,
-            path: &Vec<TokenAddress>,
+            path: &Vec<AssetId>,
             target_amount: Balance,
             price_impact_limit: Option<Ratio>,
         ) -> Result<Vec<Balance>> {
@@ -310,8 +310,8 @@ mod uniswap_v2 {
 
         fn _swap(
             &mut self,
-            supply_currency_id: TokenAddress,
-            target_currency_id: TokenAddress,
+            supply_currency_id: AssetId,
+            target_currency_id: AssetId,
             supply_increment: Balance,
             target_decrement: Balance,
         ) -> Result<()> {
@@ -354,7 +354,7 @@ mod uniswap_v2 {
             Err(Error::InvalidTradingPair)
         }
 
-        fn _swap_by_path(&mut self, path: &[TokenAddress], amounts: &[Balance]) -> Result<()> {
+        fn _swap_by_path(&mut self, path: &[AssetId], amounts: &[Balance]) -> Result<()> {
             let mut i: usize = 0;
             if path.len() != amounts.len() {
                 return Err(Error::InvalidPathAmountsLength);
@@ -375,7 +375,7 @@ mod uniswap_v2 {
 
         pub fn do_swap_with_exact_supply(
             &mut self,
-            path: Vec<TokenAddress>,
+            path: Vec<AssetId>,
             supply_amount: Balance,
             min_target_amount: Balance,
             price_impact_limit: Option<Ratio>,
@@ -414,7 +414,7 @@ mod uniswap_v2 {
 
         pub fn do_swap_with_exact_target(
             &mut self,
-            path: Vec<TokenAddress>,
+            path: Vec<AssetId>,
             target_amount: Balance,
             max_supply_amount: Balance,
             price_impact_limit: Option<Ratio>,
@@ -565,8 +565,8 @@ mod uniswap_v2 {
 
         fn do_add_liquidity(
             &mut self,
-            currency_id_a: TokenAddress,
-            currency_id_b: TokenAddress,
+            currency_id_a: AssetId,
+            currency_id_b: AssetId,
             max_amount_a: Balance,
             max_amount_b: Balance,
             min_share_increment: Balance,
@@ -575,7 +575,7 @@ mod uniswap_v2 {
             let caller = self.env().caller();
 
             let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
-                .ok_or(Error::InvalidTokenAddress)?;
+                .ok_or(Error::InvalidAssetId)?;
 
             if max_amount_a.is_zero() || max_amount_b.is_zero() {
                 return Err(Error::InvalidLiquidityIncrement);
@@ -685,8 +685,8 @@ mod uniswap_v2 {
 
         fn do_remove_liquidity(
             &mut self,
-            currency_id_a: TokenAddress,
-            currency_id_b: TokenAddress,
+            currency_id_a: AssetId,
+            currency_id_b: AssetId,
             remove_share: Balance,
             min_withdrawn_a: Balance,
             min_withdrawn_b: Balance,
@@ -699,7 +699,7 @@ mod uniswap_v2 {
             }
 
             let trading_pair = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
-                .ok_or(Error::InvalidTokenAddress)?;
+                .ok_or(Error::InvalidAssetId)?;
 
             let ((pool_0, pool_1), total_shares) = self.pair_info(&trading_pair);
 
@@ -752,8 +752,8 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn get_liquidity(
             &self,
-            currency_id_a: TokenAddress,
-            currency_id_b: TokenAddress,
+            currency_id_a: AssetId,
+            currency_id_b: AssetId,
         ) -> (Balance, Balance) {
             if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
             {
@@ -775,8 +775,8 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn get_dex_incentive(
             &self,
-            currency_id_a: TokenAddress,
-            currency_id_b: TokenAddress,
+            currency_id_a: AssetId,
+            currency_id_b: AssetId,
             account: AccountId,
         ) -> Balance {
             if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
@@ -793,8 +793,8 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn get_total_issuance(
             &self,
-            currency_id_a: TokenAddress,
-            currency_id_b: TokenAddress,
+            currency_id_a: AssetId,
+            currency_id_b: AssetId,
         ) -> Balance {
             if let Some(trading_pair) = TradingPair::from_currency_ids(currency_id_a, currency_id_b)
             {
@@ -810,7 +810,7 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn get_swap_target_amount(
             &self,
-            path: Vec<TokenAddress>,
+            path: Vec<AssetId>,
             supply_amount: Balance,
             // price_impact_limit: Option<Ratio>,
         ) -> Option<Balance> {
@@ -827,7 +827,7 @@ mod uniswap_v2 {
         #[ink(message)]
         pub fn get_swap_supply_amount(
             &self,
-            path: Vec<TokenAddress>,
+            path: Vec<AssetId>,
             target_amount: Balance,
             // price_impact_limit: Option<Ratio>,
         ) -> Option<Balance> {
