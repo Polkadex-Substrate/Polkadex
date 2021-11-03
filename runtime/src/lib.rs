@@ -846,63 +846,80 @@ mod impl_uniswap {
                 <E as Ext>::T: orml_tokens::Config,
         {
             match func_id {
-                0 => {
-                    // deposit
-                    let mut env = env.buf_in_buf_out();
-                    let input_data = env.read(64)?;
-
-                    let asset_id: u64 = u64::from_le_bytes(input_data[0..16].try_into().unwrap());
-                    let from: AccountId = AccountId::new(input_data[16..48].try_into().unwrap());
-                    let to: AccountId = PalletId(*b"polkadex").into_account();
-                    let amount: Balance = u128::from_le_bytes(input_data[48..].try_into().unwrap());
-                    log::info!("-------------- {:?} {:?} {:?}", asset_id, to, amount);
-
-                    match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
-                        asset_id,
-                        &from,
-                        &to,
-                        amount,
-                    ) {
-                        Ok(res) => {
-                            log::info!("ChainExtension success {:?}", res);
-                            env.write(&[0], false, None)?;
-                        }
-                        Err(err) => {
-                            log::info!("ChainExtension error {:?}", err);
-                            return Err(DispatchError::Other(
-                                "ChainExtension failed to call transfer",
-                            ));
-                        }
-                    }
+                2 => {
+                    
                 }
+                // 0 => {
+                //     // deposit
+                //     let mut env = env.buf_in_buf_out();
+                //     // let input_data = env.read(64)?;
 
-                1 => {
-                    // withdraw
-                    let mut env = env.buf_in_buf_out();
-                    let input_data = env.read(64)?;
+                //     // let asset_id: AssetId;
+                //     // let uvalue: u64 = u64::from_le_bytes(input_data[0..16].try_into().unwrap());
+                //     // if uvalue != 0 {
+                //     //     asset_id = AssetId::Asset(uvalue);
+                //     // } else {
+                //     //     asset_id = AssetId::POLKADEX;
+                //     // }
+                //     // let from: AccountId = AccountId::new(input_data[16..48].try_into().unwrap());
+                //     // let to: AccountId = PalletId(*b"polkadex").into_account();
+                //     // let amount: Balance = u128::from_le_bytes(input_data[48..].try_into().unwrap());
+                //     // log::info!("-------------- {:?} {:?} {:?}", asset_id, to, amount);
 
-                    let asset_id: u64 = u64::from_le_bytes(input_data[0..16].try_into().unwrap());
-                    let from: AccountId = PalletId(*b"polkadex").into_account();
-                    let to: AccountId = AccountId::new(input_data[16..48].try_into().unwrap());
-                    let amount: Balance = u128::from_le_bytes(input_data[48..].try_into().unwrap());
-                    log::info!("-------------- {:?} {:?} {:?}", asset_id, from, amount);
+                //     // match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
+                //     //     asset_id,
+                //     //     &from,
+                //     //     &to,
+                //     //     amount,
+                //     // ) {
+                //     //     Ok(res) => {
+                //     //         log::info!("ChainExtension success {:?}", res);
+                //     //         env.write(&[0], false, None)?;
+                //     //     }
+                //     //     Err(err) => {
+                //     //         log::info!("ChainExtension error {:?}", err);
+                //     //         return Err(DispatchError::Other(
+                //     //             "ChainExtension failed to call transfer",
+                //     //         ));
+                //     //     }
+                //     // }
+                //     env.write(&[0], false, None)?;
+                // }
 
-                    match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
-                        asset_id,
-                        &from,
-                        &to,
-                        amount,
-                    ) {
-                        Ok(_) => {
-                            env.write(&[0], false, None)?;
-                        }
-                        Err(_) => {
-                            return Err(DispatchError::Other(
-                                "ChainExtension failed to call transfer",
-                            ));
-                        }
-                    }
-                }
+                // 1 => {
+                //     // withdraw
+                //     let mut env = env.buf_in_buf_out();
+                //     // let input_data = env.read(64)?;
+
+                //     // let asset_id: AssetId;
+                //     // let uvalue: u64 = u64::from_le_bytes(input_data[0..16].try_into().unwrap());
+                //     // if uvalue != 0 {
+                //     //     asset_id = AssetId::Asset(uvalue);
+                //     // } else {
+                //     //     asset_id = AssetId::POLKADEX;
+                //     // }
+                //     // let from: AccountId = PalletId(*b"polkadex").into_account();
+                //     // let to: AccountId = AccountId::new(input_data[16..48].try_into().unwrap());
+                //     // let amount: Balance = u128::from_le_bytes(input_data[48..].try_into().unwrap());
+                //     // log::info!("-------------- {:?} {:?} {:?}", asset_id, from, amount);
+
+                //     // match <crate::Currencies as MultiCurrency<AccountId>>::transfer(
+                //     //     asset_id,
+                //     //     &from,
+                //     //     &to,
+                //     //     amount,
+                //     // ) {
+                //     //     Ok(_) => {
+                //     //         env.write(&[0], false, None)?;
+                //     //     }
+                //     //     Err(_) => {
+                //     //         return Err(DispatchError::Other(
+                //     //             "ChainExtension failed to call transfer",
+                //     //         ));
+                //     //     }
+                //     // }
+                //     env.write(&[0], false, None)?;
+                // }
 
                 _ => {
                     error!("Called an unregistered `func_id`: {:}", func_id);
@@ -966,7 +983,7 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
-        let raw_payload = SignedPayload::new(call, extra)
+        let raw_payload = SignedPayload::new(call, extra) 
             .map_err(|e| {
                 log::warn!("Unable to create signed payload: {:?}", e);
             })
