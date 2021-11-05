@@ -4,7 +4,7 @@
   "chainType": "Live",
   "bootNodes": [
       "/dns/mainnet-us-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWJCwPy7fnnkaxRraifRzU5imF4MYptaSxUrzfYy5KGNTa",
-      "/dns/mainnet-eu-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWB7k86fM598disHZnAtZXj6HQ5VUFWceFyexvVrYVwVB1",
+      "/dns/mainnet-eu-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWL5y7jxc95fRWzVJ461uAS4K6aCZ6xiCmBRySP5NpReYB",
       "/dns/mainnet-ap-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWCfVJ9AWkgDRXiT2LQrzG6LFGYqjBkW3QAMr84GmCS75F",
       "/ip4/18.158.15.249/tcp/30333/ws/p2p/12D3KooWKgrA5ukAASAFrMZm8w5WySiYtifoyT5ggi7asVy2yLfW",
       "/ip4/54.193.184.109/tcp/30333/ws/p2p/12D3KooWK6siyMMBqf4A9KCtsUXgrFfTqnxrj3GVnUCZKxU46hCH"
