@@ -18,6 +18,8 @@ pub enum Error {
     UnacceptableLiquidityWithdrawn,
     #[error(display = "Invalid Trading Path Length")]
     InvalidTradingPathLength,
+    #[error(display = "Zero Supply Amount")]
+    ZeroSupplyAmount,
     #[error(display = "Zero Target Amount")]
     ZeroTargetAmount,
     #[error(display = "ExceedPriceImpactLimit")]

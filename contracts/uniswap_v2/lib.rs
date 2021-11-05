@@ -4,6 +4,7 @@ mod chain_extension;
 mod constants;
 mod errors;
 mod models;
+mod mock;
 
 use errors::Error;
 use ink_lang as ink;
@@ -16,6 +17,7 @@ mod uniswap_v2 {
     use crate::{
         constants::{GET_EXCHANGE_FEE, TRADING_PATH_LIMIT},
         models::{ExchangeRate, Ratio, AssetId, TradingPair},
+        mock::{PDEX, BTC, DOT, ALICE, BOB}
     };
     use core::convert::TryInto;
     use ink_prelude::vec;
@@ -288,7 +290,7 @@ mod uniswap_v2 {
                     self.get_supply_amount(supply_pool, target_pool, supply_amounts[i]);
 
                 if supply_amount.is_zero() {
-                    return Err(Error::ZeroTargetAmount);
+                    return Err(Error::ZeroSupplyAmount);
                 }
 
                 // check price impact if limit exists
@@ -852,7 +854,6 @@ mod uniswap_v2 {
         type Event = <UniswapV2 as ink_lang::reflect::ContractEventBase>::Type;
         
         use ink_lang as ink;
-        use ink_env as env;
 
         fn convert_u128_to_balance(balance_as_u128: u128) -> Balance {
             if let Some(_balance) = TryInto::<Balance>::try_into(balance_as_u128).ok() {
@@ -1119,20 +1120,91 @@ mod uniswap_v2 {
 
         #[ink::test]
         fn get_target_amount_works() {
+            let uniswap = UniswapV2::new();
+
+            assert_eq!(uniswap.get_target_amount(10000, 0, 1000), 0);
+            assert_eq!(uniswap.get_target_amount(0, 20000, 1000), 0);
+            assert_eq!(uniswap.get_target_amount(10000, 20000, 0), 0);
+            assert_eq!(uniswap.get_target_amount(10000, 1, 1000000), 0);
+            assert_eq!(uniswap.get_target_amount(10000, 20000, 10000), 9984);
+            assert_eq!(uniswap.get_target_amount(10000, 20000, 1000), 1813);
+        }
+
+        #[ink::test]
+        fn get_supply_amount_works() {
+            let uniswap = UniswapV2::new();
+            assert_eq!(uniswap.get_supply_amount(10000, 0, 1000), 0);
+            assert_eq!(uniswap.get_supply_amount(0, 20000, 1000), 0);
+            assert_eq!(uniswap.get_supply_amount(10000, 20000, 0), 0);
+            assert_eq!(uniswap.get_supply_amount(10000, 1, 1), 0);
+            assert_eq!(uniswap.get_supply_amount(10000, 20000, 9949), 9929);
+            assert_eq!(uniswap.get_supply_amount(10000, 20000, 1801), 993);
+        }
+
+        #[ink::test]
+        fn get_target_amounts_works() {
             let mut uniswap = UniswapV2::new();
-            let supply_pool = convert_u128_to_balance(100_000_000_000_000_000_000);
-            let target_pool = convert_u128_to_balance(20_000_000_000_000_000_000);
-            let supply_amount = convert_u128_to_balance(10_000_000_000_000_000_000);
 
-            let target_amount = uniswap.get_target_amount(0, target_pool, supply_amount);
-            assert_eq!(target_amount, 0);
-            let target_amount = uniswap.get_target_amount(supply_amount, 0, supply_amount);
-            assert_eq!(target_amount, Zero::zero());
-            let target_amount = uniswap.get_target_amount(supply_amount, target_amount, 0);
-            assert_eq!(target_amount, Zero::zero());
+            uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true);
+            uniswap.add_liquidity(PDEX, BTC, 100000, 10, 0, true);
 
-            let target_amount = uniswap.get_target_amount(supply_amount, target_amount, supply_amount);
-            assert_eq!(target_amount, Zero::zero());
+            assert_eq!(
+				uniswap.get_target_amounts(&[DOT].to_vec(), 10000, None),
+				Err(Error::InvalidTradingPathLength),
+			);
+            assert_eq!(
+				uniswap.get_target_amounts(&[DOT, PDEX, BTC, DOT].to_vec(), 10000, None),
+				Err(Error::InvalidTradingPathLength),
+			);
+            assert_eq!(
+				uniswap.get_target_amounts(&[DOT, PDEX].to_vec(), 10000, None),
+				Ok(vec![10000, 24962])
+			);
+            assert_eq!(
+				uniswap.get_target_amounts(&[DOT, PDEX, BTC].to_vec(), 10000, None),
+				Ok(vec![10000, 24962, 1])
+			);
+            assert_eq!(
+				uniswap.get_target_amounts(&[DOT, PDEX, BTC].to_vec(), 100, None),
+				Err(Error::ZeroTargetAmount),
+			);
+			assert_eq!(
+				uniswap.get_target_amounts(&[DOT, BTC].to_vec(), 100, None),
+				Err(Error::InsufficientLiquidity),
+			);
+        }
+
+        #[ink::test]
+        fn get_supply_amounts_works() {
+            let mut uniswap = UniswapV2::new();
+
+            uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true);
+            uniswap.add_liquidity(PDEX, BTC, 100000, 10, 0, true);
+
+            assert_eq!(
+				uniswap.get_supply_amounts(&[DOT].to_vec(), 10000, None),
+				Err(Error::InvalidTradingPathLength),
+			);
+            assert_eq!(
+				uniswap.get_supply_amounts(&[DOT, PDEX, BTC, DOT].to_vec(), 10000, None),
+				Err(Error::InvalidTradingPathLength),
+			);
+            assert_eq!(
+				uniswap.get_supply_amounts(&[DOT, PDEX].to_vec(), 24962, None),
+				Ok(vec![10000, 24962])
+			);
+            assert_eq!(
+				uniswap.get_supply_amounts(&[DOT, PDEX].to_vec(), 25000, None),
+				Ok(vec![10031, 25000])
+			);
+            assert_eq!(
+				uniswap.get_supply_amounts(&[DOT, PDEX, BTC].to_vec(), 10000, None),
+				Err(Error::ZeroSupplyAmount),
+			);
+			assert_eq!(
+				uniswap.get_supply_amounts(&[DOT, BTC].to_vec(), 10000, None),
+				Err(Error::InsufficientLiquidity),
+			);
         }
     }
 }

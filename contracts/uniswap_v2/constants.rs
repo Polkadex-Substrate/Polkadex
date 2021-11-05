@@ -6,4 +6,4 @@
 pub const GET_EXCHANGE_FEE: (u32, u32) = (3, 1000);
 
 /// The limit for length of trading path
-pub const TRADING_PATH_LIMIT: u32 = 8;
+pub const TRADING_PATH_LIMIT: u32 = 3;
