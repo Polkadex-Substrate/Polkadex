@@ -17,5 +17,5 @@ yarn test
 
 Use cargo to test:
 ```
-cargo +nightly test
+cargo +nightly test --features ink-experimental-engine
 ```

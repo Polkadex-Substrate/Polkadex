@@ -17,7 +17,7 @@ mod uniswap_v2 {
     use crate::{
         constants::{GET_EXCHANGE_FEE, TRADING_PATH_LIMIT},
         models::{ExchangeRate, Ratio, AssetId, TradingPair},
-        mock::{PDEX, BTC, DOT, ALICE, BOB}
+        mock::{PDEX, BTC, DOT}
     };
     use core::convert::TryInto;
     use ink_prelude::vec;
@@ -325,32 +325,36 @@ mod uniswap_v2 {
                 let invariant_before_swap: U256 =
                     U256::from(pool_0).saturating_mul(U256::from(pool_1));
 
+                let pool_0_after;
+                let pool_1_after;
+
                 if supply_currency_id == trading_pair.first() {
-                    let pool_0 = pool_0
+                    pool_0_after = pool_0
                         .checked_add(supply_increment)
                         .ok_or(Error::ArithmeticOverflow)?;
-                    let pool_1 = pool_1
+                    pool_1_after = pool_1
                         .checked_sub(target_decrement)
                         .ok_or(Error::ArithmeticUnderflow)?;
-                    self.liquidity_pool
-                        .insert(trading_pair.clone(), (pool_0, pool_1));
                 } else {
-                    let pool_0 = pool_0
+                    pool_0_after = pool_0
                         .checked_sub(target_decrement)
                         .ok_or(Error::ArithmeticUnderflow)?;
-                    let pool_1 = pool_1
+                        pool_1_after = pool_1
                         .checked_add(supply_increment)
                         .ok_or(Error::ArithmeticOverflow)?;
-                    self.liquidity_pool
-                        .insert(trading_pair.clone(), (pool_0, pool_1));
                 }
 
                 // invariant check to ensure the constant product formulas (k = x * y)
                 let invariant_after_swap: U256 =
-                    U256::from(pool_0).saturating_mul(U256::from(pool_1));
+                    U256::from(pool_0_after).saturating_mul(U256::from(pool_1_after));
+
+                // ink_env::debug_println!("pool_0: {:?} pool_1: {:?} after: {:?} before: {:?}", pool_0_after, pool_1_after, invariant_after_swap, invariant_before_swap);
                 if invariant_after_swap < invariant_before_swap {
                     return Err(Error::InvariantCheckFailed);
                 }
+
+                self.liquidity_pool.insert(trading_pair.clone(), (pool_0_after, pool_1_after));
+
                 return Ok(());
             }
             Err(Error::InvalidTradingPair)
@@ -855,106 +859,94 @@ mod uniswap_v2 {
         
         use ink_lang as ink;
 
-        fn convert_u128_to_balance(balance_as_u128: u128) -> Balance {
-            if let Some(_balance) = TryInto::<Balance>::try_into(balance_as_u128).ok() {
-                return _balance;
-            } else {
-                return 0;
-            }
-        }
-/*
         #[ink::test]
         fn add_liquidity_works() {
             let mut uniswap = UniswapV2::new();
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
             let amount_a = 100000;
             let amount_b = 20000;
 
-            let liquidity = uniswap.get_liquidity(asset_a, asset_b);
+            let liquidity = uniswap.get_liquidity(PDEX, DOT);
             assert_eq!(liquidity, (0, 0));
 
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
             assert_eq!(result, Ok(()));
 
-            let liquidity = uniswap.get_liquidity(asset_a, asset_b);
+            let liquidity = uniswap.get_liquidity(PDEX, DOT);
             assert_eq!(liquidity, (amount_a, amount_b));
 
-            let liquidity = uniswap.get_liquidity(asset_b, asset_a);
+            let liquidity = uniswap.get_liquidity(DOT, PDEX);
             assert_eq!(liquidity, (amount_b, amount_a));
 
-            let total_issuance = uniswap.get_total_issuance(asset_a, asset_b);
+            let total_issuance = uniswap.get_total_issuance(PDEX, DOT);
             assert_eq!(total_issuance, 200000);
 
             let amount_c = 20000;
             let amount_d = 40000;
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_c, amount_d, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_c, amount_d, 0, true);
             assert_eq!(result, Ok(()));
 
-            let liquidity = uniswap.get_liquidity(asset_a, asset_b);
+            let liquidity = uniswap.get_liquidity(PDEX, DOT);
             assert_eq!(liquidity, (amount_a + 20_000, amount_b + 3_999));
 
-            let total_issuance = uniswap.get_total_issuance(asset_a, asset_b);
+            let total_issuance = uniswap.get_total_issuance(PDEX, DOT);
             // env::debug_println!("{:?}", total_issuance);
             assert_eq!(total_issuance, 239_999);
         }
 
         #[ink::test]
         fn add_liquidity_works_with_big_number() {
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
             let swap_test_cases = [
                 (
-                    convert_u128_to_balance(1_000_000_000_000_000_000),
-                    convert_u128_to_balance(10_000_000_000_000_000_000),
-                    convert_u128_to_balance(5_000_000_000_000_000_000),
-                    convert_u128_to_balance(453_305_446_940_074_565)
+                    1_000_000_000_000_000_000,
+                    10_000_000_000_000_000_000,
+                    5_000_000_000_000_000_000,
+                    453_305_446_940_074_565
                 ),
                 (
-                    convert_u128_to_balance(1_000_000_000_000_000_000),
-                    convert_u128_to_balance(5_000_000_000_000_000_000),
-                    convert_u128_to_balance(10_000_000_000_000_000_000),
-                    convert_u128_to_balance(1_662_497_915_624_478_906)
+                    1_000_000_000_000_000_000,
+                    5_000_000_000_000_000_000,
+                    10_000_000_000_000_000_000,
+                    1_662_497_915_624_478_906
                 ),
                 (
-                    convert_u128_to_balance(2_000_000_000_000_000_000),
-                    convert_u128_to_balance(5_000_000_000_000_000_000),
-                    convert_u128_to_balance(10_000_000_000_000_000_000),
-                    convert_u128_to_balance(2_851_015_155_847_869_602)
+                    2_000_000_000_000_000_000,
+                    5_000_000_000_000_000_000,
+                    10_000_000_000_000_000_000,
+                    2_851_015_155_847_869_602
                 ),
                 (
-                    convert_u128_to_balance(2_000_000_000_000_000_000),
-                    convert_u128_to_balance(10_000_000_000_000_000_000),
-                    convert_u128_to_balance(5_000_000_000_000_000_000),
-                    convert_u128_to_balance(831_248_957_812_239_453)
+                    2_000_000_000_000_000_000,
+                    10_000_000_000_000_000_000,
+                    5_000_000_000_000_000_000,
+                    831_248_957_812_239_453
                 ),
                 (
-                    convert_u128_to_balance(1_000_000_000_000_000_000),
-                    convert_u128_to_balance(10_000_000_000_000_000_000),
-                    convert_u128_to_balance(10_000_000_000_000_000_000),
-                    convert_u128_to_balance(906_610_893_880_149_131)
+                    1_000_000_000_000_000_000,
+                    10_000_000_000_000_000_000,
+                    10_000_000_000_000_000_000,
+                    906_610_893_880_149_131
                 ),
                 (
-                    convert_u128_to_balance(1_000_000_000_000_000_000),
-                    convert_u128_to_balance(100_000_000_000_000_000_000),
-                    convert_u128_to_balance(100_000_000_000_000_000_000),
-                    convert_u128_to_balance(987_158_034_397_061_298)
+                    1_000_000_000_000_000_000,
+                    100_000_000_000_000_000_000,
+                    100_000_000_000_000_000_000,
+                    987_158_034_397_061_298
                 ),
                 (
-                    convert_u128_to_balance(1_000_000_000_000_000_000),
-                    convert_u128_to_balance(1_000_000_000_000_000_000_000),
-                    convert_u128_to_balance(1_000_000_000_000_000_000_000),
-                    convert_u128_to_balance(996_006_981_039_903_216)
+                    1_000_000_000_000_000_000,
+                    1_000_000_000_000_000_000_000,
+                    1_000_000_000_000_000_000_000,
+                    996_006_981_039_903_216
                 ),
             ];
 
             for i in 0..swap_test_cases.len() {
                 let mut uniswap = UniswapV2::new();
                 let (swap_amount, amount_a, amount_b, expected_output_amount) = swap_test_cases[i];
-                let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+                let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
                 assert_eq!(result, Ok(()));
 
-                let test_target_amount = uniswap.get_swap_target_amount([asset_a, asset_b].to_vec(), swap_amount);
+                let test_target_amount = uniswap.get_swap_target_amount([PDEX, DOT].to_vec(), swap_amount);
                 assert_eq!(test_target_amount, Some(expected_output_amount));
             }
         }
@@ -962,95 +954,88 @@ mod uniswap_v2 {
         #[ink::test]
         fn remove_liquidity_works() {
             let mut uniswap = UniswapV2::new();
-            let alice = AccountId::from([0x1; 32]);
-            let bob = AccountId::from([0x2; 32]);
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
+            let BOB = AccountId::from([0x1; 32]);
+            let ALICE = AccountId::from([0x2; 32]);
             let amount_a = 100000;
             let amount_b = 20000;
-            let total_share = 100000;
+            let total_share = 200000;
             let remove_share = 50000;
             let decrement_a = 25000;
             let decrement_b = 5000;
 
-            let liquidity = uniswap.get_liquidity(asset_a, asset_b);
+            let liquidity = uniswap.get_liquidity(PDEX, DOT);
             assert_eq!(liquidity, (0, 0));
 
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(BOB);
 
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
             assert_eq!(result, Ok(()));
 
-            let result = uniswap.remove_liquidity(asset_a, asset_b, remove_share, 0, 0, true);
+            let result = uniswap.remove_liquidity(PDEX, DOT, remove_share, 0, 0, true);
             assert_eq!(result, Ok(()));
 
-            let liquidity = uniswap.get_liquidity(asset_a, asset_b);
+            let liquidity = uniswap.get_liquidity(PDEX, DOT);
             assert_eq!(liquidity, (amount_a - decrement_a, amount_b - decrement_b));
 
-            let total_issuance = uniswap.get_total_issuance(asset_a, asset_b);
+            let total_issuance = uniswap.get_total_issuance(PDEX, DOT);
             assert_eq!(total_issuance, total_share - remove_share);
 
-            let dex_incentive_bob = uniswap.get_dex_incentive(asset_a, asset_b, alice);
+            let dex_incentive_bob = uniswap.get_dex_incentive(PDEX, DOT, BOB);
             assert_eq!(dex_incentive_bob, total_share - remove_share);
+
+            let dex_incentive_alice = uniswap.get_dex_incentive(PDEX, DOT, ALICE);
+            assert_eq!(dex_incentive_alice, 0);
         }
 
         #[ink::test]
         fn single_path_swap_works() {
             let mut uniswap = UniswapV2::new();
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
-            let amount_a = convert_u128_to_balance(100_000_000_000_000_000_000);
-            let amount_b = convert_u128_to_balance(20_000_000_000_000_000_000);
-            let amount_c = convert_u128_to_balance(20_000_000_000_000_000_000);
-            let amount_d = convert_u128_to_balance(40_000_000_000_000_000_000);
+            let amount_a = 100_000_000_000_000_000_000;
+            let amount_b = 20_000_000_000_000_000_000;
 
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
             assert_eq!(result, Ok(()));
 
-            let test_target_amount = uniswap.get_swap_target_amount([asset_a, asset_b].to_vec(), convert_u128_to_balance(20_000_000_000_000_000_000));
-            assert_eq!(test_target_amount, Some(convert_u128_to_balance(3_324_995_831_248_957_812)));
+            let test_target_amount = uniswap.get_swap_target_amount([PDEX, DOT].to_vec(), 20_000_000_000_000_000_000);
+            assert_eq!(test_target_amount, Some(3_324_995_831_248_957_812));
             
-            let test_swap_amount = uniswap.get_swap_supply_amount([asset_a, asset_b].to_vec(), convert_u128_to_balance(3_324_995_831_248_957_812));
-            assert_eq!(test_swap_amount, Some(convert_u128_to_balance(19_999_999_999_999_999_999)));
+            let test_swap_amount = uniswap.get_swap_supply_amount([PDEX, DOT].to_vec(), 3_324_995_831_248_957_812);
+            assert_eq!(test_swap_amount, Some(19_999_999_999_999_999_999));
 
-            let result = uniswap.swap_with_exact_supply([asset_a, asset_b].to_vec(), convert_u128_to_balance(20_000_000_000_000_000_000), 0);
+            let result = uniswap.swap_with_exact_supply([PDEX, DOT].to_vec(), 20_000_000_000_000_000_000, 0);
             assert_eq!(result, Ok(()));
 
-            let result = uniswap.swap_with_exact_target([asset_b, asset_a].to_vec(), convert_u128_to_balance(10_000_000_000_000_000_000), convert_u128_to_balance(2_000_000_000_000_000_000));
+            let result = uniswap.swap_with_exact_target([DOT, PDEX].to_vec(), 10_000_000_000_000_000_000, 2_000_000_000_000_000_000);
             assert_eq!(result, Ok(()));
         }
- */
+
         #[ink::test]
         fn swap_with_exact_supply_fails_with_insufficient_target_amount() {
             let mut uniswap = UniswapV2::new();
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
-            let amount_a = convert_u128_to_balance(100_000_000_000_000_000_000);
-            let amount_b = convert_u128_to_balance(20_000_000_000_000_000_000);
+            let amount_a = 100_000_000_000_000_000_000;
+            let amount_b = 20_000_000_000_000_000_000;
 
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
             assert_eq!(result, Ok(()));
 
-            let result = uniswap.swap_with_exact_supply([asset_a, asset_b].to_vec(), convert_u128_to_balance(20_000_000_000_000_000_000), convert_u128_to_balance(20_000_000_000_000_000_000));
+            let result = uniswap.swap_with_exact_supply([PDEX, DOT].to_vec(), 20_000_000_000_000_000_000, 20_000_000_000_000_000_000);
             assert_eq!(result, Err(Error::InsufficientTargetAmount));
         }
 
         #[ink::test]
         fn swap_with_exact_supply_works() {
             let mut uniswap = UniswapV2::new();
-            let alice = AccountId::from([0x1; 32]);
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
-            let amount_a = convert_u128_to_balance(100_000_000_000_000_000_000);
-            let amount_b = convert_u128_to_balance(20_000_000_000_000_000_000);
-            let supply_amount = convert_u128_to_balance(20_000_000_000_000_000_000);
+            let ALICE = AccountId::from([0x1; 32]);
+            let amount_a = 100_000_000_000_000_000_000;
+            let amount_b = 20_000_000_000_000_000_000;
+            let supply_amount = 20_000_000_000_000_000_000;
 
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(ALICE);
 
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
             assert_eq!(result, Ok(()));
 
-            let result = uniswap.swap_with_exact_supply([asset_a, asset_b].to_vec(), supply_amount, 0);
+            let result = uniswap.swap_with_exact_supply([PDEX, DOT].to_vec(), supply_amount, 0);
             assert_eq!(result, Ok(()));
 
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
@@ -1060,10 +1045,10 @@ mod uniswap_v2 {
                 .expect("encountered invalid contract event data buffer");
 
             if let Event::Swap(Swap { who, path, supply, target }) = decoded_event {
-                assert_eq!(who, alice, "encountered invalid Swap.who");
-                assert_eq!(path, [asset_a, asset_b].to_vec(), "encountered invalid Swap.path");
+                assert_eq!(who, ALICE, "encountered invalid Swap.who");
+                assert_eq!(path, [PDEX, DOT].to_vec(), "encountered invalid Swap.path");
                 assert_eq!(supply, supply_amount, "encountered invalid Swap.supply");
-                assert_eq!(target, convert_u128_to_balance(3_324_995_831_248_957_812), "encountered invalid Swap.target");
+                assert_eq!(target, 3_324_995_831_248_957_812, "encountered invalid Swap.target");
             } else {
                 panic!("encountered unexpected event kind: expected a Swap event")
             }
@@ -1072,34 +1057,30 @@ mod uniswap_v2 {
         #[ink::test]
         fn swap_with_exact_target_fails_with_excessive_supply_amount() {
             let mut uniswap = UniswapV2::new();
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
-            let amount_a = convert_u128_to_balance(100_000_000_000_000_000_000);
-            let amount_b = convert_u128_to_balance(20_000_000_000_000_000_000);
+            let amount_a = 100_000_000_000_000_000_000;
+            let amount_b = 20_000_000_000_000_000_000;
 
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
             assert_eq!(result, Ok(()));
 
-            let result = uniswap.swap_with_exact_target([asset_b, asset_a].to_vec(), convert_u128_to_balance(10_000_000_000_000_000_000), 0);
+            let result = uniswap.swap_with_exact_target([DOT, PDEX].to_vec(), 10_000_000_000_000_000_000, 0);
             assert_eq!(result, Err(Error::ExcessiveSupplyAmount));
         }
 
         #[ink::test]
         fn swap_with_exact_target_works() {
             let mut uniswap = UniswapV2::new();
-            let alice = AccountId::from([0x1; 32]);
-            let asset_a = AssetId::Asset(0x1);
-            let asset_b = AssetId::Asset(0x2);
-            let amount_a = convert_u128_to_balance(100_000_000_000_000_000_000);
-            let amount_b = convert_u128_to_balance(20_000_000_000_000_000_000);
-            let target_amount = convert_u128_to_balance(10_000_000_000_000_000_000);
+            let ALICE = AccountId::from([0x1; 32]);
+            let amount_a = 100_000_000_000_000_000_000;
+            let amount_b = 20_000_000_000_000_000_000;
+            let target_amount = 10_000_000_000_000_000_000;
 
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(ALICE);
 
-            let result = uniswap.add_liquidity(asset_a, asset_b, amount_a, amount_b, 0, true);
+            let result = uniswap.add_liquidity(PDEX, DOT, amount_a, amount_b, 0, true);
             assert_eq!(result, Ok(()));
 
-            let result = uniswap.swap_with_exact_target([asset_b, asset_a].to_vec(), target_amount, convert_u128_to_balance(3_000_000_000_000_000_000));
+            let result = uniswap.swap_with_exact_target([DOT, PDEX].to_vec(), target_amount, 3_000_000_000_000_000_000);
             assert_eq!(result, Ok(()));
 
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
@@ -1109,9 +1090,9 @@ mod uniswap_v2 {
                 .expect("encountered invalid contract event data buffer");
 
             if let Event::Swap(Swap { who, path, supply, target }) = decoded_event {
-                assert_eq!(who, alice, "encountered invalid Swap.who");
-                assert_eq!(path, [asset_b, asset_a].to_vec(), "encountered invalid Swap.path");
-                assert_eq!(supply, convert_u128_to_balance(2_228_908_949_069_430_514), "encountered invalid Swap.supply");
+                assert_eq!(who, ALICE, "encountered invalid Swap.who");
+                assert_eq!(path, [DOT, PDEX].to_vec(), "encountered invalid Swap.path");
+                assert_eq!(supply, 2_228_908_949_069_430_514, "encountered invalid Swap.supply");
                 assert_eq!(target, target_amount, "encountered invalid Swap.target");
             } else {
                 panic!("encountered unexpected event kind: expected a Swap event")
@@ -1133,6 +1114,7 @@ mod uniswap_v2 {
         #[ink::test]
         fn get_supply_amount_works() {
             let uniswap = UniswapV2::new();
+
             assert_eq!(uniswap.get_supply_amount(10000, 0, 1000), 0);
             assert_eq!(uniswap.get_supply_amount(0, 20000, 1000), 0);
             assert_eq!(uniswap.get_supply_amount(10000, 20000, 0), 0);
@@ -1145,8 +1127,14 @@ mod uniswap_v2 {
         fn get_target_amounts_works() {
             let mut uniswap = UniswapV2::new();
 
-            uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true);
-            uniswap.add_liquidity(PDEX, BTC, 100000, 10, 0, true);
+            assert_eq!(
+                uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true),
+                Ok(())    
+            );
+            assert_eq!(
+                uniswap.add_liquidity(PDEX, BTC, 100000, 10, 0, true),
+                Ok(())
+            );
 
             assert_eq!(
 				uniswap.get_target_amounts(&[DOT].to_vec(), 10000, None),
@@ -1178,8 +1166,14 @@ mod uniswap_v2 {
         fn get_supply_amounts_works() {
             let mut uniswap = UniswapV2::new();
 
-            uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true);
-            uniswap.add_liquidity(PDEX, BTC, 100000, 10, 0, true);
+            assert_eq!(
+                uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true),
+                Ok(())
+            );
+            assert_eq!(
+                uniswap.add_liquidity(PDEX, BTC, 100000, 10, 0, true),
+                Ok(())
+            );
 
             assert_eq!(
 				uniswap.get_supply_amounts(&[DOT].to_vec(), 10000, None),
@@ -1205,6 +1199,68 @@ mod uniswap_v2 {
 				uniswap.get_supply_amounts(&[DOT, BTC].to_vec(), 10000, None),
 				Err(Error::InsufficientLiquidity),
 			);
+        }
+
+        #[ink::test]
+        fn get_amount_for_big_number_work() {
+            let mut uniswap = UniswapV2::new();
+
+            assert_eq!(
+                uniswap.add_liquidity(PDEX, DOT, 171_000_000_000_000_000_000_000, 56_000_000_000_000_000_000_000, 0, true),
+                Ok(())
+            );
+
+            assert_eq!(
+				uniswap.get_supply_amount(
+                    171_000_000_000_000_000_000_000,
+                    56_000_000_000_000_000_000_000,
+                    1_000_000_000_000_000_000_000
+                ),
+				3_118_446_247_834_412_327_893,
+			);
+
+            assert_eq!(
+				uniswap.get_target_amount(
+                    171_000_000_000_000_000_000_000,
+                    56_000_000_000_000_000_000_000,
+                    3_118_446_247_834_412_327_893
+                ),
+				1_000_000_000_000_000_000_000,
+			);
+        }
+
+        #[ink::test]
+        fn _swap_work() {
+            let mut uniswap = UniswapV2::new();
+
+            assert_eq!(
+                uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true),
+                Ok(())
+            );
+
+            assert_eq!(uniswap._swap(PDEX, DOT, 50000, 5001), Err(Error::InvariantCheckFailed));
+            assert_eq!(uniswap._swap(PDEX, DOT, 50000, 5000), Ok(()));
+            assert_eq!(uniswap.get_liquidity(PDEX, DOT), (100000, 5000));
+            assert_eq!(uniswap._swap(DOT, PDEX, 100, 800), Ok(()));
+            assert_eq!(uniswap.get_liquidity(PDEX, DOT), (99200, 5100));
+        }
+
+        #[ink::test]
+        fn _swap_by_path_work() {
+            let mut uniswap = UniswapV2::new();
+
+            assert_eq!(uniswap.add_liquidity(PDEX, DOT, 50000, 10000, 0, true), Ok(()));
+            assert_eq!(uniswap.add_liquidity(PDEX, BTC, 100000, 10, 0, true), Ok(()));
+
+            assert_eq!(uniswap.get_liquidity(PDEX, DOT), (50000, 10000));
+            assert_eq!(uniswap.get_liquidity(PDEX, BTC), (100000, 10));
+
+            assert_eq!(uniswap._swap_by_path(&[DOT, PDEX].to_vec(), &[10000, 25000].to_vec()), Ok(()));
+            assert_eq!(uniswap.get_liquidity(PDEX, DOT), (25000, 20000));
+
+            assert_eq!(uniswap._swap_by_path(&[DOT, PDEX, BTC].to_vec(), &[100000, 20000, 1].to_vec()), Ok(()));
+            assert_eq!(uniswap.get_liquidity(PDEX, DOT), (5000, 120000));
+            assert_eq!(uniswap.get_liquidity(PDEX, BTC), (120000, 9));
         }
     }
 }
