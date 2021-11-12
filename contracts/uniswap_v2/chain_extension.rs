@@ -8,21 +8,18 @@ use ink_lang as ink;
 pub trait CurrencyExtension {
     type ErrorCode = Error;
 
-    #[ink(extension = 2, returns_result = false)]
-    fn test();
-
-    // #[ink(extension = 0, returns_result = false)]
-    // fn deposit(
-    //     asset_id: AssetId,
-    //     from: <ink_env::DefaultEnvironment as Environment>::AccountId,
-    //     amount: <ink_env::DefaultEnvironment as Environment>::Balance,
-    // ) -> ();
-    // #[ink(extension = 1, returns_result = false)]
-    // fn withdraw(
-    //     asset_id: AssetId,
-    //     to: <ink_env::DefaultEnvironment as Environment>::AccountId,
-    //     amount: <ink_env::DefaultEnvironment as Environment>::Balance,
-    // ) -> ();
+    #[ink(extension = 0, returns_result = false)]
+    fn deposit(
+        asset_id: AssetId,
+        from: <ink_env::DefaultEnvironment as Environment>::AccountId,
+        amount: <ink_env::DefaultEnvironment as Environment>::Balance,
+    ) -> ();
+    #[ink(extension = 1, returns_result = false)]
+    fn withdraw(
+        asset_id: AssetId,
+        to: <ink_env::DefaultEnvironment as Environment>::AccountId,
+        amount: <ink_env::DefaultEnvironment as Environment>::Balance,
+    ) -> ();
 }
 
 impl ink_env::chain_extension::FromStatusCode for Error {

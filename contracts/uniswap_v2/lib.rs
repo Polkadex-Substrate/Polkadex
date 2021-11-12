@@ -17,7 +17,6 @@ mod uniswap_v2 {
     use crate::{
         constants::{GET_EXCHANGE_FEE, TRADING_PATH_LIMIT},
         models::{ExchangeRate, Ratio, AssetId, TradingPair},
-        mock::{PDEX, BTC, DOT}
     };
     use core::convert::TryInto;
     use ink_prelude::vec;
@@ -348,7 +347,6 @@ mod uniswap_v2 {
                 let invariant_after_swap: U256 =
                     U256::from(pool_0_after).saturating_mul(U256::from(pool_1_after));
 
-                // ink_env::debug_println!("pool_0: {:?} pool_1: {:?} after: {:?} before: {:?}", pool_0_after, pool_1_after, invariant_after_swap, invariant_before_swap);
                 if invariant_after_swap < invariant_before_swap {
                     return Err(Error::InvariantCheckFailed);
                 }
@@ -400,13 +398,13 @@ mod uniswap_v2 {
 
             let actual_target_amount = amounts[amounts.len() - 1];
 
-            // self.env()
-            //     .extension()
-            //     .deposit(path[0], caller, supply_amount)?;
+            self.env()
+                .extension()
+                .deposit(path[0], caller, supply_amount)?;
             self._swap_by_path(&path, &amounts)?;
-            // self.env()
-            //     .extension()
-            //     .withdraw(path[path.len() - 1], caller, actual_target_amount)?;
+            self.env()
+                .extension()
+                .withdraw(path[path.len() - 1], caller, actual_target_amount)?;
 
             self.env().emit_event(Swap {
                 who: caller,
@@ -439,13 +437,13 @@ mod uniswap_v2 {
 
             let actual_supply_amount = amounts[0];
 
-            // self.env()
-            //     .extension()
-            //     .deposit(path[0], caller, actual_supply_amount)?;
+            self.env()
+                .extension()
+                .deposit(path[0], caller, actual_supply_amount)?;
             self._swap_by_path(&path, &amounts)?;
-            // self.env()
-            //     .extension()
-            //     .withdraw(path[path.len() - 1], caller, target_amount)?;
+            self.env()
+                .extension()
+                .withdraw(path[path.len() - 1], caller, target_amount)?;
 
             self.env().emit_event(Swap {
                 who: caller,
@@ -667,12 +665,12 @@ mod uniswap_v2 {
                 return Err(Error::UnacceptableShareIncrement);
             }
 
-            // self.env()
-            //     .extension()
-            //     .deposit(trading_pair.first(), caller, pool_0_increment)?;
-            // self.env()
-            //     .extension()
-            //     .deposit(trading_pair.second(), caller, pool_1_increment)?;
+            self.env()
+                .extension()
+                .deposit(trading_pair.first(), caller, pool_0_increment)?;
+            self.env()
+                .extension()
+                .deposit(trading_pair.second(), caller, pool_1_increment)?;
 
             self.do_deposit_pool(&trading_pair, pool_0_increment, pool_1_increment)?;
             self.do_deposit_dex_share(caller, &trading_pair, share_increment)?;
@@ -732,13 +730,13 @@ mod uniswap_v2 {
                 return Err(Error::UnacceptableLiquidityWithdrawn);
             }
 
-            // self.env()
-            //     .extension()
-            //     .withdraw(trading_pair.first(), caller, pool_0_decrement)?;
+            self.env()
+                .extension()
+                .withdraw(trading_pair.first(), caller, pool_0_decrement)?;
 
-            // self.env()
-            //     .extension()
-            //     .withdraw(trading_pair.second(), caller, pool_1_decrement)?;
+            self.env()
+                .extension()
+                .withdraw(trading_pair.second(), caller, pool_1_decrement)?;
 
             self.do_withdraw_pool(&trading_pair, pool_0_decrement, pool_1_decrement)?;
             self.do_withdraw_dex_share(caller, &trading_pair, remove_share)?;
@@ -855,6 +853,9 @@ mod uniswap_v2 {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::{
+            mock::{PDEX, BTC, DOT}
+        };
         type Event = <UniswapV2 as ink_lang::reflect::ContractEventBase>::Type;
         
         use ink_lang as ink;
