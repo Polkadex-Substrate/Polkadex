@@ -7,7 +7,8 @@
       "/dns/mainnet-eu-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWL5y7jxc95fRWzVJ461uAS4K6aCZ6xiCmBRySP5NpReYB",
       "/dns/mainnet-ap-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWGSgwDMSqVmKNG9DoruKRkYZVvdE9mHfDumigWQBfVLcG",
       "/ip4/18.158.15.249/tcp/30333/ws/p2p/12D3KooWKgrA5ukAASAFrMZm8w5WySiYtifoyT5ggi7asVy2yLfW",
-      "/ip4/54.193.184.109/tcp/30333/ws/p2p/12D3KooWK6siyMMBqf4A9KCtsUXgrFfTqnxrj3GVnUCZKxU46hCH"
+      "/ip4/54.193.184.109/tcp/30333/ws/p2p/12D3KooWK6siyMMBqf4A9KCtsUXgrFfTqnxrj3GVnUCZKxU46hCH",
+      "/dns/mainnet-jp-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWR8UFvvtxqAfCuhTRgiKwfPZhds8WgNNwzXn6VJCXwTAT"
   ],
   "telemetryEndpoints": [
   ],
