@@ -3,8 +3,8 @@ RUN apt-get update
 RUN apt-get install -y git && apt-get install -y curl
 RUN git clone https://github.com/Polkadex-Substrate/Polkadex
 RUN cd Polkadex && \
-    git checkout $(git describe --tags $(git rev-list --tags --max-count=1)) && \ # Gets the latest tag
-    curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/$(git describe --tags $(git rev-list --tags --max-count=1))/customSpecRaw.json && \ # Gets the latest Spec
+    git checkout $(git describe --tags $(git rev-list --tags --max-count=1)) && \
+    curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/$(git describe --tags $(git rev-list --tags --max-count=1))/customSpecRaw.json && \
     ls && \
     apt-get install -y build-essential && \
     apt-get install -y clang && \
