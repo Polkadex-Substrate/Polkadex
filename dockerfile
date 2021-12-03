@@ -3,7 +3,7 @@ RUN apt-get update
 RUN apt-get install -y git && apt-get install -y curl
 RUN git clone https://github.com/Polkadex-Substrate/Polkadex -b main-net-runtime
 RUN cd Polkadex && \
-    git checkout $(git describe --tags --abbrev=0) && \ # Gets the latest tag
+    git checkout $(git describe --tags --abbrev=0) && \
     apt-get install -y build-essential && \
     apt-get install -y clang && \
     apt-get install -y jq && \
