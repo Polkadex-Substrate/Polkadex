@@ -43,6 +43,8 @@ use frame_system::{
     EnsureOneOf,
     EnsureRoot, limits::{BlockLength, BlockWeights}, RawOrigin,
 };
+use orml_traits::parameter_type_with_key;
+use sp_runtime::traits::Zero;
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 #[cfg(any(feature = "std", test))]
@@ -50,6 +52,8 @@ pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
+use polkadex_primitives::assets::AssetId;
 use pallet_session::historical as pallet_session_historical;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
@@ -955,6 +959,33 @@ impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
         Origin::from(RawOrigin::Signed(Default::default()))
     }
 }
+use orml_currencies::BasicCurrencyAdapter;
+parameter_types! {
+    pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
+    pub const OcexModuleId: PalletId = PalletId(*b"polka/ex");
+    pub const OCEXGenesisAccount: PalletId = PalletId(*b"polka/ga");
+}
+
+parameter_types! {
+    pub TreasuryAccountId: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
+pub struct EnsureGovernance;
+
+impl EnsureOrigin<Origin> for EnsureGovernance {
+    type Success = AccountId;
+    fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+        let bridge_id = MODULE_ID.into_account();
+        Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+            RawOrigin::Signed(who) if who == bridge_id => Ok(bridge_id),
+            r => Err(Origin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn successful_origin() -> Origin {
+        Origin::from(RawOrigin::Signed(Default::default()))
+    }
+}
 
 impl orml_vesting::Config for Runtime {
     type Event = Event;
@@ -973,6 +1004,65 @@ impl pdex_migration::pallet::Config for Runtime {
     type Event = Event;
     type LockPeriod = LockPeriod;
     type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+    pub const GetIDOPDXAmount: Balance = 100_u128;
+    pub const GetMaxSupply: Balance = 2_000_000_u128;
+    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+}
+
+impl polkadex_ido::Config for Runtime {
+    type Event = Event;
+    type TreasuryAccountId = TreasuryAccountId;
+    type GovernanceOrigin = EnsureGovernance;
+    type NativeCurrencyId = GetNativeCurrencyId;
+    type IDOPDXAmount = GetIDOPDXAmount;
+    type MaxSupply = GetMaxSupply;
+    type Randomness = RandomnessCollectiveFlip;
+    type RandomnessSource = RandomnessCollectiveFlip;
+    type ModuleId = PolkadexIdoPalletId;
+    type Currency = Currencies;
+    type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
+}
+const MODULE_ID: PalletId = PalletId(*b"cb/gover");
+
+parameter_type_with_key! {
+    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+        Zero::zero()
+    };
+}
+parameter_types! {
+    pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
+
+impl orml_tokens::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Amount = Amount;
+    type CurrencyId = AssetId;
+    type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
+    type MaxLocks = ();
+    type DustRemovalWhitelist = ();
+}
+
+parameter_types! {
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
+}
+
+impl orml_currencies::Config for Runtime {
+    type Event = Event;
+    type MultiCurrency = Tokens;
+    type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type WeightInfo = ();
+}
+pub type Amount = i128;
+
+impl pallet_randomness_collective_flip::Config for Runtime {
+
 }
 
 construct_runtime!(
@@ -1003,15 +1093,19 @@ construct_runtime!(
         AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 19,
         Offences: pallet_offences::{Pallet, Storage, Event} = 20,
         Historical: pallet_session_historical::{Pallet} = 21,
-        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 22,
-        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 23,
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 24,
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 25,
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 26,
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 22,
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 23,
+        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 24,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 25,
+        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 26,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 27,
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 28,
         // Pallets
-        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
-        PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+        OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+        PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 30,
+        PolkadexIdo: polkadex_ido::{Pallet, Call, Storage, Event<T>} = 31,
+        Currencies: orml_currencies::{Pallet, Call, Event<T>} = 32,
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 33,
     }
 );
 /// Digest item type.
@@ -1225,6 +1319,16 @@ impl_runtime_apis! {
         }
     }
 
+    impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+
+        fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+            PolkadexIdo::rounds_by_investor(account)
+        }
+        fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+            PolkadexIdo::rounds_by_creator(account)
+        }
+    }
+
     impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             SessionKeys::generate(seed)
@@ -1339,6 +1443,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
             add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+            add_benchmark!(params, batches, polkadex_ido, PolkadexIdo);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

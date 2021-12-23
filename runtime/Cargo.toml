@@ -46,6 +46,7 @@ pallet-tips = { default-features = false, git = "https://github.com/Polkadex-Sub
 pallet-recovery = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 pallet-authority-discovery = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 
 #end added
 #frame
@@ -85,10 +86,15 @@ pallet-society = { default-features = false, git = "https://github.com/Polkadex-
 
 # ORML Pallets
 orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch="mainnet-release", default-features = false }
-
+orml-tokens = {  git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false,  branch="mainnet-release"}
+orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false,  branch="mainnet-release" }
+orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false,  branch="mainnet-release" }
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'mainnet-release', default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
+polkadex-ido-runtime-api = {path = "../pallets/Polkadex_Ido/rpc/runtime-api", default-features = false}
+pallet-polkadex-ido-primitives = {path = "../pallets/Polkadex_Ido/common",  default-features = false}# Used for runtime benchmarking
+polkadex-ido = { path = "../pallets/Polkadex_Ido", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
@@ -115,6 +121,7 @@ std = [
     'pallet-grandpa/std',
     'pallet-im-online/std',
     'pallet-offences/std',
+    'pallet-randomness-collective-flip/std',
     'pallet-session/std',
     'pallet-staking/std',
     'pallet-authority-discovery/std',
@@ -152,8 +159,15 @@ std = [
     "sp-npos-elections/std",
 
     "orml-vesting/std",
+    "orml-currencies/std",
+    "orml-tokens/std",
+    "orml-traits/std",
     "polkadex-primitives/std",
-    "pdex-migration/std"
+    "pdex-migration/std",
+    'polkadex-ido/std',
+    'polkadex-ido-runtime-api/std',
+    'pallet-polkadex-ido-primitives/std'
+
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

@@ -1,0 +1,25 @@
+[package]
+name = "polkadex-ido-runtime-api"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+
+# Substrate Dependencies
+pallet-polkadex-ido-primitives= { default-features = false, path = "../../common" }
+sp-api = {   git = "https://github.com/Polkadex-Substrate/substrate", branch="master", default-features = false }
+sp-runtime = {  git = "https://github.com/Polkadex-Substrate/substrate", branch="master", default-features = false }
+sp-std = {   git = "https://github.com/Polkadex-Substrate/substrate", branch="master", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "sp-api/std",
+    "codec/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "pallet-polkadex-ido-primitives/std"
+]

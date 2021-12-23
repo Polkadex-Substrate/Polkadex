@@ -1,0 +1,19 @@
+[package]
+name = "polkadex-ido-rpc"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { version = "2.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+serde = { version = "1.0.127", optional = true }
+jsonrpc-core = "15.1.0"
+jsonrpc-core-client = "15.1.0"
+jsonrpc-derive = "15.1.0"
+sp-rpc = {   git = "https://github.com/Polkadex-Substrate/substrate", branch="master",default-features = false }
+sp-blockchain = {   git = "https://github.com/Polkadex-Substrate/substrate", branch="master", default-features = false }
+sp-api = {   git = "https://github.com/Polkadex-Substrate/substrate", branch="master", default-features = false }
+sp-runtime = {   git = "https://github.com/Polkadex-Substrate/substrate", branch="master", default-features = false }
+pallet-polkadex-ido-primitives = {path = "../common", default-features = false}
+polkadex-ido-runtime-api = {path = "runtime-api" }
