@@ -5192,6 +5192,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "polkadex-ido-rpc"
+version = "0.1.0"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "pallet-polkadex-ido-primitives",
+ "parity-scale-codec",
+ "polkadex-ido-runtime-api",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-rpc",
+ "sp-runtime",
+]
+
+[[package]]
 name = "polkadex-ido-runtime-api"
 version = "0.1.0"
 dependencies = [
@@ -5229,6 +5246,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.11.2",
  "platforms",
+ "polkadex-ido-rpc",
  "polkadex-primitives",
  "rand 0.7.3",
  "regex",

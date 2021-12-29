@@ -30,6 +30,7 @@ parking_lot = "0.11.1"
 itertools = "0.10.1"
 # local dependencies
 node-polkadex-runtime = { path = '../runtime', version = '3.0.0' }
+polkadex-ido-rpc = {path = "../pallets/Polkadex_Ido/rpc"}
 
 # Substrate dependencies
 frame-benchmarking = {  git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }

@@ -29,7 +29,7 @@ use frame_support::{
     RuntimeDebug,
     traits::{
         Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier,
-        U128CurrencyToVote,
+        U128CurrencyToVote, Contains
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -52,7 +52,7 @@ pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use pallet_polkadex_ido_primitives::FundingRoundWithPrimitives;
+use pallet_polkadex_ido_primitives::*;
 use polkadex_primitives::assets::AssetId;
 use pallet_session::historical as pallet_session_historical;
 #[cfg(any(feature = "std", test))]
@@ -1007,15 +1007,16 @@ impl pdex_migration::pallet::Config for Runtime {
 }
 
 parameter_types! {
-    pub const GetIDOPDXAmount: Balance = 100_u128;
+    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
     pub const GetMaxSupply: Balance = 2_000_000_u128;
     pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
 }
 
 impl polkadex_ido::Config for Runtime {
     type Event = Event;
-    type TreasuryAccountId = TreasuryAccountId;
-    type GovernanceOrigin = EnsureGovernance;
+    type TreasuryAccountId = TreasuryModuleAccount;
+    type GovernanceOrigin = EnsureRootOrTreasury;
     type NativeCurrencyId = GetNativeCurrencyId;
     type IDOPDXAmount = GetIDOPDXAmount;
     type MaxSupply = GetMaxSupply;
@@ -1024,6 +1025,7 @@ impl polkadex_ido::Config for Runtime {
     type ModuleId = PolkadexIdoPalletId;
     type Currency = Currencies;
     type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
+    type DefaultVotingPeriod = DefaultVotingPeriod;
 }
 const MODULE_ID: PalletId = PalletId(*b"cb/gover");
 
@@ -1036,6 +1038,13 @@ parameter_types! {
     pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
 }
 
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		*a == TreasuryModuleAccount::get()
+	}
+}
+
 impl orml_tokens::Config for Runtime {
     type Event = Event;
     type Balance = Balance;
@@ -1044,8 +1053,8 @@ impl orml_tokens::Config for Runtime {
     type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = orml_tokens::TransferDust<Runtime, TreasuryModuleAccount>;
-    type MaxLocks = ();
-    type DustRemovalWhitelist = ();
+    type MaxLocks = MaxLocks;
+    type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
 parameter_types! {
@@ -1326,6 +1335,10 @@ impl_runtime_apis! {
         }
         fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
             PolkadexIdo::rounds_by_creator(account)
+        }
+
+        fn votes_stat(round_id: Hash) -> VoteStat {
+            PolkadexIdo::votes_stat(round_id)
         }
     }
 

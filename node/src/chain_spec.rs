@@ -17,7 +17,7 @@ use sp_runtime::traits::AccountIdConversion;
 
 use node_polkadex_runtime::{
     AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
-    IndicesConfig, OrmlVestingConfig,
+    IndicesConfig, OrmlVestingConfig,TokensConfig,
     PDEXMigrationConfig, SessionConfig, StakerStatus, StakingConfig,
     SudoConfig, SystemConfig, TechnicalCommitteeConfig, wasm_binary_unwrap,
 };
@@ -415,6 +415,12 @@ pub fn testnet_genesis(
         technical_membership: Default::default(),
         treasury: Default::default(),
         orml_vesting: OrmlVestingConfig { vesting },
+        tokens: TokensConfig {
+            balances : vec![],
+            // endowed_accounts: vec![
+            //     (endowed_accounts[0].to_owned(), AssetId::Asset(24), 1000000000000000000u128),
+            // ],
+        },
         pdex_migration: PDEXMigrationConfig {
             max_tokens: ERC20_PDEX_SUPPLY,
             operational: false,
