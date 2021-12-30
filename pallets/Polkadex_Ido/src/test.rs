@@ -19,11 +19,9 @@
 use super::*;
 use crate::mock::*;
 use frame_support::assert_noop;
-use frame_support::traits::{OnInitialize,OnFinalize};
+use frame_support::traits::OnInitialize;
 use polkadex_primitives::assets::AssetId;
-use sp_core::H160;
 use sp_runtime::traits::Hash;
-use polkadex_primitives::assets::AssetId::POLKADEX;
 use frame_benchmarking::frame_support::sp_runtime::PerThing;
 
 #[test]
@@ -120,7 +118,7 @@ fn test_whitelist_investor() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
         let funding_round = <InfoFundingRound<Test>>::get(&round_id);
         let open_block_number = funding_round.start_block;
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         system::Pallet::<Test>::set_block_number(open_block_number);
         assert_noop!(
             PolkadexIdo::whitelist_investor(
@@ -162,7 +160,6 @@ fn test_whitelist_investor() {
 #[test]
 fn test_participate_in_round() {
     let balance: Balance = 600;
-    let investor_address: u64 = 4;
     let funding_period = 10;
     let amount: Balance = 200;
     let min_allocation: Balance = 100;
@@ -345,7 +342,7 @@ fn test_claim_edge_case_small_investment() {
         let closing_block_number = funding_round.close_round_block;
         let vesting_end_block_number = funding_round.vesting_end_block;
         let open_block_number = funding_round.start_block;
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         system::Pallet::<Test>::set_block_number(open_block_number);
 
         // Investor invests 25 PDEX, will get 100% share (100 in Asset(24) tokens)  since 25 / 0.25 = 100
@@ -363,7 +360,7 @@ fn test_claim_edge_case_small_investment() {
 
         let investors_rounds = PolkadexIdo::rounds_by_investor(investor_address);
         assert_eq!(investors_rounds[0].0, round_id);
-        assert!(<Test as Config>::Currency::free_balance(AssetId::Asset(24),&investor_address ) > 0_u128, true)
+        assert!(<Test as Config>::Currency::free_balance(AssetId::Asset(24),&investor_address ) > 0_u128)
     });
 }
 
@@ -411,7 +408,7 @@ fn test_claim_edge_case_lower_tokens() {
         let funding_round = <InfoFundingRound<Test>>::get(&round_id);
         let closing_block_number = funding_round.close_round_block;
         let open_block_number = funding_round.start_block;
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         system::Pallet::<Test>::set_block_number(open_block_number);
 
         // Investor invests 25 PDEX, will get 100% share (100 in Asset(24) tokens)  since 25 / 0.25 = 100
@@ -479,7 +476,7 @@ fn test_claim_edge_case_high_tokens() {
         let funding_round = <InfoFundingRound<Test>>::get(&round_id);
         let closing_block_number = funding_round.close_round_block;
         let open_block_number = funding_round.start_block;
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         system::Pallet::<Test>::set_block_number(open_block_number);
 
         assert_eq!(
@@ -545,7 +542,7 @@ fn test_show_interest_in_round() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         let funding_round = <WhitelistInfoFundingRound<Test>>::get(round_id);
 
         let open_block_number = funding_round.start_block;
@@ -605,7 +602,7 @@ fn test_show_interest_in_round_randomized_participants() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone());
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         let investors: Vec<(u64, Balance)> =
             vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
 
@@ -690,7 +687,7 @@ fn test_withdraw_raise() {
         let funding_round = <InfoFundingRound<Test>>::get(&round_id);
         let open_block_number = funding_round.start_block;
         let closing_block_number = funding_round.close_round_block;
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         system::Pallet::<Test>::set_block_number(open_block_number);
 
         assert_noop!(
@@ -699,11 +696,11 @@ fn test_withdraw_raise() {
         );
 
         assert_eq!(PolkadexIdo::register_investor(Origin::signed(2)), Ok(()));
-        <Test as Config>::Currency::deposit(
+        assert!(<Test as Config>::Currency::deposit(
            AssetId::Asset(24),
             &4_u64,
             100000,
-        );
+        ).is_ok());
         let vote_period = match <VotingPeriod<Test>>::try_get() {
             Ok(voting_period ) => voting_period,
             Err(_) => <Test as Config>::DefaultVotingPeriod::get()
@@ -791,7 +788,7 @@ fn test_withdraw_token() {
         let funding_round = <InfoFundingRound<Test>>::get(&round_id);
         let open_block_number = funding_round.start_block;
         let closing_block_number = funding_round.close_round_block;
-        PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id);
+        assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         system::Pallet::<Test>::set_block_number(open_block_number);
 
         assert_noop!(
@@ -800,11 +797,11 @@ fn test_withdraw_token() {
         );
 
         assert_eq!(PolkadexIdo::register_investor(Origin::signed(2)), Ok(()));
-        <Test as Config>::Currency::deposit(
+        assert!(<Test as Config>::Currency::deposit(
            AssetId::Asset(24),
             &4_u64,
             100000,
-        );
+        ).is_ok());
         let vote_period = match <VotingPeriod<Test>>::try_get() {
             Ok(voting_period ) => voting_period,
             Err(_) => <Test as Config>::DefaultVotingPeriod::get()
@@ -986,7 +983,7 @@ fn test_get_reserve_amount() {
         );
 
         let round_id = <InfoProjectTeam<Test>>::get(ALICE);
-        PolkadexIdo::vote(Origin::signed(4),round_id, balance, 2, false);
+        assert!(PolkadexIdo::vote(Origin::signed(4),round_id, balance, 2, false).is_ok());
         let unlocking_block = PolkadexIdo::vote_multiplier_to_block_number(2);
         let reserve_balance = <Test as Config>::Currency::total_balance(AssetId::POLKADEX,&4_u64 ) - <Test as Config>::Currency::free_balance(AssetId::POLKADEX,&4_u64 );
 

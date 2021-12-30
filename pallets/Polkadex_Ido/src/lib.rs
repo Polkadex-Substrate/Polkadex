@@ -38,14 +38,12 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
 
-use codec::Codec;
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
     ensure,
-    log,
     traits::{EnsureOrigin, Get, Randomness},
     PalletId,
 };
@@ -57,10 +55,9 @@ use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
 use sp_core::H256;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
-use sp_runtime::{SaturatedConversion, Permill, Perbill, Perquintill};
+use sp_runtime::{SaturatedConversion, Perbill, Perquintill};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
@@ -536,7 +533,7 @@ decl_module! {
                 };
             // claimable_tokens : is the total amount of token the investor can withdraw(claim)  in their account
             let claimable_tokens = total_tokens_released_for_given_investor.saturating_sub(claimed_tokens);
-            T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens);
+            T::Currency::transfer(funding_round.token_a, &round_account_id, &investor_address, claimable_tokens)?;
 
             <InfoClaimAmount<T>>::insert(round_id, investor_address.clone(), total_tokens_released_for_given_investor);
             // TODO : remove
@@ -652,8 +649,6 @@ decl_module! {
             let mut voting = <RoundVotes<T>>::get(&round_id);
             let position_yes = voting.ayes.iter().position(|a| a.account_id == who);
             let position_no = voting.nays.iter().position(|a| a.account_id == who);
-            // Detects first vote of the member in the motion
-            let is_account_voting_first_time = position_yes.is_none() && position_no.is_none();
 
             //Reserves the vote amount will be later returned to user at vote.unlocking_block
             ensure!(T::Currency::reserve(AssetId::POLKADEX, &who, amount).is_ok(),Error::<T>::FailedToMoveBalanceToReserve);

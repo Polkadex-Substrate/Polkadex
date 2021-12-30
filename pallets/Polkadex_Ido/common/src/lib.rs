@@ -4,8 +4,6 @@ use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Balance, BlockNumber, Hash};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeStruct};
-#[cfg(feature = "std")]
-use sp_core::crypto::Ss58Codec;
 use sp_std::vec::Vec;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -69,12 +67,12 @@ fn serialize_as_custom_tuple<S: Serializer>(
         AssetId::POLKADEX => {
             let mut s = serializer.serialize_struct("asset", 1)?;
             let f : Option<u64> = None;
-            s.serialize_field("polkadex", &f);
+            s.serialize_field("polkadex", &f)?;
             s.end()
         }
         AssetId::Asset(id) => {
             let mut s = serializer.serialize_struct("asset", 1)?;
-            s.serialize_field("asset" , &id.to_string());
+            s.serialize_field("asset" , &id.to_string())?;
             s.end()
         }
     }

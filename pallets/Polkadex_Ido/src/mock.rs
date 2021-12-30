@@ -28,7 +28,6 @@ use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::arithmetic::Zero;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
-use sp_core::H160;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
