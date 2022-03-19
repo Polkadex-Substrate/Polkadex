@@ -745,12 +745,21 @@ impl pallet_treasury::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 15 * DAYS;
+    // When proposals are moved to public voting
+    pub const LaunchPeriod: BlockNumber = 15 * DAYS;
+    // How long voting should last
 	pub const VotingPeriod: BlockNumber = 15 * DAYS;
+    // Fast track voting for techincal council
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub MinimumDeposit: Balance = 200 * PDEX;
+    // Minimum deposit for creating a proposal
+	pub MinimumDeposit: Balance = 100 * PDEX;
+    // Time between approved proposals are executed on-chain
+    // EnactmentPeriod > unbonding period of staking
 	pub const EnactmentPeriod: BlockNumber = 30 * DAYS;
-	pub const VoteLockingPeriod: BlockNumber = 14 * DAYS;
+    // Minimum period of vote locking
+    // Note: VoteLockingPeriod >= EnactmentPeriod
+	pub const VoteLockingPeriod: BlockNumber = 30 * DAYS;
+    // Cool-off period before a vetoed proposal can be submitted back again
 	pub const CooloffPeriod: BlockNumber = 28 * DAYS;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
@@ -815,8 +824,9 @@ impl pallet_democracy::Config for Runtime {
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
     >;
-    // Any single technical committee member may veto a coming council proposal, however they can
+    // Any single technical committee member or root origin may veto a coming council proposal, however they can
     // only do it once and it lasts only for the cooloff period.
+    // NOTE: Technical Council cannot be greater than MAX_VETOERS
     type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
     type CooloffPeriod = CooloffPeriod;
     type PreimageByteDeposit = PreimageByteDeposit;
@@ -1420,6 +1430,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_scheduler, Scheduler);
      //       add_benchmark!(params, batches, pallet_session, SessionBench::<Runtime>);
             add_benchmark!(params, batches, pallet_staking, Staking);
+            add_benchmark!(params, batches, pallet_democracy, Democracy);
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_treasury, Treasury);
