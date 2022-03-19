@@ -35,6 +35,7 @@ pallet-transaction-payment = { default-features = false, git = "https://github.c
 pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 pallet-treasury = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 pallet-collective = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
+pallet-democracy = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 pallet-elections-phragmen = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 pallet-membership = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
 pallet-scheduler = { default-features = false, git = "https://github.com/Polkadex-Substrate/substrate", branch = "master" }
@@ -124,6 +125,7 @@ std = [
     'pallet-identity/std',
     'pallet-proxy/std',
     'pallet-recovery/std',
+    'pallet-democracy/std',
     'pallet-utility/std',
     "pallet-bounties/std",
     'pallet-tips/std',
@@ -180,6 +182,7 @@ runtime-benchmarks = [
     "pallet-timestamp/runtime-benchmarks",
     "pallet-tips/runtime-benchmarks",
     "pallet-treasury/runtime-benchmarks",
+    "pallet-democracy/runtime-benchmarks",
     "pallet-utility/runtime-benchmarks",
     "frame-system-benchmarking",
     "orml-vesting/runtime-benchmarks",

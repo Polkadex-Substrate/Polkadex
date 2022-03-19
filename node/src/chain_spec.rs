@@ -402,6 +402,7 @@ pub fn testnet_genesis(
             members: vec![],
             phantom: Default::default(),
         },
+        democracy: Default::default(),
         sudo: SudoConfig {
             key: root_key.clone(),
         },
