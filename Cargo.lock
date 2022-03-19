@@ -3656,6 +3656,7 @@ dependencies = [
  "pallet-balances",
  "pallet-bounties",
  "pallet-collective",
+ "pallet-democracy",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
  "pallet-grandpa",

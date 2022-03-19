@@ -118,7 +118,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 272,
+    spec_version: 273,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -744,6 +744,101 @@ impl pallet_treasury::Config for Runtime {
     type MaxApprovals = MaxApprovals;
 }
 
+parameter_types! {
+    // When proposals are moved to public voting
+    pub const LaunchPeriod: BlockNumber = 15 * DAYS;
+    // How long voting should last
+	pub const VotingPeriod: BlockNumber = 15 * DAYS;
+    // Fast track voting for techincal council
+	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
+    // Minimum deposit for creating a proposal
+	pub MinimumDeposit: Balance = 100 * PDEX;
+    // Time between approved proposals are executed on-chain
+    // EnactmentPeriod > unbonding period of staking
+	pub const EnactmentPeriod: BlockNumber = 30 * DAYS;
+    // Minimum period of vote locking
+    // Note: VoteLockingPeriod >= EnactmentPeriod
+	pub const VoteLockingPeriod: BlockNumber = 30 * DAYS;
+    // Cool-off period before a vetoed proposal can be submitted back again
+	pub const CooloffPeriod: BlockNumber = 28 * DAYS;
+	pub const InstantAllowed: bool = true;
+	pub const MaxVotes: u32 = 100;
+	pub const MaxProposals: u32 = 100;
+    // One cent: 10,000 PDEX / MB
+	pub const PreimageByteDeposit: Balance = 1 * CENTS;
+}
+
+impl pallet_democracy::Config for Runtime {
+    type Proposal = Call;
+    type Event = Event;
+    type Currency = Balances;
+    type EnactmentPeriod = EnactmentPeriod;
+    type LaunchPeriod = LaunchPeriod;
+    type VotingPeriod = VotingPeriod;
+    type VoteLockingPeriod = VoteLockingPeriod;
+    type MinimumDeposit = MinimumDeposit;
+    /// A straight majority of the council can decide what their next motion is.
+    type ExternalOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
+    >;
+    /// A majority can have the next scheduled referendum be a straight majority-carries vote.
+    type ExternalMajorityOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
+    >;
+    /// A unanimous council can have the next scheduled referendum be a straight default-carries
+    /// (NTB) vote.
+    type ExternalDefaultOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
+    >;
+    /// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
+    /// be tabled immediately and with a shorter voting/enactment period.
+    type FastTrackOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+    >;
+    type InstantOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+    >;
+    type InstantAllowed = InstantAllowed;
+    type FastTrackVotingPeriod = FastTrackVotingPeriod;
+    // To cancel a proposal which has been passed, 2/3 of the council must agree to it.
+    type CancellationOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
+    >;
+    type BlacklistOrigin = EnsureRoot<AccountId>;
+    // To cancel a proposal before it has been passed, the technical committee must be unanimous or
+    // Root must agree.
+    type CancelProposalOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+    >;
+    // Any single technical committee member or root origin may veto a coming council proposal, however they can
+    // only do it once and it lasts only for the cooloff period.
+    // NOTE: Technical Council cannot be greater than MAX_VETOERS
+    type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
+    type CooloffPeriod = CooloffPeriod;
+    type PreimageByteDeposit = PreimageByteDeposit;
+    type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+    type Slash = Treasury;
+    type Scheduler = Scheduler;
+    type PalletsOrigin = OriginCaller;
+    type MaxVotes = MaxVotes;
+    type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
+    type MaxProposals = MaxProposals;
+}
+
 impl pallet_bounties::Config for Runtime {
     type Event = Event;
     type BountyDepositBase = BountyDepositBase;
@@ -1009,6 +1104,7 @@ construct_runtime!(
         Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 25,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 26,
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
+        Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
         // Pallets
         OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
         PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
@@ -1334,6 +1430,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_scheduler, Scheduler);
      //       add_benchmark!(params, batches, pallet_session, SessionBench::<Runtime>);
             add_benchmark!(params, batches, pallet_staking, Staking);
+            add_benchmark!(params, batches, pallet_democracy, Democracy);
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_treasury, Treasury);
