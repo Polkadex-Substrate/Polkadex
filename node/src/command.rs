@@ -23,7 +23,7 @@ use crate::{
 };
 use node_executor::ExecutorDispatch;
 use node_polkadex_runtime::Block;
-use sc_cli::{ChainSpec, Result, Role, RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 // use node_polkadex_runtime::RuntimeApi;
 
@@ -84,11 +84,7 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				match config.role {
-					Role::Light => service::new_light(config),
-					_ => service::new_full(config),
-				}
-				.map_err(sc_cli::Error::Service)
+				service::new_full(config).map_err(sc_cli::Error::Service)
 			})
 		},
 		// Some(Subcommand::Inspect(cmd)) => {
@@ -155,6 +151,8 @@ pub fn run() -> Result<()> {
 				Ok((cmd.run(client, backend), task_manager))
 			})
 		},
+
+		/* --snip-- */
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -162,12 +160,19 @@ pub fn run() -> Result<()> {
 				// we don't need any of the components of new_partial, just a runtime, or a task
 				// manager to do `async_run`.
 				let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
-				let task_manager =
-					sc_service::TaskManager::new(config.task_executor.clone(), registry)
-						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+				let task_manager = sc_service::TaskManager::new(
+					config.task_executor.clone(),
+					registry,
+				).map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
-				Ok((cmd.run::<Block, ExecutorDispatch>(config), task_manager))
+				Ok((cmd.run::<Block, Executor>(config), task_manager))
 			})
+		},
+
+		#[cfg(not(feature = "try-runtime"))]
+		Some(Subcommand::TryRuntime) => {
+			Err("TryRuntime wasn't enabled when building the node. \
+        You can enable it with `--features try-runtime`.".into())
 		},
 	}
 }

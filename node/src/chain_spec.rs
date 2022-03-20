@@ -138,6 +138,7 @@ pub fn udon_testnet_config() -> ChainSpec {
         ),
         None,
         None,
+        None,
         Default::default(),
     )
 }
@@ -197,6 +198,7 @@ pub fn development_config() -> ChainSpec {
         None,
         None,
         None,
+        None,
         Default::default(),
     )
 }
@@ -223,7 +225,8 @@ pub fn soba_testnet_config() -> ChainSpec {
         None,
         None,
         None,
-        Default::default(),
+        None,
+        Default::default()
     )
 }
 
@@ -291,6 +294,7 @@ pub fn mainnet_testnet_config() -> ChainSpec {
                 .expect("Staging telemetry url is valid; qed"),
         ),
         Some(POLKADEX_PROTOCOL_ID),
+        None,
         None,
         Default::default(),
     )
@@ -360,7 +364,6 @@ pub fn testnet_genesis(
     GenesisConfig {
         system: SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
-            changes_trie_config: Default::default(),
         },
         balances: BalancesConfig {
             balances: endowed_accounts,
@@ -404,7 +407,7 @@ pub fn testnet_genesis(
         },
         democracy: Default::default(),
         sudo: SudoConfig {
-            key: root_key.clone(),
+            key: Some(root_key.clone()),
         },
         babe: BabeConfig {
             authorities: Default::default(),
