@@ -41,6 +41,8 @@ pallet-elections-phragmen = { default-features = false, git = "https://github.co
 pallet-membership = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 pallet-bounties = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
+pallet-preimage = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
+pallet-bags-list = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 pallet-indices = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 pallet-identity = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 pallet-proxy = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
@@ -48,6 +50,7 @@ pallet-tips = { default-features = false, git = "https://github.com/paritytech/s
 pallet-recovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 pallet-election-provider-multi-phase = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 pallet-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
+pallet-child-bounties = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 
 #end added
 #frame
@@ -117,10 +120,13 @@ std = [
     'pallet-offences/std',
     'pallet-session/std',
     'pallet-staking/std',
+    'pallet-preimage/std',
+    'pallet-bags-list/std',
     'pallet-authority-discovery/std',
     'pallet-multisig/std',
     'pallet-sudo/std',
     'pallet-indices/std',
+    'pallet-child-bounties/std',
     'pallet-identity/std',
     'pallet-proxy/std',
     'pallet-recovery/std',
@@ -172,6 +178,9 @@ runtime-benchmarks = [
     "pallet-identity/runtime-benchmarks",
     "pallet-im-online/runtime-benchmarks",
     "pallet-indices/runtime-benchmarks",
+    "pallet-child-bounties/runtime-benchmarks",
+    "pallet-preimage/runtime-benchmarks",
+    "pallet-bags-list/runtime-benchmarks",
     "pallet-membership/runtime-benchmarks",
     "pallet-multisig/runtime-benchmarks",
     "pallet-proxy/runtime-benchmarks",
