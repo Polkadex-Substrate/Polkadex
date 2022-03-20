@@ -2,7 +2,6 @@
 #![allow(clippy::unused_unit)]
 
 use frame_support::weights::Weight;
-
 pub mod weights;
 
 /// Weight functions needed for pdex_migration.
@@ -25,29 +24,31 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use codec::{Decode, Encode};
+    use codec::{Decode, Encode, MaxEncodedLen};
+    use scale_info::TypeInfo;
     use frame_support::pallet_prelude::*;
     use frame_support::traits::{Currency, LockableCurrency, WithdrawReasons};
     use frame_support::traits::fungible::Mutate;
     use frame_system::pallet_prelude::*;
     use sp_runtime::SaturatedConversion;
     use sp_runtime::traits::{BlockNumberProvider, Saturating, Zero};
-    use sp_std::vec;
-    use sp_std::vec::Vec;
+    use frame_support::traits::Get;
 
     use crate::WeightInfo;
 
     const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
 
-    #[derive(Encode, Decode, Debug)]
-    pub struct BurnTxDetails<T: Config> {
+    #[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
+    #[scale_info(skip_type_params(MaxRelayers))]
+    #[codec(mel_bound(AccountId: MaxEncodedLen))]
+    pub struct BurnTxDetails<AccountId, MaxRelayers: Get<u32>> {
         pub(crate) approvals: u16,
-        pub(crate) approvers: Vec<T::AccountId>,
+        pub(crate) approvers: BoundedVec<AccountId,MaxRelayers>,
     }
 
-    impl<T: Config> Default for BurnTxDetails<T> {
+    impl<AccountId,MaxRelayers: Get<u32>> Default for BurnTxDetails<AccountId,MaxRelayers> {
         fn default() -> Self {
-            Self { approvals: 0, approvers: vec![] }
+            Self { approvals: 0, approvers: BoundedVec::default() }
         }
     }
 
@@ -57,6 +58,9 @@ pub mod pallet {
     pub trait Config: frame_system::Config + pallet_balances::Config + pallet_sudo::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        /// Max Number of relayers
+        #[pallet::constant]
+        type MaxRelayers: Get<u32>;
         /// Lock Period
         #[pallet::constant]
         type LockPeriod: Get<<Self as frame_system::Config>::BlockNumber>;
@@ -65,7 +69,6 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub (super) trait Store)]
     pub struct Pallet<T>(_);
 
     /// List of relayers who can relay data from Ethereum
@@ -91,7 +94,7 @@ pub mod pallet {
     /// Processed Eth Burn Transactions
     #[pallet::storage]
     #[pallet::getter(fn eth_txs)]
-    pub(super) type EthTxns<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, BurnTxDetails<T>, ValueQuery>;
+    pub(super) type EthTxns<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, BurnTxDetails<T::AccountId,T::MaxRelayers>, ValueQuery>;
 
     // In FRAME v2.
     #[pallet::genesis_config]
@@ -144,6 +147,8 @@ pub mod pallet {
         InvalidTxHash,
         /// Given Eth Transaction is already processed
         AlreadyProcessedEthBurnTx,
+        /// BoundedVec limit reached
+        RelayerLimitReached
     }
 
     #[pallet::hooks]
@@ -174,9 +179,9 @@ pub mod pallet {
             let relayer = ensure_signed(origin)?;
             ensure!(eth_tx != T::Hash::default(), Error::<T>::InvalidTxHash);
             if Self::operational() {
-                let burn_details = EthTxns::<T>::get(eth_tx);
+                let mut burn_details = EthTxns::<T>::get(eth_tx);
                 ensure!(!burn_details.approvers.contains(&relayer), Error::<T>::AlreadyProcessedEthBurnTx);
-                Self::process_migration(relayer, beneficiary, amount, eth_tx, burn_details)?;
+                Self::process_migration(relayer, beneficiary, amount, eth_tx, &mut burn_details)?;
                 Ok(Pays::No.into())
             } else {
                 Err(Error::<T>::NotOperational)?
@@ -230,14 +235,15 @@ pub mod pallet {
                                  beneficiary: T::AccountId,
                                  amount: T::Balance,
                                  eth_hash: T::Hash,
-                                 mut burn_details: BurnTxDetails<T> ) -> Result<(), Error<T>> {
+                                 burn_details: &mut BurnTxDetails<T::AccountId,T::MaxRelayers>
+        ) -> Result<(), Error<T>> {
             let relayer_status = Relayers::<T>::get(&relayer);
 
             if relayer_status {
                 let mut mintable_tokens = Self::mintable_tokens();
                 if amount <= mintable_tokens {
                     burn_details.approvals = burn_details.approvals + 1;
-                    burn_details.approvers.push(relayer.clone());
+                    ensure!(burn_details.approvers.try_push(relayer.clone()).is_ok(), Error::RelayerLimitReached);
                     if burn_details.approvals == 3 { // We need all three relayers to agree on this burn transaction
                         // Mint tokens
                         let _positive_imbalance = pallet_balances::Pallet::<T>::deposit_creating(&beneficiary, amount);
