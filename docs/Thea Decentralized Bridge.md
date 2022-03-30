@@ -122,7 +122,7 @@ Polkadex validators act as relayers which are as decentralized as the Polkadex b
 
 Examples of open, public blockchain quoted in the above paper are: Ethereum, Bitcoin etc.
 
-**References:** 
+**References:**
 
 https://101blockchains.com/public-blockchain/
 https://stonecoldpat.medium.com/a-note-on-bridges-layer-2-protocols-b01f8fc22324
