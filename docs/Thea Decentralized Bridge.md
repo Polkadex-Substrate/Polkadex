@@ -1,4 +1,4 @@
-THEA Decentralized Bridge
+# THEA Decentralized Bridge
 
 Protocol: THEA stands for Threshold ECDSA, or Threshold Signature scheme applied through Elliptic Curve Cryptography
 
