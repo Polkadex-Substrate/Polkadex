@@ -1,10 +1,34 @@
+<h1 align="center">
+    <img alt="Thea Bridge" title="#thea" src="https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/theaCover.jpg" />
+</h1>
+
 # THEA Decentralized Bridge - White Paper
 
 **Protocol:** THEA stands for Threshold ECDSA, or Threshold Signature scheme applied through Elliptic Curve Cryptography
 
-Co-authored by: Vivek Prasannan (vivek@polkadex.trade) & Gautham J (gautham@polkadex.trade)
+Abstract: Polkadex wants to make use of an efficient  and inexpensive decentralized bridge to layer 1 blockchains to allow its assets to interoperate with the Substrate-based Polkadex blockchain. This will allow assets from other blockchains to be easily ported and traded on the Polkadex orderbook exchange, without affecting the user experience. The purpose of this whitepaper is to present an alternative to existing bridges that use expensive on-chain multisig based smart contracts or centralized relayer sets to bridge assets from Layer 1 to Layer 2.**
 
-**Abstract: Polkadex wants to make use of an efficient  and inexpensive decentralized bridge to layer 1 blockchains to allow its assets to interoperate with the Substrate-based Polkadex blockchain. This will allow assets from other blockchains to be easily ported and traded on the Polkadex orderbook exchange, without affecting the user experience. The purpose of this whitepaper is to present an alternative to existing bridges that use expensive on-chain multisig based smart contracts or centralized relayer sets to bridge assets from Layer 1 to Layer 2.**
+## Co-authored
+<table>
+  <tr>
+    <td align="center"><a href="mailto:vivek@polkadex.trade"><img style="border-radius: 50%;" src="https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/vivek.jpg" width="100px;" alt=""/><br /><sub><b>Vivek Prasannan</b></sub></a><br /><a href="https://polkadex.trade" title="Polkadex"></a></td>
+    <td align="center"><a href="mailto:gautham@polkadex.trade"><img style="border-radius: 50%;" src="https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/gautham.jpg" width="100px;" alt=""/><br /><sub><b>Gautham J</b></sub></a><br /><a href="https://polkadex.trade" title="Polkadex"></a></td>
+  </tr>
+</table>
+
+## Table of contents
+
+  * [What is a Bridge?](#what-is-a-bridge)
+  * [Types of bridges available](#types-of-bridges-available)
+  * [Bridge solution](#the-quest-for-an-elegant-bridge-solution)
+  * [Combining TSS with blockchains](#combining-tss-with-blockchains)
+  * [TSS vs Multisig](#tss-vs-multisig)
+  * [TSS vs smart contracts](#tss-vs-smart-contracts)
+  * [THEA implementation](#eureka-moment-thea-implementation)
+  * [Lightclients](#lightclients)
+  * [THEA](#thea-==-tss-+-lightclients-in-rust)
+  * [References](#references)
+
 
 ## What is a Bridge?
 
@@ -16,7 +40,7 @@ Porting assets from one blockchain to another blockchain comes with a myriad of 
 
 It is a well-known misunderstanding in the crypto sphere that scaling of transactions in layer 1 blockchains can be achieved with layer 2 off-chain protocols. However, very little thought is given to what happens to the quality of these assets once they are bridged using an off-chain layer. This paper is a look at bridging protocols using Multiparty ECDSA that can be used to overcome the deficiencies of layer 2 off-chain bridges and fixed set validator bridges in existence today. To understand what those deficiencies are, we need to look deeper into what we are trying to bridge here.
 
-If you need to understand the need for this assertion, it is important to know the context of this bridging mechanism. It is arguably agreed at this point that layer 1 transactions are not scalable because of the inherent need for security and immutability. It is also known that scalability, security, and programmability are mutually opposing properties in a blockchain, which has already been addressed in one of the articles we published prior to the launch of Polkadex. If you try to improve one of the areas, one of the others is compromised. When you are trying to bridge a blockchain asset, a perfect bridge is one that transfers all the properties of the source asset to the destination asset. 
+If you need to understand the need for this assertion, it is important to know the context of this bridging mechanism. It is arguably agreed at this point that layer 1 transactions are not scalable because of the inherent need for security and immutability. It is also known that scalability, security, and programmability are mutually opposing properties in a blockchain, which has already been addressed in one of the articles we published prior to the launch of Polkadex. If you try to improve one of the areas, one of the others is compromised. When you are trying to bridge a blockchain asset, a perfect bridge is one that transfers all the properties of the source asset to the destination asset.
 
 *The core properties of open public blockchain are, what we call RIPCORD, an acronym used by Andreas Antonopoulos to measure viability of a blockchain:*
 
@@ -42,7 +66,7 @@ While hardline advocates of decentralization might venture that the custodial na
 
 ***So, currently the existing systems looks similar to this:***
 
-![Existing System](https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/thea%201.png)
+![Existing System](https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/thea4.jpg)
 
 ## The Quest for an elegant bridge solution
 
@@ -69,7 +93,7 @@ Threshold signature scheme (TSS) is the name we give to this composition of dist
 
 ## Combining TSS with blockchains
 
-Now, using TSS, we would have a set of n parties jointly computing the public key, each holding a secret share of the private key (the individual shares are not revealed to the other parties). From the public key, we can derive the address in the same way as in the traditional system, making the blockchain agnostic to how the address is generated. The advantage is that the private key is not a single point of failure anymore because each party holds just one part of it. 
+Now, using TSS, we would have a set of n parties jointly computing the public key, each holding a secret share of the private key (the individual shares are not revealed to the other parties). From the public key, we can derive the address in the same way as in the traditional system, making the blockchain agnostic to how the address is generated. The advantage is that the private key is not a single point of failure anymore because each party holds just one part of it.
 
 The same can be done when signing transactions. In this case, instead of a single party signing with their private key, we run a distributed signature generation between multiple parties. So, each party can produce a valid signature as long as enough of them are acting honestly. Again, we moved from local computation (single point of failure) to an interactive one.
 
@@ -77,7 +101,7 @@ It is important to mention that the distributed key generation can be done in a 
 
 ## TSS vs Multisig
 
-Both multisig and TSS are essentially trying to achieve similar goals, but TSS is using cryptography off-chain, while multisig happens on-chain. However, the blockchain needs a way to encode multisig, which might harm privacy because the access structure (number of signers) is exposed on the blockchain. The cost of a multisig transaction is higher because the information on the different signers also needs to be communicated on the blockchain. 
+Both multisig and TSS are essentially trying to achieve similar goals, but TSS is using cryptography off-chain, while multisig happens on-chain. However, the blockchain needs a way to encode multisig, which might harm privacy because the access structure (number of signers) is exposed on the blockchain. The cost of a multisig transaction is higher because the information on the different signers also needs to be communicated on the blockchain.
 
 ## TSS vs smart contracts
 
@@ -97,13 +121,13 @@ We began by testing the signing protocol in a 3 node network, and gradually rais
 
 Now that threshold signatures are available to decentralize the ownership of funds moving in and out, our next challenge was verifying transactions from the layer 1 blockchain we are attempting to bridge.  We decided to make use of light clients because we cannot expect the validators to run full nodes of layer 1 chains which are extremely heavy and expensive for the reward mechanism to be profitable. Light clients are crucial elements in blockchain ecosystems. They help users access and interact with a blockchain in a secure and decentralized manner without having to sync the full blockchain. A light client or light node is a piece of software that connects to full nodes to interact with the blockchain. Unlike their full node counterparts, light nodes don’t need to run 24/7 or read and write a lot of information on the blockchain. In fact, light clients do not interact directly with the blockchain; they instead use full nodes as intermediaries. Light clients rely on full nodes for many operations, from requesting the latest headers to asking for the balance of an account.
 
-As a starting point, a light client needs to download the block headers of the blockchain. The light client does not need to trust the full node for every request that it makes to the full node. This is because the block headers contain a piece of information called the Merkle tree root. The Merkle tree root is like a fingerprint of all information on the blockchain about account balances and smart contract storage. If any tiny bit of information changes, this fingerprint will change as well. Assuming that the majority of the miners are honest, block headers and therefore the fingerprints they contain are assumed to be valid. A light client may need to request information from full nodes such as the balance of a specific account. Knowing the fingerprints for each block, a light client can verify whether the answer given by the full node matches with the fingerprint it has. This is a powerful tool to prove the authenticity of information without knowing it beforehand. So, we incorporated the light clients onto the validator code. 
+As a starting point, a light client needs to download the block headers of the blockchain. The light client does not need to trust the full node for every request that it makes to the full node. This is because the block headers contain a piece of information called the Merkle tree root. The Merkle tree root is like a fingerprint of all information on the blockchain about account balances and smart contract storage. If any tiny bit of information changes, this fingerprint will change as well. Assuming that the majority of the miners are honest, block headers and therefore the fingerprints they contain are assumed to be valid. A light client may need to request information from full nodes such as the balance of a specific account. Knowing the fingerprints for each block, a light client can verify whether the answer given by the full node matches with the fingerprint it has. This is a powerful tool to prove the authenticity of information without knowing it beforehand. So, we incorporated the light clients onto the validator code.
 
 ## THEA == TSS + Lightclients in RUST
 
 Currently, our validator set is around 150. On a high level, the bridge looks like this:
 
-![Thea Bridge](https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/thea.png)
+![Thea Bridge](https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/thea3.jpg)
 
 Polkadex validators act as relayers which are as decentralized as the Polkadex blockchain. THEA uses multi-party ECDSA, hence there is no central point of attack. Effectively, THEA allows Polkadex Blockchain validators to hold wallets in other layer 1 blockchains.
 
@@ -122,17 +146,17 @@ Polkadex validators act as relayers which are as decentralized as the Polkadex b
 
 Examples of open, public blockchain quoted in the above paper are: Ethereum, Bitcoin etc.
 
-**References:**
+### References
 
-https://101blockchains.com/public-blockchain/
-https://stonecoldpat.medium.com/a-note-on-bridges-layer-2-protocols-b01f8fc22324
-https://docs.polygon.technology/docs/develop/ethereum-polygon/getting-started
-https://umbrianetwork.medium.com/bridging-eth-from-ethereum-to-polygon-how-do-blockchain-bridges-vary-42d342a249dd
-https://www.coindesk.com/learn/what-are-blockchain-bridges-and-how-do-they-work/
-https://cointelegraph.com/news/wormhole-token-bridge-loses-321m-in-largest-hack-so-far-in-2022
-https://github.com/ZenGo-X/multi-party-ecdsa
-https://academy.binance.com/en/articles/threshold-signatures-explained
-https://www.parity.io/blog/what-is-a-light-client/
+- https://101blockchains.com/public-blockchain/
+- https://stonecoldpat.medium.com/a-note-on-bridges-layer-2-protocols-b01f8fc22324
+- https://docs.polygon.technology/docs/develop/ethereum-polygon/getting-started
+- https://umbrianetwork.medium.com/bridging-eth-from-ethereum-to-polygon-how-do-blockchain-bridges-vary-42d342a249dd
+- https://www.coindesk.com/learn/what-are-blockchain-bridges-and-how-do-they-work/
+- https://cointelegraph.com/news/wormhole-token-bridge-loses-321m-in-largest-hack-so-far-in-2022
+- https://github.com/ZenGo-X/multi-party-ecdsa
+- https://academy.binance.com/en/articles/threshold-signatures-explained
+- https://www.parity.io/blog/what-is-a-light-client/
 
 
 
