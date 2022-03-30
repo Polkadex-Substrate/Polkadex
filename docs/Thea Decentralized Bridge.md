@@ -42,6 +42,7 @@ If you notice the above bridges, it is apparent that they are smart contract-bas
 
 So, currently the existing systems looks similar to this:
 
+![Existing System](https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/thea%201.png)
 
 The Quest for an elegant bridge solution
 
@@ -98,9 +99,7 @@ THEA == TSS + Lightclients in RUST
 
 Currently, our validator set is around 150. On a high level, the bridge looks like this:
 
-
-
-
+![Thea Bridge](https://github.com/Polkadex-Substrate/Polkadex/blob/thea-docs/docs/screenshots/thea.png)
 
 Polkadex validators act as relayers which are as decentralized as the Polkadex blockchain. THEA uses multi-party ECDSA, hence there is no central point of attack. Effectively, THEA allows Polkadex Blockchain validators to hold wallets in other layer 1 blockchains.
 
