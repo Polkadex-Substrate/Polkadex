@@ -37,14 +37,93 @@ use std::sync::Arc;
 
 use sc_consensus_babe::SlotProportion;
 use sc_telemetry::{Telemetry, TelemetryWorker};
+use sp_api::ProvideRuntimeApi;
+use sp_core::Pair;
+use sp_runtime::{generic, SaturatedConversion};
 
-type FullClient =
+pub type FullClient =
 	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
 	grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
+/// The transaction pool type defintion.
+pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
+
+/// Fetch the nonce of the given `account` from the chain state.
+///
+/// Note: Should only be used for tests.
+use substrate_frame_rpc_system::AccountNonceApi;
+pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) -> u32 {
+	let best_hash = client.chain_info().best_hash;
+	client
+		.runtime_api()
+		.account_nonce(&generic::BlockId::Hash(best_hash), account.public().into())
+		.expect("Fetching account nonce works; qed")
+}
+
+/// Create a transaction using the given `call`.
+///
+/// The transaction will be signed by `sender`. If `nonce` is `None` it will be fetched from the
+/// state of the best block.
+///
+/// Note: Should only be used for tests.
+pub fn create_extrinsic(
+	client: &FullClient,
+	sender: sp_core::sr25519::Pair,
+	function: impl Into<node_polkadex_runtime::Call>,
+	nonce: Option<u32>,
+) -> node_polkadex_runtime::UncheckedExtrinsic {
+	let function = function.into();
+	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
+	let best_hash = client.chain_info().best_hash;
+	let best_block = client.chain_info().best_number;
+	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
+
+	let period = node_polkadex_runtime::BlockHashCount::get()
+		.checked_next_power_of_two()
+		.map(|c| c / 2)
+		.unwrap_or(2) as u64;
+	let tip = 0;
+	let extra: node_polkadex_runtime::SignedExtra = (
+		// frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
+		frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
+		frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
+		frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
+		frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(generic::Era::mortal(
+			period,
+			best_block.saturated_into(),
+		)),
+		frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(nonce),
+		frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
+		pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
+	);
+
+	let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
+		function.clone(),
+		extra.clone(),
+		(
+			// (),
+			node_polkadex_runtime::VERSION.spec_version,
+			node_polkadex_runtime::VERSION.transaction_version,
+			genesis_hash,
+			best_hash,
+			(),
+			(),
+			(),
+		),
+	);
+	use codec::Encode;
+	let signature = raw_payload.using_encoded(|e| sender.sign(e));
+
+	node_polkadex_runtime::UncheckedExtrinsic::new_signed(
+		function.clone(),
+		sp_runtime::AccountId32::from(sender.public()).into(),
+		node_polkadex_runtime::Signature::Sr25519(signature.clone()),
+		extra.clone(),
+	)
+}
 
 type PartialComponents = sc_service::PartialComponents<
 	FullClient,
@@ -131,7 +210,7 @@ pub fn new_partial(config: &Configuration) -> Result<PartialComponents, ServiceE
 			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
 			let slot =
-				sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
+				sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
 					*timestamp,
 					slot_duration,
 				);
@@ -339,7 +418,7 @@ pub fn new_full_base(
 					let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
 					let slot =
-                        sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
+                        sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
                             *timestamp,
                             slot_duration,
                         );

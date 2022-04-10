@@ -13,6 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
+use std::sync::Arc;
+use frame_benchmarking_cli::BenchmarkCmd;
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 use crate::{
@@ -25,6 +27,8 @@ use node_executor::ExecutorDispatch;
 use node_polkadex_runtime::Block;
 use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
+use polkadex_node::command_helper::{BenchmarkExtrinsicBuilder, inherent_benchmark_data};
+use crate::service::FullClient;
 // use node_polkadex_runtime::RuntimeApi;
 
 impl SubstrateCli for Cli {
@@ -93,14 +97,40 @@ pub fn run() -> Result<()> {
 		//     runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
 		// },
 		Some(Subcommand::Benchmark(cmd)) =>
-			if cfg!(feature = "runtime-benchmarks") {
+			{
 				let runner = cli.create_runner(cmd)?;
 
-				runner.sync_run(|config| cmd.run::<Block, ExecutorDispatch>(config))
-			} else {
-				Err("Benchmarking wasn't enabled when building the node. \
-				You can enable it with `--features runtime-benchmarks`."
-					.into())
+				runner.sync_run(|config| {
+					let PartialComponents { client, backend, .. } = crate::service::new_partial(&config)?;
+
+					// This switch needs to be in the client, since the client decides
+					// which sub-commands it wants to support.
+					match cmd {
+						BenchmarkCmd::Pallet(cmd) => {
+							if !cfg!(feature = "runtime-benchmarks") {
+								return Err(
+									"Runtime benchmarking wasn't enabled when building the node. \
+							You can enable it with `--features runtime-benchmarks`."
+										.into(),
+								)
+							}
+
+							cmd.run::<Block, ExecutorDispatch>(config)
+						},
+						BenchmarkCmd::Block(cmd) => cmd.run(client),
+						BenchmarkCmd::Storage(cmd) => {
+							let db = backend.expose_db();
+							let storage = backend.expose_storage();
+
+							cmd.run(config, client, db, storage)
+						},
+						BenchmarkCmd::Overhead(cmd) => {
+							let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
+
+							cmd.run(config, client, inherent_benchmark_data()?, Arc::new(ext_builder))
+						},
+					}
+				})
 			},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
@@ -148,7 +178,12 @@ pub fn run() -> Result<()> {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
 				let PartialComponents { client, task_manager, backend, .. } = new_partial(&config)?;
-				Ok((cmd.run(client, backend), task_manager))
+				let aux_revert = Box::new(move |client: Arc<FullClient>, backend, blocks| {
+					sc_consensus_babe::revert(client.clone(), backend, blocks)?;
+					grandpa::revert(client, blocks)?;
+					Ok(())
+				});
+				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
 			})
 		},
 
