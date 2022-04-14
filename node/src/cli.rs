@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use sc_cli::{RunCmd};
+use sc_cli::RunCmd;
 
 /// An overarching CLI command definition.
 #[derive(Debug, clap::Parser)]
@@ -37,7 +37,6 @@ pub enum Subcommand {
 	// about = "Decode given block or extrinsic using current native runtime."
 	// )]
 	// Inspect(node_inspect::cli::InspectCmd),
-
 	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[clap(subcommand)]
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),

@@ -29,8 +29,7 @@ use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
 use sc_service::{
-	config::Configuration, error::Error as ServiceError, RpcExtensionBuilder,
-	TaskManager,
+	config::Configuration, error::Error as ServiceError, RpcExtensionBuilder, TaskManager,
 };
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
@@ -169,7 +168,7 @@ pub fn new_partial(config: &Configuration) -> Result<PartialComponents, ServiceE
 	let client = Arc::new(client);
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", None,worker.run());
+		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -320,7 +319,10 @@ pub fn new_full_base(
 		&config.chain_spec,
 	);
 
-	config.network.extra_sets.push(grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
+	config
+		.network
+		.extra_sets
+		.push(grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
@@ -335,7 +337,7 @@ pub fn new_full_base(
 	let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
 		import_setup.1.shared_authority_set().clone(),
-		Vec::default()
+		Vec::default(),
 	));
 
 	let (network, system_rpc_tx, network_starter) =
@@ -434,7 +436,11 @@ pub fn new_full_base(
 		};
 
 		let babe = sc_consensus_babe::start_babe(babe_config)?;
-		task_manager.spawn_essential_handle().spawn_blocking("babe-proposer", Some("block-authoring"),babe);
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"babe-proposer",
+			Some("block-authoring"),
+			babe,
+		);
 	}
 
 	// Spawn authority discovery module.
@@ -461,9 +467,11 @@ pub fn new_full_base(
 				prometheus_registry.clone(),
 			);
 
-		task_manager
-			.spawn_handle()
-			.spawn("authority-discovery-worker", Some("networking"),authority_discovery_worker.run());
+		task_manager.spawn_handle().spawn(
+			"authority-discovery-worker",
+			Some("networking"),
+			authority_discovery_worker.run(),
+		);
 	}
 
 	// if the node isn't actively participating in consensus then it doesn't
@@ -480,7 +488,7 @@ pub fn new_full_base(
 		keystore,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
 		local_role: role,
-		protocol_name: grandpa_protocol_name
+		protocol_name: grandpa_protocol_name,
 	};
 
 	if enable_grandpa {
@@ -502,9 +510,11 @@ pub fn new_full_base(
 
 		// the GRANDPA voter task is considered infallible, i.e.
 		// if it fails we take down the service with it.
-		task_manager
-			.spawn_essential_handle()
-			.spawn_blocking("grandpa-voter", None, grandpa::run_grandpa_voter(grandpa_config)?);
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"grandpa-voter",
+			None,
+			grandpa::run_grandpa_voter(grandpa_config)?,
+		);
 	}
 
 	network_starter.start_network();

@@ -13,22 +13,21 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use std::sync::Arc;
 use frame_benchmarking_cli::BenchmarkCmd;
+use std::sync::Arc;
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 use crate::{
 	chain_spec,
 	cli::{Cli, Subcommand},
 	service,
-	service::new_partial,
+	service::{new_partial, FullClient},
 };
 use node_executor::ExecutorDispatch;
 use node_polkadex_runtime::Block;
+use polkadex_node::command_helper::{inherent_benchmark_data, BenchmarkExtrinsicBuilder};
 use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
-use polkadex_node::command_helper::{BenchmarkExtrinsicBuilder, inherent_benchmark_data};
-use crate::service::FullClient;
 // use node_polkadex_runtime::RuntimeApi;
 
 impl SubstrateCli for Cli {
@@ -56,24 +55,22 @@ impl SubstrateCli for Cli {
 		2017
 	}
 
-    fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-        let spec = match id {
-            "" => {
-                return Err(
-                    "Please specify which chain you want to run, e.g. --dev or --chain=local"
-                        .into(),
-                )
-            }
-            "dev" => Box::new(chain_spec::development_config()),
-            "udon" => Box::new(chain_spec::udon_testnet_config()),
-            "soba" => Box::new(chain_spec::soba_testnet_config()),
-            "mainnet" => Box::new(chain_spec::mainnet_testnet_config()),
-            path => Box::new(chain_spec::ChainSpec::from_json_file(
-                std::path::PathBuf::from(path),
-            )?),
-        };
-        Ok(spec)
-    }
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+		let spec = match id {
+			"" =>
+				return Err(
+					"Please specify which chain you want to run, e.g. --dev or --chain=local"
+						.into(),
+				),
+			"dev" => Box::new(chain_spec::development_config()),
+			"udon" => Box::new(chain_spec::udon_testnet_config()),
+			"soba" => Box::new(chain_spec::soba_testnet_config()),
+			"mainnet" => Box::new(chain_spec::mainnet_testnet_config()),
+			path =>
+				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+		};
+		Ok(spec)
+	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
 		&node_polkadex_runtime::VERSION
@@ -96,42 +93,42 @@ pub fn run() -> Result<()> {
 		//
 		//     runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
 		// },
-		Some(Subcommand::Benchmark(cmd)) =>
-			{
-				let runner = cli.create_runner(cmd)?;
+		Some(Subcommand::Benchmark(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
 
-				runner.sync_run(|config| {
-					let PartialComponents { client, backend, .. } = crate::service::new_partial(&config)?;
+			runner.sync_run(|config| {
+				let PartialComponents { client, backend, .. } =
+					crate::service::new_partial(&config)?;
 
-					// This switch needs to be in the client, since the client decides
-					// which sub-commands it wants to support.
-					match cmd {
-						BenchmarkCmd::Pallet(cmd) => {
-							if !cfg!(feature = "runtime-benchmarks") {
-								return Err(
-									"Runtime benchmarking wasn't enabled when building the node. \
+				// This switch needs to be in the client, since the client decides
+				// which sub-commands it wants to support.
+				match cmd {
+					BenchmarkCmd::Pallet(cmd) => {
+						if !cfg!(feature = "runtime-benchmarks") {
+							return Err(
+								"Runtime benchmarking wasn't enabled when building the node. \
 							You can enable it with `--features runtime-benchmarks`."
-										.into(),
-								)
-							}
+									.into(),
+							)
+						}
 
-							cmd.run::<Block, ExecutorDispatch>(config)
-						},
-						BenchmarkCmd::Block(cmd) => cmd.run(client),
-						BenchmarkCmd::Storage(cmd) => {
-							let db = backend.expose_db();
-							let storage = backend.expose_storage();
+						cmd.run::<Block, ExecutorDispatch>(config)
+					},
+					BenchmarkCmd::Block(cmd) => cmd.run(client),
+					BenchmarkCmd::Storage(cmd) => {
+						let db = backend.expose_db();
+						let storage = backend.expose_storage();
 
-							cmd.run(config, client, db, storage)
-						},
-						BenchmarkCmd::Overhead(cmd) => {
-							let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
+						cmd.run(config, client, db, storage)
+					},
+					BenchmarkCmd::Overhead(cmd) => {
+						let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
 
-							cmd.run(config, client, inherent_benchmark_data()?, Arc::new(ext_builder))
-						},
-					}
-				})
-			},
+						cmd.run(config, client, inherent_benchmark_data()?, Arc::new(ext_builder))
+					},
+				}
+			})
+		},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
 		Some(Subcommand::Verify(cmd)) => cmd.run(),
@@ -194,19 +191,17 @@ pub fn run() -> Result<()> {
 				// we don't need any of the components of new_partial, just a runtime, or a task
 				// manager to do `async_run`.
 				let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
-				let task_manager = sc_service::TaskManager::new(
-					config.task_executor.clone(),
-					registry,
-				).map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+				let task_manager =
+					sc_service::TaskManager::new(config.task_executor.clone(), registry)
+						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
 				Ok((cmd.run::<Block, Executor>(config), task_manager))
 			})
 		},
 
 		#[cfg(not(feature = "try-runtime"))]
-		Some(Subcommand::TryRuntime) => {
-			Err("TryRuntime wasn't enabled when building the node. \
-        You can enable it with `--features try-runtime`.".into())
-		},
+		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
+        You can enable it with `--features try-runtime`."
+			.into()),
 	}
 }
