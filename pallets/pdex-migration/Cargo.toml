@@ -4,7 +4,7 @@ description = 'FRAME pallet for migrating ERC20 PDEX to Native PDEX'
 edition = '2021'
 homepage = 'https://polkadex.trade'
 name = 'pdex-migration'
-version = '1.0.0'
+version = '1.1.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']

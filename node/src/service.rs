@@ -48,9 +48,6 @@ type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
 	grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
-/// The transaction pool type defintion.
-pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
-
 /// Fetch the nonce of the given `account` from the chain state.
 ///
 /// Note: Should only be used for tests.
@@ -69,6 +66,7 @@ pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) -> u32 
 /// state of the best block.
 ///
 /// Note: Should only be used for tests.
+#[allow(dead_code)]
 pub fn create_extrinsic(
 	client: &FullClient,
 	sender: sp_core::sr25519::Pair,

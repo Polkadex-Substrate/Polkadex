@@ -65,7 +65,7 @@ sp-session = { default-features = false, git = "https://github.com/paritytech/su
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features =false}
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
 
 #added
@@ -95,11 +95,15 @@ orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-modul
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'polkadot-v0.9.19', default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 
+# Try Runtime
+frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", optional = true, default-features = false }
+
+
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"}
 
 
@@ -160,7 +164,9 @@ std = [
 
     "orml-vesting/std",
     "polkadex-primitives/std",
-    "pdex-migration/std"
+    "pdex-migration/std",
+
+    "frame-try-runtime/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
@@ -197,4 +203,38 @@ runtime-benchmarks = [
     "hex-literal",
     "frame-election-provider-support/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks"
+]
+
+
+try-runtime = [
+    "frame-executive/try-runtime",
+    "frame-try-runtime",
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "pallet-election-provider-multi-phase/try-runtime",
+    "pallet-babe/try-runtime",
+    "pallet-balances/try-runtime",
+    "pallet-bounties/try-runtime",
+    "pallet-collective/try-runtime",
+    "pallet-elections-phragmen/try-runtime",
+    "pallet-grandpa/try-runtime",
+    "pallet-identity/try-runtime",
+    "pallet-im-online/try-runtime",
+    "pallet-indices/try-runtime",
+    "pallet-child-bounties/try-runtime",
+    "pallet-preimage/try-runtime",
+    "pallet-bags-list/try-runtime",
+    "pallet-membership/try-runtime",
+    "pallet-multisig/try-runtime",
+    "pallet-proxy/try-runtime",
+    "pallet-scheduler/try-runtime",
+    'pallet-society/try-runtime',
+    "pallet-staking/try-runtime",
+    "pallet-timestamp/try-runtime",
+    "pallet-tips/try-runtime",
+    "pallet-treasury/try-runtime",
+    "pallet-democracy/try-runtime",
+    "pallet-utility/try-runtime",
+    "orml-vesting/try-runtime",
+    "pdex-migration/try-runtime"
 ]

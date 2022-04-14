@@ -187,7 +187,6 @@ pub fn run() -> Result<()> {
 			})
 		},
 
-		/* --snip-- */
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
