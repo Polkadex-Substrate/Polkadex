@@ -1,3 +1,4 @@
+use codec::{Encode, MaxEncodedLen};
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -11,6 +12,8 @@ use sp_runtime::{
 use crate::pallet as pdex_migration;
 
 use frame_support::traits::GenesisBuild;
+use scale_info::{Type, TypeInfo};
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -22,8 +25,8 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
+		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
+		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
 		PDEXMigration: pdex_migration::{Pallet, Call, Config<T>, Storage, Event<T>},
 	}
 );
@@ -55,6 +58,7 @@ impl system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 pub const PDEX: Balance = 1000_000_000_000;
 
@@ -75,13 +79,15 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 parameter_types! {
-    pub const LockPeriod: u64 = 201600;
+	pub const LockPeriod: u64 = 201600;
+	pub const MaxRelayers: u32 = 3;
 }
+
 impl pdex_migration::Config for Test {
 	type Event = Event;
+	type MaxRelayers = MaxRelayers;
 	type LockPeriod = LockPeriod;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
-
 }
 impl pallet_sudo::Config for Test {
 	type Event = Event;
@@ -91,11 +97,15 @@ impl pallet_sudo::Config for Test {
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let alice = 1u64;
-	let mut t= system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	pallet_balances::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
-	pallet_sudo::GenesisConfig::<Test>{
-		key: alice
-	}.assimilate_storage(&mut t).unwrap();
-	pdex_migration::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
+	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	pallet_balances::GenesisConfig::<Test>::default()
+		.assimilate_storage(&mut t)
+		.unwrap();
+	pallet_sudo::GenesisConfig::<Test> { key: Some(alice) }
+		.assimilate_storage(&mut t)
+		.unwrap();
+	pdex_migration::GenesisConfig::<Test>::default()
+		.assimilate_storage(&mut t)
+		.unwrap();
 	t.into()
 }

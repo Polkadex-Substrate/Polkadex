@@ -10,5 +10,5 @@ members = [
 
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
-orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git",  branch="mainnet-release"}
+orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git",  branch="polkadot-v0.9.19"}
 
