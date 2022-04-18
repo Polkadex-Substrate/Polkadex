@@ -1,0 +1,1 @@
+RUST_LOG=remote-ext=debug,runtime=trace,executor=trace,bags-list=trace ../target/release/polkadex-node try-runtime on-runtime-upgrade live --uri ws://localhost:9944
