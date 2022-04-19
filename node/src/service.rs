@@ -528,13 +528,13 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 
 #[cfg(test)]
 mod tests {
-	use crate::service::{new_full_base, new_light_base, NewFullBase};
+	use crate::service::{new_full_base, NewFullBase};
 	use codec::Encode;
+	use polkadex_primitives::{Block, DigestItem, Signature};
 	use node_polkadex_runtime::{
 		constants::{currency::CENTS, time::SLOT_DURATION},
 		Address, BalancesCall, Call, UncheckedExtrinsic,
 	};
-	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
 	use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};
 	use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
@@ -543,26 +543,23 @@ mod tests {
 	use sc_service_test::TestNetNode;
 	use sc_transaction_pool_api::{ChainEvent, MaintainedTransactionPool};
 	use sp_consensus::{BlockOrigin, Environment, Proposer};
-	use sp_core::{crypto::Pair as CryptoPair, Public, H256};
+	use sp_core::{crypto::Pair as CryptoPair, Public};
 	use sp_inherents::InherentDataProvider;
 	use sp_keyring::AccountKeyring;
 	use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-	use sp_runtime::{
-		generic::{BlockId, Digest, Era, SignedPayload},
-		key_types::BABE,
-		traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
-		RuntimeAppPublic,
-	};
+	use sp_runtime::{generic::{BlockId, Digest, SignedPayload}, key_types::BABE, traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify}, RuntimeAppPublic, generic};
 	use sp_timestamp;
-	use std::{borrow::Cow, convert::TryInto, sync::Arc};
+	use std::{borrow::Cow, sync::Arc};
 
 	type AccountPublic = <Signature as Verify>::Signer;
 
 	#[test]
-	#[ignore]
 	// It is "ignored", but the node-cli ignored tests are running on the CI.
 	// This can be run locally with `cargo test --release -p node-cli test_sync -- --ignored`.
+	#[ignore]
 	fn test_sync() {
+		sp_tracing::try_init_simple();
+
 		let keystore_path = tempfile::tempdir().expect("Creates keystore path");
 		let keystore: SyncCryptoStorePtr =
 			Arc::new(LocalKeystore::open(keystore_path.path(), None).expect("Creates keystore"));
@@ -602,15 +599,6 @@ mod tests {
 				);
 				Ok((node, setup_handles.unwrap()))
 			},
-			|config| {
-				let (keep_alive, _, client, network, transaction_pool) = new_light_base(config)?;
-				Ok(sc_service_test::TestNetComponents::new(
-					keep_alive,
-					client,
-					network,
-					transaction_pool,
-				))
-			},
 			|service, &mut (ref mut block_import, ref babe_link)| {
 				let parent_id = BlockId::number(service.client().chain_info().best_number);
 				let parent_header = service.client().header(&parent_id).unwrap().unwrap();
@@ -629,7 +617,7 @@ mod tests {
 					None,
 				);
 
-				let mut digest = Digest::<H256>::default();
+				let mut digest = Digest::default();
 
 				// even though there's only one authority some slots might be empty,
 				// so we must keep trying the next slots until we can claim one.
@@ -650,13 +638,16 @@ mod tests {
 						.epoch_changes()
 						.shared_data()
 						.epoch_data(&epoch_descriptor, |slot| {
-							sc_consensus_babe::Epoch::genesis(&babe_link.config(), slot)
+							sc_consensus_babe::Epoch::genesis(
+								babe_link.config().genesis_config(),
+								slot,
+							)
 						})
 						.unwrap();
 
 					if let Some(babe_pre_digest) =
-						sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
-							.map(|(digest, _)| digest)
+					sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
+						.map(|(digest, _)| digest)
 					{
 						break (babe_pre_digest, epoch_descriptor)
 					}
@@ -682,8 +673,8 @@ mod tests {
 						.propose(inherent_data, digest, std::time::Duration::from_secs(1), None)
 						.await
 				})
-				.expect("Error making test block")
-				.block;
+					.expect("Error making test block")
+					.block;
 
 				let (new_header, new_body) = new_block.deconstruct();
 				let pre_hash = new_header.hash();
@@ -696,10 +687,10 @@ mod tests {
 					&alice.to_public_crypto_pair(),
 					&to_sign,
 				)
-				.unwrap()
-				.unwrap()
-				.try_into()
-				.unwrap();
+					.unwrap()
+					.unwrap()
+					.try_into()
+					.unwrap();
 				let item = <DigestItem as CompatibleDigestItem>::babe_seal(signature);
 				slot += 1;
 
@@ -727,28 +718,24 @@ mod tests {
 				};
 				let signer = charlie.clone();
 
-				let function = Call::Balances(BalancesCall::transfer(to.into(), amount));
+				let function =
+					Call::Balances(BalancesCall::transfer { dest: to.into(), value: amount });
 
-				let check_spec_version = frame_system::CheckSpecVersion::new();
-				let check_tx_version = frame_system::CheckTxVersion::new();
-				let check_genesis = frame_system::CheckGenesis::new();
-				let check_era = frame_system::CheckEra::from(Era::Immortal);
-				let check_nonce = frame_system::CheckNonce::from(index);
-				let check_weight = frame_system::CheckWeight::new();
-				let payment = pallet_transaction_payment::ChargeTransactionPayment::from(0);
-				let extra = (
-					check_spec_version,
-					check_tx_version,
-					check_genesis,
-					check_era,
-					check_nonce,
-					check_weight,
-					payment,
+				let tip = 0;
+				let extra: node_polkadex_runtime::SignedExtra = (
+					// frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
+					frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
+					frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
+					frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
+					frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(generic::Era::Immortal),
+					frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(index),
+					frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
+					pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
 				);
 				let raw_payload = SignedPayload::from_raw(
 					function,
 					extra,
-					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
+					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (),()),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();
@@ -762,6 +749,8 @@ mod tests {
 	#[test]
 	#[ignore]
 	fn test_consensus() {
+		sp_tracing::try_init_simple();
+
 		sc_service_test::consensus(
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
 			|config| {
@@ -769,15 +758,6 @@ mod tests {
 					new_full_base(config, |_, _| ())?;
 				Ok(sc_service_test::TestNetComponents::new(
 					task_manager,
-					client,
-					network,
-					transaction_pool,
-				))
-			},
-			|config| {
-				let (keep_alive, _, client, network, transaction_pool) = new_light_base(config)?;
-				Ok(sc_service_test::TestNetComponents::new(
-					keep_alive,
 					client,
 					network,
 					transaction_pool,

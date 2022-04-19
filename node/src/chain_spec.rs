@@ -1144,6 +1144,7 @@ pub(crate) mod tests {
 			None,
 			None,
 			None,
+			None,
 			Default::default(),
 		)
 	}
@@ -1156,6 +1157,7 @@ pub(crate) mod tests {
 			ChainType::Development,
 			soba_testnet_genesis,
 			vec![],
+			None,
 			None,
 			None,
 			None,
