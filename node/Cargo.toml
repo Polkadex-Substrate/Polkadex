@@ -113,6 +113,7 @@ sc-keystore =  { git = "https://github.com/paritytech/substrate", branch = "polk
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 sc-consensus-babe =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 sc-consensus-epochs =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
+sp-tracing =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 
 [features]
 default = []

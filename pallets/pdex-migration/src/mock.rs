@@ -1,4 +1,3 @@
-use codec::{Encode, MaxEncodedLen};
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -12,7 +11,6 @@ use sp_runtime::{
 use crate::pallet as pdex_migration;
 
 use frame_support::traits::GenesisBuild;
-use scale_info::{Type, TypeInfo};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
