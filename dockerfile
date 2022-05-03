@@ -9,9 +9,9 @@ RUN cd Polkadex && \
     apt-get install -y jq && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
         export PATH="$PATH:$HOME/.cargo/bin" && \
-        rustup toolchain install nightly-2021-06-28 && \
-        rustup target add wasm32-unknown-unknown --toolchain nightly-2021-06-28 && \
-        cargo +nightly-2021-06-28 build --release
+        rustup toolchain install nightly-2021-11-11 && \
+        rustup target add wasm32-unknown-unknown --toolchain nightly-2021-11-11 && \
+        cargo +nightly-2021-11-11 build --release
 
 # /\-Build Stage | Final Stage-\/
 
