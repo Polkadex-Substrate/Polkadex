@@ -95,7 +95,6 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-mod voter_bags;
 mod weights;
 
 // Make the WASM binary available.
@@ -121,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 274,
+	spec_version: 276,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -256,7 +255,7 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 use scale_info::TypeInfo;
-use sp_npos_elections::{ExtendedBalance, VoteWeight};
+use sp_npos_elections::{ExtendedBalance};
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
@@ -582,7 +581,7 @@ impl pallet_staking::Config for Runtime {
 	type MaxNominations = MaxNominations;
 	type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
 	type BenchmarkingConfig = StakingBenchmarkingConfig;
-	type VoterList = BagsList;
+	type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Runtime>;
 	type MaxUnlockingChunks = ConstU32<32>;
 }
 
@@ -692,7 +691,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type OffchainRepeat = OffchainRepeat;
 	type MinerTxPriority = MultiPhaseUnsignedPriority;
 	type DataProvider = Staking;
-	type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
+	type Fallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
 	type BenchmarkingConfig = ElectionProviderBenchmarkConfig;
 	type ForceOrigin = EnsureOneOf<
 		EnsureRoot<AccountId>,
@@ -803,7 +802,7 @@ parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * PDEX;
 	pub const SpendPeriod: BlockNumber = 24 * DAYS;
-	pub const Burn: Permill = Permill::from_percent(1);
+	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
 	pub const TipReportDepositBase: Balance = 1 * PDEX;
@@ -864,18 +863,6 @@ impl pallet_treasury::Config for Runtime {
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
 	type MaxApprovals = MaxApprovals;
 	type ProposalBondMaximum = ();
-}
-
-parameter_types! {
-	pub const BagThresholds: &'static [u64] = &voter_bags::THRESHOLDS;
-}
-
-impl pallet_bags_list::Config for Runtime {
-	type Event = Event;
-	type WeightInfo = pallet_bags_list::weights::SubstrateWeight<Runtime>;
-	type BagThresholds = BagThresholds;
-	type ScoreProvider = Staking;
-	type Score = VoteWeight;
 }
 
 parameter_types! {
@@ -1217,7 +1204,6 @@ construct_runtime!(
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
-		BagsList: pallet_bags_list = 32,
 		ChildBounties: pallet_child_bounties = 33,
 		// Pallets
 		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
@@ -1263,7 +1249,6 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	// pallet_bags_list::migrations::CheckCounterPrefix<Runtime>,
 >;
 
 impl_runtime_apis! {
