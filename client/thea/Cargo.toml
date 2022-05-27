@@ -1,0 +1,55 @@
+[package]
+name = "thea-client"
+version = "0.1.0"
+edition = "2021"
+build ="build.rs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+hex = "0.4"
+log = "0.4"
+parking_lot = "0.11"
+thiserror = "1.0"
+
+codec = { version = "3.0.0", package = "parity-scale-codec", features = ["derive"] }
+prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch ="polkadot-v0.9.19" }
+frame-support = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-io = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-api = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-application-crypto = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-arithmetic = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-blockchain = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-consensus = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-core = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate', features = ["full_crypto"] }
+sp-keystore = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-runtime = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-inherents = { branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+sc-client-api = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sc-keystore = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+
+multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa.git", branch = "master"}
+curv = { package = "curv-kzen", version = "0.9", default-features = false }
+round-based = { version = "0.1.0", features = [] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.64"
+thea-primitives = { path = "../../primitives/thea" }
+rand = "0.8.4"
+lazy_static = "1.4.0"
+async-trait = { version = "0.1.50"}
+#libsecp256k1 = { version = "0.7", default-features = false }
+secp256k1 = {version="0.22.1", features = ["recovery"]}
+
+[dev-dependencies]
+strum = { version = "0.21", features = ["derive"] }
+sc-network = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sc-network-test = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sc-consensus = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sp-tracing = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", package = "sc-finality-grandpa" }
+sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", package = "sp-finality-grandpa" }
+thea-primitives = { path = "../../primitives/thea" }
+serde = { version = "1", features = ["derive"] }
+substrate-test-runtime-client = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
+tokio = { version = "1.17.0" }
+tempfile = "*"
