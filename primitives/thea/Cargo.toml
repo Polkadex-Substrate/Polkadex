@@ -1,0 +1,46 @@
+[package]
+name = "thea-primitives"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { version = "3.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+sp-api = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+sp-application-crypto = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+sp-core = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+sp-runtime = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+sp-std = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+sp-inherents = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+frame-system = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+frame-support = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'polkadot-v0.9.19', default-features = false }
+libsecp256k1 = { version = "0.6", default-features = false, features = ["static-context"] }
+sp-runtime-interface = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+thiserror = { version = "1.0.26", optional = true }
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+
+[dev-dependencies]
+hex-literal = "0.3"
+
+[features]
+default = ["std"]
+std = [
+    "libsecp256k1/std",
+    "sp-runtime-interface/std",
+    "codec/std",
+#    "bitcoin/std",
+    "sp-api/std",
+    "sp-application-crypto/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-inherents/std",
+    "thiserror",
+    "scale-info/std",
+    "frame-system/std",
+    "frame-support/std",
+    "polkadex-primitives/std"
+]
