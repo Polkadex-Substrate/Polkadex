@@ -1,3 +1,4 @@
+
 use frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
@@ -11,7 +12,7 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public, H160};
 use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
@@ -19,7 +20,7 @@ use sp_runtime::{
 
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
-	constants::currency::PDEX, wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig,
+	constants::currency::PDEX, wasm_binary_unwrap, AssetsConfig, AuthorityDiscoveryConfig, BabeConfig,
 	BalancesConfig, CouncilConfig, IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig,
 	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
 	TechnicalCommitteeConfig,
@@ -346,6 +347,8 @@ pub fn testnet_genesis(
 		"Total Supply Not equal to 20 million"
 	);
 	let vesting = get_vesting_terms();
+	let ether_address: H160 = "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee".parse().unwrap();
+	let ether_asset_id: u128 = create_asset_id(ether_address);
 
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary_unwrap().to_vec() },
@@ -394,7 +397,21 @@ pub fn testnet_genesis(
 		treasury: Default::default(),
 		orml_vesting: OrmlVestingConfig { vesting },
 		pdex_migration: PDEXMigrationConfig { max_tokens: ERC20_PDEX_SUPPLY, operational: false },
+		assets: AssetsConfig {
+			assets: vec![(ether_asset_id, root_key.clone(), false, 1)], /* FIXME What should be
+			                                                             * the min balance and
+			                                                             * is_sufficient? */
+			metadata: vec![],
+			accounts: vec![],
+		},
 	}
+}
+
+pub fn create_asset_id(token: H160) -> u128 {
+	let mut temp = [0u8; 16];
+	temp.copy_from_slice(&token[0..16]);
+	//temp.copy_fro	m_slice(token.as_fixed_bytes().as_ref());
+	u128::from_le_bytes(temp)
 }
 
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {
