@@ -1068,6 +1068,31 @@ impl pallet_grandpa::Config for Runtime {
 	type WeightInfo = weights::pallet_grandpa::WeightInfo<Runtime>;
 	type MaxAuthorities = MaxAuthorities;
 }
+parameter_types! {
+	pub const AssetDeposit: Balance = 100 * DOLLARS;
+	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const StringLimit: u32 = 50;
+	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
+	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+}
+
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type AssetId = u128;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRootOrHalfCouncil;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+}
+
 
 parameter_types! {
 	pub const BasicDeposit: Balance = deposit(1,258);       // 258 bytes on-chain
@@ -1168,6 +1193,40 @@ impl pdex_migration::pallet::Config for Runtime {
 	type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
+	pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
+}
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
+parameter_types! {
+    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
+    pub const GetMaxSupply: Balance = 2_000_000_u128;
+    pub const OnePDEX : u128 = PDEX;
+    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+    pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
+} 
+
+impl polkadex_ido::Config for Runtime {
+    type Event = Event; // check 
+    type TreasuryAccountId = TreasuryModuleAccount; // TODO! 
+    type GovernanceOrigin = EnsureRootOrTreasury; // Done 
+    type IDOPDXAmount = GetIDOPDXAmount; // Done 
+    type MaxSupply = GetMaxSupply; // Done 
+    type Randomness = RandomnessCollectiveFlip; // Done 
+    type RandomnessSource = RandomnessCollectiveFlip; // Done 
+    type ModuleId = PolkadexIdoPalletId; // Done 
+    type Currency = Balances; // Done
+    type OnePDEX = OnePDEX; // Done 
+    type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>; // Done 
+    type DefaultVotingPeriod = DefaultVotingPeriod; // Done 
+    type DefaultInvestorLockPeriod = DefaultInvestorLockPeriod; // Done 
+    type AssetManager = Assets; // Done
+    type ExistentialDeposit = ExistentialDeposit; // Done 
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1208,6 +1267,9 @@ construct_runtime!(
 		// Pallets
 		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
 		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>, Config<T>} = 39,
+		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 36,
 	}
 );
 /// Digest item type.
