@@ -6,7 +6,8 @@ members = [
     'node',
     'runtime',
     "pallets/pdex-migration",
-    "pallets/chainbridge"
+    "pallets/chainbridge",
+    "pallets/asset-handler"
 ]
 
 

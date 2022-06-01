@@ -86,6 +86,7 @@ frame-system-rpc-runtime-api = { default-features = false, git = "https://github
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
 frame-system-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
 pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
+pallet-assets = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
 
 
 # ORML Pallets
@@ -94,6 +95,8 @@ orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-modul
 # Local Dependecies
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'polkadot-v0.9.19', default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
+chainbridge = { path = "../pallets/chainbridge", default-features = false }
+asset-handler = { path = "../pallets/asset-handler", default-features = false }
 
 # Try Runtime
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", optional = true, default-features = false }
@@ -167,6 +170,9 @@ std = [
     "pdex-migration/std",
 
     "frame-try-runtime/std",
+    "chainbridge/std",
+    "asset-handler/std",
+    "pallet-assets/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
