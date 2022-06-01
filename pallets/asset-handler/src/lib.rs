@@ -85,16 +85,27 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Migration is not operational yet
 		NotOperational,
+		/// MinterMustBeRelayer
+		MinterMustBeRelayer,
+		/// ChainIsNotWhitelisted
+		ChainIsNotWhitelisted,
+		/// NotEnoughBalance
+		NotEnoughBalance
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-	// These functions materialize as "extrinsics", which are often compared to transactions.
-	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+
+		/// Creates new Asset where AssetId is derived from chain_id and contract Address
+		///
+		/// # Parameters
+		///
+		/// * `chain_id`: Asset's native chain
+		/// * `contract_add`: Asset's actual address at native chain
 		#[pallet::weight(195_000_000)]
 		pub fn create_asset(
 			origin: OriginFor<T>,
@@ -113,28 +124,52 @@ pub mod pallet {
 			Ok(())
 		}
 
+        /// Mints Asset into Recipient's Account
+		/// Only Relayers can call it.
+		///
+		/// # Parameters
+		///
+		/// * `destination_add`: Recipient's Account
+		/// * `amount`: Amount to be minted in Recipient's Account
+		/// * `rid`: Resource ID
 		#[pallet::weight(195_000_000)]
 		pub fn mint_asset(origin: OriginFor<T>, destination_add: T::AccountId, amount: BalanceOf<T>, rid: ResourceId) -> DispatchResult{
 			let sender = ensure_signed(origin)?;
-			ensure!(sender == chainbridge::Pallet::<T>::account_id(), Error::<T>::NotOperational);
+			ensure!(chainbridge::Pallet::<T>::is_relayer(&sender), Error::<T>::MinterMustBeRelayer);
 			T::AssetManager::mint_into(Self::convert_asset_id(rid), &destination_add, amount.saturated_into::<u128>())?;
 			Self::deposit_event(Event::<T>::AssetDeposited(destination_add, rid, amount));
 			Ok(())
 		}
 
+		/// Transfers Asset to Destination Chain.
+		///
+		/// # Parameters
+		///
+		/// * `chain_id`: Asset's native chain
+		/// * `contract_add`: Asset's actual address at native chain
+		/// * `amount`: Amount to be burned and transferred from Sender's Account
+		/// * `recipient`: recipient
 		#[pallet::weight(195_000_000)]
 		pub fn withdraw(origin: OriginFor<T>, chain_id: BridgeChainId, contract_add: H160, amount: BalanceOf<T>, recipient: H160) -> DispatchResult{
 			let sender = ensure_signed(origin)?;
+			ensure!(chainbridge::Pallet::<T>::chain_whitelisted(chain_id), Error::<T>::ChainIsNotWhitelisted);
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
-			ensure!(T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true)>=amount.saturated_into::<u128>(), Error::<T>::NotOperational);
+			ensure!(T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true)>=amount.saturated_into::<u128>(), Error::<T>::NotEnoughBalance);
 			let fee = Self::fee_calculation(chain_id, amount);
-			T::Currency::transfer(&sender, &sender, fee, ExistenceRequirement::KeepAlive)?;
+			T::Currency::transfer(&sender, &chainbridge::Pallet::<T>::account_id(), fee, ExistenceRequirement::KeepAlive)?;
 			T::AssetManager::burn_from(Self::convert_asset_id(rid), &sender, amount.saturated_into::<u128>())?;
 			chainbridge::Pallet::<T>::transfer_fungible(chain_id, rid, recipient.0.to_vec(), Self::convert_balance_to_eth_type(amount))?;
 			Self::deposit_event(Event::<T>::AssetWithdrawn(contract_add, rid, amount));
 			Ok(())
 		}
 
+		/// Updates fee for given Chain id.
+		///
+		/// # Parameters
+		///
+		/// * `chain_id`: Asset's native chain
+		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
+		/// * `fee_scale`: Scale to find fee depending on amount.
 		#[pallet::weight(195_000_000)]
 		pub fn update_fee(origin: OriginFor<T>, chain_id: BridgeChainId, min_fee: BalanceOf<T>, fee_scale: u32) -> DispatchResult{
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
@@ -145,9 +180,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub fn remove_fradulent_tokens(beneficiary: T::AccountId) -> Result<(), DispatchError> {
-			Ok(())
-		}
 
 		fn convert_balance_to_eth_type(balance: BalanceOf<T>) -> U256 {
 			let balance: u128 = balance.unique_saturated_into();
