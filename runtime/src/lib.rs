@@ -1168,6 +1168,54 @@ impl pdex_migration::pallet::Config for Runtime {
 	type WeightInfo = weights::pdex_migration::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+    pub const ChainId: u8 = 1;
+    pub const ProposalLifetime: BlockNumber = 1000;
+	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+}
+
+impl chainbridge::Config for Runtime {
+	type Event = Event;
+	type BridgeCommitteeOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type Proposal = Call;
+	type BridgeChainId = ChainId;
+	type ProposalLifetime = ProposalLifetime;
+	//type PalletId = ChainbridgePalletId;
+}
+
+parameter_types! {
+	pub const AssetDeposit: Balance = 100 * DOLLARS;
+	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const StringLimit: u32 = 50;
+	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
+	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+}
+
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type AssetId = u128;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRootOrHalfCouncil;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+}
+
+impl asset_handler::pallet::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type AssetManager = Assets;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type TreasuryPalletId = TreasuryPalletId;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1208,6 +1256,9 @@ construct_runtime!(
 		// Pallets
 		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
 		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 34,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 35,
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 36
 	}
 );
 /// Digest item type.
