@@ -160,6 +160,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 
 [[package]]
+name = "asset-handler"
+version = "1.1.0"
+dependencies = [
+ "chainbridge",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-sudo",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "async-attributes"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -778,6 +797,24 @@ dependencies = [
  "cipher",
  "poly1305",
  "zeroize",
+]
+
+[[package]]
+name = "chainbridge"
+version = "0.0.3"
+dependencies = [
+ "blake2-rfc",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -3881,6 +3918,8 @@ dependencies = [
 name = "node-polkadex-runtime"
 version = "3.0.0"
 dependencies = [
+ "asset-handler",
+ "chainbridge",
  "frame-benchmarking",
  "frame-election-provider-support",
  "frame-executive",
@@ -3892,6 +3931,7 @@ dependencies = [
  "hex-literal",
  "log",
  "orml-vesting",
+ "pallet-assets",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",

@@ -3,7 +3,7 @@ authors = ['Polkadex Authors']
 description = 'FRAME pallet for migrating ERC20 PDEX to Native PDEX'
 edition = '2021'
 homepage = 'https://polkadex.trade'
-name = 'pdex-migration'
+name = 'asset-handler'
 version = '1.1.0'
 
 [package.metadata.docs.rs]
@@ -19,14 +19,18 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
+chainbridge = {path = "../chainbridge", default-features = false}
+
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"}
+
 
 [features]
 default = ['std']
@@ -38,13 +42,6 @@ std = [
 	'sp-runtime/std',
 	'pallet-balances/std',
 	'pallet-sudo/std',
+	'chainbridge/std',
+	'pallet-assets/std'
 ]
-runtime-benchmarks = [
-    "frame-benchmarking",
-    'frame-support/runtime-benchmarks',
-    'frame-system/runtime-benchmarks',
-    'sp-runtime/runtime-benchmarks',
-    'pallet-balances/runtime-benchmarks',
-	# 'sp-io/std',
-]
-try-runtime = ["frame-support/try-runtime"]
