@@ -8,10 +8,10 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use crate::pallet as pdex_migration;
-
+use crate::pallet as asset_handler;
+use frame_system::{EnsureRoot, EnsureSigned};
 use frame_support::traits::GenesisBuild;
-
+use frame_support::PalletId;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -23,9 +23,10 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
-		PDEXMigration: pdex_migration::{Pallet, Call, Config<T>, Storage, Event<T>},
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
+		AssetHandler: asset_handler::{Pallet, Call, Storage, Event<T>}
 	}
 );
 parameter_types! {
@@ -81,15 +82,52 @@ parameter_types! {
 	pub const MaxRelayers: u32 = 3;
 }
 
-impl pdex_migration::Config for Test {
-	type Event = Event;
-	type MaxRelayers = MaxRelayers;
-	type LockPeriod = LockPeriod;
-	type WeightInfo = crate::weights::WeightInfo<Test>;
+parameter_types! {
+	pub const AssetDeposit: Balance = 100;
+	pub const ApprovalDeposit: Balance = 1;
+	pub const StringLimit: u32 = 50;
+	pub const MetadataDepositBase: Balance = 10;
+	pub const MetadataDepositPerByte: Balance = 1;
 }
-impl pallet_sudo::Config for Test {
+
+impl pallet_assets::Config for Test {
 	type Event = Event;
-	type Call = Call;
+	type Balance = Balance;
+	type AssetId = u128;
+	type Currency = Balances;
+	type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const ChainId: u8 = 1;
+    pub const ProposalLifetime: u64 = 1000;
+	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+}
+
+impl chainbridge::Config for Test {
+	type Event = Event;
+	type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type Proposal = Call;
+	type BridgeChainId = ChainId;
+	type ProposalLifetime = ProposalLifetime;
+	//type PalletId = ChainbridgePalletId;
+}
+
+impl asset_handler::Config for Test {
+	type Event = Event;
+	type Currency = Balances;
+	type AssetManager = Assets;
+	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type TreasuryPalletId = ChainbridgePalletId;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -97,12 +135,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let alice = 1u64;
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_balances::GenesisConfig::<Test>::default()
-		.assimilate_storage(&mut t)
-		.unwrap();
-	pallet_sudo::GenesisConfig::<Test> { key: Some(alice) }
-		.assimilate_storage(&mut t)
-		.unwrap();
-	pdex_migration::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)
 		.unwrap();
 	t.into()
