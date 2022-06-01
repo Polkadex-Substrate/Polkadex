@@ -1268,7 +1268,7 @@ construct_runtime!(
 		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
 		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
-		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>, Config<T>} = 39,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 39,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 36,
 	}
 );
