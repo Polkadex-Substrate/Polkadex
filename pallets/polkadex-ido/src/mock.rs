@@ -25,7 +25,6 @@ use frame_support::{parameter_types, traits::SortedMembers};
 use frame_support_test::TestRandomness;
 use frame_system::EnsureSignedBy;
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::arithmetic::Zero;
 use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
