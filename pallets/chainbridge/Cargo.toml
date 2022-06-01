@@ -21,6 +21,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+blake2-rfc = { version = "0.2.18", default-features = false }
 
 [features]
 default = ['std']
