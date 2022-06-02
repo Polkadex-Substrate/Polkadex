@@ -18,9 +18,6 @@ sp-io = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-
 sp-core = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-std = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
-orml-tokens = {  git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false,  branch="polkadot-v0.9.19"}
-orml-currencies = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false,  branch="polkadot-v0.9.19" }
-orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", default-features = false,  branch="polkadot-v0.9.19" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",  branch="polkadot-v0.9.19" , default-features = false }
@@ -45,8 +42,6 @@ std = [
     "sp-core/std",
     "sp-std/std",
     "sp-io/std",
-    "orml-tokens/std",
-    "orml-currencies/std",
     "pallet-balances/std",
     "sp-runtime/std",
     "polkadex-primitives/std",

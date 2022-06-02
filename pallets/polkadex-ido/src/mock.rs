@@ -24,8 +24,6 @@ use frame_support::{traits::{Contains, Everything}};
 use frame_support::{parameter_types, traits::SortedMembers};
 use frame_support_test::TestRandomness;
 use frame_system::EnsureSignedBy;
-use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
 use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
 use sp_runtime::{
@@ -46,8 +44,6 @@ frame_support::construct_runtime!(
     {
         System: frame_system::{Pallet, Call, Storage, Event<T>},
         PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>},
-        Currencies: orml_currencies::{Pallet, Call, Event<T>},
-        OrmlToken: orml_tokens::{Pallet, Call, Storage, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
         PalletBalances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
     }
@@ -116,14 +112,6 @@ parameter_types! {
     pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
 }
 
-impl orml_currencies::Config for Test {
-    type Event = ();
-    type MultiCurrency = OrmlToken;
-    type NativeCurrency = AdaptedBasicCurrency;
-    type GetNativeCurrencyId = GetNativeCurrencyId;
-    type WeightInfo = ();
-}
-
 parameter_types! {
     pub const TresuryAccount: u64 = 9;
     pub const PolkadexIdoModuleId: PalletId = PalletId(*b"polk/ido");
@@ -162,8 +150,6 @@ impl Config for Test {
     type ExistentialDeposit = ExistentialDeposit;
 }
 
-pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, PalletBalances, i128, u128>;
-
 parameter_types! {
     pub TreasuryModuleAccount: u64 = 1;
 }
@@ -173,24 +159,6 @@ impl Contains<AccountId> for DustRemovalWhitelist {
     fn contains(a: &AccountId) -> bool {
         *a == TreasuryModuleAccount::get()
     }
-}
-
-parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-        Zero::zero()
-    };
-}
-
-impl orml_tokens::Config for Test {
-    type Event = ();
-    type MaxLocks = MaxLocks;
-    type DustRemovalWhitelist = DustRemovalWhitelist;
-    type Balance = Balance;
-    type Amount = i128;
-    type CurrencyId = AssetId;
-    type WeightInfo = ();
-    type ExistentialDeposits = ExistentialDeposits;
-    type OnDust = orml_tokens::TransferDust<Test, TreasuryModuleAccount>;
 }
 
 parameter_types! {
