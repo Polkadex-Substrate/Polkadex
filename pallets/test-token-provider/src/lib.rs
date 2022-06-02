@@ -62,13 +62,19 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight((10_000, DispatchClass::Normal))]
+		#[pallet::weight((10_000, DispatchClass::Operational))]
 		pub fn credit_account_with_tokens_unsigned(
 			origin: OriginFor<T>,
 			account: T::AccountId,
-		) -> dispatch::DispatchResult {
+		) -> DispatchResultWithPostInfo {
+			// Will this fail? 
+			T::AssetManager::mint_into(
+				12,
+				&account,
+				100,
+			)?;
 			// Code here to mint tokens
-			Ok(())
+			Ok(().into())
 		}
 	}
 
