@@ -2,6 +2,11 @@
 #[cfg(test)]
 mod mock;
 
+#[cfg(test)]
+mod test;
+
+pub use pallet::*;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use codec::{Decode, Encode, MaxEncodedLen};
@@ -72,11 +77,20 @@ pub mod pallet {
 			account: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			// Will this fail? 
-			T::AssetManager::mint_into(
+			if let Ok(()) = T::AssetManager::mint_into(
 				12,
 				&account,
 				100,
-			)?;
+			){
+
+			} else {
+				T::AssetManager::create(
+					12,
+					account,
+					true,
+					100,
+				)?;
+			}
 			// Code here to mint tokens
 			Ok(().into())
 		}
@@ -103,4 +117,6 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {}
+
+	
 }

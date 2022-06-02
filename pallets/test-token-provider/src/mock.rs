@@ -33,6 +33,7 @@ frame_support::construct_runtime!(
 		System: system::{Pallet, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+        Token: token::{Pallet, Call, Event<T>},
 
 	}
 );
@@ -142,6 +143,13 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
 }
+
+impl token::Config for Test {
+	type Event = Event;
+	type AssetManager = Assets;
+    type Balance = Balance;
+}
+
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
