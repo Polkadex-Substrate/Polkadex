@@ -1,3 +1,7 @@
+
+#[cfg(test)]
+mod mock;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use codec::{Decode, Encode, MaxEncodedLen};
@@ -62,7 +66,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight((10_000, DispatchClass::Operational))]
+		#[pallet::weight((10_000, DispatchClass::Normal))]
 		pub fn credit_account_with_tokens_unsigned(
 			origin: OriginFor<T>,
 			account: T::AccountId,
