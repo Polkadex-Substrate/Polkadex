@@ -18,6 +18,9 @@ pub fn test_asset_creator() {
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, 1, 100));
 		assert_eq!(Assets::balance(asset_id,1),100);
+
+		// Re-register Asset
+		assert_noop!(AssetHandler::create_asset(Origin::signed(1), 1, asset_address), pallet_assets::Error::<Test>::InUse);
 	});
 }
 
@@ -45,6 +48,7 @@ pub fn test_mint_asset() {
 	Check Errors
 	  * Asset is not registered
 	  * Not called by relayer
+
 	*/
 
 	// Asset is not registered
