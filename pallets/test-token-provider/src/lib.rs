@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(test)]
 mod mock;
@@ -118,5 +119,5 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {}
 
-	
+
 }

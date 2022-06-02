@@ -1135,6 +1135,12 @@ impl pallet_recovery::Config for Runtime {
 	type RecoveryDeposit = RecoveryDeposit;
 }
 
+impl test_token_provider::Config for Runtime {
+	type Event = Event;
+	type AssetManager = Assets;
+    type Balance = Balance;
+}
+
 parameter_types! {
 	pub MinVestedTransfer: Balance = PDEX;
 	pub const MaxVestingSchedules: u32 = 300;
@@ -1269,6 +1275,7 @@ construct_runtime!(
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
+		Token: test_token_provider::{Pallet, Call, Event<T>} = 36,
 	}
 );
 /// Digest item type.
