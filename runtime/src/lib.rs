@@ -1261,15 +1261,14 @@ construct_runtime!(
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 25,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 26,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
-		ChildBounties: pallet_child_bounties = 33,
-		// Pallets
 		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
 		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
-		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 39,
-		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 36,
+		ChildBounties: pallet_child_bounties = 33,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
+		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 	}
 );
 /// Digest item type.
