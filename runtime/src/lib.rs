@@ -1275,7 +1275,7 @@ construct_runtime!(
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
-		Token: test_token_provider::{Pallet, Call, Event<T>} = 36,
+		Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 36,
 	}
 );
 /// Digest item type.

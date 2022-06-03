@@ -33,7 +33,7 @@ frame_support::construct_runtime!(
 		System: system::{Pallet, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
-        Token: token::{Pallet, Call, Event<T>},
+        Token: token::{Pallet, Call, Event<T>, ValidateUnsigned},
 
 	}
 );

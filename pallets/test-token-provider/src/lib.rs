@@ -59,14 +59,19 @@ pub mod pallet {
 		type Call = Call<T>;
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			let rng: u64 = 20;
+			// Need to create Block treshold
 
-			ValidTransaction::with_tag_prefix("thea-proc")
-				.priority(rng)
-				.and_provides([&(rng.to_be())])
-				.longevity(3)
-				.propagate(true)
-				.build()
+			match call {
+				Call::credit_account_with_tokens_unsigned {account} => {
+					ValidTransaction::with_tag_prefix("token-faucet")
+                    .priority(1)
+                    .and_provides([&b"request_token_faucet".to_vec()])
+                    .longevity(3)
+                    .propagate(true)
+                    .build()
+				},
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 
@@ -77,7 +82,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			account: T::AccountId,
 		) -> DispatchResultWithPostInfo {
-			// Will this fail? 
+			let _ = ensure_none(origin)?;
 			if let Ok(()) = T::AssetManager::mint_into(
 				12,
 				&account,
@@ -118,6 +123,16 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {}
+
+	/*
+		   ValidTransaction::with_tag_prefix("token-faucet")
+                    .priority(UNSIGNED_TXS_PRIORITY)
+                    .and_provides([&b"request_token_faucet".to_vec()])
+                    .longevity(3)
+                    .propagate(true)
+                    .build()
+	*/
+
 
 
 }
