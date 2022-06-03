@@ -49,10 +49,10 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		SignerNotFound,
-		OffenderNotFound,
-		BoundOverflow,
+		AccountAlreadyCredited,
 	}
+
+	const BLOCK_THRESHOLD: u64 = (24 * 60 * 60) / 6;
 
 	#[pallet::validate_unsigned]
 	impl<T: Config> frame_support::unsigned::ValidateUnsigned for Pallet<T> {
@@ -60,15 +60,27 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			// Need to create Block treshold
-
+			let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
+			let valid_tx = |account: &T::AccountId| {
+				let last_block_number: T::BlockNumber = <TokenFaucetMap<T>>::get(account);
+				if (last_block_number == 0_u64.saturated_into()) || (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
+				{
+					ValidTransaction::with_tag_prefix("token-faucet")
+							.priority(100)
+							.and_provides([&b"request_token_faucet".to_vec()])
+							.longevity(3)
+							.propagate(true)
+							.build()
+				} else {
+					TransactionValidity::Err(TransactionValidityError::Invalid(
+						InvalidTransaction::ExhaustsResources,
+					))
+				}
+			};
+		
 			match call {
 				Call::credit_account_with_tokens_unsigned {account} => {
-					ValidTransaction::with_tag_prefix("token-faucet")
-                    .priority(1)
-                    .and_provides([&b"request_token_faucet".to_vec()])
-                    .longevity(3)
-                    .propagate(true)
-                    .build()
+					valid_tx(&account)
 				},
 				_ => InvalidTransaction::Call.into(),
 			}
@@ -86,7 +98,7 @@ pub mod pallet {
 			if let Ok(()) = T::AssetManager::mint_into(
 				12,
 				&account,
-				100,
+				1,
 			){
 
 			} else {
@@ -94,7 +106,7 @@ pub mod pallet {
 					12,
 					account,
 					true,
-					100,
+					1,
 				)?;
 			}
 			// Code here to mint tokens
@@ -102,36 +114,19 @@ pub mod pallet {
 		}
 	}
 
-	/* #[pallet::storage]
-	#[pallet::getter(fn keygen_messages)]
-	/// sender, KeygenRound => Messages
-	pub(super) type KeygenMessages<T: Config> = StorageDoubleMap<
+	#[pallet::storage]
+	#[pallet::getter(fn token_map)]
+	pub(super) type TokenFaucetMap<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		PartyIndex,
-		Blake2_128Concat,
-		KeygenRound,
-		TheaPayload<
-			T::TheaId,
-			KeygenRound,
-			thea_primitives::MsgLimit,
-			thea_primitives::MsgVecLimit,
-		>,
+		T::AccountId,
+		T::BlockNumber,
 		ValueQuery,
-	*/
+	>;	
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {}
-
-	/*
-		   ValidTransaction::with_tag_prefix("token-faucet")
-                    .priority(UNSIGNED_TXS_PRIORITY)
-                    .and_provides([&b"request_token_faucet".to_vec()])
-                    .longevity(3)
-                    .propagate(true)
-                    .build()
-	*/
 
 
 
