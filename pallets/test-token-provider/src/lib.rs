@@ -25,8 +25,9 @@ pub mod pallet {
 		traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero, AccountIdConversion, Dispatchable, One, UniqueSaturatedInto},
 		SaturatedConversion,
 	};
+	use sp_core::H160;
 
-	const MODULE_ID: PalletId = PalletId(*b"phala/bg");
+	const MODULE_ID: PalletId = PalletId(*b"token/bg");
 
 	type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -200,7 +201,7 @@ pub mod pallet {
 		pub fn asset_id() -> u128 {
 			let ether_address: H160 = "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee".parse().unwrap(); 
 			let mut temp = [0u8; 16];
-			temp.copy_from_slice(&token[0..16]);
+			temp.copy_from_slice(&ether_address[0..16]);
 			u128::from_le_bytes(temp)
 		}
 	}
