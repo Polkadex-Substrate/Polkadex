@@ -144,10 +144,19 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
+pub const PDEX: Balance = 1000_000_000_000;
+
+parameter_types! {
+	pub const TokenAmount: Balance = 100_000_u128 * PDEX;
+}
+
 impl token::Config for Test {
 	type Event = Event;
 	type AssetManager = Assets;
     type Balance = Balance;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type TokenAmount = TokenAmount;
 }
 
 

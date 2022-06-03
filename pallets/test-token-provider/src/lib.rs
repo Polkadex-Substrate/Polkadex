@@ -12,19 +12,25 @@ pub use pallet::*;
 pub mod pallet {
 	use codec::{Decode, Encode, MaxEncodedLen};
 	use frame_support::{
+		PalletId,
 		pallet_prelude::*,
 		traits::{
 			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, Get, LockableCurrency, WithdrawReasons,
+			Currency, Get, LockableCurrency, WithdrawReasons, ReservableCurrency
 		},
 	};
 	use frame_system::pallet_prelude::*;
 	use scale_info::TypeInfo;
 	use sp_runtime::{
-		traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero},
+		traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero, AccountIdConversion, Dispatchable, One, UniqueSaturatedInto},
 		SaturatedConversion,
 	};
 	// use frame_support::traits::tokens::nonfungibles::Create;
+
+	const MODULE_ID: PalletId = PalletId(*b"phala/bg");
+
+	type BalanceOf<T> =
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -41,6 +47,12 @@ pub mod pallet {
 			+ Default
 			+ Copy
 			+ MaybeSerializeDeserialize;
+		/// Asset Create/ Update Origin
+		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		/// Balances Pallet
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+		/// Default token amount to mint
+		type TokenAmount: Get<BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -82,6 +94,14 @@ pub mod pallet {
 				Call::credit_account_with_tokens_unsigned {account} => {
 					valid_tx(&account)
 				},
+				Call::credit_account_with_native_tokens_unsigned {account} => {
+					ValidTransaction::with_tag_prefix("token-faucet")
+							.priority(100)
+							.and_provides([&b"request_token_faucet".to_vec()])
+							.longevity(3)
+							.propagate(true)
+							.build()
+				},
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -98,20 +118,29 @@ pub mod pallet {
 			if let Ok(()) = T::AssetManager::mint_into(
 				12,
 				&account,
-				1,
+				100,
 			){
 
 			} else {
 				T::AssetManager::create(
 					12,
-					account,
+					Self::account_id(),
 					true,
-					1,
-				)?;
+					BalanceOf::<T>::one().unique_saturated_into(),
+				)?; 
 			}
 			// Code here to mint tokens
 			Ok(().into())
 		}
+		#[pallet::weight((10_000, DispatchClass::Normal))]
+        pub fn credit_account_with_native_tokens_unsigned(origin: OriginFor<T>, account: T::AccountId) -> DispatchResultWithPostInfo {
+            let _ = ensure_none(origin)?;
+            TokenFaucetMap::<T>::insert(&account,<frame_system::Pallet<T>>::block_number());
+            //Mint account with free tokens
+            T::Currency::deposit_creating(&account,T::TokenAmount::get());
+            // Self::deposit_event(RawEvent::AccountCredited(account));
+            Ok(().into())
+        }
 	}
 
 	#[pallet::storage]
@@ -127,6 +156,16 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {}
+
+	impl<T: Config> Pallet<T> {
+        // *** Utility methods ***
+
+        /// Provides an AccountId for the pallet.
+        /// This is used both as an origin check and deposit/withdrawal account.
+        pub fn account_id() -> T::AccountId {
+            MODULE_ID.into_account()
+        }
+	}
 
 
 

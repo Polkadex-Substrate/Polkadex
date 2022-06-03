@@ -1135,10 +1135,17 @@ impl pallet_recovery::Config for Runtime {
 	type RecoveryDeposit = RecoveryDeposit;
 }
 
+parameter_types! {
+	pub const TokenAmount: Balance = 100_000_u128 * PDEX;
+}
+
 impl test_token_provider::Config for Runtime {
 	type Event = Event;
 	type AssetManager = Assets;
     type Balance = Balance;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type TokenAmount = TokenAmount;
 }
 
 parameter_types! {
