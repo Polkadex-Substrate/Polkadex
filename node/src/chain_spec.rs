@@ -58,57 +58,55 @@ pub(crate) fn session_keys(
 }
 
 fn udon_testnet_config_genesis() -> GenesisConfig {
-	let initial_authorities: Vec<(
+	let seed = "owner word vocal dose decline sunset battle example forget excite gentle waste//";
+	let mut initial_authorities: Vec<(
 		AccountId,
 		AccountId,
 		GrandpaId,
 		BabeId,
 		ImOnlineId,
-		AuthorityDiscoveryId,
-	)> = vec![
-		(
-			// 5Fbsd6WXDGiLTxunqeK5BATNiocfCqu9bS1yArVjCgeBLkVy
-			hex!["9c7a2ee14e565db0c69f78c7b4cd839fbf52b607d867e9e9c5a79042898a0d12"].into(),
-			// 5EnCiV7wSHeNhjW3FSUwiJNkcc2SBkPLn5Nj93FmbLtBjQUq
-			hex!["781ead1e2fa9ccb74b44c19d29cb2a7a4b5be3972927ae98cd3877523976a276"].into(),
-			// 5H4dmeetCqvLhFbXCQ9MrfHCu7RatJHrPYD71Jikdnt2VZeD
-			hex!["dd1f6928c778a52b605889acb99d627b3a9be9a42439c77bc00f1980d4f540ec"]
-				.unchecked_into(),
-			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
-			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
-				.unchecked_into(),
-			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
-			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
-				.unchecked_into(),
-			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
-			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
-				.unchecked_into(),
-		),
-		(
-			// 5ERawXCzCWkjVq3xz1W5KGNtVx2VdefvZ62Bw1FEuZW4Vny2
-			hex!["68655684472b743e456907b398d3a44c113f189e56d1bbfd55e889e295dfde78"].into(),
-			// 5Gc4vr42hH1uDZc93Nayk5G7i687bAQdHHc9unLuyeawHipF
-			hex!["c8dc79e36b29395413399edaec3e20fcca7205fb19776ed8ddb25d6f427ec40e"].into(),
-			// 5H85GsLD6svD6PHtpenjiXVyHGcwCCYB8zbdrVDPWsuocDYB
-			hex!["dfbf0015a3b9e483606f595ea122b3f2355b46d9085fcb0639cb03f05467ab59"]
-				.unchecked_into(),
-			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
-			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
-				.unchecked_into(),
-			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
-			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
-				.unchecked_into(),
-			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
-			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
-				.unchecked_into(),
-		),
-	];
+		AuthorityDiscoveryId
+	)> = vec![];
+	for idx in 1..4 {
+		let babe = sp_core::sr25519::Pair::from_string(
+			&*(seed.to_owned() + idx.to_string().as_str() + "//babe"),
+			None,
+		)
+			.unwrap();
+		let imon = sp_core::sr25519::Pair::from_string(
+			&*(seed.to_owned() + idx.to_string().as_str() + "//imon"),
+			None,
+		)
+			.unwrap();
+		let audi = sp_core::sr25519::Pair::from_string(
+			&*(seed.to_owned() + idx.to_string().as_str() + "//audi"),
+			None,
+		)
+			.unwrap();
 
+		// Granpda uses ed25519 cryptography
+		let gran = sp_core::ed25519::Pair::from_string(
+			&*(seed.to_owned() + idx.to_string().as_str() + "//grandpa"),
+			None,
+		)
+			.unwrap();
+
+		initial_authorities.push((
+			AccountId::from(babe.public().into_account()),
+			AccountId::from(babe.public().into_account()),
+			GrandpaId::from(gran.public().into_account()),
+			BabeId::from(babe.public().into_account()),
+			ImOnlineId::from(imon.public().into_account()),
+			AuthorityDiscoveryId::from(audi.public().into_account())
+		));
+	}
+
+	// NOTE: The current root key for udon net is with GJ.
 	let root_key: AccountId = hex![
-		// 5Ggr5JRSxCSZvwTc9Xkjca5bWkkmG1btufW22uLm5tArfV9y
-		"cc816e946438b2b21b8a3073f983ce03ee0feb313ec494e2dec462cfb4e77502"
+		// 5GUD1cXQB1nFyLprscEQh6apekh4KMGD6FnkatcM6AAJ7JQb
+		"c2ddb84ed7692123f5f6746c81cd0850932553416515ecd71fbe66c128eafa73"
 	]
-	.into();
+		.into();
 
 	testnet_genesis(initial_authorities, vec![], root_key)
 }
