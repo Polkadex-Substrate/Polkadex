@@ -7,6 +7,7 @@ mod mock;
 mod test;
 
 pub use pallet::*;
+// use sp_core::H160;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -25,7 +26,8 @@ pub mod pallet {
 		traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero, AccountIdConversion, Dispatchable, One, UniqueSaturatedInto},
 		SaturatedConversion,
 	};
-	use sp_core::H160;
+	pub use sp_core::H160;
+	// use core::str::FromStr;
 
 	const MODULE_ID: PalletId = PalletId(*b"token/bg");
 
@@ -197,15 +199,11 @@ pub mod pallet {
             MODULE_ID.into_account()
         }
 
-		/// Provides Ethers Asset Id for Test Ether 
+		///  Provides Ethers Asset Id for Test Ether 
 		pub fn asset_id() -> u128 {
-			let ether_address: H160 = "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee".parse().unwrap(); 
-			let mut temp = [0u8; 16];
-			temp.copy_from_slice(&ether_address[0..16]);
-			u128::from_le_bytes(temp)
+			// Currently Hardcoding this value created from address "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee"
+			99237140875836081697465599727699073781
 		}
 	}
-
-
 
 }
