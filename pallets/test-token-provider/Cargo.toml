@@ -1,6 +1,6 @@
 [package]
 authors = ['Polkadex Authors']
-description = 'FRAME pallet for migrating ERC20 PDEX to Native PDEX'
+description = 'FRAME pallet for minting ERC20 and Native PDEX Tokens'
 edition = '2021'
 homepage = 'https://polkadex.trade'
 name = 'test-token-provider'
