@@ -44,7 +44,7 @@ jobs:
             export PATH=/home/ubuntu/.cargo/bin/:$PATH
             echo $PATH
             ./scripts/init.sh
-            cargo build --release --features rinkeby
+            cargo build --release 
             ./target/release/polkadex-node build-spec --disable-default-bootnode --chain udon > customSpec.json
             ./target/release/polkadex-node build-spec --chain=customSpec.json --raw --disable-default-bootnode > customSpecRaw.json
       - name: PackRelease
