@@ -1,7 +1,7 @@
 name: TestnetEKSDeployment
 on:
   push:
-    branches: [redux-cicd,eks-deploy]
+    branches: [redux-cicd,eks-deploy-1]
 
 jobs:
   start-runner:
@@ -55,12 +55,110 @@ jobs:
       - name: Upload to S3
         run: |   
           aws s3 cp polkadex.zip s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/
+  deploy:
+    needs: 
+      - buildbinary
+      - start-runner
+    name: k8s maifest update
+    runs-on: ${{ needs.start-runner.outputs.label }}
+ 
+    steps:
+      - name: Check out kustomize chart  
+        uses: actions/checkout@master
+        with:
+          repository: Polkadex-Substrate/devops_kubernetes_manifests 
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
+      - name: Clear chain data  and update binary and chainspec
+        run: |
+          cd kubernetes_manifests/kustomize
+          sed -i 's|head /data/bin/customSpecRaw.json|rm -rf /data/bootnode \&\& head /data/bin/customSpecRaw.json|g' polkadex-bootnode-public-testnet/ap-northeast-1/az2/patch-statefulset.yaml
+          sed -i 's|head /data/bin/customSpecRaw.json|rm -rf /data/polkadex-node/.local \&\& head /data/bin/customSpecRaw.json|g'  polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
+          sed -i 's|head /data/bin/customSpecRaw.json|rm -rf /data/polkadex-node/.local \&\& head /data/bin/customSpecRaw.json|g'  polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
+          sed -i "s|s3://polkadex-fullnode/testnet/public/binary/.*/polkadex.zip|s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/polkadex.zip|g" polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
+          sed -i "s|s3://polkadex-fullnode/testnet/public/binary/.*/polkadex.zip|s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/polkadex.zip|g" polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
+          sed -i "s|s3://polkadex-fullnode/testnet/public/binary/.*/polkadex.zip|s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/polkadex.zip|g" polkadex-bootnode-testnet/ap-northeast-1/az2/patch-statefulset.yaml
+          
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Polkadex Binary update
+
+      - name: Wait for deployment to finish
+        run: sleep 450s
+        shell: bash
+        
+      - name: Check out setkey scripts
+        uses: actions/checkout@master
+        with:
+          repository: Polkadex-Substrate/devops_kubernetes_manifests 
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}  
+        
+      - name: Set keys
+        run: |
+          cd testnet 
+          bash set-keys-bootnode.sh
+          bash set-keys-validator1.sh
+          bash set-keys-validator2.sh
+          
+      - name: Stop testnet
+        run: |
+          cd kubernetes_manifests/kustomize
+          sed -i 's|replicas: 1|replicas: 0|g'  polkadex-bootnode-public-testnet/ap-northeast-1/az2/patch-statefulset.yaml
+          sed -i 's|replicas: 1|replicas: 0|g'  polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
+          sed -i 's|replicas: 1|replicas: 0|g'  polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
+
+          sed -i 's|rm -rf /data/polkadex-node/.local &&||g' polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
+          sed -i 's|rm -rf /data/polkadex-node/.local &&||g' polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
+          sed -i 's|rm -rf /data/bootnode &&||g' polkadex-bootnode-public-testnet/ap-northeast-1/az2/patch-statefulset.yaml
+          
+      
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Stop nodes after applying key 
+          
+      - name: Wait for testnet stop
+        run: sleep 450s
+        shell: bash     
+ 
+      - name: Check out kustomize chart  
+        uses: actions/checkout@master
+        with:
+          repository: Polkadex-Substrate/devops_kubernetes_manifests 
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}     
+
+      - name: Start bootnode
+        run: |
+          cd kubernetes_manifests/kustomize
+          sed -i 's|replicas: 0|replicas: 1|g'  polkadex-bootnode-public-testnet/ap-northeast-1/az2/patch-statefulset.yaml
+          
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Start bootnode after applying the key
+          
+      - name: Wait for bootnode start
+        run: sleep 600s
+        shell: bash    
+      
+      - name: Start validator and other nodes after applying the key
+        run: |
+          cd kubernetes_manifests/kustomize
+          sed -i 's|replicas: 0|replicas: 1|g'  polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
+          sed -i 's|replicas: 0|replicas: 1|g'  polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
+          
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Start validator and other nodes after applying the key
+     
+      - name: Wait for fullnode and validator start
+        run: sleep 300s
+        shell: bash
+        
   stop-runner:
     name: Stop self-hosted EC2 runner
     needs:
       - start-runner 
       - buildbinary
-      #- updatek8smanifests
+      - deploy
     runs-on: ubuntu-latest
     if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
     steps:
