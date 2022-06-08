@@ -585,7 +585,7 @@ pub mod pallet {
 
             if mintnew {
                 match token_a.clone() {
-                    AssetId::Asset(token_a) => {
+                    AssetId::asset(token_a) => {
                         T::AssetManager::create(token_a.into(), team.clone(), true, 1)?;
                         T::AssetManager::mint_into(token_a.into(), &round_account_id, amount.saturated_into())?;
                     }
@@ -1321,10 +1321,10 @@ impl<T: Config> Pallet<T> {
     /// Helper function to transfer tokens
     pub fn transfer(token: AssetId, from: &T::AccountId, to: &T::AccountId, amount: BalanceOf<T>) -> Result<(), sp_runtime::DispatchError> {
         match token {
-            AssetId::POLKADEX => {
+            AssetId::polkadex => {
                 T::Currency::transfer(from, to, amount, ExistenceRequirement::KeepAlive)
             }
-            AssetId::Asset(token_id) => {
+            AssetId::asset(token_id) => {
                 T::AssetManager::transfer(token_id, &from, &to, amount.saturated_into(), false).map(|_| ())
             }
         }
@@ -1333,14 +1333,14 @@ impl<T: Config> Pallet<T> {
     /// Helper function to check if investor can withdraw an amount
     pub fn can_withdraw(token: AssetId, from_account: &T::AccountId, amount: BalanceOf<T>) -> Result<(), sp_runtime::DispatchError> {
         match token {
-            AssetId::POLKADEX => {
+            AssetId::polkadex => {
                 let account_free_balance: u128 = T::Currency::free_balance(from_account)
                     .saturated_into();
                 let new_balance = account_free_balance.checked_sub(amount.saturated_into())
                     .ok_or(Error::<T>::InsufficientBalance)?;
                 T::Currency::ensure_can_withdraw(from_account, amount, WithdrawReasons::TRANSFER, new_balance.saturated_into())
             }
-            AssetId::Asset(token_id) => {
+            AssetId::asset(token_id) => {
                 T::AssetManager::can_withdraw(token_id.into(), from_account, amount.saturated_into()).into_result().map(|_| ())
             }
         }
@@ -1351,7 +1351,7 @@ impl<T: Config> Pallet<T> {
         let seed = T::RandomnessSource::random_seed();
         let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
         let random_asset_id: u128 = rng.gen();
-        Ok(AssetId::Asset(random_asset_id))
+        Ok(AssetId::asset(random_asset_id))
     }
 
     /// Takes a list of assets and Returns the asset balance(free balance) belonging to account_id
