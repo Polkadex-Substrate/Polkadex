@@ -1,0 +1,20 @@
+[package]
+name = "thea-client-rpc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Polkadex Technology"]
+license = "GPL-3.0"
+description = "RPC for Thea client for substrate"
+
+[dependencies]
+serde = { version = "1.0.132", features = ["derive"] }
+jsonrpc-core = "18.0.0"
+jsonrpc-core-client = "18.0.0"
+jsonrpc-derive = "18.0.0"
+codec = { version = "2.2.0", package = "parity-scale-codec", features = ["derive"] }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"  }
+sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"  }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"  }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"  }
+thea-client =  { path = ".." }
+thea-primitives = { path = "../../../primitives/thea" }
