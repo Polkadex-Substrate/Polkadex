@@ -77,7 +77,7 @@ jobs:
           sed -i 's|head /data/bin/customSpecRaw.json|rm -rf /data/polkadex-node/.local \&\& head /data/bin/customSpecRaw.json|g'  polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
           sed -i "s|s3://polkadex-fullnode/testnet/public/binary/.*/polkadex.zip|s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/polkadex.zip|g" polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
           sed -i "s|s3://polkadex-fullnode/testnet/public/binary/.*/polkadex.zip|s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/polkadex.zip|g" polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
-          sed -i "s|s3://polkadex-fullnode/testnet/public/binary/.*/polkadex.zip|s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/polkadex.zip|g" polkadex-bootnode-testnet/ap-northeast-1/az2/patch-statefulset.yaml
+          sed -i "s|s3://polkadex-fullnode/testnet/public/binary/.*/polkadex.zip|s3://polkadex-fullnode/testnet/public/binary/${{ github.sha }}/polkadex.zip|g" polkadex-bootnode-public-testnet/ap-northeast-1/az2/patch-statefulset.yaml
           
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
