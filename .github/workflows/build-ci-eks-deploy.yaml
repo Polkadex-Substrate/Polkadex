@@ -59,7 +59,7 @@ jobs:
     needs: 
       - buildbinary
       - start-runner
-    name: k8s maifest update
+    name: deploy
     runs-on: ${{ needs.start-runner.outputs.label }}
  
     steps:
@@ -95,7 +95,7 @@ jobs:
         
       - name: Set keys
         run: |
-          cd testnet 
+          cd publictestnet 
           bash set-keys-bootnode.sh
           bash set-keys-validator1.sh
           bash set-keys-validator2.sh
