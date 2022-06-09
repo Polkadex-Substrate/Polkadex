@@ -1,7 +1,7 @@
 name: TestnetEKSDeployment
 on:
   push:
-    branches: [redux-cicd,eks-deploy-1]
+    branches: [redux-cicd,eks-deploy]
 
 jobs:
   start-runner:
