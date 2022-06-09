@@ -6,7 +6,8 @@ members = [
     'node',
     'runtime',
     'pallets/pdex-migration',
-    'pallets/polkadex-ido'
+    'pallets/polkadex-ido',
+    'pallets/ocex',
 ]
 
 
