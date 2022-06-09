@@ -136,7 +136,7 @@ jobs:
           commit_message: Start bootnode after applying the key
           
       - name: Wait for bootnode start
-        run: sleep 600s
+        run: sleep 450s
         shell: bash    
       
       - name: Start validator and other nodes after applying the key
