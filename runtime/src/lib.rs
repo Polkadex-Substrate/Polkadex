@@ -47,7 +47,7 @@ use frame_support::{
 pub use frame_system::Call as SystemCall;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, RawOrigin,
+	EnsureRoot, RawOrigin, EnsureSigned
 };
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
@@ -1240,6 +1240,25 @@ impl polkadex_ido::Config for Runtime {
     type ExistentialDeposit = ExistentialDeposit; // Done 
 }
 
+parameter_types! {
+	pub const ProxyLimit: u32 = 3;
+	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+	pub const MsPerDay: u64 = 86_400_000;
+}
+
+impl pallet_ocex_lmp::Config for Runtime {
+	type Event = Event;
+	type PalletId = OcexPalletId;
+	type NativeCurrency = Balances;
+	type OtherAssets = Assets;
+	// TODO: Change origin to SGX attested origin
+	type EnclaveOrigin = EnsureSigned<AccountId>;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type WeightInfo = ();
+	type MsPerDay = MsPerDay;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1282,7 +1301,8 @@ construct_runtime!(
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
-		Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 36,
+		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
+    Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
 	}
 );
 /// Digest item type.
