@@ -81,7 +81,7 @@ pub mod pallet {
 				{
 					ValidTransaction::with_tag_prefix("token-faucet")
 							.priority(100)
-							.and_provides([&b"request_token_faucet".to_vec()])
+							.and_provides([account])
 							.longevity(3)
 							.propagate(true)
 							.build()
@@ -95,9 +95,9 @@ pub mod pallet {
 				let last_block_number: T::BlockNumber = <NativeTokenMap<T>>::get(account);
 				if (last_block_number == 0_u64.saturated_into()) || (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
 				{
-					ValidTransaction::with_tag_prefix("token-faucet")
+					ValidTransaction::with_tag_prefix("native-token")
 							.priority(100)
-							.and_provides([&b"request_token_faucet".to_vec()])
+							.and_provides([account])
 							.longevity(3)
 							.propagate(true)
 							.build()
