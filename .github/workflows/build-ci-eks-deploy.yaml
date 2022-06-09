@@ -107,9 +107,9 @@ jobs:
           sed -i 's|replicas: 1|replicas: 0|g'  polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
           sed -i 's|replicas: 1|replicas: 0|g'  polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
 
-          sed -i 's|rm -rf /data/polkadex-node/.local &&||g' polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
-          sed -i 's|rm -rf /data/polkadex-node/.local &&||g' polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
-          sed -i 's|rm -rf /data/bootnode &&||g' polkadex-bootnode-public-testnet/ap-northeast-1/az2/patch-statefulset.yaml
+          sed -i 's|rm -rf /data/polkadex-node/.local && ||g' polkadex-validator-public-testnet/eu-central-1/az2/patch-statefulset.yaml
+          sed -i 's|rm -rf /data/polkadex-node/.local && ||g' polkadex-validator-public-testnet/ap-south-1/az2/patch-statefulset.yaml
+          sed -i 's|rm -rf /data/bootnode && ||g' polkadex-bootnode-public-testnet/ap-northeast-1/az2/patch-statefulset.yaml
           
       
       - uses: stefanzweifel/git-auto-commit-action@v4
