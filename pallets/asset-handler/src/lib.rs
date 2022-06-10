@@ -8,6 +8,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 
 #[frame_support::pallet]
@@ -30,7 +32,7 @@ pub mod pallet {
 	use chainbridge::{ResourceId, BridgeChainId};
 	use sp_runtime::traits::One;
 	use sp_runtime::traits::UniqueSaturatedInto;
-	type BalanceOf<T> =
+	pub type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 
@@ -201,6 +203,21 @@ pub mod pallet {
 			temp.copy_from_slice(&token[0..16]);
 			//temp.copy_fro	m_slice(token.as_fixed_bytes().as_ref());
 			u128::from_le_bytes(temp)
+		}
+
+		#[cfg(feature = "runtime-benchmarks")]
+		pub fn register_asset(rid: ResourceId) {
+			T::AssetManager::create(
+				Self::convert_asset_id(rid),
+				chainbridge::Pallet::<T>::account_id(),
+				true,
+				BalanceOf::<T>::one().unique_saturated_into(),
+			).expect("Asset not Registered");
+		}
+
+		#[cfg(feature = "runtime-benchmarks")]
+		pub fn mint_token(account: T::AccountId, rid: ResourceId, amount: u128) {
+			T::AssetManager::mint_into(Pallet::<T>::convert_asset_id(rid), &account, amount);
 		}
 	}
 }
