@@ -306,7 +306,6 @@ pub mod pallet {
 			mut snapshot: EnclaveSnapshot<
 				T::AccountId,
 				BalanceOf<T>,
-				ProxyLimit,
 				SnapshotAccLimit,
 				WithdrawalLimit,
 			>,
@@ -500,7 +499,7 @@ pub mod pallet {
 		AssetId,
 		Blake2_128Concat,
 		AssetId,
-		EnclaveSnapshot<T::AccountId, BalanceOf<T>, ProxyLimit, SnapshotAccLimit, WithdrawalLimit>,
+		EnclaveSnapshot<T::AccountId, BalanceOf<T>, SnapshotAccLimit, WithdrawalLimit>,
 		OptionQuery,
 	>;
 
