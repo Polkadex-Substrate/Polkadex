@@ -6,6 +6,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+
+
 pub mod hashing;
 
 pub use pallet::*;
@@ -726,6 +728,11 @@ pub mod pallet {
                 metadata,
             ));
             Ok(())
+        }
+
+        #[cfg(feature = "runtime-benchmarks")]
+        pub fn insert_relayer(relayer: T::AccountId) {
+            <Relayers<T>>::insert(relayer, true);
         }
     }
 

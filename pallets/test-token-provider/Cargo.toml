@@ -1,10 +1,10 @@
 [package]
 authors = ['Polkadex Authors']
-description = 'Pallet for Handling Assets from multiple Bridges'
+description = 'FRAME pallet for minting ERC20 and Native PDEX Tokens'
 edition = '2021'
 homepage = 'https://polkadex.trade'
-name = 'asset-handler'
-version = '1.0.0'
+name = 'test-token-provider'
+version = '1.1.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -18,18 +18,19 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch =
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
-pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
-pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
-chainbridge = {path = "../chainbridge", default-features = false}
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",  branch="polkadot-v0.9.19" , default-features = false }
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"}
+pallet-assets = { default-features = false, branch = "polkadot-v0.9.19", git = "https://github.com/paritytech/substrate" }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",  branch="polkadot-v0.9.19" , default-features = false }
+sp-keystore = {default-features = false, optional=false,branch = "polkadot-v0.9.19",git = 'https://github.com/paritytech/substrate' }
+sp-application-crypto = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
 
 
 [features]
@@ -39,15 +40,17 @@ std = [
 	'scale-info/std',
 	'frame-support/std',
 	'frame-system/std',
+	'sp-io/std',
 	'sp-runtime/std',
 	'pallet-balances/std',
-	'pallet-sudo/std',
-	'chainbridge/std',
-	'pallet-assets/std'
+	'pallet-assets/std',
 ]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"chainbridge/runtime-benchmarks"
+    "frame-benchmarking",
+    'frame-support/runtime-benchmarks',
+    'frame-system/runtime-benchmarks',
+    'sp-runtime/runtime-benchmarks',
+    'pallet-balances/runtime-benchmarks',
+	# 'sp-io/std',
 ]
+try-runtime = ["frame-support/try-runtime"]

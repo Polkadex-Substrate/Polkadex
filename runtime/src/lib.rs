@@ -47,7 +47,7 @@ use frame_support::{
 pub use frame_system::Call as SystemCall;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, RawOrigin,
+	EnsureRoot, RawOrigin, EnsureSigned
 };
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
@@ -259,17 +259,17 @@ use sp_npos_elections::{ExtendedBalance};
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
-	Copy,
-	Clone,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	Encode,
-	Decode,
-	RuntimeDebug,
-	MaxEncodedLen,
-	TypeInfo,
+Copy,
+Clone,
+Eq,
+PartialEq,
+Ord,
+PartialOrd,
+Encode,
+Decode,
+RuntimeDebug,
+MaxEncodedLen,
+TypeInfo,
 )]
 pub enum ProxyType {
 	Any = 0,
@@ -394,7 +394,7 @@ impl pallet_babe::Config for Runtime {
 	)>>::IdentificationTuple;
 
 	type HandleEquivocation =
-		pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+	pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 	type WeightInfo = weights::pallet_babe::WeightInfo<Runtime>;
 	type DisabledValidators = Session;
 	type MaxAuthorities = MaxAuthorities;
@@ -459,7 +459,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate =
-		TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+	TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 }
 
@@ -967,8 +967,8 @@ parameter_types! {
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
-where
-	Call: From<LocalCall>,
+	where
+		Call: From<LocalCall>,
 {
 	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
 		call: Call,
@@ -1015,8 +1015,8 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-where
-	Call: From<C>,
+	where
+		Call: From<C>,
 {
 	type Extrinsic = UncheckedExtrinsic;
 	type OverarchingCall = Call;
@@ -1052,7 +1052,7 @@ impl pallet_grandpa::Config for Runtime {
 	type KeyOwnerProofSystem = Historical;
 
 	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+	<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
 	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
@@ -1068,6 +1068,31 @@ impl pallet_grandpa::Config for Runtime {
 	type WeightInfo = weights::pallet_grandpa::WeightInfo<Runtime>;
 	type MaxAuthorities = MaxAuthorities;
 }
+parameter_types! {
+	pub const AssetDeposit: Balance = 100 * DOLLARS;
+	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const StringLimit: u32 = 50;
+	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
+	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+}
+
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type AssetId = u128;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRootOrHalfCouncil;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+}
+
 
 parameter_types! {
 	pub const BasicDeposit: Balance = deposit(1,258);       // 258 bytes on-chain
@@ -1108,6 +1133,19 @@ impl pallet_recovery::Config for Runtime {
 	type FriendDepositFactor = FriendDepositFactor;
 	type MaxFriends = MaxFriends;
 	type RecoveryDeposit = RecoveryDeposit;
+}
+
+parameter_types! {
+	pub const TokenAmount: Balance = 100_000_u128 * PDEX;
+}
+
+impl test_token_provider::Config for Runtime {
+	type Event = Event;
+	type AssetManager = Assets;
+	type Balance = Balance;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type TokenAmount = TokenAmount;
 }
 
 parameter_types! {
@@ -1169,51 +1207,56 @@ impl pdex_migration::pallet::Config for Runtime {
 }
 
 parameter_types! {
-    pub const ChainId: u8 = 1;
-    pub const ProposalLifetime: BlockNumber = 1000;
-	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+	pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
+	pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
 }
 
-impl chainbridge::Config for Runtime {
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
+parameter_types! {
+    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
+    pub const GetMaxSupply: Balance = 2_000_000_u128;
+    pub const OnePDEX : u128 = PDEX;
+    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+    pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
+}
+
+impl polkadex_ido::Config for Runtime {
 	type Event = Event;
-	type BridgeCommitteeOrigin = frame_system::EnsureRoot<Self::AccountId>;
-	type Proposal = Call;
-	type BridgeChainId = ChainId;
-	type ProposalLifetime = ProposalLifetime;
-	//type PalletId = ChainbridgePalletId;
+	type TreasuryAccountId = TreasuryModuleAccount;
+	type GovernanceOrigin = EnsureRootOrTreasury;
+	type IDOPDXAmount = GetIDOPDXAmount;
+	type MaxSupply = GetMaxSupply;
+	type Randomness = RandomnessCollectiveFlip;
+	type RandomnessSource = RandomnessCollectiveFlip;
+	type ModuleId = PolkadexIdoPalletId;
+	type Currency = Balances;
+	type OnePDEX = OnePDEX;
+	type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
+	type DefaultVotingPeriod = DefaultVotingPeriod;
+	type DefaultInvestorLockPeriod = DefaultInvestorLockPeriod;
+	type AssetManager = Assets;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 parameter_types! {
-	pub const AssetDeposit: Balance = 100 * DOLLARS;
-	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
-	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
-	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+	pub const ProxyLimit: u32 = 3;
+	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+	pub const MsPerDay: u64 = 86_400_000;
 }
 
-impl pallet_assets::Config for Runtime {
+impl pallet_ocex_lmp::Config for Runtime {
 	type Event = Event;
-	type Balance = Balance;
-	type AssetId = u128;
-	type Currency = Balances;
-	type ForceOrigin = EnsureRootOrHalfCouncil;
-	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = AssetDeposit;
-	type MetadataDepositBase = MetadataDepositBase;
-	type MetadataDepositPerByte = MetadataDepositPerByte;
-	type ApprovalDeposit = ApprovalDeposit;
-	type StringLimit = StringLimit;
-	type Freezer = ();
-	type Extra = ();
+	type PalletId = OcexPalletId;
+	type NativeCurrency = Balances;
+	type OtherAssets = Assets;
+	// TODO: Change origin to SGX attested origin
+	type EnclaveOrigin = EnsureSigned<AccountId>;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
 	type WeightInfo = ();
-}
-
-impl asset_handler::pallet::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type AssetManager = Assets;
-	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
-	type TreasuryPalletId = TreasuryPalletId;
+	type MsPerDay = MsPerDay;
 }
 
 construct_runtime!(
@@ -1250,15 +1293,16 @@ construct_runtime!(
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 25,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 26,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
-		ChildBounties: pallet_child_bounties = 33,
-		// Pallets
 		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
 		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
-		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 34,
-		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 35,
-		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 36
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
+		ChildBounties: pallet_child_bounties = 33,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
+		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
+		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
+    Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
 	}
 );
 /// Digest item type.
@@ -1609,8 +1653,8 @@ mod tests {
 	#[test]
 	fn validate_transaction_submitter_bounds() {
 		fn is_submit_signed_transaction<T>()
-		where
-			T: CreateSignedTransaction<Call>,
+			where
+				T: CreateSignedTransaction<Call>,
 		{
 		}
 
