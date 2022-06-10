@@ -11,7 +11,7 @@ repository = "https://github.com/Polkadex-Substrate/Polkadex"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["max-encoded-len"] }
+codec = { package = "parity-scale-codec", version = "=3.1.2", default-features = false, features = ["max-encoded-len"] }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
 hex-literal = { version = "0.3.3", optional = true }
 static_assertions = "1.1.0"

@@ -6,7 +6,7 @@ edition = "2021"
 license = "GNU GPL v3"
 
 [dependencies]
-codec = { version = "3.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+codec = { version = "=3.1.2", package = "parity-scale-codec", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 serde = { version = "1.0.136", optional = true }
 

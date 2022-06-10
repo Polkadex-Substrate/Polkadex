@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "=3.1.2", default-features = false, features = ["derive"] }
 
 # Substrate Dependencies
 pallet-polkadex-ido-primitives= { default-features = false, path = "../../common" }
