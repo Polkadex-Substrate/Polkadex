@@ -11,6 +11,8 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod weights;
+pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -32,10 +34,10 @@ pub mod pallet {
 	use chainbridge::{ResourceId, BridgeChainId};
 	use sp_runtime::traits::One;
 	use sp_runtime::traits::UniqueSaturatedInto;
+	use crate::AssetHandlerWeightInfo;
+
 	pub type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -56,6 +58,8 @@ pub mod pallet {
 		/// Treasury PalletId
 		#[pallet::constant]
 		type TreasuryPalletId: Get<PalletId>;
+
+		type WeightInfo: AssetHandlerWeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -108,7 +112,7 @@ pub mod pallet {
 		///
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
-		#[pallet::weight(195_000_000)]
+		#[pallet::weight(T::WeightInfo::create_asset(1))]
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -134,7 +138,7 @@ pub mod pallet {
 		/// * `destination_add`: Recipient's Account
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
-		#[pallet::weight(195_000_000)]
+		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(origin: OriginFor<T>, destination_add: T::AccountId, amount: BalanceOf<T>, rid: ResourceId) -> DispatchResult{
 			let sender = ensure_signed(origin)?;
 			ensure!(chainbridge::Pallet::<T>::is_relayer(&sender), Error::<T>::MinterMustBeRelayer);
@@ -151,7 +155,7 @@ pub mod pallet {
 		/// * `contract_add`: Asset's actual address at native chain
 		/// * `amount`: Amount to be burned and transferred from Sender's Account
 		/// * `recipient`: recipient
-		#[pallet::weight(195_000_000)]
+		#[pallet::weight(T::WeightInfo::withdraw(1,1))]
 		pub fn withdraw(origin: OriginFor<T>, chain_id: BridgeChainId, contract_add: H160, amount: BalanceOf<T>, recipient: H160) -> DispatchResult{
 			let sender = ensure_signed(origin)?;
 			ensure!(chainbridge::Pallet::<T>::chain_whitelisted(chain_id), Error::<T>::ChainIsNotWhitelisted);
@@ -172,7 +176,7 @@ pub mod pallet {
 		/// * `chain_id`: Asset's native chain
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
-		#[pallet::weight(195_000_000)]
+		#[pallet::weight(T::WeightInfo::update_fee(1,1))]
 		pub fn update_fee(origin: OriginFor<T>, chain_id: BridgeChainId, min_fee: BalanceOf<T>, fee_scale: u32) -> DispatchResult{
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeFee<T>>::insert(chain_id, (min_fee, fee_scale));

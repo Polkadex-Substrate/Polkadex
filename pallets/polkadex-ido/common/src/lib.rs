@@ -96,13 +96,8 @@ pub enum StringAssetId {
 impl From<AssetId> for StringAssetId {
 	fn from(asset: AssetId) -> Self {
 		match asset {
-<<<<<<< HEAD
-			AssetId::POLKADEX => StringAssetId::POLKADEX,
-			AssetId::Asset(num) => StringAssetId::Asset(num.into()),
-=======
 			AssetId::polkadex => StringAssetId::POLKADEX,
 			AssetId::asset(num) => StringAssetId::Asset(num.into()),
->>>>>>> origin/Develop
 		}
 	}
 }

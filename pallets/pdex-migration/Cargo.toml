@@ -16,7 +16,7 @@ scale-info = { version = "2.0.1", default-features = false, features = ["derive"
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false,  optional = true }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
-
+rand = {default-features = false, version = '0.8.0'}
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
@@ -38,13 +38,15 @@ std = [
 	'sp-runtime/std',
 	'pallet-balances/std',
 	'pallet-sudo/std',
+	'rand/std'
 ]
-runtime-benchmarks = [
-    "frame-benchmarking",
-    'frame-support/runtime-benchmarks',
-    'frame-system/runtime-benchmarks',
-    'sp-runtime/runtime-benchmarks',
-    'pallet-balances/runtime-benchmarks',
-	# 'sp-io/std',
-]
+#runtime-benchmarks = [
+#    "frame-benchmarking",
+#    'frame-support/runtime-benchmarks',
+#    'frame-system/runtime-benchmarks',
+#    'sp-runtime/runtime-benchmarks',
+#    'pallet-balances/runtime-benchmarks',
+#	'rand/std'
+#	# 'sp-io/std',
+#]
 try-runtime = ["frame-support/try-runtime"]

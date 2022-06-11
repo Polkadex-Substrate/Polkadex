@@ -78,6 +78,8 @@ sp-npos-elections = { default-features = false, git = "https://github.com/parity
 frame-election-provider-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 pallet-assets = { default-features = false, branch = "polkadot-v0.9.19", git = "https://github.com/paritytech/substrate" }
+pallet-conviction-voting= { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
+pallet-referenda = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
 #end added
 
 # Used for the node template's RPCs
@@ -214,7 +216,10 @@ runtime-benchmarks = [
     "orml-vesting/runtime-benchmarks",
     "hex-literal",
     "frame-election-provider-support/runtime-benchmarks",
-    "pdex-migration/runtime-benchmarks"
+#    "pdex-migration/runtime-benchmarks",
+    "asset-handler/runtime-benchmarks",
+    "pallet-conviction-voting/runtime-benchmarks",
+    "pallet-referenda/runtime-benchmarks"
 ]
 
 

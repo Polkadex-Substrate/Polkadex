@@ -128,6 +128,7 @@ impl asset_handler::Config for Test {
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TreasuryPalletId = ChainbridgePalletId;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.

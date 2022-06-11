@@ -1181,7 +1181,7 @@ impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn successful_origin() -> Origin {
-		Origin::from(RawOrigin::Signed(Default::default()))
+		Origin::from(RawOrigin::Signed(AccountId::new([0u8; 32])))
 	}
 }
 
@@ -1259,6 +1259,29 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type MsPerDay = MsPerDay;
 }
 
+parameter_types! {
+    pub const ChainId: u8 = 1;
+    pub const ProposalLifetime: BlockNumber = 1000;
+	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+}
+
+impl chainbridge::Config for Runtime {
+	type Event = Event;
+	type BridgeCommitteeOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type Proposal = Call;
+	type BridgeChainId = ChainId;
+	type ProposalLifetime = ProposalLifetime;
+}
+
+impl asset_handler::pallet::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type AssetManager = Assets;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type TreasuryPalletId = TreasuryPalletId;
+	type WeightInfo = asset_handler::WeightInfo<Runtime>;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1302,7 +1325,9 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-    Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+        Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 38,
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 39
 	}
 );
 /// Digest item type.
@@ -1573,10 +1598,9 @@ impl_runtime_apis! {
 			list_benchmark!(list,extra, pallet_timestamp, Timestamp);
 			list_benchmark!(list,extra, pallet_treasury, Treasury);
 			list_benchmark!(list,extra, pallet_utility, Utility);
-
 			list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
-
+//			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
+			list_benchmark!(list,extra,  asset_handler, AssetHandler);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1636,8 +1660,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_treasury, Treasury);
 			add_benchmark!(params, batches, pallet_utility, Utility);
-			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
-
+//			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
