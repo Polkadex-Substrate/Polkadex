@@ -17,9 +17,8 @@ use sp_core::{H160, U256};
 
 use sp_runtime::TokenError;
 
-use crate::mock::*;
 use super::*;
-use crate::mock::{new_test_ext, Test};
+use crate::mock::{new_test_ext, Test, *};
 
 use crate::pallet::*;
 
@@ -31,10 +30,13 @@ pub fn test_asset_creator() {
 		let rid = chainbridge::derive_resource_id(1, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, 1, 100));
-		assert_eq!(Assets::balance(asset_id,1),100);
+		assert_eq!(Assets::balance(asset_id, 1), 100);
 
 		// Re-register Asset
-		assert_noop!(AssetHandler::create_asset(Origin::signed(1), 1, asset_address), pallet_assets::Error::<Test>::InUse);
+		assert_noop!(
+			AssetHandler::create_asset(Origin::signed(1), 1, asset_address),
+			pallet_assets::Error::<Test>::InUse
+		);
 	});
 }
 
@@ -55,7 +57,7 @@ pub fn test_mint_asset() {
 
 		// Mint Asset using Relayer account and verify storage
 		assert_ok!(AssetHandler::mint_asset(Origin::signed(relayer), recipient, 100, rid));
-		assert_eq!(Assets::balance(asset_id,recipient),100);
+		assert_eq!(Assets::balance(asset_id, recipient), 100);
 	});
 
 	/*
@@ -72,17 +74,23 @@ pub fn test_mint_asset() {
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(ChainBridge::add_relayer(Origin::signed(1), relayer));
 		assert!(ChainBridge::relayers(relayer));
-		assert_noop!(AssetHandler::mint_asset(Origin::signed(relayer), recipient, 100, rid), TokenError::UnknownAsset);
-		assert_eq!(Assets::balance(asset_id,recipient),0);
+		assert_noop!(
+			AssetHandler::mint_asset(Origin::signed(relayer), recipient, 100, rid),
+			TokenError::UnknownAsset
+		);
+		assert_eq!(Assets::balance(asset_id, recipient), 0);
 	});
 
-    // Not called by relayer
+	// Not called by relayer
 	new_test_ext().execute_with(|| {
 		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(1, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_noop!(AssetHandler::mint_asset(Origin::signed(relayer), recipient, 100, rid), Error::<Test>::MinterMustBeRelayer);
-		assert_eq!(Assets::balance(asset_id,recipient),0);
+		assert_noop!(
+			AssetHandler::mint_asset(Origin::signed(relayer), recipient, 100, rid),
+			Error::<Test>::MinterMustBeRelayer
+		);
+		assert_eq!(Assets::balance(asset_id, recipient), 0);
 	});
 }
 
@@ -99,11 +107,24 @@ pub fn test_withdraw() {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
-		assert_ok!(AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient));
+		assert_ok!(AssetHandler::withdraw(
+			Origin::signed(sender),
+			chain_id,
+			asset_address,
+			100,
+			recipient
+		));
 
-		assert_eq!(ChainBridge::bridge_events(), vec![chainbridge::BridgeEvent::
-		FungibleTransfer(chain_id, 1, rid,
-						 U256::from(100000000), recipient.0.to_vec())]);
+		assert_eq!(
+			ChainBridge::bridge_events(),
+			vec![chainbridge::BridgeEvent::FungibleTransfer(
+				chain_id,
+				1,
+				rid,
+				U256::from(100000000),
+				recipient.0.to_vec()
+			)]
+		);
 	});
 
 	/*
@@ -116,7 +137,10 @@ pub fn test_withdraw() {
 
 	// Chain is not whitelisted.
 	new_test_ext().execute_with(|| {
-		assert_noop!(AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient), Error::<Test>::ChainIsNotWhitelisted);
+		assert_noop!(
+			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient),
+			Error::<Test>::ChainIsNotWhitelisted
+		);
 	});
 
 	// Asset is not registered.
@@ -124,7 +148,10 @@ pub fn test_withdraw() {
 		// Setup
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
 
-		assert_noop!(AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient), Error::<Test>::NotEnoughBalance);
+		assert_noop!(
+			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient),
+			Error::<Test>::NotEnoughBalance
+		);
 	});
 
 	// Sender doesnt have enough balance.
@@ -135,7 +162,16 @@ pub fn test_withdraw() {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 100));
-		assert_noop!(AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 1000, recipient), Error::<Test>::NotEnoughBalance);
+		assert_noop!(
+			AssetHandler::withdraw(
+				Origin::signed(sender),
+				chain_id,
+				asset_address,
+				1000,
+				recipient
+			),
+			Error::<Test>::NotEnoughBalance
+		);
 	});
 
 	// Sender doesnt have enough native asset balance for fee.
@@ -146,10 +182,19 @@ pub fn test_withdraw() {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
-		assert_ok!(AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient));
+		assert_ok!(AssetHandler::withdraw(
+			Origin::signed(sender),
+			chain_id,
+			asset_address,
+			100,
+			recipient
+		));
 		assert_ok!(AssetHandler::update_fee(Origin::signed(1), chain_id, 10, 100));
 
-		assert_noop!(AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 10, recipient), pallet_balances::Error::<Test>::InsufficientBalance);
+		assert_noop!(
+			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 10, recipient),
+			pallet_balances::Error::<Test>::InsufficientBalance
+		);
 	});
 }
 
@@ -158,9 +203,7 @@ pub fn test_update_fee() {
 	let chain_id = 2;
 
 	new_test_ext().execute_with(|| {
-        assert_ok!(AssetHandler::update_fee(Origin::signed(1), chain_id, 10, 100));
+		assert_ok!(AssetHandler::update_fee(Origin::signed(1), chain_id, 10, 100));
 		assert_eq!(AssetHandler::get_bridge_fee(chain_id), (10, 100));
 	});
 }
-
-

@@ -23,10 +23,9 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use crate::{pallet as asset_handler};
+use crate::pallet as asset_handler;
 
-use frame_support::traits::GenesisBuild;
-use frame_support::PalletId;
+use frame_support::{traits::GenesisBuild, PalletId};
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -123,8 +122,8 @@ impl pallet_assets::Config for Test {
 }
 
 parameter_types! {
-    pub const ChainId: u8 = 1;
-    pub const ProposalLifetime: u64 = 1000;
+	pub const ChainId: u8 = 1;
+	pub const ProposalLifetime: u64 = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 }
 

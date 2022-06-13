@@ -16,7 +16,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-
 #[cfg(test)]
 mod mock;
 
@@ -31,23 +30,25 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use crate::AssetHandlerWeightInfo;
+	use chainbridge::{BridgeChainId, ResourceId};
 	use frame_support::{
 		pallet_prelude::*,
-		traits::tokens::fungibles::{Create, Inspect, Mutate},
+		traits::{
+			tokens::fungibles::{Create, Inspect, Mutate},
+			Currency, ExistenceRequirement, ReservableCurrency,
+		},
 		PalletId,
 	};
-	use frame_support::traits::{ReservableCurrency, Currency, ExistenceRequirement};
 	use frame_system::pallet_prelude::*;
-	use sp_core::H160;
-	use sp_runtime::SaturatedConversion;
-	use sp_core::U256;
-	use chainbridge::{ResourceId, BridgeChainId};
-	use sp_runtime::traits::One;
-	use sp_runtime::traits::UniqueSaturatedInto;
-	use crate::AssetHandlerWeightInfo;
+	use sp_core::{H160, U256};
+	use sp_runtime::{
+		traits::{One, UniqueSaturatedInto},
+		SaturatedConversion,
+	};
 
 	pub type BalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -57,10 +58,10 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Balances Pallet
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
-        /// Asset Manager
+		/// Asset Manager
 		type AssetManager: Create<<Self as frame_system::Config>::AccountId>
-		+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
-		+ Inspect<<Self as frame_system::Config>::AccountId>;
+			+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
+			+ Inspect<<Self as frame_system::Config>::AccountId>;
 
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -81,7 +82,6 @@ pub mod pallet {
 	pub(super) type BridgeFee<T: Config> =
 		StorageMap<_, Blake2_128Concat, BridgeChainId, (BalanceOf<T>, u32), ValueQuery>;
 
-
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
@@ -93,7 +93,7 @@ pub mod pallet {
 		AssetDeposited(T::AccountId, ResourceId, BalanceOf<T>),
 		/// Asset Withdrawn (recipient, ResourceId, Amount)
 		AssetWithdrawn(H160, ResourceId, BalanceOf<T>),
-		FeeUpdated(BridgeChainId, BalanceOf<T>, )
+		FeeUpdated(BridgeChainId, BalanceOf<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -106,16 +106,14 @@ pub mod pallet {
 		/// ChainIsNotWhitelisted
 		ChainIsNotWhitelisted,
 		/// NotEnoughBalance
-		NotEnoughBalance
+		NotEnoughBalance,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-
 		/// Creates new Asset where AssetId is derived from chain_id and contract Address
 		///
 		/// # Parameters
@@ -126,7 +124,7 @@ pub mod pallet {
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
-			contract_add: H160
+			contract_add: H160,
 		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
@@ -140,7 +138,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-        /// Mints Asset into Recipient's Account
+		/// Mints Asset into Recipient's Account
 		/// Only Relayers can call it.
 		///
 		/// # Parameters
@@ -149,10 +147,19 @@ pub mod pallet {
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
 		#[pallet::weight(T::WeightInfo::mint_asset(1))]
-		pub fn mint_asset(origin: OriginFor<T>, destination_add: T::AccountId, amount: BalanceOf<T>, rid: ResourceId) -> DispatchResult{
+		pub fn mint_asset(
+			origin: OriginFor<T>,
+			destination_add: T::AccountId,
+			amount: BalanceOf<T>,
+			rid: ResourceId,
+		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			ensure!(chainbridge::Pallet::<T>::is_relayer(&sender), Error::<T>::MinterMustBeRelayer);
-			T::AssetManager::mint_into(Self::convert_asset_id(rid), &destination_add, amount.saturated_into::<u128>())?;
+			T::AssetManager::mint_into(
+				Self::convert_asset_id(rid),
+				&destination_add,
+				amount.saturated_into::<u128>(),
+			)?;
 			Self::deposit_event(Event::<T>::AssetDeposited(destination_add, rid, amount));
 			Ok(())
 		}
@@ -165,16 +172,43 @@ pub mod pallet {
 		/// * `contract_add`: Asset's actual address at native chain
 		/// * `amount`: Amount to be burned and transferred from Sender's Account
 		/// * `recipient`: recipient
-		#[pallet::weight(T::WeightInfo::withdraw(1,1))]
-		pub fn withdraw(origin: OriginFor<T>, chain_id: BridgeChainId, contract_add: H160, amount: BalanceOf<T>, recipient: H160) -> DispatchResult{
+		#[pallet::weight(T::WeightInfo::withdraw(1, 1))]
+		pub fn withdraw(
+			origin: OriginFor<T>,
+			chain_id: BridgeChainId,
+			contract_add: H160,
+			amount: BalanceOf<T>,
+			recipient: H160,
+		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			ensure!(chainbridge::Pallet::<T>::chain_whitelisted(chain_id), Error::<T>::ChainIsNotWhitelisted);
+			ensure!(
+				chainbridge::Pallet::<T>::chain_whitelisted(chain_id),
+				Error::<T>::ChainIsNotWhitelisted
+			);
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
-			ensure!(T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true)>=amount.saturated_into::<u128>(), Error::<T>::NotEnoughBalance);
+			ensure!(
+				T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true) >=
+					amount.saturated_into::<u128>(),
+				Error::<T>::NotEnoughBalance
+			);
 			let fee = Self::fee_calculation(chain_id, amount);
-			T::Currency::transfer(&sender, &chainbridge::Pallet::<T>::account_id(), fee, ExistenceRequirement::KeepAlive)?;
-			T::AssetManager::burn_from(Self::convert_asset_id(rid), &sender, amount.saturated_into::<u128>())?;
-			chainbridge::Pallet::<T>::transfer_fungible(chain_id, rid, recipient.0.to_vec(), Self::convert_balance_to_eth_type(amount))?;
+			T::Currency::transfer(
+				&sender,
+				&chainbridge::Pallet::<T>::account_id(),
+				fee,
+				ExistenceRequirement::KeepAlive,
+			)?;
+			T::AssetManager::burn_from(
+				Self::convert_asset_id(rid),
+				&sender,
+				amount.saturated_into::<u128>(),
+			)?;
+			chainbridge::Pallet::<T>::transfer_fungible(
+				chain_id,
+				rid,
+				recipient.0.to_vec(),
+				Self::convert_balance_to_eth_type(amount),
+			)?;
 			Self::deposit_event(Event::<T>::AssetWithdrawn(contract_add, rid, amount));
 			Ok(())
 		}
@@ -186,8 +220,13 @@ pub mod pallet {
 		/// * `chain_id`: Asset's native chain
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
-		#[pallet::weight(T::WeightInfo::update_fee(1,1))]
-		pub fn update_fee(origin: OriginFor<T>, chain_id: BridgeChainId, min_fee: BalanceOf<T>, fee_scale: u32) -> DispatchResult{
+		#[pallet::weight(T::WeightInfo::update_fee(1, 1))]
+		pub fn update_fee(
+			origin: OriginFor<T>,
+			chain_id: BridgeChainId,
+			min_fee: BalanceOf<T>,
+			fee_scale: u32,
+		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeFee<T>>::insert(chain_id, (min_fee, fee_scale));
 			Self::deposit_event(Event::<T>::FeeUpdated(chain_id, min_fee));
@@ -196,13 +235,12 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-
 		fn convert_balance_to_eth_type(balance: BalanceOf<T>) -> U256 {
 			let balance: u128 = balance.unique_saturated_into();
 			U256::from(balance).saturating_mul(U256::from(1000000u128))
 		}
 
-		fn fee_calculation(bridge_id: BridgeChainId, amount: BalanceOf<T>) -> BalanceOf<T>{
+		fn fee_calculation(bridge_id: BridgeChainId, amount: BalanceOf<T>) -> BalanceOf<T> {
 			let (min_fee, fee_scale) = Self::get_bridge_fee(bridge_id);
 			let fee_estimated = amount * fee_scale.into() / 1000u32.into();
 			if fee_estimated > min_fee {
@@ -226,7 +264,8 @@ pub mod pallet {
 				chainbridge::Pallet::<T>::account_id(),
 				true,
 				BalanceOf::<T>::one().unique_saturated_into(),
-			).expect("Asset not Registered");
+			)
+			.expect("Asset not Registered");
 		}
 
 		#[cfg(feature = "runtime-benchmarks")]
