@@ -23,7 +23,6 @@ pub mod pallet {
     use sp_runtime::traits::{AccountIdConversion, Dispatchable};
     use sp_runtime::RuntimeDebug;
     use sp_std::prelude::*;
-    use frame_support::Hashable;
 
     const DEFAULT_RELAYER_THRESHOLD: u32 = 1;
     const MODULE_ID: PalletId = PalletId(*b"phala/bg");

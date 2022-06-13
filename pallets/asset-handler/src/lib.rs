@@ -31,7 +31,6 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::{Decode, Encode, MaxEncodedLen};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::tokens::fungibles::{Create, Inspect, Mutate},
@@ -39,12 +38,8 @@ pub mod pallet {
 	};
 	use frame_support::traits::{ReservableCurrency, Currency, ExistenceRequirement};
 	use frame_system::pallet_prelude::*;
-	use scale_info::TypeInfo;
 	use sp_core::H160;
-	use sp_runtime::{
-		traits::{BlockNumberProvider, Saturating, Zero},
-		SaturatedConversion,
-	};
+	use sp_runtime::SaturatedConversion;
 	use sp_core::U256;
 	use chainbridge::{ResourceId, BridgeChainId};
 	use sp_runtime::traits::One;
