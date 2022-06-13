@@ -13,13 +13,13 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 use frame_support::{assert_noop, assert_ok};
-use sp_core::{H160, H256, U256};
-use sp_runtime::DispatchError::Token;
+use sp_core::{H160, U256};
+
 use sp_runtime::TokenError;
-use sp_runtime::traits::{BadOrigin, BlockNumberProvider};
+
 use crate::mock::*;
 use super::*;
-use crate::mock::{new_test_ext, Test, PDEX};
+use crate::mock::{new_test_ext, Test};
 
 use crate::pallet::*;
 

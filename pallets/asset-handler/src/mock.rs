@@ -23,8 +23,8 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use crate::{AssetHandlerWeightInfo, pallet as asset_handler};
-use frame_system::{EnsureRoot, EnsureSigned};
+use crate::{pallet as asset_handler};
+
 use frame_support::traits::GenesisBuild;
 use frame_support::PalletId;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -74,7 +74,7 @@ impl system::Config for Test {
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
-pub const PDEX: Balance = 1000_000_000_000;
+pub const PDEX: Balance = 1_000_000_000_000;
 
 parameter_types! {
 	pub const ExistentialDeposit: Balance = 1 * PDEX;
@@ -148,7 +148,7 @@ impl asset_handler::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let alice = 1u64;
+	let _alice = 1u64;
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_balances::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)
