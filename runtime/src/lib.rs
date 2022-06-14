@@ -87,8 +87,6 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
-use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
-
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
 
