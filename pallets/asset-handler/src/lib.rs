@@ -155,11 +155,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			ensure!(chainbridge::Pallet::<T>::is_relayer(&sender), Error::<T>::MinterMustBeRelayer);
-			T::AssetManager::mint_into(
-				Self::convert_asset_id(rid),
-				&destination_add,
-				amount.saturated_into::<u128>(),
-			)?;
+			// T::AssetManager::mint_into(
+			// 	Self::convert_asset_id(rid),
+			// 	&destination_add,
+			// 	amount.saturated_into::<u128>(),
+			// )?;
 			Self::deposit_event(Event::<T>::AssetDeposited(destination_add, rid, amount));
 			Ok(())
 		}
@@ -181,28 +181,28 @@ pub mod pallet {
 			recipient: H160,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			ensure!(
-				chainbridge::Pallet::<T>::chain_whitelisted(chain_id),
-				Error::<T>::ChainIsNotWhitelisted
-			);
+			// ensure!(
+			// 	chainbridge::Pallet::<T>::chain_whitelisted(chain_id),
+			// 	Error::<T>::ChainIsNotWhitelisted
+			// );
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
-			ensure!(
-				T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true) >=
-					amount.saturated_into::<u128>(),
-				Error::<T>::NotEnoughBalance
-			);
-			let fee = Self::fee_calculation(chain_id, amount);
-			T::Currency::transfer(
-				&sender,
-				&chainbridge::Pallet::<T>::account_id(),
-				fee,
-				ExistenceRequirement::KeepAlive,
-			)?;
-			T::AssetManager::burn_from(
-				Self::convert_asset_id(rid),
-				&sender,
-				amount.saturated_into::<u128>(),
-			)?;
+			// ensure!(
+			// 	T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true) >=
+			// 		amount.saturated_into::<u128>(),
+			// 	Error::<T>::NotEnoughBalance
+			// );
+			// let fee = Self::fee_calculation(chain_id, amount);
+			// T::Currency::transfer(
+			// 	&sender,
+			// 	&chainbridge::Pallet::<T>::account_id(),
+			// 	fee,
+			// 	ExistenceRequirement::KeepAlive,
+			// )?;
+			// T::AssetManager::burn_from(
+			// 	Self::convert_asset_id(rid),
+			// 	&sender,
+			// 	amount.saturated_into::<u128>(),
+			// )?;
 			chainbridge::Pallet::<T>::transfer_fungible(
 				chain_id,
 				rid,
