@@ -109,7 +109,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-    pub const GetNativeCurrencyId: AssetId = AssetId::polkadex;
+    pub const GetNativeCurrencyId: AssetId = AssetId::POLKADEX;
 }
 
 parameter_types! {
@@ -197,21 +197,21 @@ impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
             endowed_accounts: vec![
-                (ALICE, AssetId::polkadex, INITIAL_BALANCE),
+                (ALICE, AssetId::POLKADEX, INITIAL_BALANCE),
                 // Add Custom token to Alice account which will be sold in the ido
                 (
                     ALICE,
-                    AssetId::asset(24),
+                    AssetId::Asset(24),
                     INITIAL_BALANCE,
                 ),
-                (4, AssetId::polkadex, INITIAL_BALANCE),
-                (2, AssetId::polkadex, INITIAL_BALANCE),
-                (5, AssetId::polkadex, INITIAL_BALANCE),
-                (6, AssetId::polkadex, INITIAL_BALANCE),
-                (7, AssetId::polkadex, INITIAL_BALANCE),
-                (8, AssetId::polkadex, INITIAL_BALANCE),
-                (9, AssetId::polkadex, INITIAL_BALANCE),
-                (10, AssetId::polkadex, INITIAL_BALANCE),
+                (4, AssetId::POLKADEX, INITIAL_BALANCE),
+                (2, AssetId::POLKADEX, INITIAL_BALANCE),
+                (5, AssetId::POLKADEX, INITIAL_BALANCE),
+                (6, AssetId::POLKADEX, INITIAL_BALANCE),
+                (7, AssetId::POLKADEX, INITIAL_BALANCE),
+                (8, AssetId::POLKADEX, INITIAL_BALANCE),
+                (9, AssetId::POLKADEX, INITIAL_BALANCE),
+                (10, AssetId::POLKADEX, INITIAL_BALANCE),
             ],
         }
     }
