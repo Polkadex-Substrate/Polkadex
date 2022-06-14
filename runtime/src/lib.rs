@@ -1138,7 +1138,7 @@ impl pallet_recovery::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TokenAmount: Balance = 100_000_u128 * PDEX;
+	pub const TokenAmount: Balance = 1000u128 * PDEX;
 }
 
 impl test_token_provider::Config for Runtime {
