@@ -1385,6 +1385,28 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+	
+		fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+	        PolkadexIdo::rounds_by_investor(account)
+	    }
+	    fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+	        PolkadexIdo::rounds_by_creator(account)
+	    }
+	
+	    fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+	        PolkadexIdo::active_rounds()
+	    }
+	
+	    fn votes_stat(round_id: Hash) -> VoteStat {
+	        PolkadexIdo::votes_stat(round_id)
+	    }
+	
+	    fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
+	        PolkadexIdo::account_balances(assets, account_id)
+		}
+	 }
+
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
 			source: TransactionSource,
