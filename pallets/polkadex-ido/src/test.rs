@@ -679,17 +679,21 @@ fn test_show_interest_in_round_randomized_participants() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone()).unwrap();
         assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         let investors: Vec<(u64, Balance)> =
-            vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
+            vec![(4u64, 200), (2u64, 200), (5u64, 200)];
 
         let funding_round: FundingRound<Test> = <WhitelistInfoFundingRound<Test>>::get(round_id).unwrap();
 
         system::Pallet::<Test>::set_block_number(funding_round.start_block);
 
-        for (investor_address, amount) in investors {
+        for (investor_address, amount) in investors.clone() {
             assert_eq!(
                 PolkadexIdo::register_investor(Origin::signed(investor_address)),
                 Ok(())
             );
+        }
+
+        for (investor_address, amount) in investors {
+            dbg!(&amount);
             assert_eq!(
                 PolkadexIdo::show_interest_in_round(
                     Origin::signed(investor_address),
@@ -700,22 +704,28 @@ fn test_show_interest_in_round_randomized_participants() {
             );
         }
 
+        assert_eq!(
+            PolkadexIdo::register_investor(Origin::signed(6_u64)),
+            Ok(())
+        );
 
-
-
+        // Oversubsribed
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(
+                Origin::signed(6_u64),
+                round_id,
+                100
+            ),
+            Err(Error::<Test>::NotAllowed.into())
+        );
 
         let total_investment_amount: Balance =
             InterestedParticipants::<Test>::iter_prefix_values(round_id)
                 .fold(0_u128, |sum, amount| sum.saturating_add(amount));
         let investors_count = InterestedParticipants::<Test>::iter_prefix_values(round_id).count();
-        // Check if an investor was randomly evicted
-        assert_eq!(investors_count <= 3, true);
-        assert_eq!(
-            InterestedParticipants::<Test>::contains_key(round_id, 6u64),
-            true
-        );
+        
         // Check if maximum effective investors are selected
-        assert_eq!(total_investment_amount >= funding_round.amount, true);
+        assert_eq!(total_investment_amount >= funding_round.amount, true); 
     });
 }
 
