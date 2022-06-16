@@ -202,7 +202,7 @@ pub mod pallet {
 		///  Provides Ethers Asset Id for Test Ether 
 		pub fn asset_id() -> u128 {
 			// Currently Hardcoding this value created from address "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee"
-			99237140875836081697465599727699073781
+			100
 		}
 	}
 
