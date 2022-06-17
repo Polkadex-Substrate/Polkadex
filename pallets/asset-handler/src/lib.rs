@@ -40,6 +40,7 @@ pub mod pallet {
 		},
 		PalletId,
 	};
+	use frame_support::inherent::Vec;
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
 	use sp_runtime::{
