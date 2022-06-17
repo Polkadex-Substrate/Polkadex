@@ -155,7 +155,7 @@ pub mod pallet {
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			ensure!(chainbridge::Pallet::<T>::is_relayer(&sender), Error::<T>::MinterMustBeRelayer);
+			ensure!(chainbridge::Pallet::<T>::is_relayer(&sender) || (chainbridge::Pallet::<T>::account_id() == sender) , Error::<T>::MinterMustBeRelayer);
 			// T::AssetManager::mint_into(
 			// 	Self::convert_asset_id(rid),
 			// 	&destination_add,
