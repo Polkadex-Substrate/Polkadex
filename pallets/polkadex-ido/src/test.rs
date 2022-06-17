@@ -653,7 +653,7 @@ fn test_show_interest_in_round() {
 // One investor of lowest amount will be randomly evicted
 // verify the most invested was not get evicted
 #[test]
-fn test_show_interest_in_round_randomized_participants() {
+fn test_show_interest_in_round_oversubscription() {
     let balance: Balance = 500;
     let min_allocation: Balance = 100;
     let max_allocation: Balance = 400;
@@ -682,7 +682,8 @@ fn test_show_interest_in_round_randomized_participants() {
             vec![(4u64, 200), (2u64, 200), (5u64, 200)];
 
         let funding_round: FundingRound<Test> = <WhitelistInfoFundingRound<Test>>::get(round_id).unwrap();
-
+    
+        
         system::Pallet::<Test>::set_block_number(funding_round.start_block);
 
         for (investor_address, amount) in investors.clone() {
@@ -693,7 +694,6 @@ fn test_show_interest_in_round_randomized_participants() {
         }
 
         for (investor_address, amount) in investors {
-            dbg!(&amount);
             assert_eq!(
                 PolkadexIdo::show_interest_in_round(
                     Origin::signed(investor_address),

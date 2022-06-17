@@ -157,7 +157,6 @@ where
 		finality_provider,
 	)));
 
-	
 	io.extend_with(sc_sync_state_rpc::SyncStateRpcApi::to_delegate(
 		sc_sync_state_rpc::SyncStateRpcHandler::new(
 			chain_spec,
@@ -170,8 +169,6 @@ where
 	io.extend_with(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
 		polkadex_ido_rpc::PolkadexIdoRpc::new(client),
 	));
-
-	
 
 	Ok(io)
 }

@@ -709,7 +709,6 @@ pub mod pallet {
             // Round has been oversubscribed
             if total_potential_raise >= funding_round.amount {
                 return Err(<Error<T>>::NotAllowed.into());
-                // panic!("Oversubsribed");
             }
             <InterestedParticipants<T>>::insert(round_id, investor_address.clone(), amount.clone());
             let participants = interested_participants_amounts.entry(amount).or_insert(BTreeSet::new());
