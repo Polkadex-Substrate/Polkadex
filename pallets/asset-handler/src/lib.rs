@@ -90,7 +90,7 @@ pub mod pallet {
 		/// Asset Registered
 		AssetRegistered(ResourceId),
 		/// Asset Deposited (recipient, ResourceId, Amount)
-		AssetDeposited(T::AccountId, ResourceId, BalanceOf<T>),
+		AssetDeposited(Vec<u8>, ResourceId, u128),
 		/// Asset Withdrawn (recipient, ResourceId, Amount)
 		AssetWithdrawn(H160, ResourceId, BalanceOf<T>),
 		FeeUpdated(BridgeChainId, BalanceOf<T>),
@@ -149,8 +149,8 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
-			destination_add: T::AccountId,
-			amount: BalanceOf<T>,
+			destination_add: Vec<u8>,
+			amount: u128,
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
