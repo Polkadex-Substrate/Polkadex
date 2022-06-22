@@ -392,33 +392,50 @@ pub mod pallet {
             for (round_id, funding_round) in <WhitelistInfoFundingRound<T>>::iter() {
                 if block_number >= funding_round.close_round_block && !<InfoFundingRoundEnded<T>>::contains_key(round_id) {
                     let mut funding_round = funding_round.clone();
+                    let mut interested_participants_amounts = InterestedParticipantsAmounts::<T>::get(&round_id);
+                    let total_potential_raise : BalanceOf<T> = interested_participants_amounts.iter()
+                    .map(|(amount, investor)| { *amount * (investor.len() as u128).saturated_into() })
+                    .fold(BalanceOf::<T>::default(), |sum, amount| {
+                        sum.saturating_add(amount)
+                    });
+                    // Find a way to divide
+                    let total_potential_raise = total_potential_raise.saturated_into::<u128>(); 
+                    let round_amount = funding_round.amount.saturated_into::<u128>();
+                    let threshold = round_amount / 2 as u128;
+                    dbg!(total_potential_raise >= threshold);
+
                     // Get all interested participants for a round
-                    for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
-                        // Whitelist interested investor
-                        <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
-                        let total_raise = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_priceper_token_b {
-                            funding_round.token_a_price_per_1e12_token_b().mul_floor(funding_round.amount)
-                        } else {
-                            funding_round.token_a_price_per_1e12_token_b_balance().saturating_mul(funding_round.amount)
-                        };
-
-                        // Calculate investors share
-                        let investor_share = Perquintill::from_rational_approximation(amount.saturated_into::<u64>(), total_raise.saturated_into::<u64>());
-                        let round_account_id = Self::round_account_id(round_id.clone());
-
-                        match Self::transfer(funding_round.token_b, &investor_address, &round_account_id, amount.saturated_into()) {
-                            Ok(_) => {
-                                <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
-                                funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount);
-                                Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address));
-                            }
-                            Err(error) => {
-                                Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
+                    if total_potential_raise >= threshold{
+                        for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
+                            // Whitelist interested investor
+                            <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
+                            let total_raise = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_priceper_token_b {
+                                funding_round.token_a_price_per_1e12_token_b().mul_floor(funding_round.amount)
+                            } else {
+                                funding_round.token_a_price_per_1e12_token_b_balance().saturating_mul(funding_round.amount)
+                            };
+    
+                            // Calculate investors share
+                            let investor_share = Perquintill::from_rational_approximation(amount.saturated_into::<u64>(), total_raise.saturated_into::<u64>());
+                            let round_account_id = Self::round_account_id(round_id.clone());
+    
+                            match Self::transfer(funding_round.token_b, &investor_address, &round_account_id, amount.saturated_into()) {
+                                Ok(_) => {
+                                    <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
+                                    funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount);
+                                    Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address));
+                                }
+                                Err(error) => {
+                                    Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
+                                }
                             }
                         }
+                        <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), funding_round);
+                        <InfoFundingRoundEnded<T>>::insert(round_id, true);
+                    } else {
+                        <InfoFundingRoundEnded<T>>::insert(round_id, true);
                     }
-                    <WhitelistInfoFundingRound<T>>::insert(round_id.clone(), funding_round);
-                    <InfoFundingRoundEnded<T>>::insert(round_id, true);
+                    
                 }
             }
             return call_weight;
@@ -706,35 +723,9 @@ pub mod pallet {
                     sum.saturating_add(amount)
                 });
 
-            /// TODO:: Use strict larger than.
-            /// Make sure we do not unfill a filled round.
-            ///
-            /// Simson will check how this should be handled if over subscribed and not able to fill exactly as whished
+            // Round has been oversubscribed
             if total_potential_raise >= funding_round.amount {
-                let participants = interested_participants_amounts.clone();
-                let replaceable_participants: Vec<(&T::AccountId, &BalanceOf<T>)> = participants.range(..=amount.clone()).flat_map(|(amount, investors)| {
-                    investors.iter().map(move |investor| {
-                        (investor, amount)
-                    })
-                }).collect();
-                let seed = <T as Config>::RandomnessSource::random_seed();
-                let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
-                let random_index = rng.gen_range(0..replaceable_participants.len());
-                let evicted_participant = replaceable_participants[random_index];
-                <InterestedParticipants<T>>::remove(round_id, evicted_participant.0);
-                let is_empty_participants = interested_participants_amounts.get_mut(evicted_participant.1).and_then(|investors| {
-                    investors.remove(evicted_participant.0);
-                    Some(investors.is_empty())
-                });
-
-                match is_empty_participants {
-                    Some(is_empty) => {
-                        if is_empty {
-                            interested_participants_amounts.remove(evicted_participant.1);
-                        }
-                    }
-                    _ => {}
-                };
+                return Err(<Error<T>>::NotAllowed.into());
             }
             <InterestedParticipants<T>>::insert(round_id, investor_address.clone(), amount.clone());
             let participants = interested_participants_amounts.entry(amount).or_insert(BTreeSet::new());
