@@ -671,13 +671,11 @@ pub mod pallet {
         ///
         /// * `round_id`: Funding round id
         #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn show_interest_in_round(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
+        pub fn invest(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoInvestor<T>>::contains_key(&investor_address), <Error<T>>::InvestorDoesNotExist);
-            ensure!(!<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundNotApproved);
             ensure!(<WhitelistInfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
-            ensure!(!<InterestedParticipants<T>>::contains_key(&round_id,&investor_address), Error::<T>::InvestorAlreadyShownInterest);
-            let funding_round = <WhitelistInfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            let mut funding_round = <WhitelistInfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
 
             //Check If investor can invest amount
             ensure!(Self::can_withdraw(funding_round.token_b,&investor_address, amount.saturated_into()).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
@@ -694,25 +692,26 @@ pub mod pallet {
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
+            // ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
 
-            let mut interested_participants_amounts = InterestedParticipantsAmounts::<T>::get(&round_id);
-            let total_potential_raise: BalanceOf<T> = interested_participants_amounts.iter()
-                .map(|(amount, investor)| { *amount * (investor.len() as u128).saturated_into() })
-                .fold(BalanceOf::<T>::default(), |sum, amount| {
-                    sum.saturating_add(amount)
-                });
+            let total_raise = funding_round.actual_raise;
+            let round_account_id = Self::round_account_id(round_id.clone());
 
-            // Round has been oversubscribed
-            if total_potential_raise >= funding_round.amount {
-                return Err(<Error<T>>::NotAllowed.into());
+            // What is investor share? 
+            let investor_share = Perquintill::from_rational_approximation(amount.saturated_into::<u64>(), total_raise.saturated_into::<u64>());
+
+            // Transfer amounts to round account_id
+            match Self::transfer(funding_round.token_b, &investor_address, &round_account_id, amount.saturated_into()) {
+                Ok(_) => {
+                    <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
+                    funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount);
+                    Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address));
+                    <WhitelistInfoFundingRound<T>>::insert(round_id, funding_round);
+                }
+                Err(error) => {
+                    Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
+                }
             }
-            <InterestedParticipants<T>>::insert(round_id, investor_address.clone(), amount.clone());
-            let participants = interested_participants_amounts.entry(amount).or_insert(BTreeSet::new());
-            participants.insert(investor_address.clone());
-            Self::deposit_event(Event::ShowedInterest(round_id, investor_address));
-            InterestedParticipantsAmounts::<T>::insert(round_id, interested_participants_amounts);
-
             Ok(())
         }
 
