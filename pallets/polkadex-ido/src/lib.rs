@@ -236,7 +236,6 @@ pub mod pallet {
         pub amount: BalanceOf<T>,
         pub token_b: AssetId,
         pub project_info_cid: Vec<u8>,
-        pub vote_end_block: T::BlockNumber,
         pub vesting_end_block: T::BlockNumber,
         pub vesting_per_block: BalanceOf<T>,
         pub start_block: T::BlockNumber,
@@ -254,7 +253,6 @@ pub mod pallet {
             creator: T::AccountId,
             amount: BalanceOf<T>,
             token_b: AssetId,
-            vote_end_block: T::BlockNumber,
             vesting_end_block: T::BlockNumber,
             vesting_per_block: BalanceOf<T>,
             start_block: T::BlockNumber,
@@ -269,7 +267,6 @@ pub mod pallet {
                 amount,
                 token_b,
                 project_info_cid: cid,
-                vote_end_block,
                 vesting_end_block,
                 vesting_per_block,
                 start_block,
@@ -289,7 +286,6 @@ pub mod pallet {
                 token_b: StringAssetId::from(self.token_b),
                 vesting_per_block: self.vesting_per_block.saturated_into(),
                 start_block: self.start_block.saturated_into(),
-                vote_end_block: self.vote_end_block.saturated_into(),
                 vesting_end_block: self.vesting_end_block.saturated_into(),
                 project_info_cid: self.project_info_cid.clone(),
                 min_allocation: self.min_allocation.saturated_into(),
@@ -373,7 +369,8 @@ pub mod pallet {
             });
             // Clean up WhiteListInvestors and InterestedParticipants in all expired rounds
             for (round_id, funding_round) in <InfoFundingRound<T>>::iter() {
-                if block_number >= funding_round.vote_end_block {
+                // TODO: This is commented out for now, Will be refactored and removed in the future 
+                /* if block_number >= funding_round.vote_end_block {
                     let voting = <RoundVotes<T>>::get(&round_id);
                     let yes: BalanceOf<T> = voting.ayes.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
                     let no: BalanceOf<T> = voting.nays.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
@@ -384,7 +381,7 @@ pub mod pallet {
                         <InfoFundingRound<T>>::remove(&round_id);
                         Self::deposit_event(Event::CleanedupExpiredRound(round_id));
                     }
-                }
+                } */
             }
 
 
@@ -532,6 +529,7 @@ pub mod pallet {
             };
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
+
             let vote_end_block = match <VotingPeriod<T>>::try_get() {
                 Ok(voting_period) => voting_period.saturating_add(current_block_no),
                 Err(_) => T::DefaultVotingPeriod::get().saturating_add(current_block_no)
@@ -565,7 +563,6 @@ pub mod pallet {
                 team.clone(),
                 amount,
                 token_b,
-                vote_end_block,
                 vesting_end_block,
                 vesting_per_block,
                 start_block,
@@ -597,7 +594,7 @@ pub mod pallet {
                 Self::transfer(token_a, &team, &round_account_id, amount.saturated_into())?;
                 //ensure!(.is_ok(), <Error<T>>::TransferTokenAFromTeamAccountFailed);
             }
-            <InfoFundingRound<T>>::insert(round_id, funding_round);
+            <WhitelistInfoFundingRound<T>>::insert(round_id, funding_round);
             <InfoProjectTeam<T>>::insert(team, round_id);
             Self::deposit_event(Event::FundingRoundRegistered(round_id));
             Ok(())
@@ -757,7 +754,7 @@ pub mod pallet {
             let who: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let funding_round = <InfoFundingRound<T>>::get(&round_id).ok_or(Error::<T>::FundingRoundDoesNotExist)?;
-            ensure!(current_block_no < funding_round.vote_end_block , Error::<T>::VotingEnded);
+            // ensure!(current_block_no < funding_round.vote_end_block , Error::<T>::VotingEnded);
             let mut voting = <RoundVotes<T>>::get(&round_id);
             let position_yes = voting.ayes.iter().position(|a| a.account_id == who);
             let position_no = voting.nays.iter().position(|a| a.account_id == who);
