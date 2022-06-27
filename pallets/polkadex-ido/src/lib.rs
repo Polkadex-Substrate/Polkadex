@@ -103,7 +103,7 @@ pub use pallet::*;
 mod benchmarking;
 pub mod weights;
 
-use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat, StringAssetId};
+use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat, StringAssetId, Balance};
 pub use weights::WeightInfo;
 
 #[cfg(test)]
@@ -387,10 +387,11 @@ pub mod pallet {
 
             // Loops through all approved funding rounds and checks if the funding round transfers funds from the investor to round creator
             for (round_id, funding_round) in <WhitelistInfoFundingRound<T>>::iter() {
+               
                 if block_number >= funding_round.close_round_block && !<InfoFundingRoundEnded<T>>::contains_key(round_id) {
                     let mut funding_round = funding_round.clone();
-                    // Get all interested participants for a round
-                    for (investor_address, amount) in <InterestedParticipants<T>>::iter_prefix(round_id) {
+                    // Get all invested parties for a round
+                    for (investor_address, amount) in <InvestedParties<T>>::iter_prefix(round_id) {
                         // Whitelist interested investor
                         <WhiteListInvestors<T>>::insert(round_id, investor_address.clone(), amount);
                         let total_raise = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_priceper_token_b {
@@ -398,7 +399,7 @@ pub mod pallet {
                         } else {
                             funding_round.token_a_price_per_1e12_token_b_balance().saturating_mul(funding_round.amount)
                         };
-
+                        
                         // Calculate investors share
                         let investor_share = Perquintill::from_rational_approximation(amount.saturated_into::<u64>(), total_raise.saturated_into::<u64>());
                         let round_account_id = Self::round_account_id(round_id.clone());
@@ -684,29 +685,31 @@ pub mod pallet {
 
             ///TODO make sure we have unit test for both paths.
             let amount_in_token_a = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_priceper_token_b {
-                funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(amount)
+                funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(amount) 
             } else {
                 amount / funding_round.token_a_price_per_1e12_token_b_balance()
             };
-            //Ensure investment amount doesn't exceed max_allocation
+            //Ensure investment amount doesn't exceed max_allocation 
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            // ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
+            ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
 
             let total_raise = funding_round.actual_raise;
             let round_account_id = Self::round_account_id(round_id.clone());
 
-            // What is investor share? 
-            let investor_share = Perquintill::from_rational_approximation(amount.saturated_into::<u64>(), total_raise.saturated_into::<u64>());
+            // First come first serve basis 
+            if total_raise >= funding_round.amount{
+                return Err(<Error<T>>::NotAllowed.into());
+            }
 
             // Transfer amounts to round account_id
             match Self::transfer(funding_round.token_b, &investor_address, &round_account_id, amount.saturated_into()) {
                 Ok(_) => {
-                    <InvestorShareInfo<T>>::insert(round_id, investor_address.clone(), investor_share);
-                    funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount);
-                    Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address));
+                    funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount_in_token_a);
+                    Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address.clone()));
                     <WhitelistInfoFundingRound<T>>::insert(round_id, funding_round);
+                    <InvestedParties<T>>::insert(round_id.clone(), investor_address, amount);
                 }
                 Err(error) => {
                     Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
@@ -962,10 +965,10 @@ pub mod pallet {
         ValueQuery,
     >;
 
-    /// Stores interested participants for an ido round
+    /// Stores investors amount 
     #[pallet::storage]
-    #[pallet::getter(fn get_interested_particpants)]
-    pub(super) type InterestedParticipants<T: Config> = StorageDoubleMap<
+    #[pallet::getter(fn get_invested_parties)]
+    pub(super) type InvestedParties<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::Hash,
