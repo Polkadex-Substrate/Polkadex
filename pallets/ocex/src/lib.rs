@@ -62,7 +62,7 @@ pub mod pallet {
 	use ias_verify::{verify_ias_report, SgxStatus};
 	use polkadex_primitives::{assets::AssetId, ocex::{AccountInfo, TradingPairConfig}, snapshot::EnclaveSnapshot, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, AssetsLimit};
 	use sp_runtime::SaturatedConversion;
-
+	use polkadex_primitives::snapshot::Fees;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 	use sp_std::vec::Vec;
 
@@ -292,8 +292,8 @@ pub mod pallet {
 			max_trade_amount: BalanceOf<T>,
 			min_order_qty: BalanceOf<T>,
 			max_order_qty: BalanceOf<T>,
-			min_depth: BalanceOf<T>,
-			max_spread: BalanceOf<T>
+			max_spread: BalanceOf<T>,
+			min_depth: BalanceOf<T>
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
@@ -314,8 +314,8 @@ pub mod pallet {
 				max_trade_amount,
 				min_order_qty,
 				max_order_qty,
-				min_depth: min_depth,
-				max_spread: max_spread
+				max_spread,
+				min_depth
 			};
 			<TradingPairs<T>>::insert(&base, &quote, trading_pair_info.clone());
 			<TradingPairsStatus<T>>::insert(&base, &quote, true);
@@ -353,21 +353,9 @@ pub mod pallet {
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
 		#[pallet::weight(10000)]
-		pub fn submit_snapshot_demo(
-			origin: OriginFor<T>,
-			snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit, AssetsLimit>,
-			//balance: u128,
-			enclave: T::AccountId,
-			signature: T::Signature
-		) -> DispatchResult {
-			Ok(())
-		}
-
-		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(10000)]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
-			mut snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit, AssetsLimit>,
+			mut snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit>,
 			enclave: T::AccountId,
 			signature: T::Signature,
 		) -> DispatchResult {
@@ -393,10 +381,39 @@ pub mod pallet {
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals);
+			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
 			snapshot.withdrawals =
 				BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>::default();
 			<Snapshots<T>>::insert(snapshot.snapshot_number, snapshot);
 			<SnapshotNonce<T>>::put(last_snapshot_serial_number.saturating_add(1));
+			Ok(())
+		}
+
+		/// Withdraws Fees Collected
+		///
+		/// params:  snapshot_number: u32
+		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
+		pub fn collect_fees(
+			origin: OriginFor<T>,
+			snapshot_id: u32,
+			beneficiary: T::AccountId
+		) -> DispatchResult {
+			// TODO: The caller should be of operational council
+			let _sender = ensure_signed(origin)?;
+
+			let fees: Vec<Fees<BalanceOf<T>>> = <FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
+			for fee in fees {
+				Self::transfer_asset(
+					&Self::get_custodian_account(),
+					&beneficiary,
+					fee.amount,
+					fee.asset,
+				)?;
+			}
+			Self::deposit_event(Event::FeesClaims {
+				beneficiary: beneficiary,
+				snapshot_id
+			});
 			Ok(())
 		}
 
@@ -502,6 +519,10 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		FeesClaims{
+			beneficiary: T::AccountId,
+			snapshot_id: u32
+		},
 		MainAccountRegistered {
 			main: T::AccountId,
 			proxy: T::AccountId,
@@ -570,7 +591,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit, AssetsLimit>,
+		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit>,
 		OptionQuery,
 	>;
 
@@ -583,6 +604,18 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn orderbook_operational_state)]
 	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+
+	// Fees collected
+	#[pallet::storage]
+	#[pallet::getter(fn fees_collected)]
+	pub(super) type FeesCollected<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		u32,
+		BoundedVec<Fees<BalanceOf<T>>, AssetsLimit>,
+		ValueQuery,
+	>;
 
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
