@@ -1,4 +1,5 @@
-#TODO: rename to chainbridge pallet
+#Copyright 2021 ChainSafe Systems
+#SPDX-License-Identifier: GPL-3.0-only
 [package]
 name = 'chainbridge'
 version = '0.0.3'
