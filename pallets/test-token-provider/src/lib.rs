@@ -131,7 +131,7 @@ pub mod pallet {
 			if let Err(e) = T::AssetManager::mint_into(
 				Self::asset_id(),
 				&account,
-				100,
+				1000000000000000,
 			){
 				// Handling Unknown Asset by creating the Asset
 				T::AssetManager::create(
@@ -144,7 +144,7 @@ pub mod pallet {
 				T::AssetManager::mint_into(
 					Self::asset_id(),
 					&account,
-					100,
+					1000000000000000,
 				)?;
 			} 
 			TokenFaucetMap::<T>::insert(&account,<frame_system::Pallet<T>>::block_number());
@@ -202,7 +202,7 @@ pub mod pallet {
 		///  Provides Ethers Asset Id for Test Ether 
 		pub fn asset_id() -> u128 {
 			// Currently Hardcoding this value created from address "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee"
-			99237140875836081697465599727699073781
+			100
 		}
 	}
 
