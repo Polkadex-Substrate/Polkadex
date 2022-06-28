@@ -706,35 +706,9 @@ pub mod pallet {
                     sum.saturating_add(amount)
                 });
 
-            /// TODO:: Use strict larger than.
-            /// Make sure we do not unfill a filled round.
-            ///
-            /// Simson will check how this should be handled if over subscribed and not able to fill exactly as whished
+            // Round has been oversubscribed
             if total_potential_raise >= funding_round.amount {
-                let participants = interested_participants_amounts.clone();
-                let replaceable_participants: Vec<(&T::AccountId, &BalanceOf<T>)> = participants.range(..=amount.clone()).flat_map(|(amount, investors)| {
-                    investors.iter().map(move |investor| {
-                        (investor, amount)
-                    })
-                }).collect();
-                let seed = <T as Config>::RandomnessSource::random_seed();
-                let mut rng = ChaChaRng::from_seed(*seed.0.as_fixed_bytes());
-                let random_index = rng.gen_range(0..replaceable_participants.len());
-                let evicted_participant = replaceable_participants[random_index];
-                <InterestedParticipants<T>>::remove(round_id, evicted_participant.0);
-                let is_empty_participants = interested_participants_amounts.get_mut(evicted_participant.1).and_then(|investors| {
-                    investors.remove(evicted_participant.0);
-                    Some(investors.is_empty())
-                });
-
-                match is_empty_participants {
-                    Some(is_empty) => {
-                        if is_empty {
-                            interested_participants_amounts.remove(evicted_participant.1);
-                        }
-                    }
-                    _ => {}
-                };
+                return Err(<Error<T>>::NotAllowed.into());
             }
             <InterestedParticipants<T>>::insert(round_id, investor_address.clone(), amount.clone());
             let participants = interested_participants_amounts.entry(amount).or_insert(BTreeSet::new());

@@ -68,9 +68,9 @@ fn test_register_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -104,9 +104,9 @@ fn test_whitelist_investor() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -171,9 +171,9 @@ fn test_participate_in_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 min_allocation,
@@ -258,9 +258,9 @@ fn test_claim_tokens() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -321,9 +321,9 @@ fn test_claim_tokens_native_pdex_as_token_b() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::POLKADEX,
+                AssetId::polkadex,
                 balance,
                 funding_period,
                 balance,
@@ -399,9 +399,9 @@ fn test_claim_edge_case_small_investment() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 amount,
-               AssetId::Asset(1),
+               AssetId::asset(1),
                 500,
                 funding_period,
                 min_allocation,
@@ -467,9 +467,9 @@ fn test_claim_edge_case_lower_tokens() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -535,9 +535,9 @@ fn test_claim_edge_case_high_tokens() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -604,9 +604,9 @@ fn test_show_interest_in_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 min_allocation,
@@ -653,7 +653,7 @@ fn test_show_interest_in_round() {
 // One investor of lowest amount will be randomly evicted
 // verify the most invested was not get evicted
 #[test]
-fn test_show_interest_in_round_randomized_participants() {
+fn test_show_interest_in_round_oversubscription() {
     let balance: Balance = 500;
     let min_allocation: Balance = 100;
     let max_allocation: Balance = 400;
@@ -664,9 +664,9 @@ fn test_show_interest_in_round_randomized_participants() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 min_allocation,
@@ -679,17 +679,21 @@ fn test_show_interest_in_round_randomized_participants() {
         let round_id = <InfoProjectTeam<Test>>::get(ALICE.clone()).unwrap();
         assert!(PolkadexIdo::approve_ido_round(Origin::signed(1_u64), round_id).is_ok());
         let investors: Vec<(u64, Balance)> =
-            vec![(4u64, 200), (2u64, 200), (5u64, 200), (6u64, 300)];
+            vec![(4u64, 200), (2u64, 200), (5u64, 200)];
 
         let funding_round: FundingRound<Test> = <WhitelistInfoFundingRound<Test>>::get(round_id).unwrap();
-
+    
+        
         system::Pallet::<Test>::set_block_number(funding_round.start_block);
 
-        for (investor_address, amount) in investors {
+        for (investor_address, amount) in investors.clone() {
             assert_eq!(
                 PolkadexIdo::register_investor(Origin::signed(investor_address)),
                 Ok(())
             );
+        }
+
+        for (investor_address, amount) in investors {
             assert_eq!(
                 PolkadexIdo::show_interest_in_round(
                     Origin::signed(investor_address),
@@ -700,22 +704,28 @@ fn test_show_interest_in_round_randomized_participants() {
             );
         }
 
+        assert_eq!(
+            PolkadexIdo::register_investor(Origin::signed(6_u64)),
+            Ok(())
+        );
 
-
-
+        // Oversubsribed
+        assert_eq!(
+            PolkadexIdo::show_interest_in_round(
+                Origin::signed(6_u64),
+                round_id,
+                100
+            ),
+            Err(Error::<Test>::NotAllowed.into())
+        );
 
         let total_investment_amount: Balance =
             InterestedParticipants::<Test>::iter_prefix_values(round_id)
                 .fold(0_u128, |sum, amount| sum.saturating_add(amount));
         let investors_count = InterestedParticipants::<Test>::iter_prefix_values(round_id).count();
-        // Check if an investor was randomly evicted
-        assert_eq!(investors_count <= 3, true);
-        assert_eq!(
-            InterestedParticipants::<Test>::contains_key(round_id, 6u64),
-            true
-        );
+        
         // Check if maximum effective investors are selected
-        assert_eq!(total_investment_amount >= funding_round.amount, true);
+        assert_eq!(total_investment_amount >= funding_round.amount, true); 
     });
 }
 
@@ -746,9 +756,9 @@ fn test_withdraw_raise() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid.clone(),
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -784,9 +794,9 @@ fn test_withdraw_raise() {
             PolkadexIdo::register_round(
                 Origin::signed(4),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -847,9 +857,9 @@ fn test_withdraw_token() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid.clone(),
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -885,9 +895,9 @@ fn test_withdraw_token() {
             PolkadexIdo::register_round(
                 Origin::signed(4),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -932,9 +942,9 @@ fn test_vote_for_round() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -983,9 +993,9 @@ fn test_only_fetch_active_rounds() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-                Some(AssetId::Asset(24)),
+                Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -1034,9 +1044,9 @@ fn test_vote_for_round_no_vote_majority() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               Some(AssetId::Asset(24)),
+               Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
@@ -1103,9 +1113,9 @@ fn test_get_reserve_amount() {
             PolkadexIdo::register_round(
                 Origin::signed(ALICE),
                 cid,
-               Some(AssetId::Asset(24)),
+               Some(AssetId::asset(24)),
                 balance,
-                AssetId::Asset(1),
+                AssetId::asset(1),
                 balance,
                 funding_period,
                 balance,
