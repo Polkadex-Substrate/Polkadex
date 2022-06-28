@@ -367,10 +367,9 @@ pub mod pallet {
                     ballot_reserve.remove(idx);
                 }
             });
-            // Clean up WhiteListInvestors and InterestedParticipants in all expired rounds
-            for (round_id, funding_round) in <InfoFundingRound<T>>::iter() {
-                // TODO: This is commented out for now, Will be refactored and removed in the future 
-                /* if block_number >= funding_round.vote_end_block {
+            // TODO: [Issue #450] This is commented out for now, Will be refactored and removed in the future
+            /* for (round_id, funding_round) in <InfoFundingRound<T>>::iter() {
+                    if block_number >= funding_round.vote_end_block {
                     let voting = <RoundVotes<T>>::get(&round_id);
                     let yes: BalanceOf<T> = voting.ayes.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
                     let no: BalanceOf<T> = voting.nays.iter().map(|a| a.votes).fold(Zero::zero(), |sum, vote| sum.saturating_add(vote));
@@ -381,8 +380,8 @@ pub mod pallet {
                         <InfoFundingRound<T>>::remove(&round_id);
                         Self::deposit_event(Event::CleanedupExpiredRound(round_id));
                     }
-                } */
-            }
+                } 
+            } */
 
 
             // Loops through all approved funding rounds and checks if the funding round transfers funds from the investor to round creator
@@ -691,7 +690,7 @@ pub mod pallet {
                 amount / funding_round.token_a_price_per_1e12_token_b_balance()
             };
             //Ensure investment amount doesn't exceed max_allocation
-            ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
+            // ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
 
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
