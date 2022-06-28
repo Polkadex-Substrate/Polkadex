@@ -81,7 +81,7 @@ impl polkadex_ido::Config for Runtime {
  ### Investor actions:
 - `register_investor` - registers a new investor to allow participating in funding round
  - `investor_unlock_fund` - Unlocks investor locked fund for registering as investor
- - `show_interest_in_round` - Stores information about investors, showing interest in funding round.
+ - `invest` - Allows Investors to invest in an IDO round
  - `claim_tokens` - Investor claiming for a particular funding round.
  - `vote` - Vote for funding round to be whitelisted or not
  ### IDO round creator actions:

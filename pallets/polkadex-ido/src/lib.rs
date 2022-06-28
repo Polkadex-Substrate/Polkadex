@@ -50,7 +50,7 @@
 //! Investor actions:
 //! - `register_investor` - registers a new investor to allow participating in funding round
 //! - `investor_unlock_fund` - Unlocks investor locked fund for registering as investor
-//! - `show_interest_in_round` - Stores information about investors, showing interest in funding round.
+//! - `invest` - Allows Investors to invest in an IDO round
 //! - `claim_tokens` - Investor claiming for a particular funding round.
 //! - `vote` - Vote for funding round to be whitelisted or not
 //! IDO round creator actions:
@@ -666,11 +666,12 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Stores information about investors, showing interest in funding round.
+        /// Allows investors to invest in an active IDO 
         ///
         /// # Parameters
         ///
         /// * `round_id`: Funding round id
+        /// * `amount`: Amount to invest in TokenB 
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn invest(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
