@@ -1,3 +1,5 @@
+// Copyright 2021 ChainSafe Systems
+// SPDX-License-Identifier: GPL-3.0-only
 #![cfg(test)]
 
 use super::mock::{
