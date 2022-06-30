@@ -246,7 +246,7 @@ pub mod pallet {
 			if let Err(_e) = T::AssetManager::mint_into(asset_id, &account, 1000000000000000) {
 				// Handling Unknown Asset by creating the Asset
 				T::AssetManager::create(
-					Self::asset_id_test_dot(),
+					Self::asset_id,
 					Self::account_id(),
 					true,
 					BalanceOf::<T>::one().unique_saturated_into(),
