@@ -158,20 +158,6 @@ pub mod pallet {
 				return Err(Error::<T>::NotAllowed.into());
 			}
 			Self::transfer_assets(&account, asset_id as u128);
-			if let Err(_e) =
-				T::AssetManager::mint_into(Self::asset_id(), &account, 1000000000000000)
-			{
-				// Handling Unknown Asset by creating the Asset
-				T::AssetManager::create(
-					Self::asset_id(),
-					Self::account_id(),
-					true,
-					BalanceOf::<T>::one().unique_saturated_into(),
-				)?;
-				// Minting Test Ether into the Account
-				T::AssetManager::mint_into(Self::asset_id(), &account, 1000000000000000)?;
-			}
-			TokenFaucetMap::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
 			Self::deposit_event(Event::AccountCredited(account));
 
 			// Code here to mint tokens
