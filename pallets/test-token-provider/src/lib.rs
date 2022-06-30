@@ -229,7 +229,7 @@ pub mod pallet {
 		}
 
 		pub fn transfer_assets(account: &T::AccountId, asset_id: u128) {
-			if let Err(_e) = T::AssetManager::mint_into(asset_id, &account, 1000000000000000) {
+			if let Err(_e) = T::AssetManager::mint_into(asset_id, &account, 1000*1000000000000000) {
 				// Handling Unknown Asset by creating the Asset
 				T::AssetManager::create(
 					asset_id,
@@ -238,7 +238,7 @@ pub mod pallet {
 					BalanceOf::<T>::one().unique_saturated_into(),
 				);
 				// Minting Test Ether into the Account
-				T::AssetManager::mint_into(asset_id, &account, 1000000000000000);
+				T::AssetManager::mint_into(asset_id, &account, 1000*1000000000000000);
 			}
 			match asset_id {
 				1_u128 => {
