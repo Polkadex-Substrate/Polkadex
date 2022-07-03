@@ -98,8 +98,15 @@ pub mod pallet {
 			// Need to create Block treshold
 			let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 			let valid_tx = |account: &T::AccountId, asset_id: u128| {
-				let last_block_number: T::BlockNumber =
-					Self::fetch_block_number(&account, asset_id).unwrap();
+				let mut last_block_number: T::BlockNumber;
+				if let Some(block) = Self::fetch_block_number(&account, asset_id){
+					last_block_number = block;
+				} else {
+					return TransactionValidity::Err(TransactionValidityError::Invalid(
+						InvalidTransaction::ExhaustsResources,
+					));
+				}
+				// let last_block_number: T::BlockNumber = Self::fetch_block_number(&account, asset_id).unwrap();
 				if (last_block_number == 0_u64.saturated_into())
 					|| (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
 				{
@@ -153,6 +160,9 @@ pub mod pallet {
 			asset_id: u16,
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_none(origin)?;
+			if asset_id < 1 || asset_id > 5 {
+				return Err(Error::<T>::NotAllowed.into());
+			}
 			let asset: Assets = Assets::from_u8(asset_id as u8);
 			if asset == Assets::Unknown {
 				return Err(Error::<T>::NotAllowed.into());
