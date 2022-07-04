@@ -90,9 +90,9 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Asset Registered
 		AssetRegistered(ResourceId),
-		/// Asset Deposited (recipient, ResourceId, Amount)
-		AssetDeposited([u8;32], ResourceId, u128),
-		/// Asset Withdrawn (recipient, ResourceId, Amount)
+		/// Asset Deposited (Recipient, ResourceId, Amount)
+		AssetDeposited(T::AccountId, ResourceId, BalanceOf<T>),
+		/// Asset Withdrawn (Recipient, ResourceId, Amount)
 		AssetWithdrawn(H160, ResourceId, BalanceOf<T>),
 		FeeUpdated(BridgeChainId, BalanceOf<T>),
 	}
@@ -108,8 +108,6 @@ pub mod pallet {
 		ChainIsNotWhitelisted,
 		/// NotEnoughBalance
 		NotEnoughBalance,
-		/// DestinationAddressNotValid
-		DestinationAddressNotValid
 	}
 
 	#[pallet::hooks]
@@ -152,19 +150,18 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
-			destination_add: [u8;32],
-			amount: u128,
+			destination_acc: T::AccountId,
+			amount: BalanceOf<T>,
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			let destination_acc = T::AccountId::decode(&mut &destination_add[..]).map_err(|_| Error::<T>::DestinationAddressNotValid)?;
 			ensure!(chainbridge::Pallet::<T>::account_id() == sender, Error::<T>::MinterMustBeRelayer);
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,
 				amount.saturated_into::<u128>(),
 			)?;
-			Self::deposit_event(Event::<T>::AssetDeposited(destination_add, rid, amount));
+			Self::deposit_event(Event::<T>::AssetDeposited(destination_acc, rid, amount));
 			Ok(())
 		}
 

@@ -17,92 +17,104 @@ use sp_core::{H160, U256};
 use sp_core::crypto::AccountId32;
 
 use sp_runtime::TokenError;
+use codec::Decode;
 
 use super::*;
 use crate::mock::{new_test_ext, Test, *};
 
 use crate::pallet::*;
 
+const ASSET_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC";
+const RECIPIENT_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBA";
+
 #[test]
-pub fn test_asset_creator() {
-	let asset_address: H160 = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC".parse().unwrap();
+pub fn test_create_asset_will_successfully_create_asset() {
+	let (asset_address, recipient, chain_id) = create_asset_data();
+
 	new_test_ext().execute_with(|| {
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1), 1, asset_address));
-		let rid = chainbridge::derive_resource_id(1, &asset_address.0);
+		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+	});
+}
+
+#[test]
+pub fn test_create_asset_with_already_existed_asset_will_return_in_use_error() {
+	let (asset_address, recipient, chain_id) = create_asset_data();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, 1, 100));
-		assert_eq!(Assets::balance(asset_id, 1), 100);
+		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, recipient, 100));
+		assert_eq!(Assets::balance(asset_id, recipient), 100);
 
 		// Re-register Asset
 		assert_noop!(
-			AssetHandler::create_asset(Origin::signed(1), 1, asset_address),
+			AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address),
 			pallet_assets::Error::<Test>::InUse
 		);
 	});
 }
 
 #[test]
-pub fn test_mint_asset() {
-	let asset_address: H160 = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC".parse().unwrap();
-	let relayer = 1u64;
-	let recipient = [1u8;32];
-	//let recipient_account = AccountId32::new(recipient);
-	let chain_id = 1;
-	new_test_ext().execute_with(|| {
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
-		let rid = chainbridge::derive_resource_id(1, &asset_address.0);
-		let asset_id = AssetHandler::convert_asset_id(rid);
+pub fn test_mint_asset_with_not_registered_asset_will_return_unknown_asset_error() {
+	let (asset_address, relayer, recipient, chain_id) = mint_asset_data();
 
+	new_test_ext().execute_with(|| {
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		let asset_id = AssetHandler::convert_asset_id(rid);
 		// Add new Relayer and verify storage
-		assert_ok!(ChainBridge::add_relayer(Origin::signed(1), relayer));
+		assert_ok!(ChainBridge::add_relayer(Origin::signed(recipient), relayer));
 		assert!(ChainBridge::relayers(relayer));
 
-
-		// Mint Asset using Relayer account and verify storage
-		assert_ok!(AssetHandler::mint_asset(Origin::signed(ChainBridge::account_id()), recipient, 100, rid));
-		//assert_eq!(Assets::balance(asset_id, recipient_account.clone()), 100);
-	});
-
-	/*
-	Check Errors
-	  * Asset is not registered
-	  * Not called by relayer
-
-	*/
-
-	// Asset is not registered
-	new_test_ext().execute_with(|| {
-		// Add new Relayer and verify storage
-		let rid = chainbridge::derive_resource_id(1, &asset_address.0);
-		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_ok!(ChainBridge::add_relayer(Origin::signed(1), relayer));
-		assert!(ChainBridge::relayers(relayer));
+		// Assert `mint_asset` will fail
 		assert_noop!(
 			AssetHandler::mint_asset(Origin::signed(ChainBridge::account_id()), recipient, 100, rid),
 			TokenError::UnknownAsset
 		);
-		//assert_eq!(Assets::balance(asset_id, recipient_account.clone()), 0);
-	});
-
-	// Not called by relayer
-	new_test_ext().execute_with(|| {
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
-		let rid = chainbridge::derive_resource_id(1, &asset_address.0);
-		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_noop!(
-			AssetHandler::mint_asset(Origin::signed(relayer), recipient, 100, rid),
-			Error::<Test>::MinterMustBeRelayer
-		);
-		//assert_eq!(Assets::balance(asset_id, recipient), 0);
+		// Assert balance of not created asset is 0
+		assert_eq!(Assets::balance(asset_id, recipient), 0);
 	});
 }
 
 #[test]
-pub fn test_withdraw() {
-	let asset_address: H160 = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC".parse().unwrap();
-	let recipient: H160 = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBA".parse().unwrap();
-	let sender = 2u64;
-	let chain_id = 2;
+pub fn test_mint_asset_with_existed_asset_will_successfully_increase_balance() {
+	let (asset_address, relayer, recipient, chain_id) = mint_asset_data();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		let asset_id = AssetHandler::convert_asset_id(rid);
+		// Add new Relayer and verify storage
+		assert_ok!(ChainBridge::add_relayer(Origin::signed(recipient), relayer));
+		assert!(ChainBridge::relayers(relayer));
+
+		// Mint Asset using Relayer account and verify storage
+		assert_ok!(AssetHandler::mint_asset(Origin::signed(ChainBridge::account_id()), recipient, 100, rid));
+		assert_eq!(Assets::balance(asset_id, recipient), 100);
+	});
+}
+
+#[test]
+pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_error() {
+	let (asset_address, _, recipient, chain_id) = mint_asset_data();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		let asset_id = AssetHandler::convert_asset_id(rid);
+
+		assert_noop!(
+			AssetHandler::mint_asset(Origin::signed(recipient), recipient, 100, rid),
+			Error::<Test>::MinterMustBeRelayer
+		);
+		assert_eq!(Assets::balance(asset_id, recipient), 0);
+	});
+}
+
+#[test]
+pub fn test_withdraw_successfully() {
+	let (asset_address, recipient, sender, chain_id) = withdraw_data();
+
 	new_test_ext().execute_with(|| {
 		// Setup
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
@@ -110,6 +122,7 @@ pub fn test_withdraw() {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
+
 		assert_ok!(AssetHandler::withdraw(
 			Origin::signed(sender),
 			chain_id,
@@ -128,25 +141,26 @@ pub fn test_withdraw() {
 				recipient.0.to_vec()
 			)]
 		);
+		assert_eq!(Assets::balance(asset_id, sender), 900);
 	});
+}
 
-	/*
-	Check Errors
-	  * Asset is not registered.
-	  * Chain is not whitelisted.
-	  * Sender doesnt have enough balance.
-	  * Sender doesnt have enough native asset balance for fee.
-	*/
+#[test]
+pub fn test_withdraw_with_not_whitelisted_chain_will_return_chain_is_not_whitelisted_error() {
+	let (asset_address, recipient, sender, chain_id) = withdraw_data();
 
-	// Chain is not whitelisted.
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient),
 			Error::<Test>::ChainIsNotWhitelisted
 		);
 	});
+}
 
-	// Asset is not registered.
+#[test]
+pub fn test_withdraw_on_not_registered_asset_will_return_not_enough_balance_error() {
+	let (asset_address, recipient, sender, chain_id) = withdraw_data();
+
 	new_test_ext().execute_with(|| {
 		// Setup
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
@@ -156,8 +170,12 @@ pub fn test_withdraw() {
 			Error::<Test>::NotEnoughBalance
 		);
 	});
+}
 
-	// Sender doesnt have enough balance.
+#[test]
+pub fn test_withdraw_with_sender_not_enough_balance_will_return_not_enough_balance_error() {
+	let (asset_address, recipient, sender, chain_id) = withdraw_data();
+
 	new_test_ext().execute_with(|| {
 		// Setup
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
@@ -165,6 +183,7 @@ pub fn test_withdraw() {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 100));
+
 		assert_noop!(
 			AssetHandler::withdraw(
 				Origin::signed(sender),
@@ -176,8 +195,12 @@ pub fn test_withdraw() {
 			Error::<Test>::NotEnoughBalance
 		);
 	});
+}
 
-	// Sender doesnt have enough native asset balance for fee.
+#[test]
+pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insufficient_balance_error() {
+	let (asset_address, recipient, sender, chain_id) = withdraw_data();
+
 	new_test_ext().execute_with(|| {
 		// Setup
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
@@ -185,6 +208,7 @@ pub fn test_withdraw() {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
+
 		assert_ok!(AssetHandler::withdraw(
 			Origin::signed(sender),
 			chain_id,
@@ -192,8 +216,8 @@ pub fn test_withdraw() {
 			100,
 			recipient
 		));
-		assert_ok!(AssetHandler::update_fee(Origin::signed(1), chain_id, 10, 100));
 
+		assert_ok!(AssetHandler::update_fee(Origin::signed(1), chain_id, 10, 100));
 		assert_noop!(
 			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 10, recipient),
 			pallet_balances::Error::<Test>::InsufficientBalance
@@ -202,11 +226,39 @@ pub fn test_withdraw() {
 }
 
 #[test]
-pub fn test_update_fee() {
+pub fn test_update_fee_successfully() {
 	let chain_id = 2;
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(AssetHandler::update_fee(Origin::signed(1), chain_id, 10, 100));
 		assert_eq!(AssetHandler::get_bridge_fee(chain_id), (10, 100));
 	});
+}
+
+fn create_asset_data() -> (H160, u64, u8) {
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let recipient = [1u8; 32];
+	let recipient = <Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap();
+	let chain_id = 1;
+
+	(asset_address, recipient, chain_id)
+}
+
+fn mint_asset_data() -> (H160, u64, u64, u8) {
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let relayer = 1u64;
+	let recipient = [1u8; 32];
+	let recipient = <Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap();
+	let chain_id = 1;
+
+	(asset_address, relayer, recipient, chain_id)
+}
+
+fn withdraw_data() -> (H160, H160, u64, u8) {
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let recipient: H160 = RECIPIENT_ADDRESS.parse().unwrap();
+	let sender = 2u64;
+	let chain_id = 2;
+
+	(asset_address, recipient, sender, chain_id)
 }

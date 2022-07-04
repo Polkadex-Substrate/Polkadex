@@ -49,10 +49,8 @@ benchmarks! {
 		let relayer: T::AccountId = account("relayer", 1, SEED);
 		chainbridge::pallet::Pallet::<T>::insert_relayer(relayer.clone());
 		let recipient: T::AccountId = account("recipient", b, SEED);
-		let encoded_recipient = recipient.encode();
-		let recipient: [u8;32] = encoded_recipient.as_slice().try_into().unwrap();
-		let amount = b as u128;
-	}: _(RawOrigin::Signed(relayer), recipient.clone(), amount, rid)
+		let amount = (b as u128).saturated_into::<BalanceOf<T>>();
+	}: _(RawOrigin::Signed(relayer), recipient.clone(), amount.clone(), rid)
 	verify {
 		assert_last_event::<T>(Event::AssetDeposited(recipient, rid, amount).into());
 	}
