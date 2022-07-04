@@ -360,10 +360,10 @@ pub mod pallet {
 			signature: T::Signature,
 		) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
-			ensure!(
-				<RegisteredEnclaves<T>>::contains_key(&enclave),
-				Error::<T>::SenderIsNotAttestedEnclave
-			);
+			// ensure!(
+			// 	<RegisteredEnclaves<T>>::contains_key(&enclave),
+			// 	Error::<T>::SenderIsNotAttestedEnclave
+			// );
 
 			let last_snapshot_serial_number =
 				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
@@ -376,10 +376,10 @@ pub mod pallet {
 				Error::<T>::SnapshotNonceError
 			);
 			let bytes = snapshot.encode();
-			ensure!(
-				signature.verify(bytes.as_slice(), &enclave),
-				Error::<T>::EnclaveSignatureVerificationFailed
-			);
+			// ensure!(
+			// 	signature.verify(bytes.as_slice(), &enclave),
+			// 	Error::<T>::EnclaveSignatureVerificationFailed
+			// );
 			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals);
 			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
 			snapshot.withdrawals =
@@ -468,27 +468,31 @@ pub mod pallet {
 		/// In order to register itself - enclave must send it's own report to this extrinsic
 		#[pallet::weight(0 + T::DbWeight::get().writes(1))]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
-			let _relayer = ensure_signed(origin)?;
+			let relayer = ensure_signed(origin)?;
+			if cfg!(not(debug_assertions)) {
+				let report = verify_ias_report(&ias_report)
+					.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
-			use sp_runtime::SaturatedConversion;
+				// TODO: attested key verification enabled
+				let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
+					.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
 
-			let report = verify_ias_report(&ias_report)
-				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
-
-			// TODO: attested key verification enabled
-			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
-
-			// TODO: any other checks we want to run?
-			ensure!(
+				// TODO: any other checks we want to run?
+				ensure!(
 				(report.status == SgxStatus::Ok) |
 					(report.status == SgxStatus::ConfigurationNeeded),
 				<Error<T>>::InvalidSgxReportStatus
 			);
-			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = Some(T::Moment::saturated_from(report.timestamp));
-			});
-			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
+				<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
+					*v = Some(T::Moment::saturated_from(report.timestamp));
+				});
+				Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
+			} else {
+				<RegisteredEnclaves<T>>::mutate(&relayer, |v| {
+					*v = Some(T::Moment::default());
+				});
+				Self::deposit_event(Event::EnclaveRegistered(relayer));
+			}
 			Ok(())
 		}
 	}
