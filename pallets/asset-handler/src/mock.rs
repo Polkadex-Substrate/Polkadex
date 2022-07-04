@@ -16,8 +16,6 @@
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
-// use sp_runtime::testing::H256;
-// use crate::benchmarking::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
@@ -25,7 +23,7 @@ use sp_runtime::{
 
 use crate::pallet as asset_handler;
 
-use frame_support::{traits::GenesisBuild, PalletId};
+use frame_support::PalletId;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
