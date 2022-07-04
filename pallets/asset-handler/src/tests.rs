@@ -18,7 +18,6 @@ use sp_runtime::TokenError;
 use codec::Decode;
 
 use crate::mock::{new_test_ext, Test, *};
-
 use crate::pallet::*;
 
 const ASSET_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC";
