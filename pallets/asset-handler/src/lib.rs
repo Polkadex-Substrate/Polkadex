@@ -119,6 +119,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
 		#[pallet::weight(T::WeightInfo::create_asset(1))]
@@ -144,6 +145,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `destination_add`: Recipient's Account
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
@@ -169,6 +171,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
 		/// * `amount`: Amount to be burned and transferred from Sender's Account
@@ -218,6 +221,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
