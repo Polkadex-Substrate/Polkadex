@@ -311,9 +311,37 @@ pub mod pallet {
         /// * `round_id`: Funding round id
         /// * `amount`: BalanceOf<T>
         #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn show_interest_in_round(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
+        pub fn invest(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
-            
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
+            let mut funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(Self::can_withdraw(funding_round.token_b,&investor_address, amount.saturated_into()).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
+            let amount_in_token_a = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_priceper_token_b {
+                funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(amount) 
+            } else {
+                amount / funding_round.token_a_price_per_1e12_token_b_balance()
+            };
+            ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
+            let total_raise = funding_round.actual_raise;
+            let round_account_id = Self::round_account_id(round_id.clone());
+
+            // First come first serve basis 
+            if total_raise >= funding_round.amount{
+                return Err(<Error<T>>::NotAllowed.into());
+            }
+            match Self::transfer(funding_round.token_b, &investor_address, &round_account_id, amount.saturated_into()) {
+                Ok(_) => {
+                    funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount_in_token_a);
+                    // Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address.clone()));
+                    <InfoFundingRound<T>>::insert(round_id, funding_round);
+                    // <InvestedParties<T>>::insert(round_id.clone(), investor_address, amount);
+                }
+                Err(error) => {
+                    // Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
+                }
+            }
             Ok(())
         }
 
@@ -403,6 +431,10 @@ pub mod pallet {
         StartBlockMustBeLessThanEndblock,
         StartBlockMustBeGreaterThanVotingPeriod,
         VestingPerBlockMustGreaterThanZero,
+        FundingRoundNotApproved,
+        BalanceInsufficientForInteresetedAmount,
+        NotAValidAmount,
+        NotAllowed,
     }
 }
 
