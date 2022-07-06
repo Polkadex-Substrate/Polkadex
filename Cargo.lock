@@ -4005,6 +4005,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-ocex-lmp",
  "pallet-offences",
+ "pallet-polkadex-ido-primitives",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
@@ -4025,6 +4026,7 @@ dependencies = [
  "parity-scale-codec 3.1.2",
  "pdex-migration",
  "polkadex-ido",
+ "polkadex-ido-runtime-api",
  "polkadex-primitives",
  "scale-info 2.1.2",
  "smallvec",
@@ -5687,6 +5689,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "polkadex-ido-rpc"
+version = "0.1.0"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "pallet-polkadex-ido-primitives",
+ "parity-scale-codec 3.1.2",
+ "polkadex-ido-runtime-api",
+ "polkadex-primitives",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-rpc",
+ "sp-runtime",
+]
+
+[[package]]
+name = "polkadex-ido-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "pallet-polkadex-ido-primitives",
+ "parity-scale-codec 3.1.2",
+ "polkadex-primitives",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "polkadex-node"
 version = "3.0.0"
 dependencies = [
@@ -5717,6 +5749,7 @@ dependencies = [
  "parity-scale-codec 3.1.2",
  "parking_lot 0.11.2",
  "platforms",
+ "polkadex-ido-rpc",
  "polkadex-primitives",
  "rand 0.7.3",
  "regex",

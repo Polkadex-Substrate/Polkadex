@@ -47,7 +47,7 @@ use frame_support::{
 pub use frame_system::Call as SystemCall;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, RawOrigin, EnsureSigned
+	EnsureRoot, EnsureSigned, RawOrigin,
 };
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
@@ -257,21 +257,21 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 use scale_info::TypeInfo;
-use sp_npos_elections::{ExtendedBalance};
+use sp_npos_elections::ExtendedBalance;
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
-Copy,
-Clone,
-Eq,
-PartialEq,
-Ord,
-PartialOrd,
-Encode,
-Decode,
-RuntimeDebug,
-MaxEncodedLen,
-TypeInfo,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Encode,
+	Decode,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
 )]
 pub enum ProxyType {
 	Any = 0,
@@ -396,7 +396,7 @@ impl pallet_babe::Config for Runtime {
 	)>>::IdentificationTuple;
 
 	type HandleEquivocation =
-	pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+		pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 	type WeightInfo = weights::pallet_babe::WeightInfo<Runtime>;
 	type DisabledValidators = Session;
 	type MaxAuthorities = MaxAuthorities;
@@ -461,7 +461,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate =
-	TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+		TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 }
 
@@ -969,8 +969,8 @@ parameter_types! {
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
-	where
-		Call: From<LocalCall>,
+where
+	Call: From<LocalCall>,
 {
 	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
 		call: Call,
@@ -1017,8 +1017,8 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-	where
-		Call: From<C>,
+where
+	Call: From<C>,
 {
 	type Extrinsic = UncheckedExtrinsic;
 	type OverarchingCall = Call;
@@ -1054,7 +1054,7 @@ impl pallet_grandpa::Config for Runtime {
 	type KeyOwnerProofSystem = Historical;
 
 	type KeyOwnerProof =
-	<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
 	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
@@ -1094,7 +1094,6 @@ impl pallet_assets::Config for Runtime {
 	type Extra = ();
 	type WeightInfo = ();
 }
-
 
 parameter_types! {
 	pub const BasicDeposit: Balance = deposit(1,258);       // 258 bytes on-chain
@@ -1216,12 +1215,12 @@ parameter_types! {
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
-    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
-    pub const GetMaxSupply: Balance = 2_000_000_u128;
-    pub const OnePDEX : u128 = PDEX;
-    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
-    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
-    pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
+	pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
+	pub const GetMaxSupply: Balance = 2_000_000_u128;
+	pub const OnePDEX : u128 = PDEX;
+	pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+	pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+	pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
 }
 
 impl polkadex_ido::Config for Runtime {
@@ -1262,8 +1261,8 @@ impl pallet_ocex_lmp::Config for Runtime {
 }
 
 parameter_types! {
-    pub const ChainId: u8 = 1;
-    pub const ProposalLifetime: BlockNumber = 1000;
+	pub const ChainId: u8 = 1;
+	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 }
 
@@ -1327,7 +1326,7 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-        Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+		Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 38,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 39
 	}
@@ -1414,22 +1413,22 @@ impl_runtime_apis! {
 
 	impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
 		fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	        PolkadexIdo::rounds_by_investor(account)
-	    }
-	    fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	        PolkadexIdo::rounds_by_creator(account)
-	    }
-	
-	    fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	        PolkadexIdo::active_rounds()
-	    }
-	
-	    fn votes_stat(round_id: Hash) -> VoteStat {
-	        PolkadexIdo::votes_stat(round_id)
-	    }
-	
-	    fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
-	        PolkadexIdo::account_balances(assets, account_id)
+			PolkadexIdo::rounds_by_investor(account)
+		}
+		fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+			PolkadexIdo::rounds_by_creator(account)
+		}
+
+		fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+			PolkadexIdo::active_rounds()
+		}
+
+		fn votes_stat(round_id: Hash) -> VoteStat {
+			PolkadexIdo::votes_stat(round_id)
+		}
+
+		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
+			PolkadexIdo::account_balances(assets, account_id)
 		}
 	 }
 
@@ -1622,6 +1621,7 @@ impl_runtime_apis! {
 			list_benchmark!(list,extra, pallet_treasury, Treasury);
 			list_benchmark!(list,extra, pallet_utility, Utility);
 			list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
+			//TODO: [#463] Currently broken, will be fixed in different issue
 //			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
 			list_benchmark!(list,extra,  asset_handler, AssetHandler);
 			let storage_info = AllPalletsWithSystem::storage_info();
@@ -1683,6 +1683,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_treasury, Treasury);
 			add_benchmark!(params, batches, pallet_utility, Utility);
+			//TODO: [#463] Currently broken, will be fixed in different issue
 //			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
@@ -1700,8 +1701,8 @@ mod tests {
 	#[test]
 	fn validate_transaction_submitter_bounds() {
 		fn is_submit_signed_transaction<T>()
-			where
-				T: CreateSignedTransaction<Call>,
+		where
+			T: CreateSignedTransaction<Call>,
 		{
 		}
 

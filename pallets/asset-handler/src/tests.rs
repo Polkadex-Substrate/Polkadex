@@ -12,13 +12,15 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+use codec::Decode;
 use frame_support::{assert_noop, assert_ok};
 use sp_core::{H160, U256};
 use sp_runtime::TokenError;
-use codec::Decode;
 
-use crate::mock::{new_test_ext, Test, *};
-use crate::pallet::*;
+use crate::{
+	mock::{new_test_ext, Test, *},
+	pallet::*,
+};
 
 const ASSET_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC";
 const RECIPIENT_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBA";
@@ -40,7 +42,12 @@ pub fn test_create_asset_with_already_existed_asset_will_return_in_use_error() {
 		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, recipient, 100));
+		assert_ok!(Assets::mint(
+			Origin::signed(ChainBridge::account_id()),
+			asset_id,
+			recipient,
+			100
+		));
 		assert_eq!(Assets::balance(asset_id, recipient), 100);
 
 		// Re-register Asset
@@ -53,57 +60,70 @@ pub fn test_create_asset_with_already_existed_asset_will_return_in_use_error() {
 
 #[test]
 pub fn test_mint_asset_with_not_registered_asset_will_return_unknown_asset_error() {
-	let (asset_address, relayer, recipient, chain_id) = mint_asset_data();
+	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
+		mint_asset_data();
 
 	new_test_ext().execute_with(|| {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		// Add new Relayer and verify storage
-		assert_ok!(ChainBridge::add_relayer(Origin::signed(recipient), relayer));
+		assert_ok!(ChainBridge::add_relayer(Origin::signed(account), relayer));
 		assert!(ChainBridge::relayers(relayer));
 
 		// Assert `mint_asset` will fail
 		assert_noop!(
-			AssetHandler::mint_asset(Origin::signed(ChainBridge::account_id()), recipient, 100, rid),
+			AssetHandler::mint_asset(
+				Origin::signed(ChainBridge::account_id()),
+				recipient,
+				100,
+				rid
+			),
 			TokenError::UnknownAsset
 		);
 		// Assert balance of not created asset is 0
-		assert_eq!(Assets::balance(asset_id, recipient), 0);
+		assert_eq!(Assets::balance(asset_id, recipient_account), 0);
 	});
 }
 
 #[test]
 pub fn test_mint_asset_with_existed_asset_will_successfully_increase_balance() {
-	let (asset_address, relayer, recipient, chain_id) = mint_asset_data();
+	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
+		mint_asset_data();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		// Add new Relayer and verify storage
-		assert_ok!(ChainBridge::add_relayer(Origin::signed(recipient), relayer));
+		assert_ok!(ChainBridge::add_relayer(Origin::signed(account), relayer));
 		assert!(ChainBridge::relayers(relayer));
 
 		// Mint Asset using Relayer account and verify storage
-		assert_ok!(AssetHandler::mint_asset(Origin::signed(ChainBridge::account_id()), recipient, 100, rid));
-		assert_eq!(Assets::balance(asset_id, recipient), 100);
+		assert_ok!(AssetHandler::mint_asset(
+			Origin::signed(ChainBridge::account_id()),
+			recipient,
+			100,
+			rid
+		));
+		assert_eq!(Assets::balance(asset_id, recipient_account), 100);
 	});
 }
 
 #[test]
 pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_error() {
-	let (asset_address, _, recipient, chain_id) = mint_asset_data();
+	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
+		mint_asset_data();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 
 		assert_noop!(
-			AssetHandler::mint_asset(Origin::signed(recipient), recipient, 100, rid),
+			AssetHandler::mint_asset(Origin::signed(account), recipient, 100, rid),
 			Error::<Test>::MinterMustBeRelayer
 		);
-		assert_eq!(Assets::balance(asset_id, recipient), 0);
+		assert_eq!(Assets::balance(asset_id, recipient_account), 0);
 	});
 }
 
@@ -194,7 +214,8 @@ pub fn test_withdraw_with_sender_not_enough_balance_will_return_not_enough_balan
 }
 
 #[test]
-pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insufficient_balance_error() {
+pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insufficient_balance_error()
+{
 	let (asset_address, recipient, sender, chain_id) = withdraw_data();
 
 	new_test_ext().execute_with(|| {
@@ -240,14 +261,16 @@ fn create_asset_data() -> (H160, u64, u8) {
 	(asset_address, recipient, chain_id)
 }
 
-fn mint_asset_data() -> (H160, u64, u64, u8) {
+fn mint_asset_data() -> (H160, u64, [u8; 32], u64, u8, u64) {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let relayer = 1u64;
 	let recipient = [1u8; 32];
-	let recipient = <Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap();
+	let recipeint_account =
+		<Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap();
 	let chain_id = 1;
+	let account = 0u64;
 
-	(asset_address, relayer, recipient, chain_id)
+	(asset_address, relayer, recipient, recipeint_account, chain_id, account)
 }
 
 fn withdraw_data() -> (H160, H160, u64, u8) {

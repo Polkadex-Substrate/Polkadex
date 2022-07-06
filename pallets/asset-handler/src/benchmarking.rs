@@ -14,6 +14,7 @@
 // GNU General Public License for more details.
 
 use crate::pallet::*;
+use codec::{Decode, Encode};
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use sp_core::H160;
@@ -46,10 +47,13 @@ benchmarks! {
 		let relayer: T::AccountId = account("relayer", 1, SEED);
 		chainbridge::pallet::Pallet::<T>::insert_relayer(relayer.clone());
 		let recipient: T::AccountId = account("recipient", b, SEED);
+		let encoded_recipient = recipient.encode();
+		let recipient: [u8;32] = encoded_recipient.as_slice().try_into().unwrap();
+		let destination_acc = T::AccountId::decode(&mut &recipient[..]).unwrap();
 		let amount = (b as u128).saturated_into::<BalanceOf<T>>();
 	}: _(RawOrigin::Signed(relayer), recipient.clone(), amount.clone(), rid)
 	verify {
-		assert_last_event::<T>(Event::AssetDeposited(recipient, rid, amount).into());
+		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, amount).into());
 	}
 
 	update_fee {

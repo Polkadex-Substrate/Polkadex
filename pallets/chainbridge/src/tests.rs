@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #![cfg(test)]
 
-use super::mock::{
-	assert_events, new_test_ext, new_test_ext_initialized, Balances, Bridge, Call, Event, Origin,
-	ProposalLifetime, System, Test, TestChainId, ENDOWED_BALANCE, RELAYER_A, RELAYER_B, RELAYER_C,
-	TEST_THRESHOLD,
+use super::{
+	mock::{
+		assert_events, new_test_ext, new_test_ext_initialized, Balances, Bridge, Call, Event,
+		Origin, ProposalLifetime, System, Test, TestChainId, ENDOWED_BALANCE, RELAYER_A, RELAYER_B,
+		RELAYER_C, TEST_THRESHOLD,
+	},
+	pallet::Event as PalletEvent,
+	*,
 };
-use super::{pallet::Event as PalletEvent, *};
 use frame_support::{assert_noop, assert_ok};
 use frame_system as system;
 
@@ -194,9 +197,7 @@ fn asset_transfer_invalid_chain() {
 		let resource_id = [4; 32];
 
 		assert_ok!(Bridge::whitelist_chain(Origin::root(), chain_id.clone()));
-		assert_events(vec![Event::Bridge(PalletEvent::ChainWhitelisted(
-			chain_id.clone(),
-		))]);
+		assert_events(vec![Event::Bridge(PalletEvent::ChainWhitelisted(chain_id.clone()))]);
 
 		assert_noop!(
 			Bridge::transfer_fungible(bad_dest_id, resource_id.clone(), vec![], U256::zero()),
@@ -385,10 +386,7 @@ fn create_unsucessful_proposal() {
 		assert_eq!(prop, expected);
 
 		assert_eq!(Balances::free_balance(RELAYER_B), 0);
-		assert_eq!(
-			Balances::free_balance(Bridge::account_id()),
-			ENDOWED_BALANCE
-		);
+		assert_eq!(Balances::free_balance(Bridge::account_id()), ENDOWED_BALANCE);
 
 		assert_events(vec![
 			Event::Bridge(PalletEvent::VoteFor(src_id, prop_id, RELAYER_A)),
@@ -446,10 +444,7 @@ fn execute_after_threshold_change() {
 		assert_eq!(prop, expected);
 
 		assert_eq!(Balances::free_balance(RELAYER_B), 0);
-		assert_eq!(
-			Balances::free_balance(Bridge::account_id()),
-			ENDOWED_BALANCE
-		);
+		assert_eq!(Balances::free_balance(Bridge::account_id()), ENDOWED_BALANCE);
 
 		assert_events(vec![
 			Event::Bridge(PalletEvent::VoteFor(src_id, prop_id, RELAYER_A)),
@@ -530,8 +525,6 @@ fn proposal_expires() {
 		};
 		assert_eq!(prop, expected);
 
-		assert_events(vec![Event::Bridge(PalletEvent::VoteFor(
-			src_id, prop_id, RELAYER_A,
-		))]);
+		assert_events(vec![Event::Bridge(PalletEvent::VoteFor(src_id, prop_id, RELAYER_A))]);
 	})
 }

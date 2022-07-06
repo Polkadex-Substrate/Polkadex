@@ -13,26 +13,29 @@ pub use pallet::*;
 pub mod pallet {
 	use codec::{Decode, Encode, MaxEncodedLen};
 	use frame_support::{
-		PalletId,
 		pallet_prelude::*,
 		traits::{
 			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, Get, LockableCurrency, WithdrawReasons, ReservableCurrency
+			Currency, Get, LockableCurrency, ReservableCurrency, WithdrawReasons,
 		},
+		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
 	use scale_info::TypeInfo;
+	pub use sp_core::H160;
 	use sp_runtime::{
-		traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero, AccountIdConversion, Dispatchable, One, UniqueSaturatedInto},
+		traits::{
+			AccountIdConversion, AtLeast32BitUnsigned, BlockNumberProvider, Dispatchable, One,
+			Saturating, UniqueSaturatedInto, Zero,
+		},
 		SaturatedConversion,
 	};
-	pub use sp_core::H160;
 	// use core::str::FromStr;
 
 	const MODULE_ID: PalletId = PalletId(*b"token/bg");
 
 	type BalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -77,14 +80,15 @@ pub mod pallet {
 			let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 			let valid_tx = |account: &T::AccountId| {
 				let last_block_number: T::BlockNumber = <TokenFaucetMap<T>>::get(account);
-				if (last_block_number == 0_u64.saturated_into()) || (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
+				if (last_block_number == 0_u64.saturated_into()) ||
+					(current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
 				{
 					ValidTransaction::with_tag_prefix("token-faucet")
-							.priority(100)
-							.and_provides([account])
-							.longevity(3)
-							.propagate(true)
-							.build()
+						.priority(100)
+						.and_provides([account])
+						.longevity(3)
+						.propagate(true)
+						.build()
 				} else {
 					TransactionValidity::Err(TransactionValidityError::Invalid(
 						InvalidTransaction::ExhaustsResources,
@@ -93,28 +97,26 @@ pub mod pallet {
 			};
 			let valid_native_tx = |account: &T::AccountId| {
 				let last_block_number: T::BlockNumber = <NativeTokenMap<T>>::get(account);
-				if (last_block_number == 0_u64.saturated_into()) || (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
+				if (last_block_number == 0_u64.saturated_into()) ||
+					(current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
 				{
 					ValidTransaction::with_tag_prefix("native-token")
-							.priority(100)
-							.and_provides([account])
-							.longevity(3)
-							.propagate(true)
-							.build()
+						.priority(100)
+						.and_provides([account])
+						.longevity(3)
+						.propagate(true)
+						.build()
 				} else {
 					TransactionValidity::Err(TransactionValidityError::Invalid(
 						InvalidTransaction::ExhaustsResources,
 					))
 				}
 			};
-		
+
 			match call {
-				Call::credit_account_with_tokens_unsigned {account} => {
-					valid_tx(&account)
-				},
-				Call::credit_account_with_native_tokens_unsigned {account} => {
-					valid_native_tx(&account)
-				},
+				Call::credit_account_with_tokens_unsigned { account } => valid_tx(&account),
+				Call::credit_account_with_native_tokens_unsigned { account } =>
+					valid_native_tx(&account),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -128,82 +130,68 @@ pub mod pallet {
 			account: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_none(origin)?;
-			if let Err(e) = T::AssetManager::mint_into(
-				Self::asset_id(),
-				&account,
-				1000000000000000,
-			){
+			if let Err(e) = T::AssetManager::mint_into(Self::asset_id(), &account, 1000000000000000)
+			{
 				// Handling Unknown Asset by creating the Asset
 				T::AssetManager::create(
 					Self::asset_id(),
 					Self::account_id(),
 					true,
 					BalanceOf::<T>::one().unique_saturated_into(),
-				)?; 
-				// Minting Test Ether into the Account
-				T::AssetManager::mint_into(
-					Self::asset_id(),
-					&account,
-					1000000000000000,
 				)?;
-			} 
-			TokenFaucetMap::<T>::insert(&account,<frame_system::Pallet<T>>::block_number());
+				// Minting Test Ether into the Account
+				T::AssetManager::mint_into(Self::asset_id(), &account, 1000000000000000)?;
+			}
+			TokenFaucetMap::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
 			Self::deposit_event(Event::AccountCredited(account));
 
 			// Code here to mint tokens
 			Ok(().into())
 		}
 		#[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn credit_account_with_native_tokens_unsigned(origin: OriginFor<T>, account: T::AccountId) -> DispatchResultWithPostInfo {
-            let _ = ensure_none(origin)?;
-            NativeTokenMap::<T>::insert(&account,<frame_system::Pallet<T>>::block_number());
-            //Mint account with free tokens
-            T::Currency::deposit_creating(&account,T::TokenAmount::get());
-            Self::deposit_event(Event::AccountCredited(account));
-            Ok(().into())
-        }
+		pub fn credit_account_with_native_tokens_unsigned(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+		) -> DispatchResultWithPostInfo {
+			let _ = ensure_none(origin)?;
+			NativeTokenMap::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
+			//Mint account with free tokens
+			T::Currency::deposit_creating(&account, T::TokenAmount::get());
+			Self::deposit_event(Event::AccountCredited(account));
+			Ok(().into())
+		}
 	}
 
 	#[pallet::storage]
 	#[pallet::getter(fn token_map)]
-	pub(super) type TokenFaucetMap<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		T::BlockNumber,
-		ValueQuery,
-	>;	
+	pub(super) type TokenFaucetMap<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn native_token_map)]
-	pub(super) type NativeTokenMap<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		T::BlockNumber,
-		ValueQuery,
-	>;	
+	pub(super) type NativeTokenMap<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		AccountCredited(T::AccountId)
+		AccountCredited(T::AccountId),
 	}
 
 	impl<T: Config> Pallet<T> {
-        // *** Utility methods ***
+		// *** Utility methods ***
 
-        /// Provides an AccountId for the pallet.
-        /// This is used both as an origin check and deposit/withdrawal account.
-        pub fn account_id() -> T::AccountId {
-            MODULE_ID.into_account()
-        }
+		/// Provides an AccountId for the pallet.
+		/// This is used both as an origin check and deposit/withdrawal account.
+		pub fn account_id() -> T::AccountId {
+			MODULE_ID.into_account()
+		}
 
-		///  Provides Ethers Asset Id for Test Ether 
+		///  Provides Ethers Asset Id for Test Ether
 		pub fn asset_id() -> u128 {
-			// Currently Hardcoding this value created from address "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee"
+			// Currently Hardcoding this value created from address
+			// "0xF59ae934f6fe444afC309586cC60a84a0F89Aaee"
 			100
 		}
 	}
-
 }

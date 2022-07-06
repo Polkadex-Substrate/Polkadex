@@ -1,13 +1,13 @@
 [package]
-authors = ['Polkadex Authors']
-description = 'Pallet for Handling Assets from multiple Bridges'
-edition = '2021'
-homepage = 'https://polkadex.trade'
-name = 'asset-handler'
-version = '1.0.0'
+authors = ["Polkadex Authors"]
+description = "Pallet for Handling Assets from multiple Bridges"
+edition = "2021"
+homepage = "https://polkadex.trade"
+name = "asset-handler"
+version = "1.0.0"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["max-encoded-len"] }
@@ -33,17 +33,17 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-	'codec/std',
-	'scale-info/std',
-	'frame-support/std',
-	'frame-system/std',
-	'sp-runtime/std',
-	'pallet-balances/std',
-	'pallet-sudo/std',
-	'chainbridge/std',
-	'pallet-assets/std'
+	"codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-runtime/std",
+	"pallet-balances/std",
+	"pallet-sudo/std",
+	"chainbridge/std",
+	"pallet-assets/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

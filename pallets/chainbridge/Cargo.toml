@@ -1,14 +1,14 @@
 #Copyright 2021 ChainSafe Systems
 #SPDX-License-Identifier: GPL-3.0-only
 [package]
-name = 'chainbridge'
-version = '0.0.3'
-authors = ['David Ansermino <david@chainsafe.io>', 'Jovansonlee Cesar <jovansonlee@chainsafe.io>']
-homepage = 'https://substrate.io/'
-edition = '2021'
-license = 'Unlicense'
+name = "chainbridge"
+version = "0.0.3"
+authors = ["David Ansermino <david@chainsafe.io>", "Jovansonlee Cesar <jovansonlee@chainsafe.io>"]
+homepage = "https://substrate.io/"
+edition = "2021"
+license = "Unlicense"
 publish = false
-repository = 'https://github.com/ChainSafe/chainbridge-substrate'
+repository = "https://github.com/ChainSafe/chainbridge-substrate"
 
 [dependencies]
 log = "0.4"
@@ -25,15 +25,15 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "p
 blake2-rfc = { version = "0.2.18", default-features = false }
 
 [features]
-default = ['std']
-runtime-benchmarks = ['frame-benchmarking']
+default = ["std"]
+runtime-benchmarks = ["frame-benchmarking"]
 std = [
-    'codec/std',
-    'scale-info/std',
-    'sp-std/std',
-    'frame-support/std',
-    'frame-system/std',
-    'frame-benchmarking/std',
-    'pallet-balances/std',
+    "codec/std",
+    "scale-info/std",
+    "sp-std/std",
+    "frame-support/std",
+    "frame-system/std",
+    "frame-benchmarking/std",
+    "pallet-balances/std",
 ]
-try-runtime = ['frame-support/try-runtime']
+try-runtime = ["frame-support/try-runtime"]

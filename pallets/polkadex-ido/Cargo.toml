@@ -50,7 +50,7 @@ std = [
     "scale-info/std",
     "pallet-assets/std"
 ]
-
+#TODO: [#450] Currently broken, will be fixed in different issue
 #runtime-benchmarks = [
 #	"frame-benchmarking",
 #	"frame-system/runtime-benchmarks",

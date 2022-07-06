@@ -42,7 +42,6 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
-	use sp_core::crypto::AccountId32;
 	use sp_runtime::{
 		traits::{One, UniqueSaturatedInto},
 		SaturatedConversion,
@@ -108,6 +107,8 @@ pub mod pallet {
 		ChainIsNotWhitelisted,
 		/// NotEnoughBalance
 		NotEnoughBalance,
+		/// DestinationAddressNotValid
+		DestinationAddressNotValid,
 	}
 
 	#[pallet::hooks]
@@ -152,12 +153,17 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
-			destination_acc: T::AccountId,
+			destination_add: [u8; 32],
 			amount: BalanceOf<T>,
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			ensure!(chainbridge::Pallet::<T>::account_id() == sender, Error::<T>::MinterMustBeRelayer);
+			let destination_acc = T::AccountId::decode(&mut &destination_add[..])
+				.map_err(|_| Error::<T>::DestinationAddressNotValid)?;
+			ensure!(
+				chainbridge::Pallet::<T>::account_id() == sender,
+				Error::<T>::MinterMustBeRelayer
+			);
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,

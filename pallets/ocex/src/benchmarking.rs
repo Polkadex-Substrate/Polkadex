@@ -24,7 +24,7 @@ use frame_system::RawOrigin;
 benchmarks! {
 	set_dummy_benchmark {
 		let b in 1 .. 1000;
-	}: set_dummy(RawOrigin::Root, b.into()) 
+	}: set_dummy(RawOrigin::Root, b.into())
 	verify {
 		assert_eq!(Pallet::<T>::dummy(), Some(b.into()))
 	}
@@ -43,6 +43,6 @@ benchmarks! {
 		m.sort();
 	}
 
-	
+
 	impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Test)
 }
