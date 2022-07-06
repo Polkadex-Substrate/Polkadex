@@ -255,7 +255,7 @@ pub mod pallet {
         pub fn register_round(
             origin: OriginFor<T>,
             cid: Vec<u8>,
-            token_a: Option<AssetId>,
+            token_a: AssetId,
             amount: BalanceOf<T>,
             token_b: AssetId,
             vesting_per_block: BalanceOf<T>,
@@ -265,6 +265,55 @@ pub mod pallet {
             token_a_priceper_token_b: BalanceOf<T>,
         ) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
+            //TODO check if funder have the token_a available and reserve them.
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let start_block = current_block_no.clone().saturating_add(1_u128.saturated_into());
+            let close_round_block = current_block_no.saturating_add(funding_period);
+            let token_a_priceper_token_b_perquintill = Perbill::from_rational(token_a_priceper_token_b, 1_000_000_000_000_u128.saturated_into());
+             // CID len must be less than or equal to 100
+             ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
+             ensure!(!token_a_priceper_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
+             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
+             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
+             ensure!(vesting_per_block > Zero::zero(), <Error<T>>::VestingPerBlockMustGreaterThanZero);
+             let vesting_period: u32 = (amount / vesting_per_block).saturated_into();
+             let vesting_period: T::BlockNumber = vesting_period.saturated_into();
+             let vesting_end_block: T::BlockNumber = vesting_period.saturating_add(close_round_block);
+             let funding_round: FundingRound<T> = FundingRound::from(
+                cid,
+                token_a,
+                team.clone(),
+                amount,
+                token_b,
+                vesting_end_block,
+                vesting_per_block,
+                start_block,
+                min_allocation,
+                max_allocation,
+                token_a_priceper_token_b,
+                close_round_block,
+            ); 
+            let (round_id, _) = T::Randomness::random(&(Self::pallet_account_id(), current_block_no, team.clone(), Self::incr_nonce()).encode());
+            let round_account_id = Self::round_account_id(round_id.clone());
+            //Charge minimum 1 PDEX required to create an account for the round account id
+            T::Currency::transfer(&team, &round_account_id, T::ExistentialDeposit::get(), ExistenceRequirement::KeepAlive)?;
+            Self::transfer(token_a, &team, &round_account_id, amount.saturated_into())?;
+            <InfoFundingRound<T>>::insert(round_id, funding_round);
+            <InfoProjectTeam<T>>::insert(team, round_id);
+            Self::deposit_event(Event::FundingRoundRegistered(round_id));
+            Ok(())
+        }
+
+        /// Invest in a funding round
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
+        /// * `amount`: BalanceOf<T>
+        #[pallet::weight((10_000, DispatchClass::Normal))]
+        pub fn show_interest_in_round(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            
             Ok(())
         }
 
@@ -277,18 +326,6 @@ pub mod pallet {
         pub fn claim_tokens(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
            
-            Ok(())
-        }
-
-        /// Stores information about investors, showing interest in funding round.
-        ///
-        /// # Parameters
-        ///
-        /// * `round_id`: Funding round id
-        #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn show_interest_in_round(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
-            let investor_address: T::AccountId = ensure_signed(origin)?;
-            
             Ok(())
         }
 
@@ -320,7 +357,31 @@ pub mod pallet {
         }
     }
 
-    
+    /// Stores nonce used to create unique ido round id
+    #[pallet::storage]
+    #[pallet::getter(fn nonce)]
+    pub(super) type Nonce<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+    /// Stores funding round info
+    #[pallet::storage]
+    #[pallet::getter(fn get_funding_round)]
+    pub(super) type InfoFundingRound<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        FundingRound<T>,
+        OptionQuery,
+    >;
+    /// Stores project team/ ido creator Info
+    #[pallet::storage]
+    #[pallet::getter(fn get_team)]
+    pub(super) type InfoProjectTeam<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        T::Hash,
+        OptionQuery,
+    >;
 
 
     #[pallet::event]
@@ -336,15 +397,17 @@ pub mod pallet {
         /// Funding round does not exist
         FundingRoundDoesNotExist,
         InsufficientBalance,
+        CidReachedMaxSize,
+        PricePerTokenCantBeZero,
+        MinAllocationMustBeEqualOrLessThanMaxAllocation,
+        StartBlockMustBeLessThanEndblock,
+        StartBlockMustBeGreaterThanVotingPeriod,
+        VestingPerBlockMustGreaterThanZero,
     }
 }
 
 
 impl<T: Config> Pallet<T> {
-    /// module wallet account
-    pub fn get_wallet_account() -> T::AccountId {
-        T::ModuleId::get().into_account()
-    }
 
     /// converts block to balance
     /// # Parameters
@@ -361,12 +424,12 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Increments and return a nonce
-    /* fn incr_nonce() -> u128 {
+    fn incr_nonce() -> u128 {
         let current_nonce: u128 = <Nonce<T>>::get();
         let (nonce, _) = current_nonce.overflowing_add(1);
         <Nonce<T>>::put(nonce);
         <Nonce<T>>::get()
-    } */
+    }
 
     /// module wallet account
     pub fn pallet_account_id() -> T::AccountId {
