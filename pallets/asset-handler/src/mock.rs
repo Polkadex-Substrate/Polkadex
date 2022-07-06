@@ -16,8 +16,6 @@
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
-// use sp_runtime::testing::H256;
-// use crate::benchmarking::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
@@ -25,10 +23,12 @@ use sp_runtime::{
 
 use crate::pallet as asset_handler;
 
-use frame_support::{traits::GenesisBuild, PalletId};
+use frame_support::PalletId;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
+
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -43,10 +43,12 @@ frame_support::construct_runtime!(
 		AssetHandler: asset_handler::{Pallet, Call, Storage, Event<T>}
 	}
 );
+
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 42;
 }
+
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -73,6 +75,7 @@ impl system::Config for Test {
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
+
 pub const PDEX: Balance = 1_000_000_000_000;
 
 parameter_types! {
@@ -80,6 +83,7 @@ parameter_types! {
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
+
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
@@ -91,6 +95,7 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
 }
+
 parameter_types! {
 	pub const LockPeriod: u64 = 201600;
 	pub const MaxRelayers: u32 = 3;

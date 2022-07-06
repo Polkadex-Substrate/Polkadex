@@ -90,9 +90,9 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Asset Registered
 		AssetRegistered(ResourceId),
-		/// Asset Deposited (recipient, ResourceId, Amount)
-		AssetDeposited([u8;32], ResourceId, u128),
-		/// Asset Withdrawn (recipient, ResourceId, Amount)
+		/// Asset Deposited (Recipient, ResourceId, Amount)
+		AssetDeposited(T::AccountId, ResourceId, BalanceOf<T>),
+		/// Asset Withdrawn (Recipient, ResourceId, Amount)
 		AssetWithdrawn(H160, ResourceId, BalanceOf<T>),
 		FeeUpdated(BridgeChainId, BalanceOf<T>),
 	}
@@ -108,8 +108,6 @@ pub mod pallet {
 		ChainIsNotWhitelisted,
 		/// NotEnoughBalance
 		NotEnoughBalance,
-		/// DestinationAddressNotValid
-		DestinationAddressNotValid
 	}
 
 	#[pallet::hooks]
@@ -121,6 +119,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
 		#[pallet::weight(T::WeightInfo::create_asset(1))]
@@ -146,25 +145,25 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `destination_add`: Recipient's Account
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
 		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
-			destination_add: [u8;32],
-			amount: u128,
+			destination_acc: T::AccountId,
+			amount: BalanceOf<T>,
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			let destination_acc = T::AccountId::decode(&mut &destination_add[..]).map_err(|_| Error::<T>::DestinationAddressNotValid)?;
 			ensure!(chainbridge::Pallet::<T>::account_id() == sender, Error::<T>::MinterMustBeRelayer);
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,
 				amount.saturated_into::<u128>(),
 			)?;
-			Self::deposit_event(Event::<T>::AssetDeposited(destination_add, rid, amount));
+			Self::deposit_event(Event::<T>::AssetDeposited(destination_acc, rid, amount));
 			Ok(())
 		}
 
@@ -172,6 +171,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
 		/// * `amount`: Amount to be burned and transferred from Sender's Account
@@ -221,6 +221,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
+		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
