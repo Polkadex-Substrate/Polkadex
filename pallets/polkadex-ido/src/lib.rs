@@ -210,13 +210,6 @@ pub mod pallet {
         }
     }
 
-    #[derive(Decode, Encode, Clone, TypeInfo)]
-    #[scale_info(bounds(), skip_type_params(T))]
-    pub struct InterestedInvestorInfo<T: Config + frame_system::Config> {
-        account_id: T::AccountId,
-        amount: BalanceOf<T>,
-    }
-
     #[pallet::pallet]
     #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
@@ -334,9 +327,10 @@ pub mod pallet {
             match Self::transfer(funding_round.token_b, &investor_address, &round_account_id, amount.saturated_into()) {
                 Ok(_) => {
                     funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount_in_token_a);
-                    // Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address.clone()));
+                    Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address.clone()));
                     <InfoFundingRound<T>>::insert(round_id, funding_round);
-                    // <InvestedParties<T>>::insert(round_id.clone(), investor_address, amount);
+                    <InvestorShare<T>>::insert(round_id.clone(), investor_address.clone(), amount_in_token_a);
+                    <InvestorInvestment<T>>::insert(round_id.clone(), investor_address, amount);
                 }
                 Err(error) => {
                     // Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
@@ -353,7 +347,14 @@ pub mod pallet {
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn claim_tokens(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
-           
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let round_account_id = Self::round_account_id(round_id.clone());
+            let investor_share = Self::get_investor_share_info(round_id.clone(), investor_address.clone());
+            Self::transfer(funding_round.token_a, &round_account_id, &investor_address, investor_share.saturated_into())?;
+            // Self::deposit_event(Event::TokenClaimed(round_id, investor_address));
             Ok(())
         }
 
@@ -366,8 +367,14 @@ pub mod pallet {
         /// * `beneficiary`: Account Id of Beneficiary
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn withdraw_raise(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let round_account_id = Self::round_account_id(round_id.clone());
+            Self::transfer(funding_round.token_b, &round_account_id, &investor_address, funding_round.actual_raise.saturated_into())?;
             Ok(())
         }
 
@@ -380,7 +387,14 @@ pub mod pallet {
         /// * `beneficiary`: Account Id of Beneficiary
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn withdraw_token(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let round_account_id = Self::round_account_id(round_id.clone());
+            let rem_tokens = funding_round.amount.saturating_sub(funding_round.actual_raise);
+            Self::transfer(funding_round.token_a, &round_account_id, &investor_address, rem_tokens.saturated_into())?;
             Ok(())
         }
     }
@@ -411,12 +425,38 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    #[pallet::storage]
+    #[pallet::getter(fn get_investor_share_info)]
+    pub(super) type InvestorShare<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        Blake2_128Concat,
+        T::AccountId,
+        BalanceOf<T>,
+        ValueQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_investor_investment_info)]
+    pub(super) type InvestorInvestment<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        Blake2_128Concat,
+        T::AccountId,
+        BalanceOf<T>,
+        ValueQuery,
+    >;
+
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Funding round has been registered
         FundingRoundRegistered(T::Hash),
+        ParticipatedInRound(T::Hash, T::AccountId),
+        ParticipatedInRoundFailed(T::Hash, T::AccountId, BalanceOf<T>)
     }
 
 
@@ -435,6 +475,8 @@ pub mod pallet {
         BalanceInsufficientForInteresetedAmount,
         NotAValidAmount,
         NotAllowed,
+        WithdrawalBlocked,
+        TokenClaimedAlready,
     }
 }
 
