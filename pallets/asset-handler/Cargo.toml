@@ -1,13 +1,13 @@
 [package]
-authors = ['Polkadex Authors']
-description = 'FRAME pallet for migrating ERC20 PDEX to Native PDEX'
-edition = '2021'
-homepage = 'https://polkadex.trade'
-name = 'pdex-migration'
-version = '1.1.0'
+authors = ["Polkadex Authors"]
+description = "Pallet for Handling Assets from multiple Bridges"
+edition = "2021"
+homepage = "https://polkadex.trade"
+name = "asset-handler"
+version = "1.0.0"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["max-encoded-len"] }
@@ -16,38 +16,38 @@ scale-info = { version = "2.0.1", default-features = false, features = ["derive"
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false,  optional = true }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
-rand = {default-features = false, version = '0.8.0'}
+
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 
+chainbridge = {path = "../chainbridge", default-features = false}
+
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19"}
 
+
 [features]
-default = ['std']
+default = ["std"]
 std = [
-	'codec/std',
-	'scale-info/std',
-	'frame-support/std',
-	'frame-system/std',
-	'sp-runtime/std',
-	'pallet-balances/std',
-	'pallet-sudo/std',
-	'rand/std'
+	"codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-runtime/std",
+	"pallet-balances/std",
+	"pallet-sudo/std",
+	"chainbridge/std",
+	"pallet-assets/std"
 ]
-#TODO: [#463] Currently broken, will be fixed in different issue
-#runtime-benchmarks = [
-#    "frame-benchmarking",
-#    'frame-support/runtime-benchmarks',
-#    'frame-system/runtime-benchmarks',
-#    'sp-runtime/runtime-benchmarks',
-#    'pallet-balances/runtime-benchmarks',
-#	'rand/std'
-#	# 'sp-io/std',
-#]
-try-runtime = ["frame-support/try-runtime"]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"chainbridge/runtime-benchmarks"
+]

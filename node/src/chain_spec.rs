@@ -1,4 +1,3 @@
-
 use frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
@@ -65,31 +64,31 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		GrandpaId,
 		BabeId,
 		ImOnlineId,
-		AuthorityDiscoveryId
+		AuthorityDiscoveryId,
 	)> = vec![];
 	for idx in 1..4 {
 		let babe = sp_core::sr25519::Pair::from_string(
 			&*(seed.to_owned() + idx.to_string().as_str() + "//babe"),
 			None,
 		)
-			.unwrap();
+		.unwrap();
 		let imon = sp_core::sr25519::Pair::from_string(
 			&*(seed.to_owned() + idx.to_string().as_str() + "//imon"),
 			None,
 		)
-			.unwrap();
+		.unwrap();
 		let audi = sp_core::sr25519::Pair::from_string(
 			&*(seed.to_owned() + idx.to_string().as_str() + "//audi"),
 			None,
 		)
-			.unwrap();
+		.unwrap();
 
 		// Granpda uses ed25519 cryptography
 		let gran = sp_core::ed25519::Pair::from_string(
 			&*(seed.to_owned() + idx.to_string().as_str() + "//grandpa"),
 			None,
 		)
-			.unwrap();
+		.unwrap();
 
 		initial_authorities.push((
 			AccountId::from(babe.public().into_account()),
@@ -97,7 +96,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			GrandpaId::from(gran.public().into_account()),
 			BabeId::from(babe.public().into_account()),
 			ImOnlineId::from(imon.public().into_account()),
-			AuthorityDiscoveryId::from(audi.public().into_account())
+			AuthorityDiscoveryId::from(audi.public().into_account()),
 		));
 	}
 
@@ -106,7 +105,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		// 5GUD1cXQB1nFyLprscEQh6apekh4KMGD6FnkatcM6AAJ7JQb
 		"c2ddb84ed7692123f5f6746c81cd0850932553416515ecd71fbe66c128eafa73"
 	]
-		.into();
+	.into();
 
 	testnet_genesis(initial_authorities, vec![], root_key)
 }
