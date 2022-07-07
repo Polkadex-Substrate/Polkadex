@@ -99,15 +99,20 @@ pub mod pallet {
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 		type Public: Clone
-		+ PartialEq
-		+ IdentifyAccount<AccountId = Self::AccountId>
-		+ core::fmt::Debug
-		+ codec::Codec
-		+ Ord
-		+ scale_info::TypeInfo;
+			+ PartialEq
+			+ IdentifyAccount<AccountId = Self::AccountId>
+			+ core::fmt::Debug
+			+ codec::Codec
+			+ Ord
+			+ scale_info::TypeInfo;
 
 		/// A matching `Signature` type.
-		type Signature: Verify<Signer = Self::Public> + Clone + PartialEq + core::fmt::Debug + codec::Codec + scale_info::TypeInfo;
+		type Signature: Verify<Signer = Self::Public>
+			+ Clone
+			+ PartialEq
+			+ core::fmt::Debug
+			+ codec::Codec
+			+ scale_info::TypeInfo;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: WeightInfo;
@@ -337,7 +342,8 @@ pub mod pallet {
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			<Withdrawals<T>>::insert((base, quote), snapshot.snapshot_number, snapshot.withdrawals);
-			snapshot.withdrawals = BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>,WithdrawalLimit>::default();
+			snapshot.withdrawals =
+				BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>::default();
 			<Snapshots<T>>::insert(&base, &quote, snapshot);
 			Ok(())
 		}
