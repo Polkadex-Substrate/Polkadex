@@ -221,16 +221,6 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Registers a new investor to allow participating in funding round.
-        ///
-        /// # Parameters
-        ///
-        /// * `origin`: Account to be registered as Investor
-        #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn register_investor(origin: OriginFor<T>) -> DispatchResult {
-            
-            Ok(())
-        }
 
         /// Registers a funding round with the amount as the total allocation for this round and vesting period.
         ///
@@ -317,7 +307,7 @@ pub mod pallet {
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
-            let total_raise = funding_round.actual_raise;
+            let total_raise = funding_round.actual_raise.saturating_add(amount_in_token_a);
             let round_account_id = Self::round_account_id(round_id.clone());
 
             // First come first serve basis 
@@ -326,7 +316,7 @@ pub mod pallet {
             }
             match Self::transfer(funding_round.token_b, &investor_address, &round_account_id, amount.saturated_into()) {
                 Ok(_) => {
-                    funding_round.actual_raise = funding_round.actual_raise.saturating_add(amount_in_token_a);
+                    funding_round.actual_raise = total_raise;
                     Self::deposit_event(Event::ParticipatedInRound(round_id, investor_address.clone()));
                     <InfoFundingRound<T>>::insert(round_id, funding_round);
                     <InvestorShare<T>>::insert(round_id.clone(), investor_address.clone(), amount_in_token_a);
