@@ -53,12 +53,6 @@ pub use pallet::*;
 
 use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat, StringAssetId};
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod test;
-
 
 use polkadex_primitives::assets::AssetId;
 use frame_support::traits::{Currency, ReservableCurrency, ExistenceRequirement};
