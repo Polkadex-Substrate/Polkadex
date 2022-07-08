@@ -397,6 +397,19 @@ pub mod pallet {
             Self::transfer(funding_round.token_a, &round_account_id, &investor_address, rem_tokens.saturated_into())?;
             Ok(())
         }
+
+        #[pallet::weight((10_000, DispatchClass::Normal))]
+        pub fn withdraw_investment(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let round_account_id = Self::round_account_id(round_id.clone());
+            let investment = <InvestorInvestment<T>>::get(&round_id, &investor_address);
+            Self::transfer(funding_round.token_b, &round_account_id, &investor_address, investment)?;
+            Ok(())
+        }
     }
 
     /// Stores nonce used to create unique ido round id
