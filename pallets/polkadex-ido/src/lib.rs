@@ -351,6 +351,9 @@ pub mod pallet {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let total_raise: u128 = funding_round.actual_raise.saturated_into();
+            let amount: u128 = funding_round.amount.saturated_into();
+            ensure!(total_raise >= amount/2, Error::<T>::CannotClaimTokenForFailedIdo);
             let round_account_id = Self::round_account_id(round_id.clone());
             let investor_share = Self::get_investor_share_info(round_id.clone(), investor_address.clone());
             Self::transfer(funding_round.token_a, &round_account_id, &investor_address, investor_share.saturated_into())?;
@@ -368,13 +371,19 @@ pub mod pallet {
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn withdraw_raise(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
-            let current_block_no = <frame_system::Pallet<T>>::block_number();
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let total_raise: u128 = funding_round.actual_raise.saturated_into();
+            let amount: u128 = funding_round.amount.saturated_into();
+            ensure!(total_raise >= amount/2, Error::<T>::CannotWithdrawRaiseForFailedIdo);
             let round_account_id = Self::round_account_id(round_id.clone());
-            Self::transfer(funding_round.token_b, &round_account_id, &investor_address, funding_round.actual_raise.saturated_into())?;
+            let mut total_raise: BalanceOf<T> = 0_u128.saturated_into();
+            for (round_id,address, amount) in <InvestorInvestment<T>>::iter(){
+                total_raise.saturating_add(amount);
+            }
+            Self::transfer(funding_round.token_b, &round_account_id, &investor_address, total_raise.saturated_into())?;
             Ok(())
         }
 
@@ -405,6 +414,9 @@ pub mod pallet {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
+            let total_raise: u128 = funding_round.actual_raise.saturated_into();
+            let amount: u128 = funding_round.amount.saturated_into();
+            ensure!(total_raise <= amount/2, Error::<T>::CannotWithdrawForSuccesfulIDO);
             let round_account_id = Self::round_account_id(round_id.clone());
             let investment = <InvestorInvestment<T>>::get(&round_id, &investor_address);
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, investment)?;
@@ -490,6 +502,9 @@ pub mod pallet {
         NotAllowed,
         WithdrawalBlocked,
         TokenClaimedAlready,
+        CannotWithdrawRaiseForFailedIdo,
+        CannotClaimTokenForFailedIdo,
+        CannotWithdrawForSuccesfulIDO,
     }
 }
 
