@@ -46,6 +46,7 @@ pub mod pallet {
 		traits::{One, UniqueSaturatedInto},
 		SaturatedConversion,
 	};
+	use sp_std::vec::Vec;
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -90,7 +91,7 @@ pub mod pallet {
 		/// Asset Registered
 		AssetRegistered(ResourceId),
 		/// Asset Deposited (Recipient, ResourceId, Amount)
-		AssetDeposited(T::AccountId, ResourceId, BalanceOf<T>),
+		AssetDeposited(T::AccountId, ResourceId, u128),
 		/// Asset Withdrawn (Recipient, ResourceId, Amount)
 		AssetWithdrawn(H160, ResourceId, BalanceOf<T>),
 		FeeUpdated(BridgeChainId, BalanceOf<T>),
@@ -153,8 +154,8 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
-			destination_add: [u8; 32],
-			amount: BalanceOf<T>,
+			destination_add: Vec<u8>,
+			amount: u128,
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
