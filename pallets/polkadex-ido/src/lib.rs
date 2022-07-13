@@ -394,6 +394,12 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Transfers the investment made by the investor
+        /// when there's a failed IDO
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn withdraw_investment(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
