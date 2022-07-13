@@ -364,7 +364,7 @@ pub mod pallet {
             ensure!(total_raise >= amount/2, Error::<T>::CannotWithdrawRaiseForFailedIdo);
             let round_account_id = Self::round_account_id(round_id.clone());
             let mut total_raise: BalanceOf<T> = 0_u128.saturated_into();
-            for (round_id,address, amount) in <InvestorInvestment<T>>::iter(){
+            for (_ , _ , amount) in <InvestorInvestment<T>>::iter(){
                 total_raise = total_raise.saturating_add(amount);
             }
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, total_raise.saturated_into())?;
