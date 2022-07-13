@@ -353,7 +353,7 @@ pub mod pallet {
         /// * `round_id`: Funding round id
         /// * `beneficiary`: Account Id of Beneficiary
         #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn withdraw_raise(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+        pub fn claim_raise(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
@@ -381,9 +381,8 @@ pub mod pallet {
         /// # Parameters
         ///
         /// * `round_id`: Funding round id
-        /// * `beneficiary`: Account Id of Beneficiary
         #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn withdraw_token(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+        pub fn withdraw_tokens(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
@@ -397,7 +396,7 @@ pub mod pallet {
         }
 
         #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn withdraw_investment(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+        pub fn withdraw_investment(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
