@@ -315,7 +315,7 @@ pub mod pallet {
                     <InvestorInvestment<T>>::insert(round_id.clone(), investor_address, amount);
                 }
                 Err(error) => {
-                    // Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
+                    Self::deposit_event(Event::ParticipatedInRoundFailed(round_id, investor_address, error));
                 }
             }
             Ok(())
@@ -339,7 +339,7 @@ pub mod pallet {
             let round_account_id = Self::round_account_id(round_id.clone());
             let investor_share = Self::get_investor_share_info(round_id.clone(), investor_address.clone());
             Self::transfer(funding_round.token_a, &round_account_id, &investor_address, investor_share.saturated_into())?;
-            // Self::deposit_event(Event::TokenClaimed(round_id, investor_address));
+            Self::deposit_event(Event::TokenClaimed(round_id, investor_address));
             Ok(())
         }
 
@@ -368,6 +368,7 @@ pub mod pallet {
                 total_raise = total_raise.saturating_add(amount);
             }
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, total_raise.saturated_into())?;
+            Self::deposit_event(Event::RaiseClaimed(round_id, investor_address, total_raise.saturated_into()));
             <RaiseClaimed<T>>::insert(round_id.clone(), true);
             Ok(())
         }
@@ -406,6 +407,7 @@ pub mod pallet {
             let round_account_id = Self::round_account_id(round_id.clone());
             let investment = <InvestorInvestment<T>>::get(&round_id, &investor_address);
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, investment)?;
+            Self::deposit_event(Event::InvestmentWithdrawn(round_id, investor_address, investment));
             Ok(())
         }
     }
@@ -478,7 +480,10 @@ pub mod pallet {
         /// Funding round has been registered
         FundingRoundRegistered(T::Hash),
         ParticipatedInRound(T::Hash, T::AccountId),
-        ParticipatedInRoundFailed(T::Hash, T::AccountId, BalanceOf<T>)
+        ParticipatedInRoundFailed(T::Hash, T::AccountId, sp_runtime::DispatchError),
+        RaiseClaimed(T::Hash, T::AccountId, BalanceOf<T>),
+        TokenClaimed(T::Hash, T::AccountId),
+        InvestmentWithdrawn(T::Hash, T::AccountId, BalanceOf<T>)
     }
 
 
