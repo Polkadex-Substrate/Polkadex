@@ -407,6 +407,7 @@ pub mod pallet {
             let round_account_id = Self::round_account_id(round_id.clone());
             let investment = <InvestorInvestment<T>>::get(&round_id, &investor_address);
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, investment)?;
+            //  <InvestorInvestment<T>>::insert(round_id.clone(), investor_address, amount);
             Self::deposit_event(Event::InvestmentWithdrawn(round_id, investor_address, investment));
             Ok(())
         }
