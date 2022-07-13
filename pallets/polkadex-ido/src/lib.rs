@@ -357,23 +357,24 @@ pub mod pallet {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
-            let mut funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(<InfoProjectTeam<T>>::get(investor_address.clone()) == Some(round_id), Error::<T>::NotAllowed);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let total_raise: u128 = funding_round.actual_raise.saturated_into();
             let amount: u128 = funding_round.amount.saturated_into();
-            ensure!(total_raise != 0_u128, Error::<T>::RaiseWithdrawnAlready);
+            ensure!(!<RaiseClaimed<T>>::get(round_id), Error::<T>::RaiseWithdrawnAlready);
             ensure!(total_raise >= amount/2, Error::<T>::CannotWithdrawRaiseForFailedIdo);
             let round_account_id = Self::round_account_id(round_id.clone());
             let mut total_raise: BalanceOf<T> = 0_u128.saturated_into();
             for (round_id,address, amount) in <InvestorInvestment<T>>::iter(){
-                total_raise.saturating_add(amount);
+                total_raise = total_raise.saturating_add(amount);
             }
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, total_raise.saturated_into())?;
-            funding_round.actual_raise = 0_u128.saturated_into();
-            <InfoFundingRound<T>>::insert(round_id, funding_round);
+            <RaiseClaimed<T>>::insert(round_id.clone(), true);
             Ok(())
         }
 
+        /// Only IDO creator can call this
         /// Transfers the remaining tokens to another address,
         /// only the round creator can call this or the governance.
         ///
@@ -387,6 +388,7 @@ pub mod pallet {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(<InfoProjectTeam<T>>::get(investor_address.clone()) == Some(round_id), Error::<T>::NotAllowed);
             ensure!(current_block_no >= funding_round.close_round_block, Error::<T>::WithdrawalBlocked);
             let round_account_id = Self::round_account_id(round_id.clone());
             let rem_tokens = funding_round.amount.saturating_sub(funding_round.actual_raise);
@@ -460,6 +462,17 @@ pub mod pallet {
         BalanceOf<T>,
         ValueQuery,
     >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn raise_claimed)]
+    pub(super) type RaiseClaimed<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        bool,
+        ValueQuery,
+    >;
+    
 
 
     #[pallet::event]
