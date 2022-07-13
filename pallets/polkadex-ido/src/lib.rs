@@ -351,7 +351,7 @@ pub mod pallet {
         /// * `round_id`: Funding round id
         /// * `beneficiary`: Account Id of Beneficiary
         #[pallet::weight((10_000, DispatchClass::Normal))]
-        pub fn claim_raise(origin: OriginFor<T>, round_id: T::Hash, beneficiary: T::AccountId) -> DispatchResult {
+        pub fn claim_raise(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
@@ -407,7 +407,8 @@ pub mod pallet {
             let round_account_id = Self::round_account_id(round_id.clone());
             let investment = <InvestorInvestment<T>>::get(&round_id, &investor_address);
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, investment)?;
-            //  <InvestorInvestment<T>>::insert(round_id.clone(), investor_address, amount);
+            let empty_raise: BalanceOf<T> = 0_u128.saturated_into();
+            <InvestorInvestment<T>>::insert(round_id.clone(), investor_address.clone(), empty_raise);
             Self::deposit_event(Event::InvestmentWithdrawn(round_id, investor_address, investment));
             Ok(())
         }
