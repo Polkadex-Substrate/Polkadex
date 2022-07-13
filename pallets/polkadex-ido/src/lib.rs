@@ -209,9 +209,7 @@ pub mod pallet {
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-
-    }
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -243,20 +241,20 @@ pub mod pallet {
         ) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
             //TODO check if funder have the token_a available and reserve them.
+            // CID len must be less than or equal to 100
+            ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
+            ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
+            ensure!(vesting_per_block > Zero::zero(), <Error<T>>::VestingPerBlockMustGreaterThanZero);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let start_block = current_block_no.clone().saturating_add(1_u128.saturated_into());
             let close_round_block = current_block_no.saturating_add(funding_period);
             let token_a_priceper_token_b_perquintill = Perbill::from_rational(token_a_priceper_token_b, 1_000_000_000_000_u128.saturated_into());
-             // CID len must be less than or equal to 100
-             ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
-             ensure!(!token_a_priceper_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
-             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
-             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
-             ensure!(vesting_per_block > Zero::zero(), <Error<T>>::VestingPerBlockMustGreaterThanZero);
-             let vesting_period: u32 = (amount / vesting_per_block).saturated_into();
-             let vesting_period: T::BlockNumber = vesting_period.saturated_into();
-             let vesting_end_block: T::BlockNumber = vesting_period.saturating_add(close_round_block);
-             let funding_round: FundingRound<T> = FundingRound::from(
+            ensure!(!token_a_priceper_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
+            ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
+            let vesting_period: u32 = (amount / vesting_per_block).saturated_into();
+            let vesting_period: T::BlockNumber = vesting_period.saturated_into();
+            let vesting_end_block: T::BlockNumber = vesting_period.saturating_add(close_round_block);
+            let funding_round: FundingRound<T> = FundingRound::from(
                 cid,
                 token_a,
                 team.clone(),
