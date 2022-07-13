@@ -384,6 +384,7 @@ pub mod pallet {
         pub fn withdraw_tokens(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            ensure!(!<TokenWithdrawn<T>>::get(&round_id), Error::<T>::TokenAlreadyWithdrawn);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
             ensure!(<InfoProjectTeam<T>>::get(investor_address.clone()) == Some(round_id), Error::<T>::NotAllowed);
@@ -391,6 +392,8 @@ pub mod pallet {
             let round_account_id = Self::round_account_id(round_id.clone());
             let rem_tokens = funding_round.amount.saturating_sub(funding_round.actual_raise);
             Self::transfer(funding_round.token_a, &round_account_id, &investor_address, rem_tokens.saturated_into())?;
+            <TokenWithdrawn<T>>::insert(round_id.clone(), true);
+            Self::deposit_event(Event::TokenWithdrawn(round_id, investor_address, rem_tokens));
             Ok(())
         }
 
@@ -479,6 +482,16 @@ pub mod pallet {
         bool,
         ValueQuery,
     >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn token_withdrawn)]
+    pub(super) type TokenWithdrawn<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        bool,
+        ValueQuery,
+    >;
     
 
 
@@ -491,7 +504,8 @@ pub mod pallet {
         ParticipatedInRoundFailed(T::Hash, T::AccountId, sp_runtime::DispatchError),
         RaiseClaimed(T::Hash, T::AccountId, BalanceOf<T>),
         TokenClaimed(T::Hash, T::AccountId),
-        InvestmentWithdrawn(T::Hash, T::AccountId, BalanceOf<T>)
+        InvestmentWithdrawn(T::Hash, T::AccountId, BalanceOf<T>),
+        TokenWithdrawn(T::Hash, T::AccountId, BalanceOf<T>)
     }
 
 
@@ -516,6 +530,7 @@ pub mod pallet {
         CannotClaimTokenForFailedIdo,
         CannotWithdrawForSuccesfulIDO,
         RaiseWithdrawnAlready,
+        TokenAlreadyWithdrawn,
     }
 }
 
