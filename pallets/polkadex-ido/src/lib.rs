@@ -137,7 +137,7 @@ pub mod pallet {
         pub start_block: T::BlockNumber,
         pub min_allocation: BalanceOf<T>,
         pub max_allocation: BalanceOf<T>,
-        pub token_a_priceper_token_b: BalanceOf<T>,
+        pub token_a_price_per_token_b: BalanceOf<T>,
         pub close_round_block: T::BlockNumber,
         pub actual_raise: BalanceOf<T>,
     }
@@ -154,7 +154,7 @@ pub mod pallet {
             start_block: T::BlockNumber,
             min_allocation: BalanceOf<T>,
             max_allocation: BalanceOf<T>,
-            token_a_priceper_token_b: BalanceOf<T>,
+            token_a_price_per_token_b: BalanceOf<T>,
             close_round_block: T::BlockNumber,
         ) -> Self {
             FundingRound {
@@ -168,7 +168,7 @@ pub mod pallet {
                 start_block,
                 min_allocation,
                 max_allocation,
-                token_a_priceper_token_b,
+                token_a_price_per_token_b,
                 close_round_block,
                 actual_raise: Zero::zero(),
             }
@@ -186,20 +186,20 @@ pub mod pallet {
                 project_info_cid: self.project_info_cid.clone(),
                 min_allocation: self.min_allocation.saturated_into(),
                 max_allocation: self.max_allocation.saturated_into(),
-                token_a_priceper_token_b: self.token_a_priceper_token_b.saturated_into(),
+                token_a_price_per_token_b: self.token_a_price_per_token_b.saturated_into(),
                 close_round_block: self.close_round_block.saturated_into(),
                 actual_raise: self.actual_raise.saturated_into(),
             }
         }
 
         pub fn token_a_price_per_1e12_token_b(&self) -> Perbill {
-            let token_a_priceper_token_b: u128 = self.token_a_priceper_token_b.saturated_into();
-            Perbill::from_rational(token_a_priceper_token_b, T::OnePDEX::get())
+            let token_a_price_per_token_b: u128 = self.token_a_price_per_token_b.saturated_into();
+            Perbill::from_rational(token_a_price_per_token_b, T::OnePDEX::get())
         }
 
         pub fn token_a_price_per_1e12_token_b_balance(&self) -> BalanceOf<T> {
-            let token_a_priceper_token_b: u128 = self.token_a_priceper_token_b.saturated_into();
-            let p = (token_a_priceper_token_b as f64 / T::OnePDEX::get() as f64) as u128;
+            let token_a_price_per_token_b: u128 = self.token_a_price_per_token_b.saturated_into();
+            let p = (token_a_price_per_token_b as f64 / T::OnePDEX::get() as f64) as u128;
             p.saturated_into()
         }
     }
@@ -225,7 +225,7 @@ pub mod pallet {
         /// * `funding_period`: Number of blocks from the current block for funding/show interest in funding round
         /// * `min_allocation`: Minimum allocation of funds investor can invest
         /// * `max_allocation`: Maximum allocation of funds investor can invest
-        /// * `token_a_priceper_token_b`: Priceper amount for project token
+        /// * `token_a_price_per_token_b`: Priceper amount for project token
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn register_round(
             origin: OriginFor<T>,
@@ -237,7 +237,7 @@ pub mod pallet {
             funding_period: T::BlockNumber,
             min_allocation: BalanceOf<T>,
             max_allocation: BalanceOf<T>,
-            token_a_priceper_token_b: BalanceOf<T>,
+            token_a_price_per_token_b: BalanceOf<T>,
         ) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
             //TODO check if funder have the token_a available and reserve them.
@@ -248,8 +248,8 @@ pub mod pallet {
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             let start_block = current_block_no.clone().saturating_add(1_u128.saturated_into());
             let close_round_block = current_block_no.saturating_add(funding_period);
-            let token_a_priceper_token_b_perquintill = Perbill::from_rational(token_a_priceper_token_b, 1_000_000_000_000_u128.saturated_into());
-            ensure!(!token_a_priceper_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
+            let token_a_price_per_token_b_perquintill = Perbill::from_rational(token_a_price_per_token_b, 1_000_000_000_000_u128.saturated_into());
+            ensure!(!token_a_price_per_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
             let vesting_period: u32 = (amount / vesting_per_block).saturated_into();
             let vesting_period: T::BlockNumber = vesting_period.saturated_into();
@@ -265,7 +265,7 @@ pub mod pallet {
                 start_block,
                 min_allocation,
                 max_allocation,
-                token_a_priceper_token_b,
+                token_a_price_per_token_b,
                 close_round_block,
             ); 
             let (round_id, _) = T::Randomness::random(&(Self::pallet_account_id(), current_block_no, team.clone(), Self::incr_nonce()).encode());
@@ -291,7 +291,7 @@ pub mod pallet {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let mut funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
             ensure!(Self::can_withdraw(funding_round.token_b,&investor_address, amount.saturated_into()).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
-            let amount_in_token_a = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_priceper_token_b {
+            let amount_in_token_a = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_price_per_token_b {
                 funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(amount) 
             } else {
                 amount / funding_round.token_a_price_per_1e12_token_b_balance()
