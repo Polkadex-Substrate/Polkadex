@@ -349,7 +349,6 @@ pub mod pallet {
         /// # Parameters
         ///
         /// * `round_id`: Funding round id
-        /// * `beneficiary`: Account Id of Beneficiary
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn claim_raise(origin: OriginFor<T>, round_id: T::Hash) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
