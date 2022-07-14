@@ -1235,7 +1235,7 @@ impl polkadex_ido::Config for Runtime {
     type ModuleId = PolkadexIdoPalletId; // Done 
     type Currency = Balances; // Done
     type OnePDEX = OnePDEX; // Done 
-    // type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>; // Done 
+    type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>; // Done 
     type DefaultVotingPeriod = DefaultVotingPeriod; // Done 
     type DefaultInvestorLockPeriod = DefaultInvestorLockPeriod; // Done 
     type AssetManager = Assets; // Done
@@ -1387,7 +1387,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	/* impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+	impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
 		fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
 	        PolkadexIdo::rounds_by_investor(account)
 	    }
@@ -1406,7 +1406,7 @@ impl_runtime_apis! {
 	    fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
 	        PolkadexIdo::account_balances(assets, account_id)
 		}
-	 } */
+	 }
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
