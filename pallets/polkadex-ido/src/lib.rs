@@ -405,10 +405,8 @@ pub mod pallet {
             let amount: u128 = funding_round.amount.saturated_into();
             ensure!(total_raise <= amount/2, Error::<T>::CannotWithdrawForSuccesfulIDO);
             let round_account_id = Self::round_account_id(round_id.clone());
-            let investment = <InvestorInvestment<T>>::get(&round_id, &investor_address);
+            let investment = <InvestorInvestment<T>>::take(&round_id, &investor_address);
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, investment)?;
-            let empty_raise: BalanceOf<T> = 0_u128.saturated_into();
-            <InvestorInvestment<T>>::insert(round_id.clone(), investor_address.clone(), empty_raise);
             Self::deposit_event(Event::InvestmentWithdrawn(round_id, investor_address, investment));
             Ok(())
         }
