@@ -69,7 +69,7 @@ pub mod pallet {
     };
     use frame_system::{offchain::CreateSignedTransaction, pallet_prelude::*};
     use sp_core::{H160, H256};
-    use sp_runtime::traits::{One, CheckedMul};
+    use sp_runtime::traits::{One, CheckedMul, CheckedDiv};
     use sp_std::prelude::*;
     use sp_runtime::{FixedU128, FixedPointNumber};
 
@@ -241,7 +241,8 @@ pub mod pallet {
             let token_a_price_per_token_b_perquintill = Perbill::from_rational(token_a_price_per_token_b, 1_000_000_000_000_u128.saturated_into());
             ensure!(!token_a_price_per_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
-            let vesting_period: u32 = (amount / vesting_per_block).saturated_into();
+            // TODO: Need to handle unwrap for overflows when it returns a none
+            let vesting_period: u32 = (amount.checked_div(&vesting_per_block).unwrap()).saturated_into();
             let vesting_period: T::BlockNumber = vesting_period.saturated_into();
             let vesting_end_block: T::BlockNumber = vesting_period.saturating_add(close_round_block);
             let funding_round: FundingRound<T> = FundingRound::from(
@@ -280,6 +281,8 @@ pub mod pallet {
             let investor_address: T::AccountId = ensure_signed(origin)?;
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let mut funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            let current_block_no = <frame_system::Pallet<T>>::block_number();
+            ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
             ensure!(Self::can_withdraw(funding_round.token_b,&investor_address, amount.saturated_into()).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
             let token_a_price_per_token_b_u128: u128 = funding_round.token_a_price_per_token_b.saturated_into();
             let token_a_b_ratio = FixedU128::saturating_from_rational(1_000_000_000_000_u128, token_a_price_per_token_b_u128);
@@ -288,8 +291,6 @@ pub mod pallet {
             // TODO: This unwrap needs to be handled properly incase there's a None value returned
             let amount_in_token_a: BalanceOf<T> = token_a_b_ratio.checked_mul(&amount_in_fixed_point).unwrap().into_inner().saturated_into();
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
-            let current_block_no = <frame_system::Pallet<T>>::block_number();
-            ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
             let total_raise = funding_round.actual_raise.saturating_add(amount_in_token_a);
             let round_account_id = Self::round_account_id(round_id.clone());
 
