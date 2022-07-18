@@ -69,8 +69,9 @@ pub mod pallet {
     };
     use frame_system::{offchain::CreateSignedTransaction, pallet_prelude::*};
     use sp_core::{H160, H256};
-    use sp_runtime::traits::One;
+    use sp_runtime::traits::{One, CheckedMul};
     use sp_std::prelude::*;
+    use sp_runtime::{FixedU128, FixedPointNumber};
 
     use super::*;
 
@@ -191,17 +192,6 @@ pub mod pallet {
                 actual_raise: self.actual_raise.saturated_into(),
             }
         }
-
-        pub fn token_a_price_per_1e12_token_b(&self) -> Perbill {
-            let token_a_price_per_token_b: u128 = self.token_a_price_per_token_b.saturated_into();
-            Perbill::from_rational(token_a_price_per_token_b, T::OnePDEX::get())
-        }
-
-        pub fn token_a_price_per_1e12_token_b_balance(&self) -> BalanceOf<T> {
-            let token_a_price_per_token_b: u128 = self.token_a_price_per_token_b.saturated_into();
-            let p = (token_a_price_per_token_b as f64 / T::OnePDEX::get() as f64) as u128;
-            p.saturated_into()
-        }
     }
 
     #[pallet::pallet]
@@ -291,11 +281,12 @@ pub mod pallet {
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let mut funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
             ensure!(Self::can_withdraw(funding_round.token_b,&investor_address, amount.saturated_into()).is_ok(), Error::<T>::BalanceInsufficientForInteresetedAmount);
-            let amount_in_token_a = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >= funding_round.token_a_price_per_token_b {
-                funding_round.token_a_price_per_1e12_token_b().saturating_reciprocal_mul(amount) 
-            } else {
-                amount / funding_round.token_a_price_per_1e12_token_b_balance()
-            };
+            let token_a_price_per_token_b_u128: u128 = funding_round.token_a_price_per_token_b.saturated_into();
+            let token_a_b_ratio = FixedU128::saturating_from_rational(1_000_000_000_000_u128, token_a_price_per_token_b_u128);
+            let amount_u128: u128 = amount.saturated_into();
+            let amount_in_fixed_point = FixedU128::from_inner(amount_u128);
+            // TODO: This unwrap needs to be handled properly incase there's a None value returned
+            let amount_in_token_a: BalanceOf<T> = token_a_b_ratio.checked_mul(&amount_in_fixed_point).unwrap().into_inner().saturated_into();
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
             ensure!(current_block_no >= funding_round.start_block && current_block_no < funding_round.close_round_block, <Error<T>>::NotAllowed);
