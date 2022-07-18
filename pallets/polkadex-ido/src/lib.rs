@@ -354,12 +354,13 @@ pub mod pallet {
             ensure!(!<RaiseClaimed<T>>::get(round_id), Error::<T>::RaiseWithdrawnAlready);
             ensure!(total_raise >= amount/2, Error::<T>::CannotWithdrawRaiseForFailedIdo);
             let round_account_id = Self::round_account_id(round_id.clone());
-            let mut total_raise: BalanceOf<T> = 0_u128.saturated_into();
-            for (_ , _ , amount) in <InvestorInvestment<T>>::iter(){
-                total_raise = total_raise.saturating_add(amount);
-            }
-            Self::transfer(funding_round.token_b, &round_account_id, &investor_address, total_raise.saturated_into())?;
-            Self::deposit_event(Event::RaiseClaimed(round_id, investor_address, total_raise.saturated_into()));
+            let token_a_price_per_token_b_u128: u128 = funding_round.token_a_price_per_token_b.saturated_into();
+            let token_a_b_ratio = FixedU128::saturating_from_rational(token_a_price_per_token_b_u128, 1_000_000_000_000_u128);
+            let amount_in_fixed_point = FixedU128::from_inner(total_raise);
+            // TODO: This unwrap needs to be handled properly incase there's a None value returned
+            let raise_in_token_b: BalanceOf<T> = token_a_b_ratio.checked_mul(&amount_in_fixed_point).unwrap().into_inner().saturated_into();
+            Self::transfer(funding_round.token_b, &round_account_id, &investor_address, raise_in_token_b.saturated_into())?;
+            Self::deposit_event(Event::RaiseClaimed(round_id, investor_address, raise_in_token_b.saturated_into()));
             <RaiseClaimed<T>>::insert(round_id.clone(), true);
             Ok(())
         }
