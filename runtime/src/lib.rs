@@ -47,7 +47,7 @@ use frame_support::{
 pub use frame_system::Call as SystemCall;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, RawOrigin, EnsureSigned
+	EnsureRoot, EnsureSigned, RawOrigin,
 };
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
@@ -257,7 +257,7 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 use scale_info::TypeInfo;
-use sp_npos_elections::{ExtendedBalance};
+use sp_npos_elections::ExtendedBalance;
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
@@ -1095,7 +1095,6 @@ impl pallet_assets::Config for Runtime {
 	type WeightInfo = ();
 }
 
-
 parameter_types! {
 	pub const BasicDeposit: Balance = deposit(1,258);       // 258 bytes on-chain
 	pub const FieldDeposit: Balance = deposit(0,66);        // 66 bytes on-chain
@@ -1144,7 +1143,7 @@ parameter_types! {
 impl test_token_provider::Config for Runtime {
 	type Event = Event;
 	type AssetManager = Assets;
-    type Balance = Balance;
+	type Balance = Balance;
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TokenAmount = TokenAmount;
@@ -1183,7 +1182,7 @@ impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn successful_origin() -> Origin {
-		Origin::from(RawOrigin::Signed(Default::default()))
+		Origin::from(RawOrigin::Signed(AccountId::new([0u8; 32])))
 	}
 }
 
@@ -1216,13 +1215,13 @@ parameter_types! {
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
-    pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
-    pub const GetMaxSupply: Balance = 2_000_000_u128;
-    pub const OnePDEX : u128 = PDEX;
-    pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
-    pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
-    pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
-} 
+	pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
+	pub const GetMaxSupply: Balance = 2_000_000_u128;
+	pub const OnePDEX : u128 = PDEX;
+	pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+	pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+	pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
+}
 
 impl polkadex_ido::Config for Runtime {
     type Event = Event; // check 
@@ -1259,6 +1258,29 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Signature = Signature;
 	type WeightInfo = ();
 	type MsPerDay = MsPerDay;
+}
+
+parameter_types! {
+	pub const ChainId: u8 = 1;
+	pub const ProposalLifetime: BlockNumber = 1000;
+	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+}
+
+impl chainbridge::Config for Runtime {
+	type Event = Event;
+	type BridgeCommitteeOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type Proposal = Call;
+	type BridgeChainId = ChainId;
+	type ProposalLifetime = ProposalLifetime;
+}
+
+impl asset_handler::pallet::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type AssetManager = Assets;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type TreasuryPalletId = TreasuryPalletId;
+	type WeightInfo = asset_handler::WeightInfo<Runtime>;
 }
 
 construct_runtime!(
@@ -1304,7 +1326,9 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-    Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+		Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 38,
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 39
 	}
 );
 /// Digest item type.
@@ -1389,22 +1413,22 @@ impl_runtime_apis! {
 
 	/* impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
 		fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	        PolkadexIdo::rounds_by_investor(account)
-	    }
-	    fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	        PolkadexIdo::rounds_by_creator(account)
-	    }
-	
-	    fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	        PolkadexIdo::active_rounds()
-	    }
-	
-	    fn votes_stat(round_id: Hash) -> VoteStat {
-	        PolkadexIdo::votes_stat(round_id)
-	    }
-	
-	    fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
-	        PolkadexIdo::account_balances(assets, account_id)
+			PolkadexIdo::rounds_by_investor(account)
+		}
+		fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+			PolkadexIdo::rounds_by_creator(account)
+		}
+
+		fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+			PolkadexIdo::active_rounds()
+		}
+
+		fn votes_stat(round_id: Hash) -> VoteStat {
+			PolkadexIdo::votes_stat(round_id)
+		}
+
+		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
+			PolkadexIdo::account_balances(assets, account_id)
 		}
 	 } */
 
@@ -1596,10 +1620,10 @@ impl_runtime_apis! {
 			list_benchmark!(list,extra, pallet_timestamp, Timestamp);
 			list_benchmark!(list,extra, pallet_treasury, Treasury);
 			list_benchmark!(list,extra, pallet_utility, Utility);
-
 			list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
-
+			//TODO: [#463] Currently broken, will be fixed in different issue
+//			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
+			list_benchmark!(list,extra,  asset_handler, AssetHandler);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1659,8 +1683,9 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_treasury, Treasury);
 			add_benchmark!(params, batches, pallet_utility, Utility);
-			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
-
+			//TODO: [#463] Currently broken, will be fixed in different issue
+//			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

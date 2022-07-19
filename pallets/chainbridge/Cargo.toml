@@ -1,0 +1,39 @@
+#Copyright 2021 ChainSafe Systems
+#SPDX-License-Identifier: GPL-3.0-only
+[package]
+name = "chainbridge"
+version = "0.0.3"
+authors = ["David Ansermino <david@chainsafe.io>", "Jovansonlee Cesar <jovansonlee@chainsafe.io>"]
+homepage = "https://substrate.io/"
+edition = "2021"
+license = "Unlicense"
+publish = false
+repository = "https://github.com/ChainSafe/chainbridge-substrate"
+
+[dependencies]
+log = "0.4"
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["max-encoded-len"] }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false,  optional = true }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
+blake2-rfc = { version = "0.2.18", default-features = false }
+
+[features]
+default = ["std"]
+runtime-benchmarks = ["frame-benchmarking"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "sp-std/std",
+    "frame-support/std",
+    "frame-system/std",
+    "frame-benchmarking/std",
+    "pallet-balances/std",
+]
+try-runtime = ["frame-support/try-runtime"]

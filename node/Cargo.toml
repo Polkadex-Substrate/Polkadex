@@ -10,7 +10,7 @@ homepage = "https://polkadex.trade"
 repository = "https://github.com/Polkadex-Substrate/Polkadex/"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
 substrate-build-script-utils = { version = "3.0.0" }
@@ -29,7 +29,7 @@ clap = { version = "3.0", features = ["derive"] }
 parking_lot = "0.11.1"
 itertools = "0.10.1"
 # local dependencies
-node-polkadex-runtime = { path = '../runtime', version = '3.0.0' }
+node-polkadex-runtime = { path = "../runtime", version = "3.0.0" }
 polkadex-ido-rpc = {path = "../pallets/polkadex-ido/rpc"}
 
 # Substrate dependencies
@@ -84,7 +84,7 @@ sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", bra
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 
 #Primitives
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'polkadot-v0.9.19'}
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = "polkadot-v0.9.19"}
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19" }
 
 
@@ -122,7 +122,7 @@ runtime-benchmarks = [
 	"node-polkadex-runtime/runtime-benchmarks",
 ]
 cli = [
-	'try-runtime-cli',
+	"try-runtime-cli",
 ]
 try-runtime = [
 	"node-polkadex-runtime/try-runtime",
