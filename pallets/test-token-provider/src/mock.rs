@@ -1,11 +1,17 @@
 use super::*;
 use crate as token;
-use frame_support::{parameter_types, traits::{ConstU32, ConstU64}};
-use frame_system as system;
-use system::{
-    EnsureRoot
+use frame_support::{
+	parameter_types,
+	traits::{ConstU32, ConstU64},
 };
+use frame_system as system;
 use pallet_balances::AccountData;
+use polkadex_primitives::Balance;
+use sp_core::{
+	offchain::{testing, OffchainWorkerExt, TransactionPoolExt},
+	sr25519::{Public, Signature},
+	H256,
+};
 use sp_runtime::{
 	key_types::DUMMY,
 	testing::{Header, TestXt, UintAuthorityId},
@@ -13,13 +19,7 @@ use sp_runtime::{
 		BlakeTwo256, ConvertInto, Extrinsic as ExtrinsicT, IdentityLookup, OpaqueKeys, Verify,
 	},
 };
-use sp_core::{
-	offchain::{testing, OffchainWorkerExt, TransactionPoolExt},
-	sr25519::Signature,
-    sr25519::Public,
-	H256,
-};
-use polkadex_primitives::Balance;
+use system::EnsureRoot;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -31,9 +31,9 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: system::{Pallet, Call, Config, Storage, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
-        Token: token::{Pallet, Call, Event<T>, ValidateUnsigned},
+		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+		Token: token::{Pallet, Call, Event<T>, ValidateUnsigned},
 
 	}
 );
@@ -153,12 +153,11 @@ parameter_types! {
 impl token::Config for Test {
 	type Event = Event;
 	type AssetManager = Assets;
-    type Balance = Balance;
+	type Balance = Balance;
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TokenAmount = TokenAmount;
 }
-
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();

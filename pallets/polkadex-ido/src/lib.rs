@@ -22,16 +22,18 @@
 #![allow(clippy::unused_unit)]
 
 use frame_support::{
-    dispatch::DispatchResult,
-    ensure,
-    pallet_prelude::*,
-    traits::{
-        tokens::fungibles::{Create, Inspect, Mutate, Transfer, Unbalanced},
-        EnsureOrigin, Get, Randomness, WithdrawReasons,
-    },
-    PalletId,
+	dispatch::DispatchResult,
+	ensure,
+	pallet_prelude::*,
+	traits::{
+		tokens::{
+			fungible,
+			fungibles::{Create, Inspect, Mutate, Transfer, Unbalanced},
+		},
+		EnsureOrigin, Get, Randomness, WithdrawReasons,
+	},
+	PalletId,
 };
-use frame_support::traits::tokens::fungible;
 use frame_system as system;
 use frame_system::ensure_signed;
 use rand::{Rng, SeedableRng};
@@ -39,13 +41,13 @@ use rand_chacha::ChaChaRng;
 use scale_info::StaticTypeInfo;
 use sp_core::H256;
 use sp_runtime::{
-    traits::{AccountIdConversion, Saturating, Zero},
-    Perbill, Perquintill, SaturatedConversion,
+	traits::{AccountIdConversion, Saturating, Zero},
+	Perbill, Perquintill, SaturatedConversion,
 };
 use sp_std::{
-    cmp::{max, min},
-    collections::{btree_map::BTreeMap, btree_set::BTreeSet},
-    prelude::*,
+	cmp::{max, min},
+	collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+	prelude::*,
 };
 
 pub use pallet::*;
@@ -53,12 +55,11 @@ pub use pallet::*;
 
 use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat, StringAssetId};
 
-
+use frame_support::traits::{Currency, ExistenceRequirement, ReservableCurrency};
 use polkadex_primitives::assets::AssetId;
-use frame_support::traits::{Currency, ReservableCurrency, ExistenceRequirement};
 
 type BalanceOf<T> =
-<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -523,7 +524,6 @@ pub mod pallet {
         TokenAlreadyWithdrawn,
     }
 }
-
 
 impl<T: Config> Pallet<T> {
 
