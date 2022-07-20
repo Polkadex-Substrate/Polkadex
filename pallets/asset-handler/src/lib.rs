@@ -46,6 +46,7 @@ pub mod pallet {
 		traits::{One, UniqueSaturatedInto},
 		SaturatedConversion,
 	};
+	use sp_std::vec::Vec;
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -90,7 +91,7 @@ pub mod pallet {
 		/// Asset Registered
 		AssetRegistered(ResourceId),
 		/// Asset Deposited (Recipient, ResourceId, Amount)
-		AssetDeposited(T::AccountId, ResourceId, BalanceOf<T>),
+		AssetDeposited(T::AccountId, ResourceId, u128),
 		/// Asset Withdrawn (Recipient, ResourceId, Amount)
 		AssetWithdrawn(H160, ResourceId, BalanceOf<T>),
 		FeeUpdated(BridgeChainId, BalanceOf<T>),
@@ -109,6 +110,8 @@ pub mod pallet {
 		NotEnoughBalance,
 		/// DestinationAddressNotValid
 		DestinationAddressNotValid,
+		/// DivisionUnderflow
+		DivisionUnderflow
 	}
 
 	#[pallet::hooks]
@@ -153,8 +156,8 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
-			destination_add: [u8; 32],
-			amount: BalanceOf<T>,
+			destination_add: Vec<u8>,
+			amount: u128,
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
@@ -164,6 +167,7 @@ pub mod pallet {
 				chainbridge::Pallet::<T>::account_id() == sender,
 				Error::<T>::MinterMustBeRelayer
 			);
+			let amount = Self::convert_18dec_to_12dec(amount).ok_or_else(|| Error::<T>::DivisionUnderflow)?;
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,
@@ -259,6 +263,11 @@ pub mod pallet {
 			} else {
 				min_fee
 			}
+		}
+
+		fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
+			balance
+				.checked_div(1000000u128)
 		}
 
 		pub fn convert_asset_id(token: ResourceId) -> u128 {
