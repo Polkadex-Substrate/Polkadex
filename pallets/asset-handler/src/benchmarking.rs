@@ -50,8 +50,8 @@ benchmarks! {
 		let encoded_recipient = recipient.encode();
 		let recipient: [u8;32] = encoded_recipient.as_slice().try_into().unwrap();
 		let destination_acc = T::AccountId::decode(&mut &recipient[..]).unwrap();
-		let amount = (b as u128).saturated_into::<BalanceOf<T>>();
-	}: _(RawOrigin::Signed(relayer), recipient.clone(), amount.clone(), rid)
+		let amount = b as u128;
+	}: _(RawOrigin::Signed(relayer), recipient.clone().to_vec(), amount.clone(), rid)
 	verify {
 		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, amount).into());
 	}

@@ -74,8 +74,8 @@ pub fn test_mint_asset_with_not_registered_asset_will_return_unknown_asset_error
 		assert_noop!(
 			AssetHandler::mint_asset(
 				Origin::signed(ChainBridge::account_id()),
-				recipient,
-				100,
+				recipient.to_vec(),
+				100000000000,
 				rid
 			),
 			TokenError::UnknownAsset
@@ -101,8 +101,8 @@ pub fn test_mint_asset_with_existed_asset_will_successfully_increase_balance() {
 		// Mint Asset using Relayer account and verify storage
 		assert_ok!(AssetHandler::mint_asset(
 			Origin::signed(ChainBridge::account_id()),
-			recipient,
-			100,
+			recipient.to_vec(),
+			100000000,
 			rid
 		));
 		assert_eq!(Assets::balance(asset_id, recipient_account), 100);
@@ -120,7 +120,7 @@ pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_
 		let asset_id = AssetHandler::convert_asset_id(rid);
 
 		assert_noop!(
-			AssetHandler::mint_asset(Origin::signed(account), recipient, 100, rid),
+			AssetHandler::mint_asset(Origin::signed(account), recipient.to_vec(), 100, rid),
 			Error::<Test>::MinterMustBeRelayer
 		);
 		assert_eq!(Assets::balance(asset_id, recipient_account), 0);
