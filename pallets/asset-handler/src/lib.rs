@@ -110,6 +110,8 @@ pub mod pallet {
 		NotEnoughBalance,
 		/// DestinationAddressNotValid
 		DestinationAddressNotValid,
+		/// DivisionUnderflow
+		DivisionUnderflow
 	}
 
 	#[pallet::hooks]
@@ -165,6 +167,7 @@ pub mod pallet {
 				chainbridge::Pallet::<T>::account_id() == sender,
 				Error::<T>::MinterMustBeRelayer
 			);
+			let amount = Self::convert_18dec_to_12dec(amount).ok_or_else(|| Error::<T>::DivisionUnderflow)?;
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,
@@ -260,6 +263,11 @@ pub mod pallet {
 			} else {
 				min_fee
 			}
+		}
+
+		fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
+			balance
+				.checked_div(1000000u128)
 		}
 
 		pub fn convert_asset_id(token: ResourceId) -> u128 {
