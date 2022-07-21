@@ -100,3 +100,5 @@ impl From<AssetId> for StringAssetId {
 		}
 	}
 }
+
+pub const CID_LIMIT: usize  = 100;

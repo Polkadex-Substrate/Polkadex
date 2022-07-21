@@ -78,7 +78,7 @@ pub mod pallet {
 
 
     use polkadex_primitives::assets::AssetId;
-    use pallet_polkadex_ido_primitives::AccountId;
+    use pallet_polkadex_ido_primitives::CID_LIMIT;
 
     /// The module configuration trait.
     #[pallet::config]
@@ -112,7 +112,7 @@ pub mod pallet {
         type AssetManager: Create<<Self as frame_system::Config>::AccountId>
         + Mutate<<Self as frame_system::Config>::AccountId, Balance=u128, AssetId=u128>
         + Inspect<<Self as frame_system::Config>::AccountId>
-        + Transfer<<Self as frame_system::Config>::AccountId>
+        + Transfer<<Self as frame_system::Config>::AccountId>;
     }
     /// All information for funding round
     #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
@@ -222,7 +222,7 @@ pub mod pallet {
             let team: T::AccountId = ensure_signed(origin)?;
             //TODO check if funder have the token_a available and reserve them.
             // CID len must be less than or equal to 100
-            ensure!(cid.len() <= 100, <Error<T>>::CidReachedMaxSize);
+            ensure!(cid.len() <= CID_LIMIT, <Error<T>>::CidReachedMaxSize);
             ensure!(min_allocation <= max_allocation, <Error<T>>::MinAllocationMustBeEqualOrLessThanMaxAllocation);
             ensure!(vesting_per_block > Zero::zero(), <Error<T>>::VestingPerBlockMustGreaterThanZero);
             let current_block_no = <frame_system::Pallet<T>>::block_number();
