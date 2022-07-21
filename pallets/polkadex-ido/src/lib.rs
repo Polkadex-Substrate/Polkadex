@@ -231,8 +231,13 @@ pub mod pallet {
             let token_a_price_per_token_b_perquintill = Perbill::from_rational(token_a_price_per_token_b, 1_000_000_000_000_u128.saturated_into());
             ensure!(!token_a_price_per_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
-            // TODO: Need to handle unwrap for overflows when it returns a none
-            let vesting_period: u32 = (amount.checked_div(&vesting_per_block).unwrap()).saturated_into();
+            // TODO: This block of code handling unwrap will be updated when working on vesting module
+			let mut vesting_period: u32 = 0;
+			if let Some(value) = amount.checked_div(&vesting_per_block){
+				vesting_period = value.saturated_into();
+			} else {
+				return Err(Error::<T>::NotAllowed.into());
+			}
             let vesting_period: T::BlockNumber = vesting_period.saturated_into();
             let vesting_end_block: T::BlockNumber = vesting_period.saturating_add(close_round_block);
             let funding_round: FundingRound<T> = FundingRound::from(
@@ -278,8 +283,13 @@ pub mod pallet {
             let token_a_b_ratio = FixedU128::saturating_from_rational(1_000_000_000_000_u128, token_a_price_per_token_b_u128);
             let amount_u128: u128 = amount.saturated_into();
             let amount_in_fixed_point = FixedU128::from_inner(amount_u128);
-            // TODO: This unwrap needs to be handled properly incase there's a None value returned
-            let amount_in_token_a: BalanceOf<T> = token_a_b_ratio.checked_mul(&amount_in_fixed_point).unwrap().into_inner().saturated_into();
+            // TODO: This unwrap handling will be improved when working on unit tests and fuzz tests
+            let mut amount_in_token_a: BalanceOf<T> = 0_u128.saturated_into();
+			if let Some(value) = token_a_b_ratio.checked_mul(&amount_in_fixed_point){
+				amount_in_token_a = value.into_inner().saturated_into();
+			} else {
+				return Err(Error::<T>::NotAllowed.into());
+			}
             ensure!(amount_in_token_a <= funding_round.max_allocation && amount_in_token_a >= funding_round.min_allocation, Error::<T>::NotAValidAmount);
             let total_raise = funding_round.actual_raise.saturating_add(amount_in_token_a);
             let round_account_id = Self::round_account_id(round_id.clone());
@@ -347,8 +357,13 @@ pub mod pallet {
             let token_a_price_per_token_b_u128: u128 = funding_round.token_a_price_per_token_b.saturated_into();
             let token_a_b_ratio = FixedU128::saturating_from_rational(token_a_price_per_token_b_u128, 1_000_000_000_000_u128);
             let amount_in_fixed_point = FixedU128::from_inner(total_raise);
-            // TODO: This unwrap needs to be handled properly incase there's a None value returned
-            let raise_in_token_b: BalanceOf<T> = token_a_b_ratio.checked_mul(&amount_in_fixed_point).unwrap().into_inner().saturated_into();
+            // TODO: This unwrap handling needs to be improved when writing unit test cases and fuzz tests 
+			let mut raise_in_token_b: BalanceOf<T> = 0_u128.saturated_into();
+			if let Some(value) = token_a_b_ratio.checked_mul(&amount_in_fixed_point){
+				let raise_in_token_b: BalanceOf<T> = value.into_inner().saturated_into();
+			} else {
+				return Err(Error::<T>::NotAllowed.into());
+			}
             Self::transfer(funding_round.token_b, &round_account_id, &investor_address, raise_in_token_b.saturated_into())?;
             Self::deposit_event(Event::RaiseClaimed(round_id, investor_address, raise_in_token_b.saturated_into()));
             <RaiseClaimed<T>>::insert(round_id.clone(), true);
