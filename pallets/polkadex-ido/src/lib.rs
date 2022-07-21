@@ -95,9 +95,6 @@ pub mod pallet {
         /// The basic amount of funds that must be reserved for an Polkadex.
         #[pallet::constant]
         type IDOPDXAmount: Get<BalanceOf<Self>>;
-        /// Maximum supply for IDO
-        #[pallet::constant]
-        type MaxSupply: Get<BalanceOf<Self>>;
         /// The generator used to supply randomness to IDO
         type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
         /// Randomness Source for random participant seed
