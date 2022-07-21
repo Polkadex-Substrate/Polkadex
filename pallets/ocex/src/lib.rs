@@ -161,7 +161,7 @@ pub mod pallet {
 		/// Clean IngressMessages
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			// When block's been initialized - clean up expired registrations of enclaves
-			Self::unregister_timed_out_enclaves();
+			//Self::unregister_timed_out_enclaves(); FIXME: Commented out for testing. Should be restored before mainnet launch
 			if let Some(snapshot_nonce) = <SnapshotNonce<T>>::get() {
 				if let Some(snapshot) = <Snapshots<T>>::get(snapshot_nonce.saturating_sub(1)) {
 					<IngressMessages<T>>::put(Vec::<
@@ -356,14 +356,13 @@ pub mod pallet {
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit>,
-			enclave: T::AccountId,
 			signature: T::Signature,
 		) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-			// ensure!(
-			// 	<RegisteredEnclaves<T>>::contains_key(&enclave),
-			// 	Error::<T>::SenderIsNotAttestedEnclave
-			// );
+			let enclave = ensure_signed(origin)?;
+			ensure!(
+				<RegisteredEnclaves<T>>::contains_key(&enclave),
+				Error::<T>::SenderIsNotAttestedEnclave
+			);
 
 			let last_snapshot_serial_number =
 				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
@@ -376,16 +375,28 @@ pub mod pallet {
 				Error::<T>::SnapshotNonceError
 			);
 			let bytes = snapshot.encode();
-			// ensure!(
-			// 	signature.verify(bytes.as_slice(), &enclave),
-			// 	Error::<T>::EnclaveSignatureVerificationFailed
-			// );
+			ensure!(
+				signature.verify(bytes.as_slice(), &enclave),
+				Error::<T>::EnclaveSignatureVerificationFailed
+			);
 			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals);
 			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
 			snapshot.withdrawals =
 				BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>::default();
 			<Snapshots<T>>::insert(snapshot.snapshot_number, snapshot);
 			<SnapshotNonce<T>>::put(last_snapshot_serial_number.saturating_add(1));
+			Ok(())
+		}
+
+		// FIXME Only for testing will be removed before mainnet launch
+		/// Insert Enclave
+		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
+		pub fn insert_enclave(
+			origin: OriginFor<T>,
+		    encalve: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<RegisteredEnclaves<T>>::insert(encalve, T::Moment::from(T::MsPerDay::get() * T::Moment::from(10000u32)));
 			Ok(())
 		}
 
