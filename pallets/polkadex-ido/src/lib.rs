@@ -97,8 +97,6 @@ pub mod pallet {
         type IDOPDXAmount: Get<BalanceOf<Self>>;
         /// The generator used to supply randomness to IDO
         type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
-        /// Randomness Source for random participant seed
-        type RandomnessSource: Randomness<H256, Self::BlockNumber>;
         /// The IDO's module id
         #[pallet::constant]
         type ModuleId: Get<PalletId>;
@@ -111,16 +109,10 @@ pub mod pallet {
         /// Minimum deposit to create PDEX account for round id
         #[pallet::constant]
         type ExistentialDeposit: Get<BalanceOf<Self>>;
-
-        /// One PDEX amount in u128
-        #[pallet::constant]
-        type OnePDEX : Get<u128>;
-
         type AssetManager: Create<<Self as frame_system::Config>::AccountId>
         + Mutate<<Self as frame_system::Config>::AccountId, Balance=u128, AssetId=u128>
         + Inspect<<Self as frame_system::Config>::AccountId>
         + Transfer<<Self as frame_system::Config>::AccountId>
-        + Unbalanced<<Self as frame_system::Config>::AccountId>;
     }
     /// All information for funding round
     #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
