@@ -37,7 +37,6 @@ pub struct FundingRoundWithPrimitives<AccountId> {
 	#[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
 	pub vesting_per_block: Balance,
 	pub start_block: BlockNumber,
-	pub vote_end_block: BlockNumber,
 	pub vesting_end_block: BlockNumber,
 	pub project_info_cid: Vec<u8>,
 	#[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
@@ -48,7 +47,7 @@ pub struct FundingRoundWithPrimitives<AccountId> {
 	pub max_allocation: Balance,
 	#[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
 	#[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
-	pub token_a_priceper_token_b: Balance,
+	pub token_a_price_per_token_b: Balance,
 	pub close_round_block: BlockNumber,
 	#[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
 	#[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
@@ -101,3 +100,5 @@ impl From<AssetId> for StringAssetId {
 		}
 	}
 }
+
+pub const CID_LIMIT: usize  = 100;
