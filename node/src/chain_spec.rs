@@ -19,6 +19,7 @@ use sp_runtime::{
 
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
+	AssetsConfig,
 	constants::currency::PDEX, wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig,
 	BalancesConfig, CouncilConfig, IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig,
 	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
@@ -394,6 +395,11 @@ pub fn testnet_genesis(
 		treasury: Default::default(),
 		orml_vesting: OrmlVestingConfig { vesting },
 		pdex_migration: PDEXMigrationConfig { max_tokens: ERC20_PDEX_SUPPLY, operational: false },
+		assets: AssetsConfig {
+			assets: vec![], // default assets if any
+			metadata: vec![], // default assets metadata
+			accounts: vec![], // default accounts
+		},
 	}
 }
 
