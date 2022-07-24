@@ -61,6 +61,12 @@ use polkadex_primitives::assets::AssetId;
 type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+#[cfg(test)]
+mod mock;
+    
+#[cfg(test)]
+mod test;
+
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::{
@@ -124,7 +130,7 @@ pub mod pallet {
         pub token_b: AssetId,
         pub project_info_cid: Vec<u8>,
         pub vesting_end_block: T::BlockNumber,
-        pub vesting_per_block: BalanceOf<T>,
+        pub vesting_per_block: FixedU128,
         pub start_block: T::BlockNumber,
         pub min_allocation: BalanceOf<T>,
         pub max_allocation: BalanceOf<T>,
@@ -141,7 +147,7 @@ pub mod pallet {
             amount: BalanceOf<T>,
             token_b: AssetId,
             vesting_end_block: T::BlockNumber,
-            vesting_per_block: BalanceOf<T>,
+            vesting_per_block: FixedU128,
             start_block: T::BlockNumber,
             min_allocation: BalanceOf<T>,
             max_allocation: BalanceOf<T>,
@@ -165,7 +171,7 @@ pub mod pallet {
             }
         }
 
-        pub fn to_primitive(&self) -> FundingRoundWithPrimitives<T::AccountId> {
+        /* pub fn to_primitive(&self) -> FundingRoundWithPrimitives<T::AccountId> {
             FundingRoundWithPrimitives {
                 token_a: StringAssetId::from(self.token_a),
                 creator: self.creator.clone(),
@@ -180,8 +186,8 @@ pub mod pallet {
                 token_a_price_per_token_b: self.token_a_price_per_token_b.saturated_into(),
                 close_round_block: self.close_round_block.saturated_into(),
                 actual_raise: self.actual_raise.saturated_into(),
-            }
-        }
+            } 
+        } */
     }
 
     #[pallet::pallet]
@@ -213,7 +219,7 @@ pub mod pallet {
             token_a: AssetId,
             amount: BalanceOf<T>,
             token_b: AssetId,
-            vesting_per_block: BalanceOf<T>,
+            vesting_per_block: u128,
             funding_period: T::BlockNumber,
             min_allocation: BalanceOf<T>,
             max_allocation: BalanceOf<T>,
@@ -233,11 +239,13 @@ pub mod pallet {
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
             // TODO: This block of code handling unwrap will be updated when working on vesting module
 			let mut vesting_period: u32 = 0;
-			if let Some(value) = amount.checked_div(&vesting_per_block){
+			/* if let Some(value) = amount.checked_div(&vesting_per_block){
 				vesting_period = value.saturated_into();
 			} else {
 				return Err(Error::<T>::NotAllowed.into());
-			}
+			} */
+            ensure!(vesting_per_block <= 100, <Error<T>>::NotAllowed);
+            let mut vesting_per_block_percent: FixedU128 = FixedU128::saturating_from_rational(vesting_per_block, 100_u128);
             let vesting_period: T::BlockNumber = vesting_period.saturated_into();
             let vesting_end_block: T::BlockNumber = vesting_period.saturating_add(close_round_block);
             let funding_round: FundingRound<T> = FundingRound::from(
@@ -247,7 +255,7 @@ pub mod pallet {
                 amount,
                 token_b,
                 vesting_end_block,
-                vesting_per_block,
+                vesting_per_block_percent,
                 start_block,
                 min_allocation,
                 max_allocation,
@@ -329,8 +337,14 @@ pub mod pallet {
             let amount: u128 = funding_round.amount.saturated_into();
             ensure!(total_raise >= amount/2, Error::<T>::CannotClaimTokenForFailedIdo);
             let round_account_id = Self::round_account_id(round_id.clone());
-            let investor_share = Self::get_investor_share_info(round_id.clone(), investor_address.clone());
-            Self::transfer(funding_round.token_a, &round_account_id, &investor_address, investor_share.saturated_into())?;
+            let investor_share: u128 = Self::get_investor_share_info(round_id.clone(), investor_address.clone()).saturated_into();
+            let current_u128: u128 = current_block_no.saturated_into();
+            let last_round: u128 = funding_round.close_round_block.saturated_into();
+            let blocks_passed = current_u128.saturating_sub(last_round);
+            let investor_share_u128: FixedU128 = FixedU128::from_inner(investor_share);
+            let amount_per_block: u128 = funding_round.vesting_per_block.checked_mul(&investor_share_u128).unwrap().into_inner();
+            let token_claimable = amount_per_block.checked_mul(blocks_passed).unwrap();
+            Self::transfer(funding_round.token_a, &round_account_id, &investor_address, token_claimable.saturated_into())?;
             Self::deposit_event(Event::TokenClaimed(round_id, investor_address));
             Ok(())
         }
