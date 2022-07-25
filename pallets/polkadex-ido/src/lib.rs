@@ -114,6 +114,26 @@ pub mod pallet {
         + Inspect<<Self as frame_system::Config>::AccountId>
         + Transfer<<Self as frame_system::Config>::AccountId>;
     }
+
+    #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
+	#[scale_info(bounds(), skip_type_params(T))]
+	pub struct InvestorLockData<T: Config> {
+		pub amount: BalanceOf<T>,
+		pub unlock_block: T::BlockNumber,
+	}
+
+	impl<T: Config> InvestorLockData<T> {
+		pub fn new(amount: BalanceOf<T>, unlock_block: T::BlockNumber) -> Self {
+			Self { amount, unlock_block }
+		}
+	}
+
+	impl<T: Config> Default for InvestorLockData<T> {
+		fn default() -> Self {
+			InvestorLockData { amount: Default::default(), unlock_block: Default::default() }
+		}
+	}
+
     /// All information for funding round
     #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
     #[scale_info(bounds(), skip_type_params(T))]
@@ -194,6 +214,29 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
 
+        /// Registers a new investor to allow participating in funding round.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Account to be registered as Investor
+		#[pallet::weight((10_000, DispatchClass::Normal))]
+		pub fn register_investor(origin: OriginFor<T>) -> DispatchResult {
+			let current_block_no = <frame_system::Pallet<T>>::block_number();
+			let who: T::AccountId = ensure_signed(origin)?;
+			ensure!(!<InfoInvestor<T>>::contains_key(&who), Error::<T>::InvestorAlreadyRegistered);
+			let amount: BalanceOf<T> = T::IDOPDXAmount::get();
+			ensure!(
+				T::Currency::reserve(&who, amount).is_ok(),
+				Error::<T>::FailedToMoveBalanceToReserve
+			);
+            // TODO: We are reserving for default 100 blocks, This must be discussed
+			let data: InvestorLockData<T> = InvestorLockData::new(amount, 100_u32.into());
+			<InfoInvestor<T>>::insert(who.clone(), data);
+			Self::deposit_event(Event::InvestorRegistered(who.clone()));
+			Self::deposit_event(Event::InvestorLockFunds(who, amount)); 
+			Ok(())
+		}
+
         /// Registers a funding round with the amount as the total allocation for this round and vesting period.
         ///
         /// # Parameters
@@ -220,6 +263,7 @@ pub mod pallet {
             token_a_price_per_token_b: BalanceOf<T>,
         ) -> DispatchResult {
             let team: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&team), Error::<T>::InvestorNotRegistered);
             //TODO check if funder have the token_a available and reserve them.
             // CID len must be less than or equal to 100
             ensure!(cid.len() <= CID_LIMIT, <Error<T>>::CidReachedMaxSize);
@@ -274,6 +318,7 @@ pub mod pallet {
         #[pallet::weight((10_000, DispatchClass::Normal))]
         pub fn invest(origin: OriginFor<T>, round_id: T::Hash, amount: BalanceOf<T>) -> DispatchResult {
             let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(<InfoInvestor<T>>::contains_key(&investor_address), Error::<T>::InvestorNotRegistered);
             ensure!(<InfoFundingRound<T>>::contains_key(&round_id), Error::<T>::FundingRoundDoesNotExist);
             let mut funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
             let current_block_no = <frame_system::Pallet<T>>::block_number();
@@ -418,6 +463,11 @@ pub mod pallet {
         }
     }
 
+    /// Stores investor Info
+	#[pallet::storage]
+	#[pallet::getter(fn get_investorinfo)]
+	pub(super) type InfoInvestor<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, InvestorLockData<T>, OptionQuery>;
+
     /// Stores nonce used to create unique ido round id
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
@@ -498,7 +548,9 @@ pub mod pallet {
         RaiseClaimed(T::Hash, T::AccountId, BalanceOf<T>),
         TokenClaimed(T::Hash, T::AccountId),
         InvestmentWithdrawn(T::Hash, T::AccountId, BalanceOf<T>),
-        TokenWithdrawn(T::Hash, T::AccountId, BalanceOf<T>)
+        TokenWithdrawn(T::Hash, T::AccountId, BalanceOf<T>), 
+        InvestorRegistered(T::AccountId), 
+        InvestorLockFunds(T::AccountId, BalanceOf<T>),
     }
 
     #[pallet::error]
@@ -523,6 +575,9 @@ pub mod pallet {
         CannotWithdrawForSuccesfulIDO,
         RaiseWithdrawnAlready,
         TokenAlreadyWithdrawn,
+        FailedToMoveBalanceToReserve,
+        InvestorAlreadyRegistered,
+        InvestorNotRegistered,
     }
 }
 
