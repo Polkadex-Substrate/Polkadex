@@ -237,14 +237,13 @@ pub mod pallet {
             let token_a_price_per_token_b_perquintill = Perbill::from_rational(token_a_price_per_token_b, 1_000_000_000_000_u128.saturated_into());
             ensure!(!token_a_price_per_token_b_perquintill.is_zero(), <Error<T>>::PricePerTokenCantBeZero);
             ensure!(start_block < close_round_block, <Error<T>>::StartBlockMustBeLessThanEndblock);
-            // TODO: This block of code handling unwrap will be updated when working on vesting module
+            ensure!(vesting_per_block <= 100, <Error<T>>::NotAllowed);
 			let mut vesting_period: u32 = 0;
-			/* if let Some(value) = amount.checked_div(&vesting_per_block){
+			if let Some(value) = 100_u128.checked_div(vesting_per_block){
 				vesting_period = value.saturated_into();
 			} else {
 				return Err(Error::<T>::NotAllowed.into());
-			} */
-            ensure!(vesting_per_block <= 100, <Error<T>>::NotAllowed);
+			}
             let mut vesting_per_block_percent: FixedU128 = FixedU128::saturating_from_rational(vesting_per_block, 100_u128);
             let vesting_period: T::BlockNumber = vesting_period.saturated_into();
             let vesting_end_block: T::BlockNumber = vesting_period.saturating_add(close_round_block);
@@ -336,15 +335,35 @@ pub mod pallet {
             let total_raise: u128 = funding_round.actual_raise.saturated_into();
             let amount: u128 = funding_round.amount.saturated_into();
             ensure!(total_raise >= amount/2, Error::<T>::CannotClaimTokenForFailedIdo);
+            let last_claim_block: u128 = Self::get_last_claim_block(&round_id, &investor_address).saturated_into();
             let round_account_id = Self::round_account_id(round_id.clone());
             let investor_share: u128 = Self::get_investor_share_info(round_id.clone(), investor_address.clone()).saturated_into();
             let current_u128: u128 = current_block_no.saturated_into();
             let last_round: u128 = funding_round.close_round_block.saturated_into();
-            let blocks_passed = current_u128.saturating_sub(last_round);
+            let vesting_end_block: u128 = funding_round.vesting_end_block.saturated_into();
+            let mut blocks_passed: u128;
+            if current_u128 >= vesting_end_block {
+                blocks_passed = vesting_end_block.saturating_sub(last_claim_block);
+            } else if last_claim_block == 0 {
+                blocks_passed = current_u128.saturating_sub(last_round);
+            } else {
+                blocks_passed = current_u128.saturating_sub(last_claim_block);
+            }
             let investor_share_u128: FixedU128 = FixedU128::from_inner(investor_share);
-            let amount_per_block: u128 = funding_round.vesting_per_block.checked_mul(&investor_share_u128).unwrap().into_inner();
-            let token_claimable = amount_per_block.checked_mul(blocks_passed).unwrap();
+            let mut amount_per_block: u128;
+            if let Some(value) = funding_round.vesting_per_block.checked_mul(&investor_share_u128){
+                amount_per_block = value.into_inner();
+            } else {
+                return Err(Error::<T>::NotAllowed.into());
+            }
+            let mut token_claimable: u128;
+            if let Some(value) = amount_per_block.checked_mul(blocks_passed){
+                token_claimable = value;
+            } else {
+                return Err(Error::<T>::NotAllowed.into());
+            }
             Self::transfer(funding_round.token_a, &round_account_id, &investor_address, token_claimable.saturated_into())?;
+            <LastClaimBlock<T>>::insert(&round_id, &investor_address, current_block_no);
             Self::deposit_event(Event::TokenClaimed(round_id, investor_address));
             Ok(())
         }
@@ -501,6 +520,32 @@ pub mod pallet {
         bool,
         ValueQuery,
     >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_last_claim_block)]
+    pub(super) type LastClaimBlock<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        Blake2_128Concat,
+        T::AccountId,
+        T::BlockNumber,
+        ValueQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_token_claimed)]
+    pub(super) type TokenClaimed<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::Hash,
+        Blake2_128Concat,
+        T::AccountId,
+        BalanceOf<T>,
+        ValueQuery,
+    >;
+
+
     
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
