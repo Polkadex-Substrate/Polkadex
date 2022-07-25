@@ -533,18 +533,6 @@ pub mod pallet {
         ValueQuery,
     >;
 
-    #[pallet::storage]
-    #[pallet::getter(fn get_token_claimed)]
-    pub(super) type TokenClaimed<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        T::Hash,
-        Blake2_128Concat,
-        T::AccountId,
-        BalanceOf<T>,
-        ValueQuery,
-    >;
-
 
     
     #[pallet::event]
