@@ -33,6 +33,7 @@ ias-verify = { version = "0.1.5", default-features = false, branch = "polkadot-v
 [dev-dependencies]
 pallet-balances = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 pallet-assets = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
+pallet-timestamp = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 
 [features]
 default = ["std"]
