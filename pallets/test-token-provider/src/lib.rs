@@ -53,7 +53,7 @@ pub mod pallet {
 	const MODULE_ID: PalletId = PalletId(*b"token/bg");
 
 	type BalanceOf<T> =
-		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -61,15 +61,15 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Responsible for minting tokens
 		type AssetManager: Create<<Self as frame_system::Config>::AccountId>
-			+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
-			+ Inspect<<Self as frame_system::Config>::AccountId>;
+		+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
+		+ Inspect<<Self as frame_system::Config>::AccountId>;
 		/// Balance Type
 		type Balance: Parameter
-			+ Member
-			+ AtLeast32BitUnsigned
-			+ Default
-			+ Copy
-			+ MaybeSerializeDeserialize;
+		+ Member
+		+ AtLeast32BitUnsigned
+		+ Default
+		+ Copy
+		+ MaybeSerializeDeserialize;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 		/// Balances Pallet
@@ -191,37 +191,37 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn token_map)]
 	pub(super) type TokenFaucetMap<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn token_btc)]
 	pub(super) type TokenBTC<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn token_eth)]
 	pub(super) type TokenEth<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn token_doge)]
 	pub(super) type TokenDoge<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn token_dot)]
 	pub(super) type TokenDot<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn token_bnb)]
 	pub(super) type TokenBNB<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn native_token_map)]
 	pub(super) type NativeTokenMap<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
