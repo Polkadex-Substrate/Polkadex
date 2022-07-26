@@ -33,7 +33,7 @@ use sp_std::prelude::*;
 pub use pallet::*;
 
 #[cfg(test)]
-mod tests;
+mod mock;
 
 mod benchmarking;
 pub mod weights;
