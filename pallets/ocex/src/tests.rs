@@ -21,6 +21,9 @@ use frame_support::{
 	traits::{ConstU128, ConstU64},
 	PalletId,
 };
+use frame_support::traits::OnTimestampSet;
+use polkadex_primitives::{Moment, Signature};
+use sp_std::cell::RefCell;
 use frame_system::EnsureRoot;
 use sp_core::H256;
 // The testing primitives are very useful for avoiding having to work with signatures
@@ -44,6 +47,7 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		OCEX: crate::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -63,7 +67,7 @@ impl frame_system::Config for Test {
 	type Hash = H256;
 	type Call = Call;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = sp_runtime::AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -91,19 +95,40 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
+thread_local! {
+	pub static CAPTURED_MOMENT: RefCell<Option<Moment>> = RefCell::new(None);
+}
+
+pub struct MockOnTimestampSet;
+impl OnTimestampSet<Moment> for MockOnTimestampSet {
+	fn on_timestamp_set(moment: Moment) {
+		CAPTURED_MOMENT.with(|x| *x.borrow_mut() = Some(moment));
+	}
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = Moment;
+	type OnTimestampSet = MockOnTimestampSet;
+	type MinimumPeriod = ConstU64<5>;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const ProxyLimit: u32 = 2;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+	pub const MsPerDay: u64 = 86_400_000;
 }
 
 impl Config for Test {
 	type Event = Event;
-	type ProxyLimit = ProxyLimit;
 	type PalletId = OcexPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
-	type EnclaveOrigin = EnsureRoot<u64>;
+	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type WeightInfo = ();
+	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
+	type Signature = Signature;
+	type MsPerDay = MsPerDay;
 }
 
 parameter_types! {
@@ -119,7 +144,7 @@ impl pallet_assets::Config for Test {
 	type Balance = u128;
 	type AssetId = u128;
 	type Currency = Balances;
-	type ForceOrigin = EnsureRoot<u64>;
+	type ForceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
