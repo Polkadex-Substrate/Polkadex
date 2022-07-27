@@ -248,6 +248,63 @@ fn test_open_trading_pair(){
 	})
 }
 
+#[test]
+fn test_close_trading_pair_both_assets_cannot_be_same(){
+	new_test_ext().execute_with(||{
+		assert_noop!(
+			OCEX::close_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(10)
+			),
+			Error::<Test>::BothAssetsCannotBeSame
+		);
+	});
+}
+
+#[test]
+fn test_close_trading_trading_pair_not_found(){
+	new_test_ext().execute_with(||{
+		assert_noop!(
+			OCEX::close_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20)
+			),
+			Error::<Test>::TradingPairNotFound
+		);
+	});
+}
+
+#[test]
+fn test_close_trading_pair(){
+	new_test_ext().execute_with(||{
+		assert_ok!(
+			OCEX::register_trading_pair(
+				Origin::root(), 
+				AssetId::asset(10), 
+				AssetId::asset(20), 
+				1_u128.into(),
+				100_u128.into(), 
+				1_u128.into(), 
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			)
+		);
+		assert_ok!(
+			OCEX::close_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20)
+			)
+		);
+		assert_eq!(
+			TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), 
+			false
+		);
+	})
+}
 
 
 fn mint_into_account(account_id: AccountId32){
