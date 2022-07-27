@@ -32,7 +32,8 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	AccountId32
+	AccountId32,
+	TokenError
 };
 use crate::mock::*;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
@@ -159,6 +160,50 @@ fn test_register_trading_pair_trading_pair_already_registered(){
 	});
 }
 
+#[test]
+fn test_deposit_unknown_asset(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::asset(10),
+				100_u128.into()
+			),
+			TokenError::UnknownAsset
+		);
+	});
+}
+
+#[test]
+fn test_deposit(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(||{
+		mint_into_account(account_id.clone());
+		assert_ok!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::polkadex,
+				100_u128.into()
+			)
+		);
+	});
+}
+
+fn mint_into_account(account_id: AccountId32){
+	Balances::deposit_creating(&account_id, 100000000000000);
+}
+
+fn create_asset_and_credit(asset_id: u128, account_id: AccountId32){
+	assert_ok!(
+		Assets::create(
+			Origin::signed(account_id.clone().into()),
+			asset_id.into(),
+			account_id.clone().into(),
+			100_u128		
+		)
+	);
+}
 
 fn create_account_id() -> AccountId32{
 	const PHRASE: &str =
