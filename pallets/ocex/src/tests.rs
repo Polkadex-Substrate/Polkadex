@@ -46,6 +46,9 @@ use polkadex_primitives::{AccountId, Balance, ProxyLimit, WithdrawalLimit, Asset
 use std::collections::btree_map::Values;
 use std::collections::BTreeMap;
 use polkadex_primitives::snapshot::EnclaveSnapshot;
+use sp_application_crypto::RuntimePublic;
+use std::sync::Arc;
+use sp_runtime::traits::Verify;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -435,6 +438,48 @@ fn test_submit_snapshot_enclave_signature_verification_failed(){
 	});
 }
 
+#[test]
+fn test_submit_snapshot(){
+	let account_id = create_account_id(); 
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let public_key_store = KeyStore::new();
+	let public_key = SyncCryptoStore::sr25519_generate_new(
+		&public_key_store,
+		KEY_TYPE,
+		Some(&format!("{}/hunter1", PHRASE)),
+	)
+	.expect("Unable to create sr25519 key pair");
+	let mut t = new_test_ext();
+	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
+	t.execute_with(||{
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+			snapshot_number: 0,
+    		merkle_root: mmr_root,
+			withdrawals: bounded_vec![],
+    		fees: bounded_vec![],
+
+		};
+		assert_ok!(
+			OCEX::insert_enclave(
+				Origin::root(),
+				account_id.clone().into()
+			)
+		);
+		let bytes = snapshot.encode();
+		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		
+		assert_ok!(
+			OCEX::submit_snapshot(
+				Origin::signed(account_id.into()),
+				snapshot,
+				signature.clone().into()
+			),
+		);
+	})
+}
+
 
 fn mint_into_account(account_id: AccountId32){
 	Balances::deposit_creating(&account_id, 100000000000000);
@@ -465,6 +510,20 @@ fn create_account_id() -> AccountId32{
 	.expect("Unable to convert to AccountId32");
 
 	return account_id;
+}
+
+fn create_public_key() -> sp_core::sr25519::Public {
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let keystore = KeyStore::new();
+	let account_id = SyncCryptoStore::sr25519_generate_new(
+		&keystore,
+		KEY_TYPE,
+		Some(&format!("{}/hunter1", PHRASE)),
+	)
+	.expect("Unable to create sr25519 key pair");
+
+	return account_id
 }
 
 
