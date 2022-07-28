@@ -37,6 +37,12 @@ use sp_runtime::{
 };
 use crate::mock::*;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
+use ckb_merkle_mountain_range::util::MemStore;
+use ckb_merkle_mountain_range::{Merge, MMR};
+use codec::Encode;
+use polkadex_primitives::ocex::AccountInfo;
+use polkadex_primitives::{AccountId, Balance, ProxyLimit};
+use std::collections::btree_map::Values;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -370,4 +376,35 @@ fn create_account_id() -> AccountId32{
 	.expect("Unable to convert to AccountId32");
 
 	return account_id;
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Default)]
+pub struct MergeAccountInfo(pub [u8; 32]);
+impl Merge for MergeAccountInfo {
+    type Item = MergeAccountInfo;
+    fn merge(lhs: &Self::Item, rhs: &Self::Item) -> Result<Self::Item, ckb_merkle_mountain_range::Error> {
+        let mut bytes = Vec::<u8>::with_capacity(64);
+        lhs.0.map(|byte| bytes.push(byte));
+        rhs.0.map(|byte| bytes.push(byte));
+        Ok(MergeAccountInfo(sp_core::blake2_256(&bytes)))
+    }
+}
+
+/// Calculates the MMR root for a given vector of accounts
+pub fn calculate_mmr_root(
+    accounts: &mut Values<AccountId, AccountInfo<AccountId, Balance, ProxyLimit>>,
+) -> anyhow::Result<H256> {
+    let store = MemStore::default();
+    let mut mmr = MMR::<_, MergeAccountInfo, _>::new(0, &store);
+    accounts.by_ref().for_each(|value| {
+        let bytes = value.encode();
+        if let Err(err) = mmr.push(MergeAccountInfo(sp_core::blake2_256(&bytes))) {
+            log::error!(target: "mmr", "Unable to push account into MMR calculator: {:?}", err);
+        }
+    });
+
+    match mmr.get_root() {
+        Ok(root) => Ok(H256::from(root.0)),
+        Err(err) => Err(anyhow::Error::msg(format!("unable to calculate MMR root: {:?}", err))),
+    }
 }
