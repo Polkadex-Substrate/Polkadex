@@ -36,6 +36,8 @@ pallet-assets = { branch = "polkadot-v0.9.19", git = 'https://github.com/parityt
 pallet-timestamp = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 sp-application-crypto = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
 sp-keystore = {default-features = false, branch = "polkadot-v0.9.19",git = 'https://github.com/paritytech/substrate' }
+ckb-merkle-mountain-range = "0.4.0"
+anyhow = "1.0.56"
 
 [features]
 default = ["std"]
