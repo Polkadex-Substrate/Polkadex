@@ -22,6 +22,7 @@ use frame_support::{
 	PalletId,
 	assert_noop, assert_ok,
 };
+use frame_support::bounded_vec;
 use frame_support::traits::OnTimestampSet;
 use polkadex_primitives::{Moment, Signature, assets::AssetId};
 use sp_std::cell::RefCell;
@@ -41,8 +42,10 @@ use ckb_merkle_mountain_range::util::MemStore;
 use ckb_merkle_mountain_range::{Merge, MMR};
 use codec::Encode;
 use polkadex_primitives::ocex::AccountInfo;
-use polkadex_primitives::{AccountId, Balance, ProxyLimit};
+use polkadex_primitives::{AccountId, Balance, ProxyLimit, WithdrawalLimit, AssetsLimit};
 use std::collections::btree_map::Values;
+use std::collections::BTreeMap;
+use polkadex_primitives::snapshot::EnclaveSnapshot;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -345,6 +348,92 @@ fn collect_fees_ddos(){
 	});	
 } */
 
+#[test]
+fn test_submit_snapshot_sender_is_not_attested_enclave(){
+	let account_id = create_account_id();
+	let payl: [u8; 64] = [0; 64];
+	let sig = sp_core::sr25519::Signature::from_raw(payl);
+	new_test_ext().execute_with(||{
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+			snapshot_number: 1,
+    		merkle_root: mmr_root,
+			withdrawals: bounded_vec![],
+    		fees: bounded_vec![],
+
+		};
+		assert_noop!(
+			OCEX::submit_snapshot(
+				Origin::signed(account_id.into()),
+				snapshot,
+				sig.clone().into()
+			), 
+			Error::<Test>::SenderIsNotAttestedEnclave
+		);
+	});
+}
+
+#[test]
+fn test_submit_snapshot_snapshot_nonce_error(){
+	let account_id = create_account_id();
+	let payl: [u8; 64] = [0; 64];
+	let sig = sp_core::sr25519::Signature::from_raw(payl);
+	new_test_ext().execute_with(||{
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+			snapshot_number: 1,
+    		merkle_root: mmr_root,
+			withdrawals: bounded_vec![],
+    		fees: bounded_vec![],
+
+		};
+		assert_ok!(
+			OCEX::insert_enclave(
+				Origin::root(),
+				account_id.clone().into()
+			)
+		);
+		assert_noop!(
+			OCEX::submit_snapshot(
+				Origin::signed(account_id.into()),
+				snapshot,
+				sig.clone().into()
+			), 
+			Error::<Test>::SnapshotNonceError
+		);
+	});
+}
+
+#[test]
+fn test_submit_snapshot_enclave_signature_verification_failed(){
+	let account_id = create_account_id();
+	let payl: [u8; 64] = [0; 64];
+	let sig = sp_core::sr25519::Signature::from_raw(payl);
+	new_test_ext().execute_with(||{
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+			snapshot_number: 0,
+    		merkle_root: mmr_root,
+			withdrawals: bounded_vec![],
+    		fees: bounded_vec![],
+
+		};
+		assert_ok!(
+			OCEX::insert_enclave(
+				Origin::root(),
+				account_id.clone().into()
+			)
+		);
+		assert_noop!(
+			OCEX::submit_snapshot(
+				Origin::signed(account_id.into()),
+				snapshot,
+				sig.clone().into()
+			), 
+			Error::<Test>::EnclaveSignatureVerificationFailed
+		);
+	});
+}
 
 
 fn mint_into_account(account_id: AccountId32){
@@ -376,6 +465,16 @@ fn create_account_id() -> AccountId32{
 	.expect("Unable to convert to AccountId32");
 
 	return account_id;
+}
+
+
+fn create_mmr_with_one_account() -> H256{
+	let account_id = create_account_id();
+	let mut snapshot: BTreeMap<AccountId, AccountInfo<AccountId, Balance, ProxyLimit>> = Default::default();
+	assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
+	let account_info = Accounts::<Test>::get::<AccountId32>(account_id.clone().into()).unwrap();
+	snapshot.insert(account_id.clone().into(), account_info.clone().into());
+	calculate_mmr_root(&mut snapshot.values()).unwrap()
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Default)]
