@@ -524,6 +524,18 @@ fn test_withdrawal_invalid_withdrawal_index(){
 	});
 }
 
+#[test]
+fn test_shutdown(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(||{
+		assert_ok!(
+			OCEX::shutdown(
+				Origin::root()
+			)
+		);
+	});
+}
+
 
 fn mint_into_account(account_id: AccountId32){
 	Balances::deposit_creating(&account_id, 100000000000000);
