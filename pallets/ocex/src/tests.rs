@@ -480,6 +480,50 @@ fn test_submit_snapshot(){
 	})
 }
 
+#[test]
+fn test_register_enclave(){
+	let account_id = create_account_id(); 
+	let ias_report = vec![19,19,2,7,255,128,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0,0,0,0,143,217,40,231,107,115,187,6,31,209,73,221,16,254,236,124,82,125,255,243,103,55,60,72,2,212,150,41,217,255,51,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,95,183,141,57,75,101,149,246,85,227,219,71,14,143,143,79,2,209,127,165,117,206,185,73,81,228,1,225,150,116,242,38,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,173,228,47,97,157,17,22,141,70,202,241,106,128,71,84,214,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,173,193,15,23,193,76,218,39,74,232,62,213,215,194,80];
+	new_test_ext().execute_with(||{
+		assert_ok!(
+			OCEX::register_enclave(
+				Origin::signed(account_id),
+				ias_report
+			)
+		);
+	});
+}
+
+#[test]
+fn test_register_enclave_empty_report(){
+	let account_id = create_account_id(); 
+	let ias_report = vec![];
+	new_test_ext().execute_with(||{
+		// TODO: Discuss this test, ideally this should fail I guess 
+		assert_ok!(
+			OCEX::register_enclave(
+				Origin::signed(account_id),
+				ias_report
+			)
+		);
+	});
+}
+
+#[test]
+fn test_withdrawal_invalid_withdrawal_index(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(||{
+		assert_noop!(
+			OCEX::withdraw(
+				Origin::signed(account_id.clone().into()),
+				1,
+				1
+			), 
+			Error::<Test>::InvalidWithdrawalIndex
+		);
+	});
+}
+
 
 fn mint_into_account(account_id: AccountId32){
 	Balances::deposit_creating(&account_id, 100000000000000);
