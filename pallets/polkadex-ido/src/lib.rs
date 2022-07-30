@@ -416,6 +416,25 @@ pub mod pallet {
             Self::deposit_event(Event::InvestmentWithdrawn(round_id, investor_address, investment));
             Ok(())
         }
+
+        /// Update the ipfs CID for a round
+        ///
+        /// # Parameters
+        ///
+        /// * `round_id`: Funding round id
+        /// * `ipfs_cid`: New IPFS CID
+        #[pallet::weight((10_000, DispatchClass::Normal))]
+        pub fn update_ipfs_cid(origin: OriginFor<T>, round_id: T::Hash, ipfs_cid: Vec<u8>) -> DispatchResult {
+            let investor_address: T::AccountId = ensure_signed(origin)?;
+            ensure!(ipfs_cid.len() <= CID_LIMIT, <Error<T>>::CidReachedMaxSize);
+            ensure!(<InfoFundingRound<T>>::contains_key(&round_id.clone()), Error::<T>::FundingRoundDoesNotExist);
+            let mut funding_round = <InfoFundingRound<T>>::get(round_id).ok_or(Error::<T>::FundingRoundNotApproved)?;
+            ensure!(funding_round.creator == investor_address, Error::<T>::NotAllowed);
+            funding_round.project_info_cid = ipfs_cid; 
+            <InfoFundingRound<T>>::insert(round_id, funding_round);
+            Self::deposit_event(Event::CIDUpdated(round_id, investor_address));
+            Ok(())
+        }
     }
 
     /// Stores nonce used to create unique ido round id
@@ -498,7 +517,8 @@ pub mod pallet {
         RaiseClaimed(T::Hash, T::AccountId, BalanceOf<T>),
         TokenClaimed(T::Hash, T::AccountId),
         InvestmentWithdrawn(T::Hash, T::AccountId, BalanceOf<T>),
-        TokenWithdrawn(T::Hash, T::AccountId, BalanceOf<T>)
+        TokenWithdrawn(T::Hash, T::AccountId, BalanceOf<T>), 
+        CIDUpdated(T::Hash, T::AccountId),
     }
 
     #[pallet::error]
