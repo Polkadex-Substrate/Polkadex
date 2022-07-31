@@ -18,17 +18,19 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
-use frame_benchmarking::{benchmarks, whitelisted_caller};
+use frame_benchmarking::{benchmarks, whitelisted_caller, account};
 use frame_system::RawOrigin;
+use sp_runtime::AccountId32;
 
 benchmarks! {
-	set_dummy_benchmark {
-		let b in 1 .. 1000;
-	}: set_dummy(RawOrigin::Root, b.into())
+	register_main_account{
+		let caller = account("caller", 0, 0);
+		let proxy = account("proxy", 0, 0);
+	}: _(RawOrigin::Signed(caller), proxy)
 	verify {
-		assert_eq!(Pallet::<T>::dummy(), Some(b.into()))
+		// assert_eq!(Pallet::<T>::dummy(), Some(b.into()))
 	}
-	accumulate_dummy {
+	/* accumulate_dummy {
 		let b in 1 .. 1000;
 		let caller: T::AccountId = whitelisted_caller();
 	}: _(RawOrigin::Signed(caller), b.into())
@@ -41,8 +43,8 @@ benchmarks! {
 		}
 	}: {
 		m.sort();
-	}
+	} */
 
 
-	impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Test)
+	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test)
 }
