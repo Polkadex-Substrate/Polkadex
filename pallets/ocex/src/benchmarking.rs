@@ -17,11 +17,33 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::*;
+
+use super::*;
 use frame_benchmarking::{benchmarks, whitelisted_caller, account};
-use frame_system::RawOrigin;
+use frame_system::{RawOrigin, Origin};
 use sp_runtime::AccountId32;
-use crate::mock::Test;
+use frame_support::assert_ok;
+use crate::Pallet as OCEX;
+// use crate::mock::Assets;
+
+fn create_asset<T: Config>() {
+	let caller: T::AccountId = account("caller",0,0);
+
+	assert_ok!(T::OtherAssets::create(
+		10_u128,
+		caller.clone(),
+		true,
+		1_000_000_u32.into()
+	));
+
+	assert_ok!(
+		T::OtherAssets::mint_into(
+			10_u128,
+			&caller,
+			1_000_000_000_u32.into()
+		)
+	);
+}
 
 benchmarks! {
 	register_main_account{
@@ -33,8 +55,10 @@ benchmarks! {
 	}
 
 	add_proxy_account{
-		let caller = account("caller", 0, 0); 
+		let caller: T::AccountId = account("caller", 0, 0); 
+		let main = account("main", 0, 0); 
 		let proxy = account("proxy",0,0);
+		assert_ok!(OCEX::<T>::register_main_account(RawOrigin::Signed(caller.clone()).into(), main));
 	}: _(RawOrigin::Signed(caller), proxy)
 	verify{
 		// Query events or storage 
@@ -43,6 +67,19 @@ benchmarks! {
 	close_trading_pair{
 		let base: AssetId = AssetId::asset(10);
 		let quote: AssetId = AssetId::asset(20);
+		assert_ok!(
+			OCEX::<T>::register_trading_pair(
+				RawOrigin::Root.into(), 
+				AssetId::asset(10), 
+				AssetId::asset(20), 
+				1_u32.into(),
+				100_u32.into(), 
+				1_u32.into(), 
+				100_u32.into(),
+				100_u32.into(),
+				10_u32.into()
+			)
+		);
 	}: _(RawOrigin::Root, base, quote) 
 	verify{
 		// Query events or storage 
@@ -51,38 +88,79 @@ benchmarks! {
 	open_trading_pair{
 		let base: AssetId = AssetId::asset(10);
 		let quote: AssetId = AssetId::asset(20); 
+		assert_ok!(
+			OCEX::<T>::register_trading_pair(
+				RawOrigin::Root.into(), 
+				AssetId::asset(10), 
+				AssetId::asset(20), 
+				1_u32.into(),
+				100_u32.into(), 
+				1_u32.into(), 
+				100_u32.into(),
+				100_u32.into(),
+				10_u32.into()
+			)
+		);
 	}: _(RawOrigin::Root, base, quote)
 	verify{
 		// Query event or storage
 	}
 
-	/* register_trading_pair{
+	register_trading_pair{
 		let base: AssetId = AssetId::asset(10);
 		let quote: AssetId = AssetId::asset(20);
-		let min_trade_amount: BalanceOf::<Test> = 100;
-		let max_trade_amount: BalanceOf::<Test> = 1000;
-		let min_order_qty: BalanceOf::<Test> = 100; 
-		let max_order_qty: BalanceOf::<Test> = 1000; 
-		let max_spread: BalanceOf::<Test> = 100; 
-		let min_depth: BalanceOf::<Test> = 1;
+		let min_trade_amount: u32 = 100_u32;
+		let max_trade_amount: u32 = 1000_u32;
+		let min_order_qty: u32 = 100_u32; 
+		let max_order_qty: u32 = 1000_u32; 
+		let max_spread: u32 = 100_u32; 
+		let min_depth: u32 = 1_u32;
 	}: _(RawOrigin::Root, base, quote, min_trade_amount.into(), max_trade_amount.into(), min_order_qty.into(), max_order_qty.into(), max_spread.into(), min_depth.into())
 	verify{
 		// Query events or storage 
-	} */
-	/* accumulate_dummy {
-		let b in 1 .. 1000;
-		let caller: T::AccountId = whitelisted_caller();
-	}: _(RawOrigin::Signed(caller), b.into())
+	} 
+	
+	deposit{
+		let caller = account("caller", 0, 0);
+		let asset = AssetId::asset(10);
+		let amount = 100000000_u32;
+		create_asset::<T>();
 
-	sort_vector {
-		let x in 0 .. 10000;
-		let mut m = Vec::<u32>::new();
-		for i in (0..x).rev() {
-			m.push(i);
-		}
-	}: {
-		m.sort();
-	} */
+	}: _(RawOrigin::Signed(caller), asset, amount.into())
+	verify{
+		// Query events or storage
+	}
+
+	collect_fees{
+		let caller = account("caller",0,0);
+		let snapshot_id: u32 = 1;
+		let beneficiary = account("beneficiary",0,0);
+	}: _(RawOrigin::Signed(caller), snapshot_id, beneficiary)
+	verify{
+		// Query events or storage 
+	}
+
+	shutdown{}:_(RawOrigin::Root)
+	verify{
+		// Query events or ingress messages
+	} 
+
+	withdraw{
+		let caller = account("caller",0,0);
+		let snapshot_id: u32 = 1;
+		let withdrawal_index: u32 = 2;
+	}: _(RawOrigin::Signed(caller), snapshot_id, withdrawal_index)
+	verify{
+		// Query events or storage
+	}
+
+	register_enclave{
+		let caller = account("caller",0,0);
+		let ias_report: Vec<u8> = vec![];
+	}: _(RawOrigin::Signed(caller), ias_report)
+	verify{
+		// Query events to make sure the report signature is verified and used
+	}
 
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test)
