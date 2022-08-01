@@ -24,6 +24,8 @@ use frame_system::{RawOrigin, Origin};
 use sp_runtime::AccountId32;
 use frame_support::assert_ok;
 use crate::Pallet as OCEX;
+use frame_system::EventRecord;
+use crate::Event::MainAccountRegistered;
 // use crate::mock::Assets;
 
 fn create_asset<T: Config>() {
@@ -44,14 +46,23 @@ fn create_asset<T: Config>() {
 		)
 	);
 }
+fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+	let events = frame_system::Pallet::<T>::events();
+	let system_event: <T as frame_system::Config>::Event = generic_event.into();
+	// compare to the last event record
+	let EventRecord { event, .. } = &events[events.len() - 1];
+	assert_eq!(event, &system_event);
+}
 
 benchmarks! {
 	register_main_account{
-		let caller = account("caller", 0, 0);
-		let proxy = account("proxy", 0, 0);
-	}: _(RawOrigin::Signed(caller), proxy)
+		let caller: T::AccountId = account("caller", 0, 0);
+		let proxy: T::AccountId = account("proxy", 0, 0);
+	}: _(RawOrigin::Signed(caller.clone()), proxy.clone())
 	verify {
-		// assert_eq!(Pallet::<T>::dummy(), Some(b.into()))
+		let caller: T::AccountId = account("caller", 0, 0);
+		let proxy: T::AccountId = account("proxy", 0, 0);
+		assert_last_event::<T>(MainAccountRegistered{main:caller, proxy: proxy}.into());
 	}
 
 	add_proxy_account{
