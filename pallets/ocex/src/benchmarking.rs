@@ -72,7 +72,9 @@ benchmarks! {
 		assert_ok!(OCEX::<T>::register_main_account(RawOrigin::Signed(caller.clone()).into(), main));
 	}: _(RawOrigin::Signed(caller), proxy)
 	verify{
-		// Query events or storage 
+		let proxy = account("proxy",0,0);
+		let caller: T::AccountId = account("caller", 0, 0); 
+		assert_last_event::<T>(MainAccountRegistered{main: caller, proxy: proxy}.into());
 	}
 
 	close_trading_pair{
@@ -93,7 +95,8 @@ benchmarks! {
 		);
 	}: _(RawOrigin::Root, base, quote) 
 	verify{
-		// Query events or storage 
+		let trading_pair = OCEX::<T>::trading_pairs(base, quote).unwrap();
+		assert_last_event::<T>(Event::ShutdownTradingPair{pair:trading_pair}.into());
 	}
 
 	open_trading_pair{
@@ -114,7 +117,8 @@ benchmarks! {
 		);
 	}: _(RawOrigin::Root, base, quote)
 	verify{
-		// Query event or storage
+		let trading_pair = OCEX::<T>::trading_pairs(base, quote).unwrap();
+		assert_last_event::<T>(Event::OpenTradingPair{pair:trading_pair}.into());
 	}
 
 	register_trading_pair{
@@ -128,18 +132,20 @@ benchmarks! {
 		let min_depth: u32 = 1_u32;
 	}: _(RawOrigin::Root, base, quote, min_trade_amount.into(), max_trade_amount.into(), min_order_qty.into(), max_order_qty.into(), max_spread.into(), min_depth.into())
 	verify{
-		// Query events or storage 
+		let trading_pair = OCEX::<T>::trading_pairs(base, quote).unwrap();
+		assert_last_event::<T>(Event::TradingPairRegistered{base, quote}.into());
 	} 
 	
 	deposit{
-		let caller = account("caller", 0, 0);
+		let caller: T::AccountId = account("caller", 0, 0);
 		let asset = AssetId::asset(10);
 		let amount = 100000000_u32;
 		create_asset::<T>();
 
-	}: _(RawOrigin::Signed(caller), asset, amount.into())
+	}: _(RawOrigin::Signed(caller.clone()), asset, amount.into())
 	verify{
-		// Query events or storage
+		let balance_amount: BalanceOf::<T> = amount.into();
+		assert_last_event::<T>(Event::DepositSuccessful{user: caller, asset: asset, amount: balance_amount}.into());
 	}
 
 	collect_fees{
@@ -148,12 +154,12 @@ benchmarks! {
 		let beneficiary = account("beneficiary",0,0);
 	}: _(RawOrigin::Signed(caller), snapshot_id, beneficiary)
 	verify{
-		// Query events or storage 
+		// TODO! this requires snapshot to be submiited 
 	}
 
 	shutdown{}:_(RawOrigin::Root)
 	verify{
-		// Query events or ingress messages
+		// TODO! this requires an assertion from ingress messages 
 	} 
 
 	withdraw{
@@ -162,15 +168,15 @@ benchmarks! {
 		let withdrawal_index: u32 = 2;
 	}: _(RawOrigin::Signed(caller), snapshot_id, withdrawal_index)
 	verify{
-		// Query events or storage
+		// TODO! this requires a snapshot that contains an active withdrawal index
 	}
 
 	register_enclave{
-		let caller = account("caller",0,0);
+		let caller: T::AccountId = account("caller",0,0);
 		let ias_report: Vec<u8> = vec![];
-	}: _(RawOrigin::Signed(caller), ias_report)
+	}: _(RawOrigin::Signed(caller.clone()), ias_report)
 	verify{
-		// Query events to make sure the report signature is verified and used
+		assert_last_event::<T>(Event::EnclaveRegistered(caller).into());
 	}
 
 
