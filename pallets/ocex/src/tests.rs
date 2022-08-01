@@ -49,8 +49,17 @@ use polkadex_primitives::snapshot::EnclaveSnapshot;
 use sp_application_crypto::RuntimePublic;
 use std::sync::Arc;
 use sp_runtime::traits::Verify;
+use frame_system::EventRecord;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
+
+fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+	let events = frame_system::Pallet::<T>::events();
+	let system_event: <T as frame_system::Config>::Event = generic_event.into();
+	// compare to the last event record
+	let EventRecord { event, .. } = &events[events.len() - 1];
+	assert_eq!(event, &system_event);
+}
 
 #[test]
 fn test_register_main_account(){
@@ -59,7 +68,8 @@ fn test_register_main_account(){
 	new_test_ext().execute_with(|| {
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), false);
 		assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
-		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.into()), true);
+		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), true);
+		assert_last_event::<Test>(crate::Event::MainAccountRegistered{main: account_id.clone(), proxy: account_id}.into());
 	});
 }
 
@@ -93,6 +103,7 @@ fn test_add_proxy_account(){
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
+		assert_last_event::<Test>(crate::Event::MainAccountRegistered{main: account_id.clone(), proxy: account_id.clone()}.into());
 	});
 }
 
@@ -135,6 +146,7 @@ fn test_register_trading_pair(){
 
 		assert_eq!(TradingPairs::<Test>::contains_key(AssetId::asset(10), AssetId::asset(20)), true);
 		assert_eq!(TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), true);
+		assert_last_event::<Test>(crate::Event::TradingPairRegistered{base: AssetId::asset(10), quote: AssetId::asset(20)}.into());
 	});
 }
 
@@ -199,6 +211,7 @@ fn test_deposit(){
 				100_u128.into()
 			)
 		);
+		assert_last_event::<Test>(crate::Event::DepositSuccessful{user: account_id, asset: AssetId::polkadex, amount: 100_u128}.into())
 	});
 }
 
@@ -257,6 +270,8 @@ fn test_open_trading_pair(){
 			TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), 
 			true
 		);
+		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
+		assert_last_event::<Test>(crate::Event::OpenTradingPair{pair: trading_pair}.into());
 	})
 }
 
@@ -315,6 +330,8 @@ fn test_close_trading_pair(){
 			TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), 
 			false
 		);
+		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
+		assert_last_event::<Test>(crate::Event::ShutdownTradingPair{pair: trading_pair}.into());
 	})
 }
 
@@ -327,9 +344,10 @@ fn collect_fees(){
 			OCEX::collect_fees(
 				Origin::signed(account_id.clone().into()),
 				100,
-				account_id.into()
+				account_id.clone().into()
 			)
 		);
+		assert_last_event::<Test>(crate::Event::FeesClaims{beneficiary: account_id, snapshot_id: 100}.into());
 	});	
 }
 
@@ -477,6 +495,8 @@ fn test_submit_snapshot(){
 				signature.clone().into()
 			),
 		);
+
+		// TODO! I need to assert other storage items 
 	})
 }
 
@@ -487,10 +507,12 @@ fn test_register_enclave(){
 	new_test_ext().execute_with(||{
 		assert_ok!(
 			OCEX::register_enclave(
-				Origin::signed(account_id),
+				Origin::signed(account_id.clone()),
 				ias_report
 			)
 		);
+
+		assert_last_event::<Test>(crate::Event::EnclaveRegistered(account_id).into())
 	});
 }
 
@@ -589,7 +611,9 @@ fn create_mmr_with_one_account() -> H256{
 	assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 	let account_info = Accounts::<Test>::get::<AccountId32>(account_id.clone().into()).unwrap();
 	snapshot.insert(account_id.clone().into(), account_info.clone().into());
-	calculate_mmr_root(&mut snapshot.values()).unwrap()
+	let mmr_root = calculate_mmr_root(&mut snapshot.values()).unwrap();
+	// panic!("{:?}", mmr_root.0);
+	mmr_root
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Default)]
