@@ -26,7 +26,21 @@ use frame_support::assert_ok;
 use crate::Pallet as OCEX;
 use frame_system::EventRecord;
 use crate::Event::MainAccountRegistered;
+use sp_core::H256;
+use polkadex_primitives::snapshot::{EnclaveSnapshot};
+use polkadex_primitives::{WithdrawalLimit, AssetsLimit};
+use frame_support::bounded_vec;
+use codec::Decode;
 // use crate::mock::Assets;
+
+fn gen_signature<T: Config>() -> T::Signature{
+	let sig_base: [u8; 64] = [194, 86, 40, 181, 200, 12, 205, 254, 172, 88, 86, 216, 236, 4, 116, 67, 185, 40, 6, 107, 15, 12, 77, 115, 8, 67, 3, 209, 139, 154, 95, 53, 178, 228, 234, 214, 42, 86, 92, 170, 142, 42, 50, 238, 76, 208, 55, 118, 34, 59, 62, 159, 91, 212, 25, 79, 180, 242, 100, 113, 51, 156, 163, 139];
+	let sig_base_vec = sig_base.to_vec();
+	let signature = T::Signature::decode(
+		&mut sig_base_vec.as_ref(),
+	).unwrap();
+	return signature;
+}
 
 fn create_asset<T: Config>() {
 	let caller: T::AccountId = account("caller",0,0);
@@ -177,7 +191,23 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), ias_report)
 	verify{
 		assert_last_event::<T>(Event::EnclaveRegistered(caller).into());
+		// TODO
 	}
+	submit_snapshot{
+		let caller = account("caller",0,0);
+		let mmr_root: H256 = H256::from_slice(&[210, 56, 200, 34, 238, 216, 179, 3, 145, 126, 70, 52, 246, 40, 114, 190, 67, 101, 64, 12, 96, 36, 91, 129, 237, 83, 237, 98, 171, 246, 205, 98]);
+		let mut snapshot = EnclaveSnapshot::<T::AccountId, BalanceOf::<T>, WithdrawalLimit, AssetsLimit>{
+			snapshot_number: 0,
+    		merkle_root: mmr_root,
+			withdrawals: bounded_vec![],
+    		fees: bounded_vec![],
+		};
+		let signature = gen_signature::<T>();
+	}: _(RawOrigin::Signed(caller), snapshot, signature)
+	verify{
+		// TODO! Query some events over here
+	} 
+
 
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test)
