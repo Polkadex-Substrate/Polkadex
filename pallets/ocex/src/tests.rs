@@ -13,7 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-//! Tests for pallet-example-basic.
+//! Tests for pallet-ocex.
 
 use crate::*;
 use frame_support::{
@@ -22,6 +22,7 @@ use frame_support::{
 	PalletId,
 	assert_noop, assert_ok,
 };
+use polkadex_primitives::ingress::IngressMessages;
 use frame_support::bounded_vec;
 use frame_support::traits::OnTimestampSet;
 use polkadex_primitives::{Moment, Signature, assets::AssetId};
@@ -69,10 +70,14 @@ fn test_register_main_account(){
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), false);
 		assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), true);
-		assert_last_event::<Test>(crate::Event::MainAccountRegistered{main: account_id.clone(), proxy: account_id}.into());
+		assert_last_event::<Test>(crate::Event::MainAccountRegistered{main: account_id.clone(), proxy: account_id.clone()}.into());
+		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::RegisterUser(account_id.clone(), account_id.clone());
+		assert_eq!(OCEX::ingress_messages()[0], event);
+		
 	});
 }
 
+// TODO! Need to cover limit error 
 #[test]
 fn test_register_main_account_main_account_already_exists(){
 	let account_id = create_account_id();
@@ -104,6 +109,8 @@ fn test_add_proxy_account(){
 		assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 		assert_last_event::<Test>(crate::Event::MainAccountRegistered{main: account_id.clone(), proxy: account_id.clone()}.into());
+		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::AddProxy(account_id.clone(), account_id.clone());
+		assert_eq!(OCEX::ingress_messages()[1], event);
 	});
 }
 
@@ -147,6 +154,10 @@ fn test_register_trading_pair(){
 		assert_eq!(TradingPairs::<Test>::contains_key(AssetId::asset(10), AssetId::asset(20)), true);
 		assert_eq!(TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), true);
 		assert_last_event::<Test>(crate::Event::TradingPairRegistered{base: AssetId::asset(10), quote: AssetId::asset(20)}.into());
+		let trading_pair = TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap();
+		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::OpenTradingPair(trading_pair);
+		assert_eq!(OCEX::ingress_messages()[0], event);
+		
 	});
 }
 
@@ -172,6 +183,21 @@ fn test_register_trading_pair_trading_pair_already_registered(){
 				Origin::root(), 
 				AssetId::asset(10), 
 				AssetId::asset(20), 
+				1_u128.into(),
+				100_u128.into(), 
+				1_u128.into(), 
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			), 
+			Error::<Test>::TradingPairAlreadyRegistered
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(), 
+				AssetId::asset(20), 
+				AssetId::asset(10), 
 				1_u128.into(),
 				100_u128.into(), 
 				1_u128.into(), 
@@ -211,7 +237,9 @@ fn test_deposit(){
 				100_u128.into()
 			)
 		);
-		assert_last_event::<Test>(crate::Event::DepositSuccessful{user: account_id, asset: AssetId::polkadex, amount: 100_u128}.into())
+		assert_last_event::<Test>(crate::Event::DepositSuccessful{user: account_id.clone(), asset: AssetId::polkadex, amount: 100_u128}.into());
+		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::Deposit(account_id, AssetId::polkadex, 100_u128);
+		assert_eq!(OCEX::ingress_messages()[0], event);
 	});
 }
 
@@ -226,6 +254,8 @@ fn test_open_trading_pair_both_assets_cannot_be_same(){
 			),
 			Error::<Test>::BothAssetsCannotBeSame
 		);
+
+		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
 
@@ -240,6 +270,8 @@ fn test_open_trading_pair_trading_pair_not_found(){
 			),
 			Error::<Test>::TradingPairNotFound
 		);
+
+		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
 
@@ -271,7 +303,9 @@ fn test_open_trading_pair(){
 			true
 		);
 		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
-		assert_last_event::<Test>(crate::Event::OpenTradingPair{pair: trading_pair}.into());
+		assert_last_event::<Test>(crate::Event::OpenTradingPair{pair: trading_pair.clone()}.into());
+		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::OpenTradingPair(trading_pair);
+		assert_eq!(OCEX::ingress_messages()[0], event);
 	})
 }
 
@@ -286,6 +320,8 @@ fn test_close_trading_pair_both_assets_cannot_be_same(){
 			),
 			Error::<Test>::BothAssetsCannotBeSame
 		);
+
+		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
 
@@ -300,6 +336,8 @@ fn test_close_trading_trading_pair_not_found(){
 			),
 			Error::<Test>::TradingPairNotFound
 		);
+
+		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
 
@@ -331,7 +369,9 @@ fn test_close_trading_pair(){
 			false
 		);
 		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
-		assert_last_event::<Test>(crate::Event::ShutdownTradingPair{pair: trading_pair}.into());
+		assert_last_event::<Test>(crate::Event::ShutdownTradingPair{pair: trading_pair.clone()}.into());
+		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::CloseTradingPair(trading_pair);
+		assert_eq!(OCEX::ingress_messages()[1], event);
 	})
 }
 
