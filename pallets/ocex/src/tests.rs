@@ -227,6 +227,29 @@ fn test_deposit_unknown_asset(){
 }
 
 #[test]
+fn test_deposit_bad_origin(){
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::deposit(
+				Origin::root(),
+				AssetId::asset(10),
+				100_u128.into()
+			),
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::deposit(
+				Origin::none(),
+				AssetId::asset(10),
+				100_u128.into()
+			), 
+			BadOrigin
+		);
+	});
+}
+
+#[test]
 fn test_deposit(){
 	let account_id = create_account_id();
 	new_test_ext().execute_with(||{
