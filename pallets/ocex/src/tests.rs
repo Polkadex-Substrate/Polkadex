@@ -597,6 +597,30 @@ fn test_withdrawal_invalid_withdrawal_index(){
 }
 
 #[test]
+fn test_withdrawal_bad_origin(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(||{
+		assert_noop!(
+			OCEX::withdraw(
+				Origin::root(),
+				1,
+				1
+			), 
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::withdraw(
+				Origin::none(),
+				1,
+				1
+			), 
+			BadOrigin
+		);
+	});
+}
+
+#[test]
 fn test_shutdown(){
 	let account_id = create_account_id();
 	new_test_ext().execute_with(||{
