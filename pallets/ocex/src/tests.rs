@@ -136,6 +136,42 @@ fn test_register_trading_pair_both_assets_cannot_be_same(){
 }
 
 #[test]
+fn test_register_trading_pair_bad_origin(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(||{
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::none(),
+				AssetId::polkadex, 
+				AssetId::polkadex, 
+				1_u128.into(), 
+				100_u128.into(), 
+				1_u128.into(),
+				100_u128.into(), 
+				100_u128.into(), 
+				10_u128.into(),
+			),
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::signed(account_id.into()),
+				AssetId::polkadex, 
+				AssetId::polkadex, 
+				1_u128.into(), 
+				100_u128.into(), 
+				1_u128.into(),
+				100_u128.into(), 
+				100_u128.into(), 
+				10_u128.into(),
+			),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
 fn test_register_trading_pair(){
 	new_test_ext().execute_with(||{
 		assert_ok!(
