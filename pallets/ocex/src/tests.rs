@@ -582,6 +582,27 @@ fn test_register_enclave_empty_report(){
 }
 
 #[test]
+fn test_reigster_enclave_bad_origin(){
+	new_test_ext().execute_with(||{
+		assert_noop!(
+			OCEX::register_enclave(
+				Origin::root(), 
+				vec![]
+			), 
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::register_enclave(
+				Origin::none(),
+				vec![]
+			),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
 fn test_withdrawal_invalid_withdrawal_index(){
 	let account_id = create_account_id();
 	new_test_ext().execute_with(||{
