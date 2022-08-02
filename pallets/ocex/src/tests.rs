@@ -25,7 +25,7 @@ use frame_support::{
 use polkadex_primitives::ingress::IngressMessages;
 use frame_support::bounded_vec;
 use frame_support::traits::OnTimestampSet;
-use polkadex_primitives::{Moment, Signature, assets::AssetId};
+use polkadex_primitives::{Moment, Signature, assets::AssetId, withdrawal::Withdrawal};
 use sp_std::cell::RefCell;
 use frame_system::EnsureRoot;
 use sp_core::H256;
@@ -724,11 +724,12 @@ fn test_submit_snapshot(){
 	let mut t = new_test_ext();
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(||{
+		let withdrawal = create_withdrawal::<Test>();
 		let mmr_root: H256 = create_mmr_with_one_account();
 		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
 			snapshot_number: 0,
     		merkle_root: mmr_root,
-			withdrawals: bounded_vec![],
+			withdrawals: bounded_vec![withdrawal],
     		fees: bounded_vec![],
 
 		};
@@ -820,6 +821,58 @@ fn test_withdrawal_invalid_withdrawal_index(){
 			Error::<Test>::InvalidWithdrawalIndex
 		);
 	});
+}
+
+#[test]
+fn test_withdrawal(){
+	let account_id = create_account_id();
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let public_key_store = KeyStore::new();
+	let public_key = SyncCryptoStore::sr25519_generate_new(
+		&public_key_store,
+		KEY_TYPE,
+		Some(&format!("{}/hunter1", PHRASE)),
+	)
+	.expect("Unable to create sr25519 key pair");
+	let mut t = new_test_ext();
+	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
+	t.execute_with(||{
+		let withdrawal = create_withdrawal::<Test>();
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+			snapshot_number: 0,
+    		merkle_root: mmr_root,
+			withdrawals: bounded_vec![withdrawal],
+    		fees: bounded_vec![],
+
+		};
+		assert_ok!(
+			OCEX::insert_enclave(
+				Origin::root(),
+				account_id.clone().into()
+			)
+		);
+		let bytes = snapshot.encode();
+		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		
+		assert_ok!(
+			OCEX::submit_snapshot(
+				Origin::signed(account_id.clone().into()),
+				snapshot,
+				signature.clone().into()
+			),
+		);
+
+		assert_ok!(
+			OCEX::withdraw(
+				Origin::signed(account_id.clone().into()),
+				0,
+				0
+			)
+		); 
+	});
+
 }
 
 #[test]
@@ -985,4 +1038,14 @@ pub fn calculate_mmr_root(
         Ok(root) => Ok(H256::from(root.0)),
         Err(err) => Err(anyhow::Error::msg(format!("unable to calculate MMR root: {:?}", err))),
     }
+}
+
+pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf::<T>> {
+	let account_id = create_account_id();
+	let withdrawal: Withdrawal<AccountId32, BalanceOf::<T>> = Withdrawal {
+		main_account: account_id,
+		asset: AssetId::polkadex,
+		amount: 0_u32.into()
+	};
+	return withdrawal;
 }
