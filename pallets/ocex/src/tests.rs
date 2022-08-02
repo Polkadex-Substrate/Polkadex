@@ -78,7 +78,6 @@ fn test_register_main_account(){
 	});
 }
 
-// TODO! Need to cover limit error 
 #[test]
 fn test_register_main_account_main_account_already_exists(){
 	let account_id = create_account_id();
@@ -110,6 +109,20 @@ fn test_add_proxy_account_main_account_not_found(){
 			Error::<Test>::MainAccountNotFound
 		);
 	});
+}
+
+#[test]
+fn test_add_proxy_account_proxy_limit_exceeded(){
+	let account_id = create_account_id();
+	let proxy_account = create_proxy_account();
+	new_test_ext().execute_with(||{
+		assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
+		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
+		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
+		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), proxy_account.clone().into()));
+		assert_noop!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), proxy_account.clone().into()), Error::<Test>::ProxyLimitExceeded);
+	})
+
 }
 
 #[test]
@@ -893,6 +906,22 @@ fn create_account_id() -> AccountId32{
 		&keystore,
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
+	)
+	.expect("Unable to create sr25519 key pair")
+	.try_into()
+	.expect("Unable to convert to AccountId32");
+
+	return account_id;
+}
+
+fn create_proxy_account() -> AccountId32{
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let keystore = KeyStore::new();
+	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
+		&keystore,
+		KEY_TYPE,
+		Some(&format!("{}/hunter2", PHRASE)),
 	)
 	.expect("Unable to create sr25519 key pair")
 	.try_into()
