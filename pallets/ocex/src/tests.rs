@@ -277,6 +277,32 @@ fn test_open_trading_pair_trading_pair_not_found(){
 }
 
 #[test]
+fn test_open_trading_pair_bad_origin(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::open_trading_pair(
+				Origin::none(), 
+				AssetId::asset(10), 
+				AssetId::asset(20)
+			),
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::open_trading_pair(
+				Origin::signed(account_id.into()), 
+				AssetId::asset(10), 
+				AssetId::asset(20)
+			),
+			BadOrigin
+		);
+
+		
+	});
+}
+
+#[test]
 fn test_open_trading_pair(){
 	new_test_ext().execute_with(||{
 		assert_ok!(
