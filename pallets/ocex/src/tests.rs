@@ -35,7 +35,8 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	AccountId32,
-	TokenError
+	TokenError,
+	DispatchError::BadOrigin
 };
 use crate::mock::*;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
@@ -387,6 +388,7 @@ fn collect_fees(){
 				account_id.clone().into()
 			)
 		);
+
 		assert_last_event::<Test>(crate::Event::FeesClaims{beneficiary: account_id, snapshot_id: 100}.into());
 	});	
 }
@@ -431,6 +433,8 @@ fn test_submit_snapshot_sender_is_not_attested_enclave(){
 			), 
 			Error::<Test>::SenderIsNotAttestedEnclave
 		);
+		// There is an existing ingress message which holds RegisterUser
+		assert_eq!(OCEX::ingress_messages().len(), 1);
 	});
 }
 
@@ -462,6 +466,8 @@ fn test_submit_snapshot_snapshot_nonce_error(){
 			), 
 			Error::<Test>::SnapshotNonceError
 		);
+
+		assert_eq!(OCEX::ingress_messages().len(), 1);
 	});
 }
 
@@ -493,6 +499,8 @@ fn test_submit_snapshot_enclave_signature_verification_failed(){
 			), 
 			Error::<Test>::EnclaveSignatureVerificationFailed
 		);
+
+		assert_eq!(OCEX::ingress_messages().len(), 1);
 	});
 }
 
@@ -535,8 +543,10 @@ fn test_submit_snapshot(){
 				signature.clone().into()
 			),
 		);
-
-		// TODO! I need to assert other storage items 
+		assert_eq!(Withdrawals::<Test>::contains_key(0), true);
+		assert_eq!(FeesCollected::<Test>::contains_key(0), true);
+		assert_eq!(Snapshots::<Test>::contains_key(0), true);
+		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
 	})
 }
 
@@ -594,6 +604,30 @@ fn test_shutdown(){
 			OCEX::shutdown(
 				Origin::root()
 			)
+		);
+
+		let ingress_message: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::Shutdown;
+		assert_eq!(OCEX::ingress_messages()[0], ingress_message);
+		assert_eq!(ExchangeState::<Test>::get(), false);
+	});
+}
+
+#[test]
+fn test_shutdown_bad_origin(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::shutdown(
+				Origin::signed(account_id.into())
+			), 
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::shutdown(
+				Origin::none()
+			), 
+			BadOrigin
 		);
 	});
 }
