@@ -103,6 +103,22 @@ fn test_add_proxy_account_main_account_not_found(){
 }
 
 #[test]
+fn test_add_proxy_account_bad_origin(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::add_proxy_account(Origin::root(), account_id.clone().into()),
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::add_proxy_account(Origin::none(), account_id.clone().into()),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
 fn test_add_proxy_account(){
 	let account_id = create_account_id(); 
 
