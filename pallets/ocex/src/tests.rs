@@ -505,6 +505,39 @@ fn test_submit_snapshot_enclave_signature_verification_failed(){
 }
 
 #[test]
+fn test_submit_snapshot_bad_origin(){
+	let payl: [u8; 64] = [0; 64];
+	let sig = sp_core::sr25519::Signature::from_raw(payl);
+	new_test_ext().execute_with(||{
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+			snapshot_number: 0,
+    		merkle_root: mmr_root,
+			withdrawals: bounded_vec![],
+    		fees: bounded_vec![],
+
+		};
+		assert_noop!(
+			OCEX::submit_snapshot(
+				Origin::root(),
+				snapshot.clone(),
+				sig.clone().into()
+			), 
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::submit_snapshot(
+				Origin::root(), 
+				snapshot, 
+				sig.clone().into()
+			), 
+			BadOrigin
+		);
+	});
+}
+
+#[test]
 fn test_submit_snapshot(){
 	let account_id = create_account_id(); 
 	const PHRASE: &str =
