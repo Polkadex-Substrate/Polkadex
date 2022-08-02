@@ -393,6 +393,30 @@ fn collect_fees(){
 	});	
 }
 
+#[test]
+fn test_collect_fees_bad_origin(){
+	let account_id = create_account_id();
+	new_test_ext().execute_with(||{
+		assert_noop!(
+			OCEX::collect_fees(
+				Origin::root(),
+				100,
+				account_id.clone().into()
+			), 
+			BadOrigin
+		);
+
+		assert_noop!(
+			OCEX::collect_fees(
+				Origin::none(), 
+				100, 
+				account_id.into()
+			), 
+			BadOrigin
+		);
+	});
+}
+
 // P.S. This was to apply a DDOS attack and see the response in the mock environment
 /* #[test]
 fn collect_fees_ddos(){
