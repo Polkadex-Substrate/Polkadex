@@ -24,6 +24,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 
 use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::withdrawal::Withdrawal;
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -453,24 +454,24 @@ pub mod pallet {
 		) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
-			let _sender = ensure_signed(origin)?;
+			let sender = ensure_signed(origin)?;
 
 			// TODO! Need to fetch data as BTreeMap with keys of the sender
-			/* let mut withdrawals = <Withdrawals<T>>::get(snapshot_id);
+			let mut withdrawals: BTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>> = <Withdrawals<T>>::get(snapshot_id);
 			ensure!(
-				withdrawals.len() > withdrawal_index as usize,
+				withdrawals.contains_key(&sender),
 				Error::<T>::InvalidWithdrawalIndex
-			);
-			let withdrawal = withdrawals.remove(withdrawal_index as usize);
-			// TODO: check if this asset is enabled for withdrawals
-			Self::transfer_asset(
+			); 
+			let withdrawal: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>  = withdrawals.remove(&sender).unwrap();
+			// TODO! Discuss how we perform transfer_asset
+			/* Self::transfer_asset(
 				&Self::get_custodian_account(),
 				&withdrawal.main_account,
 				withdrawal.amount,
 				withdrawal.asset,
-			)?;
+			)?; */
 			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
-			Self::deposit_event(Event::WithdrawalClaimed {
+			/* Self::deposit_event(Event::WithdrawalClaimed {
 				main: withdrawal.main_account,
 				asset: withdrawal.asset,
 				amount: withdrawal.amount,
@@ -636,6 +637,7 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	// TODO! Need to transition into a BoundedBTreeMap
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
 	#[pallet::getter(fn withdrawals)]
@@ -695,5 +697,18 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
+	}
+
+	fn return_withdrawals(
+		snapshot_ids: Vec<u32>,
+		account: T::AccountId
+	) -> Vec<Withdrawal<T::AccountId, BalanceOf<T>>>{
+		let mut withdrawals_vector: Vec<Withdrawal<T::AccountId, BalanceOf<T>>> = vec![];
+		for x in snapshot_ids{
+			let mut withdrawals = <Withdrawals<T>>::get(x).get(&account).unwrap().to_vec();
+			withdrawals_vector.append(&mut withdrawals)
+		}
+		withdrawals_vector
+		
 	}
 }
