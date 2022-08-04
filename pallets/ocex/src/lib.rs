@@ -25,6 +25,7 @@ use frame_system::ensure_signed;
 
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::withdrawal::Withdrawal;
+use frame_support::storage::bounded_btree_map::BoundedBTreeMap;
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -382,7 +383,8 @@ pub mod pallet {
 				signature.verify(bytes.as_slice(), &enclave),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
-			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals.clone());
+			let withdrawal_map: BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit> = BoundedBTreeMap::try_from(snapshot.withdrawals.clone()).unwrap();
+			<Withdrawals<T>>::insert(snapshot.snapshot_number, withdrawal_map);
 			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
 			// TODO! Need to set the BTreeMap in the snapshot empty once stored in blockchain
 			/* snapshot.withdrawals =
@@ -457,7 +459,7 @@ pub mod pallet {
 			let sender = ensure_signed(origin)?;
 
 			// TODO! Need to fetch data as BTreeMap with keys of the sender
-			let mut withdrawals: BTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>> = <Withdrawals<T>>::get(snapshot_id);
+			let mut withdrawals: BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit> = <Withdrawals<T>>::get(snapshot_id);
 			ensure!(
 				withdrawals.contains_key(&sender),
 				Error::<T>::InvalidWithdrawalIndex
@@ -645,7 +647,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		BTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>>,
+		BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit>,
 		ValueQuery,
 	>;
 
