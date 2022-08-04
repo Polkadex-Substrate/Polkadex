@@ -383,7 +383,7 @@ pub mod pallet {
 				signature.verify(bytes.as_slice(), &enclave),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
-			let withdrawal_map: BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit> = BoundedBTreeMap::try_from(snapshot.withdrawals.clone()).unwrap();
+			let mut withdrawal_map: BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit> = BoundedBTreeMap::try_from(snapshot.withdrawals.clone()).expect("Bounded BTreeMap could not be created");
 			<Withdrawals<T>>::insert(snapshot.snapshot_number, withdrawal_map);
 			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
 			// TODO! Need to set the BTreeMap in the snapshot empty once stored in blockchain
@@ -464,7 +464,7 @@ pub mod pallet {
 				withdrawals.contains_key(&sender),
 				Error::<T>::InvalidWithdrawalIndex
 			); 
-			let withdrawal: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>  = withdrawals.remove(&sender).unwrap();
+			withdrawals.remove(&sender);
 			// TODO! Discuss how we perform transfer_asset
 			/* Self::transfer_asset(
 				&Self::get_custodian_account(),
