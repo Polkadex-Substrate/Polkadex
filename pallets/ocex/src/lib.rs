@@ -464,22 +464,22 @@ pub mod pallet {
 				withdrawals.contains_key(&sender),
 				Error::<T>::InvalidWithdrawalIndex
 			); 
+			if let Some(withdrawal_vector) = withdrawals.get(&sender){
+				for x in withdrawal_vector.iter(){
+					Self::transfer_asset(
+						&Self::get_custodian_account(),
+						&x.main_account,
+						x.amount,
+						x.asset,
+					)?;
+				}
+				Self::deposit_event(Event::WithdrawalClaimed {
+					main: sender.clone(),
+					withdrawals: withdrawal_vector.to_owned()
+				});
+			}
 			withdrawals.remove(&sender);
-			// TODO! Discuss how we perform transfer_asset
-			/* Self::transfer_asset(
-				&Self::get_custodian_account(),
-				&withdrawal.main_account,
-				withdrawal.amount,
-				withdrawal.asset,
-			)?; */
 			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
-			/* Self::deposit_event(Event::WithdrawalClaimed {
-				main: withdrawal.main_account,
-				asset: withdrawal.asset,
-				amount: withdrawal.amount,
-				snapshot_id,
-				withdrawal_index,
-			}); */
 			Ok(())
 		}
 
@@ -569,10 +569,7 @@ pub mod pallet {
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
 			main: T::AccountId,
-			asset: AssetId,
-			amount: BalanceOf<T>,
-			snapshot_id: u32,
-			withdrawal_index: u32,
+			withdrawals: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>
 		},
 	}
 
