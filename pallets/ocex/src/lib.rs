@@ -707,10 +707,10 @@ impl<T: Config> Pallet<T> {
 	) -> Vec<Withdrawal<T::AccountId, BalanceOf<T>>>{
 		let mut withdrawals_vector: Vec<Withdrawal<T::AccountId, BalanceOf<T>>> = vec![];
 		for x in snapshot_ids{
-			let mut withdrawals = <Withdrawals<T>>::get(x).get(&account).unwrap().to_vec();
-			withdrawals_vector.append(&mut withdrawals)
+			if let Some(withdrawals) = <Withdrawals<T>>::get(x).get(&account){
+				withdrawals_vector.append(&mut withdrawals.to_vec())
+			}
 		}
 		withdrawals_vector
-		
 	}
 }
