@@ -28,6 +28,7 @@ use polkadex_primitives::assets::AssetId;
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
+use sp_std::collections::btree_map::BTreeMap;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -380,10 +381,11 @@ pub mod pallet {
 				signature.verify(bytes.as_slice(), &enclave),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
-			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals);
+			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals.clone());
 			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
-			snapshot.withdrawals =
-				BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>::default();
+			// TODO! Need to set the BTreeMap in the snapshot empty once stored in blockchain
+			/* snapshot.withdrawals =
+				BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>::default(); */
 			<Snapshots<T>>::insert(snapshot.snapshot_number, snapshot);
 			<SnapshotNonce<T>>::put(last_snapshot_serial_number.saturating_add(1));
 			Ok(())
@@ -453,7 +455,8 @@ pub mod pallet {
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _sender = ensure_signed(origin)?;
 
-			let mut withdrawals = <Withdrawals<T>>::get(snapshot_id);
+			// TODO! Need to fetch data as BTreeMap with keys of the sender
+			/* let mut withdrawals = <Withdrawals<T>>::get(snapshot_id);
 			ensure!(
 				withdrawals.len() > withdrawal_index as usize,
 				Error::<T>::InvalidWithdrawalIndex
@@ -473,7 +476,7 @@ pub mod pallet {
 				amount: withdrawal.amount,
 				snapshot_id,
 				withdrawal_index,
-			});
+			}); */
 			Ok(())
 		}
 
@@ -640,7 +643,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
+		BTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>>,
 		ValueQuery,
 	>;
 
