@@ -383,12 +383,16 @@ pub mod pallet {
 				signature.verify(bytes.as_slice(), &enclave),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
-			let mut withdrawal_map: BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit> = BoundedBTreeMap::try_from(snapshot.withdrawals.clone()).expect("Bounded BTreeMap could not be created");
+			let mut withdrawal_map: BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit> = BoundedBTreeMap::new();
+			if let Ok(value) = BoundedBTreeMap::<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, WithdrawalLimit>::try_from(snapshot.withdrawals.clone()){
+				withdrawal_map = value;
+			}
+			else {
+				return Err(Error::<T>::StorageOverflow.into());
+			}
 			<Withdrawals<T>>::insert(snapshot.snapshot_number, withdrawal_map);
 			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
-			// TODO! Need to set the BTreeMap in the snapshot empty once stored in blockchain
-			/* snapshot.withdrawals =
-				BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>::default(); */
+			snapshot.withdrawals = BTreeMap::<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>>::default();
 			<Snapshots<T>>::insert(snapshot.snapshot_number, snapshot);
 			<SnapshotNonce<T>>::put(last_snapshot_serial_number.saturating_add(1));
 			Ok(())
