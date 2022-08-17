@@ -71,6 +71,9 @@ fn test_register_main_account(){
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), false);
 		assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), true);
+		let account_info = Accounts::<Test>::get(account_id.clone()).unwrap();
+		assert_eq!(account_info.proxies.len(),1);
+		assert_eq!(account_info.proxies[0],account_id.clone());
 		assert_last_event::<Test>(crate::Event::MainAccountRegistered{main: account_id.clone(), proxy: account_id.clone()}.into());
 		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::RegisterUser(account_id.clone(), account_id.clone());
 		assert_eq!(OCEX::ingress_messages()[0], event);
@@ -119,7 +122,6 @@ fn test_add_proxy_account_proxy_limit_exceeded(){
 		assert_ok!(OCEX::register_main_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
 		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.clone().into()));
-		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), proxy_account.clone().into()));
 		assert_noop!(OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), proxy_account.clone().into()), Error::<Test>::ProxyLimitExceeded);
 	})
 
