@@ -23,8 +23,10 @@ use polkadex_primitives::assets::AssetId;
 use sp_std::vec::Vec;
 use polkadex_primitives::withdrawal::Withdrawal;
 use sp_runtime::traits::Zero;
+use pallet_ocex_primitives::WithdrawalWithPrimitives;
+use polkadex_primitives::Balance;
 sp_api::decl_runtime_apis! {
-	pub trait PolkadexOcexRuntimeApi<AccountId,Hash,Balance> where AccountId: Codec, Hash : Codec, Balance: Zero + Clone + Codec{
-        fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Vec<Withdrawal<AccountId, Balance>>;
+	pub trait PolkadexOcexRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
+        fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Vec<WithdrawalWithPrimitives<AccountId>>;
 	}
 }

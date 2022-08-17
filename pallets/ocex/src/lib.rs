@@ -23,9 +23,11 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 
+use pallet_ocex_primitives::*;
 use polkadex_primitives::assets::AssetId;
 use polkadex_primitives::withdrawal::Withdrawal;
 use frame_support::storage::bounded_btree_map::BoundedBTreeMap;
+use sp_runtime::SaturatedConversion;
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -46,6 +48,8 @@ pub use weights::*;
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
 <<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -120,6 +124,16 @@ pub mod pallet {
 		// standard 24h in ms = 86_400_000
 		type MsPerDay: Get<Self::Moment>;
 	}
+
+	/* impl Withdrawal<AccountId, Balance>{
+		pub fn to_primitive(&self) -> WithdrawalWithPrimitives<AccountId, Balance>{
+			WithdrawalWithPrimitives{
+				main_account: self.main_account.clone(), 
+				amount: self.amount.saturated_into(),
+				asset: StringAssetId::from(self.asset)
+			}
+		}
+	} */
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
@@ -705,11 +719,21 @@ impl<T: Config> Pallet<T> {
 	fn return_withdrawals(
 		snapshot_ids: Vec<u32>,
 		account: T::AccountId
-	) -> Vec<Withdrawal<T::AccountId, BalanceOf<T>>>{
-		let mut withdrawals_vector: Vec<Withdrawal<T::AccountId, BalanceOf<T>>> = vec![];
+	) -> Vec<WithdrawalWithPrimitives<T::AccountId>>{
+		let mut withdrawals_vector: Vec<WithdrawalWithPrimitives<T::AccountId>> = vec![];
 		for x in snapshot_ids{
 			if let Some(withdrawals) = <Withdrawals<T>>::get(x).get(&account){
-				withdrawals_vector.append(&mut withdrawals.to_vec())
+				let mut snapshot_withdrawals: Vec<WithdrawalWithPrimitives<T::AccountId>> = vec![];
+				for y in withdrawals.iter(){
+					snapshot_withdrawals.push(
+						WithdrawalWithPrimitives{
+							main_account: y.main_account.clone(), 
+							amount: y.amount.saturated_into(), 
+							asset:  StringAssetId::from(y.asset)
+						}
+					);
+				}
+				// withdrawals_vector.append(&mut withdrawals.to_vec())
 			}
 		}
 		withdrawals_vector

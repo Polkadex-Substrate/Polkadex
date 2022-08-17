@@ -9,6 +9,7 @@ edition = "2021"
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 
 # Substrate Dependencies
+pallet-ocex-primitives= { default-features = false, path = "../../common" }
 sp-api = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-std = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
@@ -20,4 +21,5 @@ std = [
     "codec/std",
     "sp-std/std",
     "sp-runtime/std",
+    "pallet-ocex-primitives/std",
 ]

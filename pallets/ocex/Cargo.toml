@@ -29,6 +29,8 @@ syn = "=1.0.96" # TODO: Remove this as soon as frame-support-procedural-tools be
 sp-core = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git', default-features = false }
 pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
 ias-verify = { version = "0.1.5", default-features = false, branch = "polkadot-v0.9.19", git = "https://github.com/Polkadex-Substrate/pallets" }
+pallet-ocex-primitives = { path = "../../pallets/ocex/common", default-features = false}
+pallet-ocex-lmp-rpc = { path = "../../pallets/ocex/rpc", default-features = false}
 
 [dev-dependencies]
 pallet-balances = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
