@@ -19,43 +19,44 @@
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
-pub use pollet_ocex_lmp_runtime_api::PolkadexOcexRuntimeApi;
+pub use pallet_ocex_lmp_runtime_api::PolkadexOcexRuntimeApi;
 use polkadex_primitives::assets::AssetId;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
+use polkadex_primitives::Balance;
+use pallet_ocex_primitives::WithdrawalWithPrimitives;
+
 const RUNTIME_ERROR: i64 = 1;
 
 #[rpc]
-pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash, Balance> {
+pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	#[rpc(name = "pallet_ocex_return_withdrawals")]
-    fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Result<Vec<Withdrawal<AccountId, Balance>>>;
+    fn return_withdrawals(&self, snapshot_ids: Vec<u32>,account: AccountId, at: Option<BlockHash>) -> Result<Vec<WithdrawalWithPrimitives<AccountId>>>;
 }
 
 /// A struct that implements the `SumStorageApi`.
-pub struct PolkadexIdoRpc<C, M> {
+pub struct PolkadexOcexRpc<C, M> {
 	client: Arc<C>,
 	_marker: std::marker::PhantomData<M>,
 }
 
-impl<C, M> PolkadexIdoRpc<C, M> {
+impl<C, M> PolkadexOcexRpc<C, M> {
 	/// Create new `SumStorage` instance with the given reference to the client.
 	pub fn new(client: Arc<C>) -> Self {
 		Self { client, _marker: Default::default() }
 	}
 }
 
-impl<C, Block, AccountId, Hash> PolkadexOcexRpcApi<<Block as BlockT>::Hash, AccountId, Hash, Balance>
-	for PolkadexIdoRpc<C, Block>
+impl<C, Block, AccountId, Hash> PolkadexOcexRpcApi<<Block as BlockT>::Hash, AccountId, Hash>
+	for PolkadexOcexRpc<C, Block>
 where
 	Block: BlockT,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	C::Api: PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
 	AccountId: Codec,
-	Hash: Codec,
-    Balance: Zero + Clone
+	Hash: Codec
 {
 	/// # RPC Call
 	/// Returns rounds an investor has invested in
@@ -66,7 +67,7 @@ where
         snapshot_ids: Vec<u32>,
 		account: AccountId,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<Vec<Withdrawal<AccountId, Balance>>> {
+	) -> Result<Vec<WithdrawalWithPrimitives<AccountId>>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
             // If the block hash is not supplied assume the best block.

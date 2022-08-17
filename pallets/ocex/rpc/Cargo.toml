@@ -15,6 +15,6 @@ sp-rpc = {   git = "https://github.com/paritytech/substrate", branch = "polkadot
 sp-blockchain = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-api = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
-pallet-polkadex-ido-primitives = {path = "../common", default-features = false}
-pollet-ocex-lmp-runtime-api = {path = "runtime-api" }
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",  branch="polkadot-v0.9.19" , default-features = false }
+pallet-ocex-primitives = {path = "../common", default-features = false}
+pallet-ocex-lmp-runtime-api = {path = "runtime-api" }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",  branch="fx-polkadot-v0.9.19" , default-features = false }
