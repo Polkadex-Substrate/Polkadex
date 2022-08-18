@@ -716,7 +716,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn return_withdrawals(
+	pub fn return_withdrawals(
 		snapshot_ids: Vec<u32>,
 		account: T::AccountId
 	) -> Vec<WithdrawalWithPrimitives<T::AccountId>>{
@@ -733,7 +733,7 @@ impl<T: Config> Pallet<T> {
 						}
 					);
 				}
-				// withdrawals_vector.append(&mut withdrawals.to_vec())
+				withdrawals_vector.append(&mut snapshot_withdrawals.clone())
 			}
 		}
 		withdrawals_vector
