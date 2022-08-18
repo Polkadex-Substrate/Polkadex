@@ -195,7 +195,11 @@ pub mod pallet {
 				!<Accounts<T>>::contains_key(&main_account),
 				Error::<T>::MainAccountAlreadyRegistered
 			);
-			<Accounts<T>>::insert(&main_account, AccountInfo::new(proxy.clone()));
+
+			let mut account_info = AccountInfo::new(main_account.clone());
+			ensure!(account_info.add_proxy(proxy.clone()).is_ok(), Error::<T>::ProxyLimitExceeded);
+			<Accounts<T>>::insert(&main_account, account_info);
+
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
 					main_account.clone(),
