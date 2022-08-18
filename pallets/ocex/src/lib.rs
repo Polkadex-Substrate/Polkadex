@@ -216,6 +216,22 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Removes a proxy account from pre-registered main acocunt
+		#[pallet::weight(10000)]
+		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
+			let main_account = ensure_signed(origin)?;
+			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
+			<Accounts<T>>::try_mutate(&main_account, |account_info| {
+				if let Some(account_info) = account_info {
+					let proxy_positon = account_info.proxies.iter().position(|account| *account == proxy).ok_or(Error::<T>::MainAccountNotFound)?;
+					account_info.proxies.remove(proxy_positon);
+					Ok(())
+				} else {
+					Err(Error::<T>::MainAccountNotFound))
+				}
+			})
+		}
+
 		/// Registers a new trading pair
 		#[pallet::weight(10000)]
 		pub fn register_trading_pair(
