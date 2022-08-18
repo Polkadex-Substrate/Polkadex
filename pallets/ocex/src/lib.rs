@@ -118,6 +118,9 @@ pub mod pallet {
 		// enclave's report validity time.
 		// standard 24h in ms = 86_400_000
 		type MsPerDay: Get<Self::Moment>;
+
+		/// The origin which may attests the investor to take part in the IDO pallet.
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -240,7 +243,7 @@ pub mod pallet {
 			base: AssetId,
 			quote: AssetId,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
 				<TradingPairs<T>>::contains_key(&base, &quote),
@@ -268,7 +271,7 @@ pub mod pallet {
 			base: AssetId,
 			quote: AssetId,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
 				<TradingPairs<T>>::contains_key(&base, &quote),
@@ -302,7 +305,7 @@ pub mod pallet {
 			max_spread: BalanceOf<T>,
 			min_depth: BalanceOf<T>
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
 				!<TradingPairs<T>>::contains_key(&base, &quote),
@@ -402,7 +405,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 		    encalve: T::AccountId
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			<RegisteredEnclaves<T>>::insert(encalve, T::Moment::from(T::MsPerDay::get() * T::Moment::from(10000u32)));
 			Ok(())
 		}
@@ -438,7 +441,7 @@ pub mod pallet {
 		/// Extrinsic used to shutdown the orderbook
 		#[pallet::weight(10000)]
 		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(false);
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Shutdown);
