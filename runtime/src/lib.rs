@@ -1256,7 +1256,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	// TODO: Change origin to SGX attested origin
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type Public = <Signature as traits::Verify>::Signer;
-	type GovernanceOrigin = EnsureRootOrTreasury;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type Signature = Signature;
 	type WeightInfo = ();
 	type MsPerDay = MsPerDay;
