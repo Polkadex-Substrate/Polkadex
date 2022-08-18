@@ -119,7 +119,7 @@ pub mod pallet {
 		// standard 24h in ms = 86_400_000
 		type MsPerDay: Get<Self::Moment>;
 
-		/// The origin which may attests the investor to take part in the IDO pallet.
+		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 	}
 
