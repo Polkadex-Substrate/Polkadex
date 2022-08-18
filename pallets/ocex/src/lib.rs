@@ -35,6 +35,7 @@ pub use pallet::*;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 mod types;
 pub mod weights;
@@ -175,7 +176,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Registers a new account in orderbook
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_main_account())]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(
@@ -194,7 +195,7 @@ pub mod pallet {
 		}
 
 		/// Adds a proxy account to a pre-registered main acocunt
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
@@ -217,7 +218,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_trading_pair())]
 		pub fn register_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -274,7 +275,7 @@ pub mod pallet {
 		}
 
 		/// Deposit Assets to Orderbook
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
 		pub fn deposit(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -303,7 +304,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -349,7 +350,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used to emit a shutdown request of an Enclave
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::shutdown_enclave())]
 		pub fn shutdown_enclave(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -391,7 +392,7 @@ pub mod pallet {
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(0 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _relayer = ensure_signed(origin)?;
 
