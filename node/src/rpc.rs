@@ -114,6 +114,7 @@ where
 	C::Api: BabeApi<Block>,
 	C::Api: BlockBuilder<Block>,
 	C::Api: polkadex_ido_rpc::PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
+	C::Api: pallet_ocex_lmp_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
 	P: TransactionPool + 'static,
 	SC: SelectChain<Block> + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -167,7 +168,11 @@ where
 	));
 
 	io.extend_with(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
-		polkadex_ido_rpc::PolkadexIdoRpc::new(client),
+		polkadex_ido_rpc::PolkadexIdoRpc::new(client.clone()),
+	));
+
+	io.extend_with(pallet_ocex_lmp_rpc::PolkadexOcexRpcApi::to_delegate(
+		pallet_ocex_lmp_rpc::PolkadexOcexRpc::new(client),
 	));
 
 	Ok(io)
