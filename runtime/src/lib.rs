@@ -782,14 +782,20 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const OrderbookMotionDuration: BlockNumber = 1 * DAYS;
+	pub const OrderbookMaxProposals: u32 = 100;
+	pub const OrderbookMaxMembers: u32 = 3;
+}
+
 type OrderbookCollective = pallet_collective::Instance3;
 impl pallet_collective::Config<OrderbookCollective> for Runtime {
 	type Origin = Origin;
 	type Proposal = Call;
 	type Event = Event;
-	type MotionDuration = TechnicalMotionDuration;
-	type MaxProposals = TechnicalMaxProposals;
-	type MaxMembers = TechnicalMaxMembers;
+	type MotionDuration = OrderbookMotionDuration;
+	type MaxProposals = OrderbookMaxProposals;
+	type MaxMembers = OrderbookMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
