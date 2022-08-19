@@ -329,8 +329,12 @@ fn test_deposit_bad_origin(){
 #[test]
 fn test_deposit(){
 	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
 	new_test_ext().execute_with(||{
 		mint_into_account(account_id.clone());
+		// Balances before deposit
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(account_id.clone()), 100000000000000);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
 		assert_ok!(
 			OCEX::deposit(
 				Origin::signed(account_id.clone().into()),
@@ -338,6 +342,9 @@ fn test_deposit(){
 				100_u128.into()
 			)
 		);
+		// Balances after deposit
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(account_id.clone()), 99999999999900);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 100);
 		assert_last_event::<Test>(crate::Event::DepositSuccessful{user: account_id.clone(), asset: AssetId::polkadex, amount: 100_u128}.into());
 		let event: IngressMessages<AccountId32, BalanceOf::<Test>> = IngressMessages::Deposit(account_id, AssetId::polkadex, 100_u128);
 		assert_eq!(OCEX::ingress_messages()[0], event);
@@ -829,6 +836,7 @@ fn test_withdrawal_invalid_withdrawal_index(){
 #[test]
 fn test_withdrawal(){
 	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let public_key_store = KeyStore::new();
@@ -841,7 +849,13 @@ fn test_withdrawal(){
 	let mut t = new_test_ext();
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(||{
+		mint_into_account(account_id.clone());
+		mint_into_account(custodian_account.clone());
+		// Initial Balances 
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(account_id.clone()), 100000000000000);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 100000000000000);
 		let withdrawal = create_withdrawal::<Test>();
+
 		let mmr_root: H256 = create_mmr_with_one_account();
 		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
 			snapshot_number: 0,
@@ -873,7 +887,10 @@ fn test_withdrawal(){
 				0,
 				0
 			)
-		); 
+		);
+		// Balances after withdrawal
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(account_id.clone()), 100000000000100);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 99999999999900);
 	});
 
 }
@@ -1048,7 +1065,7 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf::<T>>
 	let withdrawal: Withdrawal<AccountId32, BalanceOf::<T>> = Withdrawal {
 		main_account: account_id,
 		asset: AssetId::polkadex,
-		amount: 0_u32.into()
+		amount: 100_u32.into()
 	};
 	return withdrawal;
 }
