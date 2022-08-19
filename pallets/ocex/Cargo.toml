@@ -13,30 +13,25 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
+codec = { package = "parity-scale-codec", version = "3", default-features = false }
 log = { version = "0.4.14", default-features = false }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
-
-frame-benchmarking = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git', optional = true }
 frame-support = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 frame-system = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-sp-io = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 sp-runtime = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 sp-std = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.19", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
-#polkadex-primitives = { default-features = false, path = "../../../polkadex-primitives" }
-syn = "=1.0.96" # TODO: Remove this as soon as frame-support-procedural-tools becomes compilable with latest syn version
-sp-core = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git', default-features = false }
+polkadex-primitives = { default-features = false, branch = "gj-test-old-scale-info", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
-ias-verify = { version = "0.1.5", default-features = false, branch = "polkadot-v0.9.19", git = "https://github.com/Polkadex-Substrate/pallets" }
+ias-verify = { default-features = false,version = "0.1.5", branch = "polkadot-v0.9.19", git = "https://github.com/Polkadex-Substrate/pallets" }
 
 [dev-dependencies]
 pallet-balances = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 pallet-assets = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 pallet-timestamp = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-sp-application-crypto = {default-features = false, branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
-sp-keystore = {default-features = false, branch = "polkadot-v0.9.19",git = 'https://github.com/paritytech/substrate' }
-ckb-merkle-mountain-range = "0.4.0"
+sp-application-crypto = { branch="polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate'}
+sp-keystore = { branch = "polkadot-v0.9.19",git = 'https://github.com/paritytech/substrate' }
+frame-benchmarking = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
+ckb-merkle-mountain-range = "0.5.0"
 anyhow = "1.0.56"
 
 [features]
@@ -45,14 +40,13 @@ std = [
     "codec/std",
     "log/std",
     "scale-info/std",
-    "frame-benchmarking/std",
     "frame-support/std",
     "frame-system/std",
-    "sp-io/std",
     "sp-runtime/std",
     "sp-std/std",
-    "sp-core/std",
-    "polkadex-primitives/std"
+    "polkadex-primitives/std",
+    "pallet-timestamp/std",
+    "ias-verify/std"
 ]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 try-runtime = ["frame-support/try-runtime"]

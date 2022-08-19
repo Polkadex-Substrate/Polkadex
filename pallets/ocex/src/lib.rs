@@ -61,9 +61,10 @@ pub mod pallet {
 		},
 		PalletId,
 	};
+	use frame_support::storage::bounded_btree_map::BoundedBTreeMap;
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
-	use polkadex_primitives::{assets::AssetId, ocex::{AccountInfo, TradingPairConfig}, snapshot::EnclaveSnapshot, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, AssetsLimit};
+	use polkadex_primitives::{assets::AssetId, ocex::{AccountInfo, TradingPairConfig}, snapshot::EnclaveSnapshot, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, AssetsLimit, AccountId};
 	use sp_runtime::SaturatedConversion;
 	use polkadex_primitives::snapshot::Fees;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
@@ -391,8 +392,7 @@ pub mod pallet {
 			);
 			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals);
 			<FeesCollected<T>>::insert(snapshot.snapshot_number,snapshot.fees.clone());
-			snapshot.withdrawals =
-				BoundedVec::<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>::default();
+			snapshot.withdrawals = Default::default();
 			<Snapshots<T>>::insert(snapshot.snapshot_number, snapshot);
 			<SnapshotNonce<T>>::put(last_snapshot_serial_number.saturating_add(1));
 			Ok(())
@@ -462,27 +462,27 @@ pub mod pallet {
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _sender = ensure_signed(origin)?;
 
-			let mut withdrawals = <Withdrawals<T>>::get(snapshot_id);
-			ensure!(
-				withdrawals.len() > withdrawal_index as usize,
-				Error::<T>::InvalidWithdrawalIndex
-			);
-			let withdrawal = withdrawals.remove(withdrawal_index as usize);
-			// TODO: check if this asset is enabled for withdrawals
-			Self::transfer_asset(
-				&Self::get_custodian_account(),
-				&withdrawal.main_account,
-				withdrawal.amount,
-				withdrawal.asset,
-			)?;
-			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
-			Self::deposit_event(Event::WithdrawalClaimed {
-				main: withdrawal.main_account,
-				asset: withdrawal.asset,
-				amount: withdrawal.amount,
-				snapshot_id,
-				withdrawal_index,
-			});
+			// let mut withdrawals = <Withdrawals<T>>::get(snapshot_id);
+			// ensure!(
+			// 	withdrawals.len() > withdrawal_index as usize,
+			// 	Error::<T>::InvalidWithdrawalIndex
+			// );
+			// let withdrawal = withdrawals.remove(withdrawal_index as usize);
+			// // TODO: check if this asset is enabled for withdrawals
+			// Self::transfer_asset(
+			// 	&Self::get_custodian_account(),
+			// 	&withdrawal.main_account,
+			// 	withdrawal.amount,
+			// 	withdrawal.asset,
+			// )?;
+			// <Withdrawals<T>>::insert(snapshot_id, withdrawals);
+			// Self::deposit_event(Event::WithdrawalClaimed {
+			// 	main: withdrawal.main_account,
+			// 	asset: withdrawal.asset,
+			// 	amount: withdrawal.amount,
+			// 	snapshot_id,
+			// 	withdrawal_index,
+			// });
 			Ok(())
 		}
 
@@ -649,7 +649,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
+		BoundedBTreeMap<T::AccountId,BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,WithdrawalLimit>,
 		ValueQuery,
 	>;
 

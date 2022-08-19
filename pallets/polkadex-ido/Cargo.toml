@@ -20,7 +20,8 @@ sp-std = {   git = "https://github.com/paritytech/substrate", branch = "polkadot
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", optional = true }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
 sp-runtime = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.19", default-features = false }
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",  branch="polkadot-v0.9.19" , default-features = false }
+#polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git",  branch="polkadot-v0.9.19" , default-features = false }
+polkadex-primitives = { default-features = false, branch = "gj-test-old-scale-info", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 rand = {default-features = false, version = '0.8.0'}
 rand_chacha = {default-features = false, version = '0.3.0'}
 pallet-polkadex-ido-primitives = { path = "../../pallets/polkadex-ido/common", default-features = false}
