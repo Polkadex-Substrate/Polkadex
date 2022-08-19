@@ -122,6 +122,7 @@ parameter_types! {
 impl Config for Test {
 	type Event = Event;
 	type PalletId = OcexPalletId;
+	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
