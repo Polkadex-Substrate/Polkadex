@@ -54,48 +54,102 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_example_basic.
 pub trait WeightInfo {
-	fn set_dummy_benchmark(b: u32, ) -> Weight;
-	fn accumulate_dummy(b: u32, ) -> Weight;
-	fn sort_vector(x: u32, ) -> Weight;
+	fn register_main_account() -> Weight;	
+	fn add_proxy_account() -> Weight;
+	fn register_trading_pair() -> Weight;
+	fn deposit() -> Weight;
+	fn submit_snapshot() -> Weight;
+	fn shutdown_enclave() -> Weight;
+	fn register_enclave() -> Weight;
 }
 
 /// Weights for pallet_example_basic using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn set_dummy_benchmark(b: u32, ) -> Weight {
-		(5_834_000 as Weight)
-			.saturating_add((24_000 as Weight).saturating_mul(b as Weight))
+	fn register_main_account() -> Weight {
+		(18_098_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+
+	fn add_proxy_account() -> Weight {
+		(28_098_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+
+	fn register_trading_pair() -> Weight {
+		(16_010_093 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+
+	fn deposit() -> Weight {
+		(9_086_00 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
-	fn accumulate_dummy(b: u32, ) -> Weight {
-		(51_353_000 as Weight)
-			.saturating_add((14_000 as Weight).saturating_mul(b as Weight))
+
+	fn submit_snapshot() -> Weight {
+		(590_500_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+
+	fn shutdown_enclave() -> Weight {
+		(53_300_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+
+	fn register_enclave() -> Weight {
+		(1_969_500_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn sort_vector(x: u32, ) -> Weight {
-		(2_569_000 as Weight)
-			// Standard Error: 0
-			.saturating_add((4_000 as Weight).saturating_mul(x as Weight))
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn set_dummy_benchmark(b: u32, ) -> Weight {
-		(5_834_000 as Weight)
-			.saturating_add((24_000 as Weight).saturating_mul(b as Weight))
+	fn register_main_account() -> Weight {
+		(18_098_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+
+	fn add_proxy_account() -> Weight {
+		(28_098_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+
+	fn register_trading_pair() -> Weight {
+		(16_010_093 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+
+	fn deposit() -> Weight {
+		(9_086_00 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
-	fn accumulate_dummy(b: u32, ) -> Weight {
-		(51_353_000 as Weight)
-			.saturating_add((14_000 as Weight).saturating_mul(b as Weight))
+
+	fn submit_snapshot() -> Weight {
+		(590_500_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+
+	fn shutdown_enclave() -> Weight {
+		(53_300_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+
+	fn register_enclave() -> Weight {
+		(1_969_500_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn sort_vector(x: u32, ) -> Weight {
-		(2_569_000 as Weight)
-			// Standard Error: 0
-			.saturating_add((4_000 as Weight).saturating_mul(x as Weight))
 	}
 }
