@@ -921,7 +921,6 @@ fn test_withdrawal_bad_origin(){
 
 #[test]
 fn test_shutdown(){
-	let account_id = create_account_id();
 	new_test_ext().execute_with(||{
 		assert_ok!(
 			OCEX::shutdown(
