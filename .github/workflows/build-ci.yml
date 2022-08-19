@@ -1,7 +1,7 @@
 name: Build-CI
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, fx-ocex-testing]
   push:
     branches: [develop, main]
 jobs:

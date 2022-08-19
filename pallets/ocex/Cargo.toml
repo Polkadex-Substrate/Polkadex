@@ -23,7 +23,7 @@ frame-system = { default-features = false, branch = "polkadot-v0.9.19", git = 'h
 sp-io = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 sp-runtime = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
 sp-std = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = "fx-polkadot-v0.9.19", default-features = false }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = "polkadot-v0.9.19", default-features = false }
 #polkadex-primitives = { default-features = false, path = "../../../polkadex-primitives" }
 syn = "=1.0.96" # TODO: Remove this as soon as frame-support-procedural-tools becomes compilable with latest syn version
 sp-core = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git', default-features = false }
