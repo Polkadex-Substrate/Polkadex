@@ -21,6 +21,7 @@ use frame_support::{
 	pallet_prelude::Get,
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
 };
+
 use frame_system::ensure_signed;
 
 use polkadex_primitives::assets::AssetId;
@@ -64,7 +65,7 @@ pub mod pallet {
 	use frame_support::storage::bounded_btree_map::BoundedBTreeMap;
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
-	use polkadex_primitives::{assets::AssetId, ocex::{AccountInfo, TradingPairConfig}, snapshot::EnclaveSnapshot, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, AssetsLimit, AccountId};
+	use polkadex_primitives::{assets::AssetId, ocex::{AccountInfo, TradingPairConfig}, snapshot::EnclaveSnapshot, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, AssetsLimit, AccountId, SnapshotAccLimit};
 	use sp_runtime::SaturatedConversion;
 	use polkadex_primitives::snapshot::Fees;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
@@ -366,7 +367,7 @@ pub mod pallet {
 		#[pallet::weight(10000)]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
-			mut snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit>,
+			mut snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit, SnapshotAccLimit>,
 			signature: T::Signature,
 		) -> DispatchResult {
 			let enclave = ensure_signed(origin)?;
@@ -616,7 +617,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit>,
+		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit, SnapshotAccLimit>,
 		OptionQuery,
 	>;
 
