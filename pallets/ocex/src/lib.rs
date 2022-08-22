@@ -155,7 +155,9 @@ pub mod pallet {
 		/// Storage overflow ocurred
 		StorageOverflow,
 		/// ProxyNotFound
-		ProxyNotFound
+		ProxyNotFound,
+		/// MinimumOneProxyRequried
+		MinimumOneProxyRequired
 	}
 
 	#[pallet::hooks]
@@ -213,7 +215,7 @@ pub mod pallet {
 					));
 				});
 				<Accounts<T>>::insert(&main_account, account_info);
-				Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
+				Self::deposit_event(Event::NewProxyAdded { main: main_account, proxy });
 			}
 			Ok(())
 		}
@@ -226,6 +228,7 @@ pub mod pallet {
 			<Accounts<T>>::try_mutate(&main_account, |account_info| {
 				if let Some(account_info) = account_info {
 					let proxy_positon = account_info.proxies.iter().position(|account| *account == proxy).ok_or(Error::<T>::ProxyNotFound)?;
+					ensure!(account_info.proxies.len() > 1, Error::<T>::MinimumOneProxyRequired);
 					account_info.proxies.remove(proxy_positon);
 					<IngressMessages<T>>::mutate(|ingress_messages| {
 						ingress_messages.push(polkadex_primitives::ocex::IngressMessages::RemoveProxy(
@@ -234,6 +237,7 @@ pub mod pallet {
 						));
 					});
 				}
+				Self::deposit_event(Event::ProxyRemoved { main: main_account.clone(), proxy });
 				Ok(())
 			})
 		}
@@ -473,6 +477,8 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		MainAccountRegistered { main: T::AccountId, proxy: T::AccountId },
+		NewProxyAdded { main: T::AccountId, proxy: T::AccountId },
+		ProxyRemoved { main: T::AccountId, proxy: T::AccountId },
 		TradingPairRegistered { base: AssetId, quote: AssetId },
 		DepositSuccessful { pair: (AssetId, AssetId), asset: AssetId, amount: BalanceOf<T> },
 		EnclaveShutdownRequest { id: T::AccountId },
