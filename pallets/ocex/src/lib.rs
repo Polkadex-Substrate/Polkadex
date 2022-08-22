@@ -154,6 +154,8 @@ pub mod pallet {
 		InvalidSgxReportStatus,
 		/// Storage overflow ocurred
 		StorageOverflow,
+		/// ProxyNotFound
+		ProxyNotFound
 	}
 
 	#[pallet::hooks]
@@ -223,12 +225,16 @@ pub mod pallet {
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
 			<Accounts<T>>::try_mutate(&main_account, |account_info| {
 				if let Some(account_info) = account_info {
-					let proxy_positon = account_info.proxies.iter().position(|account| *account == proxy).ok_or(Error::<T>::MainAccountNotFound)?;
+					let proxy_positon = account_info.proxies.iter().position(|account| *account == proxy).ok_or(Error::<T>::ProxyNotFound)?;
 					account_info.proxies.remove(proxy_positon);
-					Ok(())
-				} else {
-					Err(Error::<T>::MainAccountNotFound))
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(polkadex_primitives::ocex::IngressMessages::RemoveProxy(
+							main_account.clone(),
+							proxy.clone(),
+						));
+					});
 				}
+				Ok(())
 			})
 		}
 
