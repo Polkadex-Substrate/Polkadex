@@ -7,7 +7,7 @@ members = [
     'runtime',
     'pallets/pdex-migration',
     'pallets/polkadex-ido',
-#    'pallets/ocex',
+    'pallets/ocex',
 ]
 
 

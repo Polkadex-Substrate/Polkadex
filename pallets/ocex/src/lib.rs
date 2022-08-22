@@ -70,6 +70,7 @@ pub mod pallet {
 	use polkadex_primitives::snapshot::Fees;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 	use sp_std::vec::Vec;
+	// use polkadex_primitives::SnapshotAccLimit;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -650,7 +651,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		BoundedBTreeMap<T::AccountId,BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,WithdrawalLimit>,
+		BoundedBTreeMap<T::AccountId,BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,SnapshotAccLimit>,
 		ValueQuery,
 	>;
 
@@ -679,7 +680,7 @@ impl<T: Config> Pallet<T> {
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_custodian_account() -> T::AccountId {
-		T::PalletId::get().into_account()
+		T::PalletId::get().into_account_truncating()
 	}
 
 	fn transfer_asset(

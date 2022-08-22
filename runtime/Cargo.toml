@@ -100,7 +100,7 @@ polkadex-ido = { path = "../pallets/polkadex-ido", default-features = false }
 test-token-provider = { path = "../pallets/test-token-provider", default-features = false }
 
 # Orderbook 
-#pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false}
+pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false}
 
 # Try Runtime
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true, default-features = false }
@@ -177,7 +177,7 @@ std = [
     "pdex-migration/std",
     'polkadex-ido/std',
     "frame-try-runtime/std",
-#    "pallet-ocex-lmp/std"
+    "pallet-ocex-lmp/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
