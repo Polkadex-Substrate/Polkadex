@@ -25,7 +25,7 @@ use frame_support::traits::OnTimestampSet;
 use polkadex_primitives::{Moment, Signature};
 use sp_std::cell::RefCell;
 use frame_system::EnsureRoot;
-use sp_core::H256;
+use sp_application_crypto::sp_core::H256;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use sp_runtime::{
