@@ -49,5 +49,6 @@ std = [
     "pallet-timestamp/std",
     "ias-verify/std"
 ]
-runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
+#TODO: [#435] Currently broken, will be fixed in different issue
+#runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 try-runtime = ["frame-support/try-runtime"]

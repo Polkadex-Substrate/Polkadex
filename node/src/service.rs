@@ -532,11 +532,11 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 mod tests {
 	use crate::service::{new_full_base, NewFullBase};
 	use codec::Encode;
-	use polkadex_primitives::{Block, DigestItem, Signature};
 	use node_polkadex_runtime::{
 		constants::{currency::CENTS, time::SLOT_DURATION},
 		Address, BalancesCall, Call, UncheckedExtrinsic,
 	};
+	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
 	use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};
 	use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
@@ -549,7 +549,13 @@ mod tests {
 	use sp_inherents::InherentDataProvider;
 	use sp_keyring::AccountKeyring;
 	use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-	use sp_runtime::{generic::{BlockId, Digest, SignedPayload}, key_types::BABE, traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify}, RuntimeAppPublic, generic};
+	use sp_runtime::{
+		generic,
+		generic::{BlockId, Digest, SignedPayload},
+		key_types::BABE,
+		traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
+		RuntimeAppPublic,
+	};
 	use sp_timestamp;
 	use std::{borrow::Cow, sync::Arc};
 
@@ -648,8 +654,8 @@ mod tests {
 						.unwrap();
 
 					if let Some(babe_pre_digest) =
-					sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
-						.map(|(digest, _)| digest)
+						sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
+							.map(|(digest, _)| digest)
 					{
 						break (babe_pre_digest, epoch_descriptor)
 					}
@@ -675,8 +681,8 @@ mod tests {
 						.propose(inherent_data, digest, std::time::Duration::from_secs(1), None)
 						.await
 				})
-					.expect("Error making test block")
-					.block;
+				.expect("Error making test block")
+				.block;
 
 				let (new_header, new_body) = new_block.deconstruct();
 				let pre_hash = new_header.hash();
@@ -689,10 +695,10 @@ mod tests {
 					&alice.to_public_crypto_pair(),
 					&to_sign,
 				)
-					.unwrap()
-					.unwrap()
-					.try_into()
-					.unwrap();
+				.unwrap()
+				.unwrap()
+				.try_into()
+				.unwrap();
 				let item = <DigestItem as CompatibleDigestItem>::babe_seal(signature);
 				slot += 1;
 
@@ -729,15 +735,19 @@ mod tests {
 					frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
 					frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
 					frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
-					frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(generic::Era::Immortal),
+					frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(
+						generic::Era::Immortal,
+					),
 					frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(index),
 					frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-					pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
+					pallet_transaction_payment::ChargeTransactionPayment::<
+						node_polkadex_runtime::Runtime,
+					>::from(tip),
 				);
 				let raw_payload = SignedPayload::from_raw(
 					function,
 					extra,
-					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (),()),
+					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();

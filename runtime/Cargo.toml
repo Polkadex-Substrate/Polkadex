@@ -213,7 +213,7 @@ runtime-benchmarks = [
     "orml-vesting/runtime-benchmarks",
     "hex-literal",
     "frame-election-provider-support/runtime-benchmarks",
-    "pdex-migration/runtime-benchmarks"
+    #"pdex-migration/runtime-benchmarks"
 ]
 
 

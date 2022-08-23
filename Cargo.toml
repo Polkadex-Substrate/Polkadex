@@ -1,13 +1,17 @@
 [profile.release]
-panic = 'unwind'
+panic = "unwind"
 
 [workspace]
 members = [
-    'node',
-    'runtime',
-    'pallets/pdex-migration',
-    'pallets/polkadex-ido',
-    'pallets/ocex',
+    "node",
+    "runtime",
+    "pallets/pdex-migration",
+    "pallets/chainbridge",
+    #"pallets/asset-handler",
+    "pallets/pdex-migration",
+    "pallets/polkadex-ido",
+    "pallets/ocex",
+    "pallets/test-token-provider"
 ]
 
 
