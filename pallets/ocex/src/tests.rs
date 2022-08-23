@@ -50,7 +50,7 @@ use polkadex_primitives::ocex::AccountInfo;
 use polkadex_primitives::{AccountId, Balance, ProxyLimit, WithdrawalLimit, AssetsLimit};
 use std::collections::btree_map::Values;
 use std::collections::BTreeMap;
-use polkadex_primitives::snapshot::EnclaveSnapshot;
+use polkadex_primitives::snapshot::{EnclaveSnapshot, Fees};
 use sp_application_crypto::RuntimePublic;
 use std::sync::Arc;
 use sp_runtime::traits::Verify;
@@ -537,7 +537,7 @@ fn test_close_trading_pair(){
 }
 
 #[test]
-fn collect_fees(){
+fn collect_fees_unexpected_behaviour(){
 	let account_id = create_account_id();
 	new_test_ext().execute_with(||{
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
@@ -551,6 +551,67 @@ fn collect_fees(){
 
 		assert_last_event::<Test>(crate::Event::FeesClaims{beneficiary: account_id, snapshot_id: 100}.into());
 	});	
+}
+
+#[test]
+fn collect_fees(){
+	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let public_key_store = KeyStore::new();
+	let public_key = SyncCryptoStore::sr25519_generate_new(
+		&public_key_store,
+		KEY_TYPE,
+		Some(&format!("{}/hunter1", PHRASE)),
+	)
+	.expect("Unable to create sr25519 key pair");
+	let mut t = new_test_ext();
+	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
+	t.execute_with(||{
+		mint_into_account(account_id.clone());
+		mint_into_account(custodian_account.clone());
+		// Initial Balances 
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(account_id.clone()), 100000000000000);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 100000000000000);
+		let fees = create_fees::<Test>();
+
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>{
+			snapshot_number: 0,
+    		merkle_root: mmr_root,
+			withdrawals: Default::default(),
+    		fees: bounded_vec![fees],
+
+		};
+		assert_ok!(
+			OCEX::insert_enclave(
+				Origin::root(),
+				account_id.clone().into()
+			)
+		);
+		let bytes = snapshot.encode();
+		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		
+		assert_ok!(
+			OCEX::submit_snapshot(
+				Origin::signed(account_id.clone().into()),
+				snapshot,
+				signature.clone().into()
+			),
+		);
+
+		assert_ok!(
+			OCEX::collect_fees(
+				Origin::signed(account_id.clone().into()),
+				0,
+				account_id.clone().into()
+			)
+		);
+		// Balances after collect fees
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(account_id.clone()), 100000000000100);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 99999999999900);
+	});
 }
 
 #[test]
@@ -1070,4 +1131,12 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf::<T>>
 		amount: 100_u32.into()
 	};
 	return withdrawal;
+}
+
+pub fn create_fees<T: Config>() -> Fees<BalanceOf::<T>> {
+	let fees: Fees<BalanceOf::<T>> = Fees{
+		asset: AssetId::polkadex, 
+		amount: 100_u32.into()
+	};
+	return fees;
 }
