@@ -402,6 +402,7 @@ pub mod pallet {
 
 		// FIXME Only for testing will be removed before mainnet launch
 		/// Insert Enclave
+		#[doc(hidden)]
 		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
 		pub fn insert_enclave(
 			origin: OriginFor<T>,
