@@ -38,7 +38,7 @@ use frame_support::{
 use frame_support::{
 	pallet_prelude::ConstU32,
 	traits::{
-		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter, OnUnbalanced,
+		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter, OnUnbalanced, EnsureOneOf
 	},
 	weights::{ConstantMultiplier, WeightToFeeCoefficient},
 	PalletId,
@@ -299,7 +299,7 @@ impl InstanceFilter<Call> for ProxyType {
 				c,
 				Call::Council(..) |
 					Call::TechnicalCommittee(..) |
-					Call::Elections(..) | Call::Treasury(..)
+					Call::Elections(..) | Call::Treasury(..) | Call::OrderbookCommittee(..)
 			),
 			ProxyType::Staking => matches!(c, Call::Staking(..)),
 		}
@@ -815,9 +815,32 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
-type EnsureRootOrHalfCouncil = EitherOfDiverse<
+parameter_types! {
+	pub const OrderbookMotionDuration: BlockNumber = 1 * DAYS;
+	pub const OrderbookMaxProposals: u32 = 100;
+	pub const OrderbookMaxMembers: u32 = 3;
+}
+
+type OrderbookCollective = pallet_collective::Instance3;
+impl pallet_collective::Config<OrderbookCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = OrderbookMotionDuration;
+	type MaxProposals = OrderbookMaxProposals;
+	type MaxMembers = OrderbookMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+type EnsureRootOrHalfCouncil = EnsureOneOf<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
+>;
+
+type EnsureRootOrHalfOrderbookCouncil = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1, 2>,
 >;
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
@@ -1291,7 +1314,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	// TODO: Change origin to SGX attested origin
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type Public = <Signature as traits::Verify>::Signer;
-	type GovernanceOrigin = EnsureRootOrHalfCouncil;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type Signature = Signature;
 	type WeightInfo = ();
 	type MsPerDay = MsPerDay;
@@ -1340,7 +1363,8 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-    	Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+        Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 38,
 	}
 );
 /// Digest item type.
