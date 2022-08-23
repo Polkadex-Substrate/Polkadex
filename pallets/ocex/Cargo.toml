@@ -33,6 +33,7 @@ sp-keystore = { branch = "polkadot-v0.9.28",git = 'https://github.com/paritytech
 frame-benchmarking = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 ckb-merkle-mountain-range = "0.5.0"
 anyhow = "1.0.56"
+sp-io = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 
 [features]
 default = ["std"]
