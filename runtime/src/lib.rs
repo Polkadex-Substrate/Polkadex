@@ -38,7 +38,7 @@ use frame_support::{
 use frame_support::{
 	pallet_prelude::ConstU32,
 	traits::{
-		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter, OnUnbalanced, EnsureOneOf
+		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter, OnUnbalanced
 	},
 	weights::{ConstantMultiplier, WeightToFeeCoefficient},
 	PalletId,
@@ -833,12 +833,12 @@ impl pallet_collective::Config<OrderbookCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
-type EnsureRootOrHalfCouncil = EnsureOneOf<
+type EnsureRootOrHalfCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 >;
 
-type EnsureRootOrHalfOrderbookCouncil = EnsureOneOf<
+type EnsureRootOrHalfOrderbookCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1, 2>,
 >;
