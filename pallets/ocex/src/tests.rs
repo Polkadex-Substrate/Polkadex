@@ -593,17 +593,17 @@ fn collect_fees_ddos(){
 	});	
 } */
 
-/* #[test]
+#[test]
 fn test_submit_snapshot_sender_is_not_attested_enclave(){
 	let account_id = create_account_id();
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(||{
 		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>{
 			snapshot_number: 1,
     		merkle_root: mmr_root,
-			withdrawals: bounded_vec![],
+			withdrawals: Default::default(),
     		fees: bounded_vec![],
 
 		};
@@ -618,9 +618,9 @@ fn test_submit_snapshot_sender_is_not_attested_enclave(){
 		// There is an existing ingress message which holds RegisterUser
 		assert_eq!(OCEX::ingress_messages().len(), 1);
 	});
-} */
+} 
 
-/* #[test]
+#[test]
 fn test_submit_snapshot_snapshot_nonce_error(){
 	let account_id = create_account_id();
 	let payl: [u8; 64] = [0; 64];
@@ -630,7 +630,7 @@ fn test_submit_snapshot_snapshot_nonce_error(){
 		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>{
 			snapshot_number: 1,
     		merkle_root: mmr_root,
-			withdrawals: bounded_vec![],
+			withdrawals: Default::default(),
     		fees: bounded_vec![],
 
 		};
@@ -651,19 +651,19 @@ fn test_submit_snapshot_snapshot_nonce_error(){
 
 		assert_eq!(OCEX::ingress_messages().len(), 1);
 	});
-} */
+} 
 
-/* #[test]
+#[test]
 fn test_submit_snapshot_enclave_signature_verification_failed(){
 	let account_id = create_account_id();
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(||{
 		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>{
 			snapshot_number: 0,
     		merkle_root: mmr_root,
-			withdrawals: bounded_vec![],
+			withdrawals: Default::default(),
     		fees: bounded_vec![],
 
 		};
@@ -684,18 +684,18 @@ fn test_submit_snapshot_enclave_signature_verification_failed(){
 
 		assert_eq!(OCEX::ingress_messages().len(), 1);
 	});
-} */
+} 
 
-/* #[test]
+#[test]
 fn test_submit_snapshot_bad_origin(){
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(||{
 		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>{
 			snapshot_number: 0,
     		merkle_root: mmr_root,
-			withdrawals: bounded_vec![],
+			withdrawals: Default::default(),
     		fees: bounded_vec![],
 
 		};
@@ -717,7 +717,7 @@ fn test_submit_snapshot_bad_origin(){
 			BadOrigin
 		);
 	});
-} */
+} 
 
 /* #[test]
 fn test_submit_snapshot(){
@@ -827,7 +827,6 @@ fn test_withdrawal_invalid_withdrawal_index(){
 			OCEX::withdraw(
 				Origin::signed(account_id.clone().into()),
 				1,
-				1
 			), 
 			Error::<Test>::InvalidWithdrawalIndex
 		);
@@ -904,7 +903,6 @@ fn test_withdrawal_bad_origin(){
 			OCEX::withdraw(
 				Origin::root(),
 				1,
-				1
 			), 
 			BadOrigin
 		);
@@ -913,7 +911,6 @@ fn test_withdrawal_bad_origin(){
 			OCEX::withdraw(
 				Origin::none(),
 				1,
-				1
 			), 
 			BadOrigin
 		);
