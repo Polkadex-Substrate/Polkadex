@@ -7,7 +7,7 @@ members = [
     "runtime",
     "pallets/pdex-migration",
     "pallets/chainbridge",
-    #"pallets/asset-handler",
+    "pallets/asset-handler",
     "pallets/pdex-migration",
     "pallets/polkadex-ido",
     "pallets/ocex",
