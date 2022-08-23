@@ -458,33 +458,33 @@ pub mod pallet {
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
-			withdrawal_index: u32,
+
 		) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
-			let _sender = ensure_signed(origin)?;
+			let sender = ensure_signed(origin)?;
 
-			// let mut withdrawals = <Withdrawals<T>>::get(snapshot_id);
-			// ensure!(
-			// 	withdrawals.len() > withdrawal_index as usize,
-			// 	Error::<T>::InvalidWithdrawalIndex
-			// );
-			// let withdrawal = withdrawals.remove(withdrawal_index as usize);
-			// // TODO: check if this asset is enabled for withdrawals
-			// Self::transfer_asset(
-			// 	&Self::get_custodian_account(),
-			// 	&withdrawal.main_account,
-			// 	withdrawal.amount,
-			// 	withdrawal.asset,
-			// )?;
-			// <Withdrawals<T>>::insert(snapshot_id, withdrawals);
-			// Self::deposit_event(Event::WithdrawalClaimed {
-			// 	main: withdrawal.main_account,
-			// 	asset: withdrawal.asset,
-			// 	amount: withdrawal.amount,
-			// 	snapshot_id,
-			// 	withdrawal_index,
-			// });
+			let mut withdrawals: BoundedBTreeMap<T::AccountId, BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>, SnapshotAccLimit> = <Withdrawals<T>>::get(snapshot_id);
+			ensure!(
+				withdrawals.contains_key(&sender),
+				Error::<T>::InvalidWithdrawalIndex
+			); 
+			if let Some(withdrawal_vector) = withdrawals.get(&sender){
+				for x in withdrawal_vector.iter(){
+					Self::transfer_asset(
+						&Self::get_custodian_account(),
+						&x.main_account,
+						x.amount,
+						x.asset,
+					)?;
+				}
+				Self::deposit_event(Event::WithdrawalClaimed {
+					main: sender.clone(),
+					withdrawals: withdrawal_vector.to_owned()
+				});
+			}
+			/* withdrawals.remove(&sender);
+			<Withdrawals<T>>::insert(snapshot_id, withdrawals); */
 			Ok(())
 		}
 
@@ -574,10 +574,7 @@ pub mod pallet {
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
 			main: T::AccountId,
-			asset: AssetId,
-			amount: BalanceOf<T>,
-			snapshot_id: u32,
-			withdrawal_index: u32,
+			withdrawals: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>
 		},
 	}
 
