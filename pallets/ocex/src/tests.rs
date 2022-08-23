@@ -853,12 +853,11 @@ fn test_register_enclave_empty_report(){
 	let ias_report = vec![];
 	new_test_ext().execute_with(||{
 		// TODO: Discuss this test, ideally this should fail I guess 
-		assert_noop!(
+		assert_ok!(
 			OCEX::register_enclave(
 				Origin::signed(account_id),
 				ias_report
-			), 
-			Error::<Test>::RemoteAttestationVerificationFailed
+			)
 		);
 	});
 }
