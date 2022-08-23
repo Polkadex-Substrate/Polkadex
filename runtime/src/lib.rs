@@ -1340,7 +1340,7 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-    Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+    	Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
 	}
 );
 /// Digest item type.
