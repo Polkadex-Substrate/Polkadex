@@ -12,7 +12,7 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public, H160};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
@@ -310,7 +310,7 @@ pub fn testnet_genesis(
 
 	// Treasury Account Id
 	pub const TREASURY_PALLET_ID: PalletId = PalletId(*b"py/trsry");
-	let treasury_account: AccountId = TREASURY_PALLET_ID.into_account();
+	let treasury_account: AccountId = TREASURY_PALLET_ID.into_account_truncating();
 
 	let mut inital_validators_endowment =
 		initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect_vec();

@@ -21,6 +21,7 @@ use frame_support::{
 	pallet_prelude::Get,
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
 };
+
 use frame_system::ensure_signed;
 
 use polkadex_primitives::assets::AssetId;
@@ -64,11 +65,12 @@ pub mod pallet {
 	use frame_support::storage::bounded_btree_map::BoundedBTreeMap;
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
-	use polkadex_primitives::{assets::AssetId, ocex::{AccountInfo, TradingPairConfig}, snapshot::EnclaveSnapshot, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, AssetsLimit, AccountId};
+	use polkadex_primitives::{assets::AssetId, ocex::{AccountInfo, TradingPairConfig}, snapshot::EnclaveSnapshot, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, AssetsLimit, AccountId, SnapshotAccLimit};
 	use sp_runtime::SaturatedConversion;
 	use polkadex_primitives::snapshot::Fees;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 	use sp_std::vec::Vec;
+	// use polkadex_primitives::SnapshotAccLimit;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -366,7 +368,7 @@ pub mod pallet {
 		#[pallet::weight(10000)]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
-			mut snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit>,
+			mut snapshot: EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit, SnapshotAccLimit>,
 			signature: T::Signature,
 		) -> DispatchResult {
 			let enclave = ensure_signed(origin)?;
@@ -616,7 +618,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit>,
+		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit,AssetsLimit, SnapshotAccLimit>,
 		OptionQuery,
 	>;
 
@@ -649,7 +651,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		BoundedBTreeMap<T::AccountId,BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,WithdrawalLimit>,
+		BoundedBTreeMap<T::AccountId,BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,SnapshotAccLimit>,
 		ValueQuery,
 	>;
 
@@ -678,7 +680,7 @@ impl<T: Config> Pallet<T> {
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_custodian_account() -> T::AccountId {
-		T::PalletId::get().into_account()
+		T::PalletId::get().into_account_truncating()
 	}
 
 	fn transfer_asset(

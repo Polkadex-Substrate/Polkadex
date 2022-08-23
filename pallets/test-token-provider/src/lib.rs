@@ -235,7 +235,7 @@ pub mod pallet {
 		/// Provides an AccountId for the pallet.
 		/// This is used both as an origin check and deposit/withdrawal account.
 		pub fn account_id() -> T::AccountId {
-			MODULE_ID.into_account()
+			MODULE_ID.into_account_truncating()
 		}
 
 		pub fn transfer_assets(account: &T::AccountId, asset_id: u128) {
