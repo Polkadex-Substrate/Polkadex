@@ -39,6 +39,8 @@ use sp_runtime::{
 	TokenError,
 	DispatchError::BadOrigin
 };
+use sp_runtime::BoundedBTreeMap;
+use sp_runtime::BoundedVec;
 use crate::mock::*;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use ckb_merkle_mountain_range::util::MemStore;
@@ -719,7 +721,7 @@ fn test_submit_snapshot_bad_origin(){
 	});
 } 
 
-/* #[test]
+#[test]
 fn test_submit_snapshot(){
 	let account_id = create_account_id(); 
 	const PHRASE: &str =
@@ -736,10 +738,12 @@ fn test_submit_snapshot(){
 	t.execute_with(||{
 		let withdrawal = create_withdrawal::<Test>();
 		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+		let mut withdrawal_map: BoundedBTreeMap<AccountId, BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>, SnapshotAccLimit> = BoundedBTreeMap::new();
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]);
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>{
 			snapshot_number: 0,
     		merkle_root: mmr_root,
-			withdrawals: bounded_vec![withdrawal],
+			withdrawals: withdrawal_map,
     		fees: bounded_vec![],
 
 		};
@@ -762,9 +766,9 @@ fn test_submit_snapshot(){
 		assert_eq!(Withdrawals::<Test>::contains_key(0), true);
 		assert_eq!(FeesCollected::<Test>::contains_key(0), true);
 		assert_eq!(Snapshots::<Test>::contains_key(0), true);
-		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
+		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1); 
 	})
-} */
+} 
 
 #[test]
 fn test_register_enclave(){
@@ -833,7 +837,7 @@ fn test_withdrawal_invalid_withdrawal_index(){
 	});
 }
 
-/* #[test]
+#[test]
 fn test_withdrawal(){
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_custodian_account();
@@ -855,12 +859,14 @@ fn test_withdrawal(){
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(account_id.clone()), 100000000000000);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 100000000000000);
 		let withdrawal = create_withdrawal::<Test>();
+		let mut withdrawal_map: BoundedBTreeMap<AccountId, BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>, SnapshotAccLimit> = BoundedBTreeMap::new();
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]);
 
 		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit>{
+		let mut snapshot = EnclaveSnapshot::<AccountId32, Balance, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>{
 			snapshot_number: 0,
     		merkle_root: mmr_root,
-			withdrawals: bounded_vec![withdrawal],
+			withdrawals: withdrawal_map,
     		fees: bounded_vec![],
 
 		};
@@ -885,7 +891,6 @@ fn test_withdrawal(){
 			OCEX::withdraw(
 				Origin::signed(account_id.clone().into()),
 				0,
-				0
 			)
 		);
 		// Balances after withdrawal
@@ -893,7 +898,7 @@ fn test_withdrawal(){
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 99999999999900);
 	});
 
-} */
+} 
 
 #[test]
 fn test_withdrawal_bad_origin(){
