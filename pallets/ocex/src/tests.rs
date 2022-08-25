@@ -848,9 +848,9 @@ fn test_register_enclave() {
 		193, 204,
 	];
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::register_enclave(Origin::signed(account_id.clone()), ias_report));
-
-		assert_last_event::<Test>(crate::Event::EnclaveRegistered(account_id).into())
+		assert_noop!(OCEX::register_enclave(Origin::signed(account_id.clone()), ias_report),
+			Error::<Test>::RemoteAttestationVerificationFailed
+		);
 	});
 }
 
@@ -859,8 +859,9 @@ fn test_register_enclave_empty_report() {
 	let account_id = create_account_id();
 	let ias_report = vec![];
 	new_test_ext().execute_with(|| {
-		// TODO: Discuss this test, ideally this should fail I guess
-		assert_ok!(OCEX::register_enclave(Origin::signed(account_id), ias_report));
+		assert_noop!(OCEX::register_enclave(Origin::signed(account_id), ias_report),
+			Error::<Test>::RemoteAttestationVerificationFailed
+		);
 	});
 }
 

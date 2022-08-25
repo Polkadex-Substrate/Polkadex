@@ -508,30 +508,23 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let relayer = ensure_signed(origin)?;
-			if cfg!(not(debug_assertions)) {
-				let report = verify_ias_report(&ias_report)
-					.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
+			let report = verify_ias_report(&ias_report)
+				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
-				// TODO: attested key verification enabled
-				let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-					.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
+			// TODO: attested key verification enabled
+			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
+				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
 
-				// TODO: any other checks we want to run?
-				ensure!(
-					(report.status == SgxStatus::Ok) |
-						(report.status == SgxStatus::ConfigurationNeeded),
-					<Error<T>>::InvalidSgxReportStatus
-				);
-				<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-					*v = Some(T::Moment::saturated_from(report.timestamp));
-				});
-				Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
-			} else {
-				<RegisteredEnclaves<T>>::mutate(&relayer, |v| {
-					*v = Some(T::Moment::default());
-				});
-				Self::deposit_event(Event::EnclaveRegistered(relayer));
-			}
+			// TODO: any other checks we want to run?
+			ensure!(
+				(report.status == SgxStatus::Ok) |
+				(report.status == SgxStatus::ConfigurationNeeded),
+				<Error<T>>::InvalidSgxReportStatus
+			);
+			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
+				*v = Some(T::Moment::saturated_from(report.timestamp));
+			});
+			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
 			Ok(())
 		}
 	}
