@@ -48,7 +48,7 @@ pub use weights::*;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
-	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -100,28 +100,28 @@ pub mod pallet {
 
 		/// Assets Pallet
 		type OtherAssets: Mutate<
-				<Self as frame_system::Config>::AccountId,
-				Balance = BalanceOf<Self>,
-				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>;
+			<Self as frame_system::Config>::AccountId,
+			Balance = BalanceOf<Self>,
+			AssetId = u128,
+		> + Inspect<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 		type Public: Clone
-			+ PartialEq
-			+ IdentifyAccount<AccountId = Self::AccountId>
-			+ core::fmt::Debug
-			+ codec::Codec
-			+ Ord
-			+ scale_info::TypeInfo;
+		+ PartialEq
+		+ IdentifyAccount<AccountId = Self::AccountId>
+		+ core::fmt::Debug
+		+ codec::Codec
+		+ Ord
+		+ scale_info::TypeInfo;
 
 		/// A matching `Signature` type.
 		type Signature: Verify<Signer = Self::Public>
-			+ Clone
-			+ PartialEq
-			+ core::fmt::Debug
-			+ codec::Codec
-			+ scale_info::TypeInfo;
+		+ Clone
+		+ PartialEq
+		+ core::fmt::Debug
+		+ codec::Codec
+		+ scale_info::TypeInfo;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: WeightInfo;
@@ -170,6 +170,10 @@ pub mod pallet {
 		InvalidSgxReportStatus,
 		/// Storage overflow ocurred
 		StorageOverflow,
+		///ProxyNotFound
+		ProxyNotFound,
+		/// MinimumOneProxyRequried
+		MinimumOneProxyRequired
 	}
 
 	#[pallet::hooks]
@@ -377,6 +381,28 @@ pub mod pallet {
 			});
 			Self::deposit_event(Event::DepositSuccessful { user, asset, amount });
 			Ok(())
+		}
+
+		/// Removes a proxy account from pre-registered main acocunt
+		#[pallet::weight(10000)]
+		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
+			let main_account = ensure_signed(origin)?;
+			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
+			<Accounts<T>>::try_mutate(&main_account, |account_info| {
+				if let Some(account_info) = account_info {
+					ensure!(account_info.proxies.len() > 1, Error::<T>::MinimumOneProxyRequired);
+					let proxy_positon = account_info.proxies.iter().position(|account| *account == proxy).ok_or(Error::<T>::ProxyNotFound)?;
+					account_info.proxies.remove(proxy_positon);
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RemoveProxy(
+							main_account.clone(),
+							proxy.clone(),
+						));
+					});
+				}
+				Self::deposit_event(Event::ProxyRemoved { main: main_account.clone(), proxy });
+				Ok(())
+			})
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
@@ -587,6 +613,8 @@ pub mod pallet {
 			main: T::AccountId,
 			withdrawals: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
 		},
+		NewProxyAdded { main: T::AccountId, proxy: T::AccountId },
+		ProxyRemoved { main: T::AccountId, proxy: T::AccountId },
 	}
 
 	// A map that has enumerable entries.
@@ -617,7 +645,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn trading_pairs_status)]
 	pub(super) type TradingPairsStatus<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, AssetId, bool, ValueQuery>;
+	StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, AssetId, bool, ValueQuery>;
 
 	// Snapshots Storage
 	#[pallet::storage]
@@ -679,7 +707,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -727,8 +755,8 @@ impl<T: Config> Pallet<T> {
 				for y in withdrawals.iter(){
 					snapshot_withdrawals.push(
 						WithdrawalWithPrimitives{
-							main_account: y.main_account.clone(), 
-							amount: y.amount.saturated_into(), 
+							main_account: y.main_account.clone(),
+							amount: y.amount.saturated_into(),
 							asset:  StringAssetId::from(y.asset)
 						}
 					);
