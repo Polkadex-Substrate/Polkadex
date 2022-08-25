@@ -404,7 +404,7 @@ pub mod pallet {
 					0
 				};
 			ensure!(
-				snapshot.snapshot_number.eq(&last_snapshot_serial_number),
+				snapshot.snapshot_number.eq(&(last_snapshot_serial_number+1)),
 				Error::<T>::SnapshotNonceError
 			);
 			let bytes = snapshot.encode();
@@ -412,11 +412,12 @@ pub mod pallet {
 				signature.verify(bytes.as_slice(), &enclave),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
-			<Withdrawals<T>>::insert(snapshot.snapshot_number, snapshot.withdrawals);
-			<FeesCollected<T>>::insert(snapshot.snapshot_number, snapshot.fees.clone());
+			let current_snapshot_nonce = snapshot.snapshot_number;
+			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals);
+			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone());
 			snapshot.withdrawals = Default::default();
-			<Snapshots<T>>::insert(snapshot.snapshot_number, snapshot);
-			<SnapshotNonce<T>>::put(last_snapshot_serial_number.saturating_add(1));
+			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot);
+			<SnapshotNonce<T>>::put(current_snapshot_nonce);
 			Ok(())
 		}
 
