@@ -3,8 +3,8 @@
 This guide will instruct you how to set up a validator node on the Polkadex using the released binary.
 
 
-- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v1.0.3
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.3/customSpecRaw.json
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v1.0.8
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.8/customSpecRaw.json
 
 ## Initial Set-up
 
@@ -165,7 +165,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --name 'Validator-Tutorial'
+ExecStart=$HOME/polkadex-node --chain=$HOME/customSpecRaw.json --name 'Validator-Tutorial'
 Restart=on-failure
 
 [Install]
