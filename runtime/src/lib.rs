@@ -1325,22 +1325,22 @@ parameter_types! {
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 }
 
-/* impl chainbridge::Config for Runtime {
+impl chainbridge::Config for Runtime {
 	type Event = Event;
 	type BridgeCommitteeOrigin = frame_system::EnsureRoot<Self::AccountId>;
 	type Proposal = Call;
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
-} */
+}
 
-/* impl asset_handler::pallet::Config for Runtime {
+impl asset_handler::pallet::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TreasuryPalletId = TreasuryPalletId;
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
-} */
+}
 
 construct_runtime!(
 	pub enum Runtime where
@@ -1387,8 +1387,8 @@ construct_runtime!(
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
         Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 38,
-		// ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 39,
-		// AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 40
+		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 39,
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 40
 	}
 );
 /// Digest item type.

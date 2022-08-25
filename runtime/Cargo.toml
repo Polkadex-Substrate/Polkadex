@@ -88,7 +88,6 @@ frame-benchmarking = { default-features = false, git = "https://github.com/parit
 frame-system-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
 pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
 
-
 # ORML Pallets
 orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch="polkadot-v0.9.28", default-features = false }
 
@@ -98,6 +97,8 @@ polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", g
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 polkadex-ido = { path = "../pallets/polkadex-ido", default-features = false }
 test-token-provider = { path = "../pallets/test-token-provider", default-features = false }
+asset-handler = { path = "../pallets/asset-handler", default-features = false}
+chainbridge = { path ="../pallets/chainbridge", default-features = false}
 
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false}
@@ -177,7 +178,9 @@ std = [
     "pdex-migration/std",
     'polkadex-ido/std',
     "frame-try-runtime/std",
-    "pallet-ocex-lmp/std"
+    "pallet-ocex-lmp/std",
+    "asset-handler/std",
+    "chainbridge/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
