@@ -806,7 +806,7 @@ fn test_submit_snapshot() {
 		> {
 			snapshot_number: 0,
 			merkle_root: mmr_root,
-			withdrawals: withdrawal_map,
+			withdrawals: withdrawal_map.clone(),
 			fees: bounded_vec![],
 		};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
@@ -815,12 +815,14 @@ fn test_submit_snapshot() {
 
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.into()),
-			snapshot,
+			snapshot.clone(),
 			signature.clone().into()
 		),);
 		assert_eq!(Withdrawals::<Test>::contains_key(0), true);
+		assert_eq!(Withdrawals::<Test>::get(0), withdrawal_map.clone());
 		assert_eq!(FeesCollected::<Test>::contains_key(0), true);
 		assert_eq!(Snapshots::<Test>::contains_key(0), true);
+		assert_eq!(Snapshots::<Test>::get(0).unwrap(), snapshot.clone()); 
 		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
 	})
 }

@@ -23,6 +23,7 @@ sp-std = { default-features = false, branch = "polkadot-v0.9.28", git = 'https:/
 polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate' }
 ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
+pallet-ocex-primitives = { path = "../../pallets/ocex/common", default-features = false}
 
 [dev-dependencies]
 pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
@@ -47,7 +48,8 @@ std = [
     "sp-std/std",
     "polkadex-primitives/std",
     "pallet-timestamp/std",
-    "ias-verify/std"
+    "ias-verify/std",
+    "pallet-ocex-primitives/std"
 ]
 #TODO: [#435] Currently broken, will be fixed in different issue
 #runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]

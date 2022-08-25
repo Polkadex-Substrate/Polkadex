@@ -1,0 +1,18 @@
+[package]
+name = "pallet-ocex-rpc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { version = "3.0.0", package = "parity-scale-codec", default-features = false, features = ["derive"] }
+serde = { version = "1.0.68", optional = true }
+jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
+sp-rpc = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28",default-features = false }
+sp-blockchain = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+sp-api = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+sp-runtime = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+pallet-ocex-primitives = {path = "../common", default-features = false}
+pallet-ocex-runtime-api = {path = "runtime-api" }
+polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }

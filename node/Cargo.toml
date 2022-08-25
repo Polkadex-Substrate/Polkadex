@@ -32,6 +32,7 @@ jsonrpsee = { version = "0.15.1", features = ["server"] }
 # local dependencies
 node-polkadex-runtime = { path = "../runtime", version = "3.0.0" }
 polkadex-ido-rpc = {path = "../pallets/polkadex-ido/rpc"}
+pallet-ocex-rpc = {path = "../pallets/ocex/rpc"}
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }

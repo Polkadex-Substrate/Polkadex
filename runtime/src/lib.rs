@@ -89,6 +89,7 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
+use pallet_ocex_primitives::WithdrawalWithPrimitives;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
@@ -1490,7 +1491,14 @@ impl_runtime_apis! {
 		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
 			PolkadexIdo::account_balances(assets, account_id)
 		}
-	 }
+	}
+
+	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime{
+		fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Vec<WithdrawalWithPrimitives<AccountId>>{
+			OCEX::return_withdrawals(snapshot_ids, account)
+		}
+	}
+
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(

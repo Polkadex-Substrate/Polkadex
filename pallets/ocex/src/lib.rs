@@ -23,7 +23,8 @@ use frame_support::{
 };
 
 use frame_system::ensure_signed;
-
+use pallet_ocex_primitives::{WithdrawalWithPrimitives, StringAssetId};
+use sp_runtime::SaturatedConversion;
 use polkadex_primitives::assets::AssetId;
 
 use pallet_timestamp::{self as timestamp};
@@ -712,5 +713,28 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
+	}
+
+	pub fn return_withdrawals(
+		snapshot_ids: Vec<u32>,
+		account: T::AccountId
+	) -> Vec<WithdrawalWithPrimitives<T::AccountId>>{
+		let mut withdrawals_vector: Vec<WithdrawalWithPrimitives<T::AccountId>> = vec![];
+		for x in snapshot_ids{
+			if let Some(withdrawals) = <Withdrawals<T>>::get(x).get(&account){
+				let mut snapshot_withdrawals: Vec<WithdrawalWithPrimitives<T::AccountId>> = vec![];
+				for y in withdrawals.iter(){
+					snapshot_withdrawals.push(
+						WithdrawalWithPrimitives{
+							main_account: y.main_account.clone(), 
+							amount: y.amount.saturated_into(), 
+							asset:  StringAssetId::from(y.asset)
+						}
+					);
+				}
+				withdrawals_vector.append(&mut snapshot_withdrawals.clone())
+			}
+		}
+		withdrawals_vector
 	}
 }
