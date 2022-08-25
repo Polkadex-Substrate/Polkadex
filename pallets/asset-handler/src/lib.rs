@@ -106,17 +106,17 @@ pub mod pallet {
 	pub(super) type BridgeFee<T: Config> =
 		StorageMap<_, Blake2_128Concat, BridgeChainId, (BalanceOf<T>, u32), ValueQuery>;
 
-	/// Withdrawal AMount Allowed
-	#[pallet::storage]
-	#[pallet::getter(fn get_withdrwal_amount_limit)]
-	pub(super) type WithdrawalAmountAllowed<T: Config> =
-	StorageValue<_, BalanceOf<T>, ValueQuery>;
-
 	///Block Difference required for Withdrawal Execution
 	#[pallet::storage]
 	#[pallet::getter(fn get_withdrawal_exc_block_diff)]
 	pub(super) type WithdrawalExecutionBlockDiff<T: Config> =
 	StorageValue<_, T::BlockNumber, ValueQuery>;
+
+	///Block Difference required for Withdrawal Execution
+	#[pallet::storage]
+	#[pallet::getter(fn is_bridge_deactivated)]
+	pub(super) type BridgeDeactivated<T: Config> =
+	StorageValue<_, bool, ValueQuery>;
 
 	/// Pending Withdrawals
 	#[pallet::storage]
@@ -136,6 +136,10 @@ pub mod pallet {
 		/// Asset Withdrawn (Recipient, ResourceId, Amount)
 		AssetWithdrawn(H160, ResourceId, BalanceOf<T>),
 		FeeUpdated(BridgeChainId, BalanceOf<T>),
+		/// NewBridgeStatus
+		BridgeStatusUpdated(bool),
+		/// BlocksDelayUpdated
+	    BlocksDelayUpdated(T::BlockNumber)
 	}
 
 	// Errors inform users that something went wrong.
@@ -156,7 +160,9 @@ pub mod pallet {
 		/// WithdrwalLimitReached
 		WithdrawalLimitReached,
 		/// ConversionIssue
-		ConversionIssue
+		ConversionIssue,
+		/// BridgeDeactivated
+		BridgeDeactivated
 	}
 
 	#[pallet::hooks]
@@ -240,6 +246,30 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Set Bridge Status
+		#[pallet::weight(T::WeightInfo::withdraw(1, 1))]
+		pub fn set_bridge_status(
+			origin: OriginFor<T>,
+		    status: bool
+		) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			<BridgeDeactivated<T>>::put(status);
+			Self::deposit_event(Event::<T>::BridgeStatusUpdated(status));
+			Ok(())
+		}
+
+		/// Set Block Delay
+		#[pallet::weight(T::WeightInfo::withdraw(1, 1))]
+		pub fn set_block_delay(
+			origin: OriginFor<T>,
+			no_of_blocks: T::BlockNumber
+		) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			<WithdrawalExecutionBlockDiff<T>>::put(no_of_blocks);
+			Self::deposit_event(Event::<T>::BlocksDelayUpdated(no_of_blocks));
+			Ok(())
+		}
+
 		/// Transfers Asset to Destination Chain.
 		///
 		/// # Parameters
@@ -262,6 +292,7 @@ pub mod pallet {
 				chainbridge::Pallet::<T>::chain_whitelisted(chain_id),
 				Error::<T>::ChainIsNotWhitelisted
 			);
+			ensure!(!<BridgeDeactivated<T>>::get(), Error::<T>::BridgeDeactivated);
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
 			ensure!(
 				T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true) >=
@@ -269,12 +300,10 @@ pub mod pallet {
 				Error::<T>::NotEnoughBalance
 			);
 			let fee = Self::fee_calculation(chain_id, amount);
-			if <WithdrawalAmountAllowed<T>>::get() < amount {
-			    ensure!(<PendingWithdrawals<T>>
-					::get(<frame_system::Pallet<T>>::block_number()).len()
-					< WithdrawalLimit::get().try_into().map_err(
+
+			ensure!(<PendingWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number()).len()< WithdrawalLimit::get().try_into().map_err(
 						|_| Error::<T>::ConversionIssue)?, Error::<T>::WithdrawalLimitReached);
-			};
+
 			T::Currency::transfer(
 				&sender,
 				&chainbridge::Pallet::<T>::account_id(),
@@ -286,25 +315,17 @@ pub mod pallet {
 				&sender,
 				amount.saturated_into::<u128>(),
 			)?;
-			if <WithdrawalAmountAllowed<T>>::get() >= amount {
-				chainbridge::Pallet::<T>::transfer_fungible(
-					chain_id,
-					rid,
-					recipient.0.to_vec(),
-					Self::convert_balance_to_eth_type(amount),
-				)?;
-			} else {
-				let pending_withdrawal = PendingWithdrawal {
+
+			let pending_withdrawal = PendingWithdrawal {
 					chain_id,
 					rid,
 					recipient,
 					amount
 				};
-				<PendingWithdrawals<T>>::try_mutate(<frame_system::Pallet<T>>::block_number(), |withdrawals| {
+			<PendingWithdrawals<T>>::try_mutate(<frame_system::Pallet<T>>::block_number(), |withdrawals| {
 					withdrawals.try_push(pending_withdrawal)?;
 					Ok(())
 				}).map_err(|()| Error::<T>::WithdrawalLimitReached)?;
-			}
 			Self::deposit_event(Event::<T>::AssetWithdrawn(contract_add, rid, amount));
 			Ok(())
 		}
