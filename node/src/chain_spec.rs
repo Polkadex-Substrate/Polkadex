@@ -378,7 +378,7 @@ pub fn testnet_genesis(
 	}else {
 		assert_eq!(
 			total_supply + ERC20_PDEX_SUPPLY,
-			20_000_200 * PDEX,
+			20_020_000 * PDEX,
 			"Total Supply Not equal to 20 million"
 		);
 	}
