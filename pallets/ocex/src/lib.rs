@@ -484,8 +484,8 @@ pub mod pallet {
 					withdrawals: withdrawal_vector.to_owned()
 				});
 			}
-			/* withdrawals.remove(&sender);
-			<Withdrawals<T>>::insert(snapshot_id, withdrawals); */
+			withdrawals.remove(&sender);
+			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
 			Ok(())
 		}
 
