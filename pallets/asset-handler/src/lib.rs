@@ -30,7 +30,6 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use std::fmt::Debug;
 	use crate::AssetHandlerWeightInfo;
 	use chainbridge::{BridgeChainId, ResourceId};
 	use sp_runtime::traits::Saturating;
@@ -42,6 +41,7 @@ pub mod pallet {
 		},
 		PalletId,
 	};
+	use frame_support::dispatch::fmt::Debug;
 	use sp_runtime::traits::Zero;
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
@@ -62,7 +62,7 @@ pub mod pallet {
 		pub recipient: H160,
 	}
 
-	#[derive(Clone, Copy, PartialEq, Debug, Encode, Decode)]
+	#[derive(Clone, Copy, PartialEq, Encode, Decode)]
 	pub struct WithdrawalLimit;
 	impl Get<u32> for WithdrawalLimit {
 		fn get() -> u32 {
@@ -89,10 +89,6 @@ pub mod pallet {
 		/// Treasury PalletId
 		#[pallet::constant]
 		type TreasuryPalletId: Get<PalletId>;
-
-		/// WithdrawalVecLimit
-		#[pallet::constant]
-		type WithdrawalVecLimit: Get<u32>;
 
 		type WeightInfo: AssetHandlerWeightInfo;
 	}
