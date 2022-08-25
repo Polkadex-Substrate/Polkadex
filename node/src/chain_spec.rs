@@ -347,7 +347,7 @@ pub fn testnet_genesis(
 	// This is for developement only
 	if let Some(dev_accounts) = &development_accounts {
 		for acc in dev_accounts {
-			endowed_accounts.push((acc.clone(),ENDOWMENT))
+			endowed_accounts.push((acc.clone(),100*ENDOWMENT))
 		}
 	}
 	// Get rest of the stake holders
