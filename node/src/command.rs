@@ -13,7 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use frame_benchmarking_cli::BenchmarkCmd;
+use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use std::sync::Arc;
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -24,11 +24,11 @@ use crate::{
 	service::{new_partial, FullClient},
 };
 use node_executor::ExecutorDispatch;
-use node_polkadex_runtime::Block;
-use polkadex_node::command_helper::{inherent_benchmark_data, BenchmarkExtrinsicBuilder};
+use node_polkadex_runtime::{Block, ExistentialDeposit};
 use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
-// use node_polkadex_runtime::RuntimeApi;
+use sp_keyring::Sr25519Keyring;
+use polkadex_node::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -97,9 +97,6 @@ pub fn run() -> Result<()> {
 			let runner = cli.create_runner(cmd)?;
 
 			runner.sync_run(|config| {
-				let PartialComponents { client, backend, .. } =
-					crate::service::new_partial(&config)?;
-
 				// This switch needs to be in the client, since the client decides
 				// which sub-commands it wants to support.
 				match cmd {
@@ -114,18 +111,39 @@ pub fn run() -> Result<()> {
 
 						cmd.run::<Block, ExecutorDispatch>(config)
 					},
-					BenchmarkCmd::Block(cmd) => cmd.run(client),
+					BenchmarkCmd::Block(cmd) => {
+						let PartialComponents {client, ..} = new_partial(&config)?;
+						cmd.run(client)
+					},
 					BenchmarkCmd::Storage(cmd) => {
+						let PartialComponents {client, backend, ..} = new_partial(&config)?;
 						let db = backend.expose_db();
 						let storage = backend.expose_storage();
 
 						cmd.run(config, client, db, storage)
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
-
-						cmd.run(config, client, inherent_benchmark_data()?, Arc::new(ext_builder))
+						let PartialComponents {client,  ..} = new_partial(&config)?;
+						let ext_builder = RemarkBuilder::new(client.clone());
+						cmd.run(config, client, inherent_benchmark_data()?, &ext_builder)
 					},
+					BenchmarkCmd::Machine(cmd) => {
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
+					}
+					BenchmarkCmd::Extrinsic(cmd) => {
+						let PartialComponents { client, .. } = service::new_partial(&config)?;
+						// Register the *Remark* and *TKA* builders.
+						let ext_factory = ExtrinsicFactory(vec![
+							Box::new(RemarkBuilder::new(client.clone())),
+							Box::new(TransferKeepAliveBuilder::new(
+								client.clone(),
+								Sr25519Keyring::Alice.to_account_id(),
+								ExistentialDeposit::get(),
+							)),
+						]);
+
+						cmd.run(client, inherent_benchmark_data()?, &ext_factory)
+					}
 				}
 			})
 		},
@@ -177,7 +195,7 @@ pub fn run() -> Result<()> {
 				let PartialComponents { client, task_manager, backend, .. } = new_partial(&config)?;
 				let aux_revert = Box::new(move |client: Arc<FullClient>, backend, blocks| {
 					sc_consensus_babe::revert(client.clone(), backend, blocks)?;
-					grandpa::revert(client, blocks)?;
+					sc_finality_grandpa::revert(client, blocks)?;
 					Ok(())
 				});
 				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
