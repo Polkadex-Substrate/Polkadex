@@ -16,9 +16,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Benchmarking setup for pallet-thea
-
-fn main() {
-	// Required for gmp to work in Apple M1 chips, brew install gmp
-	println!(r"cargo:rustc-link-search=/opt/homebrew/Cellar/gmp/6.2.1_1/lib");
+#![cfg_attr(not(feature = "std"), no_std)]
+use codec::Codec;
+use codec::Decode;
+use polkadex_primitives::assets::AssetId;
+use sp_std::vec::Vec;
+use polkadex_primitives::withdrawal::Withdrawal;
+use sp_runtime::traits::Zero;
+use pallet_ocex_primitives::WithdrawalWithPrimitives;
+use polkadex_primitives::Balance;
+sp_api::decl_runtime_apis! {
+	pub trait PolkadexOcexRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
+        fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Vec<WithdrawalWithPrimitives<AccountId>>;
+	}
 }
