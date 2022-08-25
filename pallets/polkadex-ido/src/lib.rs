@@ -1369,7 +1369,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// module wallet account
 	pub fn get_wallet_account() -> T::AccountId {
-		T::ModuleId::get().into_account()
+		T::ModuleId::get().into_account_truncating()
 	}
 
 	/// converts block to balance
@@ -1383,7 +1383,7 @@ impl<T: Config> Pallet<T> {
 	/// # Parameters
 	/// * hash : Round id
 	pub fn round_account_id(hash: T::Hash) -> T::AccountId {
-		T::ModuleId::get().into_sub_account(hash)
+		T::ModuleId::get().into_sub_account_truncating(hash)
 	}
 
 	/// Increments and return a nonce
@@ -1396,7 +1396,7 @@ impl<T: Config> Pallet<T> {
 
 	/// module wallet account
 	pub fn pallet_account_id() -> T::AccountId {
-		T::ModuleId::get().into_account()
+		T::ModuleId::get().into_account_truncating()
 	}
 
 	/// Returns rounds an investor has invested in

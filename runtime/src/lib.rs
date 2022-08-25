@@ -22,7 +22,7 @@
 #![recursion_limit = "256"]
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_election_provider_support::{onchain, SequentialPhragmen};
+use frame_election_provider_support::{ElectionDataProvider, onchain, SequentialPhragmen};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -38,11 +38,12 @@ use frame_support::{
 use frame_support::{
 	pallet_prelude::ConstU32,
 	traits::{
-		ConstU16, EnsureOneOf, EqualPrivilegeOnly, Everything, Get, InstanceFilter, OnUnbalanced,
+		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter, OnUnbalanced
 	},
 	weights::{ConstantMultiplier, WeightToFeeCoefficient},
 	PalletId,
 };
+
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use frame_system::{
@@ -88,6 +89,7 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
+use pallet_ocex_primitives::WithdrawalWithPrimitives;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
@@ -298,7 +300,7 @@ impl InstanceFilter<Call> for ProxyType {
 				c,
 				Call::Council(..) |
 					Call::TechnicalCommittee(..) |
-					Call::Elections(..) | Call::Treasury(..)
+					Call::Elections(..) | Call::Treasury(..) | Call::OrderbookCommittee(..)
 			),
 			ProxyType::Staking => matches!(c, Call::Staking(..)),
 		}
@@ -457,12 +459,13 @@ impl WeightToFeePolynomial for WeightToFee {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
+	type Event = Event;
 	type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate =
 		TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
-	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 }
 
 parameter_types! {
@@ -543,26 +546,29 @@ impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
 }
 
 pub struct OnChainSeqPhragmen;
-impl onchain::ExecutionConfig for OnChainSeqPhragmen {
+impl onchain::Config for OnChainSeqPhragmen {
 	type System = Runtime;
 	type Solver = SequentialPhragmen<
 		AccountId,
 		pallet_election_provider_multi_phase::SolutionAccuracyOf<Runtime>,
 	>;
 	type DataProvider = <Runtime as pallet_election_provider_multi_phase::Config>::DataProvider;
+	type WeightInfo = frame_election_provider_support::weights::SubstrateWeight<Runtime>;
 }
 
-impl onchain::BoundedExecutionConfig for OnChainSeqPhragmen {
-	type VotersBound = ConstU32<20_000>;
+impl onchain::BoundedConfig for OnChainSeqPhragmen {
+	type VotersBound = MaxElectingVoters;
 	type TargetsBound = ConstU32<2_000>;
 }
 
 impl pallet_staking::Config for Runtime {
 	type Currency = Balances;
+	type CurrencyBalance = Balance;
 	type UnixTime = Timestamp;
 	type CurrencyToVote = U128CurrencyToVote;
 	type ElectionProvider = ElectionProviderMultiPhase;
 	type GenesisElectionProvider = onchain::UnboundedExecution<OnChainSeqPhragmen>;
+	type MaxNominations = MaxNominations;
 	type RewardRemainder = Treasury;
 	type Event = Event;
 	type Slash = Treasury;
@@ -571,7 +577,7 @@ impl pallet_staking::Config for Runtime {
 	type BondingDuration = BondingDuration;
 	type SlashDeferDuration = SlashDeferDuration;
 	/// A super-majority of the council can cancel the slash.
-	type SlashCancelOrigin = EnsureOneOf<
+	type SlashCancelOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 4>,
 	>;
@@ -579,12 +585,12 @@ impl pallet_staking::Config for Runtime {
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type NextNewSession = Session;
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
-	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
-	type MaxNominations = MaxNominations;
 	type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
-	type BenchmarkingConfig = StakingBenchmarkingConfig;
 	type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Runtime>;
 	type MaxUnlockingChunks = ConstU32<32>;
+	type OnStakerSlash = ();
+	type BenchmarkingConfig = StakingBenchmarkingConfig;
+	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -600,7 +606,8 @@ parameter_types! {
 	pub const SignedDepositByte: Balance = deposit(0, 10) / 1024;
 	// Each good submission will get 1 DOT as reward
 	pub SignedRewardBase: Balance = UNITS;
-	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(5u32, 10_000);
+	// pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(5u32, 10_000);
+	pub BetterUnsignedThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
 
 
 	pub const MultiPhaseUnsignedPriority: TransactionPriority = StakingUnsignedPriority::get() - 1u64;
@@ -673,42 +680,65 @@ impl Get<Option<(usize, ExtendedBalance)>> for OffchainRandomBalancing {
 		Some((iters, 0))
 	}
 }
+
+impl pallet_election_provider_multi_phase::MinerConfig for Runtime {
+	type AccountId = AccountId;
+	type Solution = NposSolution16;
+	type MaxVotesPerVoter =
+	<<Self as pallet_election_provider_multi_phase::Config>::DataProvider as ElectionDataProvider>::MaxVotesPerVoter;
+	type MaxLength = MinerMaxLength;
+	type MaxWeight = MinerMaxWeight;
+
+	// The unsigned submissions have to respect the weight of the submit_unsigned call, thus their
+	// weight estimate function is wired to this call's weight.
+	fn solution_weight(v: u32, t: u32, a: u32, d: u32) -> Weight {
+		<
+		<Self as pallet_election_provider_multi_phase::Config>::WeightInfo
+		as
+		pallet_election_provider_multi_phase::WeightInfo
+		>::submit_unsigned(v, t, a, d)
+	}
+}
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type EstimateCallFee = TransactionPayment;
-	type SignedPhase = SignedPhase;
 	type UnsignedPhase = UnsignedPhase;
+	type SignedPhase = SignedPhase;
+	type BetterSignedThreshold = ();
+	type BetterUnsignedThreshold = BetterUnsignedThreshold;
+	// nothing to do upon rewards
+	// type SolutionImprovementThreshold = SolutionImprovementThreshold;
+	// type MinerMaxWeight = MinerMaxWeight;
+	// type MinerMaxLength = MinerMaxLength;
+	type OffchainRepeat = OffchainRepeat;
+	type MinerTxPriority = MultiPhaseUnsignedPriority;
+	type MinerConfig = Self;
 	type SignedMaxSubmissions = SignedMaxSubmissions;
+	type SignedMaxWeight = MinerMaxWeight;
+	type SignedMaxRefunds = ConstU32<3>;
 	type SignedRewardBase = SignedRewardBase;
 	type SignedDepositBase = SignedDepositBase;
 	type SignedDepositByte = SignedDepositByte;
 	type SignedDepositWeight = ();
-	type SignedMaxWeight = Self::MinerMaxWeight;
-	type SlashHandler = (); // burn slashes
-	type RewardHandler = (); // nothing to do upon rewards
-	type SolutionImprovementThreshold = SolutionImprovementThreshold;
-	type MinerMaxWeight = MinerMaxWeight;
-	type MinerMaxLength = MinerMaxLength;
-	type OffchainRepeat = OffchainRepeat;
-	type MinerTxPriority = MultiPhaseUnsignedPriority;
+	type MaxElectingVoters = MaxElectingVoters;
+	type MaxElectableTargets = ConstU16<{ u16::MAX }>;
+	type SlashHandler = ();
+	// burn slashes
+	type RewardHandler = ();
 	type DataProvider = Staking;
 	type Fallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
-	type BenchmarkingConfig = ElectionProviderBenchmarkConfig;
-	type ForceOrigin = EnsureOneOf<
+	// type Solution = NposSolution16
+	type GovernanceFallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
+	type Solver = SequentialPhragmen<
+		AccountId,
+		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>>;
+	type ForceOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
 	>;
+	type BenchmarkingConfig = ElectionProviderBenchmarkConfig;
 	type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
-	type Solution = NposSolution16;
-	type GovernanceFallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
-	type Solver = frame_election_provider_support::SequentialPhragmen<
-		AccountId,
-		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
-		OffchainRandomBalancing,
-	>;
-	type MaxElectingVoters = MaxElectingVoters;
-	type MaxElectableTargets = ConstU16<{ u16::MAX }>;
 }
 
 parameter_types! {
@@ -739,6 +769,8 @@ parameter_types! {
 	pub const DesiredMembers: u32 = 5;
 	pub const DesiredRunnersUp: u32 = 5;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
+	pub const MaxCandidates: u32 = 1000;
+	pub const MaxVoters: u32 = 10*1000;
 }
 
 // Make sure that there are no more than `MaxMembers` members elected via elections-phragmen.
@@ -761,6 +793,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type DesiredMembers = DesiredMembers;
 	type DesiredRunnersUp = DesiredRunnersUp;
 	type TermDuration = TermDuration;
+	type MaxCandidates = MaxCandidates;
+	type MaxVoters = MaxVoters;
 	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
 }
 
@@ -782,9 +816,32 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
-type EnsureRootOrHalfCouncil = EnsureOneOf<
+parameter_types! {
+	pub const OrderbookMotionDuration: BlockNumber = 1 * DAYS;
+	pub const OrderbookMaxProposals: u32 = 100;
+	pub const OrderbookMaxMembers: u32 = 3;
+}
+
+type OrderbookCollective = pallet_collective::Instance3;
+impl pallet_collective::Config<OrderbookCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = OrderbookMotionDuration;
+	type MaxProposals = OrderbookMaxProposals;
+	type MaxMembers = OrderbookMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+type EnsureRootOrHalfCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
+>;
+
+type EnsureRootOrHalfOrderbookCouncil = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1, 2>,
 >;
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
@@ -849,7 +906,7 @@ impl pallet_child_bounties::Config for Runtime {
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type ApproveOrigin = EnsureOneOf<
+	type ApproveOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
 	>;
@@ -865,6 +922,7 @@ impl pallet_treasury::Config for Runtime {
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
 	type MaxApprovals = MaxApprovals;
 	type ProposalBondMaximum = ();
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
 }
 
 parameter_types! {
@@ -900,42 +958,42 @@ impl pallet_democracy::Config for Runtime {
 	type VoteLockingPeriod = VoteLockingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
-	type ExternalOrigin = EnsureOneOf<
+	type ExternalOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
 	>;
 	/// A majority can have the next scheduled referendum be a straight majority-carries vote.
-	type ExternalMajorityOrigin = EnsureOneOf<
+	type ExternalMajorityOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
 	>;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
-	type ExternalDefaultOrigin = EnsureOneOf<
+	type ExternalDefaultOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>,
 	>;
 	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
 	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin = EnsureOneOf<
+	type FastTrackOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>,
 	>;
-	type InstantOrigin = EnsureOneOf<
+	type InstantOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
 	>;
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-	type CancellationOrigin = EnsureOneOf<
+	type CancellationOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
 	>;
 	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
 	// Root must agree.
-	type CancelProposalOrigin = EnsureOneOf<
+	type CancelProposalOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
 	>;
@@ -1128,6 +1186,7 @@ parameter_types! {
 
 impl pallet_recovery::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = pallet_recovery::weights::SubstrateWeight<Runtime>;
 	type Call = Call;
 	type Currency = Balances;
 	type ConfigDepositBase = ConfigDepositBase;
@@ -1169,9 +1228,9 @@ impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-			RawOrigin::Root => Ok(TreasuryPalletId::get().into_account()),
+			RawOrigin::Root => Ok(TreasuryPalletId::get().into_account_truncating()),
 			RawOrigin::Signed(caller) =>
-				if caller == TreasuryPalletId::get().into_account() {
+				if caller == TreasuryPalletId::get().into_account_truncating() {
 					Ok(caller)
 				} else {
 					Err(Origin::from(Some(caller)))
@@ -1209,7 +1268,7 @@ impl pdex_migration::pallet::Config for Runtime {
 
 parameter_types! {
 	pub const PolkadexTreasuryModuleId: PalletId = PalletId(*b"polka/tr");
-	pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account();
+	pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account_truncating();
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -1255,6 +1314,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	// TODO: Change origin to SGX attested origin
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type Public = <Signature as traits::Verify>::Signer;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type Signature = Signature;
 	type WeightInfo = ();
 	type MsPerDay = MsPerDay;
@@ -1296,7 +1356,7 @@ construct_runtime!(
 		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent} = 4,
 		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 6,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 7,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 7,
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 8,
 		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 9,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
@@ -1326,9 +1386,10 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-		Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
-		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 38,
-		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 39
+        Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 38,
+		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 39,
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 40
 	}
 );
 /// Digest item type.
@@ -1430,7 +1491,14 @@ impl_runtime_apis! {
 		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
 			PolkadexIdo::account_balances(assets, account_id)
 		}
-	 }
+	}
+
+	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime{
+		fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Vec<WithdrawalWithPrimitives<AccountId>>{
+			OCEX::return_withdrawals(snapshot_ids, account)
+		}
+	}
+
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
@@ -1623,7 +1691,7 @@ impl_runtime_apis! {
 			list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
 			//TODO: [#463] Currently broken, will be fixed in different issue
 //			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
-			list_benchmark!(list,extra,  asset_handler, AssetHandler);
+			// list_benchmark!(list,extra,  asset_handler, AssetHandler);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1685,7 +1753,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_utility, Utility);
 			//TODO: [#463] Currently broken, will be fixed in different issue
 //			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
-			add_benchmark!(params, batches, asset_handler, AssetHandler);
+			// add_benchmark!(params, batches, asset_handler, AssetHandler);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
