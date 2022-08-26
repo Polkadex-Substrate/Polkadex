@@ -295,10 +295,9 @@ pub mod pallet {
 					amount.saturated_into::<u128>(),
 				Error::<T>::NotEnoughBalance
 			);
-			let fee = Self::fee_calculation(chain_id, amount);
-
 			ensure!(<PendingWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number()).len()< WithdrawalLimit::get().try_into().map_err(
 						|_| Error::<T>::ConversionIssue)?, Error::<T>::WithdrawalLimitReached);
+			let fee = Self::fee_calculation(chain_id, amount);
 
 			T::Currency::transfer(
 				&sender,
