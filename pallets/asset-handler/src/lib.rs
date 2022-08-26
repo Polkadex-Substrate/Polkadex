@@ -168,14 +168,14 @@ pub mod pallet {
 			let withdrawal_execution_block = <frame_system::Pallet<T>>::block_number().saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
 			if !withdrawal_execution_block.is_zero() {
 				let pending_withdrawals = <PendingWithdrawals<T>>::get(withdrawal_execution_block);
-				pending_withdrawals.iter().map(|withdrawal| {
+				for withdrawal in pending_withdrawals {
 					chainbridge::Pallet::<T>::transfer_fungible(
 						withdrawal.chain_id,
 						withdrawal.rid,
 						withdrawal.recipient.0.to_vec(),
 						Self::convert_balance_to_eth_type(withdrawal.amount),
-					);
-				});
+					).expect("Chainbridge::transfer_fungible failed");
+				}
 			}
 			// TODO: Benchmark on initialize
 			0

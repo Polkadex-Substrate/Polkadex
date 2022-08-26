@@ -13,14 +13,11 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 use codec::Decode;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, BoundedVec, ensure};
 use sp_core::{H160, U256};
 use sp_runtime::TokenError;
 
-use crate::{
-	mock::{new_test_ext, Test, *},
-	pallet::*,
-};
+use crate::{mock::{new_test_ext, Test, *}, mock, pallet::*};
 
 const ASSET_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC";
 const RECIPIENT_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBA";
@@ -138,6 +135,7 @@ pub fn test_withdraw_successfully() {
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
+		System::set_block_number(100);
 
 		assert_ok!(AssetHandler::withdraw(
 			Origin::signed(sender),
@@ -146,7 +144,11 @@ pub fn test_withdraw_successfully() {
 			100,
 			recipient
 		));
-
+		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 10));
+		let a = AssetHandler::get_pending_withdrawls(100);
+		assert!(!a.is_empty());
+		mock::run_to_block(110);
+		assert_eq!(AssetHandler::block_no(), 100);
 		assert_eq!(
 			ChainBridge::bridge_events(),
 			vec![chainbridge::BridgeEvent::FungibleTransfer(
@@ -184,6 +186,22 @@ pub fn test_withdraw_on_not_registered_asset_will_return_not_enough_balance_erro
 		assert_noop!(
 			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient),
 			Error::<Test>::NotEnoughBalance
+		);
+	});
+}
+
+#[test]
+pub fn test_withdraw_with_disabled_bridge_will_return_bridge_error() {
+	let (asset_address, recipient, sender, chain_id) = withdraw_data();
+
+	new_test_ext().execute_with(|| {
+		// Setup
+		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
+		<BridgeDeactivated<Test>>::put(true);
+		assert!(<BridgeDeactivated<Test>>::get());
+		assert_noop!(
+			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient),
+			Error::<Test>::BridgeDeactivated
 		);
 	});
 }

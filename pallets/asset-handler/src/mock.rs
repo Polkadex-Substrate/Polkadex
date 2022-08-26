@@ -20,6 +20,7 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{OnInitialize, OnFinalize};
 
 use crate::pallet as asset_handler;
 
@@ -158,4 +159,15 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.assimilate_storage(&mut t)
 		.unwrap();
 	t.into()
+}
+
+pub fn run_to_block(n: u64) {
+	while System::block_number() < n {
+		if System::block_number() > 1 {
+			System::on_finalize(System::block_number());
+		}
+		System::set_block_number(System::block_number() + 1);
+		System::on_initialize(System::block_number());
+		AssetHandler::on_initialize(n);
+	}
 }
