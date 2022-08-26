@@ -702,7 +702,7 @@ pub mod pallet {
 
 		#[cfg(feature = "runtime-benchmarks")]
 		fn successful_origin() -> T::Origin {
-			let bridge_id = MODULE_ID.into_account();
+			let bridge_id = MODULE_ID.into_account_truncating();
 			T::Origin::from(system::RawOrigin::Signed(bridge_id))
 		}
 	}

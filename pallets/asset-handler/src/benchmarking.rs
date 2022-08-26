@@ -56,6 +56,21 @@ benchmarks! {
 		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, amount).into());
 	}
 
+	set_bridge_status {
+		let status = true;
+	}: _(RawOrigin::Root, status)
+	verify {
+		assert_last_event::<T>(Event::BridgeStatusUpdated(status).into());
+	}
+
+    set_block_delay {
+		let block_delay = 10u64;
+		let block_delay = block_delay.saturated_into::<T::BlockNumber>();
+	}: _(RawOrigin::Root, block_delay)
+	verify {
+		assert_last_event::<T>(Event::BlocksDelayUpdated(block_delay).into());
+	}
+
 	update_fee {
 		let m in 1 .. 100;
 		let f in 1 .. 1000;

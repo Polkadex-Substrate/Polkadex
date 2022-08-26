@@ -148,7 +148,6 @@ pub fn test_withdraw_successfully() {
 		let a = AssetHandler::get_pending_withdrawls(100);
 		assert!(!a.is_empty());
 		mock::run_to_block(110);
-		assert_eq!(AssetHandler::block_no(), 100);
 		assert_eq!(
 			ChainBridge::bridge_events(),
 			vec![chainbridge::BridgeEvent::FungibleTransfer(
@@ -267,6 +266,24 @@ pub fn test_update_fee_successfully() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(AssetHandler::update_fee(Origin::signed(1), chain_id, 10, 100));
 		assert_eq!(AssetHandler::get_bridge_fee(chain_id), (10, 100));
+	});
+}
+
+#[test]
+pub fn test_set_bridge_status() {
+	new_test_ext().execute_with(|| {
+		let new_bridge_status = true;
+		assert_ok!(AssetHandler::set_bridge_status(Origin::signed(1), new_bridge_status));
+		assert_eq!(<BridgeDeactivated<Test>>::get(), true);
+	});
+}
+
+#[test]
+pub fn test_set_block_delay() {
+	new_test_ext().execute_with(|| {
+		let no_of_blocks = 40;
+		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), no_of_blocks));
+		assert_eq!(<WithdrawalExecutionBlockDiff<Test>>::get(), no_of_blocks);
 	});
 }
 
