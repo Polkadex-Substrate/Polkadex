@@ -13,25 +13,28 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
+codec = { package = "parity-scale-codec", version = "3", default-features = false }
 log = { version = "0.4.14", default-features = false }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
-
-frame-benchmarking = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git', optional = true }
-frame-support = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-frame-system = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-sp-io = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-sp-runtime = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-sp-std = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.19", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
-#polkadex-primitives = { default-features = false, path = "../../../polkadex-primitives" }
-sp-core = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git', default-features = false }
-pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate' }
-ias-verify = { version = "0.1.5", default-features = false, branch = "polkadot-v0.9.19", git = "https://github.com/Polkadex-Substrate/pallets" }
+frame-support = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+frame-system = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+sp-runtime = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+sp-std = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate' }
+ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
+pallet-ocex-primitives = { path = "../../pallets/ocex/common", default-features = false}
 
 [dev-dependencies]
-pallet-balances = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
-pallet-assets = { branch = "polkadot-v0.9.19", git = 'https://github.com/paritytech/substrate.git' }
+pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+pallet-assets = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+pallet-timestamp = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+sp-application-crypto = { branch="polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate'}
+sp-keystore = { branch = "polkadot-v0.9.28",git = 'https://github.com/paritytech/substrate' }
+frame-benchmarking = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+ckb-merkle-mountain-range = "0.5.0"
+anyhow = "1.0.56"
+sp-io = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 
 [features]
 default = ["std"]
@@ -39,14 +42,14 @@ std = [
     "codec/std",
     "log/std",
     "scale-info/std",
-    "frame-benchmarking/std",
     "frame-support/std",
     "frame-system/std",
-    "sp-io/std",
     "sp-runtime/std",
     "sp-std/std",
-    "sp-core/std",
-    "polkadex-primitives/std"
+    "polkadex-primitives/std",
+    "pallet-timestamp/std",
+    "ias-verify/std",
+    "pallet-ocex-primitives/std"
 ]
 #TODO: [#435] Currently broken, will be fixed in different issue
 #runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]

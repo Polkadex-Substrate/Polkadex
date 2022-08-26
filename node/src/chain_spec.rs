@@ -11,7 +11,7 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public, H160};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
@@ -106,8 +106,13 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		"c2ddb84ed7692123f5f6746c81cd0850932553416515ecd71fbe66c128eafa73"
 	]
 	.into();
-
-	testnet_genesis(initial_authorities, vec![], root_key)
+	let enclave_developement_account: AccountId = hex![
+		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
+	]
+		.into();
+	testnet_genesis(initial_authorities, vec![],
+					Some(vec![enclave_developement_account]),
+					root_key)
 }
 
 /// Staging testnet config.
@@ -160,9 +165,18 @@ pub fn authority_keys_from_seed(
 }
 
 fn development_config_genesis() -> GenesisConfig {
+	let enclave_developement_account: AccountId = hex![
+		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
+	]
+		.into();
+
+	let orderbook_test_main_account: AccountId = hex! [
+		"6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"
+	].into();
 	testnet_genesis(
 		vec![authority_keys_from_seed("Alice")],
 		vec![],
+		Some(vec![enclave_developement_account,orderbook_test_main_account]),
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
 }
@@ -184,9 +198,17 @@ pub fn development_config() -> ChainSpec {
 }
 
 fn soba_testnet_genesis() -> GenesisConfig {
+	let enclave_developement_account: AccountId = hex![
+		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
+	]
+		.into();
+	let orderbook_test_main_account: AccountId = hex! [
+		"6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"
+	].into();
 	testnet_genesis(
 		vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 		vec![],
+		Some(vec![enclave_developement_account,orderbook_test_main_account]),
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
 }
@@ -254,7 +276,8 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 		),
 	];
 	let root_key = hex!["70a5f4e786b47baf52d5a34742bb8312139cfe1c747fbeb3912c197d38c53332"].into();
-	testnet_genesis(initial_authorities, vec![], root_key)
+	testnet_genesis(initial_authorities, vec![],
+					None, root_key)
 }
 
 pub fn mainnet_testnet_config() -> ChainSpec {
@@ -296,6 +319,7 @@ pub fn testnet_genesis(
 		AuthorityDiscoveryId,
 	)>,
 	_initial_nominators: Vec<AccountId>,
+	development_accounts: Option<Vec<AccountId>>,
 	root_key: AccountId,
 ) -> GenesisConfig {
 	const ENDOWMENT: u128 = 100 * PDEX;
@@ -309,7 +333,7 @@ pub fn testnet_genesis(
 
 	// Treasury Account Id
 	pub const TREASURY_PALLET_ID: PalletId = PalletId(*b"py/trsry");
-	let treasury_account: AccountId = TREASURY_PALLET_ID.into_account();
+	let treasury_account: AccountId = TREASURY_PALLET_ID.into_account_truncating();
 
 	let mut inital_validators_endowment =
 		initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect_vec();
@@ -319,6 +343,13 @@ pub fn testnet_genesis(
 		//     Treasury Funds
 		(treasury_account, treasury_funds),
 	];
+
+	// This is for developement only
+	if let Some(dev_accounts) = &development_accounts {
+		for acc in dev_accounts {
+			endowed_accounts.push((acc.clone(),100*ENDOWMENT))
+		}
+	}
 	// Get rest of the stake holders
 	let mut claims = get_stakeholder_tokens();
 
@@ -338,11 +369,19 @@ pub fn testnet_genesis(
 		total_supply = total_supply + balance.clone()
 	}
 
-	assert_eq!(
-		total_supply + ERC20_PDEX_SUPPLY,
-		20_000_000 * PDEX,
-		"Total Supply Not equal to 20 million"
-	);
+	if development_accounts.is_none() {
+		assert_eq!(
+			total_supply + ERC20_PDEX_SUPPLY,
+			20_000_000 * PDEX,
+			"Total Supply Not equal to 20 million"
+		);
+	}else {
+		assert_eq!(
+			total_supply + ERC20_PDEX_SUPPLY,
+			20_020_000 * PDEX,
+			"Total Supply Not equal to 20 million"
+		);
+	}
 	let vesting = get_vesting_terms();
 
 	GenesisConfig {
@@ -1127,6 +1166,7 @@ pub(crate) mod tests {
 		testnet_genesis(
 			vec![authority_keys_from_seed("Alice")],
 			vec![],
+			None,
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
 		)
 	}
