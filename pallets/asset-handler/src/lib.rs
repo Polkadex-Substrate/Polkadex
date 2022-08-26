@@ -174,7 +174,7 @@ pub mod pallet {
 						withdrawal.rid,
 						withdrawal.recipient.0.to_vec(),
 						Self::convert_balance_to_eth_type(withdrawal.amount),
-					).expect("Chainbridge::transfer_fungible failed");
+					);
 				}
 			}
 			// TODO: Benchmark on initialize
