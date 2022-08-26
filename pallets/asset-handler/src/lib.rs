@@ -66,7 +66,7 @@ pub mod pallet {
 	pub struct WithdrawalLimit;
 	impl Get<u32> for WithdrawalLimit {
 		fn get() -> u32 {
-			10 // TODO: Arbitrary value
+			5 // TODO: Arbitrary value
 		}
 	}
 
@@ -135,7 +135,9 @@ pub mod pallet {
 		/// NewBridgeStatus
 		BridgeStatusUpdated(bool),
 		/// BlocksDelayUpdated
-	    BlocksDelayUpdated(T::BlockNumber)
+	    BlocksDelayUpdated(T::BlockNumber),
+		/// FungibleTransferFailed
+		FungibleTransferFailed
 	}
 
 	// Errors inform users that something went wrong.
@@ -165,20 +167,25 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// On Initialize
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			let withdrawal_execution_block = <frame_system::Pallet<T>>::block_number().saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
+			let withdrawal_execution_block = n.saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
 			if !withdrawal_execution_block.is_zero() {
 				let pending_withdrawals = <PendingWithdrawals<T>>::get(withdrawal_execution_block);
 				for withdrawal in pending_withdrawals {
-					chainbridge::Pallet::<T>::transfer_fungible(
+					if let Err(_) = chainbridge::Pallet::<T>::transfer_fungible(
 						withdrawal.chain_id,
 						withdrawal.rid,
 						withdrawal.recipient.0.to_vec(),
 						Self::convert_balance_to_eth_type(withdrawal.amount),
-					);
+					) {
+						Self::deposit_event(Event::<T>::FungibleTransferFailed);
+					}
 				}
 			}
 			// TODO: Benchmark on initialize
-			0
+			(195_000_000 as Weight).saturating_add(
+				T::DbWeight::get().writes(
+					5 as Weight)).saturating_add(
+				T::DbWeight::get().reads(5 as Weight))
 		}
 	}
 
@@ -218,7 +225,7 @@ pub mod pallet {
 		/// * `destination_add`: Recipient's Account
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
-		#[pallet::weight(T::WeightInfo::mint_asset(1))]
+		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(2 as Weight)))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
 			destination_add: Vec<u8>,
@@ -243,7 +250,7 @@ pub mod pallet {
 		}
 
 		/// Set Bridge Status
-		#[pallet::weight(T::WeightInfo::withdraw(1, 1))]
+		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(2 as Weight)))]
 		pub fn set_bridge_status(
 			origin: OriginFor<T>,
 		    status: bool
@@ -255,7 +262,7 @@ pub mod pallet {
 		}
 
 		/// Set Block Delay
-		#[pallet::weight(T::WeightInfo::withdraw(1, 1))]
+		#[pallet::weight(T::DbWeight::get().writes(2 as Weight))]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
 			no_of_blocks: T::BlockNumber
