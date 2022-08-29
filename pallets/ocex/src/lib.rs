@@ -723,7 +723,7 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	// Queue for enclave ingress messages
+	// Queue for onchain events
 	#[pallet::storage]
 	#[pallet::getter(fn onchain_events)]
 	pub(super) type OnChainEvents<T: Config> = StorageValue<
