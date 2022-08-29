@@ -1203,13 +1203,13 @@ pub fn calculate_mmr_root(
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf<T>> {
 	let account_id = create_account_id();
 	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> =
-		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0 };
+		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0, fees: 1_u128 };
 	return withdrawal
 }
 
 pub fn create_withdrawal_500<T: Config>(account_id: AccountId32) -> Withdrawal<AccountId32, BalanceOf<T>> {
 	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> =
-		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0 };
+		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0, fees: 1_u128 };
 	return withdrawal
 }
 
