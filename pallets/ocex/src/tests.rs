@@ -18,7 +18,7 @@
 use crate::*;
 use frame_support::{
 	assert_noop, assert_ok, bounded_vec, parameter_types,
-	traits::{ConstU128, ConstU64, OnTimestampSet},
+	traits::{ConstU128, ConstU64, OnTimestampSet, OnInitialize},
 	PalletId,
 };
 use frame_system::EnsureRoot;
@@ -1032,6 +1032,13 @@ fn test_onchain_events_overflow() {
 		assert_noop!(OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1),
 			Error::<Test>::OnchainEventsFilled
 		);
+
+		// Cleanup Onchain events
+		<OCEX as OnInitialize<u64>>::on_initialize(0);
+		assert_eq!(OnChainEvents::<Test>::get().len(), 0);
+
+		// Perform withdraw now
+		assert_ok!(OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1));
 	});
 }
 
