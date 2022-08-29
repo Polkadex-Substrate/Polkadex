@@ -414,7 +414,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(10000 + T::DbWeight::get().writes(5) + T::DbWeight::get().reads(3))]
+		#[pallet::weight(590_500_000 + T::DbWeight::get().writes(5) + T::DbWeight::get().reads(3))]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
