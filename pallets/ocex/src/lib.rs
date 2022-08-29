@@ -414,7 +414,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight(10000 + T::DbWeight::get().writes(5) + T::DbWeight::get().reads(3))]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
@@ -515,7 +515,7 @@ pub mod pallet {
 		/// Withdraws user balance
 		///
 		/// params: snapshot_number: u32
-		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(10000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
 		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
