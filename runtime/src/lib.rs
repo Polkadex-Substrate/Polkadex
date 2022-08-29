@@ -1304,6 +1304,7 @@ parameter_types! {
 	pub const ProxyLimit: u32 = 3;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
 	pub const MsPerDay: u64 = 86_400_000;
+	pub const SnapshotFeeClaim: usize = 10;
 }
 
 impl pallet_ocex_lmp::Config for Runtime {
@@ -1318,6 +1319,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Signature = Signature;
 	type WeightInfo = ();
 	type MsPerDay = MsPerDay;
+	type SnapshotFeeClaim = SnapshotFeeClaim;
 }
 
 parameter_types! {
