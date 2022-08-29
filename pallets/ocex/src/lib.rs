@@ -430,14 +430,14 @@ pub mod pallet {
 			ensure!(
 				<RegisteredEnclaves<T>>::contains_key(&enclave),
 				Error::<T>::SenderIsNotAttestedEnclave
-			);
+			); 
 
 			let last_snapshot_serial_number =
 				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
 					last_snapshot_number
 				} else {
 					0
-				};
+				}; 
 			ensure!(
 				snapshot.snapshot_number.eq(&(last_snapshot_serial_number+1)),
 				Error::<T>::SnapshotNonceError
@@ -447,21 +447,20 @@ pub mod pallet {
 				signature.verify(bytes.as_slice(), &enclave),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
-			// panic!("here");
 			let current_snapshot_nonce = snapshot.snapshot_number;
 			ensure!(<OnChainEvents<T>>::try_mutate(|onchain_events| {
 				onchain_events.try_push(
 					polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, snapshot.snapshot_number)
 				)?;
 				Ok::<(), ()>(())
-			}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow);
-			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
-			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone());
+			}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow); 
+			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone()); 
+			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone()); 
 			snapshot.withdrawals = Default::default();
-			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
-			<SnapshotNonce<T>>::put(current_snapshot_nonce);
+			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone()); 
+			<SnapshotNonce<T>>::put(current_snapshot_nonce); 
 			Ok(())
-		}
+		} 
 
 		// FIXME Only for testing will be removed before mainnet launch
 		/// Insert Enclave
@@ -515,7 +514,7 @@ pub mod pallet {
 
 		/// Withdraws user balance
 		///
-		/// params: pair: (base,quote), snapshot_number: u32
+		/// params: snapshot_number: u32
 		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
 		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
@@ -526,7 +525,7 @@ pub mod pallet {
 				T::AccountId,
 				BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
 				SnapshotAccLimit,
-			> = <Withdrawals<T>>::get(snapshot_id);
+			> = <Withdrawals<T>>::get(snapshot_id);  
 			ensure!(withdrawals.contains_key(&sender), Error::<T>::InvalidWithdrawalIndex);
 			if let Some(withdrawal_vector) = withdrawals.get(&sender) {
 				for x in withdrawal_vector.iter() {
@@ -546,12 +545,12 @@ pub mod pallet {
 						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(snapshot_id, sender.clone(), withdrawal_vector.clone().to_owned())
 					)?;
 					Ok::<(), ()>(())
-				}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow); 
+				}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow);   
 			}
 			withdrawals.remove(&sender);
-			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
+			<Withdrawals<T>>::insert(snapshot_id, withdrawals); 
 			Ok(())
-		}
+		} 
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
