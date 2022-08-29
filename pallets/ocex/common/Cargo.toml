@@ -13,7 +13,7 @@ serde = { version = "1.0.68", features = ["derive"], optional = true }
 sp-core = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-std = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-runtime = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-polkadex-primitives = { default-features = false, branch = "fx-polkadot-v0.9.28v0.0.2", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 
 [features]
 default = ["std"]
