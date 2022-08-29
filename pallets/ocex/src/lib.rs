@@ -175,6 +175,7 @@ pub mod pallet {
 		ProxyNotFound,
 		/// MinimumOneProxyRequried
 		MinimumOneProxyRequired,
+		/// Onchain Events vector is full
 		OnchainEventsFilled,
 	}
 
