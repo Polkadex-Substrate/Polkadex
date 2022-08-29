@@ -598,7 +598,7 @@ fn collect_fees() {
 			AssetsLimit,
 			SnapshotAccLimit,
 		> {
-			snapshot_number: 0,
+			snapshot_number: 1,
 			merkle_root: mmr_root,
 			withdrawals: Default::default(),
 			fees: bounded_vec![fees],
@@ -615,7 +615,7 @@ fn collect_fees() {
 
 		assert_ok!(OCEX::collect_fees(
 			Origin::signed(account_id.clone().into()),
-			0,
+			1,
 			account_id.clone().into()
 		));
 		// Balances after collect fees
@@ -700,7 +700,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 			AssetsLimit,
 			SnapshotAccLimit,
 		> {
-			snapshot_number: 1,
+			snapshot_number: 0,
 			merkle_root: mmr_root,
 			withdrawals: Default::default(),
 			fees: bounded_vec![],
@@ -729,7 +729,7 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 			AssetsLimit,
 			SnapshotAccLimit,
 		> {
-			snapshot_number: 0,
+			snapshot_number: 1,
 			merkle_root: mmr_root,
 			withdrawals: Default::default(),
 			fees: bounded_vec![],
@@ -804,7 +804,7 @@ fn test_submit_snapshot() {
 			AssetsLimit,
 			SnapshotAccLimit,
 		> {
-			snapshot_number: 0,
+			snapshot_number: 1,
 			merkle_root: mmr_root,
 			withdrawals: withdrawal_map.clone(),
 			fees: bounded_vec![],
@@ -818,12 +818,14 @@ fn test_submit_snapshot() {
 			snapshot.clone(),
 			signature.clone().into()
 		),);
-		assert_eq!(Withdrawals::<Test>::contains_key(0), true);
-		assert_eq!(Withdrawals::<Test>::get(0), withdrawal_map.clone());
-		assert_eq!(FeesCollected::<Test>::contains_key(0), true);
-		assert_eq!(Snapshots::<Test>::contains_key(0), true);
-		assert_eq!(Snapshots::<Test>::get(0).unwrap(), snapshot.clone()); 
+		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
+		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
+		assert_eq!(FeesCollected::<Test>::contains_key(1), true);
+		assert_eq!(Snapshots::<Test>::contains_key(1), true);
+		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone()); 
 		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
+		let onchain_events: BoundedVec<polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf::<Test>>, polkadex_primitives::OnChainEventsLimit> = bounded_vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, 1)];
+		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 	})
 }
 
@@ -930,7 +932,7 @@ fn test_withdrawal() {
 			AssetsLimit,
 			SnapshotAccLimit,
 		> {
-			snapshot_number: 0,
+			snapshot_number: 1,
 			merkle_root: mmr_root,
 			withdrawals: withdrawal_map,
 			fees: bounded_vec![],
@@ -945,7 +947,7 @@ fn test_withdrawal() {
 			signature.clone().into()
 		),);
 
-		assert_ok!(OCEX::withdraw(Origin::signed(account_id.clone().into()), 0,));
+		assert_ok!(OCEX::withdraw(Origin::signed(account_id.clone().into()), 1,));
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -1103,7 +1105,7 @@ pub fn calculate_mmr_root(
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf<T>> {
 	let account_id = create_account_id();
 	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> =
-		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into() };
+		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0 };
 	return withdrawal
 }
 
