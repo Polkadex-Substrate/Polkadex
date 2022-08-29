@@ -27,6 +27,7 @@ use frame_system::ensure_signed;
 use pallet_ocex_primitives::{WithdrawalWithPrimitives, StringAssetId};
 use sp_runtime::SaturatedConversion;
 use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::OnChainEventsLimit;
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -49,7 +50,7 @@ pub use weights::*;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
-<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -110,20 +111,20 @@ pub mod pallet {
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 		type Public: Clone
-		+ PartialEq
-		+ IdentifyAccount<AccountId = Self::AccountId>
-		+ core::fmt::Debug
-		+ codec::Codec
-		+ Ord
-		+ scale_info::TypeInfo;
+			+ PartialEq
+			+ IdentifyAccount<AccountId = Self::AccountId>
+			+ core::fmt::Debug
+			+ codec::Codec
+			+ Ord
+			+ scale_info::TypeInfo;
 
 		/// A matching `Signature` type.
 		type Signature: Verify<Signer = Self::Public>
-		+ Clone
-		+ PartialEq
-		+ core::fmt::Debug
-		+ codec::Codec
-		+ scale_info::TypeInfo;
+			+ Clone
+			+ PartialEq
+			+ core::fmt::Debug
+			+ codec::Codec
+			+ scale_info::TypeInfo;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: WeightInfo;
@@ -188,7 +189,9 @@ pub mod pallet {
 		///ProxyNotFound
 		ProxyNotFound,
 		/// MinimumOneProxyRequried
-		MinimumOneProxyRequired
+		MinimumOneProxyRequired,
+		/// Onchain Events vector is full
+		OnchainEventsBoundedVecOverflow,
 	}
 
 	#[pallet::hooks]
@@ -220,8 +223,12 @@ pub mod pallet {
 					polkadex_primitives::ingress::IngressMessages<T::AccountId, BalanceOf<T>>,
 				>::new());
 			}
-			// TODO: Benchmark on initialize
-			0
+
+			<OnChainEvents<T>>::put(
+				BoundedVec::<polkadex_primitives::ocex::OnChainEvents<T::AccountId, BalanceOf<T>>, OnChainEventsLimit>::default()
+			);
+	
+			(1000000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(2 as Weight))
 		}
 	}
 
@@ -273,8 +280,9 @@ pub mod pallet {
 			Ok(())
 		}
 
+
 		/// Registers a new trading pair
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn close_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -302,7 +310,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn open_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -330,7 +338,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn register_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -399,7 +407,7 @@ pub mod pallet {
 		}
 
 		/// Removes a proxy account from pre-registered main acocunt
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
@@ -421,7 +429,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight((590_500_000 as Weight).saturating_add(T::DbWeight::get().reads(3 as Weight)).saturating_add(T::DbWeight::get().writes(5 as Weight)))]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
@@ -437,14 +445,14 @@ pub mod pallet {
 			ensure!(
 				<RegisteredEnclaves<T>>::contains_key(&enclave),
 				Error::<T>::SenderIsNotAttestedEnclave
-			);
+			); 
 
 			let last_snapshot_serial_number =
 				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
 					last_snapshot_number
 				} else {
 					0
-				};
+				}; 
 			ensure!(
 				snapshot.snapshot_number.eq(&(last_snapshot_serial_number+1)),
 				Error::<T>::SnapshotNonceError
@@ -455,13 +463,19 @@ pub mod pallet {
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			let current_snapshot_nonce = snapshot.snapshot_number;
-			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals);
-			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone());
+			ensure!(<OnChainEvents<T>>::try_mutate(|onchain_events| {
+				onchain_events.try_push(
+					polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, snapshot.snapshot_number)
+				)?;
+				Ok::<(), ()>(())
+			}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow); 
+			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone()); 
+			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone()); 
 			snapshot.withdrawals = Default::default();
-			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot);
-			<SnapshotNonce<T>>::put(current_snapshot_nonce);
+			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone()); 
+			<SnapshotNonce<T>>::put(current_snapshot_nonce); 
 			Ok(())
-		}
+		} 
 
 		// FIXME Only for testing will be removed before mainnet launch
 		/// Insert Enclave
@@ -479,7 +493,7 @@ pub mod pallet {
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
-		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(100000 + T::DbWeight::get().writes(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -507,7 +521,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(false);
@@ -519,8 +533,8 @@ pub mod pallet {
 
 		/// Withdraws user balance
 		///
-		/// params: pair: (base,quote), snapshot_number: u32
-		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
+		/// params: snapshot_number: u32
+		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
 		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
@@ -530,7 +544,7 @@ pub mod pallet {
 				T::AccountId,
 				BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
 				SnapshotAccLimit,
-			> = <Withdrawals<T>>::get(snapshot_id);
+			> = <Withdrawals<T>>::get(snapshot_id);  
 			ensure!(withdrawals.contains_key(&sender), Error::<T>::InvalidWithdrawalIndex);
 			if let Some(withdrawal_vector) = withdrawals.get(&sender) {
 				for x in withdrawal_vector.iter() {
@@ -543,13 +557,19 @@ pub mod pallet {
 				}
 				Self::deposit_event(Event::WithdrawalClaimed {
 					main: sender.clone(),
-					withdrawals: withdrawal_vector.to_owned(),
+					withdrawals: withdrawal_vector.clone().to_owned(),
 				});
+				ensure!(<OnChainEvents<T>>::mutate(|onchain_events| {
+					onchain_events.try_push(
+						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(snapshot_id, sender.clone(), withdrawal_vector.clone().to_owned())
+					)?;
+					Ok::<(), ()>(())
+				}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow);   
 			}
 			withdrawals.remove(&sender);
-			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
+			<Withdrawals<T>>::insert(snapshot_id, withdrawals); 
 			Ok(())
-		}
+		} 
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
@@ -633,7 +653,7 @@ pub mod pallet {
 			withdrawals: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
 		},
 		NewProxyAdded { main: T::AccountId, proxy: T::AccountId },
-		ProxyRemoved { main: T::AccountId, proxy: T::AccountId },
+ 		ProxyRemoved { main: T::AccountId, proxy: T::AccountId },
 	}
 
 	// A map that has enumerable entries.
@@ -664,7 +684,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn trading_pairs_status)]
 	pub(super) type TradingPairsStatus<T: Config> =
-	StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, AssetId, bool, ValueQuery>;
+		StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, AssetId, bool, ValueQuery>;
 
 	// Snapshots Storage
 	#[pallet::storage]
@@ -722,11 +742,20 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	// Queue for onchain events
+	#[pallet::storage]
+	#[pallet::getter(fn onchain_events)]
+	pub(super) type OnChainEvents<T: Config> = StorageValue<
+		_,
+		BoundedVec<polkadex_primitives::ocex::OnChainEvents<T::AccountId, BalanceOf<T>>, OnChainEventsLimit>,
+		ValueQuery,
+	>;
+
 	// Vector of registered enclaves
 	#[pallet::storage]
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
-	StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -762,28 +791,5 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
-	}
-
-	pub fn return_withdrawals(
-		snapshot_ids: Vec<u32>,
-		account: T::AccountId
-	) -> Vec<WithdrawalWithPrimitives<T::AccountId>>{
-		let mut withdrawals_vector: Vec<WithdrawalWithPrimitives<T::AccountId>> = vec![];
-		for x in snapshot_ids{
-			if let Some(withdrawals) = <Withdrawals<T>>::get(x).get(&account){
-				let mut snapshot_withdrawals: Vec<WithdrawalWithPrimitives<T::AccountId>> = vec![];
-				for y in withdrawals.iter(){
-					snapshot_withdrawals.push(
-						WithdrawalWithPrimitives{
-							main_account: y.main_account.clone(),
-							amount: y.amount.saturated_into(),
-							asset:  StringAssetId::from(y.asset)
-						}
-					);
-				}
-				withdrawals_vector.append(&mut snapshot_withdrawals.clone())
-			}
-		}
-		withdrawals_vector
 	}
 }

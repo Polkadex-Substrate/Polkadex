@@ -1,12 +1,12 @@
 name: Build-CI
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [Develop, main]
   push:
-    branches: [develop, main]
+    branches: [Develop, main]
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Cache Rust Dependecies
