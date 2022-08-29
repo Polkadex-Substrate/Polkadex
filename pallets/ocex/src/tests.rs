@@ -550,7 +550,7 @@ fn collect_fees_unexpected_behaviour() {
 	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
 		assert_ok!(OCEX::collect_fees(
-			Origin::signed(account_id.clone().into()),
+			Origin::root(),
 			100,
 			account_id.clone().into()
 		));
@@ -614,7 +614,7 @@ fn collect_fees() {
 		));
 
 		assert_ok!(OCEX::collect_fees(
-			Origin::signed(account_id.clone().into()),
+			Origin::root(),
 			1,
 			account_id.clone().into()
 		));
@@ -634,7 +634,7 @@ fn collect_fees() {
 fn test_collect_fees_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()), BadOrigin);
+		assert_noop!(OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.clone().into()), BadOrigin);
 
 		assert_noop!(OCEX::collect_fees(Origin::none(), 100, account_id.into()), BadOrigin);
 	});
@@ -1087,7 +1087,7 @@ pub fn test_collect_fee_with_pdex_asset_fees() {
 		// Mint Some Polkadex to custodian account
 		let custodian_account: AccountId32 = pallet::Pallet::<Test>::get_custodian_account();
 		assert_ok!(Balances::set_balance(Origin::root(), custodian_account, 10000u128, 10000u128));
-		assert_ok!(OCEX::collect_fees(Origin::signed(account_id.clone().into()), snapshot_id, account_id.clone()));
+		assert_ok!(OCEX::collect_fees(Origin::root(), snapshot_id, account_id.clone()));
 		assert_eq!(<FeesCollected<Test>>::get(snapshot_id).len(), 7);
 		assert_eq!(Balances::free_balance(account_id), 15);
 	});
@@ -1117,7 +1117,7 @@ pub fn test_collect_fee_with_non_pdex_asset_fees_and_three_element_exc_limit() {
 			custodian_account.clone(),
 			1000000000000000000000
 		));
-		assert_ok!(OCEX::collect_fees(Origin::signed(account_id.clone().into()), snapshot_id, account_id.clone()));
+		assert_ok!(OCEX::collect_fees(Origin::root(), snapshot_id, account_id.clone()));
 		assert_eq!(<FeesCollected<Test>>::get(snapshot_id).len(), 1);
 		assert_eq!(Assets::balance(asset_id, account_id), 300000);
 	});
