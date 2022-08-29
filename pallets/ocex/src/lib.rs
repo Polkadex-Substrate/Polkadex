@@ -212,8 +212,8 @@ pub mod pallet {
 			<OnChainEvents<T>>::put(
 				BoundedVec::<polkadex_primitives::ocex::OnChainEvents<T::AccountId, BalanceOf<T>>, OnChainEventsLimit>::default()
 			);
-			// TODO: Benchmark on initialize
-			0
+	
+			(1000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(2 as Weight))
 		}
 	}
 
@@ -414,7 +414,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(590_500_000 + T::DbWeight::get().writes(5) + T::DbWeight::get().reads(3))]
+		#[pallet::weight((590_500_000 as Weight).saturating_add(T::DbWeight::get().reads(3 as Weight)).saturating_add(T::DbWeight::get().writes(5 as Weight)))]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
@@ -515,7 +515,7 @@ pub mod pallet {
 		/// Withdraws user balance
 		///
 		/// params: snapshot_number: u32
-		#[pallet::weight(10000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		#[pallet::weight((1000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
 		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
