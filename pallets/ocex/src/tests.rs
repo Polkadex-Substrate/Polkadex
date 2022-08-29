@@ -18,7 +18,7 @@
 use crate::*;
 use frame_support::{
 	assert_noop, assert_ok, bounded_vec, parameter_types,
-	traits::{ConstU128, ConstU64, OnTimestampSet},
+	traits::{ConstU128, ConstU64, OnTimestampSet, OnInitialize},
 	PalletId,
 };
 use frame_system::EnsureRoot;
@@ -824,6 +824,8 @@ fn test_submit_snapshot() {
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
+		let onchain_events: BoundedVec<polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf::<Test>>, polkadex_primitives::OnChainEventsLimit> = bounded_vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, 1)];
+		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 	})
 }
 
@@ -920,7 +922,7 @@ fn test_withdrawal() {
 			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]);
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
 
 		let mmr_root: H256 = create_mmr_with_one_account();
 		let mut snapshot = EnclaveSnapshot::<
@@ -955,8 +957,91 @@ fn test_withdrawal() {
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
 			99999999999900
 		);
+		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf::<Test>> = polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+			1,
+			account_id.clone().into(),
+			bounded_vec![withdrawal]
+		);
+		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
+#[test]
+fn test_onchain_events_overflow() {
+	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let public_key_store = KeyStore::new();
+	let public_key = SyncCryptoStore::sr25519_generate_new(
+		&public_key_store,
+		KEY_TYPE,
+		Some(&format!("{}/hunter1", PHRASE)),
+	)
+	.expect("Unable to create sr25519 key pair");
+	// create 500 accounts 
+	let mut account_id_vector: Vec<AccountId> = vec![];
+	for x in 0..500{
+		let account_id_500 = create_account_id_500(x as u32);
+		account_id_vector.push(account_id_500);
+	}
+	let mut t = new_test_ext();
+	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
+	t.execute_with(|| {
+		mint_into_account(account_id.clone());
+		mint_into_account(custodian_account.clone());
+		let withdrawal = create_withdrawal::<Test>();
+		let mut withdrawal_map: BoundedBTreeMap<
+			AccountId,
+			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
+			SnapshotAccLimit,
+		> = BoundedBTreeMap::new();
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
+		for x in account_id_vector.clone(){
+			let withdrawal_500 = create_withdrawal_500::<Test>(x.clone());
+			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]);
+		}
+
+		let mmr_root: H256 = create_mmr_with_one_account();
+		let mut snapshot = EnclaveSnapshot::<
+			AccountId32,
+			Balance,
+			WithdrawalLimit,
+			AssetsLimit,
+			SnapshotAccLimit,
+		> {
+			snapshot_number: 1,
+			merkle_root: mmr_root,
+			withdrawals: withdrawal_map,
+			fees: bounded_vec![],
+		};
+		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
+		let bytes = snapshot.encode();
+		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+
+		assert_ok!(OCEX::submit_snapshot(
+			Origin::signed(account_id.clone().into()),
+			snapshot,
+			signature.clone().into()
+		),);
+
+		// Perform withdraw for 500 accounts
+		for x in 0..account_id_vector.len()-1{
+			assert_ok!(OCEX::withdraw(Origin::signed(account_id_vector[x].clone().into()), 1));
+		}
+		let last_account = account_id_vector.len() - 1;
+		assert_noop!(OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1),
+			Error::<Test>::OnchainEventsBoundedVecOverflow
+		);
+
+		// Cleanup Onchain events
+		<OCEX as OnInitialize<u64>>::on_initialize(0);
+		assert_eq!(OnChainEvents::<Test>::get().len(), 0);
+
+		// Perform withdraw now
+		assert_ok!(OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1));
+	});
+}
+
 
 #[test]
 fn test_withdrawal_bad_origin() {
@@ -1066,6 +1151,21 @@ fn create_account_id() -> AccountId32 {
 
 	return account_id
 }
+fn create_account_id_500(uid: u32) -> AccountId32 {
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let keystore = KeyStore::new();
+	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
+		&keystore,
+		KEY_TYPE,
+		Some(&format!("{}/hunter{}", PHRASE, uid)),
+	)
+	.expect("Unable to create sr25519 key pair")
+	.try_into()
+	.expect("Unable to convert to AccountId32");
+
+	return account_id
+}
 
 fn create_proxy_account() -> AccountId32 {
 	const PHRASE: &str =
@@ -1151,7 +1251,13 @@ pub fn calculate_mmr_root(
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf<T>> {
 	let account_id = create_account_id();
 	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> =
-		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into() };
+		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0, fees: 1_u32.into() };
+	return withdrawal
+}
+
+pub fn create_withdrawal_500<T: Config>(account_id: AccountId32) -> Withdrawal<AccountId32, BalanceOf<T>> {
+	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> =
+		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0, fees: 1_u32.into() };
 	return withdrawal
 }
 
