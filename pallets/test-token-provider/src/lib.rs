@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod mock;
 
-#[cfg(test)]
-mod test;
+// #[cfg(test)]
+// mod test;
 
 pub use pallet::*;
 // use sp_core::H160;
