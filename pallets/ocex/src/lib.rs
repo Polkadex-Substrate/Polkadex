@@ -500,7 +500,7 @@ pub mod pallet {
 			beneficiary: T::AccountId,
 		) -> DispatchResult {
 			// TODO: The caller should be of operational council
-			let _sender = ensure_signed(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			<FeesCollected<T>>::try_mutate(snapshot_id, |fees| {
 				let fees_to_be_claimed = if let true = fees.len() < T::SnapshotFeeClaim::get() {
 					fees.drain(..)
