@@ -27,7 +27,7 @@ pub mod pallet {
 	use sp_std::prelude::*;
 
 	const DEFAULT_RELAYER_THRESHOLD: u32 = 1;
-	const MODULE_ID: PalletId = PalletId(*b"phala/bg");
+	const MODULE_ID: PalletId = PalletId(*b"polka/bg");
 
 	pub type BridgeChainId = u8;
 	pub type DepositNonce = u64;
