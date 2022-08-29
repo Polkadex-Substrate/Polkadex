@@ -171,6 +171,10 @@ pub mod pallet {
 		InvalidSgxReportStatus,
 		/// Storage overflow ocurred
 		StorageOverflow,
+		///ProxyNotFound
+		ProxyNotFound,
+		/// MinimumOneProxyRequried
+		MinimumOneProxyRequired,
 		OnchainEventsFilled,
 	}
 
@@ -259,6 +263,7 @@ pub mod pallet {
 			}
 			Ok(())
 		}
+
 
 		/// Registers a new trading pair
 		#[pallet::weight(10000)]
@@ -385,6 +390,28 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Removes a proxy account from pre-registered main acocunt
+		#[pallet::weight(10000)]
+		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
+			let main_account = ensure_signed(origin)?;
+			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
+			<Accounts<T>>::try_mutate(&main_account, |account_info| {
+				if let Some(account_info) = account_info {
+					ensure!(account_info.proxies.len() > 1, Error::<T>::MinimumOneProxyRequired);
+					let proxy_positon = account_info.proxies.iter().position(|account| *account == proxy).ok_or(Error::<T>::ProxyNotFound)?;
+					account_info.proxies.remove(proxy_positon);
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RemoveProxy(
+							main_account.clone(),
+							proxy.clone(),
+						));
+					});
+				}
+				Self::deposit_event(Event::ProxyRemoved { main: main_account.clone(), proxy });
+				Ok(())
+			})
+		}
+
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
@@ -419,15 +446,16 @@ pub mod pallet {
 				signature.verify(bytes.as_slice(), &enclave),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
+			// panic!("here");
 			let current_snapshot_nonce = snapshot.snapshot_number;
 			ensure!(<OnChainEvents<T>>::try_mutate(|onchain_events| {
 				onchain_events.try_push(
 					polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, snapshot.snapshot_number)
 				)?;
-				<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals);
+				<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
 				<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone());
 				snapshot.withdrawals = Default::default();
-				<Snapshots<T>>::insert(current_snapshot_nonce, snapshot);
+				<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
 				<SnapshotNonce<T>>::put(current_snapshot_nonce);
 				Ok::<(), ()>(())
 			}).is_ok(), Error::<T>::OnchainEventsFilled);
@@ -605,6 +633,8 @@ pub mod pallet {
 			main: T::AccountId,
 			withdrawals: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
 		},
+		NewProxyAdded { main: T::AccountId, proxy: T::AccountId },
+ 		ProxyRemoved { main: T::AccountId, proxy: T::AccountId },
 	}
 
 	// A map that has enumerable entries.
