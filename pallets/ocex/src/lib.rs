@@ -176,7 +176,7 @@ pub mod pallet {
 		/// MinimumOneProxyRequried
 		MinimumOneProxyRequired,
 		/// Onchain Events vector is full
-		OnchainEventsFilled,
+		OnchainEventsBoundedVecOverflow,
 	}
 
 	#[pallet::hooks]
@@ -454,7 +454,7 @@ pub mod pallet {
 					polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, snapshot.snapshot_number)
 				)?;
 				Ok::<(), ()>(())
-			}).is_ok(), Error::<T>::OnchainEventsFilled);
+			}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow);
 			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
 			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone());
 			snapshot.withdrawals = Default::default();
@@ -546,7 +546,7 @@ pub mod pallet {
 						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(snapshot_id, sender.clone(), withdrawal_vector.clone().to_owned())
 					)?;
 					Ok::<(), ()>(())
-				}).is_ok(), Error::<T>::OnchainEventsFilled); 
+				}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow); 
 			}
 			withdrawals.remove(&sender);
 			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
