@@ -30,3 +30,5 @@ impl TradingPairStatus {
 		Self { is_active: true }
 	}
 }
+
+

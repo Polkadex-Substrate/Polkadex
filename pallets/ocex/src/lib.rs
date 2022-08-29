@@ -21,6 +21,7 @@ use frame_support::{
 	pallet_prelude::Get,
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
 };
+use frame_support::traits::fungibles::Transfer;
 
 use frame_system::ensure_signed;
 use pallet_ocex_primitives::{WithdrawalWithPrimitives, StringAssetId};
@@ -65,6 +66,7 @@ pub mod pallet {
 		},
 		PalletId,
 	};
+	use frame_support::traits::fungibles::Transfer;
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
 	use polkadex_primitives::{
@@ -103,7 +105,7 @@ pub mod pallet {
 			<Self as frame_system::Config>::AccountId,
 			Balance = BalanceOf<Self>,
 			AssetId = u128,
-		> + Inspect<<Self as frame_system::Config>::AccountId>;
+		> + Inspect<<Self as frame_system::Config>::AccountId> + Transfer<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -131,6 +133,9 @@ pub mod pallet {
 		// standard 24h in ms = 86_400_000
 		type MsPerDay: Get<Self::Moment>;
 
+		/// Max Snapshot Fee Claim allowed
+		type SnapshotFeeClaim: Get<usize>;
+
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 	}
@@ -144,19 +149,29 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		///RegisterationShouldBeSignedByMainAccount
 		RegisterationShouldBeSignedByMainAccount,
-		/// Caller is not authorized to claim the withdrawal.
-		/// Normally, when Sender != main_account.
+		///SenderNotAuthorizedToWithdraw
 		SenderNotAuthorizedToWithdraw,
+		///InvalidWithdrawalIndex
 		InvalidWithdrawalIndex,
+		///TradingPairIsNotOperational
 		TradingPairIsNotOperational,
+		///MainAccountAlreadyRegistered
 		MainAccountAlreadyRegistered,
+		///SnapshotNonceError
 		SnapshotNonceError,
+		///EnclaveSignatureVerificationFailed
 		EnclaveSignatureVerificationFailed,
+		///MainAccountNotFound
 		MainAccountNotFound,
+		///ProxyLimitExceeded
 		ProxyLimitExceeded,
+		///TradingPairAlreadyRegistered
 		TradingPairAlreadyRegistered,
+		///BothAssetsCannotBeSame
 		BothAssetsCannotBeSame,
+		///TradingPairNotFound
 		TradingPairNotFound,
 		/// Provided Report Value is invalid
 		InvalidReportValue,
@@ -472,19 +487,23 @@ pub mod pallet {
 		) -> DispatchResult {
 			// TODO: The caller should be of operational council
 			let _sender = ensure_signed(origin)?;
-
-			let fees: Vec<Fees<BalanceOf<T>>> =
-				<FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
-			for fee in fees {
-				Self::transfer_asset(
-					&Self::get_custodian_account(),
-					&beneficiary,
-					fee.amount,
-					fee.asset,
-				)?;
-			}
-			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
-			Ok(())
+			<FeesCollected<T>>::try_mutate(snapshot_id, |fees| {
+				let fees_to_be_claimed = if let true = fees.len() < T::SnapshotFeeClaim::get() {
+					fees.drain(..)
+				} else {
+                    fees.drain(..T::SnapshotFeeClaim::get())
+				};
+				for fee in fees_to_be_claimed {
+					Self::transfer_asset(
+						&Self::get_custodian_account(),
+						&beneficiary,
+						fee.amount,
+						fee.asset,
+					)?;
+				}
+				Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
+				Ok(())
+			})
 		}
 
 		/// Extrinsic used to shutdown the orderbook
@@ -738,7 +757,8 @@ impl<T: Config> Pallet<T> {
 				)?;
 			},
 			AssetId::asset(id) => {
-				T::OtherAssets::teleport(id, payer, payee, amount.unique_saturated_into())?;
+				//panic!();
+				T::OtherAssets::transfer(id, payer, payee, amount, true)?;
 			},
 		}
 		Ok(())
