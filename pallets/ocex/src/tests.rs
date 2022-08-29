@@ -922,7 +922,7 @@ fn test_withdrawal() {
 			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]);
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
 
 		let mmr_root: H256 = create_mmr_with_one_account();
 		let mut snapshot = EnclaveSnapshot::<
@@ -957,6 +957,12 @@ fn test_withdrawal() {
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
 			99999999999900
 		);
+		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf::<Test>> = polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+			1,
+			account_id.clone().into(),
+			bounded_vec![withdrawal]
+		);
+		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
 
