@@ -453,13 +453,13 @@ pub mod pallet {
 				onchain_events.try_push(
 					polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, snapshot.snapshot_number)
 				)?;
-				<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
-				<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone());
-				snapshot.withdrawals = Default::default();
-				<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
-				<SnapshotNonce<T>>::put(current_snapshot_nonce);
 				Ok::<(), ()>(())
 			}).is_ok(), Error::<T>::OnchainEventsFilled);
+			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
+			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone());
+			snapshot.withdrawals = Default::default();
+			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
+			<SnapshotNonce<T>>::put(current_snapshot_nonce);
 			Ok(())
 		}
 
