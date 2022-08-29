@@ -448,12 +448,14 @@ pub mod pallet {
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			let current_snapshot_nonce = snapshot.snapshot_number;
-			ensure!(<OnChainEvents<T>>::try_mutate(|onchain_events| {
-				onchain_events.try_push(
-					polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, snapshot.snapshot_number)
+            if snapshot.withdrawals.keys().len() > 0{
+                ensure!(<OnChainEvents<T>>::try_mutate(|onchain_events| {
+				    onchain_events.try_push(
+					    polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, snapshot.snapshot_number)
 				)?;
 				Ok::<(), ()>(())
-			}).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow); 
+			    }).is_ok(), Error::<T>::OnchainEventsBoundedVecOverflow);
+            }
 			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone()); 
 			<FeesCollected<T>>::insert(current_snapshot_nonce,snapshot.fees.clone()); 
 			snapshot.withdrawals = Default::default();
