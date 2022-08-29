@@ -213,7 +213,7 @@ pub mod pallet {
 				BoundedVec::<polkadex_primitives::ocex::OnChainEvents<T::AccountId, BalanceOf<T>>, OnChainEventsLimit>::default()
 			);
 	
-			(1000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(2 as Weight))
+			(1000000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(2 as Weight))
 		}
 	}
 
@@ -267,7 +267,7 @@ pub mod pallet {
 
 
 		/// Registers a new trading pair
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn close_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -295,7 +295,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn open_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -323,7 +323,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn register_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -392,7 +392,7 @@ pub mod pallet {
 		}
 
 		/// Removes a proxy account from pre-registered main acocunt
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
@@ -478,7 +478,7 @@ pub mod pallet {
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
-		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(100000 + T::DbWeight::get().writes(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -502,7 +502,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(10000)]
+		#[pallet::weight(100000)]
 		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(false);
@@ -515,7 +515,7 @@ pub mod pallet {
 		/// Withdraws user balance
 		///
 		/// params: snapshot_number: u32
-		#[pallet::weight((1000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
+		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
 		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
