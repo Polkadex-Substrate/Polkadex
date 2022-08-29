@@ -116,7 +116,6 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 	C::Api: polkadex_ido_rpc::PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
-	C::Api: pallet_ocex_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
 {
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
@@ -174,6 +173,5 @@ where
 	// io.merge(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
 	// 	polkadex_ido_rpc::PolkadexIdoRpc::new(client),
 	// ))?;
-	io.merge(PolkadexOcexRpc::new(client.clone()).into_rpc())?;
 	Ok(io)
 }
