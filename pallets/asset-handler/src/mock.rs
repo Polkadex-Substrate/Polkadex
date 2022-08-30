@@ -168,6 +168,6 @@ pub fn run_to_block(n: u64) {
 		}
 		System::set_block_number(System::block_number() + 1);
 		System::on_initialize(System::block_number());
-		AssetHandler::on_initialize(n);
+		AssetHandler::on_initialize(System::block_number());
 	}
 }
