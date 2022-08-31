@@ -3,8 +3,8 @@
 This guide will instruct you how to set up a validator node on the Polkadex using the released binary.
 
 
-- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/v1.0.8
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.8/customSpecRaw.json
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/latest
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/latest/customSpecRaw.json
 
 ## Initial Set-up
 
