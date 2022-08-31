@@ -535,7 +535,7 @@ pub mod pallet {
 		///
 		/// params: snapshot_number: u32
 		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
-		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
+		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResultWithPostInfo {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let sender = ensure_signed(origin)?;
@@ -568,7 +568,7 @@ pub mod pallet {
 			}
 			withdrawals.remove(&sender);
 			<Withdrawals<T>>::insert(snapshot_id, withdrawals); 
-			Ok(())
+			Ok(Pays::No.into())
 		} 
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
