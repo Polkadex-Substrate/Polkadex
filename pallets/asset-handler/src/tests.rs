@@ -8,6 +8,7 @@
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
+use std::collections::BTreeSet;
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -15,7 +16,7 @@
 use codec::Decode;
 use frame_support::{assert_noop, assert_ok, BoundedVec, ensure};
 use sp_core::{H160, U256};
-use sp_runtime::TokenError;
+use sp_runtime::{BoundedBTreeSet, TokenError};
 
 use crate::{mock::{new_test_ext, Test, *}, mock, pallet::*};
 
@@ -178,6 +179,20 @@ pub fn test_whitelist_and_blacklist_token() {
 		assert_ok!(AssetHandler::remove_whitelisted_token(Origin::signed(1), new_token));
 		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
 		assert!(!whitelisted_tokens.contains(&new_token));
+	});
+}
+
+#[test]
+pub fn test_whitelist_with_limit_reaching_returns_error() {
+	new_test_ext().execute_with(|| {
+		let mut whitelisted_assets: BoundedBTreeSet<H160, WhitelistedTokenLimit> = BoundedBTreeSet::new();
+		for ele in 0..50 {
+			assert_ok!(whitelisted_assets.try_insert(H160::from_low_u64_be(ele)));
+		};
+		assert_eq!(whitelisted_assets.len(), 50);
+		<WhitelistedToken<Test>>::put(whitelisted_assets);
+		let new_token = H160::random();
+		assert_noop!(AssetHandler::whitelist_token(Origin::signed(1), new_token), Error::<Test>::WhitelistedTokenLimitReached);
 	});
 }
 
