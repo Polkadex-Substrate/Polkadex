@@ -44,11 +44,8 @@ pub mod pallet {
 	use frame_support::dispatch::fmt::Debug;
 	use sp_runtime::traits::Zero;
 	use frame_system::pallet_prelude::*;
-	use sp_core::{H160, U256};
-	use sp_runtime::{
-		traits::{One, UniqueSaturatedInto},
-		SaturatedConversion,
-	};
+	use sp_core::{H160, H256, U256};
+	use sp_runtime::{traits::{One, UniqueSaturatedInto}, SaturatedConversion, BoundedBTreeSet};
 	use sp_std::vec::Vec;
 
 	pub type BalanceOf<T> =
@@ -67,6 +64,13 @@ pub mod pallet {
 	impl Get<u32> for WithdrawalLimit {
 		fn get() -> u32 {
 			5 // TODO: Arbitrary value
+		}
+	}
+
+	pub struct WhitelistedTokenLimit;
+	impl Get<u32> for WhitelistedTokenLimit {
+		fn get() -> u32 {
+			50 // TODO: Arbitrary value
 		}
 	}
 
@@ -108,6 +112,12 @@ pub mod pallet {
 	pub(super) type WithdrawalExecutionBlockDiff<T: Config> =
 	StorageValue<_, T::BlockNumber, ValueQuery>;
 
+	///Whitelisted tokens
+	#[pallet::storage]
+	#[pallet::getter(fn get_whitelisted_token)]
+	pub(super) type WhitelistedToken<T: Config> =
+	StorageValue<_, BoundedBTreeSet<H160, WhitelistedTokenLimit>, ValueQuery>;
+
 	///Block Difference required for Withdrawal Execution
 	#[pallet::storage]
 	#[pallet::getter(fn is_bridge_deactivated)]
@@ -137,7 +147,11 @@ pub mod pallet {
 		/// BlocksDelayUpdated
 	    BlocksDelayUpdated(T::BlockNumber),
 		/// FungibleTransferFailed
-		FungibleTransferFailed
+		FungibleTransferFailed,
+		/// TokenWhitelisted
+		TokenWhitelisted(H160),
+		/// WhitelistedTokenRemoved
+		WhitelistedTokenRemoved(H160)
 	}
 
 	// Errors inform users that something went wrong.
@@ -160,7 +174,13 @@ pub mod pallet {
 		/// ConversionIssue
 		ConversionIssue,
 		/// BridgeDeactivated
-		BridgeDeactivated
+		BridgeDeactivated,
+		/// WhitelistedTokenLimitReached
+		WhitelistedTokenLimitReached,
+		/// TokenNotWhitelisted
+		TokenNotWhitelisted,
+		/// WhitelistedTokenRemoved
+		WhitelistedTokenRemoved
 	}
 
 	#[pallet::hooks]
@@ -261,6 +281,28 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Whitelist Token
+		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn whitelist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+            let mut whitelisted_tokens = <WhitelistedToken<T>>::get();
+			whitelisted_tokens.try_insert(token_add).map_err(|_| Error::<T>::WhitelistedTokenLimitReached)?;
+			<WhitelistedToken<T>>::put(whitelisted_tokens);
+			Self::deposit_event(Event::<T>::TokenWhitelisted(token_add));
+			Ok(())
+		}
+
+		/// Remove Whitelisted Token
+		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn remove_whitelisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			let mut whitelisted_tokens = <WhitelistedToken<T>>::get();
+			whitelisted_tokens.remove(&token_add);
+			<WhitelistedToken<T>>::put(whitelisted_tokens);
+			Self::deposit_event(Event::<T>::WhitelistedTokenRemoved(token_add));
+			Ok(())
+		}
+
 		/// Set Block Delay
 		#[pallet::weight(T::DbWeight::get().writes(2 as Weight))]
 		pub fn set_block_delay(
@@ -291,6 +333,7 @@ pub mod pallet {
 			recipient: H160,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
+			ensure!(<WhitelistedToken<T>>::get().contains(&contract_add), Error::<T>::TokenNotWhitelisted);
 			ensure!(
 				chainbridge::Pallet::<T>::chain_whitelisted(chain_id),
 				Error::<T>::ChainIsNotWhitelisted
