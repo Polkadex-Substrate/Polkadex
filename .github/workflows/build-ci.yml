@@ -22,7 +22,7 @@ jobs:
       - name: Build Project
         run: |
             cargo clean
-            cargo build --release --features runtime-benchmarks
+            # cargo build --release --features runtime-benchmarks
             cargo build
       - name: Test Project
         run: cargo test
