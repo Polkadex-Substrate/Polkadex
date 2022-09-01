@@ -19,6 +19,19 @@ jobs:
          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install toolchain
         run: ./scripts/init.sh
+      - name: Add fmt
+        # v1.5.0 includes fixes of closures formatting
+        run: |
+          cd ..
+          git clone  --depth 1 https://github.com/rust-lang/rustfmt
+          cd rustfmt
+          git fetch --tags
+          git checkout v1.5.0
+          export CFG_RELEASE=nightly
+          export CFG_RELEASE_CHANNEL=nightly
+          cargo clean -p rustfmt-nightly
+          cargo install --path . --force
+          cd ../Polkadex
       - name: Build Project
         run: |
             cargo clean
