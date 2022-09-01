@@ -33,6 +33,7 @@ jsonrpsee = { version = "0.15.1", features = ["server"] }
 node-polkadex-runtime = { path = "../runtime", version = "3.0.0" }
 polkadex-ido-rpc = {path = "../pallets/polkadex-ido/rpc"}
 pallet-ocex-rpc = {path = "../pallets/ocex/rpc"}
+polkadex-client = { path = "../client"}
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
@@ -90,7 +91,7 @@ polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", g
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-cli = {  git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"] }
-node-executor = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", features = ["wasmtime"] }
+#node-executor = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", features = ["wasmtime"] }
 sc-service = {  git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"]}
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features= false, features = [
 	"memory-tracker",
