@@ -99,16 +99,17 @@ pub mod pallet {
 			let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 			let valid_tx = |account: &T::AccountId, asset_id: u128| {
 				let mut last_block_number: T::BlockNumber;
-				if let Some(block) = Self::fetch_block_number(&account, asset_id){
+				if let Some(block) = Self::fetch_block_number(&account, asset_id) {
 					last_block_number = block;
 				} else {
 					return TransactionValidity::Err(TransactionValidityError::Invalid(
 						InvalidTransaction::ExhaustsResources,
-					));
+					))
 				}
-				// let last_block_number: T::BlockNumber = Self::fetch_block_number(&account, asset_id).unwrap();
-				if (last_block_number == 0_u64.saturated_into())
-					|| (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
+				// let last_block_number: T::BlockNumber = Self::fetch_block_number(&account,
+				// asset_id).unwrap();
+				if (last_block_number == 0_u64.saturated_into()) ||
+					(current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
 				{
 					ValidTransaction::with_tag_prefix("token-faucet")
 						.priority(100)
@@ -124,8 +125,8 @@ pub mod pallet {
 			};
 			let valid_native_tx = |account: &T::AccountId| {
 				let last_block_number: T::BlockNumber = <NativeTokenMap<T>>::get(account);
-				if (last_block_number == 0_u64.saturated_into())
-					|| (current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
+				if (last_block_number == 0_u64.saturated_into()) ||
+					(current_block_no - last_block_number >= BLOCK_THRESHOLD.saturated_into())
 				{
 					ValidTransaction::with_tag_prefix("native-token")
 						.priority(100)
@@ -140,12 +141,10 @@ pub mod pallet {
 				}
 			};
 			match call {
-				Call::credit_account_with_tokens_unsigned { account, asset_id } => {
-					valid_tx(&account, *asset_id as u128)
-				},
-				Call::credit_account_with_native_tokens_unsigned { account } => {
-					valid_native_tx(&account)
-				},
+				Call::credit_account_with_tokens_unsigned { account, asset_id } =>
+					valid_tx(&account, *asset_id as u128),
+				Call::credit_account_with_native_tokens_unsigned { account } =>
+					valid_native_tx(&account),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -161,11 +160,11 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_none(origin)?;
 			if asset_id < 1 || asset_id > 5 {
-				return Err(Error::<T>::NotAllowed.into());
+				return Err(Error::<T>::NotAllowed.into())
 			}
 			let asset: Assets = Assets::from_u8(asset_id as u8);
 			if asset == Assets::Unknown {
-				return Err(Error::<T>::NotAllowed.into());
+				return Err(Error::<T>::NotAllowed.into())
 			}
 			Self::transfer_assets(&account, asset_id as u128);
 			Self::deposit_event(Event::AccountCredited(account));
