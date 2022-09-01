@@ -107,16 +107,16 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 	]
 	.into();
 
-	let enclave_developement_account: AccountId = hex![
-		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
-	]
-		.into();
-	let orderbook_test_main_account: AccountId = hex! [
-		"6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"
-	].into();
-	testnet_genesis(initial_authorities, vec![],
-					Some(vec![enclave_developement_account, orderbook_test_main_account]),
-					root_key)
+	let enclave_developement_account: AccountId =
+		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
+	let orderbook_test_main_account: AccountId =
+		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
+	testnet_genesis(
+		initial_authorities,
+		vec![],
+		Some(vec![enclave_developement_account, orderbook_test_main_account]),
+		root_key,
+	)
 }
 
 /// Staging testnet config.
