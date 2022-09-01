@@ -676,9 +676,7 @@ pub mod pallet {
 							amount.saturated_into(),
 						)?;
 					},
-					_ => {
-						return Err(<Error<T>>::MintNativeTokenForbidden.into())
-					},
+					_ => return Err(<Error<T>>::MintNativeTokenForbidden.into()),
 				}
 			} else {
 				Self::transfer(token_a, &team, &round_account_id, amount.saturated_into())?;

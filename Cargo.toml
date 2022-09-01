@@ -3,6 +3,7 @@ panic = "unwind"
 
 [workspace]
 members = [
+    "client",
     "node",
     "runtime",
     "pallets/pdex-migration",

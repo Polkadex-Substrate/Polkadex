@@ -32,8 +32,8 @@ pub use weights::*;
 pub mod pallet {
 	use crate::AssetHandlerWeightInfo;
 	use chainbridge::{BridgeChainId, ResourceId};
-	use sp_runtime::traits::Saturating;
 	use frame_support::{
+		dispatch::fmt::Debug,
 		pallet_prelude::*,
 		traits::{
 			tokens::fungibles::{Create, Inspect, Mutate},
@@ -41,12 +41,10 @@ pub mod pallet {
 		},
 		PalletId,
 	};
-	use frame_support::dispatch::fmt::Debug;
-	use sp_runtime::traits::Zero;
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
 	use sp_runtime::{
-		traits::{One, UniqueSaturatedInto},
+		traits::{One, Saturating, UniqueSaturatedInto, Zero},
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
@@ -55,7 +53,9 @@ pub mod pallet {
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct PendingWithdrawal<Balance: Encode + Decode + MaxEncodedLen + Copy + Clone + Debug + Eq + PartialEq> {
+	pub struct PendingWithdrawal<
+		Balance: Encode + Decode + MaxEncodedLen + Copy + Clone + Debug + Eq + PartialEq,
+	> {
 		pub chain_id: BridgeChainId,
 		pub rid: ResourceId,
 		pub amount: Balance,
@@ -106,19 +106,23 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_withdrawal_exc_block_diff)]
 	pub(super) type WithdrawalExecutionBlockDiff<T: Config> =
-	StorageValue<_, T::BlockNumber, ValueQuery>;
+		StorageValue<_, T::BlockNumber, ValueQuery>;
 
 	///Block Difference required for Withdrawal Execution
 	#[pallet::storage]
 	#[pallet::getter(fn is_bridge_deactivated)]
-	pub(super) type BridgeDeactivated<T: Config> =
-	StorageValue<_, bool, ValueQuery>;
+	pub(super) type BridgeDeactivated<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	/// Pending Withdrawals
 	#[pallet::storage]
 	#[pallet::getter(fn get_pending_withdrawls)]
-	pub(super) type PendingWithdrawals<T: Config> =
-	StorageMap<_, Blake2_128Concat, T::BlockNumber, BoundedVec<PendingWithdrawal<BalanceOf<T>>, WithdrawalLimit>, ValueQuery>;
+	pub(super) type PendingWithdrawals<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::BlockNumber,
+		BoundedVec<PendingWithdrawal<BalanceOf<T>>, WithdrawalLimit>,
+		ValueQuery,
+	>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -135,9 +139,9 @@ pub mod pallet {
 		/// NewBridgeStatus
 		BridgeStatusUpdated(bool),
 		/// BlocksDelayUpdated
-	    BlocksDelayUpdated(T::BlockNumber),
+		BlocksDelayUpdated(T::BlockNumber),
 		/// FungibleTransferFailed
-		FungibleTransferFailed
+		FungibleTransferFailed,
 	}
 
 	// Errors inform users that something went wrong.
@@ -160,14 +164,15 @@ pub mod pallet {
 		/// ConversionIssue
 		ConversionIssue,
 		/// BridgeDeactivated
-		BridgeDeactivated
+		BridgeDeactivated,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// On Initialize
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			let withdrawal_execution_block = n.saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
+			let withdrawal_execution_block =
+				n.saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
 			if !withdrawal_execution_block.is_zero() {
 				let pending_withdrawals = <PendingWithdrawals<T>>::get(withdrawal_execution_block);
 				for withdrawal in pending_withdrawals {
@@ -182,10 +187,9 @@ pub mod pallet {
 				}
 			}
 			// TODO: Benchmark on initialize
-			(195_000_000 as Weight).saturating_add(
-				T::DbWeight::get().writes(
-					5 as Weight)).saturating_add(
-				T::DbWeight::get().reads(5 as Weight))
+			(195_000_000 as Weight)
+				.saturating_add(T::DbWeight::get().writes(5 as Weight))
+				.saturating_add(T::DbWeight::get().reads(5 as Weight))
 		}
 	}
 
@@ -239,7 +243,8 @@ pub mod pallet {
 				chainbridge::Pallet::<T>::account_id() == sender,
 				Error::<T>::MinterMustBeRelayer
 			);
-			let amount = Self::convert_18dec_to_12dec(amount).ok_or_else(|| Error::<T>::DivisionUnderflow)?;
+			let amount = Self::convert_18dec_to_12dec(amount)
+				.ok_or_else(|| Error::<T>::DivisionUnderflow)?;
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,
@@ -251,10 +256,7 @@ pub mod pallet {
 
 		/// Set Bridge Status
 		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(2 as Weight)))]
-		pub fn set_bridge_status(
-			origin: OriginFor<T>,
-		    status: bool
-		) -> DispatchResult {
+		pub fn set_bridge_status(origin: OriginFor<T>, status: bool) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeDeactivated<T>>::put(status);
 			Self::deposit_event(Event::<T>::BridgeStatusUpdated(status));
@@ -265,7 +267,7 @@ pub mod pallet {
 		#[pallet::weight(T::DbWeight::get().writes(2 as Weight))]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
-			no_of_blocks: T::BlockNumber
+			no_of_blocks: T::BlockNumber,
 		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<WithdrawalExecutionBlockDiff<T>>::put(no_of_blocks);
@@ -302,8 +304,11 @@ pub mod pallet {
 					amount.saturated_into::<u128>(),
 				Error::<T>::NotEnoughBalance
 			);
-			ensure!(<PendingWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number()).len()< WithdrawalLimit::get().try_into().map_err(
-						|_| Error::<T>::ConversionIssue)?, Error::<T>::WithdrawalLimitReached);
+			ensure!(
+				<PendingWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number()).len() <
+					WithdrawalLimit::get().try_into().map_err(|_| Error::<T>::ConversionIssue)?,
+				Error::<T>::WithdrawalLimitReached
+			);
 			let fee = Self::fee_calculation(chain_id, amount);
 
 			T::Currency::transfer(
@@ -318,16 +323,15 @@ pub mod pallet {
 				amount.saturated_into::<u128>(),
 			)?;
 
-			let pending_withdrawal = PendingWithdrawal {
-					chain_id,
-					rid,
-					recipient,
-					amount
-				};
-			<PendingWithdrawals<T>>::try_mutate(<frame_system::Pallet<T>>::block_number(), |withdrawals| {
+			let pending_withdrawal = PendingWithdrawal { chain_id, rid, recipient, amount };
+			<PendingWithdrawals<T>>::try_mutate(
+				<frame_system::Pallet<T>>::block_number(),
+				|withdrawals| {
 					withdrawals.try_push(pending_withdrawal)?;
 					Ok(())
-				}).map_err(|()| Error::<T>::WithdrawalLimitReached)?;
+				},
+			)
+			.map_err(|()| Error::<T>::WithdrawalLimitReached)?;
 			Self::deposit_event(Event::<T>::AssetWithdrawn(contract_add, rid, amount));
 			Ok(())
 		}
@@ -371,8 +375,7 @@ pub mod pallet {
 		}
 
 		fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
-			balance
-				.checked_div(1000000u128)
+			balance.checked_div(1000000u128)
 		}
 
 		pub fn convert_asset_id(token: ResourceId) -> u128 {

@@ -13,6 +13,9 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
+use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
+	OnFinalize, OnInitialize,
+};
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -20,7 +23,6 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{OnInitialize, OnFinalize};
 
 use crate::pallet as asset_handler;
 
