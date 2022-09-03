@@ -73,25 +73,15 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
 
-use frame_support::{
-	dispatch::DispatchResult,
-	ensure,
-	pallet_prelude::*,
-	traits::{
-		tokens::{
-			fungible,
-			fungibles::{Create, Inspect, Mutate, Transfer, Unbalanced},
-		},
-		EnsureOrigin, Get, Randomness, WithdrawReasons,
+use frame_support::traits::{
+	tokens::{
+		fungible,
+		fungibles::{Inspect, Transfer, Unbalanced},
 	},
-	PalletId,
+	Get, Randomness, WithdrawReasons,
 };
-use frame_system as system;
-use frame_system::ensure_signed;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-use scale_info::StaticTypeInfo;
-use sp_core::H256;
 use sp_runtime::{
 	traits::{AccountIdConversion, Saturating, Zero},
 	Perbill, Perquintill, SaturatedConversion,
@@ -130,14 +120,12 @@ pub mod pallet {
 		traits::tokens::fungibles::{Create, Inspect, Mutate},
 		PalletId,
 	};
-	use frame_system::{offchain::CreateSignedTransaction, pallet_prelude::*};
-	use sp_core::{H160, H256};
-	use sp_runtime::traits::One;
+	use frame_system::pallet_prelude::*;
+	use sp_core::H256;
 	use sp_std::prelude::*;
 
 	use super::*;
 
-	use pallet_polkadex_ido_primitives::AccountId;
 	use polkadex_primitives::assets::AssetId;
 
 	/// The module configuration trait.

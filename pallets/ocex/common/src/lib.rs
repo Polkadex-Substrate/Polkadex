@@ -4,7 +4,6 @@ use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Balance, BlockNumber, Hash};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sp_std::vec::Vec;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]

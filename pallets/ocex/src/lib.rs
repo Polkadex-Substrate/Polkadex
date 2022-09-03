@@ -23,9 +23,7 @@ use frame_support::{
 };
 
 use frame_system::ensure_signed;
-use pallet_ocex_primitives::{StringAssetId, WithdrawalWithPrimitives};
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
-use sp_runtime::SaturatedConversion;
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -72,7 +70,7 @@ pub mod pallet {
 		ocex::{AccountInfo, TradingPairConfig},
 		snapshot::{EnclaveSnapshot, Fees},
 		withdrawal::Withdrawal,
-		AccountId, AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit,
+		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit,
 	};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
