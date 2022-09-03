@@ -40,7 +40,7 @@ jobs:
         run: |
           cargo clean
           # cargo build --release --features runtime-benchmarks
-          cargo build
+          RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
       - name: Test Project
