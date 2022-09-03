@@ -578,7 +578,7 @@ pub mod pallet {
 		/// In order to register itself - enclave must send it's own report to this extrinsic
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
-			let relayer = ensure_signed(origin)?;
+			let _ = ensure_signed(origin)?;
 			let report = verify_ias_report(&ias_report)
 				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
@@ -602,7 +602,8 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		// clean-up function - should be called on each block
-		fn unregister_timed_out_enclaves() {
+		// TODO: Commented out for testing. Should be restored before mainnet launch
+		/*fn unregister_timed_out_enclaves() {
 			use sp_runtime::traits::CheckedSub;
 			let mut enclave_to_remove = sp_std::vec![];
 			let iter = <RegisteredEnclaves<T>>::iter();
@@ -617,7 +618,7 @@ pub mod pallet {
 				<RegisteredEnclaves<T>>::remove(enclave);
 			}
 			Self::deposit_event(Event::EnclaveCleanup(enclave_to_remove));
-		}
+		}*/
 	}
 
 	/// Events are a simple means of reporting specific conditions and

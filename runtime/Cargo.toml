@@ -118,7 +118,6 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28"}
 
-
 [features]
 default = ["std"]
 std = [
@@ -220,7 +219,6 @@ runtime-benchmarks = [
     "frame-election-provider-support/runtime-benchmarks",
     #"pdex-migration/runtime-benchmarks"
 ]
-
 
 try-runtime = [
     "frame-executive/try-runtime",

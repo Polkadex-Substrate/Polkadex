@@ -100,8 +100,6 @@ sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true }
 
-
-
 [dev-dependencies]
 futures = "0.3.9"
 tempfile = "3.1.0"

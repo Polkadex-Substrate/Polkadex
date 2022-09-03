@@ -98,7 +98,7 @@ pub mod pallet {
 			// Need to create Block treshold
 			let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 			let valid_tx = |account: &T::AccountId, asset_id: u128| {
-				let mut last_block_number: T::BlockNumber;
+				let last_block_number: T::BlockNumber;
 				if let Some(block) = Self::fetch_block_number(&account, asset_id) {
 					last_block_number = block;
 				} else {

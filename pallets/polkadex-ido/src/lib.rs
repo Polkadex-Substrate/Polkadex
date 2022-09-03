@@ -69,7 +69,7 @@
 //! - `attest_investor` - Attests the investor to take part in the IDO pallet.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-// Clippy warning diabled for to many arguments on line#157
+// Clippy warning disabled for to many arguments on line#157
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
 
@@ -628,7 +628,7 @@ pub mod pallet {
 
 			// Mint random token if user selects none: TODO: Remove in production, only for beta
 			// testes
-			///TODO check if an old or new token again here and only mint the new
+			// TODO: check if an old or new token again here and only mint the new
 			let vesting_period: u32 = (amount / vesting_per_block).saturated_into();
 			let vesting_period: T::BlockNumber = vesting_period.saturated_into();
 			let vesting_end_block: T::BlockNumber =
@@ -848,7 +848,7 @@ pub mod pallet {
 			// Max and Min allocation must be in token A to avoid the investor for under investing
 			// or over investing
 
-			///TODO make sure we have unit test for both paths.
+			// TODO: make sure we have unit test for both paths.
 			let amount_in_token_a = if T::OnePDEX::get().saturated_into::<BalanceOf<T>>() >=
 				funding_round.token_a_priceper_token_b
 			{
