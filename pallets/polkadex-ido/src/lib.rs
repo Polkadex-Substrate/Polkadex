@@ -429,7 +429,7 @@ pub mod pallet {
 						};
 
 						// Calculate investors share
-						let investor_share = Perquintill::from_rational_approximation(
+						let investor_share = Perquintill::from_rational(
 							amount.saturated_into::<u64>(),
 							total_raise.saturated_into::<u64>(),
 						);
