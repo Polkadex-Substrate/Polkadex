@@ -166,7 +166,7 @@ pub mod pallet {
 			if asset == Assets::Unknown {
 				return Err(Error::<T>::NotAllowed.into())
 			}
-			Self::transfer_assets(&account, asset_id as u128);
+			Self::transfer_assets(&account, asset_id as u128)?;
 			Self::deposit_event(Event::AccountCredited(account));
 
 			// Code here to mint tokens
@@ -237,7 +237,7 @@ pub mod pallet {
 			MODULE_ID.into_account_truncating()
 		}
 
-		pub fn transfer_assets(account: &T::AccountId, asset_id: u128) {
+		pub fn transfer_assets(account: &T::AccountId, asset_id: u128) -> DispatchResult {
 			if let Err(_e) = T::AssetManager::mint_into(asset_id, &account, 1000000000000000) {
 				// Handling Unknown Asset by creating the Asset
 				T::AssetManager::create(
@@ -245,9 +245,9 @@ pub mod pallet {
 					Self::account_id(),
 					true,
 					BalanceOf::<T>::one().unique_saturated_into(),
-				);
+				)?;
 				// Minting Test Ether into the Account
-				T::AssetManager::mint_into(asset_id, &account, 1000000000000000);
+				T::AssetManager::mint_into(asset_id, &account, 1000000000000000)?;
 			}
 			match asset_id {
 				1_u128 => {
@@ -268,7 +268,9 @@ pub mod pallet {
 				_ => {
 					// Do nothing
 				},
-			}
+			};
+
+			Ok(())
 		}
 		pub fn fetch_block_number(account: &T::AccountId, asset: u128) -> Option<T::BlockNumber> {
 			match asset {
