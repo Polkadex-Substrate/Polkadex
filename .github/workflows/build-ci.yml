@@ -44,7 +44,9 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
-        run: cargo +nightly clippy  -- -D warnings
+        run: |
+          rustup component add clippy --toolchain=nightly
+          cargo +nightly clippy  -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
