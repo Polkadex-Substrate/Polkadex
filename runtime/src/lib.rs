@@ -273,6 +273,7 @@ use sp_npos_elections::ExtendedBalance;
 	MaxEncodedLen,
 	TypeInfo,
 )]
+#[allow(clippy::unnecessary_cast)]
 pub enum ProxyType {
 	Any = 0,
 	NonTransfer = 1,
@@ -354,9 +355,9 @@ impl pallet_scheduler::Config for Runtime {
 
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
-	pub const PreimageBaseDeposit: Balance = 1 * DOLLARS;
+	pub const PreimageBaseDeposit: Balance = DOLLARS;
 	// One cent: PDEX 10,000 / MB
-	pub const PreimageByteDeposit: Balance = 1 * CENTS;
+	pub const PreimageByteDeposit: Balance = CENTS;
 }
 
 impl pallet_preimage::Config for Runtime {
@@ -667,7 +668,7 @@ impl Get<Option<(usize, ExtendedBalance)>> for OffchainRandomBalancing {
 		use sp_runtime::traits::TrailingZeroInput;
 		let iters = match MINER_MAX_ITERATIONS {
 			0 => 0,
-			max @ _ => {
+			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
 					.expect("input is padded with zeroes; qed") %
@@ -817,7 +818,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 }
 
 parameter_types! {
-	pub const OrderbookMotionDuration: BlockNumber = 1 * DAYS;
+	pub const OrderbookMotionDuration: BlockNumber = DAYS;
 	pub const OrderbookMaxProposals: u32 = 100;
 	pub const OrderbookMaxMembers: u32 = 3;
 }
@@ -862,11 +863,11 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = 100 * PDEX;
 	pub const SpendPeriod: BlockNumber = 24 * DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
-	pub const TipCountdown: BlockNumber = 1 * DAYS;
+	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = 1 * PDEX;
-	pub const DataDepositPerByte: Balance = 1 * CENTS;
-	pub const BountyDepositBase: Balance = 1 * PDEX;
+	pub const TipReportDepositBase: Balance = PDEX;
+	pub const DataDepositPerByte: Balance = CENTS;
+	pub const BountyDepositBase: Balance = PDEX;
 	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
@@ -875,7 +876,7 @@ parameter_types! {
 	pub const BountyValueMinimum: Balance = 10 * PDEX;
 	pub const MaxApprovals: u32 = 100;
 	pub const MaxActiveChildBountyCount: u32 = 5;
-	pub const ChildBountyValueMinimum: Balance = 1 * PDEX;
+	pub const ChildBountyValueMinimum: Balance = PDEX;
 	pub const CuratorDepositMax: Balance = 100 * PDEX;
 	pub const CuratorDepositMin: Balance = 10 * PDEX;
 	pub const ChildBountyCuratorDepositBase: Permill = Permill::from_percent(10);
@@ -1130,10 +1131,10 @@ impl pallet_grandpa::Config for Runtime {
 }
 parameter_types! {
 	pub const AssetDeposit: Balance = 100 * DOLLARS;
-	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const ApprovalDeposit: Balance = DOLLARS;
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
-	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+	pub const MetadataDepositPerByte: Balance = DOLLARS;
 }
 
 impl pallet_assets::Config for Runtime {

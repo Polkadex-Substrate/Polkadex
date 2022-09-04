@@ -85,7 +85,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	}
 
 	fn deposit() -> Weight {
-		(9_086_00 as Weight)
+		(908_600 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
@@ -130,7 +130,7 @@ impl WeightInfo for () {
 	}
 
 	fn deposit() -> Weight {
-		(9_086_00 as Weight)
+		(908_600 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}

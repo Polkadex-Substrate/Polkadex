@@ -166,7 +166,7 @@ where
 	)?;
 
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
-	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
 	// TODO: Upgrade IDO RPC to match latest commit
 	// io.merge(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
 	// 	polkadex_ido_rpc::PolkadexIdoRpc::new(client),

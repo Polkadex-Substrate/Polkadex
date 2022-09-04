@@ -50,6 +50,7 @@ type BalanceOf<T> =
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
+#[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
@@ -77,7 +78,15 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-	// use polkadex_primitives::SnapshotAccLimit;
+
+	type WithdrawalsMap<T> = BoundedBTreeMap<
+		<T as frame_system::Config>::AccountId,
+		BoundedVec<
+			Withdrawal<<T as frame_system::Config>::AccountId, BalanceOf<T>>,
+			WithdrawalLimit,
+		>,
+		SnapshotAccLimit,
+	>;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -274,13 +283,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
-			ensure!(
-				<TradingPairs<T>>::contains_key(&base, &quote),
-				Error::<T>::TradingPairNotFound
-			);
+			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 
-			if let Some(trading_pair) = <TradingPairs<T>>::get(&base, &quote) {
-				<TradingPairsStatus<T>>::mutate(&base, &quote, |status| *status = false);
+			if let Some(trading_pair) = <TradingPairs<T>>::get(base, quote) {
+				<TradingPairsStatus<T>>::mutate(base, quote, |status| *status = false);
 				<IngressMessages<T>>::mutate(|ingress_messages| {
 					ingress_messages.push(
 						polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
@@ -302,13 +308,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
-			ensure!(
-				<TradingPairs<T>>::contains_key(&base, &quote),
-				Error::<T>::TradingPairNotFound
-			);
+			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 
-			if let Some(trading_pair) = <TradingPairs<T>>::get(&base, &quote) {
-				<TradingPairsStatus<T>>::mutate(&base, &quote, |status| *status = true);
+			if let Some(trading_pair) = <TradingPairs<T>>::get(base, quote) {
+				<TradingPairsStatus<T>>::mutate(base, quote, |status| *status = true);
 				<IngressMessages<T>>::mutate(|ingress_messages| {
 					ingress_messages.push(
 						polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
@@ -337,11 +340,11 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
-				!<TradingPairs<T>>::contains_key(&base, &quote),
+				!<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 			ensure!(
-				!<TradingPairs<T>>::contains_key(&quote, &base),
+				!<TradingPairs<T>>::contains_key(quote, base),
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 
@@ -356,8 +359,8 @@ pub mod pallet {
 				max_qty: max_order_qty,
 				qty_step_size,
 			};
-			<TradingPairs<T>>::insert(&base, &quote, trading_pair_info.clone());
-			<TradingPairsStatus<T>>::insert(&base, &quote, true);
+			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+			<TradingPairsStatus<T>>::insert(base, quote, true);
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
@@ -483,7 +486,7 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<RegisteredEnclaves<T>>::insert(
 				encalve,
-				T::Moment::from(T::MsPerDay::get() * T::Moment::from(10000u32)),
+				T::MsPerDay::get() * T::Moment::from(10000u32),
 			);
 			Ok(())
 		}
@@ -534,11 +537,7 @@ pub mod pallet {
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let sender = ensure_signed(origin)?;
 
-			let mut withdrawals: BoundedBTreeMap<
-				T::AccountId,
-				BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
-				SnapshotAccLimit,
-			> = <Withdrawals<T>>::get(snapshot_id);
+			let mut withdrawals: WithdrawalsMap<T> = <Withdrawals<T>>::get(snapshot_id);
 			ensure!(withdrawals.contains_key(&sender), Error::<T>::InvalidWithdrawalIndex);
 			if let Some(withdrawal_vector) = withdrawals.get(&sender) {
 				for x in withdrawal_vector.iter() {
@@ -551,7 +550,7 @@ pub mod pallet {
 				}
 				Self::deposit_event(Event::WithdrawalClaimed {
 					main: sender.clone(),
-					withdrawals: withdrawal_vector.clone().to_owned(),
+					withdrawals: withdrawal_vector.clone(),
 				});
 				ensure!(
 					<OnChainEvents<T>>::mutate(|onchain_events| {
@@ -559,7 +558,7 @@ pub mod pallet {
 							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 								snapshot_id,
 								sender.clone(),
-								withdrawal_vector.clone().to_owned(),
+								withdrawal_vector.clone(),
 							),
 						)?;
 						Ok::<(), ()>(())
@@ -695,16 +694,19 @@ pub mod pallet {
 	pub(super) type TradingPairsStatus<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, AssetId, bool, ValueQuery>;
 
+	type EnclaveSnapshotType<T> = EnclaveSnapshot<
+		<T as frame_system::Config>::AccountId,
+		BalanceOf<T>,
+		WithdrawalLimit,
+		AssetsLimit,
+		SnapshotAccLimit,
+	>;
+
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
-	pub(super) type Snapshots<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u32,
-		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>,
-		OptionQuery,
-	>;
+	pub(super) type Snapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, EnclaveSnapshotType<T>, OptionQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
@@ -730,17 +732,8 @@ pub mod pallet {
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
 	#[pallet::getter(fn withdrawals)]
-	pub(super) type Withdrawals<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u32,
-		BoundedBTreeMap<
-			T::AccountId,
-			BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		>,
-		ValueQuery,
-	>;
+	pub(super) type Withdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]

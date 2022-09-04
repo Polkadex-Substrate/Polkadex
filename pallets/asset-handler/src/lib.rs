@@ -62,7 +62,7 @@ pub mod pallet {
 		pub recipient: H160,
 	}
 
-	#[derive(Clone, Copy, PartialEq, Encode, Decode)]
+	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode)]
 	pub struct WithdrawalLimit;
 	impl Get<u32> for WithdrawalLimit {
 		fn get() -> u32 {
@@ -176,12 +176,14 @@ pub mod pallet {
 			if !withdrawal_execution_block.is_zero() {
 				let pending_withdrawals = <PendingWithdrawals<T>>::get(withdrawal_execution_block);
 				for withdrawal in pending_withdrawals {
-					if let Err(_) = chainbridge::Pallet::<T>::transfer_fungible(
+					if chainbridge::Pallet::<T>::transfer_fungible(
 						withdrawal.chain_id,
 						withdrawal.rid,
 						withdrawal.recipient.0.to_vec(),
 						Self::convert_balance_to_eth_type(withdrawal.amount),
-					) {
+					)
+					.is_err()
+					{
 						Self::deposit_event(Event::<T>::FungibleTransferFailed);
 					}
 				}
@@ -243,8 +245,8 @@ pub mod pallet {
 				chainbridge::Pallet::<T>::account_id() == sender,
 				Error::<T>::MinterMustBeRelayer
 			);
-			let amount = Self::convert_18dec_to_12dec(amount)
-				.ok_or_else(|| Error::<T>::DivisionUnderflow)?;
+			let amount =
+				Self::convert_18dec_to_12dec(amount).ok_or(Error::<T>::DivisionUnderflow)?;
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,
