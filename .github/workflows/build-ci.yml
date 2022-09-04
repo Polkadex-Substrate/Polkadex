@@ -27,7 +27,7 @@ jobs:
         # v1.5.0 includes fixes of closures formatting
         run: |
           cd ..
-          git clone  --depth 1 https://github.com/rust-lang/rustfmt
+          git clone --depth 1 https://github.com/rust-lang/rustfmt
           cd rustfmt
           git fetch --tags
           git checkout v1.5.0
@@ -43,6 +43,8 @@ jobs:
           RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
+      - name: Check Clippy
+        run: cargo +nightly clippy  -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
