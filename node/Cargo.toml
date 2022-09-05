@@ -33,6 +33,7 @@ jsonrpsee = { version = "0.15.1", features = ["server"] }
 node-polkadex-runtime = { path = "../runtime", version = "3.0.0" }
 polkadex-ido-rpc = {path = "../pallets/polkadex-ido/rpc"}
 pallet-ocex-rpc = {path = "../pallets/ocex/rpc"}
+pallet-asset-handler-rpc = {path = "../pallets/asset-handler/rpc"}
 polkadex-client = { path = "../client"}
 
 # Substrate dependencies

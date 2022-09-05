@@ -50,6 +50,7 @@ use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
 
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -114,6 +115,7 @@ where
 	SC: SelectChain<Block> + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
+	C::Api: pallet_asset_handler_rpc::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>
 	// C::Api: polkadex_ido_rpc::PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
 {
 	use pallet_ocex_rpc::{PolkadexOcexRpc, PolkadexOcexRpcApiServer};
@@ -168,6 +170,7 @@ where
 
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	// TODO: Upgrade IDO RPC to match latest commit
 	// io.merge(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
 	// 	polkadex_ido_rpc::PolkadexIdoRpc::new(client),
