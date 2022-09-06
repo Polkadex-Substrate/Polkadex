@@ -18,7 +18,7 @@
 use crate::*;
 use frame_support::{
 	assert_noop, assert_ok, bounded_vec, parameter_types,
-	traits::{ConstU128, ConstU64, OnTimestampSet, OnInitialize},
+	traits::{ConstU128, ConstU64, OnInitialize, OnTimestampSet},
 	PalletId,
 };
 use frame_system::EnsureRoot;
@@ -824,7 +824,14 @@ fn test_submit_snapshot() {
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
-		let onchain_events: BoundedVec<polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf::<Test>>, polkadex_primitives::OnChainEventsLimit> = bounded_vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(polkadex_primitives::ocex::Pallet::OCEX, polkadex_primitives::ocex::StorageItem::Withdrawal, 1)];
+		let onchain_events: BoundedVec<
+			polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf<Test>>,
+			polkadex_primitives::OnChainEventsLimit,
+		> = bounded_vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(
+			polkadex_primitives::ocex::Pallet::OCEX,
+			polkadex_primitives::ocex::StorageItem::Withdrawal,
+			1
+		)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 	})
 }
@@ -852,7 +859,8 @@ fn test_register_enclave() {
 		193, 204,
 	];
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::register_enclave(Origin::signed(account_id.clone()), ias_report),
+		assert_noop!(
+			OCEX::register_enclave(Origin::signed(account_id.clone()), ias_report),
 			Error::<Test>::RemoteAttestationVerificationFailed
 		);
 	});
@@ -863,7 +871,8 @@ fn test_register_enclave_empty_report() {
 	let account_id = create_account_id();
 	let ias_report = vec![];
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::register_enclave(Origin::signed(account_id), ias_report),
+		assert_noop!(
+			OCEX::register_enclave(Origin::signed(account_id), ias_report),
 			Error::<Test>::RemoteAttestationVerificationFailed
 		);
 	});
@@ -957,10 +966,13 @@ fn test_withdrawal() {
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
 			99999999999900
 		);
-		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf::<Test>> = polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<
+			AccountId,
+			BalanceOf<Test>,
+		> = polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 			1,
 			account_id.clone().into(),
-			bounded_vec![withdrawal]
+			bounded_vec![withdrawal],
 		);
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
@@ -978,9 +990,9 @@ fn test_onchain_events_overflow() {
 		Some(&format!("{}/hunter1", PHRASE)),
 	)
 	.expect("Unable to create sr25519 key pair");
-	// create 500 accounts 
+	// create 500 accounts
 	let mut account_id_vector: Vec<AccountId> = vec![];
-	for x in 0..500{
+	for x in 0..500 {
 		let account_id_500 = create_account_id_500(x as u32);
 		account_id_vector.push(account_id_500);
 	}
@@ -996,7 +1008,7 @@ fn test_onchain_events_overflow() {
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
 		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
-		for x in account_id_vector.clone(){
+		for x in account_id_vector.clone() {
 			let withdrawal_500 = create_withdrawal_500::<Test>(x.clone());
 			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]);
 		}
@@ -1025,11 +1037,12 @@ fn test_onchain_events_overflow() {
 		),);
 
 		// Perform withdraw for 500 accounts
-		for x in 0..account_id_vector.len()-1{
+		for x in 0..account_id_vector.len() - 1 {
 			assert_ok!(OCEX::withdraw(Origin::signed(account_id_vector[x].clone().into()), 1));
 		}
 		let last_account = account_id_vector.len() - 1;
-		assert_noop!(OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1),
+		assert_noop!(
+			OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1),
 			Error::<Test>::OnchainEventsBoundedVecOverflow
 		);
 
@@ -1038,10 +1051,12 @@ fn test_onchain_events_overflow() {
 		assert_eq!(OnChainEvents::<Test>::get().len(), 0);
 
 		// Perform withdraw now
-		assert_ok!(OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1));
+		assert_ok!(OCEX::withdraw(
+			Origin::signed(account_id_vector[last_account].clone().into()),
+			1
+		));
 	});
 }
-
 
 #[test]
 fn test_withdrawal_bad_origin() {
@@ -1250,14 +1265,26 @@ pub fn calculate_mmr_root(
 
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf<T>> {
 	let account_id = create_account_id();
-	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> =
-		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0, fees: 1_u32.into() };
+	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> = Withdrawal {
+		main_account: account_id,
+		asset: AssetId::polkadex,
+		amount: 100_u32.into(),
+		event_id: 0,
+		fees: 1_u32.into(),
+	};
 	return withdrawal
 }
 
-pub fn create_withdrawal_500<T: Config>(account_id: AccountId32) -> Withdrawal<AccountId32, BalanceOf<T>> {
-	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> =
-		Withdrawal { main_account: account_id, asset: AssetId::polkadex, amount: 100_u32.into(), event_id: 0, fees: 1_u32.into() };
+pub fn create_withdrawal_500<T: Config>(
+	account_id: AccountId32,
+) -> Withdrawal<AccountId32, BalanceOf<T>> {
+	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> = Withdrawal {
+		main_account: account_id,
+		asset: AssetId::polkadex,
+		amount: 100_u32.into(),
+		event_id: 0,
+		fees: 1_u32.into(),
+	};
 	return withdrawal
 }
 

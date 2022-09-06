@@ -4,17 +4,16 @@ use polkadex_primitives::assets::AssetId;
 pub use polkadex_primitives::{AccountId, Balance, BlockNumber, Hash};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sp_std::vec::Vec;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct WithdrawalWithPrimitives<AccountId> {
-    pub main_account: AccountId,
-    #[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
+	pub main_account: AccountId,
+	#[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
 	#[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
-    pub amount: Balance, 
-    pub asset: StringAssetId,
+	pub amount: Balance,
+	pub asset: StringAssetId,
 }
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -31,11 +30,10 @@ impl From<AssetId> for StringAssetId {
 	fn from(asset: AssetId) -> Self {
 		match asset {
 			AssetId::polkadex => StringAssetId::POLKADEX,
-			AssetId::asset(num) => StringAssetId::Asset(num.into()),
+			AssetId::asset(num) => StringAssetId::Asset(num),
 		}
 	}
 }
-
 
 #[cfg(feature = "std")]
 fn serialize_as_string<S: Serializer, T: std::fmt::Display>(

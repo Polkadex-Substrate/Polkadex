@@ -14,11 +14,15 @@ use std::collections::BTreeSet;
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 use codec::Decode;
-use frame_support::{assert_noop, assert_ok, BoundedVec, ensure};
+use frame_support::{assert_noop, assert_ok, ensure, BoundedVec};
 use sp_core::{H160, U256};
 use sp_runtime::{BoundedBTreeSet, TokenError};
 
-use crate::{mock::{new_test_ext, Test, *}, mock, pallet::*};
+use crate::{
+	mock,
+	mock::{new_test_ext, Test, *},
+	pallet::*,
+};
 
 const ASSET_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC";
 const RECIPIENT_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBA";
