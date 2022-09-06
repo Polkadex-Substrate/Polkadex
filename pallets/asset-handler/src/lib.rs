@@ -43,10 +43,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, H256, U256};
-	use sp_runtime::{
-		traits::{One, Saturating, UniqueSaturatedInto, Zero},
-		SaturatedConversion,
-	};
+	use sp_runtime::{traits::{One, Saturating, UniqueSaturatedInto, Zero}, SaturatedConversion, BoundedBTreeSet};
 	use sp_std::vec::Vec;
 
 	pub type BalanceOf<T> =
