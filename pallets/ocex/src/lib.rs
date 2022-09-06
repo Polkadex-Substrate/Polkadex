@@ -292,10 +292,10 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
-				<TradingPairs<T>>::contains_key(&base, &quote),
+				<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairNotFound
 			);
-			<TradingPairs<T>>::mutate(&base, &quote, |value| {
+			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
 					trading_pair.operational_status = false;
 					<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -323,11 +323,11 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
-				<TradingPairs<T>>::contains_key(&base, &quote),
+				<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairNotFound
 			);
 			//update the operational status of the trading pair as true.
-			<TradingPairs<T>>::mutate(&base, &quote, |value| {
+			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
 					trading_pair.operational_status = true;
 					<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -381,7 +381,7 @@ pub mod pallet {
 				qty_step_size,
 				operational_status: true,
 			};
-			<TradingPairs<T>>::insert(&base, &quote, trading_pair_info.clone());
+			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
