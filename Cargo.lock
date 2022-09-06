@@ -4814,6 +4814,7 @@ dependencies = [
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
+ "rust_decimal",
  "scale-info",
  "sp-application-crypto",
  "sp-io",
@@ -5628,11 +5629,12 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.9.19"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=polkadot-v0.9.28#312c5238122f035b45b37e603b050ab90d61aee9"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=polkadot-v0.9.28#0476a0ee29026d8ef0c43b9dde7a74b0cbc5a777"
 dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "rust_decimal",
  "scale-info",
  "serde",
  "sp-application-crypto",
@@ -6263,6 +6265,19 @@ dependencies = [
  "netlink-proto",
  "nix 0.24.2",
  "thiserror",
+]
+
+[[package]]
+name = "rust_decimal"
+version = "1.26.1"
+source = "git+https://github.com/Polkadex-Substrate/rust-decimal.git?branch=master#204d1271a3ff680ce9a5be0467246771d2388b2a"
+dependencies = [
+ "arrayvec 0.7.2",
+ "num-traits",
+ "parity-scale-codec",
+ "parity-scale-codec-derive",
+ "scale-info",
+ "serde",
 ]
 
 [[package]]
