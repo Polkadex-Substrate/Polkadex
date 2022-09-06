@@ -381,6 +381,7 @@ pub mod pallet {
 				min_qty: min_order_qty,
 				max_qty: max_order_qty,
 				qty_step_size,
+				operational_status: true
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<TradingPairsStatus<T>>::insert(base, quote, true);

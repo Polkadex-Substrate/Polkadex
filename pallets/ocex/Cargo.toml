@@ -26,12 +26,12 @@ ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0
 pallet-ocex-primitives = { path = "../../pallets/ocex/common", default-features = false}
 
 [dev-dependencies]
-pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-pallet-assets = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-pallet-timestamp = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-sp-application-crypto = { branch="polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate'}
-sp-keystore = { branch = "polkadot-v0.9.28",git = 'https://github.com/paritytech/substrate' }
-frame-benchmarking = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', default-features = false }
+pallet-assets = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', default-features = false }
+pallet-timestamp = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', default-features = false }
+sp-application-crypto = { branch="polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate', default-features = false}
+sp-keystore = { branch = "polkadot-v0.9.28",git = 'https://github.com/paritytech/substrate', default-features = false }
+frame-benchmarking = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', default-features = false }
 ckb-merkle-mountain-range = "0.5.0"
 anyhow = "1.0.56"
 sp-io = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }

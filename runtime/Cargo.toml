@@ -173,7 +173,7 @@ std = [
     'sp-version/std',
     "sp-npos-elections/std",
     'pallet-assets/std',
-
+    "pallet-society/std",
     "orml-vesting/std",
     "polkadex-primitives/std",
     "pdex-migration/std",

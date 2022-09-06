@@ -101,11 +101,11 @@ pub mod weights;
 use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, StringAssetId, VoteStat};
 pub use weights::WeightInfo;
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod test;
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// mod test;
 
 use frame_support::traits::{Currency, ExistenceRequirement, ReservableCurrency};
 use polkadex_primitives::assets::AssetId;
