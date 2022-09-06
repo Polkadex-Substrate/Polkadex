@@ -890,7 +890,7 @@ fn test_withdrawal_invalid_withdrawal_index() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::withdraw(Origin::signed(account_id.clone().into()), 1,),
+			OCEX::claim_withdraw(Origin::signed(account_id.clone().into()), 1,),
 			Error::<Test>::InvalidWithdrawalIndex
 		);
 	});
@@ -954,7 +954,7 @@ fn test_withdrawal() {
 			signature.clone().into()
 		),);
 
-		assert_ok!(OCEX::withdraw(Origin::signed(account_id.clone().into()), 1,));
+		assert_ok!(OCEX::claim_withdraw(Origin::signed(account_id.clone().into()), 1,));
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -1036,11 +1036,11 @@ fn test_onchain_events_overflow() {
 
 		// Perform withdraw for 500 accounts
 		for x in 0..account_id_vector.len() - 1 {
-			assert_ok!(OCEX::withdraw(Origin::signed(account_id_vector[x].clone().into()), 1));
+			assert_ok!(OCEX::claim_withdraw(Origin::signed(account_id_vector[x].clone().into()), 1));
 		}
 		let last_account = account_id_vector.len() - 1;
 		assert_noop!(
-			OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1),
+			OCEX::claim_withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1),
 			Error::<Test>::OnchainEventsBoundedVecOverflow
 		);
 
@@ -1049,7 +1049,7 @@ fn test_onchain_events_overflow() {
 		assert_eq!(OnChainEvents::<Test>::get().len(), 0);
 
 		// Perform withdraw now
-		assert_ok!(OCEX::withdraw(
+		assert_ok!(OCEX::claim_withdraw(
 			Origin::signed(account_id_vector[last_account].clone().into()),
 			1
 		));
@@ -1060,9 +1060,9 @@ fn test_onchain_events_overflow() {
 fn test_withdrawal_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::withdraw(Origin::root(), 1,), BadOrigin);
+		assert_noop!(OCEX::claim_withdraw(Origin::root(), 1,), BadOrigin);
 
-		assert_noop!(OCEX::withdraw(Origin::none(), 1,), BadOrigin);
+		assert_noop!(OCEX::claim_withdraw(Origin::none(), 1,), BadOrigin);
 	});
 }
 

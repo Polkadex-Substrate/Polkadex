@@ -538,7 +538,7 @@ pub mod pallet {
 		///
 		/// params: snapshot_number: u32
 		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
-		pub fn withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
+		pub fn claim_withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let sender = ensure_signed(origin)?;
