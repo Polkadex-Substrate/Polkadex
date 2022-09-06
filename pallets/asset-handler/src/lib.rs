@@ -62,7 +62,7 @@ pub mod pallet {
 		pub recipient: H160,
 	}
 
-	#[derive(Clone, Copy, PartialEq, Encode, Decode)]
+	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode)]
 	pub struct WithdrawalLimit;
 	impl Get<u32> for WithdrawalLimit {
 		fn get() -> u32 {
@@ -176,12 +176,14 @@ pub mod pallet {
 			if !withdrawal_execution_block.is_zero() {
 				let pending_withdrawals = <PendingWithdrawals<T>>::get(withdrawal_execution_block);
 				for withdrawal in pending_withdrawals {
-					if let Err(_) = chainbridge::Pallet::<T>::transfer_fungible(
+					if chainbridge::Pallet::<T>::transfer_fungible(
 						withdrawal.chain_id,
 						withdrawal.rid,
 						withdrawal.recipient.0.to_vec(),
 						Self::convert_balance_to_eth_type(withdrawal.amount),
-					) {
+					)
+					.is_err()
+					{
 						Self::deposit_event(Event::<T>::FungibleTransferFailed);
 					}
 				}
@@ -229,6 +231,7 @@ pub mod pallet {
 		/// * `destination_add`: Recipient's Account
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
+		#[allow(clippy::unnecessary_lazy_evaluations)]
 		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(2 as Weight)))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,

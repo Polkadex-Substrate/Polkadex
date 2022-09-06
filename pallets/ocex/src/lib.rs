@@ -23,9 +23,7 @@ use frame_support::{
 };
 
 use frame_system::ensure_signed;
-use pallet_ocex_primitives::{StringAssetId, WithdrawalWithPrimitives};
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
-use sp_runtime::SaturatedConversion;
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -52,6 +50,7 @@ type BalanceOf<T> =
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
+#[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
@@ -72,7 +71,7 @@ pub mod pallet {
 		ocex::{AccountInfo, TradingPairConfig},
 		snapshot::{EnclaveSnapshot, Fees},
 		withdrawal::Withdrawal,
-		AccountId, AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit,
+		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit,
 	};
 	use sp_core::H160;
 	use sp_runtime::{traits::{IdentifyAccount, Verify}, SaturatedConversion, BoundedBTreeSet};
@@ -83,6 +82,23 @@ pub mod pallet {
 			50 // TODO: Arbitrary value
 		}
 	}
+
+	type WithdrawalsMap<T> = BoundedBTreeMap<
+		<T as frame_system::Config>::AccountId,
+		BoundedVec<
+			Withdrawal<<T as frame_system::Config>::AccountId, BalanceOf<T>>,
+			WithdrawalLimit,
+		>,
+		SnapshotAccLimit,
+	>;
+
+	type EnclaveSnapshotType<T> = EnclaveSnapshot<
+		<T as frame_system::Config>::AccountId,
+		BalanceOf<T>,
+		WithdrawalLimit,
+		AssetsLimit,
+		SnapshotAccLimit,
+	>;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -285,13 +301,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
-			ensure!(
-				<TradingPairs<T>>::contains_key(&base, &quote),
-				Error::<T>::TradingPairNotFound
-			);
+			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 
-			if let Some(trading_pair) = <TradingPairs<T>>::get(&base, &quote) {
-				<TradingPairsStatus<T>>::mutate(&base, &quote, |status| *status = false);
+			if let Some(trading_pair) = <TradingPairs<T>>::get(base, quote) {
+				<TradingPairsStatus<T>>::mutate(base, quote, |status| *status = false);
 				<IngressMessages<T>>::mutate(|ingress_messages| {
 					ingress_messages.push(
 						polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
@@ -313,13 +326,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
-			ensure!(
-				<TradingPairs<T>>::contains_key(&base, &quote),
-				Error::<T>::TradingPairNotFound
-			);
+			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 
-			if let Some(trading_pair) = <TradingPairs<T>>::get(&base, &quote) {
-				<TradingPairsStatus<T>>::mutate(&base, &quote, |status| *status = true);
+			if let Some(trading_pair) = <TradingPairs<T>>::get(base, quote) {
+				<TradingPairsStatus<T>>::mutate(base, quote, |status| *status = true);
 				<IngressMessages<T>>::mutate(|ingress_messages| {
 					ingress_messages.push(
 						polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
@@ -348,11 +358,11 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
-				!<TradingPairs<T>>::contains_key(&base, &quote),
+				!<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 			ensure!(
-				!<TradingPairs<T>>::contains_key(&quote, &base),
+				!<TradingPairs<T>>::contains_key(quote, base),
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 
@@ -367,8 +377,8 @@ pub mod pallet {
 				max_qty: max_order_qty,
 				qty_step_size,
 			};
-			<TradingPairs<T>>::insert(&base, &quote, trading_pair_info.clone());
-			<TradingPairsStatus<T>>::insert(&base, &quote, true);
+			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+			<TradingPairsStatus<T>>::insert(base, quote, true);
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
@@ -495,7 +505,7 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<RegisteredEnclaves<T>>::insert(
 				encalve,
-				T::Moment::from(T::MsPerDay::get() * T::Moment::from(10000u32)),
+				T::MsPerDay::get() * T::Moment::from(10000u32),
 			);
 			Ok(())
 		}
@@ -546,11 +556,7 @@ pub mod pallet {
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let sender = ensure_signed(origin)?;
 
-			let mut withdrawals: BoundedBTreeMap<
-				T::AccountId,
-				BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
-				SnapshotAccLimit,
-			> = <Withdrawals<T>>::get(snapshot_id);
+			let mut withdrawals: WithdrawalsMap<T> = <Withdrawals<T>>::get(snapshot_id);
 			ensure!(withdrawals.contains_key(&sender), Error::<T>::InvalidWithdrawalIndex);
 			if let Some(withdrawal_vector) = withdrawals.get(&sender) {
 				for x in withdrawal_vector.iter() {
@@ -563,7 +569,7 @@ pub mod pallet {
 				}
 				Self::deposit_event(Event::WithdrawalClaimed {
 					main: sender.clone(),
-					withdrawals: withdrawal_vector.clone().to_owned(),
+					withdrawals: withdrawal_vector.to_owned(),
 				});
 				ensure!(
 					<OnChainEvents<T>>::mutate(|onchain_events| {
@@ -571,7 +577,7 @@ pub mod pallet {
 							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 								snapshot_id,
 								sender.clone(),
-								withdrawal_vector.clone().to_owned(),
+								withdrawal_vector.to_owned(),
 							),
 						)?;
 						Ok::<(), ()>(())
@@ -588,7 +594,7 @@ pub mod pallet {
 		/// In order to register itself - enclave must send it's own report to this extrinsic
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
-			let relayer = ensure_signed(origin)?;
+			let _ = ensure_signed(origin)?;
 			let report = verify_ias_report(&ias_report)
 				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
@@ -634,7 +640,8 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		// clean-up function - should be called on each block
-		fn unregister_timed_out_enclaves() {
+		// TODO: Commented out for testing. Should be restored before mainnet launch
+		/*fn unregister_timed_out_enclaves() {
 			use sp_runtime::traits::CheckedSub;
 			let mut enclave_to_remove = sp_std::vec![];
 			let iter = <RegisteredEnclaves<T>>::iter();
@@ -649,7 +656,7 @@ pub mod pallet {
 				<RegisteredEnclaves<T>>::remove(enclave);
 			}
 			Self::deposit_event(Event::EnclaveCleanup(enclave_to_remove));
-		}
+		}*/
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -735,13 +742,8 @@ pub mod pallet {
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
-	pub(super) type Snapshots<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u32,
-		EnclaveSnapshot<T::AccountId, BalanceOf<T>, WithdrawalLimit, AssetsLimit, SnapshotAccLimit>,
-		OptionQuery,
-	>;
+	pub(super) type Snapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, EnclaveSnapshotType<T>, OptionQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
@@ -767,17 +769,8 @@ pub mod pallet {
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
 	#[pallet::getter(fn withdrawals)]
-	pub(super) type Withdrawals<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u32,
-		BoundedBTreeMap<
-			T::AccountId,
-			BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		>,
-		ValueQuery,
-	>;
+	pub(super) type Withdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]
