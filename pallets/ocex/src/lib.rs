@@ -481,6 +481,7 @@ pub mod pallet {
 			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
 			<FeesCollected<T>>::insert(current_snapshot_nonce, snapshot.fees.clone());
 			snapshot.withdrawals = Default::default();
+			snapshot.fees = Default::default();
 			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
 			<SnapshotNonce<T>>::put(current_snapshot_nonce);
 			Ok(())

@@ -833,6 +833,16 @@ fn test_submit_snapshot() {
 			1
 		)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
+		// Checking for redundant data inside snapshot
+		let mut withdrawal_map_empty: BoundedBTreeMap<
+			AccountId,
+			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
+			SnapshotAccLimit,
+		> = BoundedBTreeMap::new();
+		let empty_fees: BoundedVec<Fees<BalanceOf::<Test>>, AssetsLimit> = bounded_vec![];
+
+		assert_eq!(Snapshots::<Test>::get(1).unwrap().fees, empty_fees);
+		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, withdrawal_map_empty);
 	})
 }
 
