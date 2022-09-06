@@ -538,14 +538,18 @@ pub mod pallet {
 		///
 		/// params: snapshot_number: u32
 		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
-		pub fn claim_withdraw(origin: OriginFor<T>, snapshot_id: u32) -> DispatchResult {
+		pub fn claim_withdraw(
+			origin: OriginFor<T>,
+			snapshot_id: u32,
+			account: T::AccountId,
+		) -> DispatchResult {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
-			let sender = ensure_signed(origin)?;
+			let _ = ensure_signed(origin)?;
 
 			let mut withdrawals: WithdrawalsMap<T> = <Withdrawals<T>>::get(snapshot_id);
-			ensure!(withdrawals.contains_key(&sender), Error::<T>::InvalidWithdrawalIndex);
-			if let Some(withdrawal_vector) = withdrawals.get(&sender) {
+			ensure!(withdrawals.contains_key(&account), Error::<T>::InvalidWithdrawalIndex);
+			if let Some(withdrawal_vector) = withdrawals.get(&account) {
 				for x in withdrawal_vector.iter() {
 					Self::transfer_asset(
 						&Self::get_custodian_account(),
@@ -555,7 +559,7 @@ pub mod pallet {
 					)?;
 				}
 				Self::deposit_event(Event::WithdrawalClaimed {
-					main: sender.clone(),
+					main: account.clone(),
 					withdrawals: withdrawal_vector.to_owned(),
 				});
 				ensure!(
@@ -563,7 +567,7 @@ pub mod pallet {
 						onchain_events.try_push(
 							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 								snapshot_id,
-								sender.clone(),
+								account.clone(),
 								withdrawal_vector.to_owned(),
 							),
 						)?;
@@ -573,7 +577,7 @@ pub mod pallet {
 					Error::<T>::OnchainEventsBoundedVecOverflow
 				);
 			}
-			withdrawals.remove(&sender);
+			withdrawals.remove(&account);
 			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
 			Ok(())
 		}
@@ -611,15 +615,12 @@ pub mod pallet {
 			let mut enclaves_to_remove = sp_std::vec![];
 			let iter = <RegisteredEnclaves<T>>::iter();
 			iter.for_each(|(enclave, attested_ts)| {
-				let current_timestamp=  <timestamp::Pallet<T>>::get();
-				if current_timestamp.checked_sub(&attested_ts).unwrap() >=
-					T::MsPerDay::get()
-				{
+				let current_timestamp = <timestamp::Pallet<T>>::get();
+				if current_timestamp.checked_sub(&attested_ts).unwrap() >= T::MsPerDay::get() {
 					enclaves_to_remove.push(enclave);
 				}
 			});
 			for enclave in &enclaves_to_remove {
-
 				<RegisteredEnclaves<T>>::remove(enclave);
 			}
 			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
