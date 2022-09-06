@@ -484,7 +484,7 @@ pub mod pallet {
 			ensure!(id != T::BridgeChainId::get(), Error::<T>::InvalidChainId);
 			// Cannot whitelist with an existing entry
 			ensure!(!Self::chain_whitelisted(id), Error::<T>::ChainAlreadyWhitelisted);
-			ChainNonces::<T>::insert(&id, 0);
+			ChainNonces::<T>::insert(id, 0);
 			Self::deposit_event(Event::ChainWhitelisted(id));
 			Ok(())
 		}

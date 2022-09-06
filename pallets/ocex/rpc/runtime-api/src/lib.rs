@@ -18,15 +18,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::Codec;
-use codec::Decode;
-use polkadex_primitives::assets::AssetId;
-use sp_std::vec::Vec;
-use polkadex_primitives::withdrawal::Withdrawal;
-use sp_runtime::traits::Zero;
 use pallet_ocex_primitives::WithdrawalWithPrimitives;
-use polkadex_primitives::Balance;
+use sp_std::vec::Vec;
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexOcexRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
-        fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Vec<WithdrawalWithPrimitives<AccountId>>;
+		fn return_withdrawals(snapshot_ids: Vec<u32>,account: AccountId) -> Vec<WithdrawalWithPrimitives<AccountId>>;
 	}
 }

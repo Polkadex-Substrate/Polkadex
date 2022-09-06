@@ -22,7 +22,7 @@
 #![recursion_limit = "256"]
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_election_provider_support::{ElectionDataProvider, onchain, SequentialPhragmen};
+use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -38,7 +38,8 @@ use frame_support::{
 use frame_support::{
 	pallet_prelude::ConstU32,
 	traits::{
-		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter, OnUnbalanced
+		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter,
+		OnUnbalanced,
 	},
 	weights::{ConstantMultiplier, WeightToFeeCoefficient},
 	PalletId,
@@ -87,9 +88,6 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-
-use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
-use pallet_ocex_primitives::WithdrawalWithPrimitives;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
@@ -275,6 +273,7 @@ use sp_npos_elections::ExtendedBalance;
 	MaxEncodedLen,
 	TypeInfo,
 )]
+#[allow(clippy::unnecessary_cast)]
 pub enum ProxyType {
 	Any = 0,
 	NonTransfer = 1,
@@ -300,7 +299,8 @@ impl InstanceFilter<Call> for ProxyType {
 				c,
 				Call::Council(..) |
 					Call::TechnicalCommittee(..) |
-					Call::Elections(..) | Call::Treasury(..) | Call::OrderbookCommittee(..)
+					Call::Elections(..) | Call::Treasury(..) |
+					Call::OrderbookCommittee(..)
 			),
 			ProxyType::Staking => matches!(c, Call::Staking(..)),
 		}
@@ -355,9 +355,9 @@ impl pallet_scheduler::Config for Runtime {
 
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
-	pub const PreimageBaseDeposit: Balance = 1 * DOLLARS;
+	pub const PreimageBaseDeposit: Balance = DOLLARS;
 	// One cent: PDEX 10,000 / MB
-	pub const PreimageByteDeposit: Balance = 1 * CENTS;
+	pub const PreimageByteDeposit: Balance = CENTS;
 }
 
 impl pallet_preimage::Config for Runtime {
@@ -668,7 +668,7 @@ impl Get<Option<(usize, ExtendedBalance)>> for OffchainRandomBalancing {
 		use sp_runtime::traits::TrailingZeroInput;
 		let iters = match MINER_MAX_ITERATIONS {
 			0 => 0,
-			max @ _ => {
+			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
 					.expect("input is padded with zeroes; qed") %
@@ -732,7 +732,8 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type GovernanceFallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
 	type Solver = SequentialPhragmen<
 		AccountId,
-		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>>;
+		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
+	>;
 	type ForceOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
@@ -817,7 +818,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 }
 
 parameter_types! {
-	pub const OrderbookMotionDuration: BlockNumber = 1 * DAYS;
+	pub const OrderbookMotionDuration: BlockNumber = DAYS;
 	pub const OrderbookMaxProposals: u32 = 100;
 	pub const OrderbookMaxMembers: u32 = 3;
 }
@@ -862,11 +863,11 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = 100 * PDEX;
 	pub const SpendPeriod: BlockNumber = 24 * DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
-	pub const TipCountdown: BlockNumber = 1 * DAYS;
+	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = 1 * PDEX;
-	pub const DataDepositPerByte: Balance = 1 * CENTS;
-	pub const BountyDepositBase: Balance = 1 * PDEX;
+	pub const TipReportDepositBase: Balance = PDEX;
+	pub const DataDepositPerByte: Balance = CENTS;
+	pub const BountyDepositBase: Balance = PDEX;
 	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
@@ -875,7 +876,7 @@ parameter_types! {
 	pub const BountyValueMinimum: Balance = 10 * PDEX;
 	pub const MaxApprovals: u32 = 100;
 	pub const MaxActiveChildBountyCount: u32 = 5;
-	pub const ChildBountyValueMinimum: Balance = 1 * PDEX;
+	pub const ChildBountyValueMinimum: Balance = PDEX;
 	pub const CuratorDepositMax: Balance = 100 * PDEX;
 	pub const CuratorDepositMin: Balance = 10 * PDEX;
 	pub const ChildBountyCuratorDepositBase: Permill = Permill::from_percent(10);
@@ -1130,10 +1131,10 @@ impl pallet_grandpa::Config for Runtime {
 }
 parameter_types! {
 	pub const AssetDeposit: Balance = 100 * DOLLARS;
-	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const ApprovalDeposit: Balance = DOLLARS;
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
-	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+	pub const MetadataDepositPerByte: Balance = DOLLARS;
 }
 
 impl pallet_assets::Config for Runtime {
@@ -1272,33 +1273,33 @@ parameter_types! {
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
-
-parameter_types! {
-	pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
-	pub const GetMaxSupply: Balance = 2_000_000_u128;
-	pub const OnePDEX : u128 = PDEX;
-	pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
-	pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
-	pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
-}
-
-impl polkadex_ido::Config for Runtime {
-	type Event = Event;
-	type TreasuryAccountId = TreasuryModuleAccount;
-	type GovernanceOrigin = EnsureRootOrTreasury;
-	type IDOPDXAmount = GetIDOPDXAmount;
-	type MaxSupply = GetMaxSupply;
-	type Randomness = RandomnessCollectiveFlip;
-	type RandomnessSource = RandomnessCollectiveFlip;
-	type ModuleId = PolkadexIdoPalletId;
-	type Currency = Balances;
-	type OnePDEX = OnePDEX;
-	type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
-	type DefaultVotingPeriod = DefaultVotingPeriod;
-	type DefaultInvestorLockPeriod = DefaultInvestorLockPeriod;
-	type AssetManager = Assets;
-	type ExistentialDeposit = ExistentialDeposit;
-}
+//
+// parameter_types! {
+// 	pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
+// 	pub const GetMaxSupply: Balance = 2_000_000_u128;
+// 	pub const OnePDEX : u128 = PDEX;
+// 	pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
+// 	pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
+// 	pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
+// }
+//
+// impl polkadex_ido::Config for Runtime {
+// 	type Event = Event;
+// 	type TreasuryAccountId = TreasuryModuleAccount;
+// 	type GovernanceOrigin = EnsureRootOrTreasury;
+// 	type IDOPDXAmount = GetIDOPDXAmount;
+// 	type MaxSupply = GetMaxSupply;
+// 	type Randomness = RandomnessCollectiveFlip;
+// 	type RandomnessSource = RandomnessCollectiveFlip;
+// 	type ModuleId = PolkadexIdoPalletId;
+// 	type Currency = Balances;
+// 	type OnePDEX = OnePDEX;
+// 	type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
+// 	type DefaultVotingPeriod = DefaultVotingPeriod;
+// 	type DefaultInvestorLockPeriod = DefaultInvestorLockPeriod;
+// 	type AssetManager = Assets;
+// 	type ExistentialDeposit = ExistentialDeposit;
+// }
 
 parameter_types! {
 	pub const ProxyLimit: u32 = 3;
@@ -1386,9 +1387,9 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
-		PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
+		// PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-        Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
+		Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 38,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 39,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 40
@@ -1474,26 +1475,26 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
-		fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-			PolkadexIdo::rounds_by_investor(account)
-		}
-		fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-			PolkadexIdo::rounds_by_creator(account)
-		}
-
-		fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-			PolkadexIdo::active_rounds()
-		}
-
-		fn votes_stat(round_id: Hash) -> VoteStat {
-			PolkadexIdo::votes_stat(round_id)
-		}
-
-		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
-			PolkadexIdo::account_balances(assets, account_id)
-		}
-	}
+	// impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
+	// 	fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+	// 		PolkadexIdo::rounds_by_investor(account)
+	// 	}
+	// 	fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+	// 		PolkadexIdo::rounds_by_creator(account)
+	// 	}
+	//
+	// 	fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
+	// 		PolkadexIdo::active_rounds()
+	// 	}
+	//
+	// 	fn votes_stat(round_id: Hash) -> VoteStat {
+	// 		PolkadexIdo::votes_stat(round_id)
+	// 	}
+	//
+	// 	fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
+	// 		PolkadexIdo::account_balances(assets, account_id)
+	// 	}
+	// }
 
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {

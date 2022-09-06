@@ -51,7 +51,6 @@ use sp_keystore::SyncCryptoStorePtr;
 
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 
-
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
 	/// BABE protocol config.
@@ -100,13 +99,13 @@ pub fn create_full<C, P, SC, B>(
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>
-	+ sc_client_api::BlockBackend<Block>
-	+ HeaderBackend<Block>
-	+ AuxStore
-	+ HeaderMetadata<Block, Error = BlockChainError>
-	+ Sync
-	+ Send
-	+ 'static,
+		+ sc_client_api::BlockBackend<Block>
+		+ HeaderBackend<Block>
+		+ AuxStore
+		+ HeaderMetadata<Block, Error = BlockChainError>
+		+ Sync
+		+ Send
+		+ 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BabeApi<Block>,
@@ -115,7 +114,7 @@ where
 	SC: SelectChain<Block> + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
-	C::Api: polkadex_ido_rpc::PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
+	// C::Api: polkadex_ido_rpc::PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
 {
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
@@ -123,7 +122,6 @@ where
 	use sc_rpc::dev::{Dev, DevApiServer};
 	use sc_sync_state_rpc::{SyncState, SyncStateApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
-	use pallet_ocex_rpc::{PolkadexOcexRpc, PolkadexOcexRpcApiServer};
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
@@ -149,7 +147,7 @@ where
 			select_chain,
 			deny_unsafe,
 		)
-			.into_rpc(),
+		.into_rpc(),
 	)?;
 	io.merge(
 		Grandpa::new(
@@ -159,7 +157,7 @@ where
 			justification_stream,
 			finality_provider,
 		)
-			.into_rpc(),
+		.into_rpc(),
 	)?;
 
 	io.merge(
@@ -168,7 +166,7 @@ where
 	)?;
 
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
-	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
 	// TODO: Upgrade IDO RPC to match latest commit
 	// io.merge(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
 	// 	polkadex_ido_rpc::PolkadexIdoRpc::new(client),
