@@ -74,12 +74,15 @@ pub mod pallet {
 		withdrawal::Withdrawal,
 		AccountId, AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit,
 	};
-	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
-		SaturatedConversion,
-	};
+	use sp_core::H160;
+	use sp_runtime::{traits::{IdentifyAccount, Verify}, SaturatedConversion, BoundedBTreeSet};
 	use sp_std::vec::Vec;
-	// use polkadex_primitives::SnapshotAccLimit;
+	pub struct WhitelistedTokenLimit;
+	impl Get<u32> for WhitelistedTokenLimit {
+		fn get() -> u32 {
+			50 // TODO: Arbitrary value
+		}
+	}
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -176,6 +179,12 @@ pub mod pallet {
 		MinimumOneProxyRequired,
 		/// Onchain Events vector is full
 		OnchainEventsBoundedVecOverflow,
+		/// WhitelistedTokenLimitReached
+		WhitelistedTokenLimitReached,
+		/// TokenNotWhitelisted
+		TokenNotWhitelisted,
+		/// WhitelistedTokenRemoved
+		WhitelistedTokenRemoved
 	}
 
 	#[pallet::hooks]
@@ -379,6 +388,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+			ensure!(<WhitelistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotWhitelisted);
 			// TODO: Check if asset is enabled for deposit
 			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
 			<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -598,6 +608,28 @@ pub mod pallet {
 			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
 			Ok(())
 		}
+
+		/// Whitelist Token
+		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn whitelist_token(origin: OriginFor<T>, token_add: AssetId) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let mut whitelisted_tokens = <WhitelistedToken<T>>::get();
+			whitelisted_tokens.try_insert(token_add).map_err(|_| Error::<T>::WhitelistedTokenLimitReached)?;
+			<WhitelistedToken<T>>::put(whitelisted_tokens);
+			Self::deposit_event(Event::<T>::TokenWhitelisted(token_add));
+			Ok(())
+		}
+
+		/// Remove Whitelisted Token
+		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn remove_whitelisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let mut whitelisted_tokens = <WhitelistedToken<T>>::get();
+			whitelisted_tokens.remove(&token);
+			<WhitelistedToken<T>>::put(whitelisted_tokens);
+			Self::deposit_event(Event::<T>::WhitelistedTokenRemoved(token));
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -664,6 +696,10 @@ pub mod pallet {
 			main: T::AccountId,
 			proxy: T::AccountId,
 		},
+		/// TokenWhitelisted
+		TokenWhitelisted(AssetId),
+		/// WhitelistedTokenRemoved
+		WhitelistedTokenRemoved(AssetId)
 	}
 
 	// A map that has enumerable entries.
@@ -769,6 +805,12 @@ pub mod pallet {
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
+
+	///Whitelisted tokens
+	#[pallet::storage]
+	#[pallet::getter(fn get_whitelisted_token)]
+	pub(super) type WhitelistedToken<T: Config> =
+	StorageValue<_, BoundedBTreeSet<AssetId, WhitelistedTokenLimit>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
