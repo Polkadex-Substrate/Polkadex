@@ -57,6 +57,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		pallet_prelude::*,
+		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
 			fungibles::{Inspect, Mutate},
@@ -200,8 +201,7 @@ pub mod pallet {
 		/// Clean IngressMessages
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			// When block's been initialized - clean up expired registrations of enclaves
-			//Self::unregister_timed_out_enclaves(); FIXME: Commented out for testing. Should be
-			// restored before mainnet launch
+			Self::unregister_timed_out_enclaves();
 			if let Some(snapshot_nonce) = <SnapshotNonce<T>>::get() {
 				if let Some(snapshot) = <Snapshots<T>>::get(snapshot_nonce.saturating_sub(1)) {
 					<IngressMessages<T>>::put(Vec::<
@@ -492,10 +492,8 @@ pub mod pallet {
 		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
 		pub fn insert_enclave(origin: OriginFor<T>, encalve: T::AccountId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			<RegisteredEnclaves<T>>::insert(
-				encalve,
-				T::MsPerDay::get() * T::Moment::from(10000u32),
-			);
+			let timestamp = <timestamp::Pallet<T>>::get();
+			<RegisteredEnclaves<T>>::insert(encalve, timestamp);
 			Ok(())
 		}
 
@@ -601,29 +599,29 @@ pub mod pallet {
 				*v = Some(T::Moment::saturated_from(report.timestamp));
 			});
 			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
+			debug!("registered enclave at time =>{:?}", report.timestamp);
 			Ok(())
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
 		// clean-up function - should be called on each block
-		// TODO: Commented out for testing. Should be restored before mainnet launch
-		/*fn unregister_timed_out_enclaves() {
+		fn unregister_timed_out_enclaves() {
 			use sp_runtime::traits::CheckedSub;
-			let mut enclave_to_remove = sp_std::vec![];
+			let mut enclaves_to_remove = sp_std::vec![];
 			let iter = <RegisteredEnclaves<T>>::iter();
 			iter.for_each(|(enclave, attested_ts)| {
 				if <timestamp::Pallet<T>>::get().checked_sub(&attested_ts).unwrap() >=
 					T::MsPerDay::get()
 				{
-					enclave_to_remove.push(enclave);
+					enclaves_to_remove.push(enclave);
 				}
 			});
-			for enclave in &enclave_to_remove {
+			for enclave in &enclaves_to_remove {
 				<RegisteredEnclaves<T>>::remove(enclave);
 			}
-			Self::deposit_event(Event::EnclaveCleanup(enclave_to_remove));
-		}*/
+			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
+		}
 	}
 
 	/// Events are a simple means of reporting specific conditions and
