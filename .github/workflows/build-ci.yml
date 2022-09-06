@@ -1,9 +1,9 @@
 name: Build-CI
 on:
   pull_request:
-    branches: [Develop, main]
+    branches: [Develop, main-net-runtime]
   push:
-    branches: [Develop, main]
+    branches: [Develop, main-net-runtime]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,31 +12,52 @@ jobs:
       - name: Cache Rust Dependecies
         uses: actions/cache@v2
         with:
-         path: |
-           ~/.cargo/registry
-           ~/.cargo/git
-           target
-         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install toolchain
-        run: ./scripts/init.sh
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Add wasm toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: wasm32-unknown-unknown
+          override: true
+      - name: Add fmt
+        # v1.5.0 includes fixes of closures formatting
+        run: |
+          cd ..
+          git clone --depth 1 https://github.com/rust-lang/rustfmt
+          cd rustfmt
+          git fetch --tags
+          git checkout v1.5.0
+          export CFG_RELEASE=nightly
+          export CFG_RELEASE_CHANNEL=nightly
+          cargo clean -p rustfmt-nightly
+          cargo install --path . --force
+          cd ../Polkadex
       - name: Build Project
         run: |
-            cargo clean
-            # cargo build --release --features runtime-benchmarks
-            cargo build
+          cargo clean
+          # cargo build --release --features runtime-benchmarks
+          RUSTFLAGS="-D warnings" cargo build
+      - name: Check Formatting
+        run: cargo fmt --check
+      - name: Check Clippy
+        run: |
+          rustup component add clippy --toolchain=nightly
+          cargo +nightly clippy  -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
-        if: github.event_name == 'push'
         uses: actions-rs/tarpaulin@v0.1
         with:
-          version: '0.15.0'
           args: '--exclude polkadex-node node-polkadex-runtime polkadex-primitives  --workspace'
       - name: Upload to codecov.io
-        if: github.event_name == 'push'
-        uses: codecov/codecov-action@v1.0.2
+        uses: codecov/codecov-action@v3
         with:
           token: ${{secrets.CODECOV_TOKEN}}
+          fail_ci_if_error: true
       - name: Archive code coverage results
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v1
