@@ -19,9 +19,8 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
-	traits::{Currency, ExistenceRequirement},
+	traits::{fungibles::Transfer, Currency, ExistenceRequirement},
 };
-use frame_support::traits::fungibles::Transfer;
 
 use frame_system::ensure_signed;
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
@@ -60,12 +59,11 @@ pub mod pallet {
 		pallet_prelude::*,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
-			fungibles::{Inspect, Mutate},
+			fungibles::{Inspect, Mutate, Transfer},
 			Currency, ReservableCurrency,
 		},
 		PalletId,
 	};
-	use frame_support::traits::fungibles::Transfer;
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
 	use polkadex_primitives::{
@@ -117,10 +115,11 @@ pub mod pallet {
 
 		/// Assets Pallet
 		type OtherAssets: Mutate<
-			<Self as frame_system::Config>::AccountId,
-			Balance = BalanceOf<Self>,
-			AssetId = u128,
-		> + Inspect<<Self as frame_system::Config>::AccountId> + Transfer<<Self as frame_system::Config>::AccountId>;
+				<Self as frame_system::Config>::AccountId,
+				Balance = BalanceOf<Self>,
+				AssetId = u128,
+			> + Inspect<<Self as frame_system::Config>::AccountId>
+			+ Transfer<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -381,7 +380,7 @@ pub mod pallet {
 				min_qty: min_order_qty,
 				max_qty: max_order_qty,
 				qty_step_size,
-				operational_status: true
+				operational_status: true,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<TradingPairsStatus<T>>::insert(base, quote, true);
@@ -530,7 +529,7 @@ pub mod pallet {
 				let fees_to_be_claimed = if let true = fees.len() < T::SnapshotFeeClaim::get() {
 					fees.drain(..)
 				} else {
-                    fees.drain(..T::SnapshotFeeClaim::get())
+					fees.drain(..T::SnapshotFeeClaim::get())
 				};
 				for fee in fees_to_be_claimed {
 					Self::transfer_asset(
@@ -596,9 +595,9 @@ pub mod pallet {
 				);
 			}
 			withdrawals.remove(&sender);
-			<Withdrawals<T>>::insert(snapshot_id, withdrawals); 
+			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
 			Ok(Pays::No.into())
-		} 
+		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]

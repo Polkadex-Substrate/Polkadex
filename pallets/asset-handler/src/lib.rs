@@ -43,7 +43,10 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
-	use sp_runtime::{traits::{One, Saturating, UniqueSaturatedInto, Zero}, SaturatedConversion, BoundedBTreeSet};
+	use sp_runtime::{
+		traits::{One, Saturating, UniqueSaturatedInto, Zero},
+		BoundedBTreeSet, SaturatedConversion,
+	};
 	use sp_std::vec::Vec;
 
 	pub type BalanceOf<T> =
@@ -116,7 +119,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_whitelisted_token)]
 	pub(super) type WhitelistedToken<T: Config> =
-	StorageValue<_, BoundedBTreeSet<H160, WhitelistedTokenLimit>, ValueQuery>;
+		StorageValue<_, BoundedBTreeSet<H160, WhitelistedTokenLimit>, ValueQuery>;
 
 	///Block Difference required for Withdrawal Execution
 	#[pallet::storage]
@@ -155,7 +158,7 @@ pub mod pallet {
 		/// TokenWhitelisted
 		TokenWhitelisted(H160),
 		/// WhitelistedTokenRemoved
-		WhitelistedTokenRemoved(H160)
+		WhitelistedTokenRemoved(H160),
 	}
 
 	// Errors inform users that something went wrong.
@@ -184,7 +187,7 @@ pub mod pallet {
 		/// TokenNotWhitelisted
 		TokenNotWhitelisted,
 		/// WhitelistedTokenRemoved
-		WhitelistedTokenRemoved
+		WhitelistedTokenRemoved,
 	}
 
 	#[pallet::hooks]
@@ -290,8 +293,10 @@ pub mod pallet {
 		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
 		pub fn whitelist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
-            let mut whitelisted_tokens = <WhitelistedToken<T>>::get();
-			whitelisted_tokens.try_insert(token_add).map_err(|_| Error::<T>::WhitelistedTokenLimitReached)?;
+			let mut whitelisted_tokens = <WhitelistedToken<T>>::get();
+			whitelisted_tokens
+				.try_insert(token_add)
+				.map_err(|_| Error::<T>::WhitelistedTokenLimitReached)?;
 			<WhitelistedToken<T>>::put(whitelisted_tokens);
 			Self::deposit_event(Event::<T>::TokenWhitelisted(token_add));
 			Ok(())
@@ -338,7 +343,10 @@ pub mod pallet {
 			recipient: H160,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			ensure!(<WhitelistedToken<T>>::get().contains(&contract_add), Error::<T>::TokenNotWhitelisted);
+			ensure!(
+				<WhitelistedToken<T>>::get().contains(&contract_add),
+				Error::<T>::TokenNotWhitelisted
+			);
 			ensure!(
 				chainbridge::Pallet::<T>::chain_whitelisted(chain_id),
 				Error::<T>::ChainIsNotWhitelisted
