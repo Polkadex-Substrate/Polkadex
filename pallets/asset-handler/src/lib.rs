@@ -42,7 +42,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_core::{H160, H256, U256};
+	use sp_core::{H160, U256};
 	use sp_runtime::{traits::{One, Saturating, UniqueSaturatedInto, Zero}, SaturatedConversion, BoundedBTreeSet};
 	use sp_std::vec::Vec;
 
