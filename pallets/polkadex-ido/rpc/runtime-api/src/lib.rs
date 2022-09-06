@@ -19,7 +19,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::Codec;
 use pallet_polkadex_ido_primitives::*;
-use polkadex_primitives::assets::AssetId;
 use sp_std::vec::Vec;
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexIdoRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{

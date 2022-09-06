@@ -17,10 +17,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::{Codec, Decode};
+use codec::Codec;
 use pallet_ocex_primitives::WithdrawalWithPrimitives;
-use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Balance};
-use sp_runtime::traits::Zero;
 use sp_std::vec::Vec;
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexOcexRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{

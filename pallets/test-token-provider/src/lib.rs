@@ -98,8 +98,8 @@ pub mod pallet {
 			// Need to create Block treshold
 			let current_block_no: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 			let valid_tx = |account: &T::AccountId, asset_id: u128| {
-				let mut last_block_number: T::BlockNumber;
-				if let Some(block) = Self::fetch_block_number(&account, asset_id) {
+				let last_block_number: T::BlockNumber;
+				if let Some(block) = Self::fetch_block_number(account, asset_id) {
 					last_block_number = block;
 				} else {
 					return TransactionValidity::Err(TransactionValidityError::Invalid(
@@ -142,9 +142,9 @@ pub mod pallet {
 			};
 			match call {
 				Call::credit_account_with_tokens_unsigned { account, asset_id } =>
-					valid_tx(&account, *asset_id as u128),
+					valid_tx(account, *asset_id as u128),
 				Call::credit_account_with_native_tokens_unsigned { account } =>
-					valid_native_tx(&account),
+					valid_native_tx(account),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -158,15 +158,15 @@ pub mod pallet {
 			account: T::AccountId,
 			asset_id: u16,
 		) -> DispatchResultWithPostInfo {
-			let _ = ensure_none(origin)?;
-			if asset_id < 1 || asset_id > 5 {
+			ensure_none(origin)?;
+			if !(1..=5).contains(&asset_id) {
 				return Err(Error::<T>::NotAllowed.into())
 			}
 			let asset: Assets = Assets::from_u8(asset_id as u8);
 			if asset == Assets::Unknown {
 				return Err(Error::<T>::NotAllowed.into())
 			}
-			Self::transfer_assets(&account, asset_id as u128);
+			Self::transfer_assets(&account, asset_id as u128)?;
 			Self::deposit_event(Event::AccountCredited(account));
 
 			// Code here to mint tokens
@@ -178,7 +178,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			account: T::AccountId,
 		) -> DispatchResultWithPostInfo {
-			let _ = ensure_none(origin)?;
+			ensure_none(origin)?;
 			NativeTokenMap::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
 			//Mint account with free tokens
 			T::Currency::deposit_creating(&account, T::TokenAmount::get());
@@ -237,38 +237,40 @@ pub mod pallet {
 			MODULE_ID.into_account_truncating()
 		}
 
-		pub fn transfer_assets(account: &T::AccountId, asset_id: u128) {
-			if let Err(_e) = T::AssetManager::mint_into(asset_id, &account, 1000000000000000) {
+		pub fn transfer_assets(account: &T::AccountId, asset_id: u128) -> DispatchResult {
+			if let Err(_e) = T::AssetManager::mint_into(asset_id, account, 1000000000000000) {
 				// Handling Unknown Asset by creating the Asset
 				T::AssetManager::create(
 					asset_id,
 					Self::account_id(),
 					true,
 					BalanceOf::<T>::one().unique_saturated_into(),
-				);
+				)?;
 				// Minting Test Ether into the Account
-				T::AssetManager::mint_into(asset_id, &account, 1000000000000000);
+				T::AssetManager::mint_into(asset_id, account, 1000000000000000)?;
 			}
 			match asset_id {
 				1_u128 => {
-					TokenDot::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
+					TokenDot::<T>::insert(account, <frame_system::Pallet<T>>::block_number());
 				},
 				2_u128 => {
-					TokenEth::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
+					TokenEth::<T>::insert(account, <frame_system::Pallet<T>>::block_number());
 				},
 				3_u128 => {
-					TokenBTC::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
+					TokenBTC::<T>::insert(account, <frame_system::Pallet<T>>::block_number());
 				},
 				4_u128 => {
-					TokenDoge::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
+					TokenDoge::<T>::insert(account, <frame_system::Pallet<T>>::block_number());
 				},
 				5_u128 => {
-					TokenBNB::<T>::insert(&account, <frame_system::Pallet<T>>::block_number());
+					TokenBNB::<T>::insert(account, <frame_system::Pallet<T>>::block_number());
 				},
 				_ => {
 					// Do nothing
 				},
-			}
+			};
+
+			Ok(())
 		}
 		pub fn fetch_block_number(account: &T::AccountId, asset: u128) -> Option<T::BlockNumber> {
 			match asset {
