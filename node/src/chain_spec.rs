@@ -106,17 +106,17 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		"c2ddb84ed7692123f5f6746c81cd0850932553416515ecd71fbe66c128eafa73"
 	]
 	.into();
-	let enclave_developement_account: AccountId = hex![
-		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
-	]
-		.into();
+	let enclave_developement_account: AccountId =
+		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
 
-	let orderbook_test_main_account: AccountId = hex! [
-		"6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"
-	].into();
-	testnet_genesis(initial_authorities, vec![],
-					Some(vec![enclave_developement_account,orderbook_test_main_account]),
-					root_key)
+	let orderbook_test_main_account: AccountId =
+		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
+	testnet_genesis(
+		initial_authorities,
+		vec![],
+		Some(vec![enclave_developement_account, orderbook_test_main_account]),
+		root_key,
+	)
 }
 
 /// Staging testnet config.
@@ -169,18 +169,15 @@ pub fn authority_keys_from_seed(
 }
 
 fn development_config_genesis() -> GenesisConfig {
-	let enclave_developement_account: AccountId = hex![
-		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
-	]
-		.into();
+	let enclave_developement_account: AccountId =
+		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
 
-	let orderbook_test_main_account: AccountId = hex! [
-		"6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"
-	].into();
+	let orderbook_test_main_account: AccountId =
+		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
 	testnet_genesis(
 		vec![authority_keys_from_seed("Alice")],
 		vec![],
-		Some(vec![enclave_developement_account,orderbook_test_main_account]),
+		Some(vec![enclave_developement_account, orderbook_test_main_account]),
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
 }
@@ -202,17 +199,14 @@ pub fn development_config() -> ChainSpec {
 }
 
 fn soba_testnet_genesis() -> GenesisConfig {
-	let enclave_developement_account: AccountId = hex![
-		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
-	]
-		.into();
-	let orderbook_test_main_account: AccountId = hex! [
-		"6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"
-	].into();
+	let enclave_developement_account: AccountId =
+		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
+	let orderbook_test_main_account: AccountId =
+		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
 	testnet_genesis(
 		vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 		vec![],
-		Some(vec![enclave_developement_account,orderbook_test_main_account]),
+		Some(vec![enclave_developement_account, orderbook_test_main_account]),
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
 }
@@ -280,8 +274,7 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 		),
 	];
 	let root_key = hex!["70a5f4e786b47baf52d5a34742bb8312139cfe1c747fbeb3912c197d38c53332"].into();
-	testnet_genesis(initial_authorities, vec![],
-					None, root_key)
+	testnet_genesis(initial_authorities, vec![], None, root_key)
 }
 
 pub fn mainnet_testnet_config() -> ChainSpec {
@@ -351,7 +344,7 @@ pub fn testnet_genesis(
 	// This is for developement only
 	if let Some(dev_accounts) = &development_accounts {
 		for acc in dev_accounts {
-			endowed_accounts.push((acc.clone(),100*ENDOWMENT))
+			endowed_accounts.push((acc.clone(), 100 * ENDOWMENT))
 		}
 	}
 	// Get rest of the stake holders
@@ -379,7 +372,7 @@ pub fn testnet_genesis(
 			20_000_000 * PDEX,
 			"Total Supply Not equal to 20 million"
 		);
-	}else {
+	} else {
 		// For development only
 		assert_eq!(
 			total_supply + ERC20_PDEX_SUPPLY,

@@ -82,7 +82,7 @@ fn test_register_main_account() {
 				main: account_id.clone(),
 				proxy: account_id.clone(),
 			}
-				.into(),
+			.into(),
 		);
 		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
 			IngressMessages::RegisterUser(account_id.clone(), account_id.clone());
@@ -193,7 +193,7 @@ fn test_add_proxy_account() {
 				main: account_id.clone(),
 				proxy: account_id.clone(),
 			}
-				.into(),
+			.into(),
 		);
 		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
 			IngressMessages::AddProxy(account_id.clone(), account_id.clone());
@@ -282,7 +282,7 @@ fn test_register_trading_pair() {
 				base: AssetId::asset(10),
 				quote: AssetId::asset(20),
 			}
-				.into(),
+			.into(),
 		);
 		let trading_pair =
 			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap();
@@ -392,7 +392,7 @@ fn test_deposit() {
 				asset: AssetId::polkadex,
 				amount: 100_u128,
 			}
-				.into(),
+			.into(),
 		);
 		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
 			IngressMessages::Deposit(account_id, AssetId::polkadex, 100_u128);
@@ -549,11 +549,7 @@ fn collect_fees_unexpected_behaviour() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		assert_ok!(OCEX::collect_fees(
-			Origin::root(),
-			100,
-			account_id.clone().into()
-		));
+		assert_ok!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()));
 
 		assert_last_event::<Test>(
 			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
@@ -573,7 +569,7 @@ fn collect_fees() {
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
 	)
-		.expect("Unable to create sr25519 key pair");
+	.expect("Unable to create sr25519 key pair");
 	let mut t = new_test_ext();
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
@@ -613,11 +609,7 @@ fn collect_fees() {
 			signature.clone().into()
 		));
 
-		assert_ok!(OCEX::collect_fees(
-			Origin::root(),
-			1,
-			account_id.clone().into()
-		));
+		assert_ok!(OCEX::collect_fees(Origin::root(), 1, account_id.clone().into()));
 		// Balances after collect fees
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -634,7 +626,10 @@ fn collect_fees() {
 fn test_collect_fees_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.clone().into()), BadOrigin);
+		assert_noop!(
+			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.clone().into()),
+			BadOrigin
+		);
 
 		assert_noop!(OCEX::collect_fees(Origin::none(), 100, account_id.into()), BadOrigin);
 	});
@@ -785,7 +780,7 @@ fn test_submit_snapshot() {
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
 	)
-		.expect("Unable to create sr25519 key pair");
+	.expect("Unable to create sr25519 key pair");
 	let mut t = new_test_ext();
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
@@ -910,7 +905,7 @@ fn test_withdrawal() {
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
 	)
-		.expect("Unable to create sr25519 key pair");
+	.expect("Unable to create sr25519 key pair");
 	let mut t = new_test_ext();
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
@@ -1097,7 +1092,8 @@ pub fn test_collect_fee_with_pdex_asset_fees() {
 		// Insert key-value into Snapshop Storage
 		let snapshot_id = 1;
 		let fees_collected = Fees { asset: AssetId::polkadex, amount: 5 };
-		let vec_fees_collected: BoundedVec<Fees<u128>, AssetsLimit> = BoundedVec::try_from(vec![fees_collected;10]).unwrap();
+		let vec_fees_collected: BoundedVec<Fees<u128>, AssetsLimit> =
+			BoundedVec::try_from(vec![fees_collected; 10]).unwrap();
 		<FeesCollected<Test>>::insert(snapshot_id, vec_fees_collected);
 		// Mint Some Polkadex to custodian account
 		let custodian_account: AccountId32 = pallet::Pallet::<Test>::get_custodian_account();
@@ -1115,11 +1111,22 @@ pub fn test_collect_fee_with_non_pdex_asset_fees_and_three_element_exc_limit() {
 		let snapshot_id = 1;
 		let asset_id = 10;
 		let fees_collected = Fees { asset: AssetId::asset(asset_id), amount: 100000 };
-		let vec_fees_collected: BoundedVec<Fees<u128>, AssetsLimit> = BoundedVec::try_from(vec![fees_collected;4]).unwrap();
+		let vec_fees_collected: BoundedVec<Fees<u128>, AssetsLimit> =
+			BoundedVec::try_from(vec![fees_collected; 4]).unwrap();
 		<FeesCollected<Test>>::insert(snapshot_id, vec_fees_collected);
 		let custodian_account: AccountId32 = pallet::Pallet::<Test>::get_custodian_account();
-		assert_ok!(Balances::set_balance(Origin::root(), custodian_account.clone(), 1000000000u128, 0u128));
-		assert_ok!(Balances::set_balance(Origin::root(), account_id.clone(), 1000000000u128, 0u128));
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			custodian_account.clone(),
+			1000000000u128,
+			0u128
+		));
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			account_id.clone(),
+			1000000000u128,
+			0u128
+		));
 		assert_ok!(Assets::create(
 			Origin::signed(custodian_account.clone()),
 			asset_id,
@@ -1160,9 +1167,9 @@ fn create_account_id() -> AccountId32 {
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
 	)
-		.expect("Unable to create sr25519 key pair")
-		.try_into()
-		.expect("Unable to convert to AccountId32");
+	.expect("Unable to create sr25519 key pair")
+	.try_into()
+	.expect("Unable to convert to AccountId32");
 
 	return account_id
 }
@@ -1191,9 +1198,9 @@ fn create_proxy_account() -> AccountId32 {
 		KEY_TYPE,
 		Some(&format!("{}/hunter2", PHRASE)),
 	)
-		.expect("Unable to create sr25519 key pair")
-		.try_into()
-		.expect("Unable to convert to AccountId32");
+	.expect("Unable to create sr25519 key pair")
+	.try_into()
+	.expect("Unable to convert to AccountId32");
 
 	return account_id
 }
@@ -1207,7 +1214,7 @@ fn create_public_key() -> sp_application_crypto::sr25519::Public {
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
 	)
-		.expect("Unable to create sr25519 key pair");
+	.expect("Unable to create sr25519 key pair");
 
 	return account_id
 }
@@ -1251,7 +1258,7 @@ pub fn calculate_mmr_root(
 	accounts.by_ref().for_each(|value| {
 		let bytes = value.encode();
 		if let Err(err) =
-		mmr.push(MergeAccountInfo(sp_application_crypto::sp_core::blake2_256(&bytes)))
+			mmr.push(MergeAccountInfo(sp_application_crypto::sp_core::blake2_256(&bytes)))
 		{
 			log::error!(target: "mmr", "Unable to push account into MMR calculator: {:?}", err);
 		}

@@ -178,7 +178,7 @@ pub fn test_whitelist_and_blacklist_token() {
 	new_test_ext().execute_with(|| {
 		let new_token = H160::random();
 		assert_ok!(AssetHandler::whitelist_token(Origin::signed(1), new_token));
-        let whitelisted_tokens = <WhitelistedToken<Test>>::get();
+		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
 		assert!(whitelisted_tokens.contains(&new_token));
 		assert_ok!(AssetHandler::remove_whitelisted_token(Origin::signed(1), new_token));
 		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
@@ -189,14 +189,18 @@ pub fn test_whitelist_and_blacklist_token() {
 #[test]
 pub fn test_whitelist_with_limit_reaching_returns_error() {
 	new_test_ext().execute_with(|| {
-		let mut whitelisted_assets: BoundedBTreeSet<H160, WhitelistedTokenLimit> = BoundedBTreeSet::new();
+		let mut whitelisted_assets: BoundedBTreeSet<H160, WhitelistedTokenLimit> =
+			BoundedBTreeSet::new();
 		for ele in 0..50 {
 			assert_ok!(whitelisted_assets.try_insert(H160::from_low_u64_be(ele)));
-		};
+		}
 		assert_eq!(whitelisted_assets.len(), 50);
 		<WhitelistedToken<Test>>::put(whitelisted_assets);
 		let new_token = H160::random();
-		assert_noop!(AssetHandler::whitelist_token(Origin::signed(1), new_token), Error::<Test>::WhitelistedTokenLimitReached);
+		assert_noop!(
+			AssetHandler::whitelist_token(Origin::signed(1), new_token),
+			Error::<Test>::WhitelistedTokenLimitReached
+		);
 	});
 }
 
