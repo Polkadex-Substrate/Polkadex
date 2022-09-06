@@ -48,10 +48,13 @@ use sp_runtime::{
 	DispatchError::BadOrigin,
 	TokenError,
 };
+use sp_runtime::traits::CheckedConversion;
 use std::{
 	collections::{btree_map::Values, BTreeMap},
 	sync::Arc,
 };
+use test_utils::{get_signer, ias::{consts::*, ias::*}};
+use codec::Decode;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -849,29 +852,12 @@ fn test_submit_snapshot() {
 #[test]
 fn test_register_enclave() {
 	let account_id = create_account_id();
-	let ias_report = vec![
-		19, 19, 2, 7, 255, 128, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 7, 0,
-		0, 0, 0, 0, 0, 0, 157, 113, 31, 38, 134, 1, 92, 170, 202, 207, 84, 214, 193, 115, 135, 89,
-		228, 23, 80, 184, 116, 61, 170, 171, 159, 47, 5, 32, 99, 126, 11, 13, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 95, 183, 141,
-		57, 75, 101, 149, 246, 85, 227, 219, 71, 14, 143, 143, 79, 2, 209, 127, 165, 117, 206, 185,
-		73, 81, 228, 1, 225, 150, 116, 242, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 70, 95,
-		159, 233, 74, 113, 162, 222, 24, 218, 134, 159, 15, 74, 157, 188, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 69, 66, 236, 163, 63, 254, 74, 251, 172, 254, 123, 233, 19, 175,
-		193, 204,
-	];
+
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			OCEX::register_enclave(Origin::signed(account_id.clone()), ias_report),
-			Error::<Test>::RemoteAttestationVerificationFailed
+		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
+		let signer = create_signer::<Test>();
+		assert_ok!(
+			OCEX::register_enclave(Origin::signed(account_id.clone()), TEST4_SETUP.cert.to_vec()),
 		);
 	});
 }
@@ -1253,4 +1239,9 @@ pub fn create_withdrawal_500<T: Config>(
 pub fn create_fees<T: Config>() -> Fees<BalanceOf<T>> {
 	let fees: Fees<BalanceOf<T>> = Fees { asset: AssetId::polkadex, amount: 100_u32.into() };
 	return fees
+}
+
+pub fn create_signer<T: Config>() -> T::AccountId {
+	let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
+	return signer;
 }

@@ -35,6 +35,8 @@ frame-benchmarking = { branch = "polkadot-v0.9.28", git = 'https://github.com/pa
 ckb-merkle-mountain-range = "0.5.0"
 anyhow = "1.0.56"
 sp-io = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
+test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch = "polkadot-v0.9.28", default-features = false }
+
 
 [features]
 default = ["std"]
