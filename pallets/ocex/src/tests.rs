@@ -21,11 +21,8 @@ use frame_support::{
 	traits::{ConstU128, ConstU64, OnInitialize, OnTimestampSet},
 	PalletId,
 };
-use frame_system::EnsureRoot;
-use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, Signature,
-	SnapshotAccLimit,
-};
+use frame_system::{EnsureRoot};
+use polkadex_primitives::{assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, Signature, SnapshotAccLimit};
 use sp_application_crypto::sp_core::H256;
 use sp_std::cell::RefCell;
 // The testing primitives are very useful for avoiding having to work with signatures
@@ -52,6 +49,7 @@ use std::{
 	collections::{btree_map::Values, BTreeMap},
 	sync::Arc,
 };
+use sp_runtime::offchain::storage_lock::Time;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -1087,6 +1085,19 @@ fn test_shutdown_bad_origin() {
 		assert_noop!(OCEX::shutdown(Origin::signed(account_id.into())), BadOrigin);
 
 		assert_noop!(OCEX::shutdown(Origin::none()), BadOrigin);
+	});
+}
+
+#[test]
+fn test_unregister_timed_out_enclaves(){
+	let enclave_id = create_account_id();
+	new_test_ext().execute_with(||{
+		let past_ts= 1000;
+		let ts: Moment= past_ts.try_into().unwrap();
+        RegisteredEnclaves::<Test>::insert(enclave_id.clone(), ts);
+		Timestamp::set_timestamp(past_ts+86400000);
+		<OCEX as OnInitialize<u64>>::on_initialize(100000000);
+		assert_eq!(RegisteredEnclaves::<Test>::contains_key(enclave_id), false);
 	});
 }
 

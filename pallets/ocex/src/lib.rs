@@ -611,13 +611,15 @@ pub mod pallet {
 			let mut enclaves_to_remove = sp_std::vec![];
 			let iter = <RegisteredEnclaves<T>>::iter();
 			iter.for_each(|(enclave, attested_ts)| {
-				if <timestamp::Pallet<T>>::get().checked_sub(&attested_ts).unwrap() >=
+				let current_timestamp=  <timestamp::Pallet<T>>::get();
+				if current_timestamp.checked_sub(&attested_ts).unwrap() >=
 					T::MsPerDay::get()
 				{
 					enclaves_to_remove.push(enclave);
 				}
 			});
 			for enclave in &enclaves_to_remove {
+
 				<RegisteredEnclaves<T>>::remove(enclave);
 			}
 			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
