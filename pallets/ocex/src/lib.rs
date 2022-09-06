@@ -19,7 +19,7 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
+	traits::{Currency, ExistenceRequirement},
 };
 use frame_support::traits::fungibles::Transfer;
 
