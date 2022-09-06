@@ -586,7 +586,7 @@ pub mod pallet {
 			};
 			ensure!(token_a.ne(&token_b), <Error<T>>::TokenAEqTokenB);
 
-			let start_block = vote_end_block.saturating_add(1_u128.saturated_into());
+			let start_block = vote_end_block.saturating_add(1u128.saturated_into());
 			let close_round_block = vote_end_block.saturating_add(funding_period);
 			// Ensures that
 			let token_a_priceper_token_b_perquintill = Perbill::from_rational(

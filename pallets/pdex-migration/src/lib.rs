@@ -118,7 +118,7 @@ pub mod pallet {
 		fn default() -> Self {
 			Self {
 				operational: false,
-				max_tokens: 3_172_895u128.saturating_mul(1_000_000_000_000_u128).saturated_into(),
+				max_tokens: 3_172_895u128.saturating_mul(1_000_000_000_000u128).saturated_into(),
 			}
 		}
 	}

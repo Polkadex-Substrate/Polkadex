@@ -88,6 +88,14 @@ pub mod pallet {
 		SnapshotAccLimit,
 	>;
 
+	type EnclaveSnapshotType<T> = EnclaveSnapshot<
+		<T as frame_system::Config>::AccountId,
+		BalanceOf<T>,
+		WithdrawalLimit,
+		AssetsLimit,
+		SnapshotAccLimit,
+	>;
+
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
@@ -550,7 +558,7 @@ pub mod pallet {
 				}
 				Self::deposit_event(Event::WithdrawalClaimed {
 					main: sender.clone(),
-					withdrawals: withdrawal_vector.clone(),
+					withdrawals: withdrawal_vector.to_owned(),
 				});
 				ensure!(
 					<OnChainEvents<T>>::mutate(|onchain_events| {
@@ -558,7 +566,7 @@ pub mod pallet {
 							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 								snapshot_id,
 								sender.clone(),
-								withdrawal_vector.clone(),
+								withdrawal_vector.to_owned(),
 							),
 						)?;
 						Ok::<(), ()>(())
@@ -693,14 +701,6 @@ pub mod pallet {
 	#[pallet::getter(fn trading_pairs_status)]
 	pub(super) type TradingPairsStatus<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, AssetId, bool, ValueQuery>;
-
-	type EnclaveSnapshotType<T> = EnclaveSnapshot<
-		<T as frame_system::Config>::AccountId,
-		BalanceOf<T>,
-		WithdrawalLimit,
-		AssetsLimit,
-		SnapshotAccLimit,
-	>;
 
 	// Snapshots Storage
 	#[pallet::storage]

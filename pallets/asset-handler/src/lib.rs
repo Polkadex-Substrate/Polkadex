@@ -231,6 +231,7 @@ pub mod pallet {
 		/// * `destination_add`: Recipient's Account
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
+		#[allow(clippy::unnecessary_lazy_evaluations)]
 		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(2 as Weight)))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
@@ -245,8 +246,8 @@ pub mod pallet {
 				chainbridge::Pallet::<T>::account_id() == sender,
 				Error::<T>::MinterMustBeRelayer
 			);
-			let amount =
-				Self::convert_18dec_to_12dec(amount).ok_or(Error::<T>::DivisionUnderflow)?;
+			let amount = Self::convert_18dec_to_12dec(amount)
+				.ok_or_else(|| Error::<T>::DivisionUnderflow)?;
 			T::AssetManager::mint_into(
 				Self::convert_asset_id(rid),
 				&destination_acc,
