@@ -68,24 +68,24 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 	)> = vec![];
 	for idx in 1..4 {
 		let babe = sp_core::sr25519::Pair::from_string(
-			&*(seed.to_owned() + idx.to_string().as_str() + "//babe"),
+			&(seed.to_owned() + idx.to_string().as_str() + "//babe"),
 			None,
 		)
 		.unwrap();
 		let imon = sp_core::sr25519::Pair::from_string(
-			&*(seed.to_owned() + idx.to_string().as_str() + "//imon"),
+			&(seed.to_owned() + idx.to_string().as_str() + "//imon"),
 			None,
 		)
 		.unwrap();
 		let audi = sp_core::sr25519::Pair::from_string(
-			&*(seed.to_owned() + idx.to_string().as_str() + "//audi"),
+			&(seed.to_owned() + idx.to_string().as_str() + "//audi"),
 			None,
 		)
 		.unwrap();
 
 		// Granpda uses ed25519 cryptography
 		let gran = sp_core::ed25519::Pair::from_string(
-			&*(seed.to_owned() + idx.to_string().as_str() + "//grandpa"),
+			&(seed.to_owned() + idx.to_string().as_str() + "//grandpa"),
 			None,
 		)
 		.unwrap();
@@ -107,16 +107,16 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 	]
 	.into();
 
-	let enclave_developement_account: AccountId = hex![
-		"90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"
-	]
-		.into();
-	let orderbook_test_main_account: AccountId = hex! [
-		"6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"
-	].into();
-	testnet_genesis(initial_authorities, vec![],
-					Some(vec![enclave_developement_account, orderbook_test_main_account]),
-					root_key)
+	let enclave_developement_account: AccountId =
+		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
+	let orderbook_test_main_account: AccountId =
+		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
+	testnet_genesis(
+		initial_authorities,
+		vec![],
+		Some(vec![enclave_developement_account, orderbook_test_main_account]),
+		root_key,
+	)
 }
 
 /// Staging testnet config.
@@ -325,7 +325,7 @@ pub fn testnet_genesis(
 	const ERC20_PDEX_SUPPLY: u128 = 3_172_895 * PDEX;
 	// Total funds in treasury also includes 2_000_000 PDEX for parachain auctions
 	let mut treasury_funds: u128 = 10_200_000 * PDEX;
-	treasury_funds = treasury_funds -
+	treasury_funds -=
 		adjust_treasury_balance_for_initial_validators(initial_authorities.len(), ENDOWMENT);
 
 	// Treasury Account Id
@@ -352,7 +352,7 @@ pub fn testnet_genesis(
 
 	let mut total_claims: u128 = 0;
 	for (_, balance) in &claims {
-		total_claims = total_claims + balance;
+		total_claims += balance;
 	}
 
 	assert_eq!(total_claims, 6_627_105 * PDEX, "Total claims is configured correctly");
@@ -363,7 +363,7 @@ pub fn testnet_genesis(
 
 	let mut total_supply: u128 = 0;
 	for (_, balance) in &endowed_accounts {
-		total_supply = total_supply + balance.clone()
+		total_supply += *balance
 	}
 
 	if development_accounts.is_none() {
@@ -416,7 +416,7 @@ pub fn testnet_genesis(
 			phantom: Default::default(),
 		},
 		democracy: Default::default(),
-		sudo: SudoConfig { key: Some(root_key.clone()) },
+		sudo: SudoConfig { key: Some(root_key) },
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),

@@ -4,17 +4,13 @@ use codec::Codec;
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
-	types::error::{CallError, ErrorCode, ErrorObject},
+	types::error::{CallError, ErrorObject},
 };
 use pallet_ocex_primitives::WithdrawalWithPrimitives;
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_rpc::number::NumberOrHex;
-use sp_runtime::{
-	generic::BlockId,
-	traits::{Block as BlockT, Header as HeaderT},
-};
+use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 
 const RUNTIME_ERROR: i32 = 1;
 
@@ -32,7 +28,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 
 pub struct PolkadexOcexRpc<Client, Block> {
 	client: Arc<Client>,
-	_marker: std::marker::PhantomData<Block>,
+	_marker: PhantomData<Block>,
 }
 
 impl<Client, Block> PolkadexOcexRpc<Client, Block> {

@@ -21,7 +21,6 @@ use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
 use pallet_polkadex_ido_primitives::{FundingRoundWithPrimitives, VoteStat};
 pub use polkadex_ido_runtime_api::PolkadexIdoRuntimeApi;
-use polkadex_primitives::assets::AssetId;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
