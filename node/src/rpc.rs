@@ -116,7 +116,6 @@ where
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 	// C::Api: polkadex_ido_rpc::PolkadexIdoRuntimeApi<Block, AccountId, Hash>,
 {
-	use pallet_ocex_rpc::{PolkadexOcexRpc, PolkadexOcexRpcApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
 	use sc_finality_grandpa_rpc::{Grandpa, GrandpaApiServer};
@@ -167,7 +166,7 @@ where
 	)?;
 
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
-	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
 	// TODO: Upgrade IDO RPC to match latest commit
 	// io.merge(polkadex_ido_rpc::PolkadexIdoRpcApi::to_delegate(
 	// 	polkadex_ido_rpc::PolkadexIdoRpc::new(client),
