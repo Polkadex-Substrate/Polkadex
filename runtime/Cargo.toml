@@ -115,8 +115,8 @@ pallet-ocex-primitives = {path = "../pallets/ocex/common",  default-features = f
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28"}
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+pallet-society = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28"}
 
 [features]
 default = ["std"]
