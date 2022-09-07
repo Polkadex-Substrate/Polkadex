@@ -842,7 +842,7 @@ type EnsureRootOrHalfCouncil = EitherOfDiverse<
 
 type EnsureRootOrHalfOrderbookCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1x, 2>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1, 2>,
 >;
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
