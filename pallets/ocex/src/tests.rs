@@ -21,6 +21,7 @@ use frame_support::{
 	traits::{ConstU128, ConstU64, OnInitialize, OnTimestampSet},
 	PalletId,
 };
+use rust_decimal::prelude::FromPrimitive;
 use frame_system::EnsureRoot;
 use polkadex_primitives::{
 	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, Signature,
@@ -397,6 +398,56 @@ fn test_deposit() {
 		let event: IngressMessages<AccountId32> =
 			IngressMessages::Deposit(account_id, AssetId::polkadex, Decimal::new(10, 11));
 		assert_eq!(OCEX::ingress_messages()[0], event);
+	});
+}
+
+#[test]
+fn test_deposit_large_value() {
+	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
+	new_test_ext().execute_with(|| {
+		mint_into_account_large(account_id.clone());
+		// Balances before deposit
+		assert_eq!(
+			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
+			1_000_000_000_000_000_000_000_000_000_000
+		);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		assert_noop!(OCEX::deposit(
+			Origin::signed(account_id.clone().into()),
+			AssetId::polkadex,
+			1_000_000_000_000_000_000_000_000_0000
+		), Error::<Test>::DepositOverflow);
+	});
+}
+
+#[test]
+fn test_deposit_assets_overflow() {
+	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
+	new_test_ext().execute_with(|| {
+		mint_into_account_large(account_id.clone());
+		// Balances before deposit
+		assert_eq!(
+			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
+			1_000_000_000_000_000_000_000_000_000_000
+		);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		assert_ok!(OCEX::deposit(
+			Origin::signed(account_id.clone().into()),
+			AssetId::polkadex,
+			1_000_000_000_000_000_000_000_000_000
+		));
+		let large_value: Decimal = Decimal::max_value();
+		mint_into_account_large(account_id.clone());
+		// Directly setting the storage value, found it very difficult to manually fill it up 
+		TotalAssets::<Test>::insert(AssetId::polkadex, large_value.saturating_sub(Decimal::from_u128(1).unwrap()));
+	
+		assert_noop!(OCEX::deposit(
+			Origin::signed(account_id.clone().into()),
+			AssetId::polkadex,
+			10_u128.pow(20)
+		), Error::<Test>::DepositOverflow);
 	});
 }
 
@@ -1047,6 +1098,10 @@ fn test_shutdown_bad_origin() {
 
 fn mint_into_account(account_id: AccountId32) {
 	Balances::deposit_creating(&account_id, 10000000000000000000000);
+}
+
+fn mint_into_account_large(account_id: AccountId32) {
+	Balances::deposit_creating(&account_id, 1_000_000_000_000_000_000_000_000_000_000);
 }
 
 fn create_asset_and_credit(asset_id: u128, account_id: AccountId32) {
