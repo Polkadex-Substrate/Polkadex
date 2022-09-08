@@ -389,7 +389,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TradingPairRegistered { base, quote });
 			Ok(())
 		}
-		// const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000;
+	
 		/// Deposit Assets to Orderbook
 		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
 		pub fn deposit(
@@ -400,7 +400,7 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			// TODO: Check if asset is enabled for deposit
 
-			ensure!(amount.saturated_into::<u128>() < DEPOSIT_MAX, Error::<T>::DepositOverflow);
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::DepositOverflow);
 			let converted_amount =
 				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
 
