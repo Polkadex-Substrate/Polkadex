@@ -48,6 +48,8 @@ pub use weights::*;
 type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000;
+
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
@@ -190,6 +192,8 @@ pub mod pallet {
 		MinimumOneProxyRequired,
 		/// Onchain Events vector is full
 		OnchainEventsBoundedVecOverflow,
+		/// Overflow of Deposit amount
+		DepositOverflow,
 	}
 
 	#[pallet::hooks]
@@ -385,7 +389,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TradingPairRegistered { base, quote });
 			Ok(())
 		}
-
+		// const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000;
 		/// Deposit Assets to Orderbook
 		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
 		pub fn deposit(
@@ -395,9 +399,21 @@ pub mod pallet {
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			// TODO: Check if asset is enabled for deposit
-			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
+
+			ensure!(amount.saturated_into::<u128>() < DEPOSIT_MAX, Error::<T>::DepositOverflow);
 			let converted_amount =
 				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
+
+			// Get Storage Map Value
+			if let Some(expected_total_amount) =
+				converted_amount.checked_add(Self::total_assets(asset))
+			{
+				<TotalAssets<T>>::insert(asset, expected_total_amount);
+			} else {
+				return Err(Error::<T>::DepositOverflow.into());
+			}
+
+			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
@@ -531,7 +547,7 @@ pub mod pallet {
 					)?;
 				// TODO: Remove the fees from storage if successful
 				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
+					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into());
 				}
 			}
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
@@ -612,8 +628,8 @@ pub mod pallet {
 
 			// TODO: any other checks we want to run?
 			ensure!(
-				(report.status == SgxStatus::Ok) |
-					(report.status == SgxStatus::ConfigurationNeeded),
+				(report.status == SgxStatus::Ok)
+					| (report.status == SgxStatus::ConfigurationNeeded),
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
@@ -766,6 +782,12 @@ pub mod pallet {
 		BoundedVec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>, OnChainEventsLimit>,
 		ValueQuery,
 	>;
+
+	// Total Assets present in orderbook
+	#[pallet::storage]
+	#[pallet::getter(fn total_assets)]
+	pub(super) type TotalAssets<T: Config> =
+		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
 
 	// Vector of registered enclaves
 	#[pallet::storage]
