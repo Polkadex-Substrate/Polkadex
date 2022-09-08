@@ -550,11 +550,7 @@ fn collect_fees_unexpected_behaviour() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		assert_ok!(OCEX::collect_fees(
-			Origin::signed(account_id.clone().into()),
-			100,
-			account_id.clone().into()
-		));
+		assert_ok!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()));
 
 		assert_last_event::<Test>(
 			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
@@ -614,11 +610,7 @@ fn collect_fees() {
 			signature.clone().into()
 		),);
 
-		assert_ok!(OCEX::collect_fees(
-			Origin::signed(account_id.clone().into()),
-			1,
-			account_id.clone().into()
-		));
+		assert_ok!(OCEX::collect_fees(Origin::root(), 1, account_id.clone().into()));
 		// Balances after collect fees
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -635,9 +627,15 @@ fn collect_fees() {
 fn test_collect_fees_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()), BadOrigin);
+		assert_noop!(
+			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.clone().into()),
+			BadOrigin
+		);
 
-		assert_noop!(OCEX::collect_fees(Origin::none(), 100, account_id.into()), BadOrigin);
+		assert_noop!(
+			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.into()),
+			BadOrigin
+		);
 	});
 }
 
