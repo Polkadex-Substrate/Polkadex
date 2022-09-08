@@ -507,7 +507,7 @@ pub mod pallet {
 			beneficiary: T::AccountId,
 		) -> DispatchResult {
 			// TODO: The caller should be of operational council
-			let _sender = ensure_signed(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 
 			let fees: Vec<Fees<BalanceOf<T>>> =
 				<FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
