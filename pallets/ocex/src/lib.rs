@@ -48,7 +48,7 @@ pub use weights::*;
 type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000;
+const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
