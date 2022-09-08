@@ -438,23 +438,16 @@ fn test_deposit_assets_overflow() {
 			AssetId::polkadex,
 			1_000_000_000_000_000_000_000_000_000
 		));
-		let large_value: u128 = 999_999_999_999_999_999_999_999_999_9_u128;
+		let large_value: Decimal = Decimal::max_value();
 		mint_into_account_large(account_id.clone());
-		TotalAssets::<Test>::insert(AssetId::polkadex, Decimal::from_u128(large_value).unwrap());
+		// Directly setting the storage value, found it very difficult to manually fill it up 
+		TotalAssets::<Test>::insert(AssetId::polkadex, large_value.saturating_sub(Decimal::from_u128(1).unwrap()));
 	
-		for x in 0..1000{
-			assert_ok!(OCEX::deposit(
-				Origin::signed(account_id.clone().into()),
-				AssetId::polkadex,
-				1_000_000_000_000_000_000_000_000_000
-			));
-		}
 		assert_noop!(OCEX::deposit(
 			Origin::signed(account_id.clone().into()),
 			AssetId::polkadex,
-			1_000_000_000_000_000_000_000_000_000_0
+			10_u128.pow(20)
 		), Error::<Test>::DepositOverflow);
-
 	});
 }
 
