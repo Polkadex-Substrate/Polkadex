@@ -23,12 +23,15 @@ use crate::{
 	service,
 	service::{new_partial, FullClient},
 };
-use node_executor::ExecutorDispatch;
+
 use node_polkadex_runtime::{Block, ExistentialDeposit};
+use polkadex_client::ExecutorDispatch;
+use polkadex_node::benchmarking::{
+	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
+};
 use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
-use polkadex_node::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -112,24 +115,23 @@ pub fn run() -> Result<()> {
 						cmd.run::<Block, ExecutorDispatch>(config)
 					},
 					BenchmarkCmd::Block(cmd) => {
-						let PartialComponents {client, ..} = new_partial(&config)?;
+						let PartialComponents { client, .. } = new_partial(&config)?;
 						cmd.run(client)
 					},
 					BenchmarkCmd::Storage(cmd) => {
-						let PartialComponents {client, backend, ..} = new_partial(&config)?;
+						let PartialComponents { client, backend, .. } = new_partial(&config)?;
 						let db = backend.expose_db();
 						let storage = backend.expose_storage();
 
 						cmd.run(config, client, db, storage)
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						let PartialComponents {client,  ..} = new_partial(&config)?;
+						let PartialComponents { client, .. } = new_partial(&config)?;
 						let ext_builder = RemarkBuilder::new(client.clone());
 						cmd.run(config, client, inherent_benchmark_data()?, &ext_builder)
 					},
-					BenchmarkCmd::Machine(cmd) => {
-						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
-					}
+					BenchmarkCmd::Machine(cmd) =>
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
 					BenchmarkCmd::Extrinsic(cmd) => {
 						let PartialComponents { client, .. } = service::new_partial(&config)?;
 						// Register the *Remark* and *TKA* builders.
@@ -143,7 +145,7 @@ pub fn run() -> Result<()> {
 						]);
 
 						cmd.run(client, inherent_benchmark_data()?, &ext_factory)
-					}
+					},
 				}
 			})
 		},

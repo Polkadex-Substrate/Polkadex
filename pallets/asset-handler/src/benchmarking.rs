@@ -63,7 +63,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::BridgeStatusUpdated(status).into());
 	}
 
-    set_block_delay {
+	set_block_delay {
 		let block_delay = 10u64;
 		let block_delay = block_delay.saturated_into::<T::BlockNumber>();
 	}: _(RawOrigin::Root, block_delay)
