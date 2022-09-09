@@ -260,7 +260,12 @@ fn test_register_trading_pair() {
 			TradingPairs::<Test>::contains_key(AssetId::asset(10), AssetId::asset(20)),
 			true
 		);
-		assert_eq!(TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap().operational_status, true);
+		assert_eq!(
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20))
+				.unwrap()
+				.operational_status,
+			true
+		);
 		assert_last_event::<Test>(
 			crate::Event::TradingPairRegistered {
 				base: AssetId::asset(10),
@@ -501,7 +506,12 @@ fn test_open_trading_pair() {
 			10_u128.into()
 		));
 		assert_ok!(OCEX::open_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(20)));
-		assert_eq!(TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap().operational_status, true);
+		assert_eq!(
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20))
+				.unwrap()
+				.operational_status,
+			true
+		);
 		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
 		assert_last_event::<Test>(
 			crate::Event::OpenTradingPair { pair: trading_pair.clone() }.into(),
@@ -574,7 +584,12 @@ fn test_close_trading_pair() {
 			AssetId::asset(10),
 			AssetId::asset(20)
 		));
-		assert_eq!(TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap().operational_status, false);
+		assert_eq!(
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20))
+				.unwrap()
+				.operational_status,
+			false
+		);
 		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
 		assert_last_event::<Test>(
 			crate::Event::ShutdownTradingPair { pair: trading_pair.clone() }.into(),
