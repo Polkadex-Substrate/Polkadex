@@ -352,7 +352,8 @@ pub mod pallet {
 			qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
+			
+            ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
 				!<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairAlreadyRegistered
@@ -362,7 +363,18 @@ pub mod pallet {
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 
+            // We need to check if the provided parameters are not exceeding 10^27 so that there
+            // will not be an overflow upon performing calculations 
+            ensure!(min_order_price.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+            ensure!(max_order_price.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+            ensure!(min_order_qty.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow); 
+            ensure!(max_order_qty.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+            ensure!(price_tick_size.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow); 
+            ensure!(qty_step_size.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+
 			// TODO: Check if base and quote assets are enabled for deposits
+            // Decimal::from() here is infallable as we ensure provided parameters do not exceed
+            // Decimal::MAX
 			let trading_pair_info = TradingPairConfig {
 				base_asset: base,
 				quote_asset: quote,
@@ -412,6 +424,17 @@ pub mod pallet {
 				<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairNotRegistered
 			);
+            
+            // We need to check if the provided parameters are not exceeding 10^27 so that there
+            // will not be an overflow upon performing calculations 
+            ensure!(min_order_price.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+            ensure!(max_order_price.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+            ensure!(min_order_qty.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow); 
+            ensure!(max_order_qty.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+            ensure!(price_tick_size.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow); 
+            ensure!(qty_step_size.saturated_into::<u128>()<=DEPOSIT_MAX, Error::<T>::StorageOverflow);
+
+
 			let trading_pair_info = TradingPairConfig {
 				base_asset: base,
 				quote_asset: quote,
