@@ -597,11 +597,7 @@ fn collect_fees_unexpected_behaviour() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		assert_ok!(OCEX::collect_fees(
-			Origin::signed(account_id.clone().into()),
-			100,
-			account_id.clone().into()
-		));
+		assert_ok!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()));
 
 		assert_last_event::<Test>(
 			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
@@ -656,11 +652,7 @@ fn collect_fees() {
 			signature.clone().into()
 		),);
 
-		assert_ok!(OCEX::collect_fees(
-			Origin::signed(account_id.clone().into()),
-			1,
-			account_id.clone().into()
-		));
+		assert_ok!(OCEX::collect_fees(Origin::root(), 1, account_id.clone().into()));
 		// Balances after collect fees
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -677,9 +669,15 @@ fn collect_fees() {
 fn test_collect_fees_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()), BadOrigin);
+		assert_noop!(
+			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.clone().into()),
+			BadOrigin
+		);
 
-		assert_noop!(OCEX::collect_fees(Origin::none(), 100, account_id.into()), BadOrigin);
+		assert_noop!(
+			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.into()),
+			BadOrigin
+		);
 	});
 }
 
@@ -909,7 +907,7 @@ fn test_withdrawal_invalid_withdrawal_index() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::withdraw(Origin::signed(account_id.clone().into()), 1,),
+			OCEX::claim_withdraw(Origin::signed(account_id.clone().into()), 1, account_id.clone()),
 			Error::<Test>::InvalidWithdrawalIndex
 		);
 	});
@@ -968,7 +966,11 @@ fn test_withdrawal() {
 			signature.clone().into()
 		),);
 
-		assert_ok!(OCEX::withdraw(Origin::signed(account_id.clone().into()), 1,));
+		assert_ok!(OCEX::claim_withdraw(
+			Origin::signed(account_id.clone().into()),
+			1,
+			account_id.clone()
+		));
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -1042,11 +1044,19 @@ fn test_onchain_events_overflow() {
 
 		// Perform withdraw for 500 accounts
 		for x in 0..account_id_vector.len() - 1 {
-			assert_ok!(OCEX::withdraw(Origin::signed(account_id_vector[x].clone().into()), 1));
+			assert_ok!(OCEX::claim_withdraw(
+				Origin::signed(account_id_vector[x].clone().into()),
+				1,
+				account_id.clone()
+			));
 		}
 		let last_account = account_id_vector.len() - 1;
 		assert_noop!(
-			OCEX::withdraw(Origin::signed(account_id_vector[last_account].clone().into()), 1),
+			OCEX::claim_withdraw(
+				Origin::signed(account_id_vector[last_account].clone().into()),
+				1,
+				account_id.clone()
+			),
 			Error::<Test>::OnchainEventsBoundedVecOverflow
 		);
 
@@ -1055,9 +1065,10 @@ fn test_onchain_events_overflow() {
 		assert_eq!(OnChainEvents::<Test>::get().len(), 0);
 
 		// Perform withdraw now
-		assert_ok!(OCEX::withdraw(
+		assert_ok!(OCEX::claim_withdraw(
 			Origin::signed(account_id_vector[last_account].clone().into()),
-			1
+			1,
+			account_id.clone()
 		));
 	});
 }
@@ -1065,9 +1076,9 @@ fn test_onchain_events_overflow() {
 #[test]
 fn test_withdrawal_bad_origin() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::withdraw(Origin::root(), 1,), BadOrigin);
+		assert_noop!(OCEX::claim_withdraw(Origin::root(), 1, account_id.clone()), BadOrigin);
 
-		assert_noop!(OCEX::withdraw(Origin::none(), 1,), BadOrigin);
+		assert_noop!(OCEX::claim_withdraw(Origin::none(), 1, account_id.clone()), BadOrigin);
 	});
 }
 
@@ -1089,6 +1100,19 @@ fn test_shutdown_bad_origin() {
 		assert_noop!(OCEX::shutdown(Origin::signed(account_id.into())), BadOrigin);
 
 		assert_noop!(OCEX::shutdown(Origin::none()), BadOrigin);
+	});
+}
+
+#[test]
+fn test_unregister_timed_out_enclaves() {
+	let enclave_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		let past_ts = 1000;
+		let ts: Moment = past_ts.try_into().unwrap();
+		RegisteredEnclaves::<Test>::insert(enclave_id.clone(), ts);
+		Timestamp::set_timestamp(past_ts + 86400000);
+		<OCEX as OnInitialize<u64>>::on_initialize(100000000);
+		assert_eq!(RegisteredEnclaves::<Test>::contains_key(enclave_id), false);
 	});
 }
 
