@@ -303,13 +303,13 @@ pub mod pallet {
 			ensure!(!<BridgeDeactivated<T>>::get(), Error::<T>::BridgeDeactivated);
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
 			ensure!(
-				T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true)
-					>= amount.saturated_into::<u128>(),
+				T::AssetManager::reducible_balance(Self::convert_asset_id(rid), &sender, true) >=
+					amount.saturated_into::<u128>(),
 				Error::<T>::NotEnoughBalance
 			);
 			ensure!(
-				<PendingWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number()).len()
-					< WithdrawalLimit::get().try_into().map_err(|_| Error::<T>::ConversionIssue)?,
+				<PendingWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number()).len() <
+					WithdrawalLimit::get().try_into().map_err(|_| Error::<T>::ConversionIssue)?,
 				Error::<T>::WithdrawalLimitReached
 			);
 			let fee = Self::fee_calculation(chain_id, amount);

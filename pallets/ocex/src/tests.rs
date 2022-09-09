@@ -1144,7 +1144,7 @@ fn create_account_id() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id;
+	return account_id
 }
 fn create_account_id_500(uid: u32) -> AccountId32 {
 	const PHRASE: &str =
@@ -1159,7 +1159,7 @@ fn create_account_id_500(uid: u32) -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id;
+	return account_id
 }
 
 fn create_proxy_account() -> AccountId32 {
@@ -1175,7 +1175,7 @@ fn create_proxy_account() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id;
+	return account_id
 }
 
 #[allow(dead_code)]
@@ -1190,7 +1190,7 @@ fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	)
 	.expect("Unable to create sr25519 key pair");
 
-	return account_id;
+	return account_id
 }
 
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
@@ -1202,16 +1202,16 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
 		event_id: 0,
 		fees: 1_u32.into(),
 	};
-	return withdrawal;
+	return withdrawal
 }
 
 pub fn create_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
-	return fees;
+	return fees
 }
 
 #[allow(dead_code)]
 pub fn create_signer<T: Config>() -> T::AccountId {
 	let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
-	return signer;
+	return signer
 }

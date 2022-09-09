@@ -521,9 +521,8 @@ pub mod pallet {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let mut votes = match Votes::<T>::get(src_id, (nonce, prop.clone())) {
 				Some(v) => v,
-				None => {
-					ProposalVotes { expiry: now + T::ProposalLifetime::get(), ..Default::default() }
-				},
+				None =>
+					ProposalVotes { expiry: now + T::ProposalLifetime::get(), ..Default::default() },
 			};
 
 			// Ensure the proposal isn't complete and relayer hasn't already voted
