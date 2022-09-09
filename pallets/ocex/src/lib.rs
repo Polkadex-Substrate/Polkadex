@@ -159,6 +159,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Unable to convert given balance to internal Decimal data type
 		FailedToConvertDecimaltoBalance,
 		RegisterationShouldBeSignedByMainAccount,
 		/// Caller is not authorized to claim the withdrawal.
@@ -389,7 +390,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TradingPairRegistered { base, quote });
 			Ok(())
 		}
-	
+
 		/// Deposit Assets to Orderbook
 		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
 		pub fn deposit(
@@ -410,7 +411,7 @@ pub mod pallet {
 			{
 				<TotalAssets<T>>::insert(asset, expected_total_amount);
 			} else {
-				return Err(Error::<T>::DepositOverflow.into());
+				return Err(Error::<T>::DepositOverflow.into())
 			}
 
 			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
@@ -547,7 +548,7 @@ pub mod pallet {
 					)?;
 				// TODO: Remove the fees from storage if successful
 				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into());
+					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
 				}
 			}
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
@@ -628,8 +629,8 @@ pub mod pallet {
 
 			// TODO: any other checks we want to run?
 			ensure!(
-				(report.status == SgxStatus::Ok)
-					| (report.status == SgxStatus::ConfigurationNeeded),
+				(report.status == SgxStatus::Ok) |
+					(report.status == SgxStatus::ConfigurationNeeded),
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {

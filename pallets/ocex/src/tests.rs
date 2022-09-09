@@ -21,12 +21,12 @@ use frame_support::{
 	traits::{ConstU128, ConstU64, OnInitialize, OnTimestampSet},
 	PalletId,
 };
-use rust_decimal::prelude::FromPrimitive;
 use frame_system::EnsureRoot;
 use polkadex_primitives::{
 	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, Signature,
 	SnapshotAccLimit,
 };
+use rust_decimal::prelude::FromPrimitive;
 use sp_application_crypto::sp_core::H256;
 use sp_std::cell::RefCell;
 // The testing primitives are very useful for avoiding having to work with signatures
@@ -413,11 +413,14 @@ fn test_deposit_large_value() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
-		assert_noop!(OCEX::deposit(
-			Origin::signed(account_id.clone().into()),
-			AssetId::polkadex,
-			1_000_000_000_000_000_000_000_000_0000
-		), Error::<Test>::DepositOverflow);
+		assert_noop!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::polkadex,
+				1_000_000_000_000_000_000_000_000_0000
+			),
+			Error::<Test>::DepositOverflow
+		);
 	});
 }
 
@@ -440,14 +443,20 @@ fn test_deposit_assets_overflow() {
 		));
 		let large_value: Decimal = Decimal::max_value();
 		mint_into_account_large(account_id.clone());
-		// Directly setting the storage value, found it very difficult to manually fill it up 
-		TotalAssets::<Test>::insert(AssetId::polkadex, large_value.saturating_sub(Decimal::from_u128(1).unwrap()));
-	
-		assert_noop!(OCEX::deposit(
-			Origin::signed(account_id.clone().into()),
+		// Directly setting the storage value, found it very difficult to manually fill it up
+		TotalAssets::<Test>::insert(
 			AssetId::polkadex,
-			10_u128.pow(20)
-		), Error::<Test>::DepositOverflow);
+			large_value.saturating_sub(Decimal::from_u128(1).unwrap()),
+		);
+
+		assert_noop!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::polkadex,
+				10_u128.pow(20)
+			),
+			Error::<Test>::DepositOverflow
+		);
 	});
 }
 
@@ -720,7 +729,6 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
 			Error::<Test>::SenderIsNotAttestedEnclave
 		);
-		// There is an existing ingress message which holds RegisterUser
 		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }

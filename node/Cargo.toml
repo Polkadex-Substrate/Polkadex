@@ -31,7 +31,6 @@ itertools = "0.10.1"
 jsonrpsee = { version = "0.15.1", features = ["server"] }
 # local dependencies
 node-polkadex-runtime = { path = "../runtime", version = "3.0.0" }
-polkadex-ido-rpc = {path = "../pallets/polkadex-ido/rpc"}
 pallet-ocex-rpc = {path = "../pallets/ocex/rpc"}
 polkadex-client = { path = "../client"}
 
