@@ -23,7 +23,7 @@ sp-std = { default-features = false, branch = "polkadot-v0.9.28", git = 'https:/
 polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate' }
 ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
-pallet-ocex-primitives = { path = "../../pallets/ocex/common", default-features = false}
+rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
 
 [dev-dependencies]
 pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
@@ -32,7 +32,6 @@ pallet-timestamp = { branch = "polkadot-v0.9.28", git = 'https://github.com/pari
 sp-application-crypto = { branch="polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate'}
 sp-keystore = { branch = "polkadot-v0.9.28",git = 'https://github.com/paritytech/substrate' }
 frame-benchmarking = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-ckb-merkle-mountain-range = "0.5.0"
 anyhow = "1.0.56"
 sp-io = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 
@@ -49,7 +48,7 @@ std = [
     "polkadex-primitives/std",
     "pallet-timestamp/std",
     "ias-verify/std",
-    "pallet-ocex-primitives/std"
+    "rust_decimal/std"
 ]
 #TODO: [#435] Currently broken, will be fixed in different issue
 #runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]

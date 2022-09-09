@@ -10,9 +10,7 @@ members = [
     "pallets/chainbridge",
     "pallets/asset-handler",
     "pallets/pdex-migration",
-    "pallets/polkadex-ido",
     "pallets/ocex",
-    "pallets/test-token-provider"
 ]
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]

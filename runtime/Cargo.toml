@@ -92,11 +92,8 @@ pallet-society = { default-features = false, git = "https://github.com/paritytec
 orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch="polkadot-v0.9.28", default-features = false }
 
 # Local Dependecies
-#polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", branch = 'polkadot-v0.9.28', default-features = false }
 polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
-polkadex-ido = { path = "../pallets/polkadex-ido", default-features = false }
-test-token-provider = { path = "../pallets/test-token-provider", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false}
 chainbridge = { path ="../pallets/chainbridge", default-features = false}
 
@@ -106,17 +103,12 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false}
 # Try Runtime
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true, default-features = false }
 
-polkadex-ido-runtime-api = {path = "../pallets/polkadex-ido/rpc/runtime-api", default-features = false}
-pallet-ocex-runtime-api = {path = "../pallets/ocex/rpc/runtime-api", default-features = false}
-pallet-polkadex-ido-primitives = {path = "../pallets/polkadex-ido/common",  default-features = false}
-pallet-ocex-primitives = {path = "../pallets/ocex/common",  default-features = false} # Used for runtime benchmarking
-
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28"}
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+pallet-society = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28"}
 
 [features]
 default = ["std"]
@@ -177,7 +169,6 @@ std = [
     "orml-vesting/std",
     "polkadex-primitives/std",
     "pdex-migration/std",
-    'polkadex-ido/std',
     "frame-try-runtime/std",
     "pallet-ocex-lmp/std",
     "asset-handler/std",
@@ -251,5 +242,4 @@ try-runtime = [
     "pallet-utility/try-runtime",
     "orml-vesting/try-runtime",
     "pdex-migration/try-runtime",
-    "test-token-provider/try-runtime"
 ]
