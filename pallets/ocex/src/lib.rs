@@ -212,7 +212,7 @@ pub mod pallet {
 						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 					>::from([
 						polkadex_primitives::ingress::IngressMessages::LastestSnapshot(
-							snapshot.merkle_root,
+							snapshot.snapshot_hash,
 							snapshot.snapshot_number,
 						),
 					]));
