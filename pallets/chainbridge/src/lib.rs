@@ -27,7 +27,7 @@ pub mod pallet {
 	use sp_std::prelude::*;
 
 	const DEFAULT_RELAYER_THRESHOLD: u32 = 1;
-	const MODULE_ID: PalletId = PalletId(*b"phala/bg");
+	const MODULE_ID: PalletId = PalletId(*b"podex/bg");
 
 	pub type BridgeChainId = u8;
 	pub type DepositNonce = u64;
@@ -484,7 +484,7 @@ pub mod pallet {
 			ensure!(id != T::BridgeChainId::get(), Error::<T>::InvalidChainId);
 			// Cannot whitelist with an existing entry
 			ensure!(!Self::chain_whitelisted(id), Error::<T>::ChainAlreadyWhitelisted);
-			ChainNonces::<T>::insert(&id, 0);
+			ChainNonces::<T>::insert(id, 0);
 			Self::deposit_event(Event::ChainWhitelisted(id));
 			Ok(())
 		}
@@ -521,8 +521,9 @@ pub mod pallet {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let mut votes = match Votes::<T>::get(src_id, (nonce, prop.clone())) {
 				Some(v) => v,
-				None =>
-					ProposalVotes { expiry: now + T::ProposalLifetime::get(), ..Default::default() },
+				None => {
+					ProposalVotes { expiry: now + T::ProposalLifetime::get(), ..Default::default() }
+				},
 			};
 
 			// Ensure the proposal isn't complete and relayer hasn't already voted

@@ -1,30 +1,25 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use codec::Codec;
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
-	types::error::{CallError, ErrorCode, ErrorObject},
+	types::error::{CallError, ErrorObject},
 };
 pub use pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_rpc::number::NumberOrHex;
-use sp_runtime::{
-	generic::BlockId,
-	traits::{Block as BlockT, Header as HeaderT},
-};
+use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 
 const RUNTIME_ERROR: i32 = 1;
-
 
 #[rpc(client, server)]
 pub trait PolkadexAssetHandlerRpcApi<BlockHash, AccountId, Hash> {
 	#[method(name = "pallet_asset_handler_account_balances")]
 	fn account_balances(
 		&self,
-		assets : Vec<u128>, 
-        account_id : AccountId,
+		assets: Vec<u128>,
+		account_id: AccountId,
 		at: Option<BlockHash>,
 	) -> RpcResult<Vec<u128>>;
 }
@@ -53,8 +48,8 @@ where
 {
 	fn account_balances(
 		&self,
-		assets : Vec<u128>, 
-        account_id : AccountId,
+		assets: Vec<u128>,
+		account_id: AccountId,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<Vec<u128>> {
 		let api = self.client.runtime_api();

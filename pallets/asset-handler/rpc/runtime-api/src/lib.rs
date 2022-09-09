@@ -17,8 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::{Codec, Decode};
-use sp_runtime::traits::Zero;
+use codec::Codec;
 use sp_std::vec::Vec;
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexAssetHandlerRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{

@@ -33,7 +33,7 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 
 #[cfg(test)]
 mod multiplier_tests {
-	use frame_support::weights::{DispatchClass, Weight, WeightToFeePolynomial};
+	use frame_support::weights::{DispatchClass, Weight};
 	use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 	use sp_runtime::{
 		assert_eq_error_rate,
@@ -42,9 +42,8 @@ mod multiplier_tests {
 	};
 
 	use crate::{
-		constants::{currency::*, time::*},
-		AdjustmentVariable, MinimumMultiplier, Runtime, RuntimeBlockWeights as BlockWeights,
-		System, TargetBlockFullness, TransactionPayment,
+		constants::time::*, AdjustmentVariable, MinimumMultiplier, Runtime,
+		RuntimeBlockWeights as BlockWeights, System, TargetBlockFullness,
 	};
 
 	fn max_normal() -> Weight {
@@ -172,7 +171,7 @@ mod multiplier_tests {
 				let next = runtime_multiplier_update(fm);
 				fm = next;
 				if fm == min_multiplier() {
-					break
+					break;
 				}
 				iterations += 1;
 			}
@@ -193,48 +192,6 @@ mod multiplier_tests {
 			}
 			assert!(fm > Multiplier::saturating_from_rational(1050, 1000));
 		})
-	}
-
-	#[test]
-	#[ignore]
-	fn congested_chain_simulation() {
-		// `cargo test congested_chain_simulation -- --nocapture` to get some insight.
-
-		// almost full. The entire quota of normal transactions is taken.
-		let block_weight = BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap() - 100;
-
-		// Default substrate weight.
-		let tx_weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
-
-		run_with_system_weight(block_weight, || {
-			// initial value configured on module
-			let mut fm = Multiplier::one();
-			assert_eq!(fm, TransactionPayment::next_fee_multiplier());
-
-			let mut iterations: u64 = 0;
-			loop {
-				let next = runtime_multiplier_update(fm);
-				// if no change, panic. This should never happen in this case.
-				if fm == next {
-					panic!("The fee should ever increase");
-				}
-				fm = next;
-				iterations += 1;
-				let fee =
-					<Runtime as pallet_transaction_payment::Config>::WeightToFee::calc(&tx_weight);
-				let adjusted_fee = fm.saturating_mul_acc_int(fee);
-				println!(
-					"iteration {}, new fm = {:?}. Fee at this point is: {} units / {} millicents, \
-					{} cents, {} dollars",
-					iterations,
-					fm,
-					adjusted_fee,
-					adjusted_fee / MILLICENTS,
-					adjusted_fee / CENTS,
-					adjusted_fee / DOLLARS,
-				);
-			}
-		});
 	}
 
 	#[test]

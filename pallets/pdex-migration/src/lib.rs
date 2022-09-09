@@ -118,7 +118,7 @@ pub mod pallet {
 		fn default() -> Self {
 			Self {
 				operational: false,
-				max_tokens: 3_172_895u128.saturating_mul(1000_000_000_000u128).saturated_into(),
+				max_tokens: 3_172_895u128.saturating_mul(1_000_000_000_000u128).saturated_into(),
 			}
 		}
 	}
@@ -246,7 +246,7 @@ pub mod pallet {
 			for lock in locks {
 				if lock.id == MIGRATION_LOCK {
 					amount_to_burn = lock.amount;
-					break
+					break;
 				}
 			}
 
@@ -255,7 +255,7 @@ pub mod pallet {
 			pallet_balances::Pallet::<T>::burn_from(&beneficiary, amount_to_burn)?;
 			// Increment total mintable tokens
 			let mut mintable_tokens = MintableTokens::<T>::get();
-			mintable_tokens = mintable_tokens + amount_to_burn;
+			mintable_tokens += amount_to_burn;
 			MintableTokens::<T>::put(mintable_tokens);
 			// Deposit event
 			Self::deposit_event(Event::RevertedMintedTokens(beneficiary));
@@ -273,7 +273,7 @@ pub mod pallet {
 			if relayer_status {
 				let mut mintable_tokens = Self::mintable_tokens();
 				if amount <= mintable_tokens {
-					burn_details.approvals = burn_details.approvals + 1;
+					burn_details.approvals += 1;
 					ensure!(
 						burn_details.approvers.try_push(relayer.clone()).is_ok(),
 						Error::RelayerLimitReached
@@ -298,17 +298,17 @@ pub mod pallet {
 							frame_system::Pallet::<T>::current_block_number();
 						LockedTokenHolders::<T>::insert(beneficiary.clone(), current_blocknumber);
 						// Reduce possible mintable tokens
-						mintable_tokens = mintable_tokens - amount;
+						mintable_tokens -= amount;
 						// Set reduced mintable tokens
 						MintableTokens::<T>::put(mintable_tokens);
-						EthTxns::<T>::insert(&eth_hash, burn_details);
+						EthTxns::<T>::insert(eth_hash, burn_details);
 						Self::deposit_event(Event::NativePDEXMintedAndLocked(
 							relayer,
 							beneficiary,
 							amount,
 						));
 					} else {
-						EthTxns::<T>::insert(&eth_hash, burn_details);
+						EthTxns::<T>::insert(eth_hash, burn_details);
 						Self::deposit_event(Event::TokenBurnDetected(eth_hash, relayer));
 					}
 					Ok(())
@@ -322,8 +322,8 @@ pub mod pallet {
 
 		pub fn process_unlock(beneficiary: T::AccountId) -> Result<(), Error<T>> {
 			if let Some(locked_block) = LockedTokenHolders::<T>::take(&beneficiary) {
-				if locked_block + T::LockPeriod::get() <=
-					frame_system::Pallet::<T>::current_block_number()
+				if locked_block + T::LockPeriod::get()
+					<= frame_system::Pallet::<T>::current_block_number()
 				{
 					pallet_balances::Pallet::<T>::remove_lock(MIGRATION_LOCK, &beneficiary);
 					Ok(())
@@ -346,7 +346,7 @@ pub mod pallet {
 					prev_locked_amount = lock.amount;
 				}
 			}
-			return prev_locked_amount
+			prev_locked_amount
 		}
 	}
 }

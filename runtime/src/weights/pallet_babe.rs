@@ -34,7 +34,7 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_babe::WeightInfo for WeightInfo<T> {
 	fn plan_config_change() -> Weight {
-		(88_327_000 as Weight).saturating_add((10_000 as Weight))
+		(88_327_000 as Weight).saturating_add(10_000 as Weight)
 	}
 	fn report_equivocation(x: u32, ) -> Weight {
 		(88_327_000 as Weight)

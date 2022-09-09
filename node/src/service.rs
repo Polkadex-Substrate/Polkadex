@@ -112,14 +112,15 @@ pub fn create_extrinsic(
 	let signature = raw_payload.using_encoded(|e| sender.sign(e));
 
 	node_polkadex_runtime::UncheckedExtrinsic::new_signed(
-		function.clone(),
+		function,
 		sp_runtime::AccountId32::from(sender.public()).into(),
-		node_polkadex_runtime::Signature::Sr25519(signature.clone()),
-		extra.clone(),
+		node_polkadex_runtime::Signature::Sr25519(signature),
+		extra,
 	)
 }
 use sc_network_common::service::NetworkEventStream;
 
+#[allow(clippy::type_complexity)]
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
@@ -659,7 +660,7 @@ mod tests {
 						sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
 							.map(|(digest, _)| digest)
 					{
-						break (babe_pre_digest, epoch_descriptor)
+						break (babe_pre_digest, epoch_descriptor);
 					}
 
 					slot += 1;
