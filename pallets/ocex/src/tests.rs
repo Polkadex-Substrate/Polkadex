@@ -441,7 +441,7 @@ fn test_deposit_assets_overflow() {
 			AssetId::polkadex,
 			1_000_000_000_000_000_000_000_000_000
 		));
-		let large_value: Decimal = Decimal::max_value();
+		let large_value: Decimal = Decimal::MAX;
 		mint_into_account_large(account_id.clone());
 		// Directly setting the storage value, found it very difficult to manually fill it up
 		TotalAssets::<Test>::insert(
@@ -1027,10 +1027,10 @@ fn test_onchain_events_overflow() {
 			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]).unwrap();
 		for x in account_id_vector.clone() {
 			let withdrawal_500 = create_withdrawal_500::<Test>(x.clone());
-			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]);
+			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
 
 		let hash: H256 = H256::random();
