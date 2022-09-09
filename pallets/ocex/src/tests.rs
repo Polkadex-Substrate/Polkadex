@@ -17,43 +17,33 @@
 
 use crate::*;
 use frame_support::{
-	assert_noop, assert_ok, bounded_vec, parameter_types,
-	traits::{ConstU128, ConstU64, OnInitialize, OnTimestampSet},
-	PalletId,
+	assert_noop, assert_ok, bounded_vec,
+	traits::OnInitialize,
 };
-use frame_system::EnsureRoot;
 use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, Signature,
+	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal,
 	SnapshotAccLimit,
 };
 use rust_decimal::prelude::FromPrimitive;
 use sp_application_crypto::sp_core::H256;
-use sp_std::cell::RefCell;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use ckb_merkle_mountain_range::{util::MemStore, Merge, MMR};
 use codec::Encode;
 use frame_system::EventRecord;
 use polkadex_primitives::{
-	ocex::AccountInfo,
 	snapshot::{EnclaveSnapshot, Fees},
-	AccountId, AssetsLimit, Balance, ProxyLimit, WithdrawalLimit,
+	AccountId, AssetsLimit, WithdrawalLimit,
 };
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{
-	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup, Verify},
 	AccountId32, BoundedBTreeMap, BoundedVec,
 	DispatchError::BadOrigin,
 	TokenError,
 };
-use std::{
-	collections::{btree_map::Values, BTreeMap},
-	sync::Arc,
-};
+use std::sync::Arc;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -649,7 +639,7 @@ fn collect_fees() {
 		let fees = create_fees::<Test>();
 
 		let mmr_root: H256 = H256::random();
-		let mut snapshot =
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
 				merkle_root: mmr_root,
@@ -718,7 +708,7 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
 		let mmr_root: H256 = H256::random();
-		let mut snapshot =
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
 				merkle_root: mmr_root,
@@ -740,7 +730,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
 		let mmr_root: H256 = H256::random();
-		let mut snapshot =
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 2,
 				merkle_root: mmr_root,
@@ -764,7 +754,7 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
 		let mmr_root: H256 = H256::random();
-		let mut snapshot =
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
 				merkle_root: mmr_root,
@@ -787,7 +777,7 @@ fn test_submit_snapshot_bad_origin() {
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
 		let mmr_root: H256 = H256::random();
-		let mut snapshot =
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 0,
 				merkle_root: mmr_root,
@@ -828,8 +818,8 @@ fn test_submit_snapshot() {
 			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]);
-		let mut snapshot =
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]).unwrap();
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
 				merkle_root: mmr_root,
@@ -958,10 +948,10 @@ fn test_withdrawal() {
 			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]).unwrap();
 
 		let mmr_root: H256 = H256::random();
-		let mut snapshot =
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
 				merkle_root: mmr_root,
@@ -1029,12 +1019,12 @@ fn test_onchain_events_overflow() {
 		> = BoundedBTreeMap::new();
 		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]).unwrap();
 		for x in account_id_vector.clone() {
-			let withdrawal_500 = create_withdrawal_500::<Test>(x.clone());
+			let _withdrawal_500 = create_withdrawal_500::<Test>(x.clone());
 			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
 
 		let hash: H256 = H256::random();
-		let mut snapshot =
+		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
 				merkle_root: hash,
@@ -1075,7 +1065,7 @@ fn test_onchain_events_overflow() {
 
 #[test]
 fn test_withdrawal_bad_origin() {
-	let account_id = create_account_id();
+	let _account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(OCEX::withdraw(Origin::root(), 1,), BadOrigin);
 
@@ -1105,13 +1095,14 @@ fn test_shutdown_bad_origin() {
 }
 
 fn mint_into_account(account_id: AccountId32) {
-	Balances::deposit_creating(&account_id, 10000000000000000000000);
+	let _result = Balances::deposit_creating(&account_id, 10000000000000000000000);
 }
 
 fn mint_into_account_large(account_id: AccountId32) {
-	Balances::deposit_creating(&account_id, 1_000_000_000_000_000_000_000_000_000_000);
+	let _result = Balances::deposit_creating(&account_id, 1_000_000_000_000_000_000_000_000_000_000);
 }
 
+#[allow(dead_code)]
 fn create_asset_and_credit(asset_id: u128, account_id: AccountId32) {
 	assert_ok!(Assets::create(
 		Origin::signed(account_id.clone().into()),
@@ -1168,6 +1159,7 @@ fn create_proxy_account() -> AccountId32 {
 	return account_id
 }
 
+#[allow(dead_code)]
 fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
