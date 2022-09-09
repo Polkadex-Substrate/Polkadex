@@ -196,6 +196,8 @@ pub mod pallet {
 		OnchainEventsBoundedVecOverflow,
 		/// Overflow of Deposit amount
 		DepositOverflow,
+        /// Trading Pair is not registed for updating 
+        TradingPairNotRegistered
 	}
 
 	#[pallet::hooks]
@@ -390,6 +392,62 @@ pub mod pallet {
 			Self::deposit_event(Event::TradingPairRegistered { base, quote });
 			Ok(())
 		}
+
+        /// Registers a new trading pair
+		#[pallet::weight(100000)]
+		pub fn update_trading_pair(
+			origin: OriginFor<T>,
+			base: AssetId,
+			quote: AssetId,
+			min_order_price: BalanceOf<T>,
+			max_order_price: BalanceOf<T>,
+			min_order_qty: BalanceOf<T>,
+			max_order_qty: BalanceOf<T>,
+			price_tick_size: BalanceOf<T>,
+			qty_step_size: BalanceOf<T>,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
+			ensure!(
+				<TradingPairs<T>>::contains_key(base, quote),
+				Error::<T>::TradingPairNotRegistered
+			);
+			ensure!(
+				<TradingPairs<T>>::contains_key(quote, base),
+				Error::<T>::TradingPairNotRegistered
+			);
+
+			// TODO: Check if base and quote assets are enabled for deposits
+			let trading_pair_info = TradingPairConfig {
+				base_asset: base,
+				quote_asset: quote,
+				min_price: Decimal::from(min_order_price.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				price_tick_size: Decimal::from(price_tick_size.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				qty_step_size: Decimal::from(qty_step_size.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				operational_status: true,
+			};
+			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+			<TradingPairsStatus<T>>::insert(base, quote, true);
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(
+					polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
+						trading_pair_info,
+					),
+				);
+			});
+			Self::deposit_event(Event::TradingPairUpdated { base, quote });
+			Ok(())
+		}
+
 
 		/// Deposit Assets to Orderbook
 		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
@@ -682,6 +740,10 @@ pub mod pallet {
 			base: AssetId,
 			quote: AssetId,
 		},
+        TradingPairUpdated{
+            base: AssetId, 
+            quote: AssetId,
+        },
 		DepositSuccessful {
 			user: T::AccountId,
 			asset: AssetId,
