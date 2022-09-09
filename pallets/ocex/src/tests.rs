@@ -323,6 +323,102 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 }
 
 #[test]
+fn test_update_trading_pair() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			1_u128.into(),
+			100_u128.into(),
+			1_u128.into(),
+			100_u128.into(),
+			100_u128.into(),
+			10_u128.into()
+		));
+
+		assert_ok!(OCEX::update_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			1_u128.into(),
+			100_u128.into(),
+			1_u128.into(),
+			100_u128.into(),
+			100_u128.into(),
+			10_u128.into()
+		));
+
+		assert_last_event::<Test>(
+			crate::Event::TradingPairUpdated {
+				base: AssetId::asset(10),
+				quote: AssetId::asset(20),
+			}
+			.into(),
+		);
+		let trading_pair =
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap();
+		let event: IngressMessages<AccountId32> = IngressMessages::UpdateTradingPair(trading_pair);
+		assert_eq!(OCEX::ingress_messages()[1], event);
+	});
+}
+
+#[test]
+fn test_update_trading_pair_trading_pair_not_registered() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairNotRegistered
+		);
+	});
+}
+
+#[test]
+fn test_update_trading_pair_bad_origin() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::none(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			BadOrigin
+		);
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::signed(account_id.into()),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
 fn test_deposit_unknown_asset() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
@@ -1145,7 +1241,7 @@ fn create_account_id() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 fn create_account_id_500(uid: u32) -> AccountId32 {
 	const PHRASE: &str =
@@ -1160,7 +1256,7 @@ fn create_account_id_500(uid: u32) -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 fn create_proxy_account() -> AccountId32 {
@@ -1176,7 +1272,7 @@ fn create_proxy_account() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 #[allow(dead_code)]
@@ -1191,7 +1287,7 @@ fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	)
 	.expect("Unable to create sr25519 key pair");
 
-	return account_id
+	return account_id;
 }
 
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
@@ -1203,10 +1299,10 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
 		event_id: 0,
 		fees: 1_u32.into(),
 	};
-	return withdrawal
+	return withdrawal;
 }
 
 pub fn create_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
-	return fees
+	return fees;
 }

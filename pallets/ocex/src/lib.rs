@@ -196,8 +196,8 @@ pub mod pallet {
 		OnchainEventsBoundedVecOverflow,
 		/// Overflow of Deposit amount
 		DepositOverflow,
-        /// Trading Pair is not registed for updating 
-        TradingPairNotRegistered
+		/// Trading Pair is not registed for updating
+		TradingPairNotRegistered,
 	}
 
 	#[pallet::hooks]
@@ -393,7 +393,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-        /// Registers a new trading pair
+		/// Updates the trading pair config
 		#[pallet::weight(100000)]
 		pub fn update_trading_pair(
 			origin: OriginFor<T>,
@@ -412,12 +412,6 @@ pub mod pallet {
 				<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairNotRegistered
 			);
-			ensure!(
-				<TradingPairs<T>>::contains_key(quote, base),
-				Error::<T>::TradingPairNotRegistered
-			);
-
-			// TODO: Check if base and quote assets are enabled for deposits
 			let trading_pair_info = TradingPairConfig {
 				base_asset: base,
 				quote_asset: quote,
@@ -448,7 +442,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-
 		/// Deposit Assets to Orderbook
 		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
 		pub fn deposit(
@@ -469,7 +462,7 @@ pub mod pallet {
 			{
 				<TotalAssets<T>>::insert(asset, expected_total_amount);
 			} else {
-				return Err(Error::<T>::DepositOverflow.into())
+				return Err(Error::<T>::DepositOverflow.into());
 			}
 
 			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
@@ -604,7 +597,7 @@ pub mod pallet {
 					)?;
 				// TODO: Remove the fees from storage if successful
 				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
+					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into());
 				}
 			}
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
@@ -689,8 +682,8 @@ pub mod pallet {
 
 			// TODO: any other checks we want to run?
 			ensure!(
-				(report.status == SgxStatus::Ok) |
-					(report.status == SgxStatus::ConfigurationNeeded),
+				(report.status == SgxStatus::Ok)
+					| (report.status == SgxStatus::ConfigurationNeeded),
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
@@ -711,8 +704,8 @@ pub mod pallet {
 			iter.for_each(|(enclave, attested_ts)| {
 				let current_timestamp = <timestamp::Pallet<T>>::get();
 				// enclave will be removed even if something happens with substraction
-				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
-					T::MsPerDay::get()
+				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp)
+					>= T::MsPerDay::get()
 				{
 					enclaves_to_remove.push(enclave);
 				}
@@ -742,10 +735,10 @@ pub mod pallet {
 			base: AssetId,
 			quote: AssetId,
 		},
-        TradingPairUpdated{
-            base: AssetId, 
-            quote: AssetId,
-        },
+		TradingPairUpdated {
+			base: AssetId,
+			quote: AssetId,
+		},
 		DepositSuccessful {
 			user: T::AccountId,
 			asset: AssetId,
