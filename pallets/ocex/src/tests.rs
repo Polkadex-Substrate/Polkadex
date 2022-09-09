@@ -16,43 +16,26 @@
 //! Tests for pallet-ocex.
 
 use crate::*;
-use frame_support::{
-	assert_noop, assert_ok, bounded_vec, parameter_types,
-	traits::{ConstU128, ConstU64, OnInitialize, OnTimestampSet},
-	PalletId,
-};
-use frame_system::EnsureRoot;
+use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
 use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, Signature,
-	SnapshotAccLimit,
+	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, SnapshotAccLimit,
 };
+use rust_decimal::prelude::FromPrimitive;
 use sp_application_crypto::sp_core::H256;
-use sp_std::cell::RefCell;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use ckb_merkle_mountain_range::{util::MemStore, Merge, MMR};
 use codec::Encode;
 use frame_system::EventRecord;
 use polkadex_primitives::{
-	ocex::AccountInfo,
 	snapshot::{EnclaveSnapshot, Fees},
-	AccountId, AssetsLimit, Balance, ProxyLimit, WithdrawalLimit,
+	AccountId, AssetsLimit, WithdrawalLimit,
 };
+use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
-use sp_runtime::{
-	offchain::storage_lock::Time,
-	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup, Verify},
-	AccountId32, BoundedBTreeMap, BoundedVec,
-	DispatchError::BadOrigin,
-	TokenError,
-};
-use std::{
-	collections::{btree_map::Values, BTreeMap},
-	sync::Arc,
-};
+use sp_runtime::{AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin, TokenError};
+use std::sync::Arc;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -85,7 +68,7 @@ fn test_register_main_account() {
 			}
 			.into(),
 		);
-		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
+		let event: IngressMessages<AccountId32> =
 			IngressMessages::RegisterUser(account_id.clone(), account_id.clone());
 		assert_eq!(OCEX::ingress_messages()[0], event);
 	});
@@ -196,7 +179,7 @@ fn test_add_proxy_account() {
 			}
 			.into(),
 		);
-		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
+		let event: IngressMessages<AccountId32> =
 			IngressMessages::AddProxy(account_id.clone(), account_id.clone());
 		assert_eq!(OCEX::ingress_messages()[1], event);
 	});
@@ -287,8 +270,7 @@ fn test_register_trading_pair() {
 		);
 		let trading_pair =
 			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap();
-		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
-			IngressMessages::OpenTradingPair(trading_pair);
+		let event: IngressMessages<AccountId32> = IngressMessages::OpenTradingPair(trading_pair);
 		assert_eq!(OCEX::ingress_messages()[0], event);
 	});
 }
@@ -373,7 +355,7 @@ fn test_deposit() {
 		// Balances before deposit
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			100000000000000
+			10000000000000000000000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
 		assert_ok!(OCEX::deposit(
@@ -384,7 +366,7 @@ fn test_deposit() {
 		// Balances after deposit
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			99999999999900
+			9999999999999999999900
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 100);
 		assert_last_event::<Test>(
@@ -395,9 +377,68 @@ fn test_deposit() {
 			}
 			.into(),
 		);
-		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
-			IngressMessages::Deposit(account_id, AssetId::polkadex, 100_u128);
+		let event: IngressMessages<AccountId32> =
+			IngressMessages::Deposit(account_id, AssetId::polkadex, Decimal::new(10, 11));
 		assert_eq!(OCEX::ingress_messages()[0], event);
+	});
+}
+
+#[test]
+fn test_deposit_large_value() {
+	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
+	new_test_ext().execute_with(|| {
+		mint_into_account_large(account_id.clone());
+		// Balances before deposit
+		assert_eq!(
+			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
+			1_000_000_000_000_000_000_000_000_000_000
+		);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		assert_noop!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::polkadex,
+				1_000_000_000_000_000_000_000_000_0000
+			),
+			Error::<Test>::DepositOverflow
+		);
+	});
+}
+
+#[test]
+fn test_deposit_assets_overflow() {
+	let account_id = create_account_id();
+	let custodian_account = OCEX::get_custodian_account();
+	new_test_ext().execute_with(|| {
+		mint_into_account_large(account_id.clone());
+		// Balances before deposit
+		assert_eq!(
+			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
+			1_000_000_000_000_000_000_000_000_000_000
+		);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		assert_ok!(OCEX::deposit(
+			Origin::signed(account_id.clone().into()),
+			AssetId::polkadex,
+			1_000_000_000_000_000_000_000_000_000
+		));
+		let large_value: Decimal = Decimal::MAX;
+		mint_into_account_large(account_id.clone());
+		// Directly setting the storage value, found it very difficult to manually fill it up
+		TotalAssets::<Test>::insert(
+			AssetId::polkadex,
+			large_value.saturating_sub(Decimal::from_u128(1).unwrap()),
+		);
+
+		assert_noop!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::polkadex,
+				10_u128.pow(20)
+			),
+			Error::<Test>::DepositOverflow
+		);
 	});
 }
 
@@ -465,8 +506,7 @@ fn test_open_trading_pair() {
 		assert_last_event::<Test>(
 			crate::Event::OpenTradingPair { pair: trading_pair.clone() }.into(),
 		);
-		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
-			IngressMessages::OpenTradingPair(trading_pair);
+		let event: IngressMessages<AccountId32> = IngressMessages::OpenTradingPair(trading_pair);
 		assert_eq!(OCEX::ingress_messages()[0], event);
 	})
 }
@@ -539,8 +579,7 @@ fn test_close_trading_pair() {
 		assert_last_event::<Test>(
 			crate::Event::ShutdownTradingPair { pair: trading_pair.clone() }.into(),
 		);
-		let event: IngressMessages<AccountId32, BalanceOf<Test>> =
-			IngressMessages::CloseTradingPair(trading_pair);
+		let event: IngressMessages<AccountId32> = IngressMessages::CloseTradingPair(trading_pair);
 		assert_eq!(OCEX::ingress_messages()[1], event);
 	})
 }
@@ -579,27 +618,22 @@ fn collect_fees() {
 		// Initial Balances
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			100000000000000
+			10000000000000000000000
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			100000000000000
+			10000000000000000000000
 		);
 		let fees = create_fees::<Test>();
 
-		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 1,
-			merkle_root: mmr_root,
-			withdrawals: Default::default(),
-			fees: bounded_vec![fees],
-		};
+		let mmr_root: H256 = H256::random();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 1,
+				merkle_root: mmr_root,
+				withdrawals: Default::default(),
+				fees: bounded_vec![fees],
+			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
@@ -614,11 +648,11 @@ fn collect_fees() {
 		// Balances after collect fees
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			100000000000100
+			10000000010000000000000
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			99999999999900
+			9999999990000000000000
 		);
 	});
 }
@@ -663,25 +697,19 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 1,
-			merkle_root: mmr_root,
-			withdrawals: Default::default(),
-			fees: bounded_vec![],
-		};
+		let mmr_root: H256 = H256::random();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 1,
+				merkle_root: mmr_root,
+				withdrawals: Default::default(),
+				fees: bounded_vec![],
+			};
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
 			Error::<Test>::SenderIsNotAttestedEnclave
 		);
-		// There is an existing ingress message which holds RegisterUser
-		assert_eq!(OCEX::ingress_messages().len(), 1);
+		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
 
@@ -691,26 +719,21 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 0,
-			merkle_root: mmr_root,
-			withdrawals: Default::default(),
-			fees: bounded_vec![],
-		};
+		let mmr_root: H256 = H256::random();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 2,
+				merkle_root: mmr_root,
+				withdrawals: Default::default(),
+				fees: bounded_vec![],
+			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
 			Error::<Test>::SnapshotNonceError
 		);
 
-		assert_eq!(OCEX::ingress_messages().len(), 1);
+		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
 
@@ -720,26 +743,21 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 1,
-			merkle_root: mmr_root,
-			withdrawals: Default::default(),
-			fees: bounded_vec![],
-		};
+		let mmr_root: H256 = H256::random();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 1,
+				merkle_root: mmr_root,
+				withdrawals: Default::default(),
+				fees: bounded_vec![],
+			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
 			Error::<Test>::EnclaveSignatureVerificationFailed
 		);
 
-		assert_eq!(OCEX::ingress_messages().len(), 1);
+		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
 
@@ -748,19 +766,14 @@ fn test_submit_snapshot_bad_origin() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 0,
-			merkle_root: mmr_root,
-			withdrawals: Default::default(),
-			fees: bounded_vec![],
-		};
+		let mmr_root: H256 = H256::random();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 0,
+				merkle_root: mmr_root,
+				withdrawals: Default::default(),
+				fees: bounded_vec![],
+			};
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::root(), snapshot.clone(), sig.clone().into()),
 			BadOrigin
@@ -789,25 +802,20 @@ fn test_submit_snapshot() {
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
 		let withdrawal = create_withdrawal::<Test>();
-		let mmr_root: H256 = create_mmr_with_one_account();
+		let mmr_root: H256 = H256::random();
 		let mut withdrawal_map: BoundedBTreeMap<
 			AccountId,
-			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
+			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]);
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 1,
-			merkle_root: mmr_root,
-			withdrawals: withdrawal_map.clone(),
-			fees: bounded_vec![],
-		};
+		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]).unwrap();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 1,
+				merkle_root: mmr_root,
+				withdrawals: withdrawal_map.clone(),
+				fees: bounded_vec![],
+			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
@@ -824,7 +832,7 @@ fn test_submit_snapshot() {
 		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
 		let onchain_events: BoundedVec<
-			polkadex_primitives::ocex::OnChainEvents<AccountId, BalanceOf<Test>>,
+			polkadex_primitives::ocex::OnChainEvents<AccountId>,
 			polkadex_primitives::OnChainEventsLimit,
 		> = bounded_vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(
 			polkadex_primitives::ocex::Pallet::OCEX,
@@ -918,33 +926,30 @@ fn test_withdrawal() {
 		// Initial Balances
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			100000000000000
+			10000000000000000000000
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			100000000000000
+			10000000000000000000000
 		);
 		let withdrawal = create_withdrawal::<Test>();
 		let mut withdrawal_map: BoundedBTreeMap<
 			AccountId,
-			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
+			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
+		withdrawal_map
+			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
+			.unwrap();
 
-		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 1,
-			merkle_root: mmr_root,
-			withdrawals: withdrawal_map,
-			fees: bounded_vec![],
-		};
+		let mmr_root: H256 = H256::random();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 1,
+				merkle_root: mmr_root,
+				withdrawals: withdrawal_map,
+				fees: bounded_vec![],
+			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
@@ -963,20 +968,18 @@ fn test_withdrawal() {
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			100000000000100
+			10000000100000000000000
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			99999999999900
+			9999999900000000000000,
 		);
-		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<
-			AccountId,
-			BalanceOf<Test>,
-		> = polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-			1,
-			account_id.clone().into(),
-			bounded_vec![withdrawal],
-		);
+		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<AccountId> =
+			polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+				1,
+				account_id.clone().into(),
+				bounded_vec![withdrawal],
+			);
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
@@ -1007,28 +1010,24 @@ fn test_onchain_events_overflow() {
 		let withdrawal = create_withdrawal::<Test>();
 		let mut withdrawal_map: BoundedBTreeMap<
 			AccountId,
-			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
+			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]);
+		withdrawal_map
+			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
+			.unwrap();
 		for x in account_id_vector.clone() {
-			let withdrawal_500 = create_withdrawal_500::<Test>(x.clone());
-			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]);
+			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
 
-		let mmr_root: H256 = create_mmr_with_one_account();
-		let mut snapshot = EnclaveSnapshot::<
-			AccountId32,
-			Balance,
-			WithdrawalLimit,
-			AssetsLimit,
-			SnapshotAccLimit,
-		> {
-			snapshot_number: 1,
-			merkle_root: mmr_root,
-			withdrawals: withdrawal_map,
-			fees: bounded_vec![],
-		};
+		let hash: H256 = H256::random();
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: 1,
+				merkle_root: hash,
+				withdrawals: withdrawal_map,
+				fees: bounded_vec![],
+			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
@@ -1044,7 +1043,7 @@ fn test_onchain_events_overflow() {
 			assert_ok!(OCEX::claim_withdraw(
 				Origin::signed(account_id_vector[x].clone().into()),
 				1,
-				account_id.clone()
+				account_id_vector[x].clone()
 			));
 		}
 		let last_account = account_id_vector.len() - 1;
@@ -1052,7 +1051,7 @@ fn test_onchain_events_overflow() {
 			OCEX::claim_withdraw(
 				Origin::signed(account_id_vector[last_account].clone().into()),
 				1,
-				account_id.clone()
+				account_id_vector[last_account].clone()
 			),
 			Error::<Test>::OnchainEventsBoundedVecOverflow
 		);
@@ -1065,15 +1064,15 @@ fn test_onchain_events_overflow() {
 		assert_ok!(OCEX::claim_withdraw(
 			Origin::signed(account_id_vector[last_account].clone().into()),
 			1,
-			account_id.clone()
+			account_id_vector[last_account].clone()
 		));
 	});
 }
 
 #[test]
 fn test_withdrawal_bad_origin() {
-	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
+		let account_id = create_account_id();
 		assert_noop!(OCEX::claim_withdraw(Origin::root(), 1, account_id.clone()), BadOrigin);
 
 		assert_noop!(OCEX::claim_withdraw(Origin::none(), 1, account_id.clone()), BadOrigin);
@@ -1085,8 +1084,7 @@ fn test_shutdown() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::shutdown(Origin::root()));
 
-		let ingress_message: IngressMessages<AccountId32, BalanceOf<Test>> =
-			IngressMessages::Shutdown;
+		let ingress_message: IngressMessages<AccountId32> = IngressMessages::Shutdown;
 		assert_eq!(OCEX::ingress_messages()[0], ingress_message);
 		assert_eq!(ExchangeState::<Test>::get(), false);
 	});
@@ -1116,9 +1114,15 @@ fn test_unregister_timed_out_enclaves() {
 }
 
 fn mint_into_account(account_id: AccountId32) {
-	Balances::deposit_creating(&account_id, 100000000000000);
+	let _result = Balances::deposit_creating(&account_id, 10000000000000000000000);
 }
 
+fn mint_into_account_large(account_id: AccountId32) {
+	let _result =
+		Balances::deposit_creating(&account_id, 1_000_000_000_000_000_000_000_000_000_000);
+}
+
+#[allow(dead_code)]
 fn create_asset_and_credit(asset_id: u128, account_id: AccountId32) {
 	assert_ok!(Assets::create(
 		Origin::signed(account_id.clone().into()),
@@ -1175,6 +1179,7 @@ fn create_proxy_account() -> AccountId32 {
 	return account_id
 }
 
+#[allow(dead_code)]
 fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
@@ -1189,60 +1194,9 @@ fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	return account_id
 }
 
-fn create_mmr_with_one_account() -> H256 {
+pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
 	let account_id = create_account_id();
-	let mut snapshot: BTreeMap<AccountId, AccountInfo<AccountId, Balance, ProxyLimit>> =
-		Default::default();
-	assert_ok!(OCEX::register_main_account(
-		Origin::signed(account_id.clone().into()),
-		account_id.clone().into()
-	));
-	let account_info = Accounts::<Test>::get::<AccountId32>(account_id.clone().into()).unwrap();
-	snapshot.insert(account_id.clone().into(), account_info.clone().into());
-	let mmr_root = calculate_mmr_root(&mut snapshot.values()).unwrap();
-	// panic!("{:?}", mmr_root.0);
-	mmr_root
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, Default)]
-pub struct MergeAccountInfo(pub [u8; 32]);
-impl Merge for MergeAccountInfo {
-	type Item = MergeAccountInfo;
-	fn merge(
-		lhs: &Self::Item,
-		rhs: &Self::Item,
-	) -> Result<Self::Item, ckb_merkle_mountain_range::Error> {
-		let mut bytes = Vec::<u8>::with_capacity(64);
-		lhs.0.map(|byte| bytes.push(byte));
-		rhs.0.map(|byte| bytes.push(byte));
-		Ok(MergeAccountInfo(sp_application_crypto::sp_core::blake2_256(&bytes)))
-	}
-}
-
-/// Calculates the MMR root for a given vector of accounts
-pub fn calculate_mmr_root(
-	accounts: &mut Values<AccountId, AccountInfo<AccountId, Balance, ProxyLimit>>,
-) -> anyhow::Result<H256> {
-	let store = MemStore::default();
-	let mut mmr = MMR::<_, MergeAccountInfo, _>::new(0, &store);
-	accounts.by_ref().for_each(|value| {
-		let bytes = value.encode();
-		if let Err(err) =
-			mmr.push(MergeAccountInfo(sp_application_crypto::sp_core::blake2_256(&bytes)))
-		{
-			log::error!(target: "mmr", "Unable to push account into MMR calculator: {:?}", err);
-		}
-	});
-
-	match mmr.get_root() {
-		Ok(root) => Ok(H256::from(root.0)),
-		Err(err) => Err(anyhow::Error::msg(format!("unable to calculate MMR root: {:?}", err))),
-	}
-}
-
-pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf<T>> {
-	let account_id = create_account_id();
-	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> = Withdrawal {
+	let withdrawal: Withdrawal<AccountId32> = Withdrawal {
 		main_account: account_id,
 		asset: AssetId::polkadex,
 		amount: 100_u32.into(),
@@ -1252,20 +1206,7 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32, BalanceOf<T>> {
 	return withdrawal
 }
 
-pub fn create_withdrawal_500<T: Config>(
-	account_id: AccountId32,
-) -> Withdrawal<AccountId32, BalanceOf<T>> {
-	let withdrawal: Withdrawal<AccountId32, BalanceOf<T>> = Withdrawal {
-		main_account: account_id,
-		asset: AssetId::polkadex,
-		amount: 100_u32.into(),
-		event_id: 0,
-		fees: 1_u32.into(),
-	};
-	return withdrawal
-}
-
-pub fn create_fees<T: Config>() -> Fees<BalanceOf<T>> {
-	let fees: Fees<BalanceOf<T>> = Fees { asset: AssetId::polkadex, amount: 100_u32.into() };
+pub fn create_fees<T: Config>() -> Fees {
+	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
 	return fees
 }
