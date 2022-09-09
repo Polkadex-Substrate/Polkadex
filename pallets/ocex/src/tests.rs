@@ -1043,7 +1043,7 @@ fn test_onchain_events_overflow() {
 			assert_ok!(OCEX::claim_withdraw(
 				Origin::signed(account_id_vector[x].clone().into()),
 				1,
-				account_id.clone()
+				account_id_vector[x].clone()
 			));
 		}
 		let last_account = account_id_vector.len() - 1;
@@ -1051,7 +1051,7 @@ fn test_onchain_events_overflow() {
 			OCEX::claim_withdraw(
 				Origin::signed(account_id_vector[last_account].clone().into()),
 				1,
-				account_id.clone()
+				account_id_vector[last_account].clone()
 			),
 			Error::<Test>::OnchainEventsBoundedVecOverflow
 		);
@@ -1064,7 +1064,7 @@ fn test_onchain_events_overflow() {
 		assert_ok!(OCEX::claim_withdraw(
 			Origin::signed(account_id_vector[last_account].clone().into()),
 			1,
-			account_id.clone()
+			account_id_vector[last_account].clone()
 		));
 	});
 }
