@@ -16,13 +16,9 @@
 //! Tests for pallet-ocex.
 
 use crate::*;
-use frame_support::{
-	assert_noop, assert_ok, bounded_vec,
-	traits::OnInitialize,
-};
+use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
 use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal,
-	SnapshotAccLimit,
+	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, SnapshotAccLimit,
 };
 use rust_decimal::prelude::FromPrimitive;
 use sp_application_crypto::sp_core::H256;
@@ -38,11 +34,7 @@ use polkadex_primitives::{
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
-use sp_runtime::{
-	AccountId32, BoundedBTreeMap, BoundedVec,
-	DispatchError::BadOrigin,
-	TokenError,
-};
+use sp_runtime::{AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin, TokenError};
 use std::sync::Arc;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
@@ -946,7 +938,9 @@ fn test_withdrawal() {
 			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]).unwrap();
+		withdrawal_map
+			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
+			.unwrap();
 
 		let mmr_root: H256 = H256::random();
 		let snapshot =
@@ -1019,7 +1013,9 @@ fn test_onchain_events_overflow() {
 			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]).unwrap();
+		withdrawal_map
+			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
+			.unwrap();
 		for x in account_id_vector.clone() {
 			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
@@ -1076,6 +1072,7 @@ fn test_onchain_events_overflow() {
 #[test]
 fn test_withdrawal_bad_origin() {
 	new_test_ext().execute_with(|| {
+		let account_id = create_account_id();
 		assert_noop!(OCEX::claim_withdraw(Origin::root(), 1, account_id.clone()), BadOrigin);
 
 		assert_noop!(OCEX::claim_withdraw(Origin::none(), 1, account_id.clone()), BadOrigin);
@@ -1121,7 +1118,8 @@ fn mint_into_account(account_id: AccountId32) {
 }
 
 fn mint_into_account_large(account_id: AccountId32) {
-	let _result = Balances::deposit_creating(&account_id, 1_000_000_000_000_000_000_000_000_000_000);
+	let _result =
+		Balances::deposit_creating(&account_id, 1_000_000_000_000_000_000_000_000_000_000);
 }
 
 #[allow(dead_code)]

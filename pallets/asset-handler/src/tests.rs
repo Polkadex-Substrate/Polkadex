@@ -112,7 +112,7 @@ pub fn test_mint_asset_with_existed_asset_will_successfully_increase_balance() {
 
 #[test]
 pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_error() {
-	let (asset_address,_relayer, recipient, recipient_account, chain_id, account) =
+	let (asset_address, _relayer, recipient, recipient_account, chain_id, account) =
 		mint_asset_data();
 
 	new_test_ext().execute_with(|| {

@@ -42,9 +42,8 @@ mod multiplier_tests {
 	};
 
 	use crate::{
-		constants::{ time::*},
-		AdjustmentVariable, MinimumMultiplier, Runtime, RuntimeBlockWeights as BlockWeights,
-		System, TargetBlockFullness,
+		constants::time::*, AdjustmentVariable, MinimumMultiplier, Runtime,
+		RuntimeBlockWeights as BlockWeights, System, TargetBlockFullness,
 	};
 
 	fn max_normal() -> Weight {

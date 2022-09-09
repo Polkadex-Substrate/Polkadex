@@ -653,7 +653,9 @@ pub mod pallet {
 			iter.for_each(|(enclave, attested_ts)| {
 				let current_timestamp = <timestamp::Pallet<T>>::get();
 				// enclave will be removed even if something happens with substraction
-				if current_timestamp.checked_sub(&attested_ts).unwrap_or_else(|| current_timestamp) >= T::MsPerDay::get() {
+				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
+					T::MsPerDay::get()
+				{
 					enclaves_to_remove.push(enclave);
 				}
 			});
