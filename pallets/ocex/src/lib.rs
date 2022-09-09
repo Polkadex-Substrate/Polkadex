@@ -411,7 +411,7 @@ pub mod pallet {
 			{
 				<TotalAssets<T>>::insert(asset, expected_total_amount);
 			} else {
-				return Err(Error::<T>::DepositOverflow.into())
+				return Err(Error::<T>::DepositOverflow.into());
 			}
 
 			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
@@ -547,7 +547,7 @@ pub mod pallet {
 					)?;
 				// TODO: Remove the fees from storage if successful
 				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
+					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into());
 				}
 			}
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
@@ -632,8 +632,8 @@ pub mod pallet {
 
 			// TODO: any other checks we want to run?
 			ensure!(
-				(report.status == SgxStatus::Ok) |
-					(report.status == SgxStatus::ConfigurationNeeded),
+				(report.status == SgxStatus::Ok)
+					| (report.status == SgxStatus::ConfigurationNeeded),
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
@@ -654,8 +654,8 @@ pub mod pallet {
 			iter.for_each(|(enclave, attested_ts)| {
 				let current_timestamp = <timestamp::Pallet<T>>::get();
 				// enclave will be removed even if something happens with substraction
-				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
-					T::MsPerDay::get()
+				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp)
+					>= T::MsPerDay::get()
 				{
 					enclaves_to_remove.push(enclave);
 				}

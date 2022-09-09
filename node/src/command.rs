@@ -60,17 +60,19 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
-			"" =>
+			"" => {
 				return Err(
 					"Please specify which chain you want to run, e.g. --dev or --chain=local"
 						.into(),
-				),
+				)
+			},
 			"dev" => Box::new(chain_spec::development_config()),
 			"udon" => Box::new(chain_spec::udon_testnet_config()),
 			"soba" => Box::new(chain_spec::soba_testnet_config()),
 			"mainnet" => Box::new(chain_spec::mainnet_testnet_config()),
-			path =>
-				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+			path => {
+				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
+			},
 		};
 		Ok(spec)
 	}
@@ -109,7 +111,7 @@ pub fn run() -> Result<()> {
 								"Runtime benchmarking wasn't enabled when building the node. \
 							You can enable it with `--features runtime-benchmarks`."
 									.into(),
-							)
+							);
 						}
 
 						cmd.run::<Block, ExecutorDispatch>(config)
@@ -130,8 +132,9 @@ pub fn run() -> Result<()> {
 						let ext_builder = RemarkBuilder::new(client.clone());
 						cmd.run(config, client, inherent_benchmark_data()?, &ext_builder)
 					},
-					BenchmarkCmd::Machine(cmd) =>
-						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
+					BenchmarkCmd::Machine(cmd) => {
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
+					},
 					BenchmarkCmd::Extrinsic(cmd) => {
 						let PartialComponents { client, .. } = service::new_partial(&config)?;
 						// Register the *Remark* and *TKA* builders.

@@ -34,10 +34,16 @@ use polkadex_primitives::{
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
-use sp_runtime::{AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin, TokenError};
+use sp_runtime::{
+	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin,
+	TokenError,
+};
 use std::sync::Arc;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
+
+use codec::Decode;
+use test_utils::ias::ias::TEST4_SETUP;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	let events = frame_system::Pallet::<T>::events();
@@ -841,12 +847,12 @@ fn test_submit_snapshot() {
 		)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
-		let mut withdrawal_map_empty: BoundedBTreeMap<
+		let withdrawal_map_empty: BoundedBTreeMap<
 			AccountId,
-			BoundedVec<Withdrawal<AccountId, Balance>, WithdrawalLimit>,
+			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
 			SnapshotAccLimit,
 		> = BoundedBTreeMap::new();
-		let empty_fees: BoundedVec<Fees<BalanceOf::<Test>>, AssetsLimit> = bounded_vec![];
+		let empty_fees: BoundedVec<Fees, AssetsLimit> = bounded_vec![];
 
 		assert_eq!(Snapshots::<Test>::get(1).unwrap().fees, empty_fees);
 		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, withdrawal_map_empty);
@@ -859,10 +865,10 @@ fn test_register_enclave() {
 
 	new_test_ext().execute_with(|| {
 		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
-		let signer = create_signer::<Test>();
-		assert_ok!(
-			OCEX::register_enclave(Origin::signed(account_id.clone()), TEST4_SETUP.cert.to_vec()),
-		);
+		assert_ok!(OCEX::register_enclave(
+			Origin::signed(account_id.clone()),
+			TEST4_SETUP.cert.to_vec()
+		));
 	});
 }
 
@@ -1138,7 +1144,7 @@ fn create_account_id() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 fn create_account_id_500(uid: u32) -> AccountId32 {
 	const PHRASE: &str =
@@ -1153,7 +1159,7 @@ fn create_account_id_500(uid: u32) -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 fn create_proxy_account() -> AccountId32 {
@@ -1169,7 +1175,7 @@ fn create_proxy_account() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 #[allow(dead_code)]
@@ -1184,7 +1190,7 @@ fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	)
 	.expect("Unable to create sr25519 key pair");
 
-	return account_id
+	return account_id;
 }
 
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
@@ -1196,14 +1202,15 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
 		event_id: 0,
 		fees: 1_u32.into(),
 	};
-	return withdrawal
+	return withdrawal;
 }
 
 pub fn create_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
-	return fees
+	return fees;
 }
 
+#[allow(dead_code)]
 pub fn create_signer<T: Config>() -> T::AccountId {
 	let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
 	return signer;
