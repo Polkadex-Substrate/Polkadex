@@ -1197,19 +1197,6 @@ impl pallet_recovery::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TokenAmount: Balance = 1000u128 * PDEX;
-}
-
-impl test_token_provider::Config for Runtime {
-	type Event = Event;
-	type AssetManager = Assets;
-	type Balance = Balance;
-	type Currency = Balances;
-	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
-	type TokenAmount = TokenAmount;
-}
-
-parameter_types! {
 	pub MinVestedTransfer: Balance = PDEX;
 	pub const MaxVestingSchedules: u32 = 300;
 }
@@ -1273,33 +1260,6 @@ parameter_types! {
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
-//
-// parameter_types! {
-// 	pub const GetIDOPDXAmount: Balance = 100_u128 * PDEX;
-// 	pub const GetMaxSupply: Balance = 2_000_000_u128;
-// 	pub const OnePDEX : u128 = PDEX;
-// 	pub const PolkadexIdoPalletId: PalletId = PalletId(*b"polk/ido");
-// 	pub const DefaultVotingPeriod : BlockNumber = 100_800; // One week
-// 	pub const DefaultInvestorLockPeriod : BlockNumber = 201600; // 28 days
-// }
-//
-// impl polkadex_ido::Config for Runtime {
-// 	type Event = Event;
-// 	type TreasuryAccountId = TreasuryModuleAccount;
-// 	type GovernanceOrigin = EnsureRootOrTreasury;
-// 	type IDOPDXAmount = GetIDOPDXAmount;
-// 	type MaxSupply = GetMaxSupply;
-// 	type Randomness = RandomnessCollectiveFlip;
-// 	type RandomnessSource = RandomnessCollectiveFlip;
-// 	type ModuleId = PolkadexIdoPalletId;
-// 	type Currency = Balances;
-// 	type OnePDEX = OnePDEX;
-// 	type WeightIDOInfo = polkadex_ido::weights::SubstrateWeight<Runtime>;
-// 	type DefaultVotingPeriod = DefaultVotingPeriod;
-// 	type DefaultInvestorLockPeriod = DefaultInvestorLockPeriod;
-// 	type AssetManager = Assets;
-// 	type ExistentialDeposit = ExistentialDeposit;
-// }
 
 parameter_types! {
 	pub const ProxyLimit: u32 = 3;
@@ -1385,12 +1345,10 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
-		// PolkadexIdo: polkadex_ido::{Pallet, Call, Event<T>, Storage} = 35,
-		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 36,
-		Token: test_token_provider::{Pallet, Call, Event<T>, ValidateUnsigned} = 37,
-		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 38,
-		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 39,
-		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 40
+		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 35,
+		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
+		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38
 	}
 );
 /// Digest item type.
@@ -1472,28 +1430,6 @@ impl_runtime_apis! {
 			data.check_extrinsics(&block)
 		}
 	}
-
-	// impl polkadex_ido_runtime_api::PolkadexIdoRuntimeApi<Block,AccountId,Hash> for Runtime {
-	// 	fn rounds_by_investor(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	// 		PolkadexIdo::rounds_by_investor(account)
-	// 	}
-	// 	fn rounds_by_creator(account : AccountId) -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	// 		PolkadexIdo::rounds_by_creator(account)
-	// 	}
-	//
-	// 	fn active_rounds() -> Vec<(Hash, FundingRoundWithPrimitives<AccountId>)> {
-	// 		PolkadexIdo::active_rounds()
-	// 	}
-	//
-	// 	fn votes_stat(round_id: Hash) -> VoteStat {
-	// 		PolkadexIdo::votes_stat(round_id)
-	// 	}
-	//
-	// 	fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
-	// 		PolkadexIdo::account_balances(assets, account_id)
-	// 	}
-	// }
-
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(

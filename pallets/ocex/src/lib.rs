@@ -48,6 +48,8 @@ pub use weights::*;
 type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
+
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
@@ -55,6 +57,7 @@ type BalanceOf<T> =
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use core::ops::Div;
 	use frame_support::{
 		pallet_prelude::*,
 		sp_tracing::debug,
@@ -72,8 +75,9 @@ pub mod pallet {
 		ocex::{AccountInfo, TradingPairConfig},
 		snapshot::{EnclaveSnapshot, Fees},
 		withdrawal::Withdrawal,
-		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit,
+		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
+	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
 		SaturatedConversion,
@@ -82,16 +86,12 @@ pub mod pallet {
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
 		<T as frame_system::Config>::AccountId,
-		BoundedVec<
-			Withdrawal<<T as frame_system::Config>::AccountId, BalanceOf<T>>,
-			WithdrawalLimit,
-		>,
+		BoundedVec<Withdrawal<<T as frame_system::Config>::AccountId>, WithdrawalLimit>,
 		SnapshotAccLimit,
 	>;
 
 	type EnclaveSnapshotType<T> = EnclaveSnapshot<
 		<T as frame_system::Config>::AccountId,
-		BalanceOf<T>,
 		WithdrawalLimit,
 		AssetsLimit,
 		SnapshotAccLimit,
@@ -160,6 +160,8 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Unable to convert given balance to internal Decimal data type
+		FailedToConvertDecimaltoBalance,
 		RegisterationShouldBeSignedByMainAccount,
 		/// Caller is not authorized to claim the withdrawal.
 		/// Normally, when Sender != main_account.
@@ -192,6 +194,8 @@ pub mod pallet {
 		MinimumOneProxyRequired,
 		/// Onchain Events vector is full
 		OnchainEventsBoundedVecOverflow,
+		/// Overflow of Deposit amount
+		DepositOverflow,
 	}
 
 	#[pallet::hooks]
@@ -205,7 +209,7 @@ pub mod pallet {
 			if let Some(snapshot_nonce) = <SnapshotNonce<T>>::get() {
 				if let Some(snapshot) = <Snapshots<T>>::get(snapshot_nonce.saturating_sub(1)) {
 					<IngressMessages<T>>::put(Vec::<
-						polkadex_primitives::ingress::IngressMessages<T::AccountId, BalanceOf<T>>,
+						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 					>::from([
 						polkadex_primitives::ingress::IngressMessages::LastestSnapshot(
 							snapshot.merkle_root,
@@ -214,17 +218,17 @@ pub mod pallet {
 					]));
 				} else {
 					<IngressMessages<T>>::put(Vec::<
-						polkadex_primitives::ingress::IngressMessages<T::AccountId, BalanceOf<T>>,
+						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 					>::new());
 				}
 			} else {
 				<IngressMessages<T>>::put(Vec::<
-					polkadex_primitives::ingress::IngressMessages<T::AccountId, BalanceOf<T>>,
+					polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 				>::new());
 			}
 
 			<OnChainEvents<T>>::put(BoundedVec::<
-				polkadex_primitives::ocex::OnChainEvents<T::AccountId, BalanceOf<T>>,
+				polkadex_primitives::ocex::OnChainEvents<T::AccountId>,
 				OnChainEventsLimit,
 			>::default());
 
@@ -367,12 +371,18 @@ pub mod pallet {
 			let trading_pair_info = TradingPairConfig {
 				base_asset: base,
 				quote_asset: quote,
-				min_price: min_order_price,
-				max_price: max_order_price,
-				price_tick_size,
-				min_qty: min_order_qty,
-				max_qty: max_order_qty,
-				qty_step_size,
+				min_price: Decimal::from(min_order_price.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				price_tick_size: Decimal::from(price_tick_size.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				qty_step_size: Decimal::from(qty_step_size.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
 				operational_status: true,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
@@ -396,12 +406,26 @@ pub mod pallet {
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			// TODO: Check if asset is enabled for deposit
+
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::DepositOverflow);
+			let converted_amount =
+				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
+
+			// Get Storage Map Value
+			if let Some(expected_total_amount) =
+				converted_amount.checked_add(Self::total_assets(asset))
+			{
+				<TotalAssets<T>>::insert(asset, expected_total_amount);
+			} else {
+				return Err(Error::<T>::DepositOverflow.into())
+			}
+
 			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
 					asset,
-					amount,
+					converted_amount,
 				));
 			});
 			Self::deposit_event(Event::DepositSuccessful { user, asset, amount });
@@ -442,7 +466,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
 				T::AccountId,
-				BalanceOf<T>,
 				WithdrawalLimit,
 				AssetsLimit,
 				SnapshotAccLimit,
@@ -516,15 +539,21 @@ pub mod pallet {
 			// TODO: The caller should be of operational council
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
-			let fees: Vec<Fees<BalanceOf<T>>> =
-				<FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
+			let fees: Vec<Fees> = <FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
 			for fee in fees {
-				Self::transfer_asset(
-					&Self::get_custodian_account(),
-					&beneficiary,
-					fee.amount,
-					fee.asset,
-				)?;
+				if let Some(converted_fee) =
+					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+				{
+					Self::transfer_asset(
+						&Self::get_custodian_account(),
+						&beneficiary,
+						converted_fee.saturated_into(),
+						fee.asset,
+					)?;
+				// TODO: Remove the fees from storage if successful
+				} else {
+					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
+				}
 			}
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
 			Ok(())
@@ -558,12 +587,18 @@ pub mod pallet {
 			ensure!(withdrawals.contains_key(&account), Error::<T>::InvalidWithdrawalIndex);
 			if let Some(withdrawal_vector) = withdrawals.get(&account) {
 				for x in withdrawal_vector.iter() {
-					Self::transfer_asset(
-						&Self::get_custodian_account(),
-						&x.main_account,
-						x.amount,
-						x.asset,
-					)?;
+					// TODO: Security: if this fails for a withdrawal in between the iteration, it
+					// will double spend.
+					if let Some(converted_withdrawal) =
+						x.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+					{
+						Self::transfer_asset(
+							&Self::get_custodian_account(),
+							&x.main_account,
+							converted_withdrawal.saturated_into(),
+							x.asset,
+						)?;
+					}
 				}
 				Self::deposit_event(Event::WithdrawalClaimed {
 					main: account.clone(),
@@ -661,17 +696,17 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		},
 		ShutdownTradingPair {
-			pair: TradingPairConfig<BalanceOf<T>>,
+			pair: TradingPairConfig,
 		},
 		OpenTradingPair {
-			pair: TradingPairConfig<BalanceOf<T>>,
+			pair: TradingPairConfig,
 		},
 		EnclaveRegistered(T::AccountId),
 		EnclaveCleanup(Vec<T::AccountId>),
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
 			main: T::AccountId,
-			withdrawals: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit>,
+			withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit>,
 		},
 		NewProxyAdded {
 			main: T::AccountId,
@@ -690,7 +725,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::AccountId,
-		AccountInfo<T::AccountId, BalanceOf<T>, ProxyLimit>,
+		AccountInfo<T::AccountId, ProxyLimit>,
 		OptionQuery,
 	>;
 
@@ -703,7 +738,7 @@ pub mod pallet {
 		AssetId,
 		Blake2_128Concat,
 		AssetId,
-		TradingPairConfig<BalanceOf<T>>,
+		TradingPairConfig,
 		OptionQuery,
 	>;
 
@@ -726,13 +761,8 @@ pub mod pallet {
 	// Fees collected
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
-	pub(super) type FeesCollected<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u32,
-		BoundedVec<Fees<BalanceOf<T>>, AssetsLimit>,
-		ValueQuery,
-	>;
+	pub(super) type FeesCollected<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
 
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
@@ -745,7 +775,7 @@ pub mod pallet {
 	#[pallet::getter(fn ingress_messages)]
 	pub(super) type IngressMessages<T: Config> = StorageValue<
 		_,
-		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId, BalanceOf<T>>>,
+		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
 		ValueQuery,
 	>;
 
@@ -754,12 +784,15 @@ pub mod pallet {
 	#[pallet::getter(fn onchain_events)]
 	pub(super) type OnChainEvents<T: Config> = StorageValue<
 		_,
-		BoundedVec<
-			polkadex_primitives::ocex::OnChainEvents<T::AccountId, BalanceOf<T>>,
-			OnChainEventsLimit,
-		>,
+		BoundedVec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>, OnChainEventsLimit>,
 		ValueQuery,
 	>;
+
+	// Total Assets present in orderbook
+	#[pallet::storage]
+	#[pallet::getter(fn total_assets)]
+	pub(super) type TotalAssets<T: Config> =
+		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
 
 	// Vector of registered enclaves
 	#[pallet::storage]
