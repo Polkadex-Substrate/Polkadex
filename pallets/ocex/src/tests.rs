@@ -1019,7 +1019,6 @@ fn test_onchain_events_overflow() {
 		> = BoundedBTreeMap::new();
 		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()]).unwrap();
 		for x in account_id_vector.clone() {
-			let _withdrawal_500 = create_withdrawal_500::<Test>(x.clone());
 			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
 
@@ -1065,7 +1064,6 @@ fn test_onchain_events_overflow() {
 
 #[test]
 fn test_withdrawal_bad_origin() {
-	let _account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(OCEX::withdraw(Origin::root(), 1,), BadOrigin);
 
