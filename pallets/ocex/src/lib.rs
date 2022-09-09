@@ -291,10 +291,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
-			ensure!(
-				<TradingPairs<T>>::contains_key(base, quote),
-				Error::<T>::TradingPairNotFound
-			);
+			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
 					trading_pair.operational_status = false;
@@ -322,10 +319,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
-			ensure!(
-				<TradingPairs<T>>::contains_key(base, quote),
-				Error::<T>::TradingPairNotFound
-			);
+			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 			//update the operational status of the trading pair as true.
 			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
