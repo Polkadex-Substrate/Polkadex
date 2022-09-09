@@ -103,9 +103,6 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false}
 # Try Runtime
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true, default-features = false }
 
-pallet-ocex-runtime-api = {path = "../pallets/ocex/rpc/runtime-api", default-features = false}
-pallet-ocex-primitives = {path = "../pallets/ocex/common",  default-features = false} # Used for runtime benchmarking
-
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 
