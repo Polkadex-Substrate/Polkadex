@@ -1217,12 +1217,13 @@ impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
 			RawOrigin::Root => Ok(TreasuryPalletId::get().into_account_truncating()),
-			RawOrigin::Signed(caller) =>
+			RawOrigin::Signed(caller) => {
 				if caller == TreasuryPalletId::get().into_account_truncating() {
 					Ok(caller)
 				} else {
 					Err(Origin::from(Some(caller)))
-				},
+				}
+			},
 			r => Err(Origin::from(r)),
 		})
 	}
