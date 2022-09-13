@@ -651,7 +651,7 @@ fn collect_fees() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![fees],
 			};
@@ -722,7 +722,7 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -744,7 +744,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 2,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -768,7 +768,7 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -791,7 +791,7 @@ fn test_submit_snapshot_bad_origin() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 0,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -833,7 +833,7 @@ fn test_submit_snapshot() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: withdrawal_map.clone(),
 				fees: bounded_vec![],
 			};
@@ -960,7 +960,7 @@ fn test_withdrawal() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
@@ -1038,7 +1038,7 @@ fn test_onchain_events_overflow() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: hash,
+				snapshot_hash: hash,
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
