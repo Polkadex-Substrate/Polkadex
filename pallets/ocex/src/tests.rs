@@ -276,6 +276,208 @@ fn test_register_trading_pair() {
 }
 
 #[test]
+fn test_register_trading_pair_amount_overflow() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1
+			),
+			Error::<Test>::AmountOverflow
+		);
+	});
+}
+
+#[test]
+fn test_update_trading_pair_amount_overflow() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			100_u128.into(),
+			100_u128.into(),
+			1_u128.into(),
+			100_u128.into(),
+			100_u128.into(),
+			10_u128.into()
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1
+			),
+			Error::<Test>::AmountOverflow
+		);
+	});
+}
+
+#[test]
 fn test_register_trading_pair_trading_pair_already_registered() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::register_trading_pair(
