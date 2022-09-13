@@ -497,7 +497,7 @@ fn test_deposit_large_value() {
 				AssetId::polkadex,
 				1_000_000_000_000_000_000_000_000_0000
 			),
-			Error::<Test>::DepositOverflow
+			Error::<Test>::AmountOverflow
 		);
 	});
 }
@@ -533,7 +533,7 @@ fn test_deposit_assets_overflow() {
 				AssetId::polkadex,
 				10_u128.pow(20)
 			),
-			Error::<Test>::DepositOverflow
+			Error::<Test>::AmountOverflow
 		);
 	});
 }

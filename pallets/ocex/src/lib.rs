@@ -187,15 +187,13 @@ pub mod pallet {
 		/// RA status is insufficient
 		InvalidSgxReportStatus,
 		/// Storage overflow ocurred
-		StorageOverflow,
+		AmountOverflow,
 		///ProxyNotFound
 		ProxyNotFound,
 		/// MinimumOneProxyRequried
 		MinimumOneProxyRequired,
 		/// Onchain Events vector is full
 		OnchainEventsBoundedVecOverflow,
-		/// Overflow of Deposit amount
-		DepositOverflow,
 		/// Trading Pair is not registed for updating
 		TradingPairNotRegistered,
 	}
@@ -367,27 +365,27 @@ pub mod pallet {
 			// will not be an overflow upon performing calculations
 			ensure!(
 				min_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				max_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				min_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				max_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				price_tick_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 
 			// TODO: Check if base and quote assets are enabled for deposits
@@ -447,27 +445,27 @@ pub mod pallet {
 			// will not be an overflow upon performing calculations
 			ensure!(
 				min_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				max_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				min_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				max_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				price_tick_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 			ensure!(
 				qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::StorageOverflow
+				Error::<T>::AmountOverflow
 			);
 
 			let trading_pair_info = TradingPairConfig {
@@ -510,7 +508,7 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			// TODO: Check if asset is enabled for deposit
 
-			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::DepositOverflow);
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount =
 				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
 
@@ -520,7 +518,7 @@ pub mod pallet {
 			{
 				<TotalAssets<T>>::insert(asset, expected_total_amount);
 			} else {
-				return Err(Error::<T>::DepositOverflow.into())
+				return Err(Error::<T>::AmountOverflow.into())
 			}
 
 			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
