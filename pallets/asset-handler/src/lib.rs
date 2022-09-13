@@ -43,7 +43,10 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
-	use sp_runtime::{traits::{One, Saturating, UniqueSaturatedInto, Zero}, SaturatedConversion, BoundedBTreeSet};
+	use sp_runtime::{
+		traits::{One, Saturating, UniqueSaturatedInto, Zero},
+		BoundedBTreeSet, SaturatedConversion,
+	};
 	use sp_std::vec::Vec;
 
 	pub type BalanceOf<T> =
@@ -105,7 +108,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_whitelisted_token)]
 	pub(super) type WhitelistedToken<T: Config> =
-	StorageValue<_, BoundedBTreeSet<H160, WhitelistedTokenLimit>, ValueQuery>;
+		StorageValue<_, BoundedBTreeSet<H160, WhitelistedTokenLimit>, ValueQuery>;
 
 	/// List of relayers who can relay data from Ethereum
 	#[pallet::storage]
@@ -156,7 +159,7 @@ pub mod pallet {
 		/// This token got whitelisted
 		WhitelistedTokenAdded(H160),
 		/// This token got removed from Whitelisted Tokens
-		WhitelistedTokenRemoved(H160)
+		WhitelistedTokenRemoved(H160),
 	}
 
 	// Errors inform users that something went wrong.
@@ -185,7 +188,7 @@ pub mod pallet {
 		/// This token is not Whitelisted
 		TokenNotWhitelisted,
 		/// This token was whitelisted but got removed and is not valid anymore
-		WhitelistedTokenRemoved
+		WhitelistedTokenRemoved,
 	}
 
 	#[pallet::hooks]
@@ -390,7 +393,8 @@ pub mod pallet {
 		pub fn whitelist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<WhitelistedToken<T>>::try_mutate(|whitelisted_tokens| {
-				whitelisted_tokens.try_insert(token_add)
+				whitelisted_tokens
+					.try_insert(token_add)
 					.map_err(|_| Error::<T>::WhitelistedTokenLimitReached)?;
 				Self::deposit_event(Event::<T>::WhitelistedTokenAdded(token_add));
 				Ok(())
