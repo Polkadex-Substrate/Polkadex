@@ -68,6 +68,7 @@ pub mod pallet {
 		},
 		PalletId,
 	};
+	use frame_support::traits::fungibles::Transfer;
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
 	use polkadex_primitives::{
@@ -83,6 +84,7 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
+	use sp_runtime::traits::Zero;
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -119,7 +121,8 @@ pub mod pallet {
 				<Self as frame_system::Config>::AccountId,
 				Balance = BalanceOf<Self>,
 				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>;
+			> + Inspect<<Self as frame_system::Config>::AccountId>
+		    + Transfer<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -149,6 +152,9 @@ pub mod pallet {
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+
+		/// Max Snapshot Fee Claim allowed
+		type SnapshotFeeClaim: Get<usize>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -537,27 +543,29 @@ pub mod pallet {
 			snapshot_id: u32,
 			beneficiary: T::AccountId,
 		) -> DispatchResult {
-			// TODO: The caller should be of operational council
 			T::GovernanceOrigin::ensure_origin(origin)?;
-
-			let fees: Vec<Fees> = <FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
-			for fee in fees {
-				if let Some(converted_fee) =
+			<FeesCollected<T>>::mutate(snapshot_id, |fees| {
+				let mut fee_claim_rounds = T::SnapshotFeeClaim::get();
+				while let Some(fee) = fees.pop() {
+					if let Some(converted_fee) =
 					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-				{
-					Self::transfer_asset(
-						&Self::get_custodian_account(),
-						&beneficiary,
-						converted_fee.saturated_into(),
-						fee.asset,
-					)?;
-				// TODO: Remove the fees from storage if successful
-				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
+					{
+						Self::transfer_asset(
+							&Self::get_custodian_account(),
+							&beneficiary,
+							converted_fee.saturated_into(),
+							fee.asset,
+						)?;
+					} else {
+						return Err(Error::<T>::FailedToConvertDecimaltoBalance.into());
+					}
+					if fee_claim_rounds.is_zero() {
+						break;
+					}
+					fee_claim_rounds = fee_claim_rounds.saturating_sub(1);
 				}
-			}
-			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
-			Ok(())
+				Ok(())
+			})
 		}
 
 		/// Extrinsic used to shutdown the orderbook
