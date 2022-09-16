@@ -370,10 +370,11 @@ pub mod pallet {
 			//falls below min volume limits it will send out an error
 			ensure!(
 				(Decimal::from(min_order_price.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE))).saturating_mul(
-				Decimal::from(min_order_qty.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE))
-				) > Decimal::new(1,8), 
+					.div(&Decimal::from(UNIT_BALANCE)))
+				.saturating_mul(
+					Decimal::from(min_order_qty.saturated_into::<u128>())
+						.div(&Decimal::from(UNIT_BALANCE))
+				) > Decimal::new(1, 8),
 				Error::<T>::StorageOverflow,
 			);
 
