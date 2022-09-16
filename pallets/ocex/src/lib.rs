@@ -21,6 +21,7 @@ use frame_support::{
 	pallet_prelude::Get,
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
 };
+use frame_support::traits::fungibles::Transfer;
 
 use frame_system::ensure_signed;
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
@@ -564,6 +565,7 @@ pub mod pallet {
 					}
 					fee_claim_rounds = fee_claim_rounds.saturating_sub(1);
 				}
+				Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
 				Ok(())
 			})
 		}
@@ -587,7 +589,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			snapshot_id: u32,
 			account: T::AccountId,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _ = ensure_signed(origin)?;
@@ -630,7 +632,7 @@ pub mod pallet {
 			}
 			withdrawals.remove(&account);
 			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
@@ -838,7 +840,7 @@ impl<T: Config> Pallet<T> {
 				)?;
 			},
 			AssetId::asset(id) => {
-				T::OtherAssets::teleport(id, payer, payee, amount.unique_saturated_into())?;
+				T::OtherAssets::transfer(id, payer, payee, amount, true)?;
 			},
 		}
 		Ok(())

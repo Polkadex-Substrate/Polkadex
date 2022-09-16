@@ -116,6 +116,7 @@ parameter_types! {
 	pub const ProxyLimit: u32 = 2;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
 	pub const MsPerDay: u64 = 86_400_000;
+	pub const SnapshotFeeClaim: usize = 3;
 }
 
 impl Config for Test {
@@ -129,6 +130,7 @@ impl Config for Test {
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
+	type SnapshotFeeClaim = SnapshotFeeClaim;
 }
 
 parameter_types! {
@@ -137,6 +139,7 @@ parameter_types! {
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: u128 = 10;
 	pub const MetadataDepositPerByte: u128 = 1;
+
 }
 
 impl pallet_assets::Config for Test {
