@@ -366,6 +366,16 @@ pub mod pallet {
 				!<TradingPairs<T>>::contains_key(quote, base),
 				Error::<T>::TradingPairAlreadyRegistered
 			);
+			//enclave will only support min volume of 10^-8, if the trading pair register
+			//falls below min volume limits it will send out an error
+			ensure!(
+				(Decimal::from(min_order_price.saturated_into::<u128>())
+				.div(&Decimal::from(UNIT_BALANCE))).saturating_mul(
+				Decimal::from(min_order_qty.saturated_into::<u128>())
+				.div(&Decimal::from(UNIT_BALANCE))
+				) > Decimal::new(1,8), 
+				Error::<T>::StorageOverflow,
+			);
 
 			// TODO: Check if base and quote assets are enabled for deposits
 			let trading_pair_info = TradingPairConfig {

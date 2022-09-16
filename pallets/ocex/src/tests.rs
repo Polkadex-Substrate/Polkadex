@@ -212,6 +212,26 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 }
 
 #[test]
+fn test_register_trading_pair_volume_too_low() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::polkadex,
+				AssetId::asset(1),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into(),
+			),
+			Error::<Test>::StorageOverflow
+		);
+	});
+}
+
+#[test]
 fn test_register_trading_pair_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
@@ -254,9 +274,9 @@ fn test_register_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -293,9 +313,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -306,9 +326,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(10),
 				AssetId::asset(20),
-				1_u128.into(),
+				100000000000_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
+				100000000000_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
@@ -321,9 +341,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(20),
 				AssetId::asset(10),
-				1_u128.into(),
+				100000000000_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
+				100000000000_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
@@ -504,9 +524,9 @@ fn test_open_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -578,9 +598,9 @@ fn test_close_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			100000000000_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -651,7 +671,7 @@ fn collect_fees() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![fees],
 			};
@@ -722,7 +742,7 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -744,7 +764,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 2,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -768,7 +788,7 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -791,7 +811,7 @@ fn test_submit_snapshot_bad_origin() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 0,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -833,7 +853,7 @@ fn test_submit_snapshot() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: withdrawal_map.clone(),
 				fees: bounded_vec![],
 			};
@@ -960,7 +980,7 @@ fn test_withdrawal() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: mmr_root,
+				snapshot_hash: mmr_root,
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
@@ -1038,7 +1058,7 @@ fn test_onchain_events_overflow() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				merkle_root: hash,
+				snapshot_hash: hash,
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
