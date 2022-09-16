@@ -343,7 +343,7 @@ fn test_deposit_unknown_asset() {
 				AssetId::asset(10),
 				100_u128.into()
 			),
-			TokenError::UnknownAsset
+			pallet_assets::Error::<Test>::Unknown
 		);
 	});
 }
@@ -609,12 +609,70 @@ fn test_close_trading_pair() {
 fn collect_fees_unexpected_behaviour() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
 		assert_ok!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()));
-
 		assert_last_event::<Test>(
 			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
 		);
+	});
+}
+
+#[test]
+pub fn test_collect_fee_with_pdex_asset_fees() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		// Insert key-value into Snapshop Storage
+		let snapshot_id = 1;
+		let fees_collected = Fees { asset: AssetId::polkadex, amount: Decimal::from(5) };
+		let vec_fees_collected: BoundedVec<Fees, AssetsLimit> =
+			BoundedVec::try_from(vec![fees_collected; 10]).unwrap();
+		<FeesCollected<Test>>::insert(snapshot_id, vec_fees_collected);
+		// Mint Some Polkadex to custodian account
+		let custodian_account: AccountId32 = pallet::Pallet::<Test>::get_custodian_account();
+		assert_ok!(Balances::set_balance(Origin::root(), custodian_account, 10000u128, 10000u128));
+		assert_ok!(OCEX::collect_fees(Origin::root(), snapshot_id, account_id.clone()));
+		assert_eq!(<FeesCollected<Test>>::get(snapshot_id).len(), 7);
+		assert_eq!(Balances::free_balance(account_id), 15);
+	});
+}
+
+#[test]
+pub fn test_collect_fee_with_non_pdex_asset_fees_and_three_element_exc_limit() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		let snapshot_id = 1;
+		let asset_id = 10;
+		let fees_collected = Fees { asset: AssetId::asset(asset_id), amount: Decimal::from_f32(0.01).unwrap() };
+		let vec_fees_collected: BoundedVec<Fees, AssetsLimit> =
+			BoundedVec::try_from(vec![fees_collected; 5]).unwrap();
+		<FeesCollected<Test>>::insert(snapshot_id, vec_fees_collected);
+		let custodian_account: AccountId32 = pallet::Pallet::<Test>::get_custodian_account();
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			custodian_account.clone(),
+			1000000000u128,
+			0u128
+		));
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			account_id.clone(),
+			1000000000u128,
+			0u128
+		));
+		assert_ok!(Assets::create(
+			Origin::signed(custodian_account.clone()),
+			asset_id,
+			custodian_account.clone(),
+			1
+		));
+		assert_ok!(Assets::mint(
+			Origin::signed(custodian_account.clone()),
+			asset_id,
+			custodian_account.clone(),
+			1000000000000000000000
+		));
+		assert_ok!(OCEX::collect_fees(Origin::root(), snapshot_id, account_id.clone()));
+		assert_eq!(<FeesCollected<Test>>::get(snapshot_id).len(), 1);
+		assert_eq!(Assets::balance(asset_id, account_id), 40000000000);
 	});
 }
 
@@ -1097,7 +1155,7 @@ fn test_withdrawal_bad_origin() {
 fn test_shutdown() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::shutdown(Origin::root()));
-
+¡
 		let ingress_message: IngressMessages<AccountId32> = IngressMessages::Shutdown;
 		assert_eq!(OCEX::ingress_messages()[0], ingress_message);
 		assert_eq!(ExchangeState::<Test>::get(), false);
