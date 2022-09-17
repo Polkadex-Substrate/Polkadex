@@ -196,6 +196,8 @@ pub mod pallet {
 		OnchainEventsBoundedVecOverflow,
 		/// Overflow of Deposit amount
 		DepositOverflow,
+		/// Invalid Trading Config Provided
+		InvalidTradingPairConfig,
 	}
 
 	#[pallet::hooks]
@@ -374,8 +376,8 @@ pub mod pallet {
 				.saturating_mul(
 					Decimal::from(min_order_qty.saturated_into::<u128>())
 						.div(&Decimal::from(UNIT_BALANCE))
-				) > Decimal::new(1, 8),
-				Error::<T>::StorageOverflow,
+				) >= Decimal::new(1, 8),
+				Error::<T>::InvalidTradingPairConfig,
 			);
 
 			// TODO: Check if base and quote assets are enabled for deposits

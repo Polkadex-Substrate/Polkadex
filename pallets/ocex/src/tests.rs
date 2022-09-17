@@ -226,7 +226,7 @@ fn test_register_trading_pair_volume_too_low() {
 				100_u128.into(),
 				10_u128.into(),
 			),
-			Error::<Test>::StorageOverflow
+			Error::<Test>::InvalidTradingPairConfig
 		);
 	});
 }
