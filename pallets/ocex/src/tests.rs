@@ -628,10 +628,10 @@ pub fn test_collect_fee_with_pdex_asset_fees() {
 		<FeesCollected<Test>>::insert(snapshot_id, vec_fees_collected);
 		// Mint Some Polkadex to custodian account
 		let custodian_account: AccountId32 = pallet::Pallet::<Test>::get_custodian_account();
-		assert_ok!(Balances::set_balance(Origin::root(), custodian_account, 10000u128, 10000u128));
+		assert_ok!(Balances::set_balance(Origin::root(), custodian_account, 10000000000000000u128, 10000u128));
 		assert_ok!(OCEX::collect_fees(Origin::root(), snapshot_id, account_id.clone()));
-		assert_eq!(<FeesCollected<Test>>::get(snapshot_id).len(), 7);
-		assert_eq!(Balances::free_balance(account_id), 15);
+		assert_eq!(<FeesCollected<Test>>::get(snapshot_id).len(), 6);
+		assert_eq!(Balances::free_balance(account_id), 20000000000000);
 	});
 }
 
@@ -1155,7 +1155,6 @@ fn test_withdrawal_bad_origin() {
 fn test_shutdown() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::shutdown(Origin::root()));
-¡
 		let ingress_message: IngressMessages<AccountId32> = IngressMessages::Shutdown;
 		assert_eq!(OCEX::ingress_messages()[0], ingress_message);
 		assert_eq!(ExchangeState::<Test>::get(), false);
