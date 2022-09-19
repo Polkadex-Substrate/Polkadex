@@ -516,7 +516,6 @@ pub mod pallet {
 				operational_status: true,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-			<TradingPairsStatus<T>>::insert(base, quote, true);
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(

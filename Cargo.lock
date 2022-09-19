@@ -4023,7 +4023,7 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec",
  "pdex-migration",
- "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=polkadot-v0.9.28)",
+ "polkadex-primitives",
  "scale-info",
  "smallvec",
  "sp-api",
@@ -4661,7 +4661,7 @@ dependencies = [
  "pallet-balances",
  "pallet-timestamp",
  "parity-scale-codec",
- "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=fx-polkadot-v0.9.28-ingress)",
+ "polkadex-primitives",
  "rust_decimal",
  "scale-info",
  "sp-application-crypto",
@@ -5312,7 +5312,7 @@ dependencies = [
  "parking_lot 0.11.2",
  "platforms 3.0.1",
  "polkadex-client",
- "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=polkadot-v0.9.28)",
+ "polkadex-primitives",
  "rand 0.7.3",
  "regex",
  "sc-authority-discovery",
@@ -5370,24 +5370,7 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.9.19"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=fx-polkadot-v0.9.28-ingress#95136f095cbcb2ff6a1f36db4c8d916935abeb19"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "rust_decimal",
- "scale-info",
- "serde",
- "sp-application-crypto",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "polkadex-primitives"
-version = "0.9.19"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=polkadot-v0.9.28#5ff71c28d02c382cbf04b2891e9a8ccf7ac54d58"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=polkadot-v0.9.28#3b5af8d5305c4e4107048071f01b7d566e3989bd"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6007,7 +5990,7 @@ dependencies = [
 [[package]]
 name = "rust_decimal"
 version = "1.26.1"
-source = "git+https://github.com/Polkadex-Substrate/rust-decimal.git?branch=master#204d1271a3ff680ce9a5be0467246771d2388b2a"
+source = "git+https://github.com/Polkadex-Substrate/rust-decimal.git?branch=master#610096f3e5b70d58b64f4e93e8a8d50822938ac6"
 dependencies = [
  "arrayvec 0.7.2",
  "num-traits",
