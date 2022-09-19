@@ -46,7 +46,7 @@ pub use weights::*;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
-<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 
@@ -116,28 +116,28 @@ pub mod pallet {
 
 		/// Assets Pallet
 		type OtherAssets: Mutate<
-			<Self as frame_system::Config>::AccountId,
-			Balance = BalanceOf<Self>,
-			AssetId = u128,
-		> + Inspect<<Self as frame_system::Config>::AccountId>;
+				<Self as frame_system::Config>::AccountId,
+				Balance = BalanceOf<Self>,
+				AssetId = u128,
+			> + Inspect<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 		type Public: Clone
-		+ PartialEq
-		+ IdentifyAccount<AccountId = Self::AccountId>
-		+ core::fmt::Debug
-		+ codec::Codec
-		+ Ord
-		+ scale_info::TypeInfo;
+			+ PartialEq
+			+ IdentifyAccount<AccountId = Self::AccountId>
+			+ core::fmt::Debug
+			+ codec::Codec
+			+ Ord
+			+ scale_info::TypeInfo;
 
 		/// A matching `Signature` type.
 		type Signature: Verify<Signer = Self::Public>
-		+ Clone
-		+ PartialEq
-		+ core::fmt::Debug
-		+ codec::Codec
-		+ scale_info::TypeInfo;
+			+ Clone
+			+ PartialEq
+			+ core::fmt::Debug
+			+ codec::Codec
+			+ scale_info::TypeInfo;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: WeightInfo;
@@ -413,7 +413,7 @@ pub mod pallet {
 
 			// Get Storage Map Value
 			if let Some(expected_total_amount) =
-			converted_amount.checked_add(Self::total_assets(asset))
+				converted_amount.checked_add(Self::total_assets(asset))
 			{
 				<TotalAssets<T>>::insert(asset, expected_total_amount);
 			} else {
@@ -543,7 +543,7 @@ pub mod pallet {
 			let fees: Vec<Fees> = <FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
 			for fee in fees {
 				if let Some(converted_fee) =
-				fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 				{
 					Self::transfer_asset(
 						&Self::get_custodian_account(),
@@ -551,7 +551,7 @@ pub mod pallet {
 						converted_fee.saturated_into(),
 						fee.asset,
 					)?;
-					// TODO: Remove the fees from storage if successful
+				// TODO: Remove the fees from storage if successful
 				} else {
 					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
 				}
@@ -591,7 +591,7 @@ pub mod pallet {
 					// TODO: Security: if this fails for a withdrawal in between the iteration, it
 					// will double spend.
 					if let Some(converted_withdrawal) =
-					x.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+						x.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 					{
 						Self::transfer_asset(
 							&Self::get_custodian_account(),
@@ -747,7 +747,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
 	pub(super) type Snapshots<T: Config> =
-	StorageMap<_, Blake2_128Concat, u32, EnclaveSnapshotType<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, u32, EnclaveSnapshotType<T>, OptionQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
@@ -763,13 +763,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
 	pub(super) type FeesCollected<T: Config> =
-	StorageMap<_, Blake2_128Concat, u32, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u32, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
 
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
 	#[pallet::getter(fn withdrawals)]
 	pub(super) type Withdrawals<T: Config> =
-	StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]
@@ -793,13 +793,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn total_assets)]
 	pub(super) type TotalAssets<T: Config> =
-	StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
 
 	// Vector of registered enclaves
 	#[pallet::storage]
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
-	StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
