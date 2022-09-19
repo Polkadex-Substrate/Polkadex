@@ -19,9 +19,11 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
+	traits::{
+		fungibles::{Mutate, Transfer},
+		Currency, ExistenceRequirement,
+	},
 };
-use frame_support::traits::fungibles::Transfer;
 
 use frame_system::ensure_signed;
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
@@ -64,12 +66,11 @@ pub mod pallet {
 		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
-			fungibles::{Inspect, Mutate},
+			fungibles::{Inspect, Mutate, Transfer},
 			Currency, ReservableCurrency,
 		},
 		PalletId,
 	};
-	use frame_support::traits::fungibles::Transfer;
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
 	use polkadex_primitives::{
@@ -81,11 +82,10 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
+		traits::{IdentifyAccount, Verify, Zero},
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-	use sp_runtime::traits::Zero;
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -123,7 +123,7 @@ pub mod pallet {
 				Balance = BalanceOf<Self>,
 				AssetId = u128,
 			> + Inspect<<Self as frame_system::Config>::AccountId>
-		    + Transfer<<Self as frame_system::Config>::AccountId>;
+			+ Transfer<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -549,7 +549,7 @@ pub mod pallet {
 				let mut fee_claim_rounds = T::SnapshotFeeClaim::get();
 				while let Some(fee) = fees.pop() {
 					if let Some(converted_fee) =
-					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+						fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 					{
 						Self::transfer_asset(
 							&Self::get_custodian_account(),
@@ -558,10 +558,10 @@ pub mod pallet {
 							fee.asset,
 						)?;
 					} else {
-						return Err(Error::<T>::FailedToConvertDecimaltoBalance.into());
+						return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
 					}
 					if fee_claim_rounds.is_zero() {
-						break;
+						break
 					}
 					fee_claim_rounds = fee_claim_rounds.saturating_sub(1);
 				}
