@@ -153,9 +153,6 @@ pub mod pallet {
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
-
-		/// Max Snapshot Fee Claim allowed
-		type SnapshotFeeClaim: Get<usize>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
