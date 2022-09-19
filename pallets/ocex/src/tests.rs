@@ -628,7 +628,12 @@ pub fn test_collect_fee_with_pdex_asset_fees() {
 		<FeesCollected<Test>>::insert(snapshot_id, vec_fees_collected);
 		// Mint Some Polkadex to custodian account
 		let custodian_account: AccountId32 = pallet::Pallet::<Test>::get_custodian_account();
-		assert_ok!(Balances::set_balance(Origin::root(), custodian_account, 10000000000000000u128, 10000u128));
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			custodian_account,
+			10000000000000000u128,
+			10000u128
+		));
 		assert_ok!(OCEX::collect_fees(Origin::root(), snapshot_id, account_id.clone()));
 		assert_eq!(<FeesCollected<Test>>::get(snapshot_id).len(), 6);
 		assert_eq!(Balances::free_balance(account_id), 20000000000000);
@@ -641,7 +646,8 @@ pub fn test_collect_fee_with_non_pdex_asset_fees_and_three_element_exc_limit() {
 	new_test_ext().execute_with(|| {
 		let snapshot_id = 1;
 		let asset_id = 10;
-		let fees_collected = Fees { asset: AssetId::asset(asset_id), amount: Decimal::from_f32(0.01).unwrap() };
+		let fees_collected =
+			Fees { asset: AssetId::asset(asset_id), amount: Decimal::from_f32(0.01).unwrap() };
 		let vec_fees_collected: BoundedVec<Fees, AssetsLimit> =
 			BoundedVec::try_from(vec![fees_collected; 5]).unwrap();
 		<FeesCollected<Test>>::insert(snapshot_id, vec_fees_collected);
