@@ -1027,7 +1027,6 @@ fn test_onchain_events_overflow() {
 			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
 
-		let hash: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
