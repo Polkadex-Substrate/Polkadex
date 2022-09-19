@@ -34,10 +34,16 @@ use polkadex_primitives::{
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
-use sp_runtime::{AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin, TokenError};
+use sp_runtime::{
+	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin,
+	TokenError,
+};
 use std::sync::Arc;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
+
+use codec::Decode;
+use test_utils::ias::ias::TEST4_SETUP;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	let events = frame_system::Pallet::<T>::events();
@@ -280,7 +286,12 @@ fn test_register_trading_pair() {
 			TradingPairs::<Test>::contains_key(AssetId::asset(10), AssetId::asset(20)),
 			true
 		);
-		assert_eq!(TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), true);
+		assert_eq!(
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20))
+				.unwrap()
+				.operational_status,
+			true
+		);
 		assert_last_event::<Test>(
 			crate::Event::TradingPairRegistered {
 				base: AssetId::asset(10),
@@ -851,7 +862,12 @@ fn test_open_trading_pair() {
 			10_u128.into()
 		));
 		assert_ok!(OCEX::open_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(20)));
-		assert_eq!(TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), true);
+		assert_eq!(
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20))
+				.unwrap()
+				.operational_status,
+			true
+		);
 		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
 		assert_last_event::<Test>(
 			crate::Event::OpenTradingPair { pair: trading_pair.clone() }.into(),
@@ -924,7 +940,12 @@ fn test_close_trading_pair() {
 			AssetId::asset(10),
 			AssetId::asset(20)
 		));
-		assert_eq!(TradingPairsStatus::<Test>::get(AssetId::asset(10), AssetId::asset(20)), false);
+		assert_eq!(
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20))
+				.unwrap()
+				.operational_status,
+			false
+		);
 		let trading_pair = OCEX::trading_pairs(AssetId::asset(10), AssetId::asset(20)).unwrap();
 		assert_last_event::<Test>(
 			crate::Event::ShutdownTradingPair { pair: trading_pair.clone() }.into(),
@@ -1190,36 +1211,29 @@ fn test_submit_snapshot() {
 			1
 		)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
+		// Checking for redundant data inside snapshot
+		let withdrawal_map_empty: BoundedBTreeMap<
+			AccountId,
+			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
+			SnapshotAccLimit,
+		> = BoundedBTreeMap::new();
+		let empty_fees: BoundedVec<Fees, AssetsLimit> = bounded_vec![];
+
+		assert_eq!(Snapshots::<Test>::get(1).unwrap().fees, empty_fees);
+		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, withdrawal_map_empty);
 	})
 }
 
 #[test]
 fn test_register_enclave() {
 	let account_id = create_account_id();
-	let ias_report = vec![
-		19, 19, 2, 7, 255, 128, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 7, 0,
-		0, 0, 0, 0, 0, 0, 157, 113, 31, 38, 134, 1, 92, 170, 202, 207, 84, 214, 193, 115, 135, 89,
-		228, 23, 80, 184, 116, 61, 170, 171, 159, 47, 5, 32, 99, 126, 11, 13, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 95, 183, 141,
-		57, 75, 101, 149, 246, 85, 227, 219, 71, 14, 143, 143, 79, 2, 209, 127, 165, 117, 206, 185,
-		73, 81, 228, 1, 225, 150, 116, 242, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 70, 95,
-		159, 233, 74, 113, 162, 222, 24, 218, 134, 159, 15, 74, 157, 188, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 69, 66, 236, 163, 63, 254, 74, 251, 172, 254, 123, 233, 19, 175,
-		193, 204,
-	];
+
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			OCEX::register_enclave(Origin::signed(account_id.clone()), ias_report),
-			Error::<Test>::RemoteAttestationVerificationFailed
-		);
+		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
+		assert_ok!(OCEX::register_enclave(
+			Origin::signed(account_id.clone()),
+			TEST4_SETUP.cert.to_vec()
+		));
 	});
 }
 
@@ -1559,4 +1573,10 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
 pub fn create_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
 	return fees
+}
+
+#[allow(dead_code)]
+pub fn create_signer<T: Config>() -> T::AccountId {
+	let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
+	return signer
 }
