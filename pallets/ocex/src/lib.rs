@@ -196,6 +196,8 @@ pub mod pallet {
 		OnchainEventsBoundedVecOverflow,
 		/// Trading Pair is not registed for updating
 		TradingPairNotRegistered,
+		/// Trading Pair config value cannot be set to zero
+		TradingPairConfigCannotBeZero,
 	}
 
 	#[pallet::hooks]
@@ -212,7 +214,7 @@ pub mod pallet {
 						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 					>::from([
 						polkadex_primitives::ingress::IngressMessages::LastestSnapshot(
-							snapshot.merkle_root,
+							snapshot.snapshot_hash,
 							snapshot.snapshot_number,
 						),
 					]));
@@ -361,6 +363,17 @@ pub mod pallet {
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 
+			// We need to also check if provided values are not zero
+			ensure!(
+				min_order_price.saturated_into::<u128>() > 0 &&
+					max_order_price.saturated_into::<u128>() > 0 &&
+					min_order_qty.saturated_into::<u128>() > 0 &&
+					max_order_qty.saturated_into::<u128>() > 0 &&
+					price_tick_size.saturated_into::<u128>() > 0 &&
+					qty_step_size.saturated_into::<u128>() > 0,
+				Error::<T>::TradingPairConfigCannotBeZero
+			);
+
 			// We need to check if the provided parameters are not exceeding 10^27 so that there
 			// will not be an overflow upon performing calculations
 			ensure!(
@@ -439,6 +452,17 @@ pub mod pallet {
 			ensure!(
 				<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairNotRegistered
+			);
+
+			// We need to also check if provided values are not zero
+			ensure!(
+				min_order_price.saturated_into::<u128>() > 0 &&
+					max_order_price.saturated_into::<u128>() > 0 &&
+					min_order_qty.saturated_into::<u128>() > 0 &&
+					max_order_qty.saturated_into::<u128>() > 0 &&
+					price_tick_size.saturated_into::<u128>() > 0 &&
+					qty_step_size.saturated_into::<u128>() > 0,
+				Error::<T>::TradingPairConfigCannotBeZero
 			);
 
 			// We need to check if the provided parameters are not exceeding 10^27 so that there
