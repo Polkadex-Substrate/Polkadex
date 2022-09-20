@@ -15,7 +15,8 @@
 use codec::Decode;
 use frame_support::{assert_noop, assert_ok};
 use sp_core::{H160, U256};
-use sp_runtime::TokenError;
+use sp_runtime::{BoundedBTreeSet, TokenError};
+use std::collections::BTreeSet;
 
 use crate::{
 	mock,
@@ -31,6 +32,7 @@ pub fn test_create_asset_will_successfully_create_asset() {
 	let (asset_address, recipient, chain_id) = create_asset_data();
 
 	new_test_ext().execute_with(|| {
+		whitelist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
 	});
 }
@@ -40,6 +42,7 @@ pub fn test_create_asset_with_already_existed_asset_will_return_in_use_error() {
 	let (asset_address, recipient, chain_id) = create_asset_data();
 
 	new_test_ext().execute_with(|| {
+		whitelist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
@@ -65,6 +68,7 @@ pub fn test_mint_asset_with_not_registered_asset_will_return_unknown_asset_error
 		mint_asset_data();
 
 	new_test_ext().execute_with(|| {
+		whitelist_token(asset_address);
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		// Add new Relayer and verify storage
@@ -92,6 +96,7 @@ pub fn test_mint_asset_with_existed_asset_will_successfully_increase_balance() {
 		mint_asset_data();
 
 	new_test_ext().execute_with(|| {
+		whitelist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
@@ -116,6 +121,7 @@ pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_
 		mint_asset_data();
 
 	new_test_ext().execute_with(|| {
+		whitelist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
@@ -134,6 +140,7 @@ pub fn test_withdraw_successfully() {
 
 	new_test_ext().execute_with(|| {
 		// Setup
+		whitelist_token(asset_address);
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
 		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
@@ -167,10 +174,42 @@ pub fn test_withdraw_successfully() {
 }
 
 #[test]
+pub fn test_whitelist_and_blacklist_token() {
+	new_test_ext().execute_with(|| {
+		let new_token = H160::random();
+		assert_ok!(AssetHandler::whitelist_token(Origin::signed(1), new_token));
+		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
+		assert!(whitelisted_tokens.contains(&new_token));
+		assert_ok!(AssetHandler::remove_whitelisted_token(Origin::signed(1), new_token));
+		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
+		assert!(!whitelisted_tokens.contains(&new_token));
+	});
+}
+
+#[test]
+pub fn test_whitelist_with_limit_reaching_returns_error() {
+	new_test_ext().execute_with(|| {
+		let mut whitelisted_assets: BoundedBTreeSet<H160, WhitelistedTokenLimit> =
+			BoundedBTreeSet::new();
+		for ele in 0..50 {
+			assert_ok!(whitelisted_assets.try_insert(H160::from_low_u64_be(ele)));
+		}
+		assert_eq!(whitelisted_assets.len(), 50);
+		<WhitelistedToken<Test>>::put(whitelisted_assets);
+		let new_token = H160::random();
+		assert_noop!(
+			AssetHandler::whitelist_token(Origin::signed(1), new_token),
+			Error::<Test>::WhitelistedTokenLimitReached
+		);
+	});
+}
+
+#[test]
 pub fn test_withdraw_with_not_whitelisted_chain_will_return_chain_is_not_whitelisted_error() {
 	let (asset_address, recipient, sender, chain_id) = withdraw_data();
 
 	new_test_ext().execute_with(|| {
+		whitelist_token(asset_address);
 		assert_noop!(
 			AssetHandler::withdraw(Origin::signed(sender), chain_id, asset_address, 100, recipient),
 			Error::<Test>::ChainIsNotWhitelisted
@@ -184,6 +223,7 @@ pub fn test_withdraw_on_not_registered_asset_will_return_not_enough_balance_erro
 
 	new_test_ext().execute_with(|| {
 		// Setup
+		whitelist_token(asset_address);
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
 
 		assert_noop!(
@@ -199,6 +239,7 @@ pub fn test_withdraw_with_disabled_bridge_will_return_bridge_error() {
 
 	new_test_ext().execute_with(|| {
 		// Setup
+		whitelist_token(asset_address);
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
 		<BridgeDeactivated<Test>>::put(true);
 		assert!(<BridgeDeactivated<Test>>::get());
@@ -215,6 +256,7 @@ pub fn test_withdraw_with_sender_not_enough_balance_will_return_not_enough_balan
 
 	new_test_ext().execute_with(|| {
 		// Setup
+		whitelist_token(asset_address);
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
 		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
@@ -241,6 +283,7 @@ pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insuffic
 
 	new_test_ext().execute_with(|| {
 		// Setup
+		whitelist_token(asset_address);
 		assert_ok!(ChainBridge::whitelist_chain(Origin::signed(1), chain_id));
 		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
@@ -261,6 +304,12 @@ pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insuffic
 			pallet_balances::Error::<Test>::InsufficientBalance
 		);
 	});
+}
+
+fn whitelist_token(token: H160) {
+	let mut whitelisted_token = <WhitelistedToken<Test>>::get();
+	whitelisted_token.try_insert(token);
+	<WhitelistedToken<Test>>::put(whitelisted_token);
 }
 
 #[test]

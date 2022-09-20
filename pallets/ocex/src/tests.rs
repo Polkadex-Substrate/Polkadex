@@ -997,11 +997,10 @@ fn collect_fees() {
 		);
 		let fees = create_fees::<Test>();
 
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![fees],
 			};
@@ -1068,11 +1067,10 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -1090,11 +1088,10 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 2,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -1114,11 +1111,10 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -1137,11 +1133,10 @@ fn test_submit_snapshot_bad_origin() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 0,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -1173,7 +1168,6 @@ fn test_submit_snapshot() {
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
 		let withdrawal = create_withdrawal::<Test>();
-		let mmr_root: H256 = H256::random();
 		let mut withdrawal_map: BoundedBTreeMap<
 			AccountId,
 			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
@@ -1183,7 +1177,7 @@ fn test_submit_snapshot() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map.clone(),
 				fees: bounded_vec![],
 			};
@@ -1306,11 +1300,10 @@ fn test_withdrawal() {
 			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
 			.unwrap();
 
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
@@ -1384,11 +1377,10 @@ fn test_onchain_events_overflow() {
 			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
 
-		let hash: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: hash,
+				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
