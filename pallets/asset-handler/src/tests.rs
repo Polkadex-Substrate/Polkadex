@@ -291,6 +291,15 @@ pub fn test_set_block_delay() {
 	});
 }
 
+#[test]
+pub fn test_account_balances() {
+	new_test_ext().execute_with(|| {
+		let balances_vec = AssetHandler::account_balances(vec![1], 1_u64);
+		assert_eq!(balances_vec.len(), 1);
+		assert_eq!(balances_vec[0], 0_u128);
+	});
+}
+
 fn create_asset_data() -> (H160, u64, u8) {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let recipient = [1u8; 32];
