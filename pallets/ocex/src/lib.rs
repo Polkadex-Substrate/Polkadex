@@ -296,18 +296,21 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
-
-			if let Some(trading_pair) = <TradingPairs<T>>::get(base, quote) {
-				<TradingPairsStatus<T>>::mutate(base, quote, |status| *status = false);
-				<IngressMessages<T>>::mutate(|ingress_messages| {
-					ingress_messages.push(
-						polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
-							trading_pair.clone(),
-						),
-					);
-				});
-				Self::deposit_event(Event::ShutdownTradingPair { pair: trading_pair });
-			}
+			<TradingPairs<T>>::mutate(base, quote, |value| {
+				if let Some(trading_pair) = value {
+					trading_pair.operational_status = false;
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(
+							polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
+								trading_pair.clone(),
+							),
+						);
+					});
+					Self::deposit_event(Event::ShutdownTradingPair { pair: trading_pair.clone() });
+				} else {
+					//scope never executed, already ensured if trading pair exits above
+				}
+			});
 			Ok(())
 		}
 
@@ -321,18 +324,22 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
-
-			if let Some(trading_pair) = <TradingPairs<T>>::get(base, quote) {
-				<TradingPairsStatus<T>>::mutate(base, quote, |status| *status = true);
-				<IngressMessages<T>>::mutate(|ingress_messages| {
-					ingress_messages.push(
-						polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
-							trading_pair.clone(),
-						),
-					);
-				});
-				Self::deposit_event(Event::OpenTradingPair { pair: trading_pair });
-			}
+			//update the operational status of the trading pair as true.
+			<TradingPairs<T>>::mutate(base, quote, |value| {
+				if let Some(trading_pair) = value {
+					trading_pair.operational_status = true;
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(
+							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+								trading_pair.clone(),
+							),
+						);
+					});
+					Self::deposit_event(Event::OpenTradingPair { pair: trading_pair.clone() });
+				} else {
+					//scope never executed, already ensured if trading pair exits above
+				}
+			});
 			Ok(())
 		}
 
@@ -379,7 +386,6 @@ pub mod pallet {
 				operational_status: true,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-			<TradingPairsStatus<T>>::insert(base, quote, true);
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
@@ -507,6 +513,7 @@ pub mod pallet {
 			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
 			<FeesCollected<T>>::insert(current_snapshot_nonce, snapshot.fees.clone());
 			snapshot.withdrawals = Default::default();
+			snapshot.fees = Default::default();
 			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
 			<SnapshotNonce<T>>::put(current_snapshot_nonce);
 			Ok(())
@@ -737,12 +744,6 @@ pub mod pallet {
 		TradingPairConfig,
 		OptionQuery,
 	>;
-
-	// Operational Status of registered trading pairs
-	#[pallet::storage]
-	#[pallet::getter(fn trading_pairs_status)]
-	pub(super) type TradingPairsStatus<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, AssetId, bool, ValueQuery>;
 
 	// Snapshots Storage
 	#[pallet::storage]
