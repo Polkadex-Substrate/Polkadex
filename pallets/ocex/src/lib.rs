@@ -187,15 +187,17 @@ pub mod pallet {
 		/// RA status is insufficient
 		InvalidSgxReportStatus,
 		/// Storage overflow ocurred
-		StorageOverflow,
+		AmountOverflow,
 		///ProxyNotFound
 		ProxyNotFound,
 		/// MinimumOneProxyRequried
 		MinimumOneProxyRequired,
 		/// Onchain Events vector is full
 		OnchainEventsBoundedVecOverflow,
-		/// Overflow of Deposit amount
-		DepositOverflow,
+		/// Trading Pair is not registed for updating
+		TradingPairNotRegistered,
+		/// Trading Pair config value cannot be set to zero
+		TradingPairConfigCannotBeZero,
 	}
 
 	#[pallet::hooks]
@@ -357,6 +359,7 @@ pub mod pallet {
 			qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
 				!<TradingPairs<T>>::contains_key(base, quote),
@@ -367,7 +370,47 @@ pub mod pallet {
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 
+			// We need to also check if provided values are not zero
+			ensure!(
+				min_order_price.saturated_into::<u128>() > 0 &&
+					max_order_price.saturated_into::<u128>() > 0 &&
+					min_order_qty.saturated_into::<u128>() > 0 &&
+					max_order_qty.saturated_into::<u128>() > 0 &&
+					price_tick_size.saturated_into::<u128>() > 0 &&
+					qty_step_size.saturated_into::<u128>() > 0,
+				Error::<T>::TradingPairConfigCannotBeZero
+			);
+
+			// We need to check if the provided parameters are not exceeding 10^27 so that there
+			// will not be an overflow upon performing calculations
+			ensure!(
+				min_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				max_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				min_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				max_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				price_tick_size.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+
 			// TODO: Check if base and quote assets are enabled for deposits
+			// Decimal::from() here is infallable as we ensure provided parameters do not exceed
+			// Decimal::MAX
 			let trading_pair_info = TradingPairConfig {
 				base_asset: base,
 				quote_asset: quote,
@@ -397,6 +440,93 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Updates the trading pair config
+		#[pallet::weight(100000)]
+		pub fn update_trading_pair(
+			origin: OriginFor<T>,
+			base: AssetId,
+			quote: AssetId,
+			min_order_price: BalanceOf<T>,
+			max_order_price: BalanceOf<T>,
+			min_order_qty: BalanceOf<T>,
+			max_order_qty: BalanceOf<T>,
+			price_tick_size: BalanceOf<T>,
+			qty_step_size: BalanceOf<T>,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
+			ensure!(
+				<TradingPairs<T>>::contains_key(base, quote),
+				Error::<T>::TradingPairNotRegistered
+			);
+
+			// We need to also check if provided values are not zero
+			ensure!(
+				min_order_price.saturated_into::<u128>() > 0 &&
+					max_order_price.saturated_into::<u128>() > 0 &&
+					min_order_qty.saturated_into::<u128>() > 0 &&
+					max_order_qty.saturated_into::<u128>() > 0 &&
+					price_tick_size.saturated_into::<u128>() > 0 &&
+					qty_step_size.saturated_into::<u128>() > 0,
+				Error::<T>::TradingPairConfigCannotBeZero
+			);
+
+			// We need to check if the provided parameters are not exceeding 10^27 so that there
+			// will not be an overflow upon performing calculations
+			ensure!(
+				min_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				max_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				min_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				max_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				price_tick_size.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+			ensure!(
+				qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+
+			let trading_pair_info = TradingPairConfig {
+				base_asset: base,
+				quote_asset: quote,
+				min_price: Decimal::from(min_order_price.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				price_tick_size: Decimal::from(price_tick_size.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				qty_step_size: Decimal::from(qty_step_size.saturated_into::<u128>())
+					.div(&Decimal::from(UNIT_BALANCE)),
+				operational_status: true,
+			};
+			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(
+					polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
+						trading_pair_info,
+					),
+				);
+			});
+			Self::deposit_event(Event::TradingPairUpdated { base, quote });
+			Ok(())
+		}
+
 		/// Deposit Assets to Orderbook
 		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
 		pub fn deposit(
@@ -407,7 +537,7 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			// TODO: Check if asset is enabled for deposit
 
-			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::DepositOverflow);
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount =
 				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
 
@@ -417,7 +547,7 @@ pub mod pallet {
 			{
 				<TotalAssets<T>>::insert(asset, expected_total_amount);
 			} else {
-				return Err(Error::<T>::DepositOverflow.into())
+				return Err(Error::<T>::AmountOverflow.into())
 			}
 
 			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
@@ -688,6 +818,10 @@ pub mod pallet {
 			proxy: T::AccountId,
 		},
 		TradingPairRegistered {
+			base: AssetId,
+			quote: AssetId,
+		},
+		TradingPairUpdated {
 			base: AssetId,
 			quote: AssetId,
 		},
