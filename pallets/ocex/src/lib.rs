@@ -791,7 +791,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// In order to register itself - enclave accountid must be whitelisted called by
+		/// In order to register itself - enclave account id must be whitelisted and called by
 		/// Governance
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn whitelist_enclave(
