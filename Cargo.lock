@@ -4665,6 +4665,7 @@ dependencies = [
  "rust_decimal",
  "scale-info",
  "sp-application-crypto",
+ "sp-core",
  "sp-io",
  "sp-keystore",
  "sp-runtime",

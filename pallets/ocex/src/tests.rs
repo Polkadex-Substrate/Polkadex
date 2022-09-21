@@ -35,8 +35,8 @@ use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{
-	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin,
-	TokenError,
+	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
+	DispatchError::BadOrigin, TokenError,
 };
 use std::sync::Arc;
 
@@ -687,12 +687,10 @@ fn test_update_trading_pair_value_zero() {
 fn test_deposit_unknown_asset() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
+		let asset_id = AssetId::asset(10);
+		whitelist_token(asset_id);
 		assert_noop!(
-			OCEX::deposit(
-				Origin::signed(account_id.clone().into()),
-				AssetId::asset(10),
-				100_u128.into()
-			),
+			OCEX::deposit(Origin::signed(account_id.clone().into()), asset_id, 100_u128.into()),
 			TokenError::UnknownAsset
 		);
 	});
@@ -719,6 +717,7 @@ fn test_deposit() {
 			10000000000000000000000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		whitelist_token(AssetId::polkadex);
 		assert_ok!(OCEX::deposit(
 			Origin::signed(account_id.clone().into()),
 			AssetId::polkadex,
@@ -756,6 +755,7 @@ fn test_deposit_large_value() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		whitelist_token(AssetId::polkadex);
 		assert_noop!(
 			OCEX::deposit(
 				Origin::signed(account_id.clone().into()),
@@ -779,6 +779,7 @@ fn test_deposit_assets_overflow() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		whitelist_token(AssetId::polkadex);
 		assert_ok!(OCEX::deposit(
 			Origin::signed(account_id.clone().into()),
 			AssetId::polkadex,
@@ -1467,6 +1468,45 @@ fn test_unregister_timed_out_enclaves() {
 		<OCEX as OnInitialize<u64>>::on_initialize(100000000);
 		assert_eq!(RegisteredEnclaves::<Test>::contains_key(enclave_id), false);
 	});
+}
+
+#[test]
+pub fn test_whitelist_and_blacklist_token() {
+	new_test_ext().execute_with(|| {
+		let account_id = create_account_id();
+		let new_token = AssetId::asset(1);
+		assert_ok!(OCEX::whitelist_token(Origin::root(), new_token));
+		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
+		assert!(whitelisted_tokens.contains(&new_token));
+		assert_ok!(OCEX::remove_whitelisted_token(Origin::root(), new_token));
+		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
+		assert!(!whitelisted_tokens.contains(&new_token));
+	});
+}
+
+#[test]
+pub fn test_whitelist_with_limit_reaching_returns_error() {
+	new_test_ext().execute_with(|| {
+		let account_id = create_account_id();
+		let mut whitelisted_assets: BoundedBTreeSet<AssetId, WhitelistedTokenLimit> =
+			BoundedBTreeSet::new();
+		for ele in 0..50 {
+			assert_ok!(whitelisted_assets.try_insert(AssetId::asset(ele)));
+		}
+		assert_eq!(whitelisted_assets.len(), 50);
+		<WhitelistedToken<Test>>::put(whitelisted_assets);
+		let new_token = AssetId::asset(100);
+		assert_noop!(
+			OCEX::whitelist_token(Origin::root(), new_token),
+			Error::<Test>::WhitelistedTokenLimitReached
+		);
+	});
+}
+
+fn whitelist_token(token: AssetId) {
+	let mut whitelisted_token = <WhitelistedToken<Test>>::get();
+	whitelisted_token.try_insert(token);
+	<WhitelistedToken<Test>>::put(whitelisted_token);
 }
 
 fn mint_into_account(account_id: AccountId32) {
