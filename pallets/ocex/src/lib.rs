@@ -412,8 +412,7 @@ pub mod pallet {
 			);
 
 			//enclave will only support min volume of 10^-8
-			//if trading pairs volume fall below it will pass an error
-			//check if we want
+			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
 				min_order_price.saturated_into::<u128>() > MIN_CONFIG &&
 					min_order_qty.saturated_into::<u128>() > MIN_CONFIG &&
