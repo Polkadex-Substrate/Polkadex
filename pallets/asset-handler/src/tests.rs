@@ -340,6 +340,34 @@ pub fn test_set_block_delay() {
 	});
 }
 
+#[test]
+pub fn test_account_balances() {
+	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(|| {
+		let balances_vec = AssetHandler::account_balances(vec![1], 1_u64);
+		assert_eq!(balances_vec.len(), 1);
+		assert_eq!(balances_vec[0], 0_u128);
+
+		// Mint some amount
+		assert_ok!(AssetHandler::create_asset(Origin::signed(1_u64), chain_id, asset_address));
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		let asset_id = AssetHandler::convert_asset_id(rid);
+
+		// Check Empty balances using helper function
+		let balances_vec = AssetHandler::account_balances(vec![asset_id], 1_u64);
+		assert_eq!(balances_vec.len(), 1);
+		assert_eq!(balances_vec[0], 0_u128);
+
+		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, 1_u64, 100));
+		assert_eq!(Assets::balance(asset_id, 1_u64), 100);
+
+		// Check Balances now using helper function for different assset_ids
+		let balances_vec = AssetHandler::account_balances(vec![1, asset_id], 1_u64);
+		assert_eq!(balances_vec.len(), 2);
+		assert_eq!(balances_vec[1], 100_u128);
+	});
+}
+
 fn create_asset_data() -> (H160, u64, u8) {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let recipient = [1u8; 32];

@@ -1432,6 +1432,12 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
+		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
+			AssetHandler::account_balances(assets, account_id)
+		}
+	}
+
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
 			source: TransactionSource,
