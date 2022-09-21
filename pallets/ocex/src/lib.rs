@@ -19,10 +19,7 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
-	traits::{
-		fungibles::{Mutate, Transfer},
-		Currency, ExistenceRequirement,
-	},
+	traits::{fungibles::Transfer, Currency, ExistenceRequirement},
 };
 
 use frame_system::ensure_signed;
