@@ -201,6 +201,10 @@ pub mod pallet {
 		MinimumOneProxyRequired,
 		/// Onchain Events vector is full
 		OnchainEventsBoundedVecOverflow,
+		/// Overflow of Deposit amount
+		DepositOverflow,
+		/// Enclave not whitelisted
+		EnclaveNotWhitelisted,
 		/// Trading Pair is not registed for updating
 		TradingPairNotRegistered,
 		/// Trading Pair config value cannot be set to zero
@@ -771,12 +775,19 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
+
 			let report = verify_ias_report(&ias_report)
 				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
 			// TODO: attested key verification enabled
 			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
 				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
+
+			// Check if enclave_signer is whitelisted
+			ensure!(
+				<WhitelistedEnclaves<T>>::get(&enclave_signer),
+				<Error<T>>::EnclaveNotWhitelisted
+			);
 
 			// TODO: any other checks we want to run?
 			ensure!(
@@ -813,6 +824,20 @@ pub mod pallet {
 			whitelisted_tokens.remove(&token);
 			<WhitelistedToken<T>>::put(whitelisted_tokens);
 			Self::deposit_event(Event::<T>::WhitelistedTokenRemoved(token));
+      Ok(())
+     }
+
+		/// In order to register itself - enclave account id must be whitelisted and called by
+		/// Governance
+		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		pub fn whitelist_enclave(
+			origin: OriginFor<T>,
+			enclave_account_id: T::AccountId,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			// It will just overwrite if account_id is already whitelisted
+			<WhitelistedEnclaves<T>>::insert(&enclave_account_id, true);
+			Self::deposit_event(Event::EnclaveWhitelisted(enclave_account_id));
 			Ok(())
 		}
 	}
@@ -873,6 +898,7 @@ pub mod pallet {
 			pair: TradingPairConfig,
 		},
 		EnclaveRegistered(T::AccountId),
+		EnclaveWhitelisted(T::AccountId),
 		EnclaveCleanup(Vec<T::AccountId>),
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
@@ -950,6 +976,12 @@ pub mod pallet {
 	#[pallet::getter(fn withdrawals)]
 	pub(super) type Withdrawals<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
+
+	// Whitelisted enclaves
+	#[pallet::storage]
+	#[pallet::getter(fn whitelisted_enclaves)]
+	pub(super) type WhitelistedEnclaves<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, bool, ValueQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]
