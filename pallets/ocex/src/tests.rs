@@ -1,20 +1,3 @@
-// This file is part of Polkadex.
-
-// Copyright (C) 2020-2022 Polkadex oü.
-// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-
-//! Tests for pallet-ocex.
-
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
 use polkadex_primitives::{
@@ -199,34 +182,14 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 				Origin::root(),
 				AssetId::polkadex,
 				AssetId::polkadex,
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
 			Error::<Test>::BothAssetsCannotBeSame
-		);
-	});
-}
-
-#[test]
-fn test_register_trading_pair_volume_too_low() {
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			OCEX::register_trading_pair(
-				Origin::root(),
-				AssetId::polkadex,
-				AssetId::asset(1),
-				1_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
-				100_u128.into(),
-				10_u128.into(),
-			),
-			Error::<Test>::InvalidTradingPairConfig
 		);
 	});
 }
@@ -268,15 +231,35 @@ fn test_register_trading_pair_bad_origin() {
 }
 
 #[test]
+fn test_register_trading_pair_value_zero() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				0_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into(),
+			),
+			Error::<Test>::TradingPairConfigCannotBeZero
+		);
+	});
+}
+
+#[test]
 fn test_register_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -307,15 +290,217 @@ fn test_register_trading_pair() {
 }
 
 #[test]
+fn test_register_trading_pair_amount_overflow() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1
+			),
+			Error::<Test>::AmountOverflow
+		);
+	});
+}
+
+#[test]
+fn test_update_trading_pair_amount_overflow() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			10001_u128.into(),
+			100_u128.into(),
+			10001_u128.into(),
+			100_u128.into(),
+			100_u128.into(),
+			10_u128.into()
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1,
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1
+			),
+			Error::<Test>::AmountOverflow
+		);
+	});
+}
+
+#[test]
 fn test_register_trading_pair_trading_pair_already_registered() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -326,9 +511,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(10),
 				AssetId::asset(20),
-				100000000000_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
-				100000000000_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
@@ -341,14 +526,162 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(20),
 				AssetId::asset(10),
-				100000000000_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
-				100000000000_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::TradingPairAlreadyRegistered
+		);
+	});
+}
+
+#[test]
+fn test_update_trading_pair() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			10001_u128.into(),
+			100_u128.into(),
+			10001_u128.into(),
+			100_u128.into(),
+			100_u128.into(),
+			10_u128.into()
+		));
+
+		assert_ok!(OCEX::update_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			10001_u128.into(),
+			100_u128.into(),
+			10001_u128.into(),
+			100_u128.into(),
+			100_u128.into(),
+			10_u128.into()
+		));
+
+		assert_last_event::<Test>(
+			crate::Event::TradingPairUpdated {
+				base: AssetId::asset(10),
+				quote: AssetId::asset(20),
+			}
+			.into(),
+		);
+		let trading_pair =
+			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap();
+		let event: IngressMessages<AccountId32> = IngressMessages::UpdateTradingPair(trading_pair);
+		assert_eq!(OCEX::ingress_messages()[1], event);
+	});
+}
+
+#[test]
+fn test_update_trading_pair_trading_pair_not_registered() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairNotRegistered
+		);
+	});
+}
+
+#[test]
+fn test_update_trading_pair_bad_origin() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::none(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			BadOrigin
+		);
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::signed(account_id.into()),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn test_register_trading_pair_volume_too_low() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::polkadex,
+				AssetId::asset(1),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into(),
+			),
+			Error::<Test>::TradingPairConfigUnderflow
+		);
+	});
+}
+
+#[test]
+fn test_update_trading_pair_value_zero() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			10001_u128.into(),
+			100_u128.into(),
+			10001_u128.into(),
+			100_u128.into(),
+			100_u128.into(),
+			10_u128.into()
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				0_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into(),
+			),
+			Error::<Test>::TradingPairConfigCannotBeZero
 		);
 	});
 }
@@ -432,7 +765,7 @@ fn test_deposit_large_value() {
 				AssetId::polkadex,
 				1_000_000_000_000_000_000_000_000_0000
 			),
-			Error::<Test>::DepositOverflow
+			Error::<Test>::AmountOverflow
 		);
 	});
 }
@@ -468,7 +801,7 @@ fn test_deposit_assets_overflow() {
 				AssetId::polkadex,
 				10_u128.pow(20)
 			),
-			Error::<Test>::DepositOverflow
+			Error::<Test>::AmountOverflow
 		);
 	});
 }
@@ -524,9 +857,9 @@ fn test_open_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -598,9 +931,9 @@ fn test_close_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			100000000000_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -667,11 +1000,10 @@ fn collect_fees() {
 		);
 		let fees = create_fees::<Test>();
 
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![fees],
 			};
@@ -738,11 +1070,10 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -760,11 +1091,10 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 2,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -784,11 +1114,10 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -807,11 +1136,10 @@ fn test_submit_snapshot_bad_origin() {
 	let payl: [u8; 64] = [0; 64];
 	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 0,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
@@ -843,7 +1171,6 @@ fn test_submit_snapshot() {
 	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
 		let withdrawal = create_withdrawal::<Test>();
-		let mmr_root: H256 = H256::random();
 		let mut withdrawal_map: BoundedBTreeMap<
 			AccountId,
 			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
@@ -853,7 +1180,7 @@ fn test_submit_snapshot() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map.clone(),
 				fees: bounded_vec![],
 			};
@@ -976,11 +1303,10 @@ fn test_withdrawal() {
 			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
 			.unwrap();
 
-		let mmr_root: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: mmr_root,
+				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
@@ -1054,11 +1380,10 @@ fn test_onchain_events_overflow() {
 			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
 		}
 
-		let hash: H256 = H256::random();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
-				snapshot_hash: hash,
+				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
 			};
