@@ -669,7 +669,7 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			// It will just overwrite if account_id is already whitelisted
 			<WhitelistedEnclaves<T>>::insert(&enclave_account_id, true);
-			Self::deposit_event(Event::EnclaveWhitelisted(enclave_account_id.clone()));
+			Self::deposit_event(Event::EnclaveWhitelisted(enclave_account_id));
 			Ok(())
 		}
 	}
