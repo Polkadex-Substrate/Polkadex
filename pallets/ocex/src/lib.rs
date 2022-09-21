@@ -824,8 +824,8 @@ pub mod pallet {
 			whitelisted_tokens.remove(&token);
 			<WhitelistedToken<T>>::put(whitelisted_tokens);
 			Self::deposit_event(Event::<T>::WhitelistedTokenRemoved(token));
-      Ok(())
-     }
+			Ok(())
+		}
 
 		/// In order to register itself - enclave account id must be whitelisted and called by
 		/// Governance
