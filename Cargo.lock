@@ -4176,6 +4176,8 @@ dependencies = [
 name = "ocex-client"
 version = "0.1.0"
 dependencies = [
+ "futures 0.3.24",
+ "log",
  "ocex-primitives",
  "sc-client-api",
  "sp-api",

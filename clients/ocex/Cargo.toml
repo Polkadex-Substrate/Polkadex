@@ -11,3 +11,5 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 ocex-primitives = {path = "../../primitives/ocex"}
+futures = "0.3.24"
+log = "0.4.17"
