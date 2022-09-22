@@ -1542,6 +1542,12 @@ impl_runtime_apis! {
 			)
 		}
 	}
+	//
+	// impl ocex_primitives::OcexApi<Block> for Runtime {
+	// 	fn unverified_reports(verifier: ocex_primitives::AuthorityId) -> bool {
+	// 		OCEX::unverified_reports(verifier)
+	// 	}
+	// }
 
 	impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
 		fn authorities() -> Vec<AuthorityDiscoveryId> {

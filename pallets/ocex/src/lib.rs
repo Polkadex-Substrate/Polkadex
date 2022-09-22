@@ -1001,4 +1001,8 @@ impl<T: Config> Pallet<T> {
 		}
 		Ok(())
 	}
+
+	pub fn unverified_reports(verifier: ocex_primitives::AuthorityId) -> bool {
+		true
+	}
 }

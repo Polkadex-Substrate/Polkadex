@@ -86,7 +86,7 @@ sp_api::decl_runtime_apis! {
 	/// API necessary for OCEX validators.
 	pub trait OcexApi {
 		// Get list of enclaves waiting for verification by this verifier
-		fn unverified_reports(verifier: AuthorityId) -> Vec<bool>;
+		fn unverified_reports(verifier: AuthorityId) -> bool;
 	}
 }
 

@@ -20,11 +20,11 @@ polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", g
 default = ["std"]
 std = [
     "codec/std",
+    "scale-info/std",
     "sp-api/std",
     "sp-application-crypto/std",
     "sp-core/std",
     "sp-runtime/std",
     "sp-std/std",
-    "scale-info/std",
     "polkadex-primitives/std"
 ]
