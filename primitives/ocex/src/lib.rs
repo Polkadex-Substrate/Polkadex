@@ -19,7 +19,7 @@
 // NOTE: needed to silence warnings about generated code in `decl_runtime_apis`
 #![allow(clippy::too_many_arguments, clippy::unnecessary_mut_passed, clippy::redundant_slicing)]
 
-use codec::{Decode, Encode};
+use codec::{Codec, Decode, Encode};
 
 use scale_info::TypeInfo;
 
@@ -81,12 +81,38 @@ pub type AuthoritySignature = crypto::Signature;
 /// The index of an authority.
 pub type AuthorityIndex = u16;
 
+/// The `ConsensusEngineId` of OCEX.
+pub const OCEX_ENGINE_ID: sp_runtime::ConsensusEngineId = *b"OCEX";
+
+/// A consensus log item for OCEX.
+#[derive(Decode, Encode, TypeInfo)]
+pub enum ConsensusLog<AuthorityId: Codec> {
+	/// The authorities have changed.
+	#[codec(index = 1)]
+	AuthoritiesChange(ValidatorSet<AuthorityId>),
+	/// Disable the authority with given index.
+	#[codec(index = 2)]
+	OnDisabled(AuthorityIndex),
+}
 
 sp_api::decl_runtime_apis! {
 	/// API necessary for OCEX validators.
 	pub trait OcexApi {
-		// Get list of enclaves waiting for verification by this verifier
-		fn unverified_reports(verifier: AuthorityId) -> bool;
+		/// Return the current active OCEX validator set
+		fn validator_set() -> ValidatorSet<AuthorityId>;
+		/// Submit approvals to OCEX pallet
+		fn submit_approve_enclave_report(approver: AuthorityId, signature: AuthoritySignature) -> Result<(), SigningError>;
 	}
 }
 
+/// Possible Errors in On-chain signing
+#[derive(Decode, Encode, TypeInfo, PartialEq, Debug)]
+pub enum SigningError {
+	OffchainUnsignedTxError,
+}
+
+impl core::fmt::Display for SigningError {
+	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+		write!(f, "OffchainUnsignedTxError")
+	}
+}

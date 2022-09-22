@@ -25,7 +25,7 @@ pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git 
 ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
 rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
 ocex-primitives = {path="../../primitives/ocex", default-features = false}
-
+sp-application-crypto = { branch="polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate', default-features = false}
 
 [dev-dependencies]
 pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
@@ -42,6 +42,7 @@ test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch
 [features]
 default = ["std"]
 std = [
+    "sp-application-crypto/std",
     "ocex-primitives/std",
     "codec/std",
     "log/std",

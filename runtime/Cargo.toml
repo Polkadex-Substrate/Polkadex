@@ -96,7 +96,7 @@ polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", g
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false}
 chainbridge = { path ="../pallets/chainbridge", default-features = false}
-#ocex-primitives = {path="../primitives/ocex", default-features = false}
+ocex-primitives = {path="../primitives/ocex", default-features = false}
 
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false}
@@ -118,7 +118,7 @@ default = ["std"]
 std = [
     'codec/std',
     'log/std',
-#    "ocex-primitives/std",
+    "ocex-primitives/std",
     'frame-executive/std',
     'frame-support/std',
     'frame-system/std',

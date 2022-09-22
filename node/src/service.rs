@@ -119,6 +119,8 @@ pub fn create_extrinsic(
 	)
 }
 use sc_network_common::service::NetworkEventStream;
+use sp_core::traits::SpawnEssentialNamed;
+use ocex_client::OCEXParams;
 
 #[allow(clippy::type_complexity)]
 pub fn new_partial(
@@ -375,7 +377,7 @@ pub fn new_full_base(
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend,
+		backend: backend.clone(),
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		network: network.clone(),
@@ -490,7 +492,7 @@ pub fn new_full_base(
 		justification_period: 512,
 		name: Some(name),
 		observer_enabled: false,
-		keystore,
+		keystore: keystore.clone(),
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
 		local_role: role,
 		protocol_name: grandpa_protocol_name,
@@ -521,6 +523,24 @@ pub fn new_full_base(
 			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
+
+	if role.is_authority() {
+		let params = OCEXParams{
+			client: client.clone(),
+			backend,
+			runtime: client.clone(),
+			key_store: keystore
+		};
+
+		let mut worker = ocex_client::OCEXWorker::new(params);
+
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"ocex-worker",
+			None,
+			worker.run()
+		)
+	}
+
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })

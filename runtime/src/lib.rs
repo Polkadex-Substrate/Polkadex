@@ -496,6 +496,7 @@ impl_opaque_keys! {
 		pub babe: Babe,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
+		pub ocex: OCEX,
 	}
 }
 
@@ -1280,6 +1281,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Signature = Signature;
 	type WeightInfo = ();
 	type MsPerDay = MsPerDay;
+	type OCEXId = ocex_primitives::AuthorityId;
 }
 
 parameter_types! {
@@ -1346,7 +1348,7 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
-		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 35,
+		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 35,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38
@@ -1542,12 +1544,18 @@ impl_runtime_apis! {
 			)
 		}
 	}
-	//
-	// impl ocex_primitives::OcexApi<Block> for Runtime {
-	// 	fn unverified_reports(verifier: ocex_primitives::AuthorityId) -> bool {
-	// 		OCEX::unverified_reports(verifier)
-	// 	}
-	// }
+
+	impl ocex_primitives::OcexApi<Block> for Runtime {
+		/// Get current validator set
+		fn validator_set() -> ocex_primitives::ValidatorSet<ocex_primitives::AuthorityId>{
+			OCEX::validator_set()
+		}
+		/// Submit approvals to OCEX pallet
+		fn submit_approve_enclave_report(approver: ocex_primitives::AuthorityId,
+			signature: ocex_primitives::AuthoritySignature) -> Result<(), ocex_primitives::SigningError>{
+			OCEX::submit_approve_enclave_report(approver,signature)
+		}
+	}
 
 	impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
 		fn authorities() -> Vec<AuthorityDiscoveryId> {
