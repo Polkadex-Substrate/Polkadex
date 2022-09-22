@@ -20,17 +20,16 @@ use codec::Encode;
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
+	traits::{fungibles::Mutate, Currency, ExistenceRequirement, OneSessionHandler},
 };
-use frame_support::traits::OneSessionHandler;
 
 use frame_system::ensure_signed;
 use polkadex_primitives::{assets::AssetId, DigestItem, OnChainEventsLimit};
 
+use ocex_primitives::{AuthorityId, AuthorityIndex, ConsensusLog, OCEX_ENGINE_ID};
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, IsMember, UniqueSaturatedInto};
 use sp_std::prelude::*;
-use ocex_primitives::{AuthorityIndex, ConsensusLog, OCEX_ENGINE_ID};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -43,8 +42,8 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-pub mod weights;
 mod unsigned;
+pub mod weights;
 
 pub use weights::*;
 
@@ -61,6 +60,7 @@ const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use codec::EncodeLike;
 	use core::ops::Div;
 	use frame_support::{
 		pallet_prelude::*,
@@ -72,9 +72,9 @@ pub mod pallet {
 		},
 		PalletId,
 	};
-	use frame_system::offchain::CreateSignedTransaction;
-	use frame_system::pallet_prelude::*;
+	use frame_system::{offchain::CreateSignedTransaction, pallet_prelude::*};
 	use ias_verify::{verify_ias_report, SgxStatus};
+	use ocex_primitives::AuthorityId;
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -83,7 +83,7 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_application_crypto::RuntimeAppPublic;
+	use sp_application_crypto::{Public, RuntimeAppPublic};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
 		SaturatedConversion,
@@ -109,7 +109,9 @@ pub mod pallet {
 	///
 	/// `frame_system::Config` should always be included.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + timestamp::Config + CreateSignedTransaction<Call<Self>>  {
+	pub trait Config:
+		frame_system::Config + timestamp::Config + CreateSignedTransaction<Call<Self>>
+	{
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -119,11 +121,12 @@ pub mod pallet {
 
 		/// AuthorityID
 		type OCEXId: Member
-		+ Parameter
-		+ RuntimeAppPublic
-		+ MaybeSerializeDeserialize
-		+ Ord
-		+ MaxEncodedLen;
+			+ Parameter
+			+ RuntimeAppPublic
+			+ MaybeSerializeDeserialize
+			+ Ord
+			+ EncodeLike<ocex_primitives::crypto::Public>
+			+ MaxEncodedLen;
 
 		/// Balances Pallet
 		type NativeCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
@@ -285,7 +288,11 @@ pub mod pallet {
 
 		/// Adds approval from a validator for an enclave's attestation report
 		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
-		pub fn approve_enclave_report(origin: OriginFor<T>, approver: T::OCEXId, signature: <T::OCEXId as RuntimeAppPublic>::Signature,) -> DispatchResult {
+		pub fn approve_enclave_report(
+			origin: OriginFor<T>,
+			approver: T::OCEXId,
+			signature: <T::OCEXId as RuntimeAppPublic>::Signature,
+		) -> DispatchResult {
 			ensure_none(origin)?;
 			// TODO: verify if signature from approver along with other params
 			// TODO: Verify if approver is in Self::authorities()
@@ -628,7 +635,7 @@ pub mod pallet {
 				AssetsLimit,
 				SnapshotAccLimit,
 			>,
-			signature:  <T as pallet::Config>::Signature,
+			signature: <T as pallet::Config>::Signature,
 		) -> DispatchResult {
 			let enclave = ensure_signed(origin)?;
 			ensure!(
@@ -786,14 +793,7 @@ pub mod pallet {
 		/// In order to register itself - enclave must send it's own report to this extrinsic
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-
-			let report = verify_ias_report(&ias_report)
-				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
-
-			// TODO: attested key verification enabled
-			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
+			let enclave_signer = ensure_signed(origin)?;
 
 			// Check if enclave_signer is whitelisted
 			ensure!(
@@ -801,17 +801,8 @@ pub mod pallet {
 				<Error<T>>::EnclaveNotWhitelisted
 			);
 
-			// TODO: any other checks we want to run?
-			ensure!(
-				(report.status == SgxStatus::Ok) |
-					(report.status == SgxStatus::ConfigurationNeeded),
-				<Error<T>>::InvalidSgxReportStatus
-			);
-			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = Some(T::Moment::saturated_from(report.timestamp));
-			});
-			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
-			debug!("registered enclave at time =>{:?}", report.timestamp);
+			<UnverifiedReports<T>>::insert(ias_report, Self::authorities());
+
 			Ok(())
 		}
 
@@ -853,17 +844,25 @@ pub mod pallet {
 	}
 
 	#[pallet::validate_unsigned]
-	impl<T: Config> frame_support::unsigned::ValidateUnsigned for Pallet<T> {
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			// TODO: Allow all approve_enclave_report to pass through if signer is in the
 			// current session and they are not already voted.
+
+			// ANd then register if enought voted
+			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
+				*v = Some(T::Moment::saturated_from(report.timestamp));
+			});
+			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
+			debug!("registered enclave at time =>{:?}", report.timestamp);
+
 			todo!()
 		}
 	}
 
-		/// Events are a simple means of reporting specific conditions and
+	/// Events are a simple means of reporting specific conditions and
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
 	#[pallet::event]
@@ -912,9 +911,9 @@ pub mod pallet {
 			main: T::AccountId,
 			proxy: T::AccountId,
 		},
-			OcexAuthoritySetChanged {
-				queued: Vec<T::OCEXId>
-			}
+		OcexAuthoritySetChanged {
+			queued: Vec<T::OCEXId>,
+		},
 	}
 
 	// A map that has enumerable entries.
@@ -975,6 +974,12 @@ pub mod pallet {
 	pub(super) type WhitelistedEnclaves<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, bool, ValueQuery>;
 
+	// Reports in process of approval
+	#[pallet::storage]
+	#[pallet::getter(fn get_unverified_reports)]
+	pub(super) type UnverifiedReports<T: Config> =
+		StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<AuthorityId>, ValueQuery>;
+
 	// Queue for enclave ingress messages
 	#[pallet::storage]
 	#[pallet::getter(fn ingress_messages)]
@@ -1008,20 +1013,18 @@ pub mod pallet {
 	/// Authorities set of current session
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]
-	pub(super) type Authorities<T: Config> =
-	StorageValue<_, sp_std::vec::Vec<T::OCEXId>, ValueQuery>;
+	pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::OCEXId>, ValueQuery>;
 
 	/// Authorities set of next session
 	#[pallet::storage]
 	#[pallet::getter(fn next_authorities)]
-	pub(super) type NextAuthorities<T: Config> =
-	StorageValue<_, sp_std::vec::Vec<T::OCEXId>, ValueQuery>;
+	pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::OCEXId>, ValueQuery>;
 
 	/// The current validator set id
 	#[pallet::storage]
 	#[pallet::getter(fn validator_set_id)]
 	pub(super) type ValidatorSetId<T: Config> =
-	StorageValue<_, ocex_primitives::ValidatorSetId, ValueQuery>;
+		StorageValue<_, ocex_primitives::ValidatorSetId, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -1045,21 +1048,18 @@ impl<T: Config> Pallet<T> {
 					validators: new,
 					id: next_id,
 				})
-					.encode(),
+				.encode(),
 			);
 			<frame_system::Pallet<T>>::deposit_log(log);
-
 		}
 
-
-
 		<NextAuthorities<T>>::put(&queued);
-		Self::deposit_event(Event::OcexAuthoritySetChanged{queued});
+		Self::deposit_event(Event::OcexAuthoritySetChanged { queued });
 	}
 
 	fn initialize_authorities(authorities: &[T::OCEXId]) {
 		if authorities.is_empty() {
-			return;
+			return
 		}
 
 		assert!(<Authorities<T>>::get().is_empty(), "Authorities are already initialized!");
@@ -1068,7 +1068,6 @@ impl<T: Config> Pallet<T> {
 		<ValidatorSetId<T>>::put(0);
 		<NextAuthorities<T>>::put(authorities);
 	}
-
 
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
@@ -1098,8 +1097,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn unverified_reports(verifier: ocex_primitives::AuthorityId) -> bool {
-		true
+	pub fn unverified_reports(verifier: &AuthorityId) -> bool {
+		<UnverifiedReports<T>>::iter_values().any(|validators| validators.contains(verifier))
 	}
 
 	/// Return the current active OCEX validator set.
@@ -1116,16 +1115,16 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 	type Key = T::OCEXId;
 
 	fn on_genesis_session<'a, I: 'a>(validators: I)
-		where
-			I: Iterator<Item = (&'a T::AccountId, T::OCEXId)>,
+	where
+		I: Iterator<Item = (&'a T::AccountId, T::OCEXId)>,
 	{
 		let authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
 		Self::initialize_authorities(&authorities);
 	}
 
 	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
-		where
-			I: Iterator<Item = (&'a T::AccountId, T::OCEXId)>,
+	where
+		I: Iterator<Item = (&'a T::AccountId, T::OCEXId)>,
 	{
 		let next_authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
 		let next_queued_authorities = queued_validators.map(|(_, k)| k).collect::<Vec<_>>();
@@ -1158,7 +1157,7 @@ impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
 	type Public = T::OCEXId;
 }
 
-impl<T: Config> sp_runtime::traits::IsMember<T::OCEXId> for Pallet<T> {
+impl<T: Config> IsMember<T::OCEXId> for Pallet<T> {
 	fn is_member(authority_id: &T::OCEXId) -> bool {
 		Self::authorities().iter().any(|id| id == authority_id)
 	}

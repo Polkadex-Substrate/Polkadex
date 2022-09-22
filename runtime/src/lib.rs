@@ -1551,9 +1551,13 @@ impl_runtime_apis! {
 			OCEX::validator_set()
 		}
 		/// Submit approvals to OCEX pallet
-		fn submit_approve_enclave_report(approver: ocex_primitives::AuthorityId,
+		fn submit_approve_enclave_report(approver: &ocex_primitives::AuthorityId,
 			signature: ocex_primitives::AuthoritySignature) -> Result<(), ocex_primitives::SigningError>{
 			OCEX::submit_approve_enclave_report(approver,signature)
+		}
+		/// Get unapproved reports by us for verification and signing
+		fn get_unapproved_enclave_reports(approver: &ocex_primitives::AuthorityId) -> Vec<Vec<u8>> {
+			OCEX::get_unverified_reports().filter(|(_, approvers)| !approvers.contains(approver)).map((report, _) report).collect()
 		}
 	}
 

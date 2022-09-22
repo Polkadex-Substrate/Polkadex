@@ -21,8 +21,8 @@
 //! Used for internal error handling only
 
 use log::error;
+use ocex_primitives::ValidatorSetId;
 use sp_api::ApiError;
-use ocex_primitives::{ValidatorSetId};
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {

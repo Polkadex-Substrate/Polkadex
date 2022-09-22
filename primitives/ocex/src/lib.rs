@@ -23,9 +23,7 @@ use codec::{Codec, Decode, Encode};
 
 use scale_info::TypeInfo;
 
-
 use sp_std::prelude::*;
-
 
 /// Key type for THEA module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
@@ -35,8 +33,6 @@ pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
 
 /// A typedef for validator set id.
 pub type ValidatorSetId = u64;
-
-
 
 /// A set of OCEX authorities, a.k.a. validators.
 #[derive(Decode, Encode, Debug, PartialEq, Clone, TypeInfo)]
@@ -101,7 +97,9 @@ sp_api::decl_runtime_apis! {
 		/// Return the current active OCEX validator set
 		fn validator_set() -> ValidatorSet<AuthorityId>;
 		/// Submit approvals to OCEX pallet
-		fn submit_approve_enclave_report(approver: AuthorityId, signature: AuthoritySignature) -> Result<(), SigningError>;
+		fn submit_approve_enclave_report(approver: &AuthorityId, signature: AuthoritySignature, report: Vec<u8>) -> Result<(), SigningError>;
+		/// Get unapproved reports by us for verification and signing
+		fn get_unapproved_enclave_reports(approver: &AuthorityId) -> Vec<Vec<u8>>;
 	}
 }
 

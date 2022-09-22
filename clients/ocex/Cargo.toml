@@ -17,3 +17,7 @@ ocex-primitives = {path = "../../primitives/ocex"}
 futures = "0.3.24"
 log = "0.4.17"
 thiserror = "1.0.35"
+ias = { git = "https://github.com/fortanix/rust-sgx.git", features = ["client", "mbedtls"] }
+tokio = { version = "1.21.1", features = ["full"] }
+once_cell = "1.13.0"
+pkix = "0.1"
