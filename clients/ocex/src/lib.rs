@@ -205,7 +205,7 @@ where
 					// send approvals to OCEX pallet
 					match self.runtime.runtime_api().submit_approve_enclave_report(
 						&at,
-						&authority,
+						authority.clone(),
 						signature,
 						unapproved.clone(),
 					) {
@@ -253,7 +253,7 @@ where
 		})
 	}
 
-	pub async fn run(&mut self) {
+	pub async fn run(mut self) {
 		loop {
 			futures::select! {
 				notification = self.finality_notifications.next().fuse() => {

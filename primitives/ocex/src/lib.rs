@@ -97,7 +97,7 @@ sp_api::decl_runtime_apis! {
 		/// Return the current active OCEX validator set
 		fn validator_set() -> ValidatorSet<AuthorityId>;
 		/// Submit approvals to OCEX pallet
-		fn submit_approve_enclave_report(approver: &AuthorityId, signature: AuthoritySignature, report: Vec<u8>) -> Result<(), SigningError>;
+		fn submit_approve_enclave_report(approver: AuthorityId, signature: AuthoritySignature, report: Vec<u8>) -> Result<(), SigningError>;
 		/// Get unapproved reports by us for verification and signing
 		fn get_unapproved_enclave_reports(approver: &AuthorityId) -> Vec<Vec<u8>>;
 	}

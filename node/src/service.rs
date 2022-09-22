@@ -118,9 +118,9 @@ pub fn create_extrinsic(
 		extra,
 	)
 }
+use ocex_client::OCEXParams;
 use sc_network_common::service::NetworkEventStream;
 use sp_core::traits::SpawnEssentialNamed;
-use ocex_client::OCEXParams;
 
 #[allow(clippy::type_complexity)]
 pub fn new_partial(
@@ -494,7 +494,7 @@ pub fn new_full_base(
 		observer_enabled: false,
 		keystore: keystore.clone(),
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		local_role: role,
+		local_role: role.clone(),
 		protocol_name: grandpa_protocol_name,
 	};
 
@@ -525,22 +525,19 @@ pub fn new_full_base(
 	}
 
 	if role.is_authority() {
-		let params = OCEXParams{
+		let params = OCEXParams {
 			client: client.clone(),
 			backend,
 			runtime: client.clone(),
-			key_store: keystore
+			key_store: keystore,
 		};
-
-		let mut worker = ocex_client::OCEXWorker::new(params);
 
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"ocex-worker",
 			None,
-			worker.run()
+			ocex_client::OCEXWorker::new(params).run(),
 		)
 	}
-
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })

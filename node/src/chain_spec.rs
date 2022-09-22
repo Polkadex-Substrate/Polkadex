@@ -2,6 +2,7 @@ use frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use itertools::Itertools;
+use ocex_primitives::AuthorityId as OCEXId;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
@@ -52,8 +53,9 @@ pub(crate) fn session_keys(
 	babe: BabeId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
+	ocex: OCEXId,
 ) -> SessionKeys {
-	SessionKeys { grandpa, babe, im_online, authority_discovery }
+	SessionKeys { grandpa, babe, im_online, authority_discovery, ocex }
 }
 
 fn udon_testnet_config_genesis() -> GenesisConfig {
@@ -65,6 +67,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
+		OCEXId,
 	)> = vec![];
 	for idx in 1..4 {
 		let babe = sp_core::sr25519::Pair::from_string(
@@ -97,6 +100,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			BabeId::from(babe.public().into_account()),
 			ImOnlineId::from(imon.public().into_account()),
 			AuthorityDiscoveryId::from(audi.public().into_account()),
+			OCEXId::from(audi.public().into_account()),
 		));
 	}
 
@@ -157,7 +161,7 @@ where
 /// Helper function to generate stash, controller and session key from seed
 pub fn authority_keys_from_seed(
 	seed: &str,
-) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId, OCEXId) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
 		get_account_id_from_seed::<sr25519::Public>(seed),
@@ -165,6 +169,7 @@ pub fn authority_keys_from_seed(
 		get_from_seed::<BabeId>(seed),
 		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
+		get_from_seed::<OCEXId>(seed),
 	)
 }
 
@@ -235,6 +240,7 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
+		OCEXId,
 	)> = vec![
 		(
 			// 5Fbsd6WXDGiLTxunqeK5BATNiocfCqu9bS1yArVjCgeBLkVy
@@ -243,6 +249,9 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 			hex!["781ead1e2fa9ccb74b44c19d29cb2a7a4b5be3972927ae98cd3877523976a276"].into(),
 			// 5H4dmeetCqvLhFbXCQ9MrfHCu7RatJHrPYD71Jikdnt2VZeD
 			hex!["dd1f6928c778a52b605889acb99d627b3a9be9a42439c77bc00f1980d4f540ec"]
+				.unchecked_into(),
+			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
+			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
 				.unchecked_into(),
 			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
 			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
@@ -270,6 +279,9 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 				.unchecked_into(),
 			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
 			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
+				.unchecked_into(),
+			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
+			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
 				.unchecked_into(),
 		),
 	];
@@ -314,6 +326,7 @@ pub fn testnet_genesis(
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
+		OCEXId,
 	)>,
 	_initial_nominators: Vec<AccountId>,
 	development_accounts: Option<Vec<AccountId>>,
@@ -393,7 +406,13 @@ pub fn testnet_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+						session_keys(
+							x.2.clone(),
+							x.3.clone(),
+							x.4.clone(),
+							x.5.clone(),
+							x.6.clone(),
+						),
 					)
 				})
 				.collect::<Vec<_>>(),

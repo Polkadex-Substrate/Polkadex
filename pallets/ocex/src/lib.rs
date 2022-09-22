@@ -60,11 +60,9 @@ const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
-	use codec::EncodeLike;
 	use core::ops::Div;
 	use frame_support::{
 		pallet_prelude::*,
-		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
 			fungibles::{Inspect, Mutate},
@@ -73,8 +71,6 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::{offchain::CreateSignedTransaction, pallet_prelude::*};
-	use ias_verify::{verify_ias_report, SgxStatus};
-	use ocex_primitives::AuthorityId;
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -83,9 +79,9 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_application_crypto::{Public, RuntimeAppPublic};
+	use sp_application_crypto::RuntimeAppPublic;
 	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
+		traits::{IdentifyAccount, Saturating, Verify},
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
@@ -125,7 +121,6 @@ pub mod pallet {
 			+ RuntimeAppPublic
 			+ MaybeSerializeDeserialize
 			+ Ord
-			+ EncodeLike<ocex_primitives::crypto::Public>
 			+ MaxEncodedLen;
 
 		/// Balances Pallet
@@ -219,6 +214,8 @@ pub mod pallet {
 		TradingPairNotRegistered,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigCannotBeZero,
+		/// Client submitted report signature invalid
+		ReportSignatureInvalid,
 	}
 
 	#[pallet::hooks]
@@ -292,11 +289,35 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			approver: T::OCEXId,
 			signature: <T::OCEXId as RuntimeAppPublic>::Signature,
+			report: Vec<u8>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			// TODO: verify if signature from approver along with other params
-			// TODO: Verify if approver is in Self::authorities()
-			// TODO: Add the approval and check if 2/3rd approvals are collected.
+			// verify if signature from approver along with other params
+			ensure!(approver.verify(&report, &signature), Error::<T>::ReportSignatureInvalid);
+			if let Some(mut approvers) = <UnverifiedReports<T>>::get(&report) {
+				approvers.push(approver);
+				let len = approvers.len();
+				if len + len / 3 >= Self::authorities().len() {
+					// And then register if enough voted
+					let account_id = match T::AccountId::decode(&mut &report[368..400]) {
+						Ok(aid) => aid,
+						Err(_) => {
+							//ensure!(false, Error::<T>::SenderIsNotAttestedEnclave);
+							T::AccountId::decode(&mut &[0u8; 32].to_vec()[..]).unwrap()
+						},
+					};
+					let next_24h = <timestamp::Pallet<T>>::get()
+						.saturating_add(T::Moment::saturated_from(86_400_000u64));
+					<RegisteredEnclaves<T>>::mutate(&account_id, |v| {
+						*v = Some(T::Moment::saturated_from(next_24h));
+					});
+					<UnverifiedReports<T>>::remove(report);
+					Self::deposit_event(Event::EnclaveRegistered(
+						account_id,
+						T::Moment::saturated_from(86_400_000u64),
+					));
+				}
+			}
 			Ok(())
 		}
 
@@ -850,15 +871,37 @@ pub mod pallet {
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			// TODO: Allow all approve_enclave_report to pass through if signer is in the
 			// current session and they are not already voted.
+			let valid_tx = |provide, rng: u64| {
+				ValidTransaction::with_tag_prefix("thea-proc")
+					.priority(rng)
+					.and_provides([&(&provide, rng.to_be())])
+					.longevity(3)
+					.propagate(true)
+					.build()
+			};
 
-			// ANd then register if enought voted
-			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = Some(T::Moment::saturated_from(report.timestamp));
-			});
-			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
-			debug!("registered enclave at time =>{:?}", report.timestamp);
+			let valid_approve_enclave_report = |approver,
+			                                    signature,
+			                                    report|
+			 -> TransactionValidity {
+				if <UnverifiedReports<T>>::get(&report).is_some() &&
+					<Authorities<T>>::get().contains(&approver)
+				{
+					valid_tx(
+						(approver.clone(), signature, report),
+						<Authorities<T>>::get().iter().position(|n| n == &approver).unwrap_or(100)
+							as u64,
+					)
+				} else {
+					InvalidTransaction::Call.into()
+				}
+			};
 
-			todo!()
+			match call {
+				Self::Call::approve_enclave_report { approver, signature, report } =>
+					valid_approve_enclave_report(approver.clone(), signature, report),
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 
@@ -895,7 +938,7 @@ pub mod pallet {
 		OpenTradingPair {
 			pair: TradingPairConfig,
 		},
-		EnclaveRegistered(T::AccountId),
+		EnclaveRegistered(T::AccountId, T::Moment),
 		EnclaveWhitelisted(T::AccountId),
 		EnclaveCleanup(Vec<T::AccountId>),
 		TradingPairIsNotOperational,
@@ -976,9 +1019,8 @@ pub mod pallet {
 
 	// Reports in process of approval
 	#[pallet::storage]
-	#[pallet::getter(fn get_unverified_reports)]
 	pub(super) type UnverifiedReports<T: Config> =
-		StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<AuthorityId>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, Vec<u8>, Vec<T::OCEXId>, OptionQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]
@@ -1097,7 +1139,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn unverified_reports(verifier: &AuthorityId) -> bool {
+	pub fn unverified_reports(verifier: &T::OCEXId) -> bool {
 		<UnverifiedReports<T>>::iter_values().any(|validators| validators.contains(verifier))
 	}
 
@@ -1108,6 +1150,10 @@ impl<T: Config> Pallet<T> {
 			validators: Self::authorities(),
 			id: current_set_id,
 		}
+	}
+
+	pub fn get_unverified_reports() -> Vec<(Vec<u8>, Vec<T::OCEXId>)> {
+		<UnverifiedReports<T>>::iter().collect()
 	}
 }
 

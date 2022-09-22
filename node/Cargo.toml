@@ -84,7 +84,8 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-asset-tx-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-ocex-client = {path="../clients/ocex"}
+ocex-client = { path = "../clients/ocex" }
+ocex-primitives = { path = "../primitives/ocex" }
 
 #Primitives
 polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }

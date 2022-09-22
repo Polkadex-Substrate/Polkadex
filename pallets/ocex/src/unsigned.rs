@@ -18,18 +18,19 @@
 
 use crate::{Call, Config, Pallet};
 use frame_system::offchain::SubmitTransaction;
-use sp_runtime::RuntimeAppPublic;
 use ocex_primitives::SigningError;
+use sp_runtime::RuntimeAppPublic;
+use sp_std::vec::Vec;
 
 impl<T: Config> Pallet<T> {
-    pub fn submit_approve_enclave_report(
-        // TODO: @Ivan, please configure the params accordingly
-        approver: T::OCEXId,
-        signature: <T::OCEXId as RuntimeAppPublic>::Signature,
-    ) -> Result<(), SigningError> {
-        let call = Call::approve_enclave_report {approver, signature };
-        SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-            .map_err(|_| SigningError::OffchainUnsignedTxError)
-    }
-
+	pub fn submit_approve_enclave_report(
+		// TODO: @Ivan, please configure the params accordingly
+		approver: T::OCEXId,
+		signature: <T::OCEXId as RuntimeAppPublic>::Signature,
+		report: Vec<u8>,
+	) -> Result<(), SigningError> {
+		let call = Call::approve_enclave_report { approver, signature, report };
+		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+			.map_err(|_| SigningError::OffchainUnsignedTxError)
+	}
 }
