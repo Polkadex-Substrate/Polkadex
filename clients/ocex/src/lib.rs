@@ -4,6 +4,7 @@ use sc_client_api::{Backend, BlockchainEvents, FinalityNotifications, Finalizer,
 use sp_api::{ ProvideRuntimeApi};
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::{Block};
+use ocex_primitives::OcexApi;
 
 /// OCEX client
 pub struct OCEXParams<C, BE, R> {
@@ -50,7 +51,7 @@ pub struct OCEXWorker<B, C, BE, R>
 		BE: Backend<B>,
 		C: Client<B, BE>,
 		R: ProvideRuntimeApi<B>,
-		// R::Api: OCEXApi<B>,
+		R::Api: OcexApi<B>,
 {
 	_client: Arc<C>,
 	#[allow(dead_code)]

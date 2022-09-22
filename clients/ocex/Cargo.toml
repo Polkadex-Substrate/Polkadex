@@ -10,3 +10,4 @@ sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "pol
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+ocex-primitives = {path = "../../primitives/ocex"}

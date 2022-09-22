@@ -84,9 +84,9 @@ pub type AuthorityIndex = u16;
 
 sp_api::decl_runtime_apis! {
 	/// API necessary for OCEX validators.
-	pub trait TheaApi {
-		// Get list of enclaves waiting for verification
-		// fn validator_set() -> ValidatorSet<AuthorityId>;
+	pub trait OcexApi {
+		// Get list of enclaves waiting for verification by this verifier
+		fn unverified_reports(verifier: AuthorityId) -> Vec<bool>;
 	}
 }
 
