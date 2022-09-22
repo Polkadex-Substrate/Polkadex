@@ -440,6 +440,15 @@ pub mod pallet {
 			u128::from_le_bytes(temp)
 		}
 
+		pub fn account_balances(assets: Vec<u128>, account_id: T::AccountId) -> Vec<u128> {
+			assets
+				.iter()
+				.map(|asset| {
+					<T as Config>::AssetManager::balance(*asset, &account_id).saturated_into()
+				})
+				.collect()
+		}
+
 		#[cfg(feature = "runtime-benchmarks")]
 		pub fn register_asset(rid: ResourceId) {
 			T::AssetManager::create(
