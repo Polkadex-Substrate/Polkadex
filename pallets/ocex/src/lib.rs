@@ -49,7 +49,7 @@ type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
-const MIN_CONFIG: u128 = 10000;
+const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -414,12 +414,12 @@ pub mod pallet {
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
-				min_order_price.saturated_into::<u128>() > MIN_CONFIG &&
-					min_order_qty.saturated_into::<u128>() > MIN_CONFIG &&
+				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
+					min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
 					min_order_price
 						.saturated_into::<u128>()
 						.saturating_mul(min_order_qty.saturated_into::<u128>()) >
-						MIN_CONFIG,
+						TRADE_OPERATION_MIN_VALUE,
 				Error::<T>::TradingPairConfigUnderflow
 			);
 
