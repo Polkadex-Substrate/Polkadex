@@ -4,6 +4,7 @@ panic = "unwind"
 [workspace]
 members = [
     "client",
+    "clients/ocex",
     "node",
     "runtime",
     "pallets/pdex-migration",
