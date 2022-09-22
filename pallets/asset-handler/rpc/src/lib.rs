@@ -15,7 +15,7 @@ const RUNTIME_ERROR: i32 = 1;
 
 #[rpc(client, server)]
 pub trait PolkadexAssetHandlerRpcApi<BlockHash, AccountId, Hash> {
-	#[method(name = "pallet_asset_handler_account_balances")]
+	#[method(name = "assethandler_accountbalances")]
 	fn account_balances(
 		&self,
 		assets: Vec<u128>,
