@@ -57,6 +57,7 @@ const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use crate::Error::{RemoteAttestationVerificationFailed, SenderIsNotAttestedEnclave};
 	use core::ops::Div;
 	use frame_support::{
 		pallet_prelude::*,
@@ -772,11 +773,11 @@ pub mod pallet {
 				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
 
 			// Check if enclave_signer is whitelisted
-			ensure!(
-				<WhitelistedEnclaves<T>>::get(&enclave_signer),
-				<Error<T>>::EnclaveNotWhitelisted
-			);
-
+			/*			ensure!(
+							<WhitelistedEnclaves<T>>::get(&enclave_signer),
+							<Error<T>>::EnclaveNotWhitelisted
+						);
+			*/
 			// TODO: any other checks we want to run?
 			ensure!(
 				(report.status == SgxStatus::Ok) |
