@@ -22,7 +22,7 @@ sp-runtime = { default-features = false, branch = "polkadot-v0.9.28", git = 'htt
 sp-std = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 polkadex-primitives = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate' }
-ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
+ias-verify = { default-features = false, version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
 rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
 
 [dev-dependencies]

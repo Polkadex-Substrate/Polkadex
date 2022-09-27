@@ -57,7 +57,7 @@ const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
-	use crate::Error::{RemoteAttestationVerificationFailed, SenderIsNotAttestedEnclave};
+
 	use core::ops::Div;
 	use frame_support::{
 		pallet_prelude::*,
