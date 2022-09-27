@@ -203,7 +203,7 @@ pub mod pallet {
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigCannotBeZero,
 		/// Precisions parameters not correctly set
-		PrecisionIncorrectlySet
+		PrecisionIncorrectlySet,
 	}
 
 	#[pallet::hooks]
@@ -421,11 +421,11 @@ pub mod pallet {
 			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
 				.div(&Decimal::from(UNIT_BALANCE));
 			ensure!(
-				(price_tick_size.scale() as u8) < quote_asset_precision,
+				(price_tick_size.scale() as u8) <= quote_asset_precision,
 				Error::<T>::PrecisionIncorrectlySet
 			);
 			ensure!(
-				(qty_step_size.scale() as u8) < base_asset_precision,
+				(qty_step_size.scale() as u8) <= base_asset_precision,
 				Error::<T>::PrecisionIncorrectlySet
 			);
 
@@ -439,15 +439,15 @@ pub mod pallet {
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				price_tick_size: price_tick_size,
+				price_tick_size,
 				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				qty_step_size: qty_step_size,
+				qty_step_size,
 				operational_status: true,
-				base_asset_precision: base_asset_precision,
-				quote_asset_precision: quote_asset_precision
+				base_asset_precision,
+				quote_asset_precision,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -526,11 +526,11 @@ pub mod pallet {
 			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
 				.div(&Decimal::from(UNIT_BALANCE));
 			ensure!(
-				(price_tick_size.scale() as u8) < quote_asset_precision,
+				(price_tick_size.scale() as u8) <= quote_asset_precision,
 				Error::<T>::PrecisionIncorrectlySet
 			);
 			ensure!(
-				(qty_step_size.scale() as u8) < base_asset_precision,
+				(qty_step_size.scale() as u8) <= base_asset_precision,
 				Error::<T>::PrecisionIncorrectlySet
 			);
 			let trading_pair_info = TradingPairConfig {
@@ -540,15 +540,15 @@ pub mod pallet {
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				price_tick_size: price_tick_size,
+				price_tick_size,
 				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				qty_step_size: qty_step_size,
+				qty_step_size,
 				operational_status: true,
-				base_asset_precision: base_asset_precision,
-				quote_asset_precision: quote_asset_precision
+				base_asset_precision,
+				quote_asset_precision,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
