@@ -362,7 +362,7 @@ pub mod pallet {
 			price_tick_size: BalanceOf<T>,
 			qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
+			//T::GovernanceOrigin::ensure_origin(origin)?;
 
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
