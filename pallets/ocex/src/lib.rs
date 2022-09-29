@@ -218,7 +218,6 @@ pub mod pallet {
 		AllowlistedTokenRemoved,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
-
 	}
 
 	#[pallet::hooks]

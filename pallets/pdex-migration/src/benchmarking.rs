@@ -1,6 +1,6 @@
 //! Benchmarking setup for pallet-template
 
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, allowlisted_caller};
+use frame_benchmarking::{account, allowlisted_caller, benchmarks, impl_benchmark_test_suite};
 use frame_support::{assert_ok, pallet_prelude::*, traits::Get};
 use frame_system::{pallet_prelude::*, RawOrigin};
 use rand::{RngCore, SeedableRng};

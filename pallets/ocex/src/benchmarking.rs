@@ -18,7 +18,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
-use frame_benchmarking::{benchmarks, allowlisted_caller};
+use frame_benchmarking::{allowlisted_caller, benchmarks};
 use frame_system::RawOrigin;
 
 benchmarks! {
