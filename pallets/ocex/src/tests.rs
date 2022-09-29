@@ -199,9 +199,9 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 				Origin::root(),
 				AssetId::polkadex,
 				AssetId::polkadex,
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
@@ -274,9 +274,9 @@ fn test_register_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -408,9 +408,9 @@ fn test_update_trading_pair_amount_overflow() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
+			10001_u128.into(),
 			100_u128.into(),
-			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -515,9 +515,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -528,9 +528,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(10),
 				AssetId::asset(20),
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
@@ -543,9 +543,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(20),
 				AssetId::asset(10),
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
+				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
@@ -562,9 +562,9 @@ fn test_update_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -574,9 +574,9 @@ fn test_update_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -652,15 +652,35 @@ fn test_update_trading_pair_bad_origin() {
 }
 
 #[test]
+fn test_register_trading_pair_volume_too_low() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::polkadex,
+				AssetId::asset(1),
+				10000_u128.into(),
+				100_u128.into(),
+				10000_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into(),
+			),
+			Error::<Test>::TradingPairConfigUnderflow
+		);
+	});
+}
+
+#[test]
 fn test_update_trading_pair_value_zero() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -855,9 +875,9 @@ fn test_open_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
@@ -929,9 +949,9 @@ fn test_close_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
-			1_u128.into(),
+			10001_u128.into(),
 			100_u128.into(),
 			100_u128.into(),
 			10_u128.into()
