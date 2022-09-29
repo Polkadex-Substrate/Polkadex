@@ -417,6 +417,18 @@ pub mod pallet {
 			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
 				.div(&Decimal::from(UNIT_BALANCE));
 
+			//enclave will only support min volume of 10^-8
+			//if trading pairs volume falls below it will pass a UnderFlow Error
+			ensure!(
+				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
+					min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
+					min_order_price
+						.saturated_into::<u128>()
+						.saturating_mul(min_order_qty.saturated_into::<u128>()) >
+						TRADE_OPERATION_MIN_VALUE,
+				Error::<T>::TradingPairConfigUnderflow
+			);
+
 			// TODO: Check if base and quote assets are enabled for deposits
 			// Decimal::from() here is infallable as we ensure provided parameters do not exceed
 			// Decimal::MAX
@@ -526,10 +538,8 @@ pub mod pallet {
 					.div(&Decimal::from(UNIT_BALANCE)),
 				qty_step_size,
 				operational_status: true,
-				base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be
-				                                                      * greater u8::MAX */
-				quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be
-				                                                     * greater than u8::MAX */
+				base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be                                                    * greater u8::MAX */
+				quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be                                                    * greater than u8::MAX */
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -640,20 +650,22 @@ pub mod pallet {
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			let current_snapshot_nonce = snapshot.snapshot_number;
-			ensure!(
-				<OnChainEvents<T>>::try_mutate(|onchain_events| {
-					onchain_events.try_push(
-						polkadex_primitives::ocex::OnChainEvents::GetStorage(
-							polkadex_primitives::ocex::Pallet::OCEX,
-							polkadex_primitives::ocex::StorageItem::Withdrawal,
-							snapshot.snapshot_number,
-						),
-					)?;
-					Ok::<(), ()>(())
-				})
-				.is_ok(),
-				Error::<T>::OnchainEventsBoundedVecOverflow
-			);
+			if snapshot.withdrawals.keys().len() > 0 {
+				ensure!(
+					<OnChainEvents<T>>::try_mutate(|onchain_events| {
+						onchain_events.try_push(
+							polkadex_primitives::ocex::OnChainEvents::GetStorage(
+								polkadex_primitives::ocex::Pallet::OCEX,
+								polkadex_primitives::ocex::StorageItem::Withdrawal,
+								snapshot.snapshot_number,
+							),
+						)?;
+						Ok::<(), ()>(())
+					})
+					.is_ok(),
+					Error::<T>::OnchainEventsBoundedVecOverflow
+				);
+			}
 			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
 			<FeesCollected<T>>::insert(current_snapshot_nonce, snapshot.fees.clone());
 			snapshot.withdrawals = Default::default();

@@ -319,7 +319,7 @@ fn test_register_trading_pair_amount_overflow() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -334,7 +334,7 @@ fn test_register_trading_pair_amount_overflow() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -349,22 +349,7 @@ fn test_register_trading_pair_amount_overflow() {
 				DEPOSIT_MAX + 1,
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
-			),
-			Error::<Test>::AmountOverflow
-		);
-
-		assert_noop!(
-			OCEX::register_trading_pair(
-				Origin::root(),
-				AssetId::asset(10),
-				AssetId::asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -377,9 +362,9 @@ fn test_register_trading_pair_amount_overflow() {
 				100_u128.into(),
 				100_u128.into(),
 				1_u128.into(),
-				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				10_u128.into(),
+				100_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -393,8 +378,23 @@ fn test_register_trading_pair_amount_overflow() {
 				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
-				100_u128.into(),
 				DEPOSIT_MAX + 1,
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -426,7 +426,7 @@ fn test_update_trading_pair_amount_overflow() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -441,7 +441,7 @@ fn test_update_trading_pair_amount_overflow() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -456,22 +456,7 @@ fn test_update_trading_pair_amount_overflow() {
 				DEPOSIT_MAX + 1,
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
-			),
-			Error::<Test>::AmountOverflow
-		);
-
-		assert_noop!(
-			OCEX::update_trading_pair(
-				Origin::root(),
-				AssetId::asset(10),
-				AssetId::asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -484,9 +469,9 @@ fn test_update_trading_pair_amount_overflow() {
 				100_u128.into(),
 				100_u128.into(),
 				1_u128.into(),
-				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				10_u128.into(),
+				100_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -500,8 +485,23 @@ fn test_update_trading_pair_amount_overflow() {
 				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
-				100_u128.into(),
 				DEPOSIT_MAX + 1,
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				DEPOSIT_MAX + 1
 			),
 			Error::<Test>::AmountOverflow
 		);
@@ -533,7 +533,7 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::TradingPairAlreadyRegistered
 		);
@@ -548,7 +548,7 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::TradingPairAlreadyRegistered
 		);
@@ -609,7 +609,7 @@ fn test_update_trading_pair_trading_pair_not_registered() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			Error::<Test>::TradingPairNotRegistered
 		);
@@ -630,7 +630,7 @@ fn test_update_trading_pair_bad_origin() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			BadOrigin
 		);
@@ -644,7 +644,7 @@ fn test_update_trading_pair_bad_origin() {
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
-				10_u128.into(),
+				10_u128.into()
 			),
 			BadOrigin
 		);
