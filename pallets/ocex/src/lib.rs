@@ -49,6 +49,7 @@ type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
+const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -202,6 +203,8 @@ pub mod pallet {
 		TradingPairNotRegistered,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigCannotBeZero,
+		/// Trading Pair config value cannot be set to zero
+		TradingPairConfigUnderflow,
 	}
 
 	#[pallet::hooks]
