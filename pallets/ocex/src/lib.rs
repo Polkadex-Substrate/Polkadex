@@ -202,8 +202,6 @@ pub mod pallet {
 		TradingPairNotRegistered,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigCannotBeZero,
-		/// Precisions parameters not correctly set
-		PrecisionIncorrectlySet,
 	}
 
 	#[pallet::hooks]
@@ -363,8 +361,6 @@ pub mod pallet {
 			max_order_qty: BalanceOf<T>,
 			price_tick_size: BalanceOf<T>,
 			qty_step_size: BalanceOf<T>,
-			base_asset_precision: u8,
-			quote_asset_precision: u8,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
@@ -420,14 +416,6 @@ pub mod pallet {
 				.div(&Decimal::from(UNIT_BALANCE));
 			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
 				.div(&Decimal::from(UNIT_BALANCE));
-			ensure!(
-				(price_tick_size.scale() as u8) <= quote_asset_precision,
-				Error::<T>::PrecisionIncorrectlySet
-			);
-			ensure!(
-				(qty_step_size.scale() as u8) <= base_asset_precision,
-				Error::<T>::PrecisionIncorrectlySet
-			);
 
 			// TODO: Check if base and quote assets are enabled for deposits
 			// Decimal::from() here is infallable as we ensure provided parameters do not exceed
@@ -446,8 +434,8 @@ pub mod pallet {
 					.div(&Decimal::from(UNIT_BALANCE)),
 				qty_step_size,
 				operational_status: true,
-				base_asset_precision,
-				quote_asset_precision,
+				base_asset_precision: qty_step_size.scale() as u8,
+				quote_asset_precision: price_tick_size.scale() as u8,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -473,8 +461,6 @@ pub mod pallet {
 			max_order_qty: BalanceOf<T>,
 			price_tick_size: BalanceOf<T>,
 			qty_step_size: BalanceOf<T>,
-			base_asset_precision: u8,
-			quote_asset_precision: u8,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
@@ -525,14 +511,7 @@ pub mod pallet {
 				.div(&Decimal::from(UNIT_BALANCE));
 			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
 				.div(&Decimal::from(UNIT_BALANCE));
-			ensure!(
-				(price_tick_size.scale() as u8) <= quote_asset_precision,
-				Error::<T>::PrecisionIncorrectlySet
-			);
-			ensure!(
-				(qty_step_size.scale() as u8) <= base_asset_precision,
-				Error::<T>::PrecisionIncorrectlySet
-			);
+
 			let trading_pair_info = TradingPairConfig {
 				base_asset: base,
 				quote_asset: quote,
@@ -547,8 +526,10 @@ pub mod pallet {
 					.div(&Decimal::from(UNIT_BALANCE)),
 				qty_step_size,
 				operational_status: true,
-				base_asset_precision,
-				quote_asset_precision,
+				base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be
+				                                                      * greater u8::MAX */
+				quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be
+				                                                     * greater than u8::MAX */
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
