@@ -688,7 +688,7 @@ fn test_deposit_unknown_asset() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		let asset_id = AssetId::asset(10);
-		whitelist_token(asset_id);
+		allowlist_token(asset_id);
 		assert_noop!(
 			OCEX::deposit(Origin::signed(account_id.clone().into()), asset_id, 100_u128.into()),
 			TokenError::UnknownAsset
@@ -717,7 +717,7 @@ fn test_deposit() {
 			10000000000000000000000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
-		whitelist_token(AssetId::polkadex);
+		allowlist_token(AssetId::polkadex);
 		assert_ok!(OCEX::deposit(
 			Origin::signed(account_id.clone().into()),
 			AssetId::polkadex,
@@ -755,7 +755,7 @@ fn test_deposit_large_value() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
-		whitelist_token(AssetId::polkadex);
+		allowlist_token(AssetId::polkadex);
 		assert_noop!(
 			OCEX::deposit(
 				Origin::signed(account_id.clone().into()),
@@ -779,7 +779,7 @@ fn test_deposit_assets_overflow() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
-		whitelist_token(AssetId::polkadex);
+		allowlist_token(AssetId::polkadex);
 		assert_ok!(OCEX::deposit(
 			Origin::signed(account_id.clone().into()),
 			AssetId::polkadex,
@@ -1220,14 +1220,14 @@ fn test_submit_snapshot() {
 }
 
 #[test]
-fn test_register_enclave_not_whitelist() {
+fn test_register_enclave_not_allowlist() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
 		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
 		assert_noop!(
 			OCEX::register_enclave(Origin::signed(account_id.clone()), TEST4_SETUP.cert.to_vec()),
-			Error::<Test>::EnclaveNotWhitelisted
+			Error::<Test>::EnclaveNotAllowlisted
 		);
 	});
 }
@@ -1239,7 +1239,7 @@ fn test_register_enclave() {
 	new_test_ext().execute_with(|| {
 		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
 		let enclave_account_id = create_signer::<Test>();
-		assert_ok!(OCEX::whitelist_enclave(Origin::root(), enclave_account_id));
+		assert_ok!(OCEX::allowlist_enclave(Origin::root(), enclave_account_id));
 
 		assert_ok!(OCEX::register_enclave(
 			Origin::signed(account_id.clone()),
@@ -1249,23 +1249,23 @@ fn test_register_enclave() {
 }
 
 #[test]
-fn test_whitelist_enclave() {
+fn test_allowlist_enclave() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::whitelist_enclave(Origin::root(), account_id));
+		assert_ok!(OCEX::allowlist_enclave(Origin::root(), account_id));
 	});
 }
 
 #[test]
-fn test_whitelist_enclave_bad_origin() {
+fn test_allowlist_enclave_bad_origin() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::whitelist_enclave(Origin::none(), account_id.clone()), BadOrigin);
+		assert_noop!(OCEX::allowlist_enclave(Origin::none(), account_id.clone()), BadOrigin);
 
 		assert_noop!(
-			OCEX::whitelist_enclave(Origin::signed(account_id.clone()), account_id),
+			OCEX::allowlist_enclave(Origin::signed(account_id.clone()), account_id),
 			BadOrigin
 		);
 	});
@@ -1510,42 +1510,42 @@ fn test_unregister_timed_out_enclaves() {
 }
 
 #[test]
-pub fn test_whitelist_and_blacklist_token() {
+pub fn test_allowlist_and_blacklist_token() {
 	new_test_ext().execute_with(|| {
 		let account_id = create_account_id();
 		let new_token = AssetId::asset(1);
-		assert_ok!(OCEX::whitelist_token(Origin::root(), new_token));
-		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
-		assert!(whitelisted_tokens.contains(&new_token));
-		assert_ok!(OCEX::remove_whitelisted_token(Origin::root(), new_token));
-		let whitelisted_tokens = <WhitelistedToken<Test>>::get();
-		assert!(!whitelisted_tokens.contains(&new_token));
+		assert_ok!(OCEX::allowlist_token(Origin::root(), new_token));
+		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
+		assert!(allowlisted_tokens.contains(&new_token));
+		assert_ok!(OCEX::remove_allowlisted_token(Origin::root(), new_token));
+		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
+		assert!(!allowlisted_tokens.contains(&new_token));
 	});
 }
 
 #[test]
-pub fn test_whitelist_with_limit_reaching_returns_error() {
+pub fn test_allowlist_with_limit_reaching_returns_error() {
 	new_test_ext().execute_with(|| {
 		let account_id = create_account_id();
-		let mut whitelisted_assets: BoundedBTreeSet<AssetId, WhitelistedTokenLimit> =
+		let mut allowlisted_assets: BoundedBTreeSet<AssetId, AllowlistedTokenLimit> =
 			BoundedBTreeSet::new();
 		for ele in 0..50 {
-			assert_ok!(whitelisted_assets.try_insert(AssetId::asset(ele)));
+			assert_ok!(allowlisted_assets.try_insert(AssetId::asset(ele)));
 		}
-		assert_eq!(whitelisted_assets.len(), 50);
-		<WhitelistedToken<Test>>::put(whitelisted_assets);
+		assert_eq!(allowlisted_assets.len(), 50);
+		<AllowlistedToken<Test>>::put(allowlisted_assets);
 		let new_token = AssetId::asset(100);
 		assert_noop!(
-			OCEX::whitelist_token(Origin::root(), new_token),
-			Error::<Test>::WhitelistedTokenLimitReached
+			OCEX::allowlist_token(Origin::root(), new_token),
+			Error::<Test>::AllowlistedTokenLimitReached
 		);
 	});
 }
 
-fn whitelist_token(token: AssetId) {
-	let mut whitelisted_token = <WhitelistedToken<Test>>::get();
-	whitelisted_token.try_insert(token);
-	<WhitelistedToken<Test>>::put(whitelisted_token);
+fn allowlist_token(token: AssetId) {
+	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
+	allowlisted_token.try_insert(token);
+	<AllowlistedToken<Test>>::put(allowlisted_token);
 }
 
 fn mint_into_account(account_id: AccountId32) {

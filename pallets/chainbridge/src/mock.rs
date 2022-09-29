@@ -132,8 +132,8 @@ pub fn new_test_ext_initialized(
 		assert_ok!(Bridge::add_relayer(Origin::root(), RELAYER_A));
 		assert_ok!(Bridge::add_relayer(Origin::root(), RELAYER_B));
 		assert_ok!(Bridge::add_relayer(Origin::root(), RELAYER_C));
-		// Whitelist chain
-		assert_ok!(Bridge::whitelist_chain(Origin::root(), src_id));
+		// Allowlist chain
+		assert_ok!(Bridge::allowlist_chain(Origin::root(), src_id));
 		// Set and check resource ID mapped to some junk data
 		assert_ok!(Bridge::set_resource(Origin::root(), r_id, resource));
 		assert_eq!(Bridge::resource_exists(r_id), true);
