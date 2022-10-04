@@ -70,9 +70,9 @@ pub mod pallet {
 		}
 	}
 	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode)]
-	pub struct WhitelistedTokenLimit;
+	pub struct AllowlistedTokenLimit;
 
-	impl Get<u32> for WhitelistedTokenLimit {
+	impl Get<u32> for AllowlistedTokenLimit {
 		fn get() -> u32 {
 			50 // TODO: Arbitrary value
 		}
@@ -104,11 +104,11 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
-	///Whitelisted tokens
+	///Allowlisted tokens
 	#[pallet::storage]
-	#[pallet::getter(fn get_whitelisted_token)]
-	pub(super) type WhitelistedToken<T: Config> =
-		StorageValue<_, BoundedBTreeSet<H160, WhitelistedTokenLimit>, ValueQuery>;
+	#[pallet::getter(fn get_allowlisted_token)]
+	pub(super) type AllowlistedToken<T: Config> =
+		StorageValue<_, BoundedBTreeSet<H160, AllowlistedTokenLimit>, ValueQuery>;
 
 	/// List of relayers who can relay data from Ethereum
 	#[pallet::storage]
@@ -156,10 +156,10 @@ pub mod pallet {
 		BlocksDelayUpdated(T::BlockNumber),
 		/// FungibleTransferFailed
 		FungibleTransferFailed,
-		/// This token got whitelisted
-		WhitelistedTokenAdded(H160),
-		/// This token got removed from Whitelisted Tokens
-		WhitelistedTokenRemoved(H160),
+		/// This token got allowlisted
+		AllowlistedTokenAdded(H160),
+		/// This token got removed from Allowlisted Tokens
+		AllowlistedTokenRemoved(H160),
 	}
 
 	// Errors inform users that something went wrong.
@@ -169,8 +169,8 @@ pub mod pallet {
 		NotOperational,
 		/// MinterMustBeRelayer
 		MinterMustBeRelayer,
-		/// ChainIsNotWhitelisted
-		ChainIsNotWhitelisted,
+		/// ChainIsNotAllowlisted
+		ChainIsNotAllowlisted,
 		/// NotEnoughBalance
 		NotEnoughBalance,
 		/// DestinationAddressNotValid
@@ -183,12 +183,14 @@ pub mod pallet {
 		ConversionIssue,
 		/// BridgeDeactivated
 		BridgeDeactivated,
-		/// Whitelisted token limit reached
-		WhitelistedTokenLimitReached,
-		/// This token is not Whitelisted
-		TokenNotWhitelisted,
-		/// This token was whitelisted but got removed and is not valid anymore
-		WhitelistedTokenRemoved,
+		/// Allowlisted token limit reached
+		AllowlistedTokenLimitReached,
+		/// This token is not Allowlisted
+		TokenNotAllowlisted,
+		/// This token was allowlisted but got removed and is not valid anymore
+		AllowlistedTokenRemoved,
+		/// Division Overflow
+		DivisionOverflow,
 	}
 
 	#[pallet::hooks]
@@ -198,19 +200,25 @@ pub mod pallet {
 			let withdrawal_execution_block =
 				n.saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
 			if !withdrawal_execution_block.is_zero() {
-				let pending_withdrawals = <PendingWithdrawals<T>>::get(withdrawal_execution_block);
-				for withdrawal in pending_withdrawals {
+				let mut pending_withdrawals =
+					<PendingWithdrawals<T>>::take(withdrawal_execution_block);
+				for withdrawal in 0..pending_withdrawals.len() {
 					if chainbridge::Pallet::<T>::transfer_fungible(
-						withdrawal.chain_id,
-						withdrawal.rid,
-						withdrawal.recipient.0.to_vec(),
-						Self::convert_balance_to_eth_type(withdrawal.amount),
+						pending_withdrawals[withdrawal].chain_id,
+						pending_withdrawals[withdrawal].rid,
+						pending_withdrawals[withdrawal].recipient.0.to_vec(),
+						Self::convert_balance_to_eth_type(pending_withdrawals[withdrawal].amount),
 					)
-					.is_err()
+					.is_ok()
 					{
+						// Remove succesfull transfers
+						pending_withdrawals.remove(withdrawal);
+					} else {
 						Self::deposit_event(Event::<T>::FungibleTransferFailed);
 					}
 				}
+				// Write back to storage item
+				<PendingWithdrawals<T>>::insert(withdrawal_execution_block, pending_withdrawals);
 			}
 			// TODO: Benchmark on initialize
 			(195_000_000 as Weight)
@@ -336,12 +344,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			ensure!(
-				<WhitelistedToken<T>>::get().contains(&contract_add),
-				Error::<T>::TokenNotWhitelisted
+				<AllowlistedToken<T>>::get().contains(&contract_add),
+				Error::<T>::TokenNotAllowlisted
 			);
 			ensure!(
-				chainbridge::Pallet::<T>::chain_whitelisted(chain_id),
-				Error::<T>::ChainIsNotWhitelisted
+				chainbridge::Pallet::<T>::chain_allowlisted(chain_id),
+				Error::<T>::ChainIsNotAllowlisted
 			);
 			ensure!(!<BridgeDeactivated<T>>::get(), Error::<T>::BridgeDeactivated);
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
@@ -355,7 +363,7 @@ pub mod pallet {
 					WithdrawalLimit::get().try_into().map_err(|_| Error::<T>::ConversionIssue)?,
 				Error::<T>::WithdrawalLimitReached
 			);
-			let fee = Self::fee_calculation(chain_id, amount);
+			let fee = Self::fee_calculation(chain_id, amount)?;
 
 			T::Currency::transfer(
 				&sender,
@@ -403,26 +411,26 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Whitelists Token
+		/// Allowlists Token
 		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
-		pub fn whitelist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
+		pub fn allowlist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
-			<WhitelistedToken<T>>::try_mutate(|whitelisted_tokens| {
-				whitelisted_tokens
+			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
+				allowlisted_tokens
 					.try_insert(token_add)
-					.map_err(|_| Error::<T>::WhitelistedTokenLimitReached)?;
-				Self::deposit_event(Event::<T>::WhitelistedTokenAdded(token_add));
+					.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
+				Self::deposit_event(Event::<T>::AllowlistedTokenAdded(token_add));
 				Ok(())
 			})
 		}
 
-		/// Remove whitelisted tokens
+		/// Remove allowlisted tokens
 		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
-		pub fn remove_whitelisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
+		pub fn remove_allowlisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
-			<WhitelistedToken<T>>::try_mutate(|whitelisted_tokens| {
-				whitelisted_tokens.remove(&token_add);
-				Self::deposit_event(Event::<T>::WhitelistedTokenRemoved(token_add));
+			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
+				allowlisted_tokens.remove(&token_add);
+				Self::deposit_event(Event::<T>::AllowlistedTokenRemoved(token_add));
 				Ok(())
 			})
 		}
@@ -434,13 +442,23 @@ pub mod pallet {
 			U256::from(balance).saturating_mul(U256::from(1000000u128))
 		}
 
-		fn fee_calculation(bridge_id: BridgeChainId, amount: BalanceOf<T>) -> BalanceOf<T> {
+		fn fee_calculation(
+			bridge_id: BridgeChainId,
+			amount: BalanceOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			let (min_fee, fee_scale) = Self::get_bridge_fee(bridge_id);
-			let fee_estimated = amount * fee_scale.into() / 1000u32.into();
-			if fee_estimated > min_fee {
-				fee_estimated
-			} else {
-				min_fee
+			let fee_estimated: u128 =
+				amount.saturating_mul(fee_scale.into()).unique_saturated_into();
+			match fee_estimated.checked_div(1000_u128) {
+				Some(fee_estimated) => {
+					let fee_estimated = fee_estimated.saturated_into();
+					if fee_estimated > min_fee {
+						Ok(fee_estimated)
+					} else {
+						Ok(min_fee)
+					}
+				},
+				None => Err(Error::<T>::DivisionOverflow.into()),
 			}
 		}
 

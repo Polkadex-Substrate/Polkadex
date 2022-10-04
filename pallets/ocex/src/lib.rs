@@ -58,7 +58,6 @@ const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
-	use core::ops::Div;
 	use frame_support::{
 		pallet_prelude::*,
 		sp_tracing::debug,
@@ -81,7 +80,7 @@ pub mod pallet {
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
-		SaturatedConversion,
+		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
 
@@ -97,6 +96,13 @@ pub mod pallet {
 		AssetsLimit,
 		SnapshotAccLimit,
 	>;
+
+	pub struct AllowlistedTokenLimit;
+	impl Get<u32> for AllowlistedTokenLimit {
+		fn get() -> u32 {
+			50 // TODO: Arbitrary value
+		}
+	}
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -155,7 +161,7 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub (super) trait Store)]
+	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -202,14 +208,24 @@ pub mod pallet {
 		OnchainEventsBoundedVecOverflow,
 		/// Overflow of Deposit amount
 		DepositOverflow,
-		/// Enclave not whitelisted
-		EnclaveNotWhitelisted,
+		/// Enclave not allowlisted
+		EnclaveNotAllowlisted,
 		/// Trading Pair is not registed for updating
 		TradingPairNotRegistered,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigCannotBeZero,
+		/// Limit reached to add allowlisted token
+		AllowlistedTokenLimitReached,
+		/// Given token is not allowlisted
+		TokenNotAllowlisted,
+		/// Given allowlisted token is removed
+		AllowlistedTokenRemoved,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
+		/// Unable to transfer fee
+		UnableToTransferFee,
+		/// Unable to execute collect fees fully
+		FeesNotCollectedFully,
 	}
 
 	#[pallet::hooks]
@@ -255,7 +271,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Registers a new account in orderbook
-		#[pallet::weight(< T as Config >::WeightInfo::register_main_account())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_main_account())]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(
@@ -278,7 +294,7 @@ pub mod pallet {
 		}
 
 		/// Adds a proxy account to a pre-registered main acocunt
-		#[pallet::weight(< T as Config >::WeightInfo::add_proxy_account())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
@@ -420,11 +436,6 @@ pub mod pallet {
 				Error::<T>::AmountOverflow
 			);
 
-			let price_tick_size = Decimal::from(price_tick_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
-			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
-
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
@@ -440,33 +451,56 @@ pub mod pallet {
 			// TODO: Check if base and quote assets are enabled for deposits
 			// Decimal::from() here is infallable as we ensure provided parameters do not exceed
 			// Decimal::MAX
-			let trading_pair_info = TradingPairConfig {
-				base_asset: base,
-				quote_asset: quote,
-				min_price: Decimal::from(min_order_price.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				price_tick_size,
-				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				qty_step_size,
-				operational_status: true,
-				base_asset_precision: qty_step_size.scale() as u8,
-				quote_asset_precision: price_tick_size.scale() as u8,
-			};
-			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(
-					polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
-						trading_pair_info,
-					),
-				);
-			});
-			Self::deposit_event(Event::TradingPairRegistered { base, quote });
-			Ok(())
+			match (
+				Decimal::from(min_order_price.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(max_order_price.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(price_tick_size.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(min_order_qty.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(max_order_qty.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(qty_step_size.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+			) {
+				(
+					Some(min_price),
+					Some(max_price),
+					Some(price_tick_size),
+					Some(min_qty),
+					Some(max_qty),
+					Some(qty_step_size),
+				) => {
+					let trading_pair_info = TradingPairConfig {
+						base_asset: base,
+						quote_asset: quote,
+						min_price,
+						max_price,
+						price_tick_size,
+						min_qty,
+						max_qty,
+						qty_step_size,
+						operational_status: true,
+						base_asset_precision: qty_step_size.scale() as u8,
+						quote_asset_precision: price_tick_size.scale() as u8,
+					};
+
+					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(
+							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+								trading_pair_info,
+							),
+						);
+					});
+					Self::deposit_event(Event::TradingPairRegistered { base, quote });
+					Ok(())
+				},
+				//passing Underflow error if checked_div fails
+				_ => Err(Error::<T>::TradingPairConfigUnderflow.into()),
+			}
 		}
 
 		/// Updates the trading pair config
@@ -531,11 +565,6 @@ pub mod pallet {
 				Error::<T>::AmountOverflow
 			);
 
-			let price_tick_size = Decimal::from(price_tick_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
-			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
-
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
@@ -548,50 +577,75 @@ pub mod pallet {
 				Error::<T>::TradingPairConfigUnderflow
 			);
 
-			let trading_pair_info = TradingPairConfig {
-				base_asset: base,
-				quote_asset: quote,
-				min_price: Decimal::from(min_order_price.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				price_tick_size,
-				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				qty_step_size,
-				operational_status: true,
-				base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be                                                    * greater u8::MAX */
-				quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be                                                    * greater than u8::MAX */
-			};
-			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(
-					polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
-						trading_pair_info,
-					),
-				);
-			});
-			Self::deposit_event(Event::TradingPairUpdated { base, quote });
-			Ok(())
+			match (
+				Decimal::from(min_order_price.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(max_order_price.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(price_tick_size.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(min_order_qty.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(max_order_qty.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(qty_step_size.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+			) {
+				(
+					Some(min_price),
+					Some(max_price),
+					Some(price_tick_size),
+					Some(min_qty),
+					Some(max_qty),
+					Some(qty_step_size),
+				) => {
+					let trading_pair_info = TradingPairConfig {
+						base_asset: base,
+						quote_asset: quote,
+						min_price,
+						max_price,
+						price_tick_size,
+						min_qty,
+						max_qty,
+						qty_step_size,
+						operational_status: true,
+						base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be                                                    * greater u8::MAX */
+						quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be                                                    * greater than u8::MAX */
+					};
+
+					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(
+							polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
+								trading_pair_info,
+							),
+						);
+					});
+					Self::deposit_event(Event::TradingPairUpdated { base, quote });
+
+					Ok(())
+				},
+				_ => Err(Error::<T>::TradingPairConfigUnderflow.into()),
+			}
 		}
 
 		/// Deposit Assets to Orderbook
-		#[pallet::weight(< T as Config >::WeightInfo::deposit())]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
 		pub fn deposit(
 			origin: OriginFor<T>,
 			asset: AssetId,
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			// Check if account is registered
 			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
 			// TODO: Check if asset is enabled for deposit
 
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
-			let converted_amount =
-				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
+			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
+				.checked_div(Decimal::from(UNIT_BALANCE))
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
 
 			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
 			// Get Storage Map Value
@@ -724,22 +778,39 @@ pub mod pallet {
 			// TODO: The caller should be of operational council
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
-			let fees: Vec<Fees> = <FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
-			for fee in fees {
-				if let Some(converted_fee) =
-					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-				{
-					Self::transfer_asset(
-						&Self::get_pallet_account(),
-						&beneficiary,
-						converted_fee.saturated_into(),
-						fee.asset,
-					)?;
-				// TODO: Remove the fees from storage if successful
-				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
-				}
-			}
+			ensure!(
+				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
+					while internal_vector.len() > 0 {
+						if let Some(fees) = internal_vector.pop() {
+							if let Some(converted_fee) =
+								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+							{
+								if Self::transfer_asset(
+									&Self::get_pallet_account(),
+									&beneficiary,
+									converted_fee.saturated_into(),
+									fees.asset,
+								)
+								.is_err()
+								{
+									// Push it back inside the internal vector
+									// The above function call will only fail if the beneficiary has
+									// balance below existential deposit requirements
+									internal_vector.try_push(fees).unwrap_or_default();
+									return Err(Error::<T>::UnableToTransferFee)
+								}
+							} else {
+								// Push it back inside the internal vector
+								internal_vector.try_push(fees).unwrap_or_default();
+								return Err(Error::<T>::FailedToConvertDecimaltoBalance)
+							}
+						}
+					}
+					Ok(())
+				})
+				.is_ok(),
+				Error::<T>::FeesNotCollectedFully
+			);
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
 			Ok(())
 		}
@@ -810,7 +881,7 @@ pub mod pallet {
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(< T as Config >::WeightInfo::register_enclave())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
@@ -821,10 +892,10 @@ pub mod pallet {
 			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
 				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
 
-			// Check if enclave_signer is whitelisted
+			// Check if enclave_signer is allowlisted
 			ensure!(
-				<WhitelistedEnclaves<T>>::get(&enclave_signer),
-				<Error<T>>::EnclaveNotWhitelisted
+				<AllowlistedEnclaves<T>>::get(&enclave_signer),
+				<Error<T>>::EnclaveNotAllowlisted
 			);
 
 			// TODO: any other checks we want to run?
@@ -841,17 +912,41 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// In order to register itself - enclave account id must be whitelisted and called by
+		/// Allowlist Token
+		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn allowlist_token(origin: OriginFor<T>, token_add: AssetId) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
+			allowlisted_tokens
+				.try_insert(token_add)
+				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
+			<AllowlistedToken<T>>::put(allowlisted_tokens);
+			Self::deposit_event(Event::<T>::TokenAllowlisted(token_add));
+			Ok(())
+		}
+
+		/// Remove Allowlisted Token
+		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn remove_allowlisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
+			allowlisted_tokens.remove(&token);
+			<AllowlistedToken<T>>::put(allowlisted_tokens);
+			Self::deposit_event(Event::<T>::AllowlistedTokenRemoved(token));
+			Ok(())
+		}
+
+		/// In order to register itself - enclave account id must be allowlisted and called by
 		/// Governance
-		#[pallet::weight(< T as Config >::WeightInfo::register_enclave())]
-		pub fn whitelist_enclave(
+		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		pub fn allowlist_enclave(
 			origin: OriginFor<T>,
 			enclave_account_id: T::AccountId,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			// It will just overwrite if account_id is already whitelisted
-			<WhitelistedEnclaves<T>>::insert(&enclave_account_id, true);
-			Self::deposit_event(Event::EnclaveWhitelisted(enclave_account_id));
+			// It will just overwrite if account_id is already allowlisted
+			<AllowlistedEnclaves<T>>::insert(&enclave_account_id, true);
+			Self::deposit_event(Event::EnclaveAllowlisted(enclave_account_id));
 			Ok(())
 		}
 	}
@@ -882,7 +977,7 @@ pub mod pallet {
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
 	#[pallet::event]
-	#[pallet::generate_deposit(pub (super) fn deposit_event)]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		FeesClaims {
 			beneficiary: T::AccountId,
@@ -912,7 +1007,7 @@ pub mod pallet {
 			pair: TradingPairConfig,
 		},
 		EnclaveRegistered(T::AccountId),
-		EnclaveWhitelisted(T::AccountId),
+		EnclaveAllowlisted(T::AccountId),
 		EnclaveCleanup(Vec<T::AccountId>),
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
@@ -927,7 +1022,17 @@ pub mod pallet {
 			main: T::AccountId,
 			proxy: T::AccountId,
 		},
+		/// TokenAllowlisted
+		TokenAllowlisted(AssetId),
+		/// AllowlistedTokenRemoved
+		AllowlistedTokenRemoved(AssetId),
 	}
+
+	///Allowlisted tokens
+	#[pallet::storage]
+	#[pallet::getter(fn get_allowlisted_token)]
+	pub(super) type AllowlistedToken<T: Config> =
+		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
 
 	// A map that has enumerable entries.
 	#[pallet::storage]
@@ -981,10 +1086,10 @@ pub mod pallet {
 	pub(super) type Withdrawals<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
 
-	// Whitelisted enclaves
+	// Allowlisted enclaves
 	#[pallet::storage]
-	#[pallet::getter(fn whitelisted_enclaves)]
-	pub(super) type WhitelistedEnclaves<T: Config> =
+	#[pallet::getter(fn allowlisted_enclaves)]
+	pub(super) type AllowlistedEnclaves<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, bool, ValueQuery>;
 
 	// Queue for enclave ingress messages

@@ -97,17 +97,17 @@ fn setup_resources() {
 }
 
 #[test]
-fn whitelist_chain() {
+fn allowlist_chain() {
 	new_test_ext().execute_with(|| {
-		assert!(!Bridge::chain_whitelisted(0));
+		assert!(!Bridge::chain_allowlisted(0));
 
-		assert_ok!(Bridge::whitelist_chain(Origin::root(), 0));
+		assert_ok!(Bridge::allowlist_chain(Origin::root(), 0));
 		assert_noop!(
-			Bridge::whitelist_chain(Origin::root(), TestChainId::get()),
+			Bridge::allowlist_chain(Origin::root(), TestChainId::get()),
 			Error::<Test>::InvalidChainId
 		);
 
-		assert_events(vec![Event::Bridge(PalletEvent::ChainWhitelisted(0))]);
+		assert_events(vec![Event::Bridge(PalletEvent::ChainAllowlisted(0))]);
 	})
 }
 
@@ -141,7 +141,7 @@ fn asset_transfer_success() {
 
 		assert_ok!(Bridge::set_threshold(Origin::root(), TEST_THRESHOLD,));
 
-		assert_ok!(Bridge::whitelist_chain(Origin::root(), dest_id.clone()));
+		assert_ok!(Bridge::allowlist_chain(Origin::root(), dest_id.clone()));
 		assert_ok!(Bridge::transfer_fungible(
 			dest_id.clone(),
 			resource_id.clone(),
@@ -149,7 +149,7 @@ fn asset_transfer_success() {
 			amount.into()
 		));
 		assert_events(vec![
-			Event::Bridge(PalletEvent::ChainWhitelisted(dest_id.clone())),
+			Event::Bridge(PalletEvent::ChainAllowlisted(dest_id.clone())),
 			Event::Bridge(PalletEvent::FungibleTransfer(
 				dest_id.clone(),
 				1,
@@ -196,22 +196,22 @@ fn asset_transfer_invalid_chain() {
 		let bad_dest_id = 3;
 		let resource_id = [4; 32];
 
-		assert_ok!(Bridge::whitelist_chain(Origin::root(), chain_id.clone()));
-		assert_events(vec![Event::Bridge(PalletEvent::ChainWhitelisted(chain_id.clone()))]);
+		assert_ok!(Bridge::allowlist_chain(Origin::root(), chain_id.clone()));
+		assert_events(vec![Event::Bridge(PalletEvent::ChainAllowlisted(chain_id.clone()))]);
 
 		assert_noop!(
 			Bridge::transfer_fungible(bad_dest_id, resource_id.clone(), vec![], U256::zero()),
-			Error::<Test>::ChainNotWhitelisted
+			Error::<Test>::ChainNotAllowlisted
 		);
 
 		assert_noop!(
 			Bridge::transfer_nonfungible(bad_dest_id, resource_id.clone(), vec![], vec![], vec![]),
-			Error::<Test>::ChainNotWhitelisted
+			Error::<Test>::ChainNotAllowlisted
 		);
 
 		assert_noop!(
 			Bridge::transfer_generic(bad_dest_id, resource_id.clone(), vec![]),
-			Error::<Test>::ChainNotWhitelisted
+			Error::<Test>::ChainNotAllowlisted
 		);
 	})
 }

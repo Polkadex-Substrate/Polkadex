@@ -22,6 +22,7 @@ use polkadex_primitives::{
 };
 use rust_decimal::prelude::FromPrimitive;
 use sp_application_crypto::sp_core::H256;
+use std::cmp::max;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
@@ -35,8 +36,8 @@ use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{
-	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedVec, DispatchError::BadOrigin,
-	TokenError,
+	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
+	DispatchError::BadOrigin, TokenError,
 };
 use std::sync::Arc;
 
@@ -759,16 +760,14 @@ fn test_update_trading_pair_value_zero() {
 fn test_deposit_unknown_asset() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
+		let asset_id = AssetId::asset(10);
+		allowlist_token(asset_id);
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone()
 		));
 		assert_noop!(
-			OCEX::deposit(
-				Origin::signed(account_id.clone().into()),
-				AssetId::asset(10),
-				100_u128.into()
-			),
+			OCEX::deposit(Origin::signed(account_id.clone().into()), asset_id, 100_u128.into()),
 			TokenError::UnknownAsset
 		);
 	});
@@ -816,6 +815,7 @@ fn test_deposit() {
 			10000000000000000000000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		allowlist_token(AssetId::polkadex);
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone()
@@ -857,6 +857,7 @@ fn test_deposit_large_value() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		allowlist_token(AssetId::polkadex);
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone()
@@ -884,6 +885,7 @@ fn test_deposit_assets_overflow() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		allowlist_token(AssetId::polkadex);
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone()
@@ -1106,6 +1108,21 @@ fn collect_fees_unexpected_behaviour() {
 			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
 		);
 	});
+}
+#[test]
+fn test_collect_fees_decimal_overflow() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		let max_fees = create_max_fees::<Test>();
+		FeesCollected::<Test>::insert::<u32, BoundedVec<Fees, AssetsLimit>>(
+			0,
+			bounded_vec![max_fees],
+		);
+		assert_noop!(
+			OCEX::collect_fees(Origin::root(), 0, account_id.into()),
+			Error::<Test>::FeesNotCollectedFully
+		);
+	})
 }
 
 #[test]
@@ -1359,14 +1376,14 @@ fn test_submit_snapshot() {
 }
 
 #[test]
-fn test_register_enclave_not_whitelist() {
+fn test_register_enclave_not_allowlist() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
 		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
 		assert_noop!(
 			OCEX::register_enclave(Origin::signed(account_id.clone()), TEST4_SETUP.cert.to_vec()),
-			Error::<Test>::EnclaveNotWhitelisted
+			Error::<Test>::EnclaveNotAllowlisted
 		);
 	});
 }
@@ -1378,7 +1395,7 @@ fn test_register_enclave() {
 	new_test_ext().execute_with(|| {
 		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
 		let enclave_account_id = create_signer::<Test>();
-		assert_ok!(OCEX::whitelist_enclave(Origin::root(), enclave_account_id));
+		assert_ok!(OCEX::allowlist_enclave(Origin::root(), enclave_account_id));
 
 		assert_ok!(OCEX::register_enclave(
 			Origin::signed(account_id.clone()),
@@ -1388,23 +1405,23 @@ fn test_register_enclave() {
 }
 
 #[test]
-fn test_whitelist_enclave() {
+fn test_allowlist_enclave() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::whitelist_enclave(Origin::root(), account_id));
+		assert_ok!(OCEX::allowlist_enclave(Origin::root(), account_id));
 	});
 }
 
 #[test]
-fn test_whitelist_enclave_bad_origin() {
+fn test_allowlist_enclave_bad_origin() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::whitelist_enclave(Origin::none(), account_id.clone()), BadOrigin);
+		assert_noop!(OCEX::allowlist_enclave(Origin::none(), account_id.clone()), BadOrigin);
 
 		assert_noop!(
-			OCEX::whitelist_enclave(Origin::signed(account_id.clone()), account_id),
+			OCEX::allowlist_enclave(Origin::signed(account_id.clone()), account_id),
 			BadOrigin
 		);
 	});
@@ -1648,6 +1665,45 @@ fn test_unregister_timed_out_enclaves() {
 	});
 }
 
+#[test]
+pub fn test_allowlist_and_blacklist_token() {
+	new_test_ext().execute_with(|| {
+		let account_id = create_account_id();
+		let new_token = AssetId::asset(1);
+		assert_ok!(OCEX::allowlist_token(Origin::root(), new_token));
+		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
+		assert!(allowlisted_tokens.contains(&new_token));
+		assert_ok!(OCEX::remove_allowlisted_token(Origin::root(), new_token));
+		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
+		assert!(!allowlisted_tokens.contains(&new_token));
+	});
+}
+
+#[test]
+pub fn test_allowlist_with_limit_reaching_returns_error() {
+	new_test_ext().execute_with(|| {
+		let account_id = create_account_id();
+		let mut allowlisted_assets: BoundedBTreeSet<AssetId, AllowlistedTokenLimit> =
+			BoundedBTreeSet::new();
+		for ele in 0..50 {
+			assert_ok!(allowlisted_assets.try_insert(AssetId::asset(ele)));
+		}
+		assert_eq!(allowlisted_assets.len(), 50);
+		<AllowlistedToken<Test>>::put(allowlisted_assets);
+		let new_token = AssetId::asset(100);
+		assert_noop!(
+			OCEX::allowlist_token(Origin::root(), new_token),
+			Error::<Test>::AllowlistedTokenLimitReached
+		);
+	});
+}
+
+fn allowlist_token(token: AssetId) {
+	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
+	allowlisted_token.try_insert(token);
+	<AllowlistedToken<Test>>::put(allowlisted_token);
+}
+
 fn mint_into_account(account_id: AccountId32) {
 	let _result = Balances::deposit_creating(&account_id, 10000000000000000000000);
 }
@@ -1743,6 +1799,11 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
 
 pub fn create_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
+	return fees
+}
+
+pub fn create_max_fees<T: Config>() -> Fees {
+	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::MAX };
 	return fees
 }
 

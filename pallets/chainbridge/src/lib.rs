@@ -143,7 +143,7 @@ pub mod pallet {
 		/// Vote threshold has changed (new_threshold)
 		RelayerThresholdChanged(u32),
 		/// Chain now available for transfers (chain_id)
-		ChainWhitelisted(BridgeChainId),
+		ChainAllowlisted(BridgeChainId),
 		/// Relayer added to set
 		RelayerAdded(T::AccountId),
 		/// Relayer removed from set
@@ -181,9 +181,9 @@ pub mod pallet {
 		/// Relayer threshold cannot be 0
 		InvalidThreshold,
 		/// Interactions with this chain is not permitted
-		ChainNotWhitelisted,
+		ChainNotAllowlisted,
 		/// Chain has already been enabled
-		ChainAlreadyWhitelisted,
+		ChainAlreadyAllowlisted,
 		/// Resource ID provided isn't mapped to anything
 		ResourceDoesNotExist,
 		///Resource already registered
@@ -312,9 +312,9 @@ pub mod pallet {
 		/// - O(1) lookup and insert
 		/// # </weight>
 		#[pallet::weight(195_000_000)]
-		pub fn whitelist_chain(origin: OriginFor<T>, id: BridgeChainId) -> DispatchResult {
+		pub fn allowlist_chain(origin: OriginFor<T>, id: BridgeChainId) -> DispatchResult {
 			T::BridgeCommitteeOrigin::ensure_origin(origin)?;
-			Self::whitelist(id)
+			Self::allowlist(id)
 		}
 
 		/// Adds a new relayer to the relayer set.
@@ -360,7 +360,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(Self::is_relayer(&who), Error::<T>::MustBeRelayer);
-			ensure!(Self::chain_whitelisted(src_id), Error::<T>::ChainNotWhitelisted);
+			ensure!(Self::chain_allowlisted(src_id), Error::<T>::ChainNotAllowlisted);
 			ensure!(Self::resource_exists(r_id), Error::<T>::ResourceDoesNotExist);
 
 			Self::vote_for(who, nonce, src_id, call)
@@ -381,7 +381,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(Self::is_relayer(&who), Error::<T>::MustBeRelayer);
-			ensure!(Self::chain_whitelisted(src_id), Error::<T>::ChainNotWhitelisted);
+			ensure!(Self::chain_allowlisted(src_id), Error::<T>::ChainNotAllowlisted);
 			ensure!(Self::resource_exists(r_id), Error::<T>::ResourceDoesNotExist);
 
 			Self::vote_against(who, nonce, src_id, call)
@@ -450,8 +450,8 @@ pub mod pallet {
 			Self::resources(id).is_some()
 		}
 
-		/// Checks if a chain exists as a whitelisted destination
-		pub fn chain_whitelisted(id: BridgeChainId) -> bool {
+		/// Checks if a chain exists as a allowlisted destination
+		pub fn chain_allowlisted(id: BridgeChainId) -> bool {
 			Self::chains(id).is_some()
 		}
 
@@ -484,14 +484,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Whitelist a chain ID for transfer
-		pub fn whitelist(id: BridgeChainId) -> DispatchResult {
-			// Cannot whitelist this chain
+		/// Allowlist a chain ID for transfer
+		pub fn allowlist(id: BridgeChainId) -> DispatchResult {
+			// Cannot allowlist this chain
 			ensure!(id != T::BridgeChainId::get(), Error::<T>::InvalidChainId);
-			// Cannot whitelist with an existing entry
-			ensure!(!Self::chain_whitelisted(id), Error::<T>::ChainAlreadyWhitelisted);
+			// Cannot allowlist with an existing entry
+			ensure!(!Self::chain_allowlisted(id), Error::<T>::ChainAlreadyAllowlisted);
 			ChainNonces::<T>::insert(id, 0);
-			Self::deposit_event(Event::ChainWhitelisted(id));
+			Self::deposit_event(Event::ChainAllowlisted(id));
 			Ok(())
 		}
 
@@ -626,7 +626,7 @@ pub mod pallet {
 			to: Vec<u8>,
 			amount: U256,
 		) -> DispatchResult {
-			ensure!(Self::chain_whitelisted(dest_id), Error::<T>::ChainNotWhitelisted);
+			ensure!(Self::chain_allowlisted(dest_id), Error::<T>::ChainNotAllowlisted);
 			let nonce = Self::bump_nonce(dest_id);
 			BridgeEvents::<T>::append(BridgeEvent::FungibleTransfer(
 				dest_id,
@@ -648,7 +648,7 @@ pub mod pallet {
 			to: Vec<u8>,
 			metadata: Vec<u8>,
 		) -> DispatchResult {
-			ensure!(Self::chain_whitelisted(dest_id), Error::<T>::ChainNotWhitelisted);
+			ensure!(Self::chain_allowlisted(dest_id), Error::<T>::ChainNotAllowlisted);
 			let nonce = Self::bump_nonce(dest_id);
 			BridgeEvents::<T>::append(BridgeEvent::NonFungibleTransfer(
 				dest_id,
@@ -676,7 +676,7 @@ pub mod pallet {
 			resource_id: ResourceId,
 			metadata: Vec<u8>,
 		) -> DispatchResult {
-			ensure!(Self::chain_whitelisted(dest_id), Error::<T>::ChainNotWhitelisted);
+			ensure!(Self::chain_allowlisted(dest_id), Error::<T>::ChainNotAllowlisted);
 			let nonce = Self::bump_nonce(dest_id);
 			BridgeEvents::<T>::append(BridgeEvent::GenericTransfer(
 				dest_id,
