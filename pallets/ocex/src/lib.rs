@@ -774,6 +774,7 @@ pub mod pallet {
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
+			Self::deposit_event(Event::ExchangeStateUpdated(state));
 			Ok(())
 		}
 
@@ -977,6 +978,8 @@ pub mod pallet {
 		TokenAllowlisted(AssetId),
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
+		/// Exchange state has been updated
+		ExchangeStateUpdated(bool),
 	}
 
 	///Allowlisted tokens
