@@ -774,10 +774,10 @@ pub mod pallet {
 						}
 						// Not removing key from BtreeMap so that failed withdrawals can still be
 						// tracked
-						return Ok(())
+						Ok(())
 					} else {
 						// This allows us to ensure we do not have someone with an invalid account
-						return Err(Error::<T>::InvalidWithdrawalIndex)
+						Err(Error::<T>::InvalidWithdrawalIndex)
 					}
 				})
 				.is_ok(),
