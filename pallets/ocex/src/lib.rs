@@ -442,7 +442,7 @@ pub mod pallet {
 			// TODO: Check if base and quote assets are enabled for deposits
 			// Decimal::from() here is infallable as we ensure provided parameters do not exceed
 			// Decimal::MAX
-			let result: DispatchResult = match (
+			match (
 				Decimal::from(min_order_price.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 				Decimal::from(max_order_price.saturated_into::<u128>())
@@ -491,8 +491,7 @@ pub mod pallet {
 				},
 				//passing Underflow error if checked_div fails
 				_ => Err(Error::<T>::TradingPairConfigUnderflow.into()),
-			};
-			result
+			}
 		}
 
 		/// Updates the trading pair config
@@ -565,7 +564,7 @@ pub mod pallet {
 				Error::<T>::TradingPairConfigUnderflow
 			);
 
-			let result: DispatchResult = match (
+			match (
 				Decimal::from(min_order_price.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 				Decimal::from(max_order_price.saturated_into::<u128>())
@@ -598,7 +597,7 @@ pub mod pallet {
 						qty_step_size,
 						operational_status: true,
 						base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be                                                    * greater u8::MAX */
-				quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be                                                    * greater than u8::MAX */
+						quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be                                                    * greater than u8::MAX */
 					};
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
@@ -614,8 +613,7 @@ pub mod pallet {
 					Ok(())
 				},
 				_ => Err(Error::<T>::TradingPairConfigUnderflow.into()),
-			};
-			result
+			}
 		}
 
 		/// Deposit Assets to Orderbook
