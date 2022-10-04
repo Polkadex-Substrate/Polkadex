@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-node"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2021"
@@ -24,9 +24,9 @@ serde = { version = "1.0.136", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.3.1"
 log = "0.4.8"
-rand = "0.7.2"
+rand = "0.8.5"
 clap = { version = "3.0", features = ["derive"] }
-parking_lot = "0.11.1"
+parking_lot = "0.12.1"
 itertools = "0.10.1"
 jsonrpsee = { version = "0.15.1", features = ["server"] }
 # local dependencies
