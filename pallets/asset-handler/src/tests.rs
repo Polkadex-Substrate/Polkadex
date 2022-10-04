@@ -38,7 +38,7 @@ pub fn test_create_asset_will_successfully_create_asset() {
 }
 
 #[test]
-pub fn test_create_asset_with_already_existed_asset_will_return_in_use_error() {
+pub fn test_create_asset_with_already_existed_asset_will_return_already_registered() {
 	let (asset_address, recipient, chain_id) = create_asset_data();
 
 	new_test_ext().execute_with(|| {
@@ -57,7 +57,52 @@ pub fn test_create_asset_with_already_existed_asset_will_return_in_use_error() {
 		// Re-register Asset
 		assert_noop!(
 			AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address),
-			pallet_assets::Error::<Test>::InUse
+			chainbridge::Error::<Test>::ResourceAlreadyRegistered
+		);
+	});
+}
+
+#[test]
+pub fn test_mint_asset_with_invalid_resource_id() {
+	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
+		mint_asset_data();
+	new_test_ext().execute_with(|| {
+		allowlist_token(asset_address);
+		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		let mut rid_malicious = rid.clone();
+		rid_malicious[17] = rid[17].saturating_sub(1);
+		let asset_id = AssetHandler::convert_asset_id(rid);
+		let asset_id_malicious = AssetHandler::convert_asset_id(rid_malicious);
+
+		assert_eq!(asset_id, asset_id_malicious);
+		// Add new Relayer and verify storage
+		assert_ok!(ChainBridge::add_relayer(Origin::signed(account), relayer));
+		assert!(ChainBridge::relayers(relayer));
+
+		// Mint Asset using Relayer account and verify storage
+		assert_noop!(
+			AssetHandler::mint_asset(
+				Origin::signed(ChainBridge::account_id()),
+				recipient.to_vec(),
+				100000000,
+				rid_malicious
+			),
+			chainbridge::Error::<Test>::ResourceDoesNotExist
+		);
+	});
+}
+
+#[test]
+pub fn test_register_asset_twice_create_error() {
+	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
+		mint_asset_data();
+	new_test_ext().execute_with(|| {
+		allowlist_token(asset_address);
+		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
+		assert_noop!(
+			AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address),
+			chainbridge::Error::<Test>::ResourceAlreadyRegistered
 		);
 	});
 }
@@ -308,7 +353,7 @@ pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insuffic
 
 fn allowlist_token(token: H160) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
-	allowlisted_token.try_insert(token);
+	allowlisted_token.try_insert(token).unwrap();
 	<AllowlistedToken<Test>>::put(allowlisted_token);
 }
 
