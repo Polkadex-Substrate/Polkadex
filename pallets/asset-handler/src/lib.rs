@@ -167,8 +167,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Migration is not operational yet
 		NotOperational,
-		/// MinterMustBeRelayer
-		MinterMustBeRelayer,
+		/// MinterIsNotValid
+		MinterIsNotValid,
 		/// ChainIsNotAllowlisted
 		ChainIsNotAllowlisted,
 		/// NotEnoughBalance
@@ -280,10 +280,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 
-			ensure!(
-				chainbridge::Pallet::<T>::account_id() == sender,
-				Error::<T>::MinterMustBeRelayer
-			);
+			ensure!(chainbridge::Pallet::<T>::account_id() == sender, Error::<T>::MinterIsNotValid);
 
 			let destination_acc = T::AccountId::decode(&mut &destination_add[..])
 				.map_err(|_| Error::<T>::DestinationAddressNotValid)?;

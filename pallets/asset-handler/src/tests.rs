@@ -173,7 +173,7 @@ pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_
 
 		assert_noop!(
 			AssetHandler::mint_asset(Origin::signed(account), recipient.to_vec(), 100, rid),
-			Error::<Test>::MinterMustBeRelayer
+			Error::<Test>::MinterIsNotValid
 		);
 		assert_eq!(Assets::balance(asset_id, recipient_account), 0);
 	});

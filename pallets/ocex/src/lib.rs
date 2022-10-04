@@ -222,6 +222,8 @@ pub mod pallet {
 		AllowlistedTokenRemoved,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
+		/// Exchange is down
+		ExchangeNotOperational,
 		/// Unable to transfer fee
 		UnableToTransferFee,
 		/// Unable to execute collect fees fully
@@ -274,6 +276,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register_main_account())]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(
 				!<Accounts<T>>::contains_key(&main_account),
 				Error::<T>::MainAccountAlreadyRegistered
@@ -297,6 +300,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
 			if let Some(mut account_info) = <Accounts<T>>::get(&main_account) {
 				ensure!(
@@ -324,6 +328,7 @@ pub mod pallet {
 			quote: AssetId,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 			<TradingPairs<T>>::mutate(base, quote, |value| {
@@ -352,6 +357,7 @@ pub mod pallet {
 			quote: AssetId,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 			//update the operational status of the trading pair as true.
@@ -387,6 +393,7 @@ pub mod pallet {
 			qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
@@ -517,6 +524,7 @@ pub mod pallet {
 			qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
 				<TradingPairs<T>>::contains_key(base, quote),
@@ -637,6 +645,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			// Check if account is registered
 			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
@@ -672,6 +681,7 @@ pub mod pallet {
 		#[pallet::weight(100000)]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
 			<Accounts<T>>::try_mutate(&main_account, |account_info| {
 				if let Some(account_info) = account_info {
@@ -826,9 +836,19 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Extrinsic to update ExchangeState
+		#[pallet::weight(1000000)]
+		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<ExchangeState<T>>::put(state);
+			Self::deposit_event(Event::ExchangeStateUpdated(state));
+			Ok(())
+		}
+
 		/// Withdraws user balance
 		///
 		/// params: snapshot_number: u32
+		/// account: AccountId
 		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
@@ -838,45 +858,78 @@ pub mod pallet {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _ = ensure_signed(origin)?;
-
-			let mut withdrawals: WithdrawalsMap<T> = <Withdrawals<T>>::get(snapshot_id);
-			ensure!(withdrawals.contains_key(&account), Error::<T>::InvalidWithdrawalIndex);
-			if let Some(withdrawal_vector) = withdrawals.get(&account) {
-				for x in withdrawal_vector.iter() {
-					// TODO: Security: if this fails for a withdrawal in between the iteration, it
-					// will double spend.
-					if let Some(converted_withdrawal) =
-						x.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-					{
-						Self::transfer_asset(
-							&Self::get_pallet_account(),
-							&x.main_account,
-							converted_withdrawal.saturated_into(),
-							x.asset,
-						)?;
+			// This vector will keep track of withdrawals processed already
+			let mut processed_withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> =
+				BoundedVec::<Withdrawal<T::AccountId>, WithdrawalLimit>::default();
+			ensure!(
+				<Withdrawals<T>>::contains_key(snapshot_id),
+				Error::<T>::InvalidWithdrawalIndex
+			);
+			// This entire block of code is put inside ensure as some of the nested functions will
+			// return Err
+			ensure!(
+				<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
+					// Get mutable reference to the withdrawals vector
+					if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
+						while withdrawal_vector.len() > 0 {
+							// Perform pop operation to ensure we do not leave any withdrawal left
+							// for a double spend
+							if let Some(withdrawal) = withdrawal_vector.pop() {
+								if let Some(converted_withdrawal) = withdrawal
+									.amount
+									.saturating_mul(Decimal::from(UNIT_BALANCE))
+									.to_u128()
+								{
+									if Self::transfer_asset(
+										&Self::get_pallet_account(),
+										&withdrawal.main_account,
+										converted_withdrawal.saturated_into(),
+										withdrawal.asset,
+									)
+									.is_ok()
+									{
+										processed_withdrawals
+											.try_push(withdrawal)
+											.unwrap_or_default();
+									} else {
+										// Storing the failed withdrawals back into the storage item
+										withdrawal_vector
+											.try_push(withdrawal.clone())
+											.unwrap_or_default();
+										Self::deposit_event(Event::WithdrawalFailed(withdrawal));
+									}
+								}
+							}
+						}
+						// Not removing key from BtreeMap so that failed withdrawals can still be
+						// tracked
+						Ok(())
+					} else {
+						// This allows us to ensure we do not have someone with an invalid account
+						Err(Error::<T>::InvalidWithdrawalIndex)
 					}
-				}
-				Self::deposit_event(Event::WithdrawalClaimed {
-					main: account.clone(),
-					withdrawals: withdrawal_vector.to_owned(),
-				});
-				ensure!(
-					<OnChainEvents<T>>::mutate(|onchain_events| {
-						onchain_events.try_push(
-							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-								snapshot_id,
-								account.clone(),
-								withdrawal_vector.to_owned(),
-							),
-						)?;
-						Ok::<(), ()>(())
-					})
-					.is_ok(),
-					Error::<T>::OnchainEventsBoundedVecOverflow
-				);
-			}
-			withdrawals.remove(&account);
-			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
+				})
+				.is_ok(),
+				Error::<T>::InvalidWithdrawalIndex
+			);
+			Self::deposit_event(Event::WithdrawalClaimed {
+				main: account.clone(),
+				withdrawals: processed_withdrawals.clone(),
+			});
+			ensure!(
+				<OnChainEvents<T>>::mutate(|onchain_events| {
+					onchain_events.try_push(
+						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+							snapshot_id,
+							account.clone(),
+							processed_withdrawals.clone(),
+						),
+					)?;
+					Ok::<(), ()>(())
+				})
+				.is_ok(),
+				Error::<T>::OnchainEventsBoundedVecOverflow
+			);
 			Ok(Pays::No.into())
 		}
 
@@ -1026,6 +1079,10 @@ pub mod pallet {
 		TokenAllowlisted(AssetId),
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
+		/// Withdrawal failed
+		WithdrawalFailed(Withdrawal<T::AccountId>),
+		/// Exchange state has been updated
+		ExchangeStateUpdated(bool),
 	}
 
 	///Allowlisted tokens
