@@ -264,12 +264,15 @@ pub mod pallet {
 			rid: ResourceId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-			let destination_acc = T::AccountId::decode(&mut &destination_add[..])
-				.map_err(|_| Error::<T>::DestinationAddressNotValid)?;
+
 			ensure!(
 				chainbridge::Pallet::<T>::account_id() == sender,
 				Error::<T>::MinterMustBeRelayer
 			);
+
+			let destination_acc = T::AccountId::decode(&mut &destination_add[..])
+				.map_err(|_| Error::<T>::DestinationAddressNotValid)?;
+
 			let amount = Self::convert_18dec_to_12dec(amount)
 				.ok_or_else(|| Error::<T>::DivisionUnderflow)?;
 			T::AssetManager::mint_into(
