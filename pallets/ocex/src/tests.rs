@@ -312,12 +312,12 @@ fn test_register_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 
 		assert_eq!(
@@ -448,12 +448,12 @@ fn test_update_trading_pair_amount_overflow() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			10000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 
 		assert_noop!(
@@ -556,12 +556,12 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 
 		assert_noop!(
@@ -569,9 +569,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(10),
 				AssetId::asset(20),
-				10001_u128.into(),
+				1_u128.into(),
 				100_u128.into(),
-				10001_u128.into(),
+				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
@@ -584,9 +584,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				Origin::root(),
 				AssetId::asset(20),
 				AssetId::asset(10),
-				10001_u128.into(),
+				1_u128.into(),
 				100_u128.into(),
-				10001_u128.into(),
+				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
@@ -604,24 +604,24 @@ fn test_update_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 
 		assert_ok!(OCEX::update_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 
 		assert_last_event::<Test>(
@@ -776,12 +776,12 @@ fn test_update_trading_pair_value_zero() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 
 		assert_noop!(
@@ -1002,12 +1002,12 @@ fn test_open_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 		assert_ok!(OCEX::open_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(20)));
 		assert_eq!(
@@ -1089,12 +1089,12 @@ fn test_close_trading_pair() {
 			Origin::root(),
 			AssetId::asset(10),
 			AssetId::asset(20),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
-			100_u128.into(),
-			10_u128.into()
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
 		));
 		assert_ok!(OCEX::close_trading_pair(
 			Origin::root(),
