@@ -430,33 +430,55 @@ pub mod pallet {
 			// TODO: Check if base and quote assets are enabled for deposits
 			// Decimal::from() here is infallable as we ensure provided parameters do not exceed
 			// Decimal::MAX
-			let trading_pair_info = TradingPairConfig {
-				base_asset: base,
-				quote_asset: quote,
-				min_price: Decimal::from(min_order_price.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				price_tick_size: Decimal::from(price_tick_size.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				qty_step_size: Decimal::from(qty_step_size.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
-				operational_status: true,
+			let result: DispatchResult = match (
+				Decimal::from(min_order_price.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(max_order_price.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(price_tick_size.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(min_order_qty.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(max_order_qty.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+				Decimal::from(qty_step_size.saturated_into::<u128>())
+					.checked_div(Decimal::from(UNIT_BALANCE)),
+			) {
+				(
+					Some(min_price),
+					Some(max_price),
+					Some(price_tick_size),
+					Some(min_qty),
+					Some(max_qty),
+					Some(qty_step_size),
+				) => {
+					let trading_pair_info = TradingPairConfig {
+						base_asset: base,
+						quote_asset: quote,
+						min_price,
+						max_price,
+						price_tick_size,
+						min_qty,
+						max_qty,
+						qty_step_size,
+						operational_status: true,
+					};
+
+					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+					<IngressMessages<T>>::mutate(|ingress_messages| {
+						ingress_messages.push(
+							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+								trading_pair_info,
+							),
+						);
+					});
+					Self::deposit_event(Event::TradingPairRegistered { base, quote });
+					Ok(())
+				},
+				//passing Underflow error if checked_div fails
+				_ => Err(Error::<T>::TradingPairConfigUnderflow.into()),
 			};
-			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(
-					polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
-						trading_pair_info,
-					),
-				);
-			});
-			Self::deposit_event(Event::TradingPairRegistered { base, quote });
-			Ok(())
+			result
 		}
 
 		/// Updates the trading pair config
