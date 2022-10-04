@@ -58,6 +58,7 @@ fn test_register_main_account() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), false);
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
@@ -85,6 +86,7 @@ fn test_register_main_account_main_account_already_exists() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone().into()
@@ -121,9 +123,7 @@ fn test_add_proxy_account_main_account_not_found() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(
-			OCEX::set_exchange_state(Origin::root(), true)
-		);
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.into()),
 			Error::<Test>::MainAccountNotFound
@@ -136,6 +136,7 @@ fn test_add_proxy_account_proxy_limit_exceeded() {
 	let account_id = create_account_id();
 	let proxy_account = create_proxy_account();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone().into()
@@ -173,6 +174,7 @@ fn test_add_proxy_account() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone().into()
@@ -197,6 +199,7 @@ fn test_add_proxy_account() {
 #[test]
 fn test_register_trading_pair_both_assets_cannot_be_same() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
 				Origin::root(),
@@ -253,6 +256,7 @@ fn test_register_trading_pair_bad_origin() {
 #[test]
 fn test_register_trading_pair_value_zero() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
 				Origin::root(),
@@ -273,6 +277,7 @@ fn test_register_trading_pair_value_zero() {
 #[test]
 fn test_register_trading_pair() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
@@ -312,6 +317,7 @@ fn test_register_trading_pair() {
 #[test]
 fn test_register_trading_pair_amount_overflow() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
 				Origin::root(),
@@ -407,6 +413,7 @@ fn test_register_trading_pair_amount_overflow() {
 #[test]
 fn test_update_trading_pair_amount_overflow() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
@@ -514,6 +521,7 @@ fn test_update_trading_pair_amount_overflow() {
 #[test]
 fn test_register_trading_pair_trading_pair_already_registered() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
@@ -561,6 +569,7 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 #[test]
 fn test_update_trading_pair() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
@@ -602,6 +611,7 @@ fn test_update_trading_pair() {
 #[test]
 fn test_update_trading_pair_trading_pair_not_registered() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::update_trading_pair(
 				Origin::root(),
@@ -657,6 +667,7 @@ fn test_update_trading_pair_bad_origin() {
 #[test]
 fn test_register_trading_pair_volume_too_low() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
 				Origin::root(),
@@ -677,6 +688,7 @@ fn test_register_trading_pair_volume_too_low() {
 #[test]
 fn test_update_trading_pair_value_zero() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
@@ -710,6 +722,7 @@ fn test_update_trading_pair_value_zero() {
 fn test_deposit_unknown_asset() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::deposit(
 				Origin::signed(account_id.clone().into()),
@@ -735,6 +748,7 @@ fn test_deposit() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_custodian_account();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		mint_into_account(account_id.clone());
 		// Balances before deposit
 		assert_eq!(
@@ -772,6 +786,7 @@ fn test_deposit_large_value() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_custodian_account();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		mint_into_account_large(account_id.clone());
 		// Balances before deposit
 		assert_eq!(
@@ -795,6 +810,7 @@ fn test_deposit_assets_overflow() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_custodian_account();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		mint_into_account_large(account_id.clone());
 		// Balances before deposit
 		assert_eq!(
@@ -829,6 +845,7 @@ fn test_deposit_assets_overflow() {
 #[test]
 fn test_open_trading_pair_both_assets_cannot_be_same() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::open_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(10)),
 			Error::<Test>::BothAssetsCannotBeSame
@@ -841,6 +858,7 @@ fn test_open_trading_pair_both_assets_cannot_be_same() {
 #[test]
 fn test_open_trading_pair_trading_pair_not_found() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::open_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(20)),
 			Error::<Test>::TradingPairNotFound
@@ -873,6 +891,7 @@ fn test_open_trading_pair_bad_origin() {
 #[test]
 fn test_open_trading_pair() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
@@ -903,6 +922,7 @@ fn test_open_trading_pair() {
 #[test]
 fn test_close_trading_pair_both_assets_cannot_be_same() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::close_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(10)),
 			Error::<Test>::BothAssetsCannotBeSame
@@ -915,6 +935,7 @@ fn test_close_trading_pair_both_assets_cannot_be_same() {
 #[test]
 fn test_close_trading_trading_pair_not_found() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_noop!(
 			OCEX::close_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(20)),
 			Error::<Test>::TradingPairNotFound
@@ -947,6 +968,7 @@ fn test_close_trading_trading_bad_origin() {
 #[test]
 fn test_close_trading_pair() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),

@@ -206,7 +206,7 @@ pub mod pallet {
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
 		/// Exchange is down
-		ExchangeNotOperational
+		ExchangeNotOperational,
 	}
 
 	#[pallet::hooks]
@@ -734,7 +734,7 @@ pub mod pallet {
 
 		/// Extrinsic to update ExchangeState
 		#[pallet::weight(1000000)]
-		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult{
+		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
 			Ok(())
