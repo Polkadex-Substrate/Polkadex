@@ -67,7 +67,7 @@ pub fn test_mint_asset_with_invalid_resource_id() {
 	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
 		mint_asset_data();
 	new_test_ext().execute_with(|| {
-		whitelist_token(asset_address);
+		allowlist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let mut rid_malicious = rid.clone();
@@ -98,7 +98,7 @@ pub fn test_register_asset_twice_create_error() {
 	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
 		mint_asset_data();
 	new_test_ext().execute_with(|| {
-		whitelist_token(asset_address);
+		allowlist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
 		assert_noop!(
 			AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address),

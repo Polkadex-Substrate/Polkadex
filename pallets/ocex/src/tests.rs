@@ -791,7 +791,9 @@ fn test_deposit_bad_origin() {
 #[test]
 fn test_deposit_account_not_registered() {
 	let account_id = create_account_id();
+
 	new_test_ext().execute_with(|| {
+		allowlist_token(AssetId::asset(10));
 		assert_noop!(
 			OCEX::deposit(
 				Origin::signed(account_id.clone().into()),
