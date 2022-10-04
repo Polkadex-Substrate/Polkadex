@@ -186,6 +186,8 @@ pub mod pallet {
 		ChainAlreadyWhitelisted,
 		/// Resource ID provided isn't mapped to anything
 		ResourceDoesNotExist,
+		///Resource already registered
+		ResourceAlreadyRegistered,
 		/// Relayer already in set
 		RelayerAlreadyExists,
 		/// Provided accountId is not a relayer
@@ -241,6 +243,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn resources)]
 	pub type Resources<T> = StorageMap<_, Blake2_256, ResourceId, Vec<u8>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn asset_id_to_resource)]
+	pub type AssetIdToResourceMap<T> = StorageMap<_, Blake2_256, u128, ResourceId>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn bridge_events)]

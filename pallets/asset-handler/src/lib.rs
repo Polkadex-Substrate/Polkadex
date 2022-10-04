@@ -236,12 +236,19 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
+			let asset_id = Self::convert_asset_id(rid);
+			//check if rid already registered.
+			if let Some(_) = chainbridge::AssetIdToResourceMap::<T>::get(asset_id) {
+				return Err(chainbridge::Error::<T>::ResourceAlreadyRegistered.into())
+			}
+
 			T::AssetManager::create(
-				Self::convert_asset_id(rid),
+				asset_id,
 				chainbridge::Pallet::<T>::account_id(),
 				true,
 				BalanceOf::<T>::one().unique_saturated_into(),
 			)?;
+			chainbridge::AssetIdToResourceMap::<T>::insert(asset_id, rid);
 			Self::deposit_event(Event::<T>::AssetRegistered(rid));
 			Ok(())
 		}
@@ -275,8 +282,13 @@ pub mod pallet {
 
 			let amount = Self::convert_18dec_to_12dec(amount)
 				.ok_or_else(|| Error::<T>::DivisionUnderflow)?;
+
+			let asset_id = Self::convert_asset_id(rid);
+			if let Some(rid_present) = chainbridge::AssetIdToResourceMap::<T>::get(asset_id) {
+				ensure!(rid_present == rid, chainbridge::Error::<T>::ResourceDoesNotExist)
+			};
 			T::AssetManager::mint_into(
-				Self::convert_asset_id(rid),
+				asset_id,
 				&destination_acc,
 				amount.saturated_into::<u128>(),
 			)?;
