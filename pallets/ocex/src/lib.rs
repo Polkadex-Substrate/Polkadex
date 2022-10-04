@@ -834,7 +834,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			snapshot_id: u32,
 			account: T::AccountId,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _ = ensure_signed(origin)?;
@@ -877,7 +877,7 @@ pub mod pallet {
 			}
 			withdrawals.remove(&account);
 			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
