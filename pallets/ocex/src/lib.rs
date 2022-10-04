@@ -218,6 +218,10 @@ pub mod pallet {
 		AllowlistedTokenRemoved,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
+		/// Unable to transfer fee
+		UnableToTransferFee,
+		/// Unable to execute collect fees fully
+		FeesNotCollectedFully,
 	}
 
 	#[pallet::hooks]
@@ -725,22 +729,39 @@ pub mod pallet {
 			// TODO: The caller should be of operational council
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
-			let fees: Vec<Fees> = <FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
-			for fee in fees {
-				if let Some(converted_fee) =
-					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-				{
-					Self::transfer_asset(
-						&Self::get_custodian_account(),
-						&beneficiary,
-						converted_fee.saturated_into(),
-						fee.asset,
-					)?;
-				// TODO: Remove the fees from storage if successful
-				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
-				}
-			}
+			ensure!(
+				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
+					while internal_vector.len() > 0 {
+						if let Some(fees) = internal_vector.pop() {
+							if let Some(converted_fee) =
+								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+							{
+								if Self::transfer_asset(
+									&Self::get_custodian_account(),
+									&beneficiary,
+									converted_fee.saturated_into(),
+									fees.asset,
+								)
+								.is_err()
+								{
+									// Push it back inside the internal vector
+									// The above function call will only fail if the beneficiary has
+									// balance below existential deposit requirements
+									internal_vector.try_push(fees).unwrap_or_default();
+									return Err(Error::<T>::UnableToTransferFee)
+								}
+							} else {
+								// Push it back inside the internal vector
+								internal_vector.try_push(fees).unwrap_or_default();
+								return Err(Error::<T>::FailedToConvertDecimaltoBalance)
+							}
+						}
+					}
+					Ok(())
+				})
+				.is_ok(),
+				Error::<T>::FeesNotCollectedFully
+			);
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
 			Ok(())
 		}
