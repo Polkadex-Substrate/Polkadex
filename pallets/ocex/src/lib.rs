@@ -415,6 +415,11 @@ pub mod pallet {
 				Error::<T>::AmountOverflow
 			);
 
+			let price_tick_size = Decimal::from(price_tick_size.saturated_into::<u128>())
+				.div(&Decimal::from(UNIT_BALANCE));
+			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
+				.div(&Decimal::from(UNIT_BALANCE));
+
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
@@ -437,15 +442,15 @@ pub mod pallet {
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				price_tick_size: Decimal::from(price_tick_size.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
+				price_tick_size,
 				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				qty_step_size: Decimal::from(qty_step_size.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
+				qty_step_size,
 				operational_status: true,
+				base_asset_precision: qty_step_size.scale() as u8,
+				quote_asset_precision: price_tick_size.scale() as u8,
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -517,6 +522,11 @@ pub mod pallet {
 				Error::<T>::AmountOverflow
 			);
 
+			let price_tick_size = Decimal::from(price_tick_size.saturated_into::<u128>())
+				.div(&Decimal::from(UNIT_BALANCE));
+			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
+				.div(&Decimal::from(UNIT_BALANCE));
+
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
@@ -536,15 +546,15 @@ pub mod pallet {
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_price: Decimal::from(max_order_price.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				price_tick_size: Decimal::from(price_tick_size.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
+				price_tick_size,
 				min_qty: Decimal::from(min_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
 				max_qty: Decimal::from(max_order_qty.saturated_into::<u128>())
 					.div(&Decimal::from(UNIT_BALANCE)),
-				qty_step_size: Decimal::from(qty_step_size.saturated_into::<u128>())
-					.div(&Decimal::from(UNIT_BALANCE)),
+				qty_step_size,
 				operational_status: true,
+				base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be                                                    * greater u8::MAX */
+				quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be                                                    * greater than u8::MAX */
 			};
 			<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 			<IngressMessages<T>>::mutate(|ingress_messages| {
