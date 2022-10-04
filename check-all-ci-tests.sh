@@ -1,4 +1,4 @@
-cargo fmt
-cargo build --release
-cargo clippy --release -- -D warnings
-cargo test --release
+cargo +nightly fmt
+cargo +nightly build  --release
+cargo +nightly clippy --release -- -D warnings
+cargo +nightly test --release

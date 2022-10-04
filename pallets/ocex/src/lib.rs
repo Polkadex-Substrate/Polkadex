@@ -173,8 +173,13 @@ pub mod pallet {
 		/// Caller is not authorized to claim the withdrawal.
 		/// Normally, when Sender != main_account.
 		SenderNotAuthorizedToWithdraw,
+		/// Account is not registered with the exchange
+		AccountNotRegistered,
 		InvalidWithdrawalIndex,
+		/// The trading pair is not currently Operational
 		TradingPairIsNotOperational,
+		/// the trading pair is currently in operation
+		TradingPairIsNotClosed,
 		MainAccountAlreadyRegistered,
 		SnapshotNonceError,
 		EnclaveSignatureVerificationFailed,
@@ -525,7 +530,11 @@ pub mod pallet {
 				<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairNotRegistered
 			);
-
+			let is_pair_in_operation = match <TradingPairs<T>>::get(base, quote) {
+				Some(config) => config.operational_status,
+				None => false,
+			};
+			ensure!(!is_pair_in_operation, Error::<T>::TradingPairIsNotClosed);
 			// We need to also check if provided values are not zero
 			ensure!(
 				min_order_price.saturated_into::<u128>() > 0 &&
@@ -638,11 +647,16 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
+			// Check if account is registered
+			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
+			// TODO: Check if asset is enabled for deposit
+
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
 				.checked_div(Decimal::from(UNIT_BALANCE))
 				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
 
+			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
 			// Get Storage Map Value
 			if let Some(expected_total_amount) =
 				converted_amount.checked_add(Self::total_assets(asset))
@@ -652,7 +666,6 @@ pub mod pallet {
 				return Err(Error::<T>::AmountOverflow.into())
 			}
 
-			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
@@ -783,7 +796,7 @@ pub mod pallet {
 								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 							{
 								if Self::transfer_asset(
-									&Self::get_custodian_account(),
+									&Self::get_pallet_account(),
 									&beneficiary,
 									converted_fee.saturated_into(),
 									fees.asset,
@@ -868,7 +881,7 @@ pub mod pallet {
 									.to_u128()
 								{
 									if Self::transfer_asset(
-										&Self::get_custodian_account(),
+										&Self::get_pallet_account(),
 										&withdrawal.main_account,
 										converted_withdrawal.saturated_into(),
 										withdrawal.asset,
@@ -917,7 +930,6 @@ pub mod pallet {
 				.is_ok(),
 				Error::<T>::OnchainEventsBoundedVecOverflow
 			);
-
 			Ok(Pays::No.into())
 		}
 
@@ -1176,7 +1188,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
-	fn get_custodian_account() -> T::AccountId {
+	fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
 
