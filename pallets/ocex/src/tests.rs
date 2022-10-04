@@ -130,6 +130,17 @@ fn test_add_proxy_account_main_account_not_found() {
 		);
 	});
 }
+#[test]
+fn test_add_proxy_account_exchange_state_not_operational() {
+	let account_id = create_account_id();
+
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.into()),
+			Error::<Test>::ExchangeNotOperational
+		);
+	});
+}
 
 #[test]
 fn test_add_proxy_account_proxy_limit_exceeded() {
@@ -213,6 +224,25 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 				10_u128.into(),
 			),
 			Error::<Test>::BothAssetsCannotBeSame
+		);
+	});
+}
+#[test]
+fn test_register_trading_pair_exchange_not_operational() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::register_trading_pair(
+				Origin::root(),
+				AssetId::polkadex,
+				AssetId::polkadex,
+				10001_u128.into(),
+				100_u128.into(),
+				10001_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into(),
+			),
+			Error::<Test>::ExchangeNotOperational
 		);
 	});
 }
@@ -630,6 +660,26 @@ fn test_update_trading_pair_trading_pair_not_registered() {
 }
 
 #[test]
+fn test_update_trading_pair_exchange_not_operational() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::ExchangeNotOperational
+		);
+	});
+}
+
+#[test]
 fn test_update_trading_pair_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
@@ -730,6 +780,20 @@ fn test_deposit_unknown_asset() {
 				100_u128.into()
 			),
 			TokenError::UnknownAsset
+		);
+	});
+}
+#[test]
+fn test_deposit_exchange_not_operational() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::asset(10),
+				100_u128.into()
+			),
+			Error::<Test>::ExchangeNotOperational
 		);
 	});
 }
@@ -854,6 +918,15 @@ fn test_open_trading_pair_both_assets_cannot_be_same() {
 		assert_eq!(OCEX::ingress_messages().len(), 0);
 	});
 }
+#[test]
+fn test_open_trading_pair_exchange_not_operational() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::open_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(10)),
+			Error::<Test>::ExchangeNotOperational
+		);
+	});
+}
 
 #[test]
 fn test_open_trading_pair_trading_pair_not_found() {
@@ -929,6 +1002,16 @@ fn test_close_trading_pair_both_assets_cannot_be_same() {
 		);
 
 		assert_eq!(OCEX::ingress_messages().len(), 0);
+	});
+}
+
+#[test]
+fn test_close_trading_exchange_not_operational() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::close_trading_pair(Origin::root(), AssetId::asset(10), AssetId::asset(10)),
+			Error::<Test>::ExchangeNotOperational
+		);
 	});
 }
 
