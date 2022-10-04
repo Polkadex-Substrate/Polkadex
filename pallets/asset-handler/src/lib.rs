@@ -189,6 +189,8 @@ pub mod pallet {
 		TokenNotWhitelisted,
 		/// This token was whitelisted but got removed and is not valid anymore
 		WhitelistedTokenRemoved,
+		/// Division Overflow
+		DivisionOverflow,
 	}
 
 	#[pallet::hooks]
@@ -340,7 +342,7 @@ pub mod pallet {
 					WithdrawalLimit::get().try_into().map_err(|_| Error::<T>::ConversionIssue)?,
 				Error::<T>::WithdrawalLimitReached
 			);
-			let fee = Self::fee_calculation(chain_id, amount);
+			let fee = Self::fee_calculation(chain_id, amount)?;
 
 			T::Currency::transfer(
 				&sender,
@@ -419,13 +421,23 @@ pub mod pallet {
 			U256::from(balance).saturating_mul(U256::from(1000000u128))
 		}
 
-		fn fee_calculation(bridge_id: BridgeChainId, amount: BalanceOf<T>) -> BalanceOf<T> {
+		fn fee_calculation(
+			bridge_id: BridgeChainId,
+			amount: BalanceOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			let (min_fee, fee_scale) = Self::get_bridge_fee(bridge_id);
-			let fee_estimated = amount * fee_scale.into() / 1000u32.into();
-			if fee_estimated > min_fee {
-				fee_estimated
-			} else {
-				min_fee
+			let fee_estimated: u128 =
+				amount.saturating_mul(fee_scale.into()).unique_saturated_into();
+			match fee_estimated.checked_div(1000 as u128) {
+				Some(fee_estimated) => {
+					let fee_estimated = fee_estimated.saturated_into();
+					if fee_estimated > min_fee {
+						Ok(fee_estimated)
+					} else {
+						Ok(min_fee)
+					}
+				},
+				None => Err(Error::<T>::DivisionOverflow.into()),
 			}
 		}
 
