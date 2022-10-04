@@ -739,7 +739,7 @@ pub mod pallet {
 			let mut processed_withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> =
 				BoundedVec::<Withdrawal<T::AccountId>, WithdrawalLimit>::default();
 			ensure!(
-				<Withdrawals<T>>::contains_key(&snapshot_id),
+				<Withdrawals<T>>::contains_key(snapshot_id),
 				Error::<T>::InvalidWithdrawalIndex
 			);
 			// This entire block of code is put inside ensure as some of the nested functions will
