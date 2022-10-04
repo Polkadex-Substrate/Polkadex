@@ -878,6 +878,7 @@ fn test_deposit_exchange_not_operational() {
 fn test_deposit_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_main_account(
 			Origin::signed(account_id.clone().into()),
 			account_id.clone()
@@ -892,8 +893,8 @@ fn test_deposit_bad_origin() {
 #[test]
 fn test_deposit_account_not_registered() {
 	let account_id = create_account_id();
-
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		allowlist_token(AssetId::asset(10));
 		assert_noop!(
 			OCEX::deposit(
@@ -1200,6 +1201,7 @@ fn test_close_trading_pair() {
 #[test]
 fn test_update_trading_pair_with_closed_operational_status() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::asset(10),
