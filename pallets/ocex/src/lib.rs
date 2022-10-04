@@ -802,6 +802,12 @@ pub mod pallet {
 										processed_withdrawals
 											.try_push(withdrawal)
 											.unwrap_or_default();
+									} else {
+										// Storing the failed withdrawals back into the storage item
+										withdrawal_vector
+											.try_push(withdrawal.clone())
+											.unwrap_or_default();
+										Self::deposit_event(Event::WithdrawalFailed(withdrawal));
 									}
 								}
 							}
@@ -985,6 +991,8 @@ pub mod pallet {
 		TokenAllowlisted(AssetId),
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
+		/// Withdrawal failed
+		WithdrawalFailed(Withdrawal<T::AccountId>),
 	}
 
 	///Allowlisted tokens
