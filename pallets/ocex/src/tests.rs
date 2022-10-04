@@ -22,6 +22,7 @@ use polkadex_primitives::{
 };
 use rust_decimal::prelude::FromPrimitive;
 use sp_application_crypto::sp_core::H256;
+use std::cmp::max;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
@@ -987,6 +988,21 @@ fn collect_fees_unexpected_behaviour() {
 		);
 	});
 }
+#[test]
+fn test_collect_fees_decimal_overflow() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		let max_fees = create_max_fees::<Test>();
+		FeesCollected::<Test>::insert::<u32, BoundedVec<Fees, AssetsLimit>>(
+			0,
+			bounded_vec![max_fees],
+		);
+		assert_noop!(
+			OCEX::collect_fees(Origin::root(), 0, account_id.into()),
+			Error::<Test>::FeesNotCollectedFully
+		);
+	})
+}
 
 #[test]
 fn collect_fees() {
@@ -1623,6 +1639,11 @@ pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
 
 pub fn create_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
+	return fees
+}
+
+pub fn create_max_fees<T: Config>() -> Fees {
+	let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::MAX };
 	return fees
 }
 
