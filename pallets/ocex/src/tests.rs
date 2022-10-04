@@ -641,6 +641,7 @@ fn test_update_trading_pair() {
 #[test]
 fn test_update_trading_pair_with_less_than_min_volume() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			Origin::root(),
 			AssetId::polkadex,
