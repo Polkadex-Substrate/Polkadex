@@ -217,6 +217,8 @@ pub mod pallet {
 		AllowlistedTokenRemoved,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
+		/// Exchange is down
+		ExchangeNotOperational,
 		/// Unable to transfer fee
 		UnableToTransferFee,
 		/// Unable to execute collect fees fully
@@ -269,6 +271,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register_main_account())]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(
 				!<Accounts<T>>::contains_key(&main_account),
 				Error::<T>::MainAccountAlreadyRegistered
@@ -292,6 +295,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
 			if let Some(mut account_info) = <Accounts<T>>::get(&main_account) {
 				ensure!(
@@ -319,6 +323,7 @@ pub mod pallet {
 			quote: AssetId,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 			<TradingPairs<T>>::mutate(base, quote, |value| {
@@ -347,6 +352,7 @@ pub mod pallet {
 			quote: AssetId,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(<TradingPairs<T>>::contains_key(base, quote), Error::<T>::TradingPairNotFound);
 			//update the operational status of the trading pair as true.
@@ -382,6 +388,7 @@ pub mod pallet {
 			qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
@@ -512,6 +519,7 @@ pub mod pallet {
 			qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(base != quote, Error::<T>::BothAssetsCannotBeSame);
 			ensure!(
 				<TradingPairs<T>>::contains_key(base, quote),
@@ -628,6 +636,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
@@ -659,6 +668,7 @@ pub mod pallet {
 		#[pallet::weight(100000)]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
 			<Accounts<T>>::try_mutate(&main_account, |account_info| {
 				if let Some(account_info) = account_info {
@@ -810,6 +820,15 @@ pub mod pallet {
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Shutdown);
 			});
+			Ok(())
+		}
+
+		/// Extrinsic to update ExchangeState
+		#[pallet::weight(1000000)]
+		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<ExchangeState<T>>::put(state);
+			Self::deposit_event(Event::ExchangeStateUpdated(state));
 			Ok(())
 		}
 
@@ -1013,6 +1032,8 @@ pub mod pallet {
 		TokenAllowlisted(AssetId),
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
+		/// Exchange state has been updated
+		ExchangeStateUpdated(bool),
 	}
 
 	///Allowlisted tokens
