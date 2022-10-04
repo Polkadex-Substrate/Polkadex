@@ -121,6 +121,9 @@ fn test_add_proxy_account_main_account_not_found() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
+		assert_ok!(
+			OCEX::set_exchange_state(Origin::root(), true)
+		);
 		assert_noop!(
 			OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.into()),
 			Error::<Test>::MainAccountNotFound
