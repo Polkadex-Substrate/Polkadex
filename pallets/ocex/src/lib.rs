@@ -693,25 +693,28 @@ pub mod pallet {
 
 			ensure!(
 				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
-					if let Some(fees) = internal_vector.pop() {
-						if let Some(converted_fee) =
-							fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-						{
-							if Self::transfer_asset(
-								&Self::get_custodian_account(),
-								&beneficiary,
-								converted_fee.saturated_into(),
-								fees.asset,
-							)
-							.is_err()
+					while internal_vector.len() > 0 {
+						if let Some(fees) = internal_vector.pop() {
+							if let Some(converted_fee) =
+								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 							{
+								if Self::transfer_asset(
+									&Self::get_custodian_account(),
+									&beneficiary,
+									converted_fee.saturated_into(),
+									fees.asset,
+								)
+								.is_err()
+								{
+									// Push it back inside the internal vector
+									internal_vector.try_push(fees).unwrap_or_default();
+									break;
+								}
+							} else {
 								// Push it back inside the internal vector
 								internal_vector.try_push(fees).unwrap_or_default();
+								return Err(Error::<T>::FailedToConvertDecimaltoBalance)
 							}
-						} else {
-							// Push it back inside the internal vector
-							internal_vector.try_push(fees).unwrap_or_default();
-							return Err(Error::<T>::FailedToConvertDecimaltoBalance)
 						}
 					}
 					return Ok(())
