@@ -602,7 +602,8 @@ pub mod pallet {
 
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount =
-				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
+				Decimal::from(amount.saturated_into::<u128>()).checked_div(Decimal::from(UNIT_BALANCE))
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
 
 			// Get Storage Map Value
 			if let Some(expected_total_amount) =
