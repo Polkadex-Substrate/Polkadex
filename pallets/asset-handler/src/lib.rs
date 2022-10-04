@@ -198,19 +198,25 @@ pub mod pallet {
 			let withdrawal_execution_block =
 				n.saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
 			if !withdrawal_execution_block.is_zero() {
-				let pending_withdrawals = <PendingWithdrawals<T>>::get(withdrawal_execution_block);
-				for withdrawal in pending_withdrawals {
+				let mut pending_withdrawals =
+					<PendingWithdrawals<T>>::take(withdrawal_execution_block);
+				for withdrawal in 0..pending_withdrawals.len() {
 					if chainbridge::Pallet::<T>::transfer_fungible(
-						withdrawal.chain_id,
-						withdrawal.rid,
-						withdrawal.recipient.0.to_vec(),
-						Self::convert_balance_to_eth_type(withdrawal.amount),
+						pending_withdrawals[withdrawal].chain_id,
+						pending_withdrawals[withdrawal].rid,
+						pending_withdrawals[withdrawal].recipient.0.to_vec(),
+						Self::convert_balance_to_eth_type(pending_withdrawals[withdrawal].amount),
 					)
-					.is_err()
+					.is_ok()
 					{
+						// Remove succesfull transfers
+						pending_withdrawals.remove(withdrawal);
+					} else {
 						Self::deposit_event(Event::<T>::FungibleTransferFailed);
 					}
 				}
+				// Write back to storage item
+				<PendingWithdrawals<T>>::insert(withdrawal_execution_block, pending_withdrawals);
 			}
 			// TODO: Benchmark on initialize
 			(195_000_000 as Weight)
