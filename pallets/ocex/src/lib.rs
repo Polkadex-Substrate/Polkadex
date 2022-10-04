@@ -81,7 +81,7 @@ pub mod pallet {
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
-		SaturatedConversion,
+		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
 
@@ -97,6 +97,13 @@ pub mod pallet {
 		AssetsLimit,
 		SnapshotAccLimit,
 	>;
+
+	pub struct AllowlistedTokenLimit;
+	impl Get<u32> for AllowlistedTokenLimit {
+		fn get() -> u32 {
+			50 // TODO: Arbitrary value
+		}
+	}
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -197,12 +204,18 @@ pub mod pallet {
 		OnchainEventsBoundedVecOverflow,
 		/// Overflow of Deposit amount
 		DepositOverflow,
-		/// Enclave not whitelisted
-		EnclaveNotWhitelisted,
+		/// Enclave not allowlisted
+		EnclaveNotAllowlisted,
 		/// Trading Pair is not registed for updating
 		TradingPairNotRegistered,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigCannotBeZero,
+		/// Limit reached to add allowlisted token
+		AllowlistedTokenLimitReached,
+		/// Given token is not allowlisted
+		TokenNotAllowlisted,
+		/// Given allowlisted token is removed
+		AllowlistedTokenRemoved,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
 	}
@@ -576,8 +589,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			// TODO: Check if asset is enabled for deposit
-
+			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount =
 				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
@@ -810,10 +822,10 @@ pub mod pallet {
 			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
 				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
 
-			// Check if enclave_signer is whitelisted
+			// Check if enclave_signer is allowlisted
 			ensure!(
-				<WhitelistedEnclaves<T>>::get(&enclave_signer),
-				<Error<T>>::EnclaveNotWhitelisted
+				<AllowlistedEnclaves<T>>::get(&enclave_signer),
+				<Error<T>>::EnclaveNotAllowlisted
 			);
 
 			// TODO: any other checks we want to run?
@@ -830,17 +842,41 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// In order to register itself - enclave account id must be whitelisted and called by
+		/// Allowlist Token
+		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn allowlist_token(origin: OriginFor<T>, token_add: AssetId) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
+			allowlisted_tokens
+				.try_insert(token_add)
+				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
+			<AllowlistedToken<T>>::put(allowlisted_tokens);
+			Self::deposit_event(Event::<T>::TokenAllowlisted(token_add));
+			Ok(())
+		}
+
+		/// Remove Allowlisted Token
+		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn remove_allowlisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
+			allowlisted_tokens.remove(&token);
+			<AllowlistedToken<T>>::put(allowlisted_tokens);
+			Self::deposit_event(Event::<T>::AllowlistedTokenRemoved(token));
+			Ok(())
+		}
+
+		/// In order to register itself - enclave account id must be allowlisted and called by
 		/// Governance
 		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
-		pub fn whitelist_enclave(
+		pub fn allowlist_enclave(
 			origin: OriginFor<T>,
 			enclave_account_id: T::AccountId,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			// It will just overwrite if account_id is already whitelisted
-			<WhitelistedEnclaves<T>>::insert(&enclave_account_id, true);
-			Self::deposit_event(Event::EnclaveWhitelisted(enclave_account_id));
+			// It will just overwrite if account_id is already allowlisted
+			<AllowlistedEnclaves<T>>::insert(&enclave_account_id, true);
+			Self::deposit_event(Event::EnclaveAllowlisted(enclave_account_id));
 			Ok(())
 		}
 	}
@@ -901,7 +937,7 @@ pub mod pallet {
 			pair: TradingPairConfig,
 		},
 		EnclaveRegistered(T::AccountId),
-		EnclaveWhitelisted(T::AccountId),
+		EnclaveAllowlisted(T::AccountId),
 		EnclaveCleanup(Vec<T::AccountId>),
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
@@ -916,7 +952,17 @@ pub mod pallet {
 			main: T::AccountId,
 			proxy: T::AccountId,
 		},
+		/// TokenAllowlisted
+		TokenAllowlisted(AssetId),
+		/// AllowlistedTokenRemoved
+		AllowlistedTokenRemoved(AssetId),
 	}
+
+	///Allowlisted tokens
+	#[pallet::storage]
+	#[pallet::getter(fn get_allowlisted_token)]
+	pub(super) type AllowlistedToken<T: Config> =
+		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
 
 	// A map that has enumerable entries.
 	#[pallet::storage]
@@ -970,10 +1016,10 @@ pub mod pallet {
 	pub(super) type Withdrawals<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
 
-	// Whitelisted enclaves
+	// Allowlisted enclaves
 	#[pallet::storage]
-	#[pallet::getter(fn whitelisted_enclaves)]
-	pub(super) type WhitelistedEnclaves<T: Config> =
+	#[pallet::getter(fn allowlisted_enclaves)]
+	pub(super) type AllowlistedEnclaves<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, bool, ValueQuery>;
 
 	// Queue for enclave ingress messages
