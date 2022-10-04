@@ -5310,7 +5310,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "assert_cmd",
  "async-std",
@@ -5338,11 +5338,11 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "platforms 3.0.1",
  "polkadex-client",
  "polkadex-primitives",
- "rand 0.7.3",
+ "rand 0.8.5",
  "regex",
  "sc-authority-discovery",
  "sc-basic-authorship",
