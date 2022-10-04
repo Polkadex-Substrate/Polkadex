@@ -708,7 +708,7 @@ pub mod pallet {
 								{
 									// Push it back inside the internal vector
 									internal_vector.try_push(fees).unwrap_or_default();
-									break;
+									break
 								}
 							} else {
 								// Push it back inside the internal vector
