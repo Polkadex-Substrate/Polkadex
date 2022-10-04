@@ -835,6 +835,7 @@ pub mod pallet {
 		/// Withdraws user balance
 		///
 		/// params: snapshot_number: u32
+		/// account: AccountId
 		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
@@ -844,45 +845,79 @@ pub mod pallet {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _ = ensure_signed(origin)?;
-
-			let mut withdrawals: WithdrawalsMap<T> = <Withdrawals<T>>::get(snapshot_id);
-			ensure!(withdrawals.contains_key(&account), Error::<T>::InvalidWithdrawalIndex);
-			if let Some(withdrawal_vector) = withdrawals.get(&account) {
-				for x in withdrawal_vector.iter() {
-					// TODO: Security: if this fails for a withdrawal in between the iteration, it
-					// will double spend.
-					if let Some(converted_withdrawal) =
-						x.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-					{
-						Self::transfer_asset(
-							&Self::get_custodian_account(),
-							&x.main_account,
-							converted_withdrawal.saturated_into(),
-							x.asset,
-						)?;
+			// This vector will keep track of withdrawals processed already
+			let mut processed_withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> =
+				BoundedVec::<Withdrawal<T::AccountId>, WithdrawalLimit>::default();
+			ensure!(
+				<Withdrawals<T>>::contains_key(snapshot_id),
+				Error::<T>::InvalidWithdrawalIndex
+			);
+			// This entire block of code is put inside ensure as some of the nested functions will
+			// return Err
+			ensure!(
+				<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
+					// Get mutable reference to the withdrawals vector
+					if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
+						while withdrawal_vector.len() > 0 {
+							// Perform pop operation to ensure we do not leave any withdrawal left
+							// for a double spend
+							if let Some(withdrawal) = withdrawal_vector.pop() {
+								if let Some(converted_withdrawal) = withdrawal
+									.amount
+									.saturating_mul(Decimal::from(UNIT_BALANCE))
+									.to_u128()
+								{
+									if Self::transfer_asset(
+										&Self::get_custodian_account(),
+										&withdrawal.main_account,
+										converted_withdrawal.saturated_into(),
+										withdrawal.asset,
+									)
+									.is_ok()
+									{
+										processed_withdrawals
+											.try_push(withdrawal)
+											.unwrap_or_default();
+									} else {
+										// Storing the failed withdrawals back into the storage item
+										withdrawal_vector
+											.try_push(withdrawal.clone())
+											.unwrap_or_default();
+										Self::deposit_event(Event::WithdrawalFailed(withdrawal));
+									}
+								}
+							}
+						}
+						// Not removing key from BtreeMap so that failed withdrawals can still be
+						// tracked
+						Ok(())
+					} else {
+						// This allows us to ensure we do not have someone with an invalid account
+						Err(Error::<T>::InvalidWithdrawalIndex)
 					}
-				}
-				Self::deposit_event(Event::WithdrawalClaimed {
-					main: account.clone(),
-					withdrawals: withdrawal_vector.to_owned(),
-				});
-				ensure!(
-					<OnChainEvents<T>>::mutate(|onchain_events| {
-						onchain_events.try_push(
-							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-								snapshot_id,
-								account.clone(),
-								withdrawal_vector.to_owned(),
-							),
-						)?;
-						Ok::<(), ()>(())
-					})
-					.is_ok(),
-					Error::<T>::OnchainEventsBoundedVecOverflow
-				);
-			}
-			withdrawals.remove(&account);
-			<Withdrawals<T>>::insert(snapshot_id, withdrawals);
+				})
+				.is_ok(),
+				Error::<T>::InvalidWithdrawalIndex
+			);
+			Self::deposit_event(Event::WithdrawalClaimed {
+				main: account.clone(),
+				withdrawals: processed_withdrawals.clone(),
+			});
+			ensure!(
+				<OnChainEvents<T>>::mutate(|onchain_events| {
+					onchain_events.try_push(
+						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+							snapshot_id,
+							account.clone(),
+							processed_withdrawals.clone(),
+						),
+					)?;
+					Ok::<(), ()>(())
+				})
+				.is_ok(),
+				Error::<T>::OnchainEventsBoundedVecOverflow
+			);
+
 			Ok(Pays::No.into())
 		}
 
@@ -1032,6 +1067,8 @@ pub mod pallet {
 		TokenAllowlisted(AssetId),
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
+		/// Withdrawal failed
+		WithdrawalFailed(Withdrawal<T::AccountId>),
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
 	}
