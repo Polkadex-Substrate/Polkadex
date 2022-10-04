@@ -205,6 +205,10 @@ pub mod pallet {
 		TradingPairConfigCannotBeZero,
 		/// Trading Pair config value cannot be set to zero
 		TradingPairConfigUnderflow,
+		/// Unable to transfer fee
+		UnableToTransferFee,
+		/// Unable to execute collect fees fully
+		FeesNotCollectedFully,
 	}
 
 	#[pallet::hooks]
@@ -707,8 +711,10 @@ pub mod pallet {
 								.is_err()
 								{
 									// Push it back inside the internal vector
+									// The above function call will only fail if the beneficiary has
+									// balance below existential deposit requirements
 									internal_vector.try_push(fees).unwrap_or_default();
-									break
+									return Err(Error::<T>::UnableToTransferFee)
 								}
 							} else {
 								// Push it back inside the internal vector
@@ -717,10 +723,10 @@ pub mod pallet {
 							}
 						}
 					}
-					return Ok(())
+					Ok(())
 				})
 				.is_ok(),
-				Error::<T>::FailedToConvertDecimaltoBalance
+				Error::<T>::FeesNotCollectedFully
 			);
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
 			Ok(())
