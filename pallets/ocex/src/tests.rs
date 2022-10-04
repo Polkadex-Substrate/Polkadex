@@ -1833,7 +1833,7 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
-	allowlisted_token.try_insert(token);
+	allowlisted_token.try_insert(token).unwrap();
 	<AllowlistedToken<Test>>::put(allowlisted_token);
 }
 

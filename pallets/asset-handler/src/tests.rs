@@ -353,7 +353,7 @@ pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insuffic
 
 fn allowlist_token(token: H160) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
-	allowlisted_token.try_insert(token);
+	allowlisted_token.try_insert(token).unwrap();
 	<AllowlistedToken<Test>>::put(allowlisted_token);
 }
 
