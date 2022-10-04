@@ -246,7 +246,7 @@ pub mod pallet {
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
 			let asset_id = Self::convert_asset_id(rid);
 			//check if rid already registered.
-			if let Some(_) = chainbridge::AssetIdToResourceMap::<T>::get(asset_id) {
+			if chainbridge::AssetIdToResourceMap::<T>::get(asset_id).is_some() {
 				return Err(chainbridge::Error::<T>::ResourceAlreadyRegistered.into())
 			}
 
