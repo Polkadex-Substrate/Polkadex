@@ -415,7 +415,11 @@ fn test_update_trading_pair_amount_overflow() {
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
 		));
-
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 		assert_noop!(
 			OCEX::update_trading_pair(
 				Origin::root(),
@@ -430,6 +434,11 @@ fn test_update_trading_pair_amount_overflow() {
 			),
 			Error::<Test>::AmountOverflow
 		);
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -445,6 +454,11 @@ fn test_update_trading_pair_amount_overflow() {
 			),
 			Error::<Test>::AmountOverflow
 		);
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -460,6 +474,11 @@ fn test_update_trading_pair_amount_overflow() {
 			),
 			Error::<Test>::AmountOverflow
 		);
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -475,6 +494,11 @@ fn test_update_trading_pair_amount_overflow() {
 			),
 			Error::<Test>::AmountOverflow
 		);
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -490,6 +514,11 @@ fn test_update_trading_pair_amount_overflow() {
 			),
 			Error::<Test>::AmountOverflow
 		);
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -569,6 +598,11 @@ fn test_update_trading_pair() {
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
 		));
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 
 		assert_ok!(OCEX::update_trading_pair(
 			Origin::root(),
@@ -592,7 +626,7 @@ fn test_update_trading_pair() {
 		let trading_pair =
 			TradingPairs::<Test>::get(AssetId::asset(10), AssetId::asset(20)).unwrap();
 		let event: IngressMessages<AccountId32> = IngressMessages::UpdateTradingPair(trading_pair);
-		assert_eq!(OCEX::ingress_messages()[1], event);
+		assert_eq!(OCEX::ingress_messages()[2], event);
 	});
 }
 
@@ -610,6 +644,7 @@ fn test_update_trading_pair_with_less_than_min_volume() {
 			100_u128.into(),
 			10_u128.into()
 		));
+		assert_ok!(OCEX::close_trading_pair(Origin::root(), AssetId::polkadex, AssetId::asset(1),));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -697,6 +732,11 @@ fn test_update_trading_pair_value_zero() {
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
 		));
+		assert_ok!(OCEX::close_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20)
+		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -719,6 +759,10 @@ fn test_update_trading_pair_value_zero() {
 fn test_deposit_unknown_asset() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_main_account(
+			Origin::signed(account_id.clone().into()),
+			account_id.clone()
+		));
 		assert_noop!(
 			OCEX::deposit(
 				Origin::signed(account_id.clone().into()),
@@ -732,7 +776,13 @@ fn test_deposit_unknown_asset() {
 
 #[test]
 fn test_deposit_bad_origin() {
+	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_main_account(
+			Origin::signed(account_id.clone().into()),
+			account_id.clone()
+		));
+
 		assert_noop!(OCEX::deposit(Origin::root(), AssetId::asset(10), 100_u128.into()), BadOrigin);
 
 		assert_noop!(OCEX::deposit(Origin::none(), AssetId::asset(10), 100_u128.into()), BadOrigin);
@@ -740,9 +790,24 @@ fn test_deposit_bad_origin() {
 }
 
 #[test]
+fn test_deposit_account_not_registered() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::deposit(
+				Origin::signed(account_id.clone().into()),
+				AssetId::asset(10),
+				100_u128.into()
+			),
+			Error::<Test>::AccountNotRegistered
+		);
+	});
+}
+
+#[test]
 fn test_deposit() {
 	let account_id = create_account_id();
-	let custodian_account = OCEX::get_custodian_account();
+	let custodian_account = OCEX::get_pallet_account();
 	new_test_ext().execute_with(|| {
 		mint_into_account(account_id.clone());
 		// Balances before deposit
@@ -751,6 +816,10 @@ fn test_deposit() {
 			10000000000000000000000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		assert_ok!(OCEX::register_main_account(
+			Origin::signed(account_id.clone().into()),
+			account_id.clone()
+		));
 		assert_ok!(OCEX::deposit(
 			Origin::signed(account_id.clone().into()),
 			AssetId::polkadex,
@@ -772,14 +841,14 @@ fn test_deposit() {
 		);
 		let event: IngressMessages<AccountId32> =
 			IngressMessages::Deposit(account_id, AssetId::polkadex, Decimal::new(10, 11));
-		assert_eq!(OCEX::ingress_messages()[0], event);
+		assert_eq!(OCEX::ingress_messages()[1], event);
 	});
 }
 
 #[test]
 fn test_deposit_large_value() {
 	let account_id = create_account_id();
-	let custodian_account = OCEX::get_custodian_account();
+	let custodian_account = OCEX::get_pallet_account();
 	new_test_ext().execute_with(|| {
 		mint_into_account_large(account_id.clone());
 		// Balances before deposit
@@ -788,6 +857,10 @@ fn test_deposit_large_value() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		assert_ok!(OCEX::register_main_account(
+			Origin::signed(account_id.clone().into()),
+			account_id.clone()
+		));
 		assert_noop!(
 			OCEX::deposit(
 				Origin::signed(account_id.clone().into()),
@@ -802,7 +875,7 @@ fn test_deposit_large_value() {
 #[test]
 fn test_deposit_assets_overflow() {
 	let account_id = create_account_id();
-	let custodian_account = OCEX::get_custodian_account();
+	let custodian_account = OCEX::get_pallet_account();
 	new_test_ext().execute_with(|| {
 		mint_into_account_large(account_id.clone());
 		// Balances before deposit
@@ -811,6 +884,10 @@ fn test_deposit_assets_overflow() {
 			1_000_000_000_000_000_000_000_000_000_000
 		);
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		assert_ok!(OCEX::register_main_account(
+			Origin::signed(account_id.clone().into()),
+			account_id.clone()
+		));
 		assert_ok!(OCEX::deposit(
 			Origin::signed(account_id.clone().into()),
 			AssetId::polkadex,
@@ -988,6 +1065,37 @@ fn test_close_trading_pair() {
 }
 
 #[test]
+fn test_update_trading_pair_with_closed_operational_status() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::register_trading_pair(
+			Origin::root(),
+			AssetId::asset(10),
+			AssetId::asset(20),
+			1_0000_0000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_000_000_000_000_000_u128.into(),
+			1_000_000_u128.into(),
+			1_0000_0000_u128.into(),
+		));
+		assert_noop!(
+			OCEX::update_trading_pair(
+				Origin::root(),
+				AssetId::asset(10),
+				AssetId::asset(20),
+				1_0000_0000_u128.into(),
+				1_000_000_000_000_000_u128.into(),
+				1_000_000_u128.into(),
+				1_000_000_000_000_000_u128.into(),
+				1_000_0000_u128.into(),
+				1_0000_000_u128.into(),
+			),
+			Error::<Test>::TradingPairIsNotClosed
+		);
+	})
+}
+
+#[test]
 fn collect_fees_unexpected_behaviour() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
@@ -1003,7 +1111,7 @@ fn collect_fees_unexpected_behaviour() {
 #[test]
 fn collect_fees() {
 	let account_id = create_account_id();
-	let custodian_account = OCEX::get_custodian_account();
+	let custodian_account = OCEX::get_pallet_account();
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let public_key_store = KeyStore::new();
@@ -1337,7 +1445,7 @@ fn test_withdrawal_invalid_withdrawal_index() {
 #[test]
 fn test_withdrawal() {
 	let account_id = create_account_id();
-	let custodian_account = OCEX::get_custodian_account();
+	let custodian_account = OCEX::get_pallet_account();
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let public_key_store = KeyStore::new();
@@ -1414,7 +1522,7 @@ fn test_withdrawal() {
 #[test]
 fn test_onchain_events_overflow() {
 	let account_id = create_account_id();
-	let custodian_account = OCEX::get_custodian_account();
+	let custodian_account = OCEX::get_pallet_account();
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let public_key_store = KeyStore::new();

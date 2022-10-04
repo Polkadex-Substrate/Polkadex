@@ -155,7 +155,7 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -167,8 +167,13 @@ pub mod pallet {
 		/// Caller is not authorized to claim the withdrawal.
 		/// Normally, when Sender != main_account.
 		SenderNotAuthorizedToWithdraw,
+		/// Account is not registered with the exchange
+		AccountNotRegistered,
 		InvalidWithdrawalIndex,
+		/// The trading pair is not currently Operational
 		TradingPairIsNotOperational,
+		/// the trading pair is currently in operation
+		TradingPairIsNotClosed,
 		MainAccountAlreadyRegistered,
 		SnapshotNonceError,
 		EnclaveSignatureVerificationFailed,
@@ -250,7 +255,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Registers a new account in orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::register_main_account())]
+		#[pallet::weight(< T as Config >::WeightInfo::register_main_account())]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(
@@ -273,7 +278,7 @@ pub mod pallet {
 		}
 
 		/// Adds a proxy account to a pre-registered main acocunt
-		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
+		#[pallet::weight(< T as Config >::WeightInfo::add_proxy_account())]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
@@ -483,7 +488,11 @@ pub mod pallet {
 				<TradingPairs<T>>::contains_key(base, quote),
 				Error::<T>::TradingPairNotRegistered
 			);
-
+			let is_pair_in_operation = match <TradingPairs<T>>::get(base, quote) {
+				Some(config) => config.operational_status,
+				None => false,
+			};
+			ensure!(!is_pair_in_operation, Error::<T>::TradingPairIsNotClosed);
 			// We need to also check if provided values are not zero
 			ensure!(
 				min_order_price.saturated_into::<u128>() > 0 &&
@@ -569,19 +578,22 @@ pub mod pallet {
 		}
 
 		/// Deposit Assets to Orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
+		#[pallet::weight(< T as Config >::WeightInfo::deposit())]
 		pub fn deposit(
 			origin: OriginFor<T>,
 			asset: AssetId,
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+			// Check if account is registered
+			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
 			// TODO: Check if asset is enabled for deposit
 
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount =
 				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
 
+			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
 			// Get Storage Map Value
 			if let Some(expected_total_amount) =
 				converted_amount.checked_add(Self::total_assets(asset))
@@ -591,7 +603,6 @@ pub mod pallet {
 				return Err(Error::<T>::AmountOverflow.into())
 			}
 
-			Self::transfer_asset(&user, &Self::get_custodian_account(), amount, asset)?;
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
@@ -719,7 +730,7 @@ pub mod pallet {
 					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 				{
 					Self::transfer_asset(
-						&Self::get_custodian_account(),
+						&Self::get_pallet_account(),
 						&beneficiary,
 						converted_fee.saturated_into(),
 						fee.asset,
@@ -767,7 +778,7 @@ pub mod pallet {
 						x.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 					{
 						Self::transfer_asset(
-							&Self::get_custodian_account(),
+							&Self::get_pallet_account(),
 							&x.main_account,
 							converted_withdrawal.saturated_into(),
 							x.asset,
@@ -799,7 +810,7 @@ pub mod pallet {
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		#[pallet::weight(< T as Config >::WeightInfo::register_enclave())]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
@@ -832,7 +843,7 @@ pub mod pallet {
 
 		/// In order to register itself - enclave account id must be whitelisted and called by
 		/// Governance
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		#[pallet::weight(< T as Config >::WeightInfo::register_enclave())]
 		pub fn whitelist_enclave(
 			origin: OriginFor<T>,
 			enclave_account_id: T::AccountId,
@@ -871,7 +882,7 @@ pub mod pallet {
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		FeesClaims {
 			beneficiary: T::AccountId,
@@ -1015,7 +1026,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
-	fn get_custodian_account() -> T::AccountId {
+	fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
 
