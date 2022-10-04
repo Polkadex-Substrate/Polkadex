@@ -10,14 +10,14 @@ use crate::Pallet as ChainBridge;
 
 use frame_benchmarking::{
     benchmarks,
-    whitelisted_caller,
+    allowlisted_caller,
 };
 use frame_system::RawOrigin;
 
 benchmarks! {
     set_threshold {
         let s in 0 .. 100;
-        let caller: T::AccountId = whitelisted_caller();
+        let caller: T::AccountId = allowlisted_caller();
     }: _(RawOrigin::Signed(caller), s)
     verify {
         assert_eq!(RelayerCount::<T>::get(), s);
