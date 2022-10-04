@@ -86,7 +86,7 @@ benchmarks! {
 		let b in 10 .. 1000;
 		let c in 1010 .. 2000;
 		let chain_id = 0;
-		chainbridge::pallet::Pallet::<T>::whitelist(chain_id);
+		chainbridge::pallet::Pallet::<T>::allowlist(chain_id);
 		let id = H160::from_slice(&[1; 20]);
 		let rid = chainbridge::derive_resource_id(chain_id, &id.0);
 		Pallet::<T>::register_asset(rid);

@@ -1,6 +1,6 @@
 //! Benchmarking setup for pallet-template
 
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use frame_benchmarking::{account, allowlisted_caller, benchmarks, impl_benchmark_test_suite};
 use frame_support::{assert_ok, pallet_prelude::*, traits::Get};
 use frame_system::{pallet_prelude::*, RawOrigin};
 use rand::{RngCore, SeedableRng};
@@ -31,7 +31,7 @@ benchmarks! {
 		let relayer1: T::AccountId = account("relayer1",0,0);
 		let relayer2: T::AccountId = account("relayer2",0,0);
 		let relayer3: T::AccountId = account("relayer3",0,0);
-		let beneficiary: T::AccountId  = whitelisted_caller();
+		let beneficiary: T::AccountId  = allowlisted_caller();
 		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
 		let mut random_slice = [0u8; 32];
 		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
@@ -56,7 +56,7 @@ benchmarks! {
 		let relayer1 : T::AccountId = account("relayer1",0,0);
 		let relayer2  : T::AccountId = account("relayer2",0,0);
 		let relayer3 : T::AccountId = account("relayer3",0,0);
-		let beneficiary : T::AccountId  = whitelisted_caller();
+		let beneficiary : T::AccountId  = allowlisted_caller();
 
 		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
 		let mut random_slice = [0u8; 32];
@@ -83,7 +83,7 @@ benchmarks! {
 		let relayer1: T::AccountId = account("relayer1",0,0);
 		let relayer2  : T::AccountId = account("relayer2",0,0);
 		let relayer3 : T::AccountId = account("relayer3",0,0);
-		let beneficiary: T::AccountId  = whitelisted_caller();
+		let beneficiary: T::AccountId  = allowlisted_caller();
 	  let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
 		let mut random_slice = [0u8; 32];
 		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);

@@ -18,7 +18,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
-use frame_benchmarking::{benchmarks, whitelisted_caller};
+use frame_benchmarking::{allowlisted_caller, benchmarks};
 use frame_system::RawOrigin;
 
 benchmarks! {
@@ -30,7 +30,7 @@ benchmarks! {
 	}
 	accumulate_dummy {
 		let b in 1 .. 1000;
-		let caller: T::AccountId = whitelisted_caller();
+		let caller: T::AccountId = allowlisted_caller();
 	}: _(RawOrigin::Signed(caller), b.into())
 
 	sort_vector {
