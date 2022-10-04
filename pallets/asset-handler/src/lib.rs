@@ -431,7 +431,7 @@ pub mod pallet {
 			let (min_fee, fee_scale) = Self::get_bridge_fee(bridge_id);
 			let fee_estimated: u128 =
 				amount.saturating_mul(fee_scale.into()).unique_saturated_into();
-			match fee_estimated.checked_div(1000 as u128) {
+			match fee_estimated.checked_div(1000_u128) {
 				Some(fee_estimated) => {
 					let fee_estimated = fee_estimated.saturated_into();
 					if fee_estimated > min_fee {

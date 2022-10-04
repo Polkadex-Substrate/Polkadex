@@ -58,7 +58,6 @@ const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
-	use core::ops::Div;
 	use frame_support::{
 		pallet_prelude::*,
 		sp_tracing::debug,
@@ -539,7 +538,6 @@ pub mod pallet {
 				Error::<T>::AmountOverflow
 			);
 
-
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
@@ -614,8 +612,8 @@ pub mod pallet {
 			// TODO: Check if asset is enabled for deposit
 
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
-			let converted_amount =
-				Decimal::from(amount.saturated_into::<u128>()).checked_div(Decimal::from(UNIT_BALANCE))
+			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
+				.checked_div(Decimal::from(UNIT_BALANCE))
 				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
 
 			// Get Storage Map Value
