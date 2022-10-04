@@ -79,7 +79,10 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_runtime::{traits::{IdentifyAccount, Verify}, SaturatedConversion, bounded_vec};
+	use sp_runtime::{
+		traits::{IdentifyAccount, Verify},
+		SaturatedConversion,
+	};
 	use sp_std::vec::Vec;
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
@@ -688,42 +691,34 @@ pub mod pallet {
 			// TODO: The caller should be of operational council
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
-			ensure!(<FeesCollected<T>>::mutate(snapshot_id, |internal_vector|{
-				if let Some(fees) = internal_vector.pop(){
-					if let Some(converted_fee) = fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128() {
-						if Self::transfer_asset(
-							&Self::get_custodian_account(),
-							&beneficiary,
-							converted_fee.saturated_into(),
-							fees.asset,
-						).is_err(){
+			ensure!(
+				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
+					if let Some(fees) = internal_vector.pop() {
+						if let Some(converted_fee) =
+							fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+						{
+							if Self::transfer_asset(
+								&Self::get_custodian_account(),
+								&beneficiary,
+								converted_fee.saturated_into(),
+								fees.asset,
+							)
+							.is_err()
+							{
+								// Push it back inside the internal vector
+								internal_vector.try_push(fees).unwrap_or_default();
+							}
+						} else {
 							// Push it back inside the internal vector
 							internal_vector.try_push(fees).unwrap_or_default();
+							return Err(Error::<T>::FailedToConvertDecimaltoBalance)
 						}
-					} else{
-						// Push it back inside the internal vector
-						internal_vector.try_push(fees).unwrap_or_default();
-						// return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
 					}
-
-				} // Ok(())
-			}), Error::<T>::FailedToConvertDecimaltoBalance);
-			/* let fees: Vec<Fees> = <FeesCollected<T>>::get(snapshot_id).iter().cloned().collect();
-			for fee in fees {
-				if let Some(converted_fee) =
-					fee.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-				{
-					Self::transfer_asset(
-						&Self::get_custodian_account(),
-						&beneficiary,
-						converted_fee.saturated_into(),
-						fee.asset,
-					)?;
-				// TODO: Remove the fees from storage if successful
-				} else {
-					return Err(Error::<T>::FailedToConvertDecimaltoBalance.into())
-				}
-			} */
+					return Ok(())
+				})
+				.is_ok(),
+				Error::<T>::FailedToConvertDecimaltoBalance
+			);
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
 			Ok(())
 		}
