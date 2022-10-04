@@ -438,11 +438,6 @@ pub mod pallet {
 				Error::<T>::AmountOverflow
 			);
 
-			let price_tick_size = Decimal::from(price_tick_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
-			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
-
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
@@ -568,11 +563,6 @@ pub mod pallet {
 				qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
 				Error::<T>::AmountOverflow
 			);
-
-			let price_tick_size = Decimal::from(price_tick_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
-			let qty_step_size = Decimal::from(qty_step_size.saturated_into::<u128>())
-				.div(&Decimal::from(UNIT_BALANCE));
 
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
