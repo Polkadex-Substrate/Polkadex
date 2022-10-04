@@ -772,7 +772,8 @@ pub mod pallet {
 								}
 							}
 						}
-						btree_map.remove(&account);
+						// Not removing key from BtreeMap so that failed withdrawals can still be
+						// tracked
 						return Ok(())
 					} else {
 						// This allows us to ensure we do not have someone with an invalid account
