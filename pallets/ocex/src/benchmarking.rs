@@ -174,37 +174,54 @@ benchmarks! {
 		let x in 0 .. 65_000;
 		let origin = RawOrigin::Signed(account("caller", x, x));
 		let snapshot = EnclaveSnapshot {
-			snapshot_number: 0,
-			merkle_root: Default::default(),
+			snapshot_number: x,
+			snapshot_hash: H256::from([x as u8; 32]),
 			withdrawals: Default::default(),
 			fees: Default::default()
 		};
-		let signature = T::Signature::decode(&mut &[x as u8; 64][..]).unwrap();
+		let bytes = snapshot.encode();
+		let signature: T::Signature = origin.sign(&bytes);
 	}: _(origin, snapshot, signature)
 	verify {
-		assert!(true);
+		assert!(<Snapshots<T>>::contains_key(x));
 	}
 
 	insert_enclave {
-		todo!()
-	}: _()
+		let x in 0 .. 100_000;
+		let origin = T::GovernanceOrigin::successful_origin();
+		let enclave = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
+	}: _(origin, enclave.clone())
 	verify {
-		assert!(true)
+		assert!(<RegisteredEnclaves<T>>::contains_key(enclave));
 	}
 
 	collect_fees {
-		todo!()
-	}: _()
+		let x in 0 .. 100_000;
+		let origin = T::GovernanceOrigin::successful_origin();
+		let benefic = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
+		let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
+		let snapshot =
+			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				snapshot_number: x.into(),
+				snapshot_hash: H256::from([x as u8; 32]),
+				withdrawals: Default::default(),
+				fees: bounded_vec![fees],
+			};
+		<Snapshots<T>>::insert(snapshot);
+	}: _(origin, x, benefic.clone())
 	verify {
-		assert!(true)
+		assert_last_event::<T>(Event::FeesClaims{benefic, x}.into());
 	}
 
 	shutdown {
 		let x in 0 .. 100_000;
-		let root = RawOrigin::Root;
-	}: _(root)
+		let state = x % 2 == 0;
+		let origin = T::GovernanceOrigin::successful_origin();
+		<ExchangeState<T>>::put(state);
+	}: _(origin, !state)
 	verify {
-		assert!(true);
+		assert_eq!(<ExchanegState<T>>::get(), !state);
+		assert_eq!(<IngeressMessages<T>>::get().last(), polkadex_primitives::ingress::IngressMessages::Shutdown);
 	}
 
 	set_exchange_state {
