@@ -409,26 +409,6 @@ pub mod pallet {
 
 			Self::try_resolve_proposal(nonce, src_id, prop)
 		}
-
-		// TODO: To be removed later, only for testing
-		// #[pallet::weight(10_000)]
-		// pub fn test_transfer(origin: OriginFor<T>, amount: u128, recipient: Vec<u8>, dest_id:
-		// BridgeChainId) -> DispatchResult {     let _source = ensure_signed(origin)?;
-		//     let resource_id = derive_resource_id(0, &Hashable::blake2_128(b"DAV"));
-		//     Self::transfer_fungible(dest_id, resource_id, recipient, U256::from(amount))?;
-		//     Ok(())
-		// }
-		//
-		// #[pallet::weight(195_000_000)]
-		// pub fn handle_fungible_transfer(
-		//     origin: OriginFor<T>,
-		//     dest: Vec<u8>,
-		//     amount: u128,
-		//     rid: ResourceId,
-		// ) -> DispatchResult {
-		//     Self::deposit_event(Event::TransactionFound);
-		//     Ok(())
-		// }
 	}
 
 	impl<T: Config> Pallet<T> {
