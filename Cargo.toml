@@ -1,14 +1,17 @@
 [profile.release]
-panic = 'unwind'
+panic = "unwind"
 
 [workspace]
 members = [
-    'node',
-    'runtime',
-    "pallets/pdex-migration"
+    "client",
+    "node",
+    "runtime",
+    "pallets/pdex-migration",
+    "pallets/chainbridge",
+    "pallets/asset-handler",
+    "pallets/pdex-migration",
+    "pallets/ocex",
 ]
 
-
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
-orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git",  branch="polkadot-v0.9.19"}
-
+orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git",  branch="polkadot-v0.9.28"}
