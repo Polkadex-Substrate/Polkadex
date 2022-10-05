@@ -606,7 +606,6 @@ parameter_types! {
 	pub const SignedDepositByte: Balance = deposit(0, 10) / 1024;
 	// Each good submission will get 1 DOT as reward
 	pub SignedRewardBase: Balance = UNITS;
-	// pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(5u32, 10_000);
 	pub BetterUnsignedThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
 
 
@@ -707,10 +706,6 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type SignedPhase = SignedPhase;
 	type BetterSignedThreshold = ();
 	type BetterUnsignedThreshold = BetterUnsignedThreshold;
-	// nothing to do upon rewards
-	// type SolutionImprovementThreshold = SolutionImprovementThreshold;
-	// type MinerMaxWeight = MinerMaxWeight;
-	// type MinerMaxLength = MinerMaxLength;
 	type OffchainRepeat = OffchainRepeat;
 	type MinerTxPriority = MultiPhaseUnsignedPriority;
 	type MinerConfig = Self;
@@ -728,7 +723,6 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type RewardHandler = ();
 	type DataProvider = Staking;
 	type Fallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
-	// type Solution = NposSolution16
 	type GovernanceFallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
 	type Solver = SequentialPhragmen<
 		AccountId,

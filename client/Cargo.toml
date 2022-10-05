@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-node-polkadex-runtime = { path = "../runtime", version = "3.0.0" }
+node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
