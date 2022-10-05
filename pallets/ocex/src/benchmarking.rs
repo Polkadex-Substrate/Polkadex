@@ -19,7 +19,7 @@
 //! Benchmarking setup for pallet-ocex
 
 use super::*;
-use codec::Decode;
+use codec::{Decode, Encode};
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
@@ -198,7 +198,7 @@ benchmarks! {
 	collect_fees {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
-		let benefic = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
+		let beneficiary = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
@@ -207,13 +207,21 @@ benchmarks! {
 				withdrawals: Default::default(),
 				fees: bounded_vec![fees],
 			};
-		<Snapshots<T>>::insert(snapshot);
-	}: _(origin, x, benefic.clone())
+		<Snapshots<T>>::insert(x, snapshot);
+	}: _(origin, x, beneficiary.clone())
 	verify {
-		assert_last_event::<T>(Event::FeesClaims{benefic, x}.into());
+		assert_last_event::<T>(Event::FeesClaims{beneficiary, snapshot_id: x}.into());
 	}
 
 	shutdown {
+		let origin = T::GovernanceOrigin::successful_origin();
+		<ExchangeState<T>>::put(true);
+	}: _(origin)
+	verify {
+		assert_eq!(<ExchanegState<T>>::get(), false);
+	}
+
+	set_exchange_state {
 		let x in 0 .. 100_000;
 		let state = x % 2 == 0;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -224,13 +232,6 @@ benchmarks! {
 		assert_eq!(<IngeressMessages<T>>::get().last(), polkadex_primitives::ingress::IngressMessages::Shutdown);
 	}
 
-	set_exchange_state {
-		todo!()
-	}: _()
-	verify {
-		assert!(true)
-	}
-
 	claim_withdraw {
 		let x in 0 .. 100_000;
 		let origin = RawOrigin::Signed(account("caller", x, x));
@@ -238,21 +239,21 @@ benchmarks! {
 		let asset = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let amount = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let mut withdrawals = Vec::with_capacity(1);
+		let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
 		withdrawals.push(Withdrawal {
-				amount: BalanceOf::<T>::decode(&mut (x as u128).to_be_bytes().to_vec().as_ref()).unwrap(),
-				asset,
-				main_account: main.clone()
-			});
+			amount: BalanceOf::<T>::decode(&mut (x as u128).to_be_bytes().to_vec().as_ref()).unwrap(),
+			asset,
+			main_account: main.clone(),
+			event_id: 1,
+			fees,
+		});
 		let mut withdrawals: BoundedVec<Withdrawal<T::AccountId, BalanceOf<T>>, WithdrawalLimit> = frame_support::BoundedVec::try_from(withdrawals).unwrap();
 		<Withdrawals<T>>::insert(x, withdrawals);
-	}: _(origin, x, x)
+	}: _(origin, x, main.clone())
 	verify {
 		assert_last_event::<T>(Event::WithdrawalClaimed {
 			main,
-			asset,
-			amount,
-			snapshot_id: x,
-			withdrawal_index: 0
+			withdrawals,
 		}.into());
 	}
 
@@ -269,7 +270,7 @@ benchmarks! {
 	allowlist_token {
 		let x in 0 .. 65_000;
 		let origin = T::GovernanceOrigin::successful_origin();
-		let asset_id = AssetId::asset(x);
+		let asset_id = AssetId::asset(x.into());
 	}: _(origin, asset_id)
 	verify {
 		assert_last_event::<T>(Event::TokenAllowlisted(asset_id).into());
@@ -278,8 +279,8 @@ benchmarks! {
 	remove_allowlisted_token {
 		let x in 0 .. 65_000;
 		let origin = T::GovernanceOrigin::successful_origin();
-		let asset_id = AssetId::asset(x);
-		<AllowlistedToken<T>>::insert(asset_id);
+		let asset_id = AssetId::asset(x.into());
+		<AllowlistedToken<T>>::mutate(|v| v.insert(asset_id));
 	}: _(origin, asset_id)
 	verify {
 		assert_last_event::<T>(Event::AllowlistedTokenRemoved(asset_id).into());
