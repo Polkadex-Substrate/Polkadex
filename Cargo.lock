@@ -3970,7 +3970,7 @@ dependencies = [
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "asset-handler",
  "chainbridge",
@@ -4676,7 +4676,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "4.0.0-dev"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "frame-benchmarking",
