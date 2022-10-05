@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 
-// Copyright (C) 2020-2021 Polkadex oü.
+// Copyright (C) 2020-2022 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -16,9 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use sp_runtime::{MultiSignature,traits::{
-    IdentifyAccount, Verify,
-}};
-pub type Signature = MultiSignature;
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-pub type Balance = u128;
+#![cfg_attr(not(feature = "std"), no_std)]
+use codec::Codec;
+use sp_std::vec::Vec;
+sp_api::decl_runtime_apis! {
+	pub trait PolkadexAssetHandlerRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
+		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128>;
+	}
+}

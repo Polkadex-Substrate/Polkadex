@@ -19,18 +19,15 @@
 #![warn(unused_extern_crates)]
 
 //! Service implementation. Specialized wrapper over substrate service.
-
 use crate::rpc as node_rpc;
 use futures::prelude::*;
-use node_executor::ExecutorDispatch;
 use node_polkadex_runtime::RuntimeApi;
+use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
-use sc_service::{
-	config::Configuration, error::Error as ServiceError, RpcExtensionBuilder, TaskManager,
-};
+use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
@@ -45,7 +42,7 @@ pub type FullClient =
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
-	grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
+	sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
 /// Fetch the nonce of the given `account` from the chain state.
 ///
@@ -115,32 +112,40 @@ pub fn create_extrinsic(
 	let signature = raw_payload.using_encoded(|e| sender.sign(e));
 
 	node_polkadex_runtime::UncheckedExtrinsic::new_signed(
-		function.clone(),
+		function,
 		sp_runtime::AccountId32::from(sender.public()).into(),
-		node_polkadex_runtime::Signature::Sr25519(signature.clone()),
-		extra.clone(),
+		node_polkadex_runtime::Signature::Sr25519(signature),
+		extra,
 	)
 }
+use sc_network_common::service::NetworkEventStream;
 
-type PartialComponents = sc_service::PartialComponents<
-	FullClient,
-	FullBackend,
-	FullSelectChain,
-	sc_consensus::DefaultImportQueue<Block, FullClient>,
-	sc_transaction_pool::FullPool<Block, FullClient>,
-	(
-		Box<dyn RpcExtensionBuilder<Output = node_rpc::IoHandler> + Send>,
+#[allow(clippy::type_complexity)]
+pub fn new_partial(
+	config: &Configuration,
+) -> Result<
+	sc_service::PartialComponents<
+		FullClient,
+		FullBackend,
+		FullSelectChain,
+		sc_consensus::DefaultImportQueue<Block, FullClient>,
+		sc_transaction_pool::FullPool<Block, FullClient>,
 		(
-			sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
-			grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
-			sc_consensus_babe::BabeLink<Block>,
+			impl Fn(
+				node_rpc::DenyUnsafe,
+				sc_rpc::SubscriptionTaskExecutor,
+			) -> Result<jsonrpsee::RpcModule<()>, sc_service::Error>,
+			(
+				sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
+				sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
+				sc_consensus_babe::BabeLink<Block>,
+			),
+			sc_finality_grandpa::SharedVoterState,
+			Option<Telemetry>,
 		),
-		grandpa::SharedVoterState,
-		Option<Telemetry>,
-	),
->;
-
-pub fn new_partial(config: &Configuration) -> Result<PartialComponents, ServiceError> {
+	>,
+	ServiceError,
+> {
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -182,7 +187,7 @@ pub fn new_partial(config: &Configuration) -> Result<PartialComponents, ServiceE
 		client.clone(),
 	);
 
-	let (grandpa_block_import, grandpa_link) = grandpa::block_import(
+	let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
 		client.clone(),
 		&(client.clone() as Arc<_>),
 		select_chain.clone(),
@@ -230,10 +235,10 @@ pub fn new_partial(config: &Configuration) -> Result<PartialComponents, ServiceE
 
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
-		let shared_voter_state = grandpa::SharedVoterState::empty();
+		let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
 		let rpc_setup = shared_voter_state.clone();
 
-		let finality_proof_provider = grandpa::FinalityProofProvider::new_for_service(
+		let finality_proof_provider = sc_finality_grandpa::FinalityProofProvider::new_for_service(
 			backend.clone(),
 			Some(shared_authority_set.clone()),
 		);
@@ -309,12 +314,12 @@ pub fn new_full_base(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, mut telemetry),
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
-	let grandpa_protocol_name = grandpa::protocol_standard_name(
+	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
 	);
@@ -322,7 +327,7 @@ pub fn new_full_base(
 	config
 		.network
 		.extra_sets
-		.push(grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
+		.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
@@ -334,7 +339,7 @@ pub fn new_full_base(
 		),
 	);
 
-	let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
+	let warp_sync = Arc::new(sc_finality_grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
 		import_setup.1.shared_authority_set().clone(),
 		Vec::default(),
@@ -374,11 +379,11 @@ pub fn new_full_base(
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		network: network.clone(),
-		rpc_extensions_builder,
 		transaction_pool: transaction_pool.clone(),
 		task_manager: &mut task_manager,
 		system_rpc_tx,
 		telemetry: telemetry.as_mut(),
+		rpc_builder: Box::new(rpc_builder),
 	})?;
 
 	let (block_import, grandpa_link, babe_link) = import_setup;
@@ -479,7 +484,7 @@ pub fn new_full_base(
 	let keystore =
 		if role.is_authority() { Some(keystore_container.sync_keystore()) } else { None };
 
-	let config = grandpa::Config {
+	let config = sc_finality_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
 		gossip_duration: std::time::Duration::from_millis(333),
 		justification_period: 512,
@@ -498,12 +503,12 @@ pub fn new_full_base(
 		// and vote data availability than the observer. The observer has not
 		// been tested extensively yet and having most nodes in a network run it
 		// could lead to finality stalls.
-		let grandpa_config = grandpa::GrandpaParams {
+		let grandpa_config = sc_finality_grandpa::GrandpaParams {
 			config,
 			link: grandpa_link,
 			network: network.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
-			voting_rule: grandpa::VotingRulesBuilder::default().build(),
+			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry,
 			shared_voter_state,
 		};
@@ -513,7 +518,7 @@ pub fn new_full_base(
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"grandpa-voter",
 			None,
-			grandpa::run_grandpa_voter(grandpa_config)?,
+			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
 
@@ -530,11 +535,11 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 mod tests {
 	use crate::service::{new_full_base, NewFullBase};
 	use codec::Encode;
-	use polkadex_primitives::{Block, DigestItem, Signature};
 	use node_polkadex_runtime::{
 		constants::{currency::CENTS, time::SLOT_DURATION},
 		Address, BalancesCall, Call, UncheckedExtrinsic,
 	};
+	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
 	use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};
 	use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
@@ -547,7 +552,13 @@ mod tests {
 	use sp_inherents::InherentDataProvider;
 	use sp_keyring::AccountKeyring;
 	use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-	use sp_runtime::{generic::{BlockId, Digest, SignedPayload}, key_types::BABE, traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify}, RuntimeAppPublic, generic};
+	use sp_runtime::{
+		generic,
+		generic::{BlockId, Digest, SignedPayload},
+		key_types::BABE,
+		traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
+		RuntimeAppPublic,
+	};
 	use sp_timestamp;
 	use std::{borrow::Cow, sync::Arc};
 
@@ -646,8 +657,8 @@ mod tests {
 						.unwrap();
 
 					if let Some(babe_pre_digest) =
-					sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
-						.map(|(digest, _)| digest)
+						sc_consensus_babe::authorship::claim_slot(slot.into(), &epoch, &keystore)
+							.map(|(digest, _)| digest)
 					{
 						break (babe_pre_digest, epoch_descriptor)
 					}
@@ -673,8 +684,8 @@ mod tests {
 						.propose(inherent_data, digest, std::time::Duration::from_secs(1), None)
 						.await
 				})
-					.expect("Error making test block")
-					.block;
+				.expect("Error making test block")
+				.block;
 
 				let (new_header, new_body) = new_block.deconstruct();
 				let pre_hash = new_header.hash();
@@ -687,10 +698,10 @@ mod tests {
 					&alice.to_public_crypto_pair(),
 					&to_sign,
 				)
-					.unwrap()
-					.unwrap()
-					.try_into()
-					.unwrap();
+				.unwrap()
+				.unwrap()
+				.try_into()
+				.unwrap();
 				let item = <DigestItem as CompatibleDigestItem>::babe_seal(signature);
 				slot += 1;
 
@@ -727,15 +738,19 @@ mod tests {
 					frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
 					frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
 					frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
-					frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(generic::Era::Immortal),
+					frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(
+						generic::Era::Immortal,
+					),
 					frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(index),
 					frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-					pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
+					pallet_transaction_payment::ChargeTransactionPayment::<
+						node_polkadex_runtime::Runtime,
+					>::from(tip),
 				);
 				let raw_payload = SignedPayload::from_raw(
 					function,
 					extra,
-					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (),()),
+					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();
