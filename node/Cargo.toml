@@ -30,7 +30,7 @@ parking_lot = "0.12.1"
 itertools = "0.10.1"
 jsonrpsee = { version = "0.15.1", features = ["server"] }
 # local dependencies
-node-polkadex-runtime = { path = "../runtime", version = "3.0.0" }
+node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
 pallet-asset-handler-rpc = {path = "../pallets/asset-handler/rpc"}
 polkadex-client = { path = "../client"}
 
