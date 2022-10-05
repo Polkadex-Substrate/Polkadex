@@ -466,7 +466,6 @@ pub mod pallet {
 		pub fn convert_asset_id(token: ResourceId) -> u128 {
 			let mut temp = [0u8; 16];
 			temp.copy_from_slice(&token[0..16]);
-			//temp.copy_fro	m_slice(token.as_fixed_bytes().as_ref());
 			u128::from_le_bytes(temp)
 		}
 
