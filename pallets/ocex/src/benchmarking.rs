@@ -67,17 +67,16 @@ benchmarks! {
 		let origin = RawOrigin::Signed(account("caller", x, x));
 		let base = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let quote = AssetId::decode(&mut &((x + 1) as u128).to_be_bytes()[..]).unwrap();
-		let balance = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
-		let zero = BalanceOf::<T>::decode(&mut &(0 as u128).to_be_bytes()[..]).unwrap();
-		let config: TradingPairConfig<BalanceOf<T>> = TradingPairConfig {
+		let config = TradingPairConfig {
 			base_asset: base,
 			quote_asset: quote,
-			min_trade_amount: balance,
-			max_trade_amount: balance,
-			min_order_qty: balance,
-			max_order_qty: balance,
-			min_depth: zero,
-			max_spread: zero,
+			min_price: Decimal::from_f32(0.0001).unwrap(),
+			max_price: Decimal::from_f32(100000.0).unwrap(),
+			price_tick_size: Decimal::from_f32(0.000001).unwrap(),
+			min_qty: Decimal::from_f64(0.001).unwrap(),
+			max_qty: Decimal::from_f32(10000.0).unwrap(),
+			qty_step_size: Decimal::from_f64(0.001).unwrap(),
+			operational_status: true,
 		};
 		<TradingPairs<T>>::insert(base, quote, config);
 		let trading_pair = <TradingPairs<T>>::get(base, quote).unwrap();
@@ -93,17 +92,16 @@ benchmarks! {
 		let origin = RawOrigin::Signed(account("caller", x, x));
 		let base = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let quote = AssetId::decode(&mut &((x + 1) as u128).to_be_bytes()[..]).unwrap();
-		let balance = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
-		let zero = BalanceOf::<T>::decode(&mut &(0 as u128).to_be_bytes()[..]).unwrap();
-		let config: TradingPairConfig<BalanceOf<T>> = TradingPairConfig {
+		let config = TradingPairConfig {
 			base_asset: base,
 			quote_asset: quote,
-			min_trade_amount: balance,
-			max_trade_amount: balance,
-			min_order_qty: balance,
-			max_order_qty: balance,
-			min_depth: zero,
-			max_spread: zero,
+			min_price: Decimal::from_f32(0.0001).unwrap(),
+			max_price: Decimal::from_f32(100000.0).unwrap(),
+			price_tick_size: Decimal::from_f32(0.000001).unwrap(),
+			min_qty: Decimal::from_f64(0.001).unwrap(),
+			max_qty: Decimal::from_f32(10000.0).unwrap(),
+			qty_step_size: Decimal::from_f64(0.001).unwrap(),
+			operational_status: true,
 		};
 		<TradingPairs<T>>::insert(base, quote, config);
 		let trading_pair = <TradingPairs<T>>::get(base, quote).unwrap();
@@ -115,6 +113,21 @@ benchmarks! {
 	}
 
 	register_trading_pair {
+		let x in 0 .. 100_000;
+		let origin = RawOrigin::Signed(account("caller", x, x));
+		let base = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
+		let quote = AssetId::decode(&mut &((x + 1) as u128).to_be_bytes()[..]).unwrap();
+		let balance = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
+		let zero = BalanceOf::<T>::decode(&mut &(0 as u128).to_be_bytes()[..]).unwrap();
+	}: _(origin, base, quote, balance, balance, balance, balance, zero, zero)
+	verify {
+		assert_last_event::<T>(Event::TradingPairRegistered {
+			base,
+			quote
+		}.into());
+	}
+
+	update_trading_pair {
 		let x in 0 .. 100_000;
 		let origin = RawOrigin::Signed(account("caller", x, x));
 		let base = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
@@ -144,6 +157,19 @@ benchmarks! {
 		}.into());
 	}
 
+	remove_proxy_account {
+		let x in 0 .. 100_000;
+		let origin = RawOrigin::Signed(account("caller", x, x));
+		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
+		let account = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
+	}: _(origin.clone(), account.clone())
+	verify {
+		assert_last_event::<T>(Event::MainAccountRegistered {
+			main,
+			proxy: account
+		}.into());
+	}
+
 	submit_snapshot {
 		let x in 0 .. 65_000;
 		let origin = RawOrigin::Signed(account("caller", x, x));
@@ -159,6 +185,20 @@ benchmarks! {
 		assert!(true);
 	}
 
+	insert_enclave {
+		todo!()
+	}: _()
+	verify {
+		assert!(true)
+	}
+
+	collect_fees {
+		todo!()
+	}: _()
+	verify {
+		assert!(true)
+	}
+
 	shutdown {
 		let x in 0 .. 100_000;
 		let root = RawOrigin::Root;
@@ -167,7 +207,14 @@ benchmarks! {
 		assert!(true);
 	}
 
-	withdraw {
+	set_exchange_state {
+		todo!()
+	}: _()
+	verify {
+		assert!(true)
+	}
+
+	claim_withdraw {
 		let x in 0 .. 100_000;
 		let origin = RawOrigin::Signed(account("caller", x, x));
 		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
@@ -200,6 +247,34 @@ benchmarks! {
 	}: _(RawOrigin::Signed(signer.clone()), TEST4_SETUP.cert.to_vec())
 	verify {
 		assert_last_event::<T>(Event::EnclaveRegistered(signer).into());
+	}
+
+	allowlist_token {
+		let x in 0 .. 65_000;
+		let origin = T::GovernanceOrigin::successful_origin();
+		let asset_id = AssetId::asset(x);
+	}: _(origin, asset_id)
+	verify {
+		assert_last_event::<T>(Event::TokenAllowlisted(asset_id).into());
+	}
+
+	remove_allowlisted_token {
+		let x in 0 .. 65_000;
+		let origin = T::GovernanceOrigin::successful_origin();
+		let asset_id = AssetId::asset(x);
+		<AllowlistedToken<T>>::insert(asset_id);
+	}: _(origin, asset_id)
+	verify {
+		assert_last_event::<T>(Event::AllowlistedTokenRemoved(asset_id).into());
+	}
+
+	allowlist_enclave {
+		let x in 0 .. 65_000;
+		let origin = T::GovernanceOrigin::successful_origin();
+		let account = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
+	}: _(origin, account.clone())
+	verify {
+		assert_last_event::<T>(Event::EnclaveAllowlisted(account).into());
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Test);
