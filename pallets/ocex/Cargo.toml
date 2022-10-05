@@ -25,6 +25,9 @@ pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git 
 ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
 rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+frame-benchmarking = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', optional = true }
+test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch = "polkadot-v0.9.28", default-features = false, optional = true }
+getrandom = { version = "0.2.7", features = ["js"], optional = true }
 
 [dev-dependencies]
 pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
@@ -55,5 +58,12 @@ std = [
     "sp-core/std"
 ]
 #TODO: [#435] Currently broken, will be fixed in different issue
-#runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "pallet-timestamp/runtime-benchmarks",
+    "getrandom",
+    "test-utils"
+]
 try-runtime = ["frame-support/try-runtime"]
