@@ -591,6 +591,7 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
+			//ToDo: change div to checked_div
 			let converted_amount =
 				Decimal::from(amount.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE));
 
@@ -612,6 +613,46 @@ pub mod pallet {
 				));
 			});
 			Self::deposit_event(Event::DepositSuccessful { user, asset, amount });
+			Ok(())
+		}
+
+		/// Unreserved the amount specified for particular asset id
+		#[pallet::weight(100000)]
+		pub fn unreserve_balance(
+			origin: OriginFor<T>,
+			beneficiary: T::AccountId,
+			amount: BalanceOf<T>,
+			asset: AssetId,
+		) -> DispatchResult {
+			// Check if governance called the extrinsic
+			T::GovernanceOrigin::ensure_origin(origin)?;
+
+			//check if beneficiary account register or not
+			ensure!(<Accounts<T>>::contains_key(&beneficiary), Error::<T>::MainAccountNotFound);
+
+			// ensure asset register
+			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
+
+			let unreserved_amount = Decimal::from(amount.saturated_into::<u128>())
+				.checked_div(Decimal::from(UNIT_BALANCE))
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+
+			//ToDo: Change to UnreserveBalance ingress message once primitives Pr gets merged
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
+					beneficiary.clone(),
+					asset,
+					unreserved_amount,
+				));
+			});
+
+			Self::deposit_event(Event::UnreservedBalanceSuccessful {
+				beneficiary,
+				asset,
+				unreserved_amount,
+			});
+
 			Ok(())
 		}
 
@@ -924,6 +965,11 @@ pub mod pallet {
 		TradingPairUpdated {
 			base: AssetId,
 			quote: AssetId,
+		},
+		UnreservedBalanceSuccessful {
+			beneficiary: T::AccountId,
+			asset: AssetId,
+			unreserved_amount: BalanceOf<T>,
 		},
 		DepositSuccessful {
 			user: T::AccountId,
