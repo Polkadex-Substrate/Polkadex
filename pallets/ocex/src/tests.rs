@@ -1192,7 +1192,7 @@ fn test_close_trading_pair() {
 			crate::Event::ShutdownTradingPair { pair: trading_pair.clone() }.into(),
 		);
 		let event: IngressMessages<AccountId32> = IngressMessages::CloseTradingPair(trading_pair);
-		assert_eq!(OCEX::ingress_messages()[1], event);
+		assert_eq!(OCEX::ingress_messages()[2], event);
 	})
 }
 
@@ -1839,7 +1839,7 @@ fn test_set_balances_with_bad_origin() {
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
-		assert_noop!(OCEX::set_balances(Origin::root(), bounded_vec_for_alice), BadOrigin);
+		assert_noop!(OCEX::set_balances(Origin::none(), bounded_vec_for_alice), BadOrigin);
 	});
 }
 

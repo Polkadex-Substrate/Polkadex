@@ -860,7 +860,7 @@ pub mod pallet {
 		#[pallet::weight(100000)]
 		pub fn set_balances(
 			origin: OriginFor<T>,
-			mut change_in_balances: BoundedVec<
+			change_in_balances: BoundedVec<
 				polkadex_primitives::ingress::HandleBalance<T::AccountId>,
 				polkadex_primitives::ingress::HandleBalanceLimit,
 			>,
