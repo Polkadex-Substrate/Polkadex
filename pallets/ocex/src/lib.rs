@@ -616,6 +616,27 @@ pub mod pallet {
 			Ok(())
 		}
 
+		///This extrinsic will pause/resume the exchange according to flag
+		/// If flag is set to false it will stop the exchange
+		/// If flag is set to true it will resume the exchange
+		#[pallet::weight(100000)]
+		pub fn change_exchage_state(
+			origin: OriginFor<T>,
+			flag: bool,
+		) -> DispatchResult {
+			// Check if governance called the extrinsic
+			T::GovernanceOrigin::ensure_origin(origin)?;
+
+			///
+			<ExchangeState<T>>::put(false);
+
+			//SetExchangeState Ingress message store in queue
+			<IngressMessages<T>>::mutate(|ingress_messages|
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(flag))
+			);
+			Ok(())
+		}
+
 		/// Unreserved the amount specified for particular asset id
 		#[pallet::weight(100000)]
 		pub fn unreserve_balance(
@@ -624,6 +645,8 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			asset: AssetId,
 		) -> DispatchResult {
+			//ToDo check the exchange state
+
 			// Check if governance called the extrinsic
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
@@ -647,11 +670,11 @@ pub mod pallet {
 				));
 			});
 
-			Self::deposit_event(Event::UnreservedBalanceSuccessful {
-				beneficiary,
-				asset,
-				unreserved_amount,
-			});
+			// Self::deposit_event(Event::UnreservedBalanceSuccessful {
+			// 	beneficiary,
+			// 	asset,
+			// 	unreserved_amount,
+			// });
 
 			Ok(())
 		}
