@@ -123,7 +123,7 @@ benchmarks! {
 
 	register_trading_pair {
 		let x in 0 .. 100_000;
-		let origin = T::EnclaveOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::successful_origin();
 		let base = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let quote = AssetId::decode(&mut &((x + 1) as u128).to_be_bytes()[..]).unwrap();
 		let balance = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
