@@ -1829,18 +1829,17 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 	});
 }
 
-
 use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 
 #[test]
 fn test_set_balances_with_bad_origin() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
-		let mut vec_of_balances : Vec<HandleBalance<AccountId32>> = vec![];
+		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
-		assert_noop!(OCEX::set_balances(Origin::root(),bounded_vec_for_alice ), BadOrigin);
+		assert_noop!(OCEX::set_balances(Origin::root(), bounded_vec_for_alice), BadOrigin);
 	});
 }
 
@@ -1848,21 +1847,23 @@ fn test_set_balances_with_bad_origin() {
 pub fn test_set_balances_when_exchange_is_not_pause() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
-		let mut vec_of_balances : Vec<HandleBalance<AccountId32>> = vec![];
+		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
-		assert_noop!(OCEX::set_balances(Origin::root(),bounded_vec_for_alice ), Error::<Test>::ExchangeOperational);
+		assert_noop!(
+			OCEX::set_balances(Origin::root(), bounded_vec_for_alice),
+			Error::<Test>::ExchangeOperational
+		);
 	});
 }
-
 
 #[test]
 pub fn test_set_balances_when_exchange_is_pause() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
-		let mut vec_of_balances : Vec<HandleBalance<AccountId32>> = vec![];
+		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		vec_of_balances.push(HandleBalance {
 			main_account: account_id,
 			asset_id: AssetId::polkadex,
@@ -1872,13 +1873,11 @@ pub fn test_set_balances_when_exchange_is_pause() {
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
-		assert_eq!(OCEX::set_balances(Origin::root(),bounded_vec_for_alice.clone() ), Ok(()));
-		println!("Get ingress message: {:?}",OCEX::ingress_messages());
+		assert_eq!(OCEX::set_balances(Origin::root(), bounded_vec_for_alice.clone()), Ok(()));
+		println!("Get ingress message: {:?}", OCEX::ingress_messages());
 		assert_eq!(
 			OCEX::ingress_messages()[1],
-			IngressMessages::SetFreeReserveBalanceForAccounts(
-				bounded_vec_for_alice,
-			)
+			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice,)
 		);
 	});
 }

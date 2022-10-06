@@ -847,9 +847,10 @@ pub mod pallet {
 			<ExchangeState<T>>::put(state);
 
 			//SetExchangeState Ingress message store in queue
-			<IngressMessages<T>>::mutate(|ingress_messages|
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
-			);
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages
+					.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
+			});
 
 			Self::deposit_event(Event::ExchangeStateUpdated(state));
 			Ok(())
@@ -859,7 +860,10 @@ pub mod pallet {
 		#[pallet::weight(100000)]
 		pub fn set_balances(
 			origin: OriginFor<T>,
-			mut change_in_balances : BoundedVec<polkadex_primitives::ingress::HandleBalance<T::AccountId>, polkadex_primitives::ingress::HandleBalanceLimit>
+			mut change_in_balances: BoundedVec<
+				polkadex_primitives::ingress::HandleBalance<T::AccountId>,
+				polkadex_primitives::ingress::HandleBalanceLimit,
+			>,
 		) -> DispatchResult {
 			// Check if governance called the extrinsic
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -869,9 +873,11 @@ pub mod pallet {
 
 			//Pass the vec as ingress message
 			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::SetFreeReserveBalanceForAccounts(
-					change_in_balances
-				));
+				ingress_messages.push(
+					polkadex_primitives::ingress::IngressMessages::SetFreeReserveBalanceForAccounts(
+						change_in_balances,
+					),
+				);
 			});
 			Ok(())
 		}
