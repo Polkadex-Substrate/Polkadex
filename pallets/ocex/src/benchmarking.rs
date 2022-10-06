@@ -17,10 +17,11 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! Benchmarking setup for pallet-ocex
+#![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
 use codec::{Decode, Encode};
-use frame_benchmarking::benchmarks;
+use frame_benchmarking::benchmarks_instance_pallet;
 use frame_support::{traits::EnsureOrigin, BoundedBTreeMap, BoundedVec};
 use frame_system::RawOrigin;
 use polkadex_primitives::{
@@ -40,22 +41,22 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 }
 
 // All benchmarks names match extrinsic names so we call them with `_()`
-benchmarks! {
+benchmarks_instance_pallet! {
 	register_main_account {
-		let b in 0 .. 100_000;
+		let b in 0 .. 50_000;
 		let origin = T::EnclaveOrigin::successful_origin();
 		let account = T::AccountId::decode(&mut &[b as u8; 32].to_vec()[..]).unwrap();
 		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
-	}: _(origin.clone(), account.clone().into())
+	}: _(origin, account.clone().into())
 	verify {
-		assert_last_event::<T>(Event::MainAccountRegistered {
+		assert_last_event(Event::MainAccountRegistered {
 			main,
 			proxy: account.into()
 		}.into());
 	}
 
 	add_proxy_account {
-		let x in 0 .. 100_000;
+		let x in 0 .. 50_000;
 		let origin = T::EnclaveOrigin::successful_origin();
 		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
 		let account = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
@@ -68,7 +69,7 @@ benchmarks! {
 	}
 
 	close_trading_pair {
-		let x in 1 .. 100_000;
+		let x in 1 .. 50_000;
 		let origin = T::EnclaveOrigin::successful_origin();
 		let base = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let quote = AssetId::decode(&mut &((x + 1) as u128).to_be_bytes()[..]).unwrap();
@@ -113,11 +114,11 @@ benchmarks! {
 			quote_asset_precision: 1
 		};
 		<TradingPairs<T>>::insert(base, quote, config);
-		let trading_pair = <TradingPairs<T>>::get(base, quote).unwrap();
+		let pair = <TradingPairs<T>>::get(base, quote).unwrap();
 	}: _(origin, base, quote)
 	verify {
 		assert_last_event::<T>(Event::OpenTradingPair {
-			pair: trading_pair
+			pair,
 		}.into());
 	}
 
@@ -138,7 +139,7 @@ benchmarks! {
 
 	update_trading_pair {
 		let x in 0 .. 100_000;
-		let origin = T::EnclaveOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::successful_origin();
 		let base = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let quote = AssetId::decode(&mut &((x + 1) as u128).to_be_bytes()[..]).unwrap();
 		let balance = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
