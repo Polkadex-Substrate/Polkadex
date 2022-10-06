@@ -14,5 +14,5 @@ sp-blockchain = {   git = "https://github.com/paritytech/substrate", branch = "p
 sp-api = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-runtime = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-asset-handler-runtime-api = {path = "runtime-api" }
-polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.4", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+polkadex-primitives = { default-features = false, branch = "nap-node-fix-ingress", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 

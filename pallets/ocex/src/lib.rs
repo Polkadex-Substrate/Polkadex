@@ -20,8 +20,8 @@ use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
+	BoundedVec,
 };
-
 use frame_system::ensure_signed;
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
 
@@ -228,6 +228,8 @@ pub mod pallet {
 		UnableToTransferFee,
 		/// Unable to execute collect fees fully
 		FeesNotCollectedFully,
+		/// Exchange is up
+		ExchangeOperational,
 	}
 
 	#[pallet::hooks]
@@ -836,12 +838,41 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Extrinsic to update ExchangeState
+		///This extrinsic will pause/resume the exchange according to flag
+		/// If flag is set to false it will stop the exchange
+		/// If flag is set to true it will resume the exchange
 		#[pallet::weight(1000000)]
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
+
+			//SetExchangeState Ingress message store in queue
+			<IngressMessages<T>>::mutate(|ingress_messages|
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
+			);
+
 			Self::deposit_event(Event::ExchangeStateUpdated(state));
+			Ok(())
+		}
+
+		/// Sends the changes required in balances for list of users with a particular asset
+		#[pallet::weight(100000)]
+		pub fn set_balances(
+			origin: OriginFor<T>,
+			mut change_in_balances : BoundedVec<polkadex_primitives::ingress::HandleBalance<T::AccountId>, polkadex_primitives::ingress::HandleBalanceLimit>
+		) -> DispatchResult {
+			// Check if governance called the extrinsic
+			T::GovernanceOrigin::ensure_origin(origin)?;
+
+			// Check if exchange is pause
+			ensure!(!Self::orderbook_operational_state(), Error::<T>::ExchangeOperational);
+
+			//Pass the vec as ingress message
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::SetFreeReserveBalanceForAccounts(
+					change_in_balances
+				));
+			});
 			Ok(())
 		}
 

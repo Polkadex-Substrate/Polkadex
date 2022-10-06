@@ -86,7 +86,7 @@ sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", bra
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 
 #Primitives
-polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.4", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+polkadex-primitives = { default-features = false, branch = "nap-node-fix-ingress", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-cli = {  git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"] }
