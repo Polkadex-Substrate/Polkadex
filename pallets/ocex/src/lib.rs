@@ -1003,28 +1003,6 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Pallet<T> {
-		// clean-up function - should be called on each block
-		fn unregister_timed_out_enclaves() {
-			use sp_runtime::traits::CheckedSub;
-			let mut enclaves_to_remove = sp_std::vec![];
-			let iter = <RegisteredEnclaves<T>>::iter();
-			iter.for_each(|(enclave, attested_ts)| {
-				let current_timestamp = <timestamp::Pallet<T>>::get();
-				// enclave will be removed even if something happens with substraction
-				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
-					T::MsPerDay::get()
-				{
-					enclaves_to_remove.push(enclave);
-				}
-			});
-			for enclave in &enclaves_to_remove {
-				<RegisteredEnclaves<T>>::remove(enclave);
-			}
-			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
-		}
-	}
-
 	/// Events are a simple means of reporting specific conditions and
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
@@ -1211,5 +1189,25 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
+	}
+
+	// clean-up function - should be called on each block
+	fn unregister_timed_out_enclaves() {
+		use sp_runtime::traits::CheckedSub;
+		let mut enclaves_to_remove = sp_std::vec![];
+		let iter = <RegisteredEnclaves<T>>::iter();
+		iter.for_each(|(enclave, attested_ts)| {
+			let current_timestamp = <timestamp::Pallet<T>>::get();
+			// enclave will be removed even if something happens with substraction
+			if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
+				T::MsPerDay::get()
+			{
+				enclaves_to_remove.push(enclave);
+			}
+		});
+		for enclave in &enclaves_to_remove {
+			<RegisteredEnclaves<T>>::remove(enclave);
+		}
+		Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
 	}
 }
