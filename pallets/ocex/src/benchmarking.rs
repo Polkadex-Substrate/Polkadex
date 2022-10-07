@@ -22,7 +22,7 @@
 use super::*;
 use crate::Pallet as Ocex;
 use codec::{Decode, Encode};
-use frame_benchmarking::benchmarks_instance_pallet;
+use frame_benchmarking::benchmarks;
 use frame_support::{traits::EnsureOrigin, BoundedBTreeMap, BoundedVec};
 use frame_system::RawOrigin;
 use polkadex_primitives::{
@@ -58,30 +58,40 @@ fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {
 }
 
 // All benchmarks names match extrinsic names so we call them with `_()`
-benchmarks_instance_pallet! {
+benchmarks! {
 	register_main_account {
 		let b in 0 .. 50_000;
 		let origin = T::EnclaveOrigin::successful_origin();
-		let account = T::AccountId::decode(&mut &[b as u8; 32].to_vec()[..]).unwrap();
-		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
-	}: _(origin, account.clone().into())
+		let account = T::EnclaveOrigin::successful_origin();
+		let main: T::AccountId = match origin.clone().into().unwrap_unchecked() {
+			RawOrigin::Signed(account) => account.into(),
+			_ => panic!("wrong RawOrigin returned")
+		};
+		let proxy: T::AccountId = match account.into().unwrap_unchecked() {
+			RawOrigin::Signed(account) => account.into(),
+			_ => panic!("wrong RawOrigin returned")
+		};
+	}: _(origin, proxy.clone())
 	verify {
 		assert_last_event(Event::MainAccountRegistered {
 			main,
-			proxy: account.into()
+			proxy
 		}.into());
 	}
 
 	add_proxy_account {
 		let x in 0 .. 50_000;
 		let origin = T::EnclaveOrigin::successful_origin();
-		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
-		let account = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
-	}: _(origin.clone(), account.clone())
+		let main: T::AccountId = match origin.clone().into().unwrap_unchecked() {
+			RawOrigin::Signed(account) => account.into(),
+			_ => panic!("wrong RawOrigin returned")
+		};
+		let proxy = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
+	}: _(origin, proxy)
 	verify {
 		assert_last_event::<T>(Event::MainAccountRegistered {
 			main,
-			proxy: account
+			proxy
 		}.into());
 	}
 
@@ -92,11 +102,11 @@ benchmarks_instance_pallet! {
 		let quote = AssetId::decode(&mut &((x + 1) as u128).to_be_bytes()[..]).unwrap();
 		let config = tpc(base, quote);
 		<TradingPairs<T>>::insert(base, quote, config);
-		let trading_pair = <TradingPairs<T>>::get(base, quote).unwrap();
+		let pair = <TradingPairs<T>>::get(base, quote).unwrap();
 	}: _(origin, base, quote)
 	verify {
 		assert_last_event::<T>(Event::ShutdownTradingPair {
-			pair: trading_pair
+			pair
 		}.into());
 	}
 
@@ -148,7 +158,10 @@ benchmarks_instance_pallet! {
 	deposit {
 		let x in 0 .. 100_000;
 		let origin = T::EnclaveOrigin::successful_origin();
-		let user = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
+		let user: T::AccountId = match origin.clone().into().unwrap_unchecked() {
+			RawOrigin::Signed(account) => account.into(),
+			_ => panic!("wrong RawOrigin returned")
+		};
 		let asset = AssetId::decode(&mut &((x  + 1) as u128).to_be_bytes()[..]).unwrap();
 		let amount  = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 	}: _(origin, asset, amount)
@@ -163,13 +176,16 @@ benchmarks_instance_pallet! {
 	remove_proxy_account {
 		let x in 0 .. 100_000;
 		let origin = T::EnclaveOrigin::successful_origin();
-		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
-		let account = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
-	}: _(origin.clone(), account.clone())
+		let main: T::AccountId = match origin.clone().into().unwrap_unchecked() {
+			RawOrigin::Signed(account) => account.into(),
+			_ => panic!("wrong RawOrigin returned")
+		};
+		let proxy = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
+	}: _(origin, proxy)
 	verify {
 		assert_last_event::<T>(Event::MainAccountRegistered {
 			main,
-			proxy: account
+			proxy
 		}.into());
 	}
 
@@ -195,7 +211,7 @@ benchmarks_instance_pallet! {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
 		let enclave = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
-	}: _(origin, enclave.clone())
+	}: _(origin, enclave)
 	verify {
 		assert!(<RegisteredEnclaves<T>>::contains_key(enclave));
 	}
@@ -213,7 +229,7 @@ benchmarks_instance_pallet! {
 				fees: BoundedVec::try_from(vec!(fees)).unwrap(),
 			};
 		<Snapshots<T>>::insert(x, snapshot);
-	}: _(origin, x, beneficiary.clone())
+	}: _(origin, x, beneficiary)
 	verify {
 		assert_last_event::<T>(Event::FeesClaims{beneficiary, snapshot_id: x}.into());
 	}
@@ -240,7 +256,11 @@ benchmarks_instance_pallet! {
 	claim_withdraw {
 		let x in 0 .. 100_000;
 		let origin = T::EnclaveOrigin::successful_origin();
-		let main = ensure_signed(T::EnclaveOrigin::successful_origin()).unwrap();
+		let main_origin = T::EnclaveOrigin::successful_origin();
+		let main: T::AccountId = match main_origin.clone().into().unwrap_unchecked() {
+			RawOrigin::Signed(account) => account.into(),
+			_ => panic!("wrong RawOrigin returned")
+		};
 		let asset = AssetId::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let amount = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
 		let mut withdrawals = Vec::with_capacity(1);
@@ -248,15 +268,15 @@ benchmarks_instance_pallet! {
 		withdrawals.push(Withdrawal {
 			amount: Decimal::new(x.into(), 0),
 			asset,
-			main_account: main.clone(),
+			main_account: main,
 			event_id: 1,
 			fees,
 		});
 		let mut withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> = frame_support::BoundedVec::try_from(withdrawals).unwrap();
 		let mut wm = BoundedBTreeMap::new();
-		wm.try_insert(main.clone().into(), withdrawals);
+		wm.try_insert(main, withdrawals);
 		<Withdrawals<T>>::insert(x, wm);
-	}: _(origin, x, main.clone())
+	}: _(origin, x, main)
 	verify {
 		assert_last_event::<T>(Event::WithdrawalClaimed {
 			main,
@@ -268,7 +288,7 @@ benchmarks_instance_pallet! {
 		let x in 0 .. 65_000;
 		timestamp::Pallet::<T>::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
 		let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
-	}: _(RawOrigin::Signed(signer.clone()), TEST4_SETUP.cert.to_vec())
+	}: _(RawOrigin::Signed(signer), TEST4_SETUP.cert.to_vec())
 	verify {
 		assert_last_event::<T>(Event::EnclaveRegistered(signer).into());
 	}
@@ -296,7 +316,7 @@ benchmarks_instance_pallet! {
 		let x in 0 .. 65_000;
 		let origin = T::GovernanceOrigin::successful_origin();
 		let account = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
-	}: _(origin, account.clone())
+	}: _(origin, account)
 	verify {
 		assert_last_event::<T>(Event::EnclaveAllowlisted(account).into());
 	}
