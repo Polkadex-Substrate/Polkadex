@@ -30,7 +30,7 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::AssetHandlerWeightInfo;
+	use crate::{pallet::Error::WithdrawalLimitReached, AssetHandlerWeightInfo};
 	use chainbridge::{BridgeChainId, ResourceId};
 	use frame_support::{
 		dispatch::fmt::Debug,
@@ -48,7 +48,6 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-	use crate::pallet::Error::WithdrawalLimitReached;
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -198,7 +197,10 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// On Initialize
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			let mut failed_withdrawal: BoundedVec<PendingWithdrawal<BalanceOf<T>>, WithdrawalLimit> = BoundedVec::default();
+			let mut failed_withdrawal: BoundedVec<
+				PendingWithdrawal<BalanceOf<T>>,
+				WithdrawalLimit,
+			> = BoundedVec::default();
 			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
 				while let Some(withdrawal) = withdrawals.pop() {
 					if let Err(_) = chainbridge::Pallet::<T>::transfer_fungible(
@@ -212,7 +214,7 @@ pub mod pallet {
 					}
 				}
 			});
-			<PendingWithdrawals<T>>::insert(n,  failed_withdrawal);
+			<PendingWithdrawals<T>>::insert(n, failed_withdrawal);
 			// TODO: Benchmark on initialize
 			(195_000_000 as Weight)
 				.saturating_add(T::DbWeight::get().writes(5 as Weight))
@@ -369,8 +371,8 @@ pub mod pallet {
 
 			let pending_withdrawal = PendingWithdrawal { chain_id, rid, recipient, amount };
 			let withdrawal_execution_block = <frame_system::Pallet<T>>::block_number()
-				.saturated_into::<u32>().saturating_add(
-				<WithdrawalExecutionBlockDiff<T>>::get().saturated_into::<u32>());
+				.saturated_into::<u32>()
+				.saturating_add(<WithdrawalExecutionBlockDiff<T>>::get().saturated_into::<u32>());
 			<PendingWithdrawals<T>>::try_mutate(
 				withdrawal_execution_block.saturated_into::<T::BlockNumber>(),
 				|withdrawals| {
