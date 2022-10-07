@@ -32,15 +32,10 @@ pub use weights::*;
 pub mod pallet {
 	use crate::AssetHandlerWeightInfo;
 	use chainbridge::{BridgeChainId, ResourceId};
-	use frame_support::{
-		dispatch::fmt::Debug,
-		pallet_prelude::*,
-		traits::{
-			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, ExistenceRequirement, ReservableCurrency,
-		},
-		PalletId,
-	};
+	use frame_support::{dispatch::fmt::Debug, pallet_prelude::*, traits::{
+		tokens::fungibles::{Create, Inspect, Mutate},
+		Currency, ExistenceRequirement, ReservableCurrency,
+	}, PalletId, tt_false};
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
 	use sp_runtime::{
@@ -138,6 +133,22 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	/// Pending Withdrawal execution block diff
+	#[pallet::storage]
+	#[pallet::getter(fn get_new_withdrawal_exc_block_diff)]
+	pub(super) type PendingWithdrawalExecutionBlockDiff<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::BlockNumber,
+		T::BlockNumber,
+		ValueQuery,
+	>;
+
+	/// Latest withdrawal execution in Blocks
+	#[pallet::storage]
+	#[pallet::getter(fn get_latest_withdrwal_exection_in_blocks)]
+	pub(super) type LatestWithdrawalExecutionInBlocks<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
@@ -219,6 +230,11 @@ pub mod pallet {
 				}
 				// Write back to storage item
 				<PendingWithdrawals<T>>::insert(withdrawal_execution_block, pending_withdrawals);
+			}
+			let pending_withdrawal_execution_block_diff = <PendingWithdrawalExecutionBlockDiff<T>>::get(n);
+			if let false = pending_withdrawal_execution_block_diff.is_zero() {
+				<WithdrawalExecutionBlockDiff<T>>::put(pending_withdrawal_execution_block_diff);
+				<BridgeDeactivated<T>>::put(false);
 			}
 			// TODO: Benchmark on initialize
 			(195_000_000 as Weight)
@@ -311,13 +327,15 @@ pub mod pallet {
 		}
 
 		/// Set Block Delay
-		#[pallet::weight(T::DbWeight::get().writes(2 as Weight))]
+		#[pallet::weight(T::DbWeight::get().writes(4 as Weight))]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
 			no_of_blocks: T::BlockNumber,
 		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
-			<WithdrawalExecutionBlockDiff<T>>::put(no_of_blocks);
+			<BridgeDeactivated<T>>::put(true);
+			let block_no = <LatestWithdrawalExecutionInBlocks<T>>::get().saturated_into::<u32>().saturating_add(1);
+			<PendingWithdrawalExecutionBlockDiff<T>>::insert(block_no.saturated_into::<T::BlockNumber>(), no_of_blocks);
 			Self::deposit_event(Event::<T>::BlocksDelayUpdated(no_of_blocks));
 			Ok(())
 		}
@@ -383,6 +401,11 @@ pub mod pallet {
 				},
 			)
 			.map_err(|()| Error::<T>::WithdrawalLimitReached)?;
+			let latest_withdrawal_execution_in_blocks: u32 = <frame_system::Pallet<T>>::block_number()
+				.saturated_into::<u32>().saturating_add(
+				<WithdrawalExecutionBlockDiff<T>>::get().saturated_into::<u32>());
+			<LatestWithdrawalExecutionInBlocks<T>>::put(
+				latest_withdrawal_execution_in_blocks.saturated_into::<T::BlockNumber>());
 			Self::deposit_event(Event::<T>::AssetWithdrawn(contract_add, rid, amount));
 			Ok(())
 		}
