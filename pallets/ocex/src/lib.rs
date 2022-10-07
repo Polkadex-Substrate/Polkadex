@@ -156,6 +156,9 @@ pub mod pallet {
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+
+		/// Governed validity timestamp in MS since Unix epoch for IAS cert validity
+		type CertValidity: Get<u64>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -938,7 +941,7 @@ pub mod pallet {
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
-			let report = verify_ias_report(&ias_report)
+			let report = verify_ias_report(&ias_report, T::CertValidity::get())
 				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
 			// TODO: attested key verification enabled

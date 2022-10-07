@@ -1260,6 +1260,8 @@ parameter_types! {
 	pub const ProxyLimit: u32 = 3;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
 	pub const MsPerDay: u64 = 86_400_000;
+	// TODO: make this Governable
+	pub const CertificateValidUntill: u64 = 1679861524;
 }
 
 impl pallet_ocex_lmp::Config for Runtime {
@@ -1274,6 +1276,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Signature = Signature;
 	type WeightInfo = ();
 	type MsPerDay = MsPerDay;
+	type CertValidity = CertificateValidUntill;
 }
 
 parameter_types! {
