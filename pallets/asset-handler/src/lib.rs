@@ -30,7 +30,7 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::{pallet::Error::WithdrawalLimitReached, AssetHandlerWeightInfo};
+	use crate::AssetHandlerWeightInfo;
 	use chainbridge::{BridgeChainId, ResourceId};
 	use frame_support::{
 		dispatch::fmt::Debug,
@@ -45,7 +45,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
 	use sp_runtime::{
-		traits::{One, Saturating, UniqueSaturatedInto, Zero},
+		traits::{One, Saturating, UniqueSaturatedInto},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
