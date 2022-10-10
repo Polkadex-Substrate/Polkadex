@@ -1005,12 +1005,14 @@ pub mod pallet {
 
 		/// Extrinsic to update ExchangeState
 		#[pallet::weight(1000000)]
-		pub fn update_certificate(origin: OriginFor<T>, certificate_valid_until: u64) -> DispatchResult {
+		pub fn update_certificate(
+			origin: OriginFor<T>,
+			certificate_valid_until: u64,
+		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-            <CertificateValidity<T>>::put(certificate_valid_until);
+			<CertificateValidity<T>>::put(certificate_valid_until);
 			Ok(())
 		}
-
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -1103,8 +1105,7 @@ pub mod pallet {
 	///CertificateValidity
 	#[pallet::storage]
 	#[pallet::getter(fn get_certificate_validation_time)]
-	pub(super) type CertificateValidity<T: Config> =
-	StorageValue<_, u64, ValueQuery>;
+	pub(super) type CertificateValidity<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// A map that has enumerable entries.
 	#[pallet::storage]
