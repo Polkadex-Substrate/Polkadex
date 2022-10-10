@@ -62,7 +62,7 @@ pub mod pallet {
 		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
-			fungibles::{Inspect, Mutate},
+			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
 		},
 		PalletId,
@@ -76,7 +76,10 @@ pub mod pallet {
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
-	use rust_decimal::{prelude::ToPrimitive, Decimal};
+	use rust_decimal::{
+		prelude::{FromPrimitive, ToPrimitive},
+		Decimal,
+	};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
@@ -125,7 +128,8 @@ pub mod pallet {
 				<Self as frame_system::Config>::AccountId,
 				Balance = BalanceOf<Self>,
 				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>;
+			> + Inspect<<Self as frame_system::Config>::AccountId>
+			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -272,7 +276,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Registers a new account in orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::register_main_account())]
+		#[pallet::weight(10000000)]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -296,7 +300,7 @@ pub mod pallet {
 		}
 
 		/// Adds a proxy account to a pre-registered main acocunt
-		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
+		#[pallet::weight(100000000)]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -637,7 +641,7 @@ pub mod pallet {
 		}
 
 		/// Deposit Assets to Orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
+		#[pallet::weight(19887656789)]
 		pub fn deposit(
 			origin: OriginFor<T>,
 			asset: AssetId,
@@ -706,7 +710,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight((590_500_000 as Weight).saturating_add(T::DbWeight::get().reads(3 as Weight)).saturating_add(T::DbWeight::get().writes(5 as Weight)))]
+		#[pallet::weight(199987788)]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
@@ -768,17 +772,17 @@ pub mod pallet {
 		/// Insert Enclave
 		#[doc(hidden)]
 		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
-		pub fn insert_enclave(origin: OriginFor<T>, encalve: T::AccountId) -> DispatchResult {
+		pub fn insert_enclave(origin: OriginFor<T>, enclave: T::AccountId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let timestamp = <timestamp::Pallet<T>>::get();
-			<RegisteredEnclaves<T>>::insert(encalve, timestamp);
+			<RegisteredEnclaves<T>>::insert(enclave, timestamp);
 			Ok(())
 		}
 
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
-		#[pallet::weight(100000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(18476546378)]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -848,7 +852,7 @@ pub mod pallet {
 		///
 		/// params: snapshot_number: u32
 		/// account: AccountId
-		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
+		#[pallet::weight(187645673829)]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -933,7 +937,7 @@ pub mod pallet {
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		#[pallet::weight(38643928467589)]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
@@ -965,20 +969,20 @@ pub mod pallet {
 		}
 
 		/// Allowlist Token
-		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
-		pub fn allowlist_token(origin: OriginFor<T>, token_add: AssetId) -> DispatchResult {
+		#[pallet::weight(2875474337)]
+		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
 			allowlisted_tokens
-				.try_insert(token_add)
+				.try_insert(token)
 				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
 			<AllowlistedToken<T>>::put(allowlisted_tokens);
-			Self::deposit_event(Event::<T>::TokenAllowlisted(token_add));
+			Self::deposit_event(Event::<T>::TokenAllowlisted(token));
 			Ok(())
 		}
 
 		/// Remove Allowlisted Token
-		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		#[pallet::weight(38654637829)]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
@@ -990,7 +994,7 @@ pub mod pallet {
 
 		/// In order to register itself - enclave account id must be allowlisted and called by
 		/// Governance
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		#[pallet::weight(398653425678)]
 		pub fn allowlist_enclave(
 			origin: OriginFor<T>,
 			enclave_account_id: T::AccountId,

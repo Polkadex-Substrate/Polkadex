@@ -230,19 +230,30 @@ benchmarks! {
 		}.into());
 	}
 
-	// falls
+	// pass
 	deposit {
-		let x in 0 .. 100_000;
-		let origin = T::EnclaveOrigin::successful_origin();
-		let user: T::AccountId = match unsafe { origin.clone().into().unwrap_unchecked() } {
-			RawOrigin::Signed(account) => account.into(),
-			_ => panic!("wrong RawOrigin returned")
-		};
+		let x in 1 .. 255; // should not overflow u8
+		let user = account::<T::AccountId>("user", x, 0);
 		let asset = AssetId::asset(x.into());
-		let amount  = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
-		<ExchangeState<T>>::put(true);
+		let amount  = BalanceOf::<T>::decode(&mut &(x as u128).saturating_mul(10u128).to_le_bytes()[..]).unwrap();
+		let governance = T::GovernanceOrigin::successful_origin();
+		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
+		Ocex::<T>::allowlist_token(governance.clone(), asset.clone())?;
+		use frame_support::traits::fungibles::Create;
+		T::OtherAssets::create(
+			x as u128,
+			Ocex::<T>::get_pallet_account(),
+			true,
+			BalanceOf::<T>::one().unique_saturated_into())?;
+		T::OtherAssets::mint_into(
+			x as u128,
+			&user.clone(),
+			BalanceOf::<T>::decode(&mut &(u128::MAX).to_le_bytes()[..]).unwrap()
+		)?;
+		let proxy = account::<T::AccountId>("proxy", x, 0);
+		Ocex::<T>::register_main_account(RawOrigin::Signed(user.clone()).into(), proxy)?;
 		let call = Call::<T>::deposit { asset, amount };
-	}: { call.dispatch_bypass_filter(origin)? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(user.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::DepositSuccessful {
 			user,
@@ -256,14 +267,15 @@ benchmarks! {
 		let x in 1 .. 255; // should not overflow u8
 		let main = account::<T::AccountId>("main", 0, 0);
 		let proxy = T::AccountId::decode(&mut &[x as u8 ; 32].to_vec()[..]).unwrap();
-		let mut ai = AccountInfo::new(main.clone());
-		ai.add_proxy(proxy.clone()).unwrap();
+		let governance = T::GovernanceOrigin::successful_origin();
+		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
+		let signed = RawOrigin::Signed(main.clone());
+		Ocex::<T>::register_main_account(signed.clone().into(), proxy.clone())?;
 		// worst case scenario
 		for i in 2 .. ProxyLimit::get() {
-			ai.add_proxy(account::<T::AccountId>("proxy", i, 0)).unwrap();
+			let new_proxy = account::<T::AccountId>("proxy", i, 0);
+			Ocex::<T>::add_proxy_account(signed.clone().into(), new_proxy)?;
 		}
-		<Accounts<T>>::insert(&main, ai);
-		<ExchangeState<T>>::put(true);
 		let call = Call::<T>::remove_proxy_account { proxy: proxy.clone() };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(main.clone()).into())? }
 	verify {
