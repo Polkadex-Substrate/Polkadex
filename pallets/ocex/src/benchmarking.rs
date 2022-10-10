@@ -22,16 +22,17 @@
 use super::*;
 use crate::Pallet as Ocex;
 use codec::{Decode, Encode};
-use frame_benchmarking::benchmarks;
+use frame_benchmarking::{account, benchmarks};
 use frame_support::{
 	dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedBTreeMap, BoundedVec,
 };
 use frame_system::RawOrigin;
+use pallet_timestamp::{self as timestamp};
 use polkadex_primitives::{
-	ocex::TradingPairConfig,
+	ocex::{AccountInfo, TradingPairConfig},
 	snapshot::{EnclaveSnapshot, Fees},
 	withdrawal::Withdrawal,
-	WithdrawalLimit,
+	ProxyLimit, WithdrawalLimit, UNIT_BALANCE,
 };
 use rust_decimal::{prelude::*, Decimal};
 use sp_core::{crypto::Pair as PairTrait, H256};
@@ -44,7 +45,10 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 }
 
 fn convert_to_balance<T: Config>(dec: Decimal) -> BalanceOf<T> {
-	BalanceOf::<T>::decode(&mut &dec.to_u128().unwrap().to_be_bytes()[..]).unwrap()
+	BalanceOf::<T>::decode(
+		&mut &dec.saturating_mul(UNIT_BALANCE.into()).to_u128().unwrap().to_le_bytes()[..],
+	)
+	.unwrap()
 }
 
 fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {
@@ -65,6 +69,7 @@ fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {
 
 // All benchmarks names match extrinsic names so we call them with `_()`
 benchmarks! {
+	// pass
 	register_main_account {
 		let b in 0 .. 50_000;
 		let origin = T::EnclaveOrigin::successful_origin();
@@ -87,8 +92,9 @@ benchmarks! {
 		}.into());
 	}
 
+	// pass
 	add_proxy_account {
-		let x in 0 .. 50_000;
+		let x in 0 .. 255; // should not overflow u8
 		let origin = T::EnclaveOrigin::successful_origin();
 		let main: T::AccountId = match unsafe { origin.clone().into().unwrap_unchecked() } {
 			RawOrigin::Signed(account) => account.into(),
@@ -106,6 +112,7 @@ benchmarks! {
 		}.into());
 	}
 
+	// pass
 	close_trading_pair {
 		let x in 1 .. 50_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -127,6 +134,7 @@ benchmarks! {
 		}.into());
 	}
 
+	// pass
 	open_trading_pair {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -143,6 +151,7 @@ benchmarks! {
 		}.into());
 	}
 
+	// pass
 	register_trading_pair {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -180,6 +189,7 @@ benchmarks! {
 		}.into());
 	}
 
+	// pass
 	update_trading_pair {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -220,6 +230,7 @@ benchmarks! {
 		}.into());
 	}
 
+	// falls
 	deposit {
 		let x in 0 .. 100_000;
 		let origin = T::EnclaveOrigin::successful_origin();
@@ -240,26 +251,31 @@ benchmarks! {
 		}.into());
 	}
 
+	// pass
 	remove_proxy_account {
-		let x in 0 .. 100_000;
-		let origin = T::EnclaveOrigin::successful_origin();
-		let main: T::AccountId = match unsafe { origin.clone().into().unwrap_unchecked() } {
-			RawOrigin::Signed(account) => account.into(),
-			_ => panic!("wrong RawOrigin returned")
-		};
-		let proxy = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
+		let x in 1 .. 255; // should not overflow u8
+		let main = account::<T::AccountId>("main", 0, 0);
+		let proxy = T::AccountId::decode(&mut &[x as u8 ; 32].to_vec()[..]).unwrap();
+		let mut ai = AccountInfo::new(main.clone());
+		ai.add_proxy(proxy.clone()).unwrap();
+		// worst case scenario
+		for i in 2 .. ProxyLimit::get() {
+			ai.add_proxy(account::<T::AccountId>("proxy", i, 0)).unwrap();
+		}
+		<Accounts<T>>::insert(&main, ai);
 		<ExchangeState<T>>::put(true);
 		let call = Call::<T>::remove_proxy_account { proxy: proxy.clone() };
-	}: { call.dispatch_bypass_filter(origin)? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(main.clone()).into())? }
 	verify {
-		assert_last_event::<T>(Event::MainAccountRegistered {
+		assert_last_event::<T>(Event::ProxyRemoved {
 			main,
 			proxy
 		}.into());
 	}
 
+	// panci!
 	submit_snapshot {
-		let x in 0 .. 65_000;
+		let x in 0 .. 255; // should not overflow u8
 		let pair = sp_core::sr25519::Pair::from_seed(&[x as u8; 32]);
 		let public = pair.public();
 		let origin = T::AccountId::decode(&mut public.0.as_slice()).unwrap();
@@ -278,8 +294,9 @@ benchmarks! {
 		assert!(<Snapshots<T>>::contains_key(x));
 	}
 
+	// pass
 	insert_enclave {
-		let x in 0 .. 100_000;
+		let x in 0 .. 255; // should not overflow u8
 		let origin = T::GovernanceOrigin::successful_origin();
 		let enclave = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		<ExchangeState<T>>::put(true);
@@ -289,8 +306,9 @@ benchmarks! {
 		assert!(<RegisteredEnclaves<T>>::contains_key(enclave));
 	}
 
+	// pass
 	collect_fees {
-		let x in 0 .. 100_000;
+		let x in 0 .. 255; // should not overflow u8
 		let origin = T::GovernanceOrigin::successful_origin();
 		let beneficiary = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		let fees: Fees = Fees { asset: AssetId::polkadex, amount: Decimal::new(100, 1) };
@@ -309,6 +327,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::FeesClaims{ beneficiary, snapshot_id: x }.into());
 	}
 
+	// pass
 	shutdown {
 		let origin = T::GovernanceOrigin::successful_origin();
 		<ExchangeState<T>>::put(true);
@@ -316,8 +335,10 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_eq!(<ExchangeState<T>>::get(), false);
+		assert_eq!(<IngressMessages<T>>::get().last().unwrap(), &polkadex_primitives::ingress::IngressMessages::Shutdown);
 	}
 
+	// pass
 	set_exchange_state {
 		let x in 0 .. 100_000;
 		let state = x % 2 == 0;
@@ -327,9 +348,9 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_eq!(<ExchangeState<T>>::get(), !state);
-		assert_eq!(<IngressMessages<T>>::get().last().unwrap(), &polkadex_primitives::ingress::IngressMessages::Shutdown);
 	}
 
+	// PERMABLOCKS
 	claim_withdraw {
 		let x in 0 .. 100_000;
 		let origin = T::EnclaveOrigin::successful_origin();
@@ -363,18 +384,20 @@ benchmarks! {
 		}.into());
 	}
 
+	// pass
 	register_enclave {
 		let x in 0 .. 65_000;
 		let origin = T::EnclaveOrigin::successful_origin();
-		timestamp::Pallet::<T>::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
 		let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
+		<AllowlistedEnclaves<T>>::insert(&signer, true);
 		<ExchangeState<T>>::put(true);
 		let call = Call::<T>::register_enclave { ias_report: TEST4_SETUP.cert.to_vec() };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(signer.clone()).into())? }
+	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_last_event::<T>(Event::EnclaveRegistered(signer).into());
 	}
 
+	// pass
 	allowlist_token {
 		let x in 0 .. 65_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -386,6 +409,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::TokenAllowlisted(asset_id).into());
 	}
 
+	// pass
 	remove_allowlisted_token {
 		let x in 0 .. 65_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -400,8 +424,9 @@ benchmarks! {
 		assert_last_event::<T>(Event::AllowlistedTokenRemoved(asset_id).into());
 	}
 
+	// pass
 	allowlist_enclave {
-		let x in 0 .. 65_000;
+		let x in 0 .. 255; // should not overflow u8
 		let origin = T::GovernanceOrigin::successful_origin();
 		let account = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
 		<ExchangeState<T>>::put(true);
