@@ -209,7 +209,9 @@ pub mod pallet {
 						withdrawal.rid,
 						withdrawal.recipient.0.to_vec(),
 						Self::convert_balance_to_eth_type(withdrawal.amount),
-					).is_err() {
+					)
+					.is_err()
+					{
 						if failed_withdrawal.try_push(withdrawal.clone()).is_err() {
 							log::error!(target:"asset-handler", "Failed to push into Withdrawal");
 						}
