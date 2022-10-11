@@ -1903,6 +1903,27 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 	});
 }
 
+
+#[test]
+pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
+		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
+		for i in 0..1000 {
+			vec_of_balances.push(HandleBalance {
+				main_account: account_id.clone(),
+				asset_id: AssetId::polkadex,
+				free: 100,
+				reserve: 50,
+			});
+		}
+		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
+			BoundedVec::try_from(vec_of_balances).unwrap();
+		assert_eq!(OCEX::set_balances(Origin::root(), bounded_vec_for_alice.clone()), Ok(()));
+	});
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
