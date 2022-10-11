@@ -209,7 +209,8 @@ benchmarks! {
 			base_asset_precision,
 			quote_asset_precision,
 			} = tp.clone();
-		<ExchangeState<T>>::put(true);
+		let governance = T::GovernanceOrigin::successful_origin();
+		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
 		tp.operational_status = false;
 		<TradingPairs<T>>::insert(base_asset, quote_asset, tp);
 		let call = Call::<T>::update_trading_pair {
@@ -402,7 +403,6 @@ benchmarks! {
 		let origin = T::EnclaveOrigin::successful_origin();
 		let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
 		<AllowlistedEnclaves<T>>::insert(&signer, true);
-		<ExchangeState<T>>::put(true);
 		let call = Call::<T>::register_enclave { ias_report: TEST4_SETUP.cert.to_vec() };
 	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
