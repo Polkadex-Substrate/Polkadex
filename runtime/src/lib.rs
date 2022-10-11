@@ -1597,15 +1597,9 @@ impl_runtime_apis! {
 			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 
-			// Trying to add benchmarks directly to the Session Pallet caused cyclic dependency
-			// issues. To get around that, we separated the Session benchmarks into its own crate,
-			// which is why we need these two lines below.
-
 			let mut list = Vec::<BenchmarkList>::new();
-
-//			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
-			// list_benchmark!(list,extra,  asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
+			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1642,10 +1636,8 @@ impl_runtime_apis! {
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &allowlist);
 
-			//TODO: [#463] Currently broken, will be fixed in different issue
-//			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
-			// add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
+			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

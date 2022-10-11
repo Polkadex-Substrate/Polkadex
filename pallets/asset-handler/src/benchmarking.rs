@@ -28,6 +28,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 }
 
 benchmarks! {
+	// pass
 	create_asset {
 		let b in 0 .. 255;
 		let chain_id = 1;
@@ -51,7 +52,7 @@ benchmarks! {
 		let recipient: [u8;32] = encoded_recipient.as_slice().try_into().unwrap();
 		let destination_acc = T::AccountId::decode(&mut &recipient[..]).unwrap();
 		let amount = b as u128;
-	}: _(RawOrigin::Signed(relayer), recipient.clone().to_vec(), amount.clone(), rid)
+	}: _(RawOrigin::Signed(chainbridge::Pallet::<T>::account_id()), recipient.clone().to_vec(), amount, rid)
 	verify {
 		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, amount).into());
 	}
