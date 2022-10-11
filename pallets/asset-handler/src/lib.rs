@@ -204,12 +204,12 @@ pub mod pallet {
 			> = BoundedVec::default();
 			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
 				while let Some(withdrawal) = withdrawals.pop() {
-					if let Err(_) = chainbridge::Pallet::<T>::transfer_fungible(
+					if chainbridge::Pallet::<T>::transfer_fungible(
 						withdrawal.chain_id,
 						withdrawal.rid,
 						withdrawal.recipient.0.to_vec(),
 						Self::convert_balance_to_eth_type(withdrawal.amount),
-					) {
+					).is_err() {
 						if failed_withdrawal.try_push(withdrawal.clone()).is_err() {
 							log::error!(target:"asset-handler", "Failed to push into Withdrawal");
 						}
