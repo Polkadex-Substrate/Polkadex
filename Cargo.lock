@@ -5396,7 +5396,7 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.9.19"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?branch=nap-node-fix-ingress#e1305d7cb46a04f0a91baef2677b24f387cff4bc"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.6#4aec6ae0fcefab45e9d677f9dc0793945ea4b8c4"
 dependencies = [
  "frame-support",
  "frame-system",

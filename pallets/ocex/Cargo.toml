@@ -20,7 +20,7 @@ frame-support = { default-features = false, branch = "polkadot-v0.9.28", git = '
 frame-system = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 sp-runtime = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 sp-std = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-polkadex-primitives = { default-features = false, branch = "nap-node-fix-ingress", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.6", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate' }
 ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
 rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
