@@ -76,10 +76,7 @@ pub mod pallet {
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
-	use rust_decimal::{
-		prelude::{FromPrimitive, ToPrimitive},
-		Decimal,
-	};
+	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,

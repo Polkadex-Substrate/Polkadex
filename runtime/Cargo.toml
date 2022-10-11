@@ -56,6 +56,9 @@ pallet-child-bounties = { default-features = false, git = "https://github.com/pa
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
+
 #sp
 sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-offchain = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
@@ -65,28 +68,23 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-
+sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 
 #added
 sp-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-consensus-babe = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-consensus-babe = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-npos-elections = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-npos-elections = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
 frame-election-provider-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 pallet-assets = { default-features = false, branch = "polkadot-v0.9.28", git = "https://github.com/paritytech/substrate" }
 #end added
 
-# Used for the node template's RPCs
+# Used for the node template"s RPCs
 frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-
-# Used for runtime benchmarking
-frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-frame-system-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-pallet-society = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
 
 # ORML Pallets
 orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch="polkadot-v0.9.28", default-features = false }
@@ -115,58 +113,61 @@ pallet-society = {  git = "https://github.com/paritytech/substrate", branch = "p
 [features]
 default = ["std"]
 std = [
-    'codec/std',
-    'log/std',
-    'frame-executive/std',
-    'frame-support/std',
-    'frame-system/std',
-    'frame-system-rpc-runtime-api/std',
-    'pallet-authorship/std',
-    'pallet-babe/std',
-    'pallet-balances/std',
-    'pallet-grandpa/std',
-    'pallet-im-online/std',
-    'pallet-offences/std',
-    'pallet-session/std',
-    'pallet-staking/std',
-    'pallet-preimage/std',
-    'pallet-bags-list/std',
-    'pallet-authority-discovery/std',
-    'pallet-multisig/std',
-    'pallet-sudo/std',
-    'pallet-indices/std',
-    'pallet-child-bounties/std',
-    'pallet-identity/std',
-    'pallet-proxy/std',
-    'pallet-recovery/std',
-    'pallet-democracy/std',
-    'pallet-utility/std',
+    "codec/std",
+    "log/std",
+    "frame-executive/std",
+    "frame-support/std",
+    "frame-system/std",
+    "frame-system-rpc-runtime-api/std",
+    "pallet-authorship/std",
+    "pallet-babe/std",
+    "pallet-balances/std",
+    "pallet-grandpa/std",
+    "pallet-im-online/std",
+    "pallet-offences/std",
+    "pallet-session/std",
+    "pallet-staking/std",
+    "pallet-preimage/std",
+    "pallet-bags-list/std",
+    "pallet-authority-discovery/std",
+    "pallet-multisig/std",
+    "pallet-sudo/std",
+    "pallet-indices/std",
+    "pallet-child-bounties/std",
+    "pallet-identity/std",
+    "pallet-proxy/std",
+    "pallet-recovery/std",
+    "pallet-democracy/std",
+    "pallet-utility/std",
     "pallet-bounties/std",
-    'pallet-tips/std',
-    'pallet-timestamp/std',
-    'pallet-transaction-payment/std',
-    'pallet-transaction-payment-rpc-runtime-api/std',
-    'pallet-treasury/std',
-    'pallet-collective/std',
-    'pallet-elections-phragmen/std',
-    'frame-election-provider-support/std',
-    'pallet-membership/std',
-    'pallet-scheduler/std',
+    "pallet-tips/std",
+    "pallet-timestamp/std",
+    "pallet-transaction-payment/std",
+    "pallet-transaction-payment-rpc-runtime-api/std",
+    "pallet-treasury/std",
+    "pallet-collective/std",
+    "pallet-elections-phragmen/std",
+    "frame-election-provider-support/std",
+    "pallet-membership/std",
+    "pallet-scheduler/std",
     "pallet-election-provider-multi-phase/std",
-    'sp-api/std',
-    'sp-block-builder/std',
-    'sp-consensus-babe/std',
-    'sp-core/std',
-    'sp-inherents/std',
-    'sp-offchain/std',
-    'sp-runtime/std',
-    'sp-session/std',
-    'sp-staking/std',
-    'sp-std/std',
-    'sp-transaction-pool/std',
-    'sp-version/std',
+    "sp-api/std",
+    "sp-block-builder/std",
+    "sp-consensus-babe/std",
+    "sp-core/std",
+    "sp-inherents/std",
+    "sp-offchain/std",
+    "sp-runtime/std",
+    "sp-session/std",
+    "sp-staking/std",
+    "sp-std/std",
+    "sp-transaction-pool/std",
+    "sp-version/std",
     "sp-npos-elections/std",
-    'pallet-assets/std',
+    "sp-finality-grandpa/std",
+    "pallet-assets/std",
+    "frame-benchmarking?/std",
+    "frame-system-benchmarking?/std",
 
     "orml-vesting/std",
     "polkadex-primitives/std",
@@ -177,19 +178,47 @@ std = [
     "chainbridge/std"
 ]
 runtime-benchmarks = [
-    "sp-io/disable_panic_handler",
-    "sp-io/disable_oom",
-    "sp-io/disable_allocator",
-    "sp-runtime/runtime-benchmarks",
-    "hex-literal",
-    "frame-benchmarking",
+    #theirs
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+    "frame-benchmarking/runtime-benchmarks",
     "frame-system-benchmarking",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "pallet-collective/runtime-benchmarks",
-    "pallet-society/runtime-benchmarks",
+    "sp-finality-grandpa/default",
+    "sp-npos-elections/default",
+    "sp-consensus-babe/default",
+    "sp-authority-discovery/default",
+	"sp-runtime/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
+	"pallet-babe/runtime-benchmarks",
+	"pallet-bags-list/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-bounties/runtime-benchmarks",
+	"pallet-child-bounties/runtime-benchmarks",
+	"pallet-collective/runtime-benchmarks",
+	"pallet-democracy/runtime-benchmarks",
+	"pallet-election-provider-multi-phase/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
+	"pallet-grandpa/runtime-benchmarks",
+	"pallet-identity/runtime-benchmarks",
+	"pallet-im-online/runtime-benchmarks",
+	"pallet-indices/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
+	"pallet-multisig/runtime-benchmarks",
+	"pallet-preimage/runtime-benchmarks",
+	"pallet-proxy/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
+	"pallet-recovery/runtime-benchmarks",
+	"pallet-society/runtime-benchmarks",
+	"pallet-staking/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
+	"pallet-tips/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks",
+	"pallet-utility/runtime-benchmarks",
+    #our
     "pallet-ocex-lmp/runtime-benchmarks",
-    "asset-handler/runtime-benchmarks"
+    "chainbridge/runtime-benchmarks",
+    "asset-handler/runtime-benchmarks",
+    "hex-literal",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
@@ -213,7 +242,7 @@ try-runtime = [
     "pallet-multisig/try-runtime",
     "pallet-proxy/try-runtime",
     "pallet-scheduler/try-runtime",
-    'pallet-society/try-runtime',
+    "pallet-society/try-runtime",
     "pallet-staking/try-runtime",
     "pallet-timestamp/try-runtime",
     "pallet-tips/try-runtime",

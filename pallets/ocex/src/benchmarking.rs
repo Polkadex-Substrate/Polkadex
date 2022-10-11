@@ -19,7 +19,7 @@
 
 use super::*;
 use crate::Pallet as Ocex;
-use codec::{Decode, Encode};
+use codec::Decode;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{
 	dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedBTreeMap, BoundedVec,
@@ -29,10 +29,9 @@ use polkadex_primitives::{
 	ocex::TradingPairConfig,
 	snapshot::{EnclaveSnapshot, Fees},
 	withdrawal::Withdrawal,
-	ProxyLimit, Signature, WithdrawalLimit, UNIT_BALANCE,
+	ProxyLimit, WithdrawalLimit, UNIT_BALANCE,
 };
 use rust_decimal::{prelude::*, Decimal};
-use sp_core::{crypto::Pair as PairTrait, H256};
 use sp_runtime::BoundedBTreeSet;
 use test_utils::ias::ias::*;
 
@@ -283,27 +282,17 @@ benchmarks! {
 		}.into());
 	}
 
-	// panci!
+	// pass
 	submit_snapshot {
-		let x in 0 .. 255; // should not overflow u8
-		let pair = sp_core::sr25519::Pair::from_seed(&[x as u8; 32]);
-		let public = pair.public();
-		let origin = T::AccountId::decode(&mut public.0.as_slice()).unwrap();
-		let snapshot = EnclaveSnapshot {
-			snapshot_number: x,
-			snapshot_hash: H256::from([x as u8; 32]),
-			withdrawals: Default::default(),
-			fees: Default::default()
-		};
-		let bytes = snapshot.encode();
-		let sp_sig = pair.sign(&bytes);
-		let signature_encoded = Signature::from(sp_sig);
-		let signature: T::Signature = T::Signature::decode(&mut &signature_encoded.encode()[..]).unwrap();
+		let origin = T::AccountId::decode(&mut &[6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26][..]).unwrap();
+		let snapshot = EnclaveSnapshot::decode(&mut &[1, 0, 0, 0, 50, 157, 46, 78, 212, 64, 1, 64, 121, 45, 35, 138, 120, 29, 202, 62, 154, 100, 140, 141, 191, 125, 221, 151, 154, 28, 82, 226, 137, 175, 36, 134, 4, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 4, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0][..]).unwrap();
+		let signature: T::Signature = T::Signature::decode(&mut &[1, 184, 164, 69, 4, 236, 201, 207, 230, 19, 226, 51, 221, 175, 219, 188, 170, 247, 233, 188, 190, 176, 110, 201, 221, 1, 188, 190, 185, 107, 60, 138, 107, 127, 215, 181, 225, 118, 46, 13, 38, 102, 133, 69, 170, 169, 80, 114, 36, 202, 18, 13, 140, 135, 98, 90, 206, 14, 140, 61, 39, 168, 151, 191, 130][..]).unwrap();
+		<RegisteredEnclaves<T>>::insert(&origin, T::Moment::default());
 		<ExchangeState<T>>::put(true);
 		let call = Call::<T>::submit_snapshot { snapshot, signature };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
-		assert!(<Snapshots<T>>::contains_key(x));
+		assert!(<Snapshots<T>>::contains_key(1));
 	}
 
 	// pass
@@ -327,7 +316,7 @@ benchmarks! {
 		let snapshot =
 			EnclaveSnapshot::<_, _, _, _> {
 				snapshot_number: x.into(),
-				snapshot_hash: H256::from([x as u8; 32]),
+				snapshot_hash: Default::default(),
 				withdrawals: Default::default(),
 				fees: BoundedVec::try_from(vec!(fees)).unwrap(),
 			};
@@ -372,7 +361,7 @@ benchmarks! {
 			_ => panic!("wrong RawOrigin returned")
 		};
 		let asset = AssetId::asset(x.into());
-		let amount = BalanceOf::<T>::decode(&mut &(x as u128).to_be_bytes()[..]).unwrap();
+		let amount = BalanceOf::<T>::decode(&mut &(x as u128).to_le_bytes()[..]).unwrap();
 		let mut withdrawals = Vec::with_capacity(1);
 		let fees = Decimal::new(100, 1);
 		withdrawals.push(Withdrawal {
