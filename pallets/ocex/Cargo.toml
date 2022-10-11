@@ -24,12 +24,13 @@ polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.4"
 pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate' }
 ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
 rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
-sp-core = { version = "6.0.0", default-features = false }
+sp-core = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', default-features = false }
 frame-benchmarking = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', optional = true }
 test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch = "polkadot-v0.9.28", default-features = false, optional = true }
 getrandom = { version = "0.2.7", features = ["js"], optional = true }
 
 [dev-dependencies]
+sp-core = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 pallet-balances = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 pallet-assets = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 pallet-timestamp = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
