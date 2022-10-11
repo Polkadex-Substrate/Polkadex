@@ -5464,7 +5464,7 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.9.19"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.4#c918447af4d3082a00c5de9c718f46e0ead2c6e5"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.7#b7aedf831343a3186a6743c247c8e0e10b004c49"
 dependencies = [
  "frame-support",
  "frame-system",
