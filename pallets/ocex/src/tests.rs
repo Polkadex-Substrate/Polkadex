@@ -1903,7 +1903,6 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 	});
 }
 
-
 #[test]
 pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 	let account_id = create_account_id();
