@@ -1881,7 +1881,6 @@ pub fn test_set_balances_when_exchange_is_pause() {
 	});
 }
 
-
 #[test]
 pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 	let account_id = create_account_id();
@@ -1896,8 +1895,10 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 				reserve: 50,
 			});
 		}
-		let bounded_vec_for_alice: Result<BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>, ()> =
-			BoundedVec::try_from(vec_of_balances);
+		let bounded_vec_for_alice: Result<
+			BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>,
+			(),
+		> = BoundedVec::try_from(vec_of_balances);
 		assert!(bounded_vec_for_alice.is_err());
 	});
 }
