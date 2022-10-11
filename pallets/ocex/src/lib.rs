@@ -938,7 +938,7 @@ pub mod pallet {
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
-			let report = verify_ias_report(&ias_report)
+			let report = verify_ias_report(&ias_report, <CertificateValidity<T>>::get())
 				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
 			// TODO: attested key verification enabled
@@ -1000,6 +1000,17 @@ pub mod pallet {
 			// It will just overwrite if account_id is already allowlisted
 			<AllowlistedEnclaves<T>>::insert(&enclave_account_id, true);
 			Self::deposit_event(Event::EnclaveAllowlisted(enclave_account_id));
+			Ok(())
+		}
+
+		/// Extrinsic to update ExchangeState
+		#[pallet::weight(1000000)]
+		pub fn update_certificate(
+			origin: OriginFor<T>,
+			certificate_valid_until: u64,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<CertificateValidity<T>>::put(certificate_valid_until);
 			Ok(())
 		}
 	}
@@ -1090,6 +1101,11 @@ pub mod pallet {
 	#[pallet::getter(fn get_allowlisted_token)]
 	pub(super) type AllowlistedToken<T: Config> =
 		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
+
+	///CertificateValidity
+	#[pallet::storage]
+	#[pallet::getter(fn get_certificate_validation_time)]
+	pub(super) type CertificateValidity<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// A map that has enumerable entries.
 	#[pallet::storage]
