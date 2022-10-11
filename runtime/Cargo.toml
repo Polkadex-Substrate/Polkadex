@@ -174,7 +174,8 @@ std = [
     "frame-try-runtime/std",
     "pallet-ocex-lmp/std",
     "asset-handler/std",
-    "chainbridge/std"
+    "chainbridge/std",
+    "pallet-asset-handler-runtime-api/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
