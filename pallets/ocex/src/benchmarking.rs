@@ -297,7 +297,8 @@ benchmarks! {
 		};
 		let bytes = snapshot.encode();
 		let sp_sig = pair.sign(&bytes);
-		let signature: T::Signature = Signature::from(sp_sig.into()).into();
+		let signature_encoded = Signature::from(sp_sig);
+		let signature: T::Signature = T::Signature::decode(&mut &signature_encoded.encode()[..]).unwrap();
 		<ExchangeState<T>>::put(true);
 		let call = Call::<T>::submit_snapshot { snapshot, signature };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
