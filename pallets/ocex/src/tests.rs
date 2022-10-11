@@ -1874,11 +1874,31 @@ pub fn test_set_balances_when_exchange_is_pause() {
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
 		assert_eq!(OCEX::set_balances(Origin::root(), bounded_vec_for_alice.clone()), Ok(()));
-		println!("Get ingress message: {:?}", OCEX::ingress_messages());
 		assert_eq!(
 			OCEX::ingress_messages()[1],
 			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice,)
 		);
+	});
+}
+
+
+#[test]
+pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
+	let account_id = create_account_id();
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
+		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
+		for i in 0..1001 {
+			vec_of_balances.push(HandleBalance {
+				main_account: account_id.clone(),
+				asset_id: AssetId::polkadex,
+				free: 100,
+				reserve: 50,
+			});
+		}
+		let bounded_vec_for_alice: Result<BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>, ()> =
+			BoundedVec::try_from(vec_of_balances);
+		assert!(bounded_vec_for_alice.is_err());
 	});
 }
 
