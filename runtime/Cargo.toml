@@ -188,7 +188,8 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "pallet-collective/runtime-benchmarks",
     "pallet-society/runtime-benchmarks",
-    "pallet-ocex-lmp/runtime-benchmarks"
+    "pallet-ocex-lmp/runtime-benchmarks",
+    "asset-handler/runtime-benchmarks"
 ]
 try-runtime = [
     "frame-executive/try-runtime",
