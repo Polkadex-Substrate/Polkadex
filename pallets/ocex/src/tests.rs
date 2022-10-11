@@ -1514,6 +1514,7 @@ fn test_register_enclave_not_allowlist() {
 
 	new_test_ext().execute_with(|| {
 		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
+		assert_ok!(OCEX::update_certificate(Origin::root(), 1679861524));
 		assert_noop!(
 			OCEX::register_enclave(Origin::signed(account_id.clone()), TEST4_SETUP.cert.to_vec()),
 			Error::<Test>::EnclaveNotAllowlisted
@@ -1526,6 +1527,7 @@ fn test_register_enclave() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::update_certificate(Origin::root(), 1679861524));
 		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
 		let enclave_account_id = create_signer::<Test>();
 		assert_ok!(OCEX::allowlist_enclave(Origin::root(), enclave_account_id));
