@@ -1260,7 +1260,6 @@ parameter_types! {
 	pub const ProxyLimit: u32 = 3;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
 	pub const MsPerDay: u64 = 86_400_000;
-	// TODO: make this Governable
 }
 
 impl pallet_ocex_lmp::Config for Runtime {
