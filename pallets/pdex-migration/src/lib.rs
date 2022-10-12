@@ -226,6 +226,7 @@ pub mod pallet {
 				Err(Error::<T>::NotOperational)?
 			}
 		}
+
 		#[pallet::weight(<T as Config>::WeightInfo::remove_minted_tokens())]
 		pub fn remove_minted_tokens(
 			origin: OriginFor<T>,

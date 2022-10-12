@@ -4031,6 +4031,7 @@ dependencies = [
  "sp-block-builder",
  "sp-consensus-babe",
  "sp-core",
+ "sp-finality-grandpa",
  "sp-inherents",
  "sp-io",
  "sp-npos-elections",
@@ -4653,6 +4654,7 @@ name = "pallet-multisig"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4673,8 +4675,6 @@ dependencies = [
  "getrandom 0.2.7",
  "ias-verify",
  "log",
- "pallet-assets",
- "pallet-balances",
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
@@ -5153,6 +5153,7 @@ dependencies = [
  "pallet-balances",
  "pallet-sudo",
  "parity-scale-codec",
+ "rand 0.8.5",
  "scale-info",
  "sp-core",
  "sp-io",

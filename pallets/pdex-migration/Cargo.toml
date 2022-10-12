@@ -24,6 +24,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+rand = { version = "0.8.5", optional = true }
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28"}
@@ -39,14 +40,12 @@ std = [
 	'pallet-balances/std',
 	'pallet-sudo/std',
 ]
-#TODO: [#463] Currently broken, will be fixed in different issue
-#runtime-benchmarks = [
-#    "frame-benchmarking",
-#    'frame-support/runtime-benchmarks',
-#    'frame-system/runtime-benchmarks',
-#    'sp-runtime/runtime-benchmarks',
-#    'pallet-balances/runtime-benchmarks',
-#	'rand/std'
-#	# 'sp-io/std',
-#]
+runtime-benchmarks = [
+    "frame-benchmarking",
+    'frame-support/runtime-benchmarks',
+    'frame-system/runtime-benchmarks',
+    'sp-runtime/runtime-benchmarks',
+    'pallet-balances/runtime-benchmarks',
+	"rand"
+]
 try-runtime = ["frame-support/try-runtime"]
