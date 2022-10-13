@@ -719,15 +719,14 @@ pub mod pallet {
 				AssetsLimit,
 				SnapshotAccLimit,
 			>,
-			enclave: T::AccountId,
 			signature: T::Signature,
 		) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 			ensure!(
-				<RegisteredEnclaves<T>>::contains_key(&enclave),
+				<RegisteredEnclaves<T>>::contains_key(&snapshot.enclave_id),
 				Error::<T>::SenderIsNotAttestedEnclave
 			);
-			ensure!(<RegisteredEnclaves<T>>::get(&enclave)
+			ensure!(<RegisteredEnclaves<T>>::get(&snapshot.enclave_id)
 				.saturating_sub(timestamp::Pallet::<T>::now())>T::Moment::saturated_from(1200u64), Error::<T>::InvalidSgxReportStatus);
 
 			let last_snapshot_serial_number =
@@ -741,8 +740,9 @@ pub mod pallet {
 				Error::<T>::SnapshotNonceError
 			);
 			let bytes = snapshot.encode();
+
 			ensure!(
-				signature.verify(bytes.as_slice(), &enclave),
+				signature.verify(bytes.as_slice(), &snapshot.enclave_id),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			let current_snapshot_nonce = snapshot.snapshot_number;
