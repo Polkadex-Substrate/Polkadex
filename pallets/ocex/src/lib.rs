@@ -77,6 +77,7 @@ pub mod pallet {
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
+	use sp_runtime::traits::Saturating;
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
@@ -718,13 +719,16 @@ pub mod pallet {
 				AssetsLimit,
 				SnapshotAccLimit,
 			>,
+			enclave: T::AccountId,
 			signature: T::Signature,
 		) -> DispatchResult {
-			let enclave = ensure_signed(origin)?;
+			let _ = ensure_signed(origin)?;
 			ensure!(
 				<RegisteredEnclaves<T>>::contains_key(&enclave),
 				Error::<T>::SenderIsNotAttestedEnclave
 			);
+			ensure!(<RegisteredEnclaves<T>>::get(&enclave)
+				.saturating_sub(timestamp::Pallet::<T>::now())>T::Moment::saturated_from(1200u64), Error::<T>::InvalidSgxReportStatus);
 
 			let last_snapshot_serial_number =
 				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
@@ -995,7 +999,7 @@ pub mod pallet {
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = Some(T::Moment::saturated_from(report.timestamp));
+				*v = T::Moment::saturated_from(report.timestamp);
 			});
 			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
 			debug!("registered enclave at time =>{:?}", report.timestamp);
@@ -1230,7 +1234,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad

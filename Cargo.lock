@@ -5464,7 +5464,7 @@ dependencies = [
 [[package]]
 name = "polkadex-primitives"
 version = "0.9.19"
-source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.7#4aec6ae0fcefab45e9d677f9dc0793945ea4b8c4"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.7#b7aedf831343a3186a6743c247c8e0e10b004c49"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5903,18 +5903,18 @@ dependencies = [
 
 [[package]]
 name = "ref-cast"
-version = "1.0.10"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8ebf632f3e32bf35133f620cf481f29c99ae0fb01450fd3d85eee0225274ec1"
+checksum = "12a733f1746c929b4913fe48f8697fcf9c55e3304ba251a79ffb41adfeaf49c2"
 dependencies = [
  "ref-cast-impl",
 ]
 
 [[package]]
 name = "ref-cast-impl"
-version = "1.0.10"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caab98faa75ce294d40512ce514a46b15eafe78d72c9397a68ea45b3a88201b6"
+checksum = "5887de4a01acafd221861463be6113e6e87275e79804e56779f4cdc131c60368"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7369,9 +7369,9 @@ dependencies = [
 
 [[package]]
 name = "secp256k1-sys"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7058dc8eaf3f2810d7828680320acda0b25a288f6d288e19278e249bbf74226b"
+checksum = "83080e2c2fc1006e625be82e5d1eb6a43b7fd9578b617fcc55814daf286bba4b"
 dependencies = [
  "cc",
 ]
@@ -8390,9 +8390,9 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "ss58-registry"
-version = "1.31.0"
+version = "1.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1de151faef619cb7b5c26b32d42bc7ddccac0d202beb7a84344b44e9232b92f7"
+checksum = "3ab7554f8a8b6f8d71cd5a8e6536ef116e2ce0504cf97ebf16311d58065dc8a6"
 dependencies = [
  "Inflector",
  "num-format",
@@ -8922,9 +8922,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-stream"
-version = "0.1.10"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6edf2d6bc038a43d31353570e27270603f4648d18f5ed10c0e179abe43255af"
+checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
 dependencies = [
  "futures-core",
  "pin-project-lite 0.2.9",
