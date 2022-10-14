@@ -1611,12 +1611,12 @@ impl_runtime_apis! {
 			// Trying to add benchmarks directly to the Session Pallet caused cyclic dependency
 			// issues. To get around that, we separated the Session benchmarks into its own crate,
 			// which is why we need these two lines below.
-			// use pallet_session_benchmarking::Pallet as SessionBench;
-			// use pallet_offences_benchmarking::Pallet as OffencesBench;
+/*			 use pallet_session_benchmarking::Pallet as SessionBench;
+			 use pallet_offences_benchmarking::Pallet as OffencesBench;
 
-			// impl pallet_session_benchmarking::Config for Runtime {}
-			// impl pallet_offences_benchmarking::Config for Runtime {}
-			impl frame_system_benchmarking::Config for Runtime {}
+			 impl pallet_session_benchmarking::Config for Runtime {}
+			 impl pallet_offences_benchmarking::Config for Runtime {}
+*/			impl frame_system_benchmarking::Config for Runtime {}
 
 			let allowlist: Vec<TrackedStorageKey> = vec![
 				// Block Number

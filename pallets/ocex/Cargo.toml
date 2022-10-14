@@ -21,12 +21,10 @@ frame-system = { default-features = false, branch = "polkadot-v0.9.28", git = 'h
 sp-runtime = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 sp-std = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
 polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.4", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
-pallet-timestamp = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate' }
 ias-verify = { default-features = false,version = "0.1.4", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
 rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
 frame-benchmarking = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', optional = true }
 test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch = "polkadot-v0.9.28", default-features = false, optional = true }
-getrandom = { version = "0.2.7", features = ["js"], optional = true }
 
 [dev-dependencies]
 sp-core = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
@@ -55,11 +53,9 @@ std = [
     "frame-benchmarking?/std"
 ]
 runtime-benchmarks = [
-    "getrandom",
     "sp-runtime/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "test-utils/default",
-    "pallet-timestamp/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

@@ -90,10 +90,11 @@ frame-system-rpc-runtime-api = { default-features = false, git = "https://github
 orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch="polkadot-v0.9.28", default-features = false }
 
 # Local Dependecies
-polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.4", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.9", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false }
 chainbridge = { path ="../pallets/chainbridge", default-features = false }
+getrandom = { version = "0.2.7", features = ["js"] }
 
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
@@ -184,23 +185,11 @@ runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
     "frame-system-benchmarking",
 	"sp-runtime/runtime-benchmarks",
-    "sp-authority-discovery/std",
-    "sp-npos-elections/std",
-    "sp-finality-grandpa/std",
-    "sp-consensus-babe/std",
-    "pallet-grandpa/runtime-benchmarks",
-    "pallet-babe/runtime-benchmarks",
-    "pallet-im-online/runtime-benchmarks",
-    "pallet-assets/runtime-benchmarks",
-    "pallet-multisig/runtime-benchmarks",
-    "pallet-identity/runtime-benchmarks",
-    "pallet-staking/runtime-benchmarks",
     #our
     "pallet-ocex-lmp/runtime-benchmarks",
     "chainbridge/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks",
-    "hex-literal",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
