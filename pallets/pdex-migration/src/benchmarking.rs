@@ -2,7 +2,6 @@ use crate::pallet::{Call, Config, Pallet as PDEXMigration, Pallet, *};
 use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::{assert_ok, dispatch::UnfilteredDispatchable, traits::Get};
 use frame_system::RawOrigin;
-use rand::{RngCore, SeedableRng};
 use sp_runtime::{traits::BlockNumberProvider, SaturatedConversion};
 
 const PDEX: u128 = 1000_000_000_000;
@@ -24,14 +23,13 @@ benchmarks! {
 	}
 
 	mint {
+		let b in 1 .. 256;
 		let relayer1: T::AccountId = account("relayer1",0,0);
 		let relayer2: T::AccountId = account("relayer2",0,0);
 		let relayer3: T::AccountId = account("relayer3",0,0);
 		let beneficiary: T::AccountId  = whitelisted_caller();
 		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
-		let mut random_slice = [0u8; 32];
-		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
-		rng.fill_bytes(&mut random_slice);
+		let random_slice = [b as u8; 32];
 		let mut eth_hash: T::Hash = T::Hash::default();
 		eth_hash.as_mut().copy_from_slice(&random_slice);
 
@@ -51,15 +49,14 @@ benchmarks! {
 	}
 
 	unlock {
+		let b in 1 .. 256;
 		let relayer1 : T::AccountId = account("relayer1",0,0);
 		let relayer2  : T::AccountId = account("relayer2",0,0);
 		let relayer3 : T::AccountId = account("relayer3",0,0);
 		let beneficiary : T::AccountId  = whitelisted_caller();
 
 		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
-		let mut random_slice = [0u8; 32];
-		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
-		rng.fill_bytes(&mut random_slice);
+		let random_slice = [b as u8; 32];
 		let mut eth_hash: T::Hash = T::Hash::default();
 		eth_hash.as_mut().copy_from_slice(&random_slice);
 
@@ -78,14 +75,13 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(beneficiary).into())? }
 
 	remove_minted_tokens {
+		let b in 1 .. 256;
 		let relayer1: T::AccountId = account("relayer1",0,0);
 		let relayer2  : T::AccountId = account("relayer2",0,0);
 		let relayer3 : T::AccountId = account("relayer3",0,0);
 		let beneficiary: T::AccountId  = whitelisted_caller();
-	  let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
-		let mut random_slice = [0u8; 32];
-		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
-		rng.fill_bytes(&mut random_slice);
+		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
+		let random_slice = [b as u8; 32];
 		let mut eth_hash: T::Hash = T::Hash::default();
 		eth_hash.as_mut().copy_from_slice(&random_slice);
 

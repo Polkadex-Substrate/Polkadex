@@ -37,7 +37,11 @@ use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{
 	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
+<<<<<<< .merge_file_emyUSJ
 	DispatchError::BadOrigin, MultiSignature, TokenError,
+=======
+	DispatchError::BadOrigin, TokenError,
+>>>>>>> .merge_file_jrmNLN
 };
 use std::sync::Arc;
 
@@ -1474,9 +1478,12 @@ fn test_submit_snapshot() {
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+<<<<<<< .merge_file_emyUSJ
 		let ms = MultiSignature::Sr25519(signature.clone());
 		let bs = ms.encode();
 		println!("pk: {:?}\nsnapshot: {:?}\nsig: {:?}", account_id.encode(), bytes, bs);
+=======
+>>>>>>> .merge_file_jrmNLN
 
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.into()),
