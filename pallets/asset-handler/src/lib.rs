@@ -491,7 +491,8 @@ pub mod pallet {
 
 		#[cfg(feature = "runtime-benchmarks")]
 		pub fn mint_token(account: T::AccountId, rid: ResourceId, amount: u128) {
-			T::AssetManager::mint_into(Pallet::<T>::convert_asset_id(rid), &account, amount);
+			T::AssetManager::mint_into(Pallet::<T>::convert_asset_id(rid), &account, amount)
+				.unwrap();
 		}
 	}
 }
