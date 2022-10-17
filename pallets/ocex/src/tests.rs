@@ -26,7 +26,7 @@ use std::cmp::max;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use codec::Encode;
+use parity_scale_codec::uEncode;
 use frame_system::EventRecord;
 use polkadex_primitives::{
 	snapshot::{EnclaveSnapshot, Fees},
@@ -47,7 +47,7 @@ use std::sync::Arc;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
-use codec::Decode;
+use parity_scale_codec::uDecode;
 use test_utils::ias::ias::TEST4_SETUP;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {

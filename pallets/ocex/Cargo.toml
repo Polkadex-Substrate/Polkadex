@@ -13,33 +13,32 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3", default-features = false }
-log = { version = "0.4.14", default-features = false }
-scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
-frame-support = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-frame-system = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-sp-runtime = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-sp-std = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-sp-core = { version = "6.0.0", git = 'https://github.com/paritytech/substrate.git' }
-polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.4", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
-ias-verify = { default-features = false, version = "0.1.5", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
-rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
-frame-benchmarking = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', optional = true }
-test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch = "polkadot-v0.9.28", default-features = false, optional = true }
-pallet-timestamp = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git', default-features = false }
+parity-scale-codec = { workspace = true, default-features = false }
+log = { workspace = true, default-features = false }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+frame-support = { default-features = false, workspace = true }
+frame-system = { default-features = false, workspace = true }
+sp-runtime = { default-features = false, workspace = true }
+sp-std = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+ias-verify = { workspace = true, default-features = false }
+rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+test-utils = { workspace = true, default-features = false, optional = true }
+pallet-timestamp = { workspace = true, default-features = false }
 
 [dev-dependencies]
-sp-application-crypto = { branch="polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate'}
-sp-keystore = { branch = "polkadot-v0.9.28",git = 'https://github.com/paritytech/substrate' }
-frame-benchmarking = { branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-anyhow = "1.0.56"
-sp-io = { default-features = false, branch = "polkadot-v0.9.28", git = 'https://github.com/paritytech/substrate.git' }
-test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch = "polkadot-v0.9.28", default-features = false }
+sp-application-crypto = { workspace = true }
+sp-keystore = { workspace = true }
+frame-benchmarking = { workspace = true }
+anyhow = { workspace = true }
+sp-io = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-    "codec/std",
+    "parity-scale-codec/std",
     "log/std",
     "scale-info/std",
     "frame-support/std",
@@ -48,15 +47,17 @@ std = [
     "sp-std/std",
     "sp-core/std",
     "polkadex-primitives/std",
-    "pallet-timestamp/std",
     "ias-verify/std",
     "rust_decimal/std",
-    "frame-benchmarking?/std"
+    "frame-benchmarking?/std",
+    "test-utils?/std",
+    "pallet-timestamp/std",
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
-    "test-utils/default",
+    "test-utils"
 ]
 try-runtime = ["frame-support/try-runtime"]

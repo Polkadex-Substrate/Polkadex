@@ -13,7 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::u{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 /// Types that are required only in this pallet

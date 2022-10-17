@@ -14,9 +14,9 @@
 // GNU General Public License for more details.
 
 use crate::pallet::*;
-use codec::{Decode, Encode};
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
+use parity_scale_codec::{Decode, Encode};
 use sp_core::H160;
 use sp_runtime::SaturatedConversion;
 

@@ -12,8 +12,8 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-use codec::Decode;
 use frame_support::{assert_noop, assert_ok};
+use parity_scale_codec::uDecode;
 use sp_core::{H160, U256};
 use sp_runtime::{BoundedBTreeSet, TokenError};
 use std::collections::BTreeSet;

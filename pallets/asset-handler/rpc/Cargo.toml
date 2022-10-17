@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codec = { workspace = true, default-features = false, features = ["derive"] }
-serde = { workspace = true, optional = true }
+parity-scale-codec = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server", "macros"] }
-sp-rpc = { workspace = true, default-features = false }
-sp-blockchain = { workspace = true, default-features = false }
-sp-api = { workspace = true, default-features = false }
-sp-runtime = { workspace = true, default-features = false }
-polkadex-primitives = { workspace = true, defaull-features = false }
+sp-rpc = { workspace = true }
+sp-blockchain = { workspace = true }
+sp-api = { workspace = true }
+sp-runtime = { workspace = true }
+polkadex-primitives = { workspace = true }
 pallet-asset-handler-runtime-api = { path = "runtime-api" }

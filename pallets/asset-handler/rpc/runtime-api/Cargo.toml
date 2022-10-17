@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codec = { workspace = true, default-features = false, features = ["derive"] }
+parity-scale-codec = { workspace = true, default-features = false, features = ["derive"] }
 
 # Substrate Dependencies
 sp-api = { workspace = true, default-features = false }
@@ -18,10 +18,11 @@ sp-core = { workspace = true, default-features = false }
 [features]
 default = ["std"]
 std = [
+    "parity-scale-codec/std",
     "sp-api/std",
-    "codec/std",
-    "sp-core/std",
-    "sp-std/std",
     "sp-runtime/std",
+    "sp-std/std",
+    "polkadex-primitives/std",
+    "sp-core/std",
 ]
 

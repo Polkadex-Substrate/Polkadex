@@ -134,7 +134,7 @@ pub mod pallet {
 			+ PartialEq
 			+ IdentifyAccount<AccountId = Self::AccountId>
 			+ core::fmt::Debug
-			+ codec::Codec
+			+ parity_scale_codec::Codec
 			+ Ord
 			+ scale_info::TypeInfo;
 
@@ -143,7 +143,7 @@ pub mod pallet {
 			+ Clone
 			+ PartialEq
 			+ core::fmt::Debug
-			+ codec::Codec
+			+ parity_scale_codec::Codec
 			+ scale_info::TypeInfo;
 
 		/// Type representing the weight of this pallet

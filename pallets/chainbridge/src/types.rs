@@ -3,7 +3,7 @@
 
 #![deny(warnings)]
 
-use codec::{
+use parity_scale_codec::u{
     Decode,
     Encode,
 };

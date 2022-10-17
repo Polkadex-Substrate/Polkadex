@@ -19,7 +19,7 @@ structopt = { version = "0.3.8", optional = true }
 [dependencies]
 # third-party dependencies
 jsonrpc-core = { workspace = true }
-codec = { workspace = true }
+parity-scale-codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 futures = { workspace = true, features = ["compat"] }
 hex-literal = { workspace = true }
