@@ -170,8 +170,6 @@ std = [
     "pallet-randomness-collective-flip/std",
     "pallet-assets/std",
     "frame-system-rpc-runtime-api/std",
-    "frame-benchmarking?/std",
-    "frame-system-benchmarking?/std",
     "pallet-society/std",
     "orml-vesting/std",
     "polkadex-primitives/std",

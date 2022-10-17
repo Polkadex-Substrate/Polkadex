@@ -32,11 +32,11 @@ hex-literal = "0.3.1"
 parking_lot = "0.12.1"
 jsonrpc-core = "18.0.0"
 static_assertions = "1.1.0"
-parity-scale-codec = "3.0.0"
+parity-scale-codec = "3.1.5"
 ias-verify = { version = "0.1.5", branch = "polkadot-v0.9.28", git = "https://github.com/Polkadex-Substrate/pallets" }
 test-utils = { git = "https://github.com/Polkadex-Substrate/pallets.git", branch = "polkadot-v0.9.28" }
 rust_decimal = { git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master" }
-scale-info = "2.0.1"
+scale-info = "2.1.2"
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }

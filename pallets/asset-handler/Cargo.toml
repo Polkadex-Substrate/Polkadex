@@ -34,7 +34,6 @@ std = [
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"frame-support/std",
-	"frame-benchmarking?/std",
 	"frame-system/std",
 	"pallet-balances/std",
 	"pallet-sudo/std",

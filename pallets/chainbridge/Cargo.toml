@@ -30,7 +30,6 @@ std = [
     "log/std",
     "parity-scale-codec/std",
     "frame-support/std",
-    "frame-benchmarking?/std",
     "frame-system/std",
     "scale-info/std",
     "sp-core/std",

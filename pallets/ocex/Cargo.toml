@@ -49,8 +49,6 @@ std = [
     "polkadex-primitives/std",
     "ias-verify/std",
     "rust_decimal/std",
-    "frame-benchmarking?/std",
-    "test-utils?/std",
     "pallet-timestamp/std",
 ]
 runtime-benchmarks = [
