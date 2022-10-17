@@ -6,19 +6,21 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+codec = { workspace = true, default-features = false, features = ["derive"] }
 
 # Substrate Dependencies
-sp-api = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-runtime = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-std = {   git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-polkadex-primitives = { default-features = false, tag = "polkadot-v0.9.28v0.1.9", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+sp-api = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
 std = [
     "sp-api/std",
     "codec/std",
+    "sp-core/std",
     "sp-std/std",
     "sp-runtime/std",
 ]
