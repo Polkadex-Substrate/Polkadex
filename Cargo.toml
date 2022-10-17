@@ -139,7 +139,7 @@ sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/substrate", bra
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", package="sp-finality-grandpa" }
-polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.9", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
+polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.10", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git" }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
 #node-executor = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", features = ["wasmtime"] }
