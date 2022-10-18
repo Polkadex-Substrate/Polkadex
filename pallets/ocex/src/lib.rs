@@ -990,7 +990,9 @@ pub mod pallet {
 			// TODO: any other checks we want to run?
 			ensure!(
 				(report.status == SgxStatus::Ok) |
-					(report.status == SgxStatus::ConfigurationNeeded),
+					(report.status == SgxStatus::ConfigurationNeeded) |
+				        (report.status == SgxStatus::GroupOutOfDate)
+				,
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
