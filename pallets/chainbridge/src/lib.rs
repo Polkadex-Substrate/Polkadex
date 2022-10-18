@@ -349,7 +349,7 @@ pub mod pallet {
 		/// # </weight>
 		#[pallet::weight({
         let dispatch_info = call.get_dispatch_info();
-        (dispatch_info.weight + 195_000_000, dispatch_info.class, Pays::Yes)
+        (dispatch_info.weight.saturating_add(195_000_000), dispatch_info.class, Pays::Yes)
         })]
 		pub fn acknowledge_proposal(
 			origin: OriginFor<T>,
@@ -397,7 +397,7 @@ pub mod pallet {
 		/// # </weight>
 		#[pallet::weight({
         let dispatch_info = prop.get_dispatch_info();
-        (dispatch_info.weight + 195_000_000, dispatch_info.class, Pays::Yes)
+        (dispatch_info.weight.saturating_add(195_000_000), dispatch_info.class, Pays::Yes)
         })]
 		pub fn eval_vote_state(
 			origin: OriginFor<T>,

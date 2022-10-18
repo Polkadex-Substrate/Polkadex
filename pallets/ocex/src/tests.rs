@@ -1287,6 +1287,8 @@ fn collect_fees() {
 
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				enclave_id: account_id.clone(),
+				event_id: 0,
 				snapshot_number: 1,
 				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
@@ -1295,6 +1297,8 @@ fn collect_fees() {
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+
+		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.clone().into()),
@@ -1357,6 +1361,8 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 	new_test_ext().execute_with(|| {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				enclave_id: AccountId::new([1; 32]),
+				event_id: 0,
 				snapshot_number: 1,
 				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
@@ -1378,12 +1384,15 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				enclave_id: account_id.clone(),
+				event_id: 0,
 				snapshot_number: 2,
 				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
+		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
 			Error::<Test>::SnapshotNonceError
@@ -1401,12 +1410,15 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 	new_test_ext().execute_with(|| {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				enclave_id: account_id.clone(),
+				event_id: 0,
 				snapshot_number: 1,
 				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
 				fees: bounded_vec![],
 			};
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
+		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
 			Error::<Test>::EnclaveSignatureVerificationFailed
@@ -1423,6 +1435,8 @@ fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				enclave_id: AccountId::new([1; 32]),
+				event_id: 0,
 				snapshot_number: 0,
 				snapshot_hash: H256::random(),
 				withdrawals: Default::default(),
@@ -1464,15 +1478,18 @@ fn test_submit_snapshot() {
 		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]).unwrap();
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				enclave_id: account_id.clone(),
+				event_id: 0,
 				snapshot_number: 1,
 				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map.clone(),
 				fees: bounded_vec![],
 			};
+		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
-
+		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.into()),
 			snapshot.clone(),
@@ -1504,20 +1521,6 @@ fn test_submit_snapshot() {
 		assert_eq!(Snapshots::<Test>::get(1).unwrap().fees, empty_fees);
 		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, withdrawal_map_empty);
 	})
-}
-
-#[test]
-fn test_register_enclave_not_allowlist() {
-	let account_id = create_account_id();
-
-	new_test_ext().execute_with(|| {
-		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
-		assert_ok!(OCEX::update_certificate(Origin::root(), 1679861524));
-		assert_noop!(
-			OCEX::register_enclave(Origin::signed(account_id.clone()), TEST4_SETUP.cert.to_vec()),
-			Error::<Test>::EnclaveNotAllowlisted
-		);
-	});
 }
 
 #[test]
@@ -1631,6 +1634,8 @@ fn test_withdrawal() {
 
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
+				enclave_id: account_id.clone(),
+				event_id: 0,
 				snapshot_number: 1,
 				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map,
@@ -1639,7 +1644,7 @@ fn test_withdrawal() {
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
-
+		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.clone().into()),
 			snapshot,
@@ -1709,6 +1714,8 @@ fn test_onchain_events_overflow() {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
 				snapshot_number: 1,
+				enclave_id: account_id.clone(),
+				event_id: 0,
 				snapshot_hash: H256::random(),
 				withdrawals: withdrawal_map,
 				fees: bounded_vec![],
@@ -1716,6 +1723,7 @@ fn test_onchain_events_overflow() {
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.clone().into()),
