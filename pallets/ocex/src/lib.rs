@@ -79,7 +79,7 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
-		traits::{IdentifyAccount, Saturating, Verify},
+		traits::{IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
