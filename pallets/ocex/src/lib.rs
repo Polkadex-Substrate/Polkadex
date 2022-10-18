@@ -726,13 +726,10 @@ pub mod pallet {
 				<RegisteredEnclaves<T>>::contains_key(&snapshot.enclave_id),
 				Error::<T>::SenderIsNotAttestedEnclave
 			);
-			// Check if enclave_signer is allowlisted
 			ensure!(
 				<AllowlistedEnclaves<T>>::get(&snapshot.enclave_id),
 				<Error<T>>::EnclaveNotAllowlisted
 			);
-			// ensure!(<RegisteredEnclaves<T>>::get(&snapshot.enclave_id)
-			// 	.saturating_sub(timestamp::Pallet::<T>::now())>T::Moment::saturated_from(1200u64), Error::<T>::InvalidSgxReportStatus);
 
 			let last_snapshot_serial_number =
 				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
