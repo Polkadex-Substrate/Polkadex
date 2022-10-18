@@ -720,10 +720,14 @@ pub mod pallet {
 			>,
 			signature: T::Signature,
 		) -> DispatchResult {
-			let enclave = ensure_signed(origin)?;
+			let _ = ensure_signed(origin)?;
 			ensure!(
-				<RegisteredEnclaves<T>>::contains_key(&enclave),
+				<RegisteredEnclaves<T>>::contains_key(&snapshot.enclave_id),
 				Error::<T>::SenderIsNotAttestedEnclave
+			);
+			ensure!(
+				<AllowlistedEnclaves<T>>::get(&snapshot.enclave_id),
+				<Error<T>>::EnclaveNotAllowlisted
 			);
 
 			let last_snapshot_serial_number =
@@ -737,8 +741,9 @@ pub mod pallet {
 				Error::<T>::SnapshotNonceError
 			);
 			let bytes = snapshot.encode();
+
 			ensure!(
-				signature.verify(bytes.as_slice(), &enclave),
+				signature.verify(bytes.as_slice(), &snapshot.enclave_id),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			let current_snapshot_nonce = snapshot.snapshot_number;
@@ -982,12 +987,6 @@ pub mod pallet {
 			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
 				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
 
-			// Check if enclave_signer is allowlisted
-			ensure!(
-				<AllowlistedEnclaves<T>>::get(&enclave_signer),
-				<Error<T>>::EnclaveNotAllowlisted
-			);
-
 			// TODO: any other checks we want to run?
 			ensure!(
 				(report.status == SgxStatus::Ok) |
@@ -995,7 +994,7 @@ pub mod pallet {
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = Some(T::Moment::saturated_from(report.timestamp));
+				*v = T::Moment::saturated_from(report.timestamp);
 			});
 			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
 			debug!("registered enclave at time =>{:?}", report.timestamp);
@@ -1230,7 +1229,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
