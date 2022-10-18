@@ -1361,7 +1361,7 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 	new_test_ext().execute_with(|| {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: AccountId::new([1;32]),
+				enclave_id: AccountId::new([1; 32]),
 				event_id: 0,
 				snapshot_number: 1,
 				snapshot_hash: H256::random(),
@@ -1435,7 +1435,7 @@ fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let snapshot =
 			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: AccountId::new([1;32]),
+				enclave_id: AccountId::new([1; 32]),
 				event_id: 0,
 				snapshot_number: 0,
 				snapshot_hash: H256::random(),

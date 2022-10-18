@@ -77,10 +77,9 @@ pub mod pallet {
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
-	use sp_runtime::traits::Saturating;
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
+		traits::{IdentifyAccount, Saturating, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
