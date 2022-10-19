@@ -31,7 +31,7 @@ use polkadex_primitives::{
 	ocex::TradingPairConfig,
 	snapshot::{EnclaveSnapshot, Fees},
 	withdrawal::Withdrawal,
-	AccountId, ProxyLimit, WithdrawalLimit, UNIT_BALANCE,
+	ProxyLimit, WithdrawalLimit, UNIT_BALANCE,
 };
 use rust_decimal::{prelude::*, Decimal};
 use sp_runtime::BoundedBTreeSet;
@@ -322,7 +322,7 @@ benchmarks! {
 				snapshot_hash: Default::default(),
 				withdrawals: Default::default(),
 				fees: BoundedVec::try_from(vec!(fees)).unwrap(),
-				enclave_id: AccountId::decode(&mut &[(x + 1) as u8; 32][..]).unwrap().into(),
+				enclave_id: T::AccountId::decode(&mut &[(x + 1) as u8; 32][..]).unwrap(),
 				event_id: x as u64
 			};
 		<ExchangeState<T>>::put(true);
