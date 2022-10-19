@@ -13,7 +13,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
-hex-literal = { workspace = true, optional = true }
+hex-literal = { version = "0.3.1", optional = true }
 static_assertions = { workspace = true }
 log = { workspace = true, default-features = false }
 smallvec = { workspace = true }
@@ -51,6 +51,7 @@ pallet-recovery = { default-features = false, workspace = true }
 pallet-election-provider-multi-phase = { default-features = false, workspace = true }
 pallet-authority-discovery = { default-features = false, workspace = true }
 pallet-child-bounties = { default-features = false, workspace = true }
+pallet-contracts = { default-features = false, workspace = true }
 
 #frame
 frame-support = { default-features = false, workspace = true }
@@ -97,7 +98,6 @@ polkadex-primitives = { workspace = true, default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false }
 chainbridge = { path ="../pallets/chainbridge", default-features = false }
-getrandom = { workspace = true, features = ["js"] }
 
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
@@ -147,6 +147,7 @@ std = [
     "pallet-election-provider-multi-phase/std",
     "pallet-authority-discovery/std",
     "pallet-child-bounties/std",
+    "pallet-contracts/std",
     "frame-support/std",
     "frame-system/std",
     "frame-executive/std",

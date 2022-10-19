@@ -108,7 +108,7 @@ pub fn create_extrinsic(
 			(),
 		),
 	);
-	use codec::Encode;
+	use parity_scale_codec::Encode;
 	let signature = raw_payload.using_encoded(|e| sender.sign(e));
 
 	node_polkadex_runtime::UncheckedExtrinsic::new_signed(
@@ -534,11 +534,11 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 #[cfg(test)]
 mod tests {
 	use crate::service::{new_full_base, NewFullBase};
-	use codec::Encode;
 	use node_polkadex_runtime::{
 		constants::{currency::CENTS, time::SLOT_DURATION},
 		Address, BalancesCall, Call, UncheckedExtrinsic,
 	};
+	use parity_scale_codec::Encode;
 	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
 	use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};

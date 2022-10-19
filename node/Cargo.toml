@@ -18,16 +18,16 @@ structopt = { version = "0.3.8", optional = true }
 
 [dependencies]
 # third-party dependencies
-jsonrpc-core = { workspace = true }
+futures = { version = "0.3.24", features = ["compat"] }
+jsonrpc-core = "18.0.0"
 parity-scale-codec = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-futures = { workspace = true, features = ["compat"] }
-hex-literal = { workspace = true }
-log = { workspace = true }
-rand = { workspace = true }
-clap = { workspace = true , features = ["derive"] }
-parking_lot = { workspace = true }
-itertools = { workspace = true }
+serde = { version = "1.0.136", features = ["derive"] }
+hex-literal = "0.3.1"
+rand = "0.8.5"
+log = "0.4.8"
+clap = { version = "3.0", features = ["derive"] }
+parking_lot = "0.12.1"
+itertools = "0.10.1"
 jsonrpsee = { workspace = true, features = ["server"] }
 # local dependencies
 node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }

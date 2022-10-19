@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde = { version = "1.0.136" }
 parity-scale-codec = { workspace = true, features = ["derive"] }
-serde = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server", "macros"] }
 sp-rpc = { workspace = true }
 sp-blockchain = { workspace = true }
