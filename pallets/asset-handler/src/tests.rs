@@ -180,6 +180,72 @@ pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_
 }
 
 #[test]
+pub fn test_block_delay_with_multiple_withdrawals() {
+	let (asset_address, recipient, sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(|| {
+		allowlist_token(asset_address);
+		assert_ok!(ChainBridge::allowlist_chain(Origin::signed(1), chain_id));
+		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		let asset_id = AssetHandler::convert_asset_id(rid);
+		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
+		System::set_block_number(100);
+		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 10));
+		assert_ok!(AssetHandler::withdraw(
+			Origin::signed(sender),
+			chain_id,
+			asset_address,
+			100,
+			recipient
+		));
+		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 5));
+		assert_ok!(AssetHandler::withdraw(
+			Origin::signed(sender),
+			chain_id,
+			asset_address,
+			200,
+			recipient
+		));
+		let first_withdrawal = AssetHandler::get_pending_withdrawls(110);
+		assert!(!first_withdrawal.is_empty());
+		let second_withdrawal = AssetHandler::get_pending_withdrawls(105);
+		assert!(!second_withdrawal.is_empty());
+		mock::run_to_block(105);
+		assert_eq!(
+			ChainBridge::bridge_events(),
+			vec![chainbridge::BridgeEvent::FungibleTransfer(
+				chain_id,
+				1,
+				rid,
+				U256::from(200000000),
+				recipient.0.to_vec()
+			)]
+		);
+		mock::run_to_block(110);
+		assert_eq!(
+			ChainBridge::bridge_events(),
+			vec![
+				chainbridge::BridgeEvent::FungibleTransfer(
+					chain_id,
+					1,
+					rid,
+					U256::from(200000000),
+					recipient.0.to_vec()
+				),
+				chainbridge::BridgeEvent::FungibleTransfer(
+					chain_id,
+					2,
+					rid,
+					U256::from(100000000),
+					recipient.0.to_vec()
+				)
+			]
+		);
+		assert_eq!(Assets::balance(asset_id, sender), 700);
+	});
+}
+
+#[test]
 pub fn test_withdraw_successfully() {
 	let (asset_address, recipient, sender, chain_id) = withdraw_data();
 
@@ -192,7 +258,7 @@ pub fn test_withdraw_successfully() {
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
 		System::set_block_number(100);
-
+		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 10));
 		assert_ok!(AssetHandler::withdraw(
 			Origin::signed(sender),
 			chain_id,
@@ -200,8 +266,7 @@ pub fn test_withdraw_successfully() {
 			100,
 			recipient
 		));
-		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 10));
-		let a = AssetHandler::get_pending_withdrawls(100);
+		let a = AssetHandler::get_pending_withdrawls(110);
 		assert!(!a.is_empty());
 		mock::run_to_block(110);
 		assert_eq!(

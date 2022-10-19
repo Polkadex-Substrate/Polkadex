@@ -20,8 +20,8 @@ use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
+	BoundedVec,
 };
-
 use frame_system::ensure_signed;
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
 
@@ -38,6 +38,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
 
@@ -62,7 +63,7 @@ pub mod pallet {
 		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
-			fungibles::{Create, Inspect, Mutate},
+			fungibles::{Inspect, Mutate},
 			Currency, ReservableCurrency,
 		},
 		PalletId,
@@ -125,8 +126,7 @@ pub mod pallet {
 				<Self as frame_system::Config>::AccountId,
 				Balance = BalanceOf<Self>,
 				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>
-			+ Create<<Self as frame_system::Config>::AccountId>;
+			> + Inspect<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -228,6 +228,8 @@ pub mod pallet {
 		UnableToTransferFee,
 		/// Unable to execute collect fees fully
 		FeesNotCollectedFully,
+		/// Exchange is up
+		ExchangeOperational,
 	}
 
 	#[pallet::hooks]
@@ -718,10 +720,14 @@ pub mod pallet {
 			>,
 			signature: T::Signature,
 		) -> DispatchResult {
-			let enclave = ensure_signed(origin)?;
+			let _ = ensure_signed(origin)?;
 			ensure!(
-				<RegisteredEnclaves<T>>::contains_key(&enclave),
+				<RegisteredEnclaves<T>>::contains_key(&snapshot.enclave_id),
 				Error::<T>::SenderIsNotAttestedEnclave
+			);
+			ensure!(
+				<AllowlistedEnclaves<T>>::get(&snapshot.enclave_id),
+				<Error<T>>::EnclaveNotAllowlisted
 			);
 
 			let last_snapshot_serial_number =
@@ -735,8 +741,9 @@ pub mod pallet {
 				Error::<T>::SnapshotNonceError
 			);
 			let bytes = snapshot.encode();
+
 			ensure!(
-				signature.verify(bytes.as_slice(), &enclave),
+				signature.verify(bytes.as_slice(), &snapshot.enclave_id),
 				Error::<T>::EnclaveSignatureVerificationFailed
 			);
 			let current_snapshot_nonce = snapshot.snapshot_number;
@@ -769,10 +776,10 @@ pub mod pallet {
 		/// Insert Enclave
 		#[doc(hidden)]
 		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
-		pub fn insert_enclave(origin: OriginFor<T>, enclave: T::AccountId) -> DispatchResult {
+		pub fn insert_enclave(origin: OriginFor<T>, encalve: T::AccountId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let timestamp = <timestamp::Pallet<T>>::get();
-			<RegisteredEnclaves<T>>::insert(enclave, timestamp);
+			<RegisteredEnclaves<T>>::insert(encalve, timestamp);
 			Ok(())
 		}
 
@@ -836,12 +843,47 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Extrinsic to update ExchangeState
+		///This extrinsic will pause/resume the exchange according to flag
+		/// If flag is set to false it will stop the exchange
+		/// If flag is set to true it will resume the exchange
 		#[pallet::weight(1000000)]
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
+
+			//SetExchangeState Ingress message store in queue
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages
+					.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
+			});
+
 			Self::deposit_event(Event::ExchangeStateUpdated(state));
+			Ok(())
+		}
+
+		/// Sends the changes required in balances for list of users with a particular asset
+		#[pallet::weight(100000)]
+		pub fn set_balances(
+			origin: OriginFor<T>,
+			change_in_balances: BoundedVec<
+				polkadex_primitives::ingress::HandleBalance<T::AccountId>,
+				polkadex_primitives::ingress::HandleBalanceLimit,
+			>,
+		) -> DispatchResult {
+			// Check if governance called the extrinsic
+			T::GovernanceOrigin::ensure_origin(origin)?;
+
+			// Check if exchange is pause
+			ensure!(!Self::orderbook_operational_state(), Error::<T>::ExchangeOperational);
+
+			//Pass the vec as ingress message
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(
+					polkadex_primitives::ingress::IngressMessages::SetFreeReserveBalanceForAccounts(
+						change_in_balances,
+					),
+				);
+			});
 			Ok(())
 		}
 
@@ -945,12 +987,6 @@ pub mod pallet {
 			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
 				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
 
-			// Check if enclave_signer is allowlisted
-			ensure!(
-				<AllowlistedEnclaves<T>>::get(&enclave_signer),
-				<Error<T>>::EnclaveNotAllowlisted
-			);
-
 			// TODO: any other checks we want to run?
 			ensure!(
 				(report.status == SgxStatus::Ok) |
@@ -958,7 +994,7 @@ pub mod pallet {
 				<Error<T>>::InvalidSgxReportStatus
 			);
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = Some(T::Moment::saturated_from(report.timestamp));
+				*v = T::Moment::saturated_from(report.timestamp);
 			});
 			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
 			debug!("registered enclave at time =>{:?}", report.timestamp);
@@ -967,14 +1003,14 @@ pub mod pallet {
 
 		/// Allowlist Token
 		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
-		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
+		pub fn allowlist_token(origin: OriginFor<T>, token_add: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
 			allowlisted_tokens
-				.try_insert(token)
+				.try_insert(token_add)
 				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
 			<AllowlistedToken<T>>::put(allowlisted_tokens);
-			Self::deposit_event(Event::<T>::TokenAllowlisted(token));
+			Self::deposit_event(Event::<T>::TokenAllowlisted(token_add));
 			Ok(())
 		}
 
@@ -1012,6 +1048,28 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<CertificateValidity<T>>::put(certificate_valid_until);
 			Ok(())
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		// clean-up function - should be called on each block
+		fn unregister_timed_out_enclaves() {
+			use sp_runtime::traits::CheckedSub;
+			let mut enclaves_to_remove = sp_std::vec![];
+			let iter = <RegisteredEnclaves<T>>::iter();
+			iter.for_each(|(enclave, attested_ts)| {
+				let current_timestamp = <timestamp::Pallet<T>>::get();
+				// enclave will be removed even if something happens with substraction
+				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
+					T::MsPerDay::get()
+				{
+					enclaves_to_remove.push(enclave);
+				}
+			});
+			for enclave in &enclaves_to_remove {
+				<RegisteredEnclaves<T>>::remove(enclave);
+			}
+			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
 		}
 	}
 
@@ -1080,6 +1138,11 @@ pub mod pallet {
 	pub(super) type AllowlistedToken<T: Config> =
 		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
 
+	///CertificateValidity
+	#[pallet::storage]
+	#[pallet::getter(fn get_certificate_validation_time)]
+	pub(super) type CertificateValidity<T: Config> = StorageValue<_, u64, ValueQuery>;
+
 	// A map that has enumerable entries.
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
@@ -1103,11 +1166,6 @@ pub mod pallet {
 		TradingPairConfig,
 		OptionQuery,
 	>;
-
-	///CertificateValidity
-	#[pallet::storage]
-	#[pallet::getter(fn get_certificate_validation_time)]
-	pub(super) type CertificateValidity<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// Snapshots Storage
 	#[pallet::storage]
@@ -1171,7 +1229,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -1206,25 +1264,5 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
-	}
-
-	// clean-up function - should be called on each block
-	fn unregister_timed_out_enclaves() {
-		use sp_runtime::traits::CheckedSub;
-		let mut enclaves_to_remove = sp_std::vec![];
-		let iter = <RegisteredEnclaves<T>>::iter();
-		iter.for_each(|(enclave, attested_ts)| {
-			let current_timestamp = <timestamp::Pallet<T>>::get();
-			// enclave will be removed even if something happens with substraction
-			if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
-				T::MsPerDay::get()
-			{
-				enclaves_to_remove.push(enclave);
-			}
-		});
-		for enclave in &enclaves_to_remove {
-			<RegisteredEnclaves<T>>::remove(enclave);
-		}
-		Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
 	}
 }

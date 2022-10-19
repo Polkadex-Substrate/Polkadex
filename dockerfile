@@ -1,17 +1,15 @@
-FROM ubuntu as builder
-RUN apt-get update
-RUN apt-get install -y git && apt-get install -y curl
-RUN git clone https://github.com/Polkadex-Substrate/Polkadex -b main-net-runtime
-RUN cd Polkadex && \
-    git checkout $(git describe --tags --abbrev=0) && \
-    apt-get install -y build-essential && \
-    apt-get install -y clang && \
-    apt-get install -y jq && \
-    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
-        export PATH="$PATH:$HOME/.cargo/bin" && \
-        rustup toolchain install nightly-2021-11-11 && \
-        rustup target add wasm32-unknown-unknown --toolchain nightly-2021-11-11 && \
-        cargo +nightly-2021-11-11 build --release
+FROM bitnami/git:latest AS builder
+
+RUN apt-get update && apt-get install --assume-yes curl build-essential cmake clang jq
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+  export PATH="$PATH:$HOME/.cargo/bin" && \
+  rustup toolchain install nightly && \
+  rustup target add wasm32-unknown-unknown --toolchain nightly && \
+  rustup default nightly && \
+  git clone https://github.com/Polkadex-Substrate/Polkadex -b main-net-runtime && \
+  cd Polkadex && \
+  git checkout $(git describe --tags --abbrev=0) && \
+  cargo build --release
 
 # /\-Build Stage | Final Stage-\/
 

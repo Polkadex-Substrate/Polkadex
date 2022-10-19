@@ -34,6 +34,7 @@ pub mod pallet {
 	use chainbridge::{BridgeChainId, ResourceId};
 	use frame_support::{
 		dispatch::fmt::Debug,
+		log,
 		pallet_prelude::*,
 		traits::{
 			tokens::fungibles::{Create, Inspect, Mutate},
@@ -44,7 +45,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
 	use sp_runtime::{
-		traits::{One, Saturating, UniqueSaturatedInto, Zero},
+		traits::{One, Saturating, UniqueSaturatedInto},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
@@ -155,7 +156,7 @@ pub mod pallet {
 		/// BlocksDelayUpdated
 		BlocksDelayUpdated(T::BlockNumber),
 		/// FungibleTransferFailed
-		FungibleTransferFailed,
+		FungibleTransferFailed(ResourceId),
 		/// This token got allowlisted
 		AllowlistedTokenAdded(H160),
 		/// This token got removed from Allowlisted Tokens
@@ -197,29 +198,28 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// On Initialize
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			let withdrawal_execution_block =
-				n.saturating_sub(<WithdrawalExecutionBlockDiff<T>>::get());
-			if !withdrawal_execution_block.is_zero() {
-				let mut pending_withdrawals =
-					<PendingWithdrawals<T>>::take(withdrawal_execution_block);
-				for withdrawal in 0..pending_withdrawals.len() {
+			let mut failed_withdrawal: BoundedVec<
+				PendingWithdrawal<BalanceOf<T>>,
+				WithdrawalLimit,
+			> = BoundedVec::default();
+			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
+				while let Some(withdrawal) = withdrawals.pop() {
 					if chainbridge::Pallet::<T>::transfer_fungible(
-						pending_withdrawals[withdrawal].chain_id,
-						pending_withdrawals[withdrawal].rid,
-						pending_withdrawals[withdrawal].recipient.0.to_vec(),
-						Self::convert_balance_to_eth_type(pending_withdrawals[withdrawal].amount),
+						withdrawal.chain_id,
+						withdrawal.rid,
+						withdrawal.recipient.0.to_vec(),
+						Self::convert_balance_to_eth_type(withdrawal.amount),
 					)
-					.is_ok()
+					.is_err()
 					{
-						// Remove succesfull transfers
-						pending_withdrawals.remove(withdrawal);
-					} else {
-						Self::deposit_event(Event::<T>::FungibleTransferFailed);
+						if failed_withdrawal.try_push(withdrawal.clone()).is_err() {
+							log::error!(target:"asset-handler", "Failed to push into Withdrawal");
+						}
+						Self::deposit_event(Event::<T>::FungibleTransferFailed(withdrawal.rid));
 					}
 				}
-				// Write back to storage item
-				<PendingWithdrawals<T>>::insert(withdrawal_execution_block, pending_withdrawals);
-			}
+			});
+			<PendingWithdrawals<T>>::insert(n, failed_withdrawal);
 			// TODO: Benchmark on initialize
 			(195_000_000 as Weight)
 				.saturating_add(T::DbWeight::get().writes(5 as Weight))
@@ -375,8 +375,11 @@ pub mod pallet {
 			)?;
 
 			let pending_withdrawal = PendingWithdrawal { chain_id, rid, recipient, amount };
+			let withdrawal_execution_block = <frame_system::Pallet<T>>::block_number()
+				.saturated_into::<u32>()
+				.saturating_add(<WithdrawalExecutionBlockDiff<T>>::get().saturated_into::<u32>());
 			<PendingWithdrawals<T>>::try_mutate(
-				<frame_system::Pallet<T>>::block_number(),
+				withdrawal_execution_block.saturated_into::<T::BlockNumber>(),
 				|withdrawals| {
 					withdrawals.try_push(pending_withdrawal)?;
 					Ok(())
