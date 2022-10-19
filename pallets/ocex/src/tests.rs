@@ -27,7 +27,7 @@ use std::cmp::max;
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
 use frame_system::EventRecord;
-use parity_scale_codec::uEncode;
+use parity_scale_codec::Encode;
 use polkadex_primitives::{
 	snapshot::{EnclaveSnapshot, Fees},
 	AccountId, AssetsLimit, WithdrawalLimit,
@@ -37,13 +37,13 @@ use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{
 	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
-	DispatchError::BadOrigin, TokenError,
+	DispatchError::BadOrigin, MultiSignature, TokenError,
 };
 use std::sync::Arc;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
-use parity_scale_codec::uDecode;
+use parity_scale_codec::Decode;
 use test_utils::ias::ias::TEST4_SETUP;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
@@ -1489,6 +1489,9 @@ fn test_submit_snapshot() {
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		let ms = MultiSignature::Sr25519(signature.clone());
+		let bs = ms.encode();
+		println!("pk: {:?}\nsnapshot: {:?}\nsig: {:?}", account_id.encode(), bytes, bs);
 		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.into()),

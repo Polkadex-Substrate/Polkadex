@@ -4753,6 +4753,8 @@ dependencies = [
  "frame-system",
  "ias-verify",
  "log",
+ "pallet-assets",
+ "pallet-balances",
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",

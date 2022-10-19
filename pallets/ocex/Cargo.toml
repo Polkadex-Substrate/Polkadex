@@ -29,6 +29,9 @@ test-utils = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
 
 [dev-dependencies]
+test-utils = { workspace = true }
+pallet-assets = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 frame-benchmarking = { workspace = true }
