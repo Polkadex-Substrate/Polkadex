@@ -63,7 +63,7 @@ pub mod pallet {
 		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
-			fungibles::{Inspect, Mutate},
+			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
 		},
 		PalletId,
@@ -126,7 +126,8 @@ pub mod pallet {
 				<Self as frame_system::Config>::AccountId,
 				Balance = BalanceOf<Self>,
 				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>;
+			> + Inspect<<Self as frame_system::Config>::AccountId>
+			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
@@ -776,10 +777,10 @@ pub mod pallet {
 		/// Insert Enclave
 		#[doc(hidden)]
 		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
-		pub fn insert_enclave(origin: OriginFor<T>, encalve: T::AccountId) -> DispatchResult {
+		pub fn insert_enclave(origin: OriginFor<T>, enclave: T::AccountId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let timestamp = <timestamp::Pallet<T>>::get();
-			<RegisteredEnclaves<T>>::insert(encalve, timestamp);
+			<RegisteredEnclaves<T>>::insert(enclave, timestamp);
 			Ok(())
 		}
 
@@ -1003,14 +1004,14 @@ pub mod pallet {
 
 		/// Allowlist Token
 		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
-		pub fn allowlist_token(origin: OriginFor<T>, token_add: AssetId) -> DispatchResult {
+		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
 			allowlisted_tokens
-				.try_insert(token_add)
+				.try_insert(token)
 				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
 			<AllowlistedToken<T>>::put(allowlisted_tokens);
-			Self::deposit_event(Event::<T>::TokenAllowlisted(token_add));
+			Self::deposit_event(Event::<T>::TokenAllowlisted(token));
 			Ok(())
 		}
 
