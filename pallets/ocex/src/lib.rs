@@ -99,11 +99,13 @@ pub mod pallet {
 		fn collect_fees(_x: u32) -> Weight;
 		fn shutdown() -> Weight;
 		fn set_exchange_state(_x: u32) -> Weight;
+		fn set_balances(_x: u32) -> Weight;
 		fn claim_withdraw(_x: u32) -> Weight;
 		fn register_enclave(_x: u32) -> Weight;
 		fn allowlist_token(_x: u32) -> Weight;
 		fn remove_allowlisted_token(_x: u32) -> Weight;
 		fn allowlist_enclave(_x: u32) -> Weight;
+		fn update_certificate(_x: u32) -> Weight;
 	}
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
@@ -887,7 +889,7 @@ pub mod pallet {
 		}
 
 		/// Sends the changes required in balances for list of users with a particular asset
-		#[pallet::weight(11)] //<T as Config>::WeightInfo::set_balances(change_in_balances.len()))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_balances(change_in_balances.len().saturated_into()))]
 		pub fn set_balances(
 			origin: OriginFor<T>,
 			change_in_balances: BoundedVec<
@@ -1037,7 +1039,7 @@ pub mod pallet {
 		}
 
 		/// Allowlist Token
-		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
@@ -1075,7 +1077,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic to update ExchangeState
-		#[pallet::weight(10)] //<T as Config>::WeightInfo::update_certificate(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::update_certificate(1))]
 		pub fn update_certificate(
 			origin: OriginFor<T>,
 			certificate_valid_until: u64,

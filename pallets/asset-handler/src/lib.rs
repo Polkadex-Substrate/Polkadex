@@ -56,6 +56,8 @@ pub mod pallet {
 		fn set_block_delay() -> Weight;
 		fn update_fee(_m: u32, _f: u32) -> Weight;
 		fn withdraw(_b: u32, _c: u32) -> Weight;
+		fn allowlist_token(_b: u32) -> Weight;
+		fn remove_allowlisted_token(b: u32) -> Weight;
 	}
 
 	pub type BalanceOf<T> =
@@ -420,7 +422,7 @@ pub mod pallet {
 		}
 
 		/// Allowlists Token
-		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		#[pallet::weight(T::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -433,7 +435,7 @@ pub mod pallet {
 		}
 
 		/// Remove allowlisted tokens
-		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		#[pallet::weight(T::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
