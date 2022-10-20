@@ -13,7 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::pallet::*;
+use crate::pallet::{Pallet as AssetHandler, *};
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
@@ -40,6 +40,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::AssetRegistered(rid).into());
 	}
 
+	// pass
 	mint_asset {
 		let b in 1 .. 1000;
 		let chain_id = 1;
@@ -55,9 +56,10 @@ benchmarks! {
 		let amount = b as u128 * UNIT_BALANCE;
 	}: _(RawOrigin::Signed(chainbridge::Pallet::<T>::account_id()), recipient.clone().to_vec(), amount, rid)
 	verify {
-		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, amount).into());
+		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, AssetHandler::<T>::convert_18dec_to_12dec(amount).unwrap()).into());
 	}
 
+	// pass
 	set_bridge_status {
 		let status = true;
 	}: _(RawOrigin::Root, status)
@@ -65,6 +67,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::BridgeStatusUpdated(status).into());
 	}
 
+	// pass
 	set_block_delay {
 		let block_delay = 10u64;
 		let block_delay = block_delay.saturated_into::<T::BlockNumber>();
@@ -73,6 +76,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::BlocksDelayUpdated(block_delay).into());
 	}
 
+	// pass
 	update_fee {
 		let m in 1 .. 100;
 		let f in 1 .. 1000;
@@ -84,6 +88,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::FeeUpdated(chain_id, min_fee).into());
 	}
 
+	// pass
 	withdraw {
 		let b in 10 .. 1000;
 		let c in 1010 .. 2000;
@@ -94,6 +99,9 @@ benchmarks! {
 		Pallet::<T>::register_asset(rid);
 		let account: T::AccountId = account("withdraw", b, SEED);
 		let deposit_amount = 1000;
+		let mut bts = <AllowlistedToken<T>>::get();
+		bts.try_insert(id).unwrap();
+		<AllowlistedToken<T>>::put(bts);
 		Pallet::<T>::mint_token(account.clone(), rid, deposit_amount);
 		let withdraw_amount = (100 as u128).saturated_into::<BalanceOf<T>>();
 		// Set Fee

@@ -462,7 +462,7 @@ pub mod pallet {
 			}
 		}
 
-		fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
+		pub(crate) fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
 			balance.checked_div(1000000u128)
 		}
 
