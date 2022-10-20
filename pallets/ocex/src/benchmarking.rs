@@ -357,37 +357,46 @@ benchmarks! {
 		assert_eq!(<ExchangeState<T>>::get(), !state);
 	}
 
-	// PERMABLOCKS
+	// pass
 	claim_withdraw {
-		let x in 0 .. 100_000;
+		let x in 1 .. 255; // should not overflow u8
+		let governance = T::GovernanceOrigin::successful_origin();
 		let origin = T::EnclaveOrigin::successful_origin();
-		let main_origin = T::EnclaveOrigin::successful_origin();
-		let main: T::AccountId = match unsafe { main_origin.clone().into().unwrap_unchecked() } {
-			RawOrigin::Signed(account) => account.into(),
-			_ => panic!("wrong RawOrigin returned")
-		};
+		let main = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		let asset = AssetId::asset(x.into());
 		let amount = BalanceOf::<T>::decode(&mut &(x as u128).to_le_bytes()[..]).unwrap();
-		let mut withdrawals = Vec::with_capacity(1);
-		let fees = Decimal::new(100, 1);
-		withdrawals.push(Withdrawal {
+		let mut vec_withdrawals = Vec::with_capacity(1);
+		let fees = Decimal::new(100, 5);
+		vec_withdrawals.push(Withdrawal {
 			amount: Decimal::new(x.into(), 0),
 			asset,
 			main_account: main.clone(),
 			event_id: 1,
 			fees,
 		});
-		let withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> = frame_support::BoundedVec::try_from(withdrawals).unwrap();
+		let withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> = frame_support::BoundedVec::try_from(vec_withdrawals.clone()).unwrap();
 		let mut wm = BoundedBTreeMap::new();
 		wm.try_insert(main.clone(), withdrawals.clone()).unwrap();
-		<ExchangeState<T>>::put(true);
 		<Withdrawals<T>>::insert(x, wm);
+		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
+		Ocex::<T>::allowlist_token(governance.clone(), asset.clone())?;
+		use frame_support::traits::fungibles::Create;
+		T::OtherAssets::create(
+			x as u128,
+			Ocex::<T>::get_pallet_account(),
+			true,
+			BalanceOf::<T>::one().unique_saturated_into())?;
+		T::OtherAssets::mint_into(
+			x as u128,
+			&Ocex::<T>::get_pallet_account(),
+			BalanceOf::<T>::decode(&mut &(u128::MAX).to_le_bytes()[..]).unwrap()
+		)?;
 		let call = Call::<T>::claim_withdraw { snapshot_id: x, account: main.clone() };
 	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_last_event::<T>(Event::WithdrawalClaimed {
 			main,
-			withdrawals,
+			withdrawals: vec_withdrawals,
 		}.into());
 	}
 
@@ -397,6 +406,7 @@ benchmarks! {
 		let origin = T::EnclaveOrigin::successful_origin();
 		let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
 		<AllowlistedEnclaves<T>>::insert(&signer, true);
+		<CertificateValidity<T>>::put(1679861524u64);
 		let call = Call::<T>::register_enclave { ias_report: TEST4_SETUP.cert.to_vec() };
 	}: { call.dispatch_bypass_filter(origin)? }
 	verify {

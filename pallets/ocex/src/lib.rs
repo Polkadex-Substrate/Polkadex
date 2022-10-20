@@ -56,6 +56,7 @@ const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 #[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
+	use core::fmt::Debug;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use frame_support::{
@@ -134,7 +135,7 @@ pub mod pallet {
 		type Public: Clone
 			+ PartialEq
 			+ IdentifyAccount<AccountId = Self::AccountId>
-			+ core::fmt::Debug
+			+ Debug
 			+ parity_scale_codec::Codec
 			+ Ord
 			+ scale_info::TypeInfo;
@@ -143,7 +144,7 @@ pub mod pallet {
 		type Signature: Verify<Signer = Self::Public>
 			+ Clone
 			+ PartialEq
-			+ core::fmt::Debug
+			+ Debug
 			+ parity_scale_codec::Codec
 			+ scale_info::TypeInfo;
 
@@ -177,6 +178,8 @@ pub mod pallet {
 		/// Account is not registered with the exchange
 		AccountNotRegistered,
 		InvalidWithdrawalIndex,
+		/// Amount within withdrawal can not be converted to Decimal
+		InvalidWithdrawalAmount,
 		/// The trading pair is not currently Operational
 		TradingPairIsNotOperational,
 		/// the trading pair is currently in operation
@@ -902,78 +905,82 @@ pub mod pallet {
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _ = ensure_signed(origin)?;
 			// This vector will keep track of withdrawals processed already
-			let mut processed_withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> =
-				BoundedVec::<Withdrawal<T::AccountId>, WithdrawalLimit>::default();
+			let mut processed_withdrawals = vec![];
+			let mut failed_withdrawals = vec![];
 			ensure!(
 				<Withdrawals<T>>::contains_key(snapshot_id),
 				Error::<T>::InvalidWithdrawalIndex
 			);
 			// This entire block of code is put inside ensure as some of the nested functions will
 			// return Err
-			ensure!(
-				<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
-					// Get mutable reference to the withdrawals vector
-					if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
-						while withdrawal_vector.len() > 0 {
-							// Perform pop operation to ensure we do not leave any withdrawal left
-							// for a double spend
-							if let Some(withdrawal) = withdrawal_vector.pop() {
-								if let Some(converted_withdrawal) = withdrawal
-									.amount
-									.saturating_mul(Decimal::from(UNIT_BALANCE))
-									.to_u128()
+			<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
+				// Get mutable reference to the withdrawals vector
+				if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
+					while withdrawal_vector.len() > 0 {
+						// Perform pop operation to ensure we do not leave any withdrawal left
+						// for a double spend
+						if let Some(withdrawal) = withdrawal_vector.pop() {
+							if let Some(converted_withdrawal) = withdrawal
+								.amount
+								.saturating_mul(Decimal::from(UNIT_BALANCE))
+								.to_u128()
+							{
+								if Self::transfer_asset(
+									&Self::get_pallet_account(),
+									&withdrawal.main_account,
+									converted_withdrawal.saturated_into(),
+									withdrawal.asset,
+								)
+								.is_ok()
 								{
-									if Self::transfer_asset(
-										&Self::get_pallet_account(),
-										&withdrawal.main_account,
-										converted_withdrawal.saturated_into(),
-										withdrawal.asset,
-									)
-									.is_ok()
-									{
-										processed_withdrawals
-											.try_push(withdrawal)
-											.unwrap_or_default();
-									} else {
-										// Storing the failed withdrawals back into the storage item
-										withdrawal_vector
-											.try_push(withdrawal.clone())
-											.unwrap_or_default();
-										Self::deposit_event(Event::WithdrawalFailed(withdrawal));
-									}
+									processed_withdrawals.push(withdrawal.to_owned());
+								} else {
+									// Storing the failed withdrawals back into the storage item
+									failed_withdrawals.push(withdrawal.to_owned());
+									Self::deposit_event(Event::WithdrawalFailed(
+										withdrawal.to_owned(),
+									));
 								}
+							} else {
+								return Err(Error::<T>::InvalidWithdrawalAmount)
 							}
 						}
-						// Not removing key from BtreeMap so that failed withdrawals can still be
-						// tracked
-						Ok(())
-					} else {
-						// This allows us to ensure we do not have someone with an invalid account
-						Err(Error::<T>::InvalidWithdrawalIndex)
 					}
-				})
-				.is_ok(),
-				Error::<T>::InvalidWithdrawalIndex
-			);
-			Self::deposit_event(Event::WithdrawalClaimed {
-				main: account.clone(),
-				withdrawals: processed_withdrawals.clone(),
-			});
-			ensure!(
-				<OnChainEvents<T>>::mutate(|onchain_events| {
-					onchain_events.try_push(
-						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-							snapshot_id,
-							account.clone(),
-							processed_withdrawals.clone(),
-						),
-					)?;
-					Ok::<(), ()>(())
-				})
-				.is_ok(),
-				Error::<T>::OnchainEventsBoundedVecOverflow
-			);
-			Ok(Pays::No.into())
+					// Not removing key from BtreeMap so that failed withdrawals can still be
+					// tracked
+					btree_map
+						.try_insert(account.clone(), failed_withdrawals.try_into().unwrap())
+						.unwrap();
+					Ok(())
+				} else {
+					// This allows us to ensure we do not have someone with an invalid account
+					Err(Error::<T>::InvalidWithdrawalIndex)
+				}
+			})?;
+			if !processed_withdrawals.is_empty() {
+				Self::deposit_event(Event::WithdrawalClaimed {
+					main: account.clone(),
+					withdrawals: processed_withdrawals.clone(),
+				});
+				ensure!(
+					<OnChainEvents<T>>::mutate(|onchain_events| {
+						onchain_events.try_push(
+							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+								snapshot_id,
+								account.clone(),
+								processed_withdrawals.clone().try_into().unwrap(),
+							),
+						)?;
+						Ok::<(), ()>(())
+					})
+					.is_ok(),
+					Error::<T>::OnchainEventsBoundedVecOverflow
+				);
+				Ok(Pays::No.into())
+			} else {
+				// If someone withdraws nothing successfully - should pay for such transaction
+				Ok(Pays::Yes.into())
+			}
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
@@ -981,7 +988,9 @@ pub mod pallet {
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
-			let report = verify_ias_report(&ias_report, <CertificateValidity<T>>::get())
+			// this step is required for runtime-benchmarks
+			let cv: u64 = <CertificateValidity<T>>::get();
+			let report = verify_ias_report(&ias_report, cv)
 				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
 			// TODO: attested key verification enabled
@@ -1113,7 +1122,7 @@ pub mod pallet {
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
 			main: T::AccountId,
-			withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit>,
+			withdrawals: Vec<Withdrawal<T::AccountId>>,
 		},
 		NewProxyAdded {
 			main: T::AccountId,
