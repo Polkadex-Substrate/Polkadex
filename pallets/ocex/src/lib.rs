@@ -1014,16 +1014,20 @@ pub mod pallet {
 			let report = verify_ias_report(&ias_report, cv)
 				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
 
-			// TODO: attested key verification enabled
-			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
-
-			// TODO: any other checks we want to run?
 			ensure!(
 				(report.status == SgxStatus::Ok) |
 					(report.status == SgxStatus::ConfigurationNeeded),
 				<Error<T>>::InvalidSgxReportStatus
 			);
+
+			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
+				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
+
+			ensure!(
+				enclave_signer != T::AccountId::decode(&mut [0u8; 32].as_slice()).unwrap(),
+				<Error<T>>::SenderIsNotAttestedEnclave
+			);
+
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
 				*v = T::Moment::saturated_from(report.timestamp);
 			});
