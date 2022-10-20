@@ -15,6 +15,7 @@
 
 use crate::pallet::{Pallet as AssetHandler, *};
 use frame_benchmarking::{account, benchmarks};
+use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
 use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
 use sp_core::H160;
@@ -109,5 +110,28 @@ benchmarks! {
 	}: _(RawOrigin::Signed(account), chain_id, id, withdraw_amount, recipeint)
 	verify {
 		assert_last_event::<T>(Event::AssetWithdrawn(id, rid, withdraw_amount).into());
+	}
+
+	// pass
+	allowlist_token {
+		let b in 0 .. 225; // must not overflow u8
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
+		let token_add = H160::decode(&mut [b as u8; 48].as_ref()).unwrap();
+		let call = Call::<T>::allowlist_token { token_add };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert_last_event::<T>(Event::AllowlistedTokenAdded(token_add).into());
+	}
+
+	// pass
+	remove_allowlisted_token {
+		let b in 0 .. 225; // must not overflow u8
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
+		let token_add = H160::decode(&mut [b as u8; 48].as_ref()).unwrap();
+		AssetHandler::<T>::allowlist_token(origin.clone(), token_add)?;
+		let call = Call::<T>::remove_allowlisted_token { token_add };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert_last_event::<T>(Event::AllowlistedTokenRemoved(token_add).into());
 	}
 }
