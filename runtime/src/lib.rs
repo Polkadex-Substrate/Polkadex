@@ -1267,7 +1267,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Public = <Signature as traits::Verify>::Signer;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type Signature = Signature;
-	type WeightInfo = pallet_ocex_lmp::weights::OcexWeightInfo<Runtime>;
+	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 	type MsPerDay = MsPerDay;
 }
 

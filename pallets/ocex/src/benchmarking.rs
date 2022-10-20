@@ -358,6 +358,29 @@ benchmarks! {
 	}
 
 	// pass
+	set_balances {
+		let x in 0 .. 255; // should not overflow up
+		let origin = T::GovernanceOrigin::successful_origin();
+		let main_account = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
+		let asset_id = AssetId::asset(x as u128);
+		let hb = polkadex_primitives::ingress::HandleBalance {
+			main_account,
+			asset_id,
+			free: (x * 100) as u128,
+			reserve: (x * 10) as u128
+		};
+		let mut change_in_balances: BoundedVec<
+			polkadex_primitives::ingress::HandleBalance<T::AccountId>,
+			polkadex_primitives::ingress::HandleBalanceLimit,
+		> = BoundedVec::default();
+		change_in_balances.try_push(hb).unwrap();
+		let call = Call::<T>::set_balances { change_in_balances };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert_eq!(<IngressMessages<T>>::get().len(), 1);
+	}
+
+	// pass
 	claim_withdraw {
 		let x in 1 .. 255; // should not overflow u8
 		let governance = T::GovernanceOrigin::successful_origin();
@@ -450,6 +473,17 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_last_event::<T>(Event::EnclaveAllowlisted(account).into());
+	}
+
+	// pass
+	update_certificate {
+		let x in 0 .. u32::MAX; // only u32 here :(
+		let origin = T::GovernanceOrigin::successful_origin();
+		let certificate_valid_until = (x as u64) * 2; // throw in occasional u64
+		let call = Call::<T>::update_certificate { certificate_valid_until };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert_eq!(<CertificateValidity<T>>::get(), certificate_valid_until);
 	}
 }
 
