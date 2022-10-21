@@ -63,6 +63,19 @@ pub mod pallet {
 		pub recipient: H160,
 	}
 
+	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, Debug)]
+	pub enum PrecisionType {
+		LowPrecision(u128),
+		HighPrecision(u128),
+		SamePrecision,
+	}
+
+	impl Default for PrecisionType {
+		fn default() -> Self {
+			Self::SamePrecision
+		}
+	}
+
 	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode)]
 	pub struct WithdrawalLimit;
 	impl Get<u32> for WithdrawalLimit {
@@ -139,6 +152,12 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	/// AssetId Precision
+	#[pallet::storage]
+	#[pallet::getter(fn get_precision)]
+	pub(super) type AssetPrecision<T: Config> =
+		StorageMap<_, Blake2_128Concat, ResourceId, PrecisionType, ValueQuery>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
@@ -204,18 +223,24 @@ pub mod pallet {
 			> = BoundedVec::default();
 			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
 				while let Some(withdrawal) = withdrawals.pop() {
-					if chainbridge::Pallet::<T>::transfer_fungible(
-						withdrawal.chain_id,
-						withdrawal.rid,
-						withdrawal.recipient.0.to_vec(),
-						Self::convert_balance_to_eth_type(withdrawal.amount),
-					)
-					.is_err()
+					if let Some(amount) =
+						Self::convert_amount_for_foreign_chain(withdrawal.rid, withdrawal.amount)
 					{
-						if failed_withdrawal.try_push(withdrawal.clone()).is_err() {
-							log::error!(target:"asset-handler", "Failed to push into Withdrawal");
+						if chainbridge::Pallet::<T>::transfer_fungible(
+							withdrawal.chain_id,
+							withdrawal.rid,
+							withdrawal.recipient.0.to_vec(),
+							amount,
+						)
+						.is_err()
+						{
+							if failed_withdrawal.try_push(withdrawal.clone()).is_err() {
+								log::error!(target:"asset-handler", "Failed to push into Withdrawal");
+							}
+							Self::deposit_event(Event::<T>::FungibleTransferFailed(withdrawal.rid));
 						}
-						Self::deposit_event(Event::<T>::FungibleTransferFailed(withdrawal.rid));
+					} else {
+						log::error!(target:"asset-handler", "Division Overflow");
 					}
 				}
 			});
@@ -241,6 +266,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
 			contract_add: H160,
+			precision_type: PrecisionType,
 		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			let rid = chainbridge::derive_resource_id(chain_id, &contract_add.0);
@@ -256,6 +282,7 @@ pub mod pallet {
 				true,
 				BalanceOf::<T>::one().unique_saturated_into(),
 			)?;
+			<AssetPrecision<T>>::insert(rid, precision_type);
 			chainbridge::AssetIdToResourceMap::<T>::insert(asset_id, rid);
 			Self::deposit_event(Event::<T>::AssetRegistered(rid));
 			Ok(())
@@ -285,13 +312,14 @@ pub mod pallet {
 			let destination_acc = T::AccountId::decode(&mut &destination_add[..])
 				.map_err(|_| Error::<T>::DestinationAddressNotValid)?;
 
-			let amount = Self::convert_18dec_to_12dec(amount)
+			let amount = Self::convert_amount_for_native_chain(rid, amount)
 				.ok_or_else(|| Error::<T>::DivisionUnderflow)?;
 
 			let asset_id = Self::convert_asset_id(rid);
 			if let Some(rid_present) = chainbridge::AssetIdToResourceMap::<T>::get(asset_id) {
 				ensure!(rid_present == rid, chainbridge::Error::<T>::ResourceDoesNotExist)
 			};
+			//
 			T::AssetManager::mint_into(
 				asset_id,
 				&destination_acc,
@@ -434,12 +462,41 @@ pub mod pallet {
 				Ok(())
 			})
 		}
+
+		/// Remove allowlisted tokens
+		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn add_precision(
+			origin: OriginFor<T>,
+			rid: ResourceId,
+			precision_type: PrecisionType,
+		) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			<AssetPrecision<T>>::insert(rid, precision_type);
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		fn convert_balance_to_eth_type(balance: BalanceOf<T>) -> U256 {
+		pub fn convert_amount_for_foreign_chain(
+			rid: ResourceId,
+			balance: BalanceOf<T>,
+		) -> Option<U256> {
 			let balance: u128 = balance.unique_saturated_into();
-			U256::from(balance).saturating_mul(U256::from(1000000u128))
+			match <AssetPrecision<T>>::get(rid) {
+				PrecisionType::LowPrecision(precision) =>
+					U256::from(balance).checked_div(U256::from(precision)),
+				PrecisionType::HighPrecision(precision) =>
+					Some(U256::from(balance).saturating_mul(U256::from(precision))),
+				PrecisionType::SamePrecision => Some(U256::from(balance)),
+			}
+		}
+
+		pub fn convert_amount_for_native_chain(rid: ResourceId, amount: u128) -> Option<u128> {
+			match <AssetPrecision<T>>::get(rid) {
+				PrecisionType::LowPrecision(precision) => Some(amount.saturating_mul(precision)),
+				PrecisionType::HighPrecision(precision) => amount.checked_div(precision),
+				PrecisionType::SamePrecision => Some(amount),
+			}
 		}
 
 		fn fee_calculation(
@@ -460,10 +517,6 @@ pub mod pallet {
 				},
 				None => Err(Error::<T>::DivisionOverflow.into()),
 			}
-		}
-
-		fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
-			balance.checked_div(1000000u128)
 		}
 
 		pub fn convert_asset_id(token: ResourceId) -> u128 {
