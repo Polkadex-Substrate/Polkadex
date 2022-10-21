@@ -24,7 +24,7 @@ use crate::{
 	pallet::*,
 };
 
-const ASSET_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBC";
+const ASSET_ADDRESS: &str = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const RECIPIENT_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBA";
 
 #[test]
@@ -33,7 +33,12 @@ pub fn test_create_asset_will_successfully_create_asset() {
 
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
-		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(recipient),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 	});
 }
 
@@ -43,7 +48,12 @@ pub fn test_create_asset_with_already_existed_asset_will_return_already_register
 
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
-		assert_ok!(AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(recipient),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(
@@ -56,7 +66,12 @@ pub fn test_create_asset_with_already_existed_asset_will_return_already_register
 
 		// Re-register Asset
 		assert_noop!(
-			AssetHandler::create_asset(Origin::signed(recipient), chain_id, asset_address),
+			AssetHandler::create_asset(
+				Origin::signed(recipient),
+				chain_id,
+				asset_address,
+				PrecisionType::LowPrecision(1000000)
+			),
 			chainbridge::Error::<Test>::ResourceAlreadyRegistered
 		);
 	});
@@ -68,7 +83,12 @@ pub fn test_mint_asset_with_invalid_resource_id() {
 		mint_asset_data();
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
-		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(account),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let mut rid_malicious = rid.clone();
 		rid_malicious[17] = rid[17].saturating_sub(1);
@@ -99,9 +119,19 @@ pub fn test_register_asset_twice_create_error() {
 		mint_asset_data();
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
-		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(account),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		assert_noop!(
-			AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address),
+			AssetHandler::create_asset(
+				Origin::signed(account),
+				chain_id,
+				asset_address,
+				PrecisionType::LowPrecision(1000000)
+			),
 			chainbridge::Error::<Test>::ResourceAlreadyRegistered
 		);
 	});
@@ -115,7 +145,8 @@ pub fn test_mint_asset_with_not_registered_asset_will_return_unknown_asset_error
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
-		let asset_id = AssetHandler::convert_asset_id(rid);
+		let mut asset_id = AssetHandler::convert_asset_id(rid);
+		asset_id = asset_id + 100000000;
 		// Add new Relayer and verify storage
 		assert_ok!(ChainBridge::add_relayer(Origin::signed(account), relayer));
 		assert!(ChainBridge::relayers(relayer));
@@ -125,7 +156,7 @@ pub fn test_mint_asset_with_not_registered_asset_will_return_unknown_asset_error
 			AssetHandler::mint_asset(
 				Origin::signed(ChainBridge::account_id()),
 				recipient.to_vec(),
-				100000000000,
+				100000000000000000000000000000000000000,
 				rid
 			),
 			TokenError::UnknownAsset
@@ -142,7 +173,12 @@ pub fn test_mint_asset_with_existed_asset_will_successfully_increase_balance() {
 
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
-		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(account),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		// Add new Relayer and verify storage
@@ -153,10 +189,10 @@ pub fn test_mint_asset_with_existed_asset_will_successfully_increase_balance() {
 		assert_ok!(AssetHandler::mint_asset(
 			Origin::signed(ChainBridge::account_id()),
 			recipient.to_vec(),
-			100000000,
+			100,
 			rid
 		));
-		assert_eq!(Assets::balance(asset_id, recipient_account), 100);
+		assert_eq!(Assets::balance(asset_id, recipient_account), 100000000);
 	});
 }
 
@@ -167,7 +203,12 @@ pub fn test_mint_asset_called_by_not_relayer_will_return_minter_must_be_relayer_
 
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
-		assert_ok!(AssetHandler::create_asset(Origin::signed(account), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(account),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 
@@ -185,17 +226,27 @@ pub fn test_block_delay_with_multiple_withdrawals() {
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
 		assert_ok!(ChainBridge::allowlist_chain(Origin::signed(1), chain_id));
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(1),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
+		assert_ok!(Assets::mint(
+			Origin::signed(ChainBridge::account_id()),
+			asset_id,
+			sender,
+			400000000
+		));
 		System::set_block_number(100);
 		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 10));
 		assert_ok!(AssetHandler::withdraw(
 			Origin::signed(sender),
 			chain_id,
 			asset_address,
-			100,
+			100000000,
 			recipient
 		));
 		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 5));
@@ -203,7 +254,7 @@ pub fn test_block_delay_with_multiple_withdrawals() {
 			Origin::signed(sender),
 			chain_id,
 			asset_address,
-			200,
+			200000000,
 			recipient
 		));
 		let first_withdrawal = AssetHandler::get_pending_withdrawls(110);
@@ -217,7 +268,7 @@ pub fn test_block_delay_with_multiple_withdrawals() {
 				chain_id,
 				1,
 				rid,
-				U256::from(200000000),
+				U256::from(200),
 				recipient.0.to_vec()
 			)]
 		);
@@ -229,19 +280,19 @@ pub fn test_block_delay_with_multiple_withdrawals() {
 					chain_id,
 					1,
 					rid,
-					U256::from(200000000),
+					U256::from(200),
 					recipient.0.to_vec()
 				),
 				chainbridge::BridgeEvent::FungibleTransfer(
 					chain_id,
 					2,
 					rid,
-					U256::from(100000000),
+					U256::from(100),
 					recipient.0.to_vec()
 				)
 			]
 		);
-		assert_eq!(Assets::balance(asset_id, sender), 700);
+		assert_eq!(Assets::balance(asset_id, sender), 100000000);
 	});
 }
 
@@ -253,17 +304,27 @@ pub fn test_withdraw_successfully() {
 		// Setup
 		allowlist_token(asset_address);
 		assert_ok!(ChainBridge::allowlist_chain(Origin::signed(1), chain_id));
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(1),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
+		assert_ok!(Assets::mint(
+			Origin::signed(ChainBridge::account_id()),
+			asset_id,
+			sender,
+			2000000
+		));
 		System::set_block_number(100);
 		assert_ok!(AssetHandler::set_block_delay(Origin::signed(1), 10));
 		assert_ok!(AssetHandler::withdraw(
 			Origin::signed(sender),
 			chain_id,
 			asset_address,
-			100,
+			1000000,
 			recipient
 		));
 		let a = AssetHandler::get_pending_withdrawls(110);
@@ -275,11 +336,11 @@ pub fn test_withdraw_successfully() {
 				chain_id,
 				1,
 				rid,
-				U256::from(100000000),
+				U256::from(1),
 				recipient.0.to_vec()
 			)]
 		);
-		assert_eq!(Assets::balance(asset_id, sender), 900);
+		assert_eq!(Assets::balance(asset_id, sender), 1000000);
 	});
 }
 
@@ -368,7 +429,12 @@ pub fn test_withdraw_with_sender_not_enough_balance_will_return_not_enough_balan
 		// Setup
 		allowlist_token(asset_address);
 		assert_ok!(ChainBridge::allowlist_chain(Origin::signed(1), chain_id));
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(1),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 100));
@@ -395,7 +461,12 @@ pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insuffic
 		// Setup
 		allowlist_token(asset_address);
 		assert_ok!(ChainBridge::allowlist_chain(Origin::signed(1), chain_id));
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(1),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		assert_ok!(Assets::mint(Origin::signed(ChainBridge::account_id()), asset_id, sender, 1000));
@@ -459,7 +530,12 @@ pub fn test_account_balances() {
 		assert_eq!(balances_vec[0], 0_u128);
 
 		// Mint some amount
-		assert_ok!(AssetHandler::create_asset(Origin::signed(1_u64), chain_id, asset_address));
+		assert_ok!(AssetHandler::create_asset(
+			Origin::signed(1_u64),
+			chain_id,
+			asset_address,
+			PrecisionType::LowPrecision(1000000)
+		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 
@@ -475,6 +551,40 @@ pub fn test_account_balances() {
 		let balances_vec = AssetHandler::account_balances(vec![1, asset_id], 1_u64);
 		assert_eq!(balances_vec.len(), 2);
 		assert_eq!(balances_vec[1], 100_u128);
+	});
+}
+
+#[test]
+pub fn test_convert_amount_for_native_chain() {
+	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(|| {
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::HighPrecision(10000));
+		assert_eq!(AssetHandler::convert_amount_for_native_chain(rid, 100000000), Some(10000));
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::LowPrecision(10000));
+		assert_eq!(AssetHandler::convert_amount_for_native_chain(rid, 100), Some(1000000));
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::SamePrecision);
+		assert_eq!(AssetHandler::convert_amount_for_native_chain(rid, 100), Some(100));
+	});
+}
+
+#[test]
+pub fn test_convert_amount_for_foreign_chain() {
+	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(|| {
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::HighPrecision(10000));
+		assert_eq!(
+			AssetHandler::convert_amount_for_foreign_chain(rid, 100),
+			Some(U256::from(1000000))
+		);
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::LowPrecision(10000));
+		assert_eq!(
+			AssetHandler::convert_amount_for_foreign_chain(rid, 1000000),
+			Some(U256::from(100))
+		);
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::SamePrecision);
+		assert_eq!(AssetHandler::convert_amount_for_foreign_chain(rid, 100), Some(U256::from(100)));
 	});
 }
 
