@@ -257,6 +257,9 @@ pub mod pallet {
 		FeesNotCollectedFully,
 		/// Exchange is up
 		ExchangeOperational,
+		/// Can not write into withdrawal bounded structure
+		/// limit reached
+		WithdrawalBoundOverflow,
 	}
 
 	#[pallet::hooks]
@@ -972,8 +975,13 @@ pub mod pallet {
 					// Not removing key from BtreeMap so that failed withdrawals can still be
 					// tracked
 					btree_map
-						.try_insert(account.clone(), failed_withdrawals.try_into().unwrap())
-						.unwrap();
+						.try_insert(
+							account.clone(),
+							failed_withdrawals
+								.try_into()
+								.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
+						)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
 					Ok(())
 				} else {
 					// This allows us to ensure we do not have someone with an invalid account
@@ -985,20 +993,21 @@ pub mod pallet {
 					main: account.clone(),
 					withdrawals: processed_withdrawals.clone(),
 				});
-				ensure!(
-					<OnChainEvents<T>>::mutate(|onchain_events| {
-						onchain_events.try_push(
+				<OnChainEvents<T>>::mutate(|onchain_events| {
+					onchain_events
+						.try_push(
 							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 								snapshot_id,
 								account.clone(),
-								processed_withdrawals.clone().try_into().unwrap(),
+								processed_withdrawals
+									.clone()
+									.try_into()
+									.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
 							),
-						)?;
-						Ok::<(), ()>(())
-					})
-					.is_ok(),
-					Error::<T>::OnchainEventsBoundedVecOverflow
-				);
+						)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					Ok::<(), Error<T>>(())
+				})?;
 				Ok(Pays::No.into())
 			} else {
 				// If someone withdraws nothing successfully - should pay for such transaction
@@ -1014,7 +1023,7 @@ pub mod pallet {
 			// this step is required for runtime-benchmarks
 			let cv: u64 = <CertificateValidity<T>>::get();
 			let report = verify_ias_report(&ias_report, cv)
-				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
+				.map_err(|_| Error::<T>::RemoteAttestationVerificationFailed)?;
 
 			ensure!(
 				(report.status == SgxStatus::Ok) |
@@ -1023,7 +1032,7 @@ pub mod pallet {
 			);
 
 			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
+				.map_err(|_| Error::<T>::SenderIsNotAttestedEnclave)?;
 
 			ensure!(
 				enclave_signer != T::AccountId::decode(&mut [0u8; 32].as_slice()).unwrap(),
