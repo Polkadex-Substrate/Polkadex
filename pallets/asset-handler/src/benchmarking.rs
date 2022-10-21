@@ -30,7 +30,6 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 }
 
 benchmarks! {
-	// pass
 	create_asset {
 		let b in 0 .. 255;
 		let chain_id = 1;
@@ -41,7 +40,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::AssetRegistered(rid).into());
 	}
 
-	// pass
 	mint_asset {
 		let b in 1 .. 1000;
 		let chain_id = 1;
@@ -60,7 +58,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, AssetHandler::<T>::convert_18dec_to_12dec(amount).unwrap()).into());
 	}
 
-	// pass
 	set_bridge_status {
 		let status = true;
 	}: _(RawOrigin::Root, status)
@@ -68,7 +65,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::BridgeStatusUpdated(status).into());
 	}
 
-	// pass
 	set_block_delay {
 		let block_delay = 10u64;
 		let block_delay = block_delay.saturated_into::<T::BlockNumber>();
@@ -77,7 +73,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::BlocksDelayUpdated(block_delay).into());
 	}
 
-	// pass
 	update_fee {
 		let m in 1 .. 100;
 		let f in 1 .. 1000;
@@ -89,7 +84,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::FeeUpdated(chain_id, min_fee).into());
 	}
 
-	// pass
 	withdraw {
 		let b in 10 .. 1000;
 		let c in 1010 .. 2000;
@@ -112,7 +106,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::AssetWithdrawn(id, rid, withdraw_amount).into());
 	}
 
-	// pass
 	allowlist_token {
 		let b in 0 .. 225; // must not overflow u8
 		let origin = T::AssetCreateUpdateOrigin::successful_origin();
@@ -123,7 +116,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::AllowlistedTokenAdded(token_add).into());
 	}
 
-	// pass
 	remove_allowlisted_token {
 		let b in 0 .. 225; // must not overflow u8
 		let origin = T::AssetCreateUpdateOrigin::successful_origin();

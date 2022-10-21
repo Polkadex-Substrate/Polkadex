@@ -66,9 +66,7 @@ fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {
 	}
 }
 
-// All benchmarks names match extrinsic names so we call them with `_()`
 benchmarks! {
-	// pass
 	register_main_account {
 		let b in 0 .. 50_000;
 		let origin = T::EnclaveOrigin::successful_origin();
@@ -91,7 +89,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	add_proxy_account {
 		let x in 0 .. 255; // should not overflow u8
 		let origin = T::EnclaveOrigin::successful_origin();
@@ -111,7 +108,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	close_trading_pair {
 		let x in 1 .. 50_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -133,7 +129,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	open_trading_pair {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -150,7 +145,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	register_trading_pair {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -188,7 +182,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	update_trading_pair {
 		let x in 0 .. 100_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -230,7 +223,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	deposit {
 		let x in 1 .. 255; // should not overflow u8
 		let user = account::<T::AccountId>("user", x, 0);
@@ -262,7 +254,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	remove_proxy_account {
 		let x in 1 .. 255; // should not overflow u8
 		let main = account::<T::AccountId>("main", 0, 0);
@@ -285,7 +276,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	submit_snapshot {
 		let origin = T::AccountId::decode(&mut &[6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26][..]).unwrap();
 		let snapshot = EnclaveSnapshot::decode(&mut &[1, 0, 0, 0, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 0, 0, 0, 0, 0, 0, 0, 0, 23, 37, 201, 208, 94, 204, 130, 95, 211, 53, 43, 176, 181, 1, 65, 226, 243, 204, 57, 204, 23, 96, 37, 86, 231, 196, 102, 57, 246, 53, 78, 45, 4, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 4, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0][..]).unwrap();
@@ -299,7 +289,6 @@ benchmarks! {
 		assert!(<Snapshots<T>>::contains_key(1));
 	}
 
-	// pass
 	insert_enclave {
 		let x in 0 .. 255; // should not overflow u8
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -311,7 +300,6 @@ benchmarks! {
 		assert!(<RegisteredEnclaves<T>>::contains_key(enclave));
 	}
 
-	// pass
 	collect_fees {
 		let x in 0 .. 255; // should not overflow u8
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -334,7 +322,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::FeesClaims{ beneficiary, snapshot_id: x }.into());
 	}
 
-	// pass
 	shutdown {
 		let origin = T::GovernanceOrigin::successful_origin();
 		<ExchangeState<T>>::put(true);
@@ -345,7 +332,6 @@ benchmarks! {
 		assert_eq!(<IngressMessages<T>>::get().last().unwrap(), &polkadex_primitives::ingress::IngressMessages::Shutdown);
 	}
 
-	// pass
 	set_exchange_state {
 		let x in 0 .. 100_000;
 		let state = x % 2 == 0;
@@ -357,7 +343,6 @@ benchmarks! {
 		assert_eq!(<ExchangeState<T>>::get(), !state);
 	}
 
-	// pass
 	set_balances {
 		let x in 0 .. 255; // should not overflow up
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -380,7 +365,6 @@ benchmarks! {
 		assert_eq!(<IngressMessages<T>>::get().len(), 1);
 	}
 
-	// pass
 	claim_withdraw {
 		let x in 1 .. 255; // should not overflow u8
 		let governance = T::GovernanceOrigin::successful_origin();
@@ -423,7 +407,6 @@ benchmarks! {
 		}.into());
 	}
 
-	// pass
 	register_enclave {
 		let x in 0 .. 65_000;
 		let origin = T::EnclaveOrigin::successful_origin();
@@ -436,7 +419,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::EnclaveRegistered(signer).into());
 	}
 
-	// pass
 	allowlist_token {
 		let x in 0 .. 65_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -448,7 +430,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::TokenAllowlisted(asset_id).into());
 	}
 
-	// pass
 	remove_allowlisted_token {
 		let x in 0 .. 65_000;
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -463,7 +444,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::AllowlistedTokenRemoved(asset_id).into());
 	}
 
-	// pass
 	allowlist_enclave {
 		let x in 0 .. 255; // should not overflow u8
 		let origin = T::GovernanceOrigin::successful_origin();
@@ -475,7 +455,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::EnclaveAllowlisted(account).into());
 	}
 
-	// pass
 	update_certificate {
 		let x in 0 .. u32::MAX; // only u32 here :(
 		let origin = T::GovernanceOrigin::successful_origin();
