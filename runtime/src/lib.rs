@@ -1397,7 +1397,7 @@ impl_runtime_apis! {
 		}
 	}
 
-   impl sp_api::Metadata<Block> for Runtime {
+	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
 		}
@@ -1594,25 +1594,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
-/*			list_benchmark!(list,extra, pallet_babe, Babe);
-			list_benchmark!(list,extra, pallet_balances, Balances);
-			list_benchmark!(list,extra, pallet_bounties, Bounties);
-			list_benchmark!(list,extra, pallet_collective, Council);
-			list_benchmark!(list,extra, pallet_elections_phragmen, Elections);
-			list_benchmark!(list,extra, pallet_grandpa, Grandpa);
-			list_benchmark!(list,extra, pallet_identity, Identity);
-			list_benchmark!(list,extra, pallet_im_online, ImOnline);
-			list_benchmark!(list,extra, pallet_indices, Indices);
-			list_benchmark!(list,extra, pallet_membership, TechnicalMembership);
-			list_benchmark!(list,extra, pallet_multisig, Multisig);
-			list_benchmark!(list,extra, pallet_proxy, Proxy);
-			list_benchmark!(list,extra, pallet_scheduler, Scheduler);
-			list_benchmark!(list, extra, pallet_staking, Staking);
-			list_benchmark!(list,extra, pallet_timestamp, Timestamp);
-			list_benchmark!(list,extra, pallet_treasury, Treasury);
-			list_benchmark!(list,extra, pallet_utility, Utility);
-			list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-*/			let storage_info = AllPalletsWithSystem::storage_info();
+			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
 		}
@@ -1620,15 +1602,7 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
-			// Trying to add benchmarks directly to the Session Pallet caused cyclic dependency
-			// issues. To get around that, we separated the Session benchmarks into its own crate,
-			// which is why we need these two lines below.
-/*			 use pallet_session_benchmarking::Pallet as SessionBench;
-			 use pallet_offences_benchmarking::Pallet as OffencesBench;
-
-			 impl pallet_session_benchmarking::Config for Runtime {}
-			 impl pallet_offences_benchmarking::Config for Runtime {}
-*/			impl frame_system_benchmarking::Config for Runtime {}
+			impl frame_system_benchmarking::Config for Runtime {}
 
 			let allowlist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1651,27 +1625,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
-/*			add_benchmark!(params, batches, pallet_babe, Babe);
-			add_benchmark!(params, batches, pallet_balances, Balances);
-			add_benchmark!(params, batches, pallet_bounties, Bounties);
-			add_benchmark!(params, batches, pallet_collective, Council);
-			add_benchmark!(params, batches, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-			add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
-			add_benchmark!(params, batches, pallet_grandpa, Grandpa);
-			add_benchmark!(params, batches, pallet_identity, Identity);
-			add_benchmark!(params, batches, pallet_im_online, ImOnline);
-			add_benchmark!(params, batches, pallet_indices, Indices);
-			add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
-			add_benchmark!(params, batches, pallet_multisig, Multisig);
-			add_benchmark!(params, batches, pallet_proxy, Proxy);
-			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
-			add_benchmark!(params, batches, pallet_staking, Staking);
-			add_benchmark!(params, batches, pallet_democracy, Democracy);
-			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, pallet_treasury, Treasury);
-			add_benchmark!(params, batches, pallet_utility, Utility);
-*/			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
 	}
