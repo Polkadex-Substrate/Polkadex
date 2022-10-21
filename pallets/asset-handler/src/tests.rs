@@ -479,6 +479,36 @@ pub fn test_account_balances() {
 	});
 }
 
+#[test]
+pub fn test_convert_amount_for_native_chain() {
+	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(|| {
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::HighPrecision(10000));
+		assert_eq!(AssetHandler::convert_amount_for_native_chain(rid, 100000000), Some(10000));
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::LowPrecision(10000));
+		assert_eq!(AssetHandler::convert_amount_for_native_chain(rid, 100), Some(1000000));
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::SamePrecision);
+		assert_eq!(AssetHandler::convert_amount_for_native_chain(rid, 100), Some(100));
+	});
+}
+
+#[test]
+pub fn test_convert_amount_for_foreign_chain() {
+	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(|| {
+		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::HighPrecision(10000));
+		assert_eq!(AssetHandler::convert_amount_for_foreign_chain(rid, 100), Some(U256::from(1000000)));
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::LowPrecision(10000));
+		assert_eq!(AssetHandler::convert_amount_for_foreign_chain(rid, 1000000), Some(U256::from(100)));
+		<AssetPrecision<Test>>::insert(rid, PrecisionType::SamePrecision);
+		assert_eq!(AssetHandler::convert_amount_for_foreign_chain(rid, 100), Some(U256::from(100)));
+	});
+}
+
+
+
 fn create_asset_data() -> (H160, u64, u8) {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let recipient = [1u8; 32];
@@ -508,3 +538,4 @@ fn withdraw_data() -> (H160, H160, u64, u8) {
 
 	(asset_address, recipient, sender, chain_id)
 }
+

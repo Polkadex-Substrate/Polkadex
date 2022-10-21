@@ -66,7 +66,8 @@ pub mod pallet {
 	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, Debug)]
 	pub enum PrecisionType {
 		LowPrecision(u128),
-		HighPrecision(u128)
+		HighPrecision(u128),
+		SamePrecision
 	}
 
 	impl Default for PrecisionType {
@@ -462,7 +463,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		fn convert_amount_for_foreign_chain(rid: ResourceId, balance: BalanceOf<T>) -> Option<U256> {
+		pub fn convert_amount_for_foreign_chain(rid: ResourceId, balance: BalanceOf<T>) -> Option<U256> {
 			let balance: u128 = balance.unique_saturated_into();
 			match <AssetPrecision<T>>::get(rid) {
 				PrecisionType::LowPrecision(precision) => {
@@ -471,16 +472,22 @@ pub mod pallet {
 				PrecisionType::HighPrecision(precision) => {
 					Some(U256::from(balance).saturating_mul(U256::from(precision)))
 				}
+				PrecisionType::SamePrecision => {
+					Some(U256::from(balance))
+				}
 			}
 		}
 
-		fn convert_amount_for_native_chain(rid: ResourceId, amount: u128) -> Option<u128> {
+		pub fn convert_amount_for_native_chain(rid: ResourceId, amount: u128) -> Option<u128> {
 			match <AssetPrecision<T>>::get(rid) {
 				PrecisionType::LowPrecision(precision) => {
 					Some(amount.saturating_mul(precision))
 				}
 				PrecisionType::HighPrecision(precision) => {
 					amount.checked_div(precision)
+				}
+				PrecisionType::SamePrecision => {
+					Some(amount)
 				}
 			}
 		}
