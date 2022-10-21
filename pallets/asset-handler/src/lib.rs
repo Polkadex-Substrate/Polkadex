@@ -282,7 +282,7 @@ pub mod pallet {
 				true,
 				BalanceOf::<T>::one().unique_saturated_into(),
 			)?;
-			<AssetPrecision<T>>::insert(&rid, precision_type);
+			<AssetPrecision<T>>::insert(rid, precision_type);
 			chainbridge::AssetIdToResourceMap::<T>::insert(asset_id, rid);
 			Self::deposit_event(Event::<T>::AssetRegistered(rid));
 			Ok(())
