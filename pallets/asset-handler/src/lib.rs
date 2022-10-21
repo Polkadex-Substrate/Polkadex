@@ -462,6 +462,18 @@ pub mod pallet {
 				Ok(())
 			})
 		}
+
+		/// Remove allowlisted tokens
+		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn add_precision(
+			origin: OriginFor<T>,
+			rid: ResourceId,
+			precision_type: PrecisionType,
+		) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			<AssetPrecision<T>>::insert(rid, precision_type);
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
