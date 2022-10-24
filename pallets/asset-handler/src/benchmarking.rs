@@ -35,7 +35,7 @@ benchmarks! {
 		let chain_id = 1;
 		let id = H160::from_slice(&[b as u8; 20]);
 		let rid = chainbridge::derive_resource_id(chain_id, &id.0);
-	}: _(RawOrigin::Root, chain_id, id)
+	}: _(RawOrigin::Root, chain_id, id, PrecisionType::LowPrecision(1000000))
 	verify {
 		assert_last_event::<T>(Event::AssetRegistered(rid).into());
 	}
