@@ -79,14 +79,16 @@ jobs:
       - name: Build Project
         run: |
           cargo clean
-          # cargo build --release --features runtime-benchmarks
+          cargo build --release --features runtime-benchmarks
           RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
         run: |
-          rustup component add clippy --toolchain=nightly
-          cargo +nightly clippy  -- -D warnings
+          rustup update
+          rustup default nightly
+          rustup component add clippy
+          cargo clippy  -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
