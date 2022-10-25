@@ -42,9 +42,12 @@ jobs:
     
     steps:
       - uses: actions/checkout@v2
+
       - name: set home. # bug self hosted https://github.com/actions-rs/toolchain/issues/137
         run: |
+          cat /etc/issue 
           echo "HOME=/root" >> ${GITHUB_ENV} # bug
+          apt install clang lldb lld gcc
       - name: Cache Rust Dependecies
         uses: actions/cache@v2
         with:
