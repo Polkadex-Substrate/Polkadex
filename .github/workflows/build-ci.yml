@@ -42,6 +42,9 @@ jobs:
     
     steps:
       - uses: actions/checkout@v2
+      - name: set home. # bug self hosted https://github.com/actions-rs/toolchain/issues/137
+        run: |
+          echo "HOME=/root" >> ${GITHUB_ENV} # bug
       - name: Cache Rust Dependecies
         uses: actions/cache@v2
         with:
@@ -50,6 +53,7 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          
       - name: Add wasm toolchain
         uses: actions-rs/toolchain@v1
         with:
