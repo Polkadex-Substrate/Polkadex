@@ -1,9 +1,9 @@
 name: Build-CI
 on:
   pull_request:
-    branches: [Develop, main-net-runtime,redux-ci-test]
+    branches: [Develop, main-net-runtime,redux-ci-testing]
   push:
-    branches: [Develop, main-net-runtime,redux-ci-test]
+    branches: [Develop, main-net-runtime,redux-ci-testing]
 env:
   RUNNER_INSTANCE_TYPE: c5.4xlarge    
 jobs:
