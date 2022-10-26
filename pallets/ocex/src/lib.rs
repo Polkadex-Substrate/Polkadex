@@ -239,7 +239,7 @@ pub mod pallet {
 		/// Clean IngressMessages
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			// When block's been initialized - clean up expired registrations of enclaves
-			Self::unregister_timed_out_enclaves();
+			//Self::unregister_timed_out_enclaves();
 			if let Some(snapshot_nonce) = <SnapshotNonce<T>>::get() {
 				if let Some(snapshot) = <Snapshots<T>>::get(snapshot_nonce.saturating_sub(1)) {
 					<IngressMessages<T>>::put(Vec::<
@@ -1053,6 +1053,7 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		// clean-up function - should be called on each block
+		#[allow(dead_code)]
 		fn unregister_timed_out_enclaves() {
 			use sp_runtime::traits::CheckedSub;
 			let mut enclaves_to_remove = sp_std::vec![];
