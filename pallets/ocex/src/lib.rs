@@ -1053,6 +1053,7 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		// clean-up function - should be called on each block
+		#[allow(dead_code)]
 		fn unregister_timed_out_enclaves() {
 			use sp_runtime::traits::CheckedSub;
 			let mut enclaves_to_remove = sp_std::vec![];
