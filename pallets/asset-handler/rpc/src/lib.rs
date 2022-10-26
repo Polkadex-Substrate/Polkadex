@@ -70,10 +70,6 @@ where
 
 /// Converts a runtime trap into an RPC error.
 fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
-	CallError::Custom(ErrorObject::owned(
-		RUNTIME_ERROR,
-		"Runtime error",
-		Some(format!("{err:?}")),
-	))
-	.into()
+	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
+		.into()
 }
