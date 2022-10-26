@@ -1748,7 +1748,7 @@ fn test_onchain_events_overflow() {
 				1,
 				account_id_vector[last_account].clone()
 			),
-			Error::<Test>::OnchainEventsBoundedVecOverflow
+			Error::<Test>::WithdrawalBoundOverflow
 		);
 
 		// Cleanup Onchain events
