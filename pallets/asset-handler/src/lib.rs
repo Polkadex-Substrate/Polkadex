@@ -30,7 +30,6 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::AssetHandlerWeightInfo;
 	use chainbridge::{BridgeChainId, ResourceId};
 	use frame_support::{
 		dispatch::fmt::Debug,
@@ -49,6 +48,17 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
+
+	pub trait AssetHandlerWeightInfo {
+		fn create_asset(b: u32) -> Weight;
+		fn mint_asset(_b: u32) -> Weight;
+		fn set_bridge_status() -> Weight;
+		fn set_block_delay() -> Weight;
+		fn update_fee(_m: u32, _f: u32) -> Weight;
+		fn withdraw(_b: u32, _c: u32) -> Weight;
+		fn allowlist_token(_b: u32) -> Weight;
+		fn remove_allowlisted_token(b: u32) -> Weight;
+	}
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -298,7 +308,7 @@ pub mod pallet {
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
 		#[allow(clippy::unnecessary_lazy_evaluations)]
-		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(2 as Weight)))]
+		#[pallet::weight(T::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
 			destination_add: Vec<u8>,
@@ -330,7 +340,7 @@ pub mod pallet {
 		}
 
 		/// Set Bridge Status
-		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(2 as Weight)))]
+		#[pallet::weight(T::WeightInfo::set_bridge_status())]
 		pub fn set_bridge_status(origin: OriginFor<T>, status: bool) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeDeactivated<T>>::put(status);
@@ -339,7 +349,7 @@ pub mod pallet {
 		}
 
 		/// Set Block Delay
-		#[pallet::weight(T::DbWeight::get().writes(2 as Weight))]
+		#[pallet::weight(T::WeightInfo::set_block_delay())]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
 			no_of_blocks: T::BlockNumber,
@@ -440,7 +450,7 @@ pub mod pallet {
 		}
 
 		/// Allowlists Token
-		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		#[pallet::weight(T::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -453,7 +463,7 @@ pub mod pallet {
 		}
 
 		/// Remove allowlisted tokens
-		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		#[pallet::weight(T::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -519,6 +529,12 @@ pub mod pallet {
 			}
 		}
 
+		/// converts `balance` from 18 decimal points to 12
+		/// by dividing it by 1_000_000
+		pub fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
+			balance.checked_div(1000000u128)
+		}
+
 		pub fn convert_asset_id(token: ResourceId) -> u128 {
 			let mut temp = [0u8; 16];
 			temp.copy_from_slice(&token[0..16]);
@@ -547,7 +563,8 @@ pub mod pallet {
 
 		#[cfg(feature = "runtime-benchmarks")]
 		pub fn mint_token(account: T::AccountId, rid: ResourceId, amount: u128) {
-			T::AssetManager::mint_into(Pallet::<T>::convert_asset_id(rid), &account, amount);
+			T::AssetManager::mint_into(Pallet::<T>::convert_asset_id(rid), &account, amount)
+				.unwrap();
 		}
 	}
 }

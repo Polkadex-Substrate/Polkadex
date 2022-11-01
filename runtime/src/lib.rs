@@ -21,29 +21,24 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-use codec::{Decode, Encode, MaxEncodedLen};
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime,
+	pallet_prelude::ConstU32,
+	parameter_types,
 	traits::{
-		Currency, EnsureOrigin, Imbalance, KeyOwnerProofSystem, LockIdentifier, U128CurrencyToVote,
+		ConstU16, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly, Everything, Get,
+		Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced,
+		U128CurrencyToVote,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass, Weight,
+		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient,
 	},
-	RuntimeDebug,
+	PalletId, RuntimeDebug,
 };
-
-use frame_support::{
-	pallet_prelude::ConstU32,
-	traits::{
-		ConstU16, EitherOfDiverse, EqualPrivilegeOnly, Everything, Get, InstanceFilter,
-		OnUnbalanced,
-	},
-	weights::{ConstantMultiplier, WeightToFeeCoefficient},
-	PalletId,
-};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use sp_std::vec;
 
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
@@ -1272,7 +1267,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Public = <Signature as traits::Verify>::Signer;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type Signature = Signature;
-	type WeightInfo = ();
+	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 	type MsPerDay = MsPerDay;
 }
 
@@ -1402,7 +1397,7 @@ impl_runtime_apis! {
 		}
 	}
 
-   impl sp_api::Metadata<Block> for Runtime {
+	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
 		}
@@ -1476,8 +1471,7 @@ impl_runtime_apis! {
 			_set_id: fg_primitives::SetId,
 			authority_id: GrandpaId,
 		) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
-			use codec::Encode;
-
+			use parity_scale_codec::Encode;
 			Historical::prove((fg_primitives::KEY_TYPE, authority_id))
 				.map(|p| p.encode())
 				.map(fg_primitives::OpaqueKeyOwnershipProof::new)
@@ -1517,8 +1511,7 @@ impl_runtime_apis! {
 			_slot: sp_consensus_babe::Slot,
 			authority_id: sp_consensus_babe::AuthorityId,
 		) -> Option<sp_consensus_babe::OpaqueKeyOwnershipProof> {
-			use codec::Encode;
-
+			use parity_scale_codec::Encode;
 			Historical::prove((sp_consensus_babe::KEY_TYPE, authority_id))
 				.map(|p| p.encode())
 				.map(sp_consensus_babe::OpaqueKeyOwnershipProof::new)
@@ -1597,33 +1590,10 @@ impl_runtime_apis! {
 			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 
-			// Trying to add benchmarks directly to the Session Pallet caused cyclic dependency
-			// issues. To get around that, we separated the Session benchmarks into its own crate,
-			// which is why we need these two lines below.
-
 			let mut list = Vec::<BenchmarkList>::new();
-
-			list_benchmark!(list,extra, pallet_babe, Babe);
-			list_benchmark!(list,extra, pallet_balances, Balances);
-			list_benchmark!(list,extra, pallet_bounties, Bounties);
-			list_benchmark!(list,extra, pallet_collective, Council);
-			list_benchmark!(list,extra, pallet_elections_phragmen, Elections);
-			list_benchmark!(list,extra, pallet_grandpa, Grandpa);
-			list_benchmark!(list,extra, pallet_identity, Identity);
-			list_benchmark!(list,extra, pallet_im_online, ImOnline);
-			list_benchmark!(list,extra, pallet_indices, Indices);
-			list_benchmark!(list,extra, pallet_membership, TechnicalMembership);
-			list_benchmark!(list,extra, pallet_multisig, Multisig);
-			list_benchmark!(list,extra, pallet_proxy, Proxy);
-			list_benchmark!(list,extra, pallet_scheduler, Scheduler);
-			list_benchmark!(list, extra, pallet_staking, Staking);
-			list_benchmark!(list,extra, pallet_timestamp, Timestamp);
-			list_benchmark!(list,extra, pallet_treasury, Treasury);
-			list_benchmark!(list,extra, pallet_utility, Utility);
-			list_benchmark!(list,extra, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-			//TODO: [#463] Currently broken, will be fixed in different issue
-//			list_benchmark!(list,extra,  pdex_migration, PDEXMigration);
-			// list_benchmark!(list,extra,  asset_handler, AssetHandler);
+			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
+			list_benchmark!(list, extra, asset_handler, AssetHandler);
+			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1632,15 +1602,6 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
-			// Trying to add benchmarks directly to the Session Pallet caused cyclic dependency
-			// issues. To get around that, we separated the Session benchmarks into its own crate,
-			// which is why we need these two lines below.
-			// use pallet_session_benchmarking::Pallet as SessionBench;
-			// use pallet_offences_benchmarking::Pallet as OffencesBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
-
-			// impl pallet_session_benchmarking::Config for Runtime {}
-			// impl pallet_offences_benchmarking::Config for Runtime {}
 			impl frame_system_benchmarking::Config for Runtime {}
 
 			let allowlist: Vec<TrackedStorageKey> = vec![
@@ -1661,31 +1622,9 @@ impl_runtime_apis! {
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &allowlist);
 
-			add_benchmark!(params, batches, pallet_babe, Babe);
-			add_benchmark!(params, batches, pallet_balances, Balances);
-			add_benchmark!(params, batches, pallet_bounties, Bounties);
-			add_benchmark!(params, batches, pallet_collective, Council);
-			add_benchmark!(params, batches, pallet_election_provider_multi_phase, ElectionProviderMultiPhase);
-			add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
-			add_benchmark!(params, batches, pallet_grandpa, Grandpa);
-			add_benchmark!(params, batches, pallet_identity, Identity);
-			add_benchmark!(params, batches, pallet_im_online, ImOnline);
-			add_benchmark!(params, batches, pallet_indices, Indices);
-			add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
-			add_benchmark!(params, batches, pallet_multisig, Multisig);
-	 //     add_benchmark!(params, batches, pallet_offences, OffencesBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_proxy, Proxy);
-			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
-	 //       add_benchmark!(params, batches, pallet_session, SessionBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_staking, Staking);
-			add_benchmark!(params, batches, pallet_democracy, Democracy);
-			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, pallet_treasury, Treasury);
-			add_benchmark!(params, batches, pallet_utility, Utility);
-			//TODO: [#463] Currently broken, will be fixed in different issue
-//			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
-			// add_benchmark!(params, batches, asset_handler, AssetHandler);
+			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
+			add_benchmark!(params, batches, asset_handler, AssetHandler);
+			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

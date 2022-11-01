@@ -56,6 +56,7 @@ const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 #[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
+	use core::fmt::Debug;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use frame_support::{
@@ -63,7 +64,7 @@ pub mod pallet {
 		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
-			fungibles::{Inspect, Mutate},
+			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
 		},
 		PalletId,
@@ -83,6 +84,29 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
+
+	pub trait OcexWeightInfo {
+		fn register_main_account(_b: u32) -> Weight;
+		fn add_proxy_account(x: u32) -> Weight;
+		fn close_trading_pair(_x: u32) -> Weight;
+		fn open_trading_pair(_x: u32) -> Weight;
+		fn register_trading_pair(_x: u32) -> Weight;
+		fn update_trading_pair(_x: u32) -> Weight;
+		fn deposit(_x: u32) -> Weight;
+		fn remove_proxy_account(x: u32) -> Weight;
+		fn submit_snapshot() -> Weight;
+		fn insert_enclave(_x: u32) -> Weight;
+		fn collect_fees(_x: u32) -> Weight;
+		fn shutdown() -> Weight;
+		fn set_exchange_state(_x: u32) -> Weight;
+		fn set_balances(_x: u32) -> Weight;
+		fn claim_withdraw(_x: u32) -> Weight;
+		fn register_enclave(_x: u32) -> Weight;
+		fn allowlist_token(_x: u32) -> Weight;
+		fn remove_allowlisted_token(_x: u32) -> Weight;
+		fn allowlist_enclave(_x: u32) -> Weight;
+		fn update_certificate(_x: u32) -> Weight;
+	}
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -126,15 +150,16 @@ pub mod pallet {
 				<Self as frame_system::Config>::AccountId,
 				Balance = BalanceOf<Self>,
 				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>;
+			> + Inspect<<Self as frame_system::Config>::AccountId>
+			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 		type Public: Clone
 			+ PartialEq
 			+ IdentifyAccount<AccountId = Self::AccountId>
-			+ core::fmt::Debug
-			+ codec::Codec
+			+ Debug
+			+ parity_scale_codec::Codec
 			+ Ord
 			+ scale_info::TypeInfo;
 
@@ -142,12 +167,12 @@ pub mod pallet {
 		type Signature: Verify<Signer = Self::Public>
 			+ Clone
 			+ PartialEq
-			+ core::fmt::Debug
-			+ codec::Codec
+			+ Debug
+			+ parity_scale_codec::Codec
 			+ scale_info::TypeInfo;
 
 		/// Type representing the weight of this pallet
-		type WeightInfo: WeightInfo;
+		type WeightInfo: OcexWeightInfo;
 
 		// declared number of milliseconds per day and is used to determine
 		// enclave's report validity time.
@@ -176,6 +201,8 @@ pub mod pallet {
 		/// Account is not registered with the exchange
 		AccountNotRegistered,
 		InvalidWithdrawalIndex,
+		/// Amount within withdrawal can not be converted to Decimal
+		InvalidWithdrawalAmount,
 		/// The trading pair is not currently Operational
 		TradingPairIsNotOperational,
 		/// the trading pair is currently in operation
@@ -230,6 +257,9 @@ pub mod pallet {
 		FeesNotCollectedFully,
 		/// Exchange is up
 		ExchangeOperational,
+		/// Can not write into withdrawal bounded structure
+		/// limit reached
+		WithdrawalBoundOverflow,
 	}
 
 	#[pallet::hooks]
@@ -275,7 +305,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Registers a new account in orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::register_main_account())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_main_account(1))]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -299,7 +329,7 @@ pub mod pallet {
 		}
 
 		/// Adds a proxy account to a pre-registered main acocunt
-		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account(1))]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -323,7 +353,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(100000)]
+		#[pallet::weight(<T as Config>::WeightInfo::close_trading_pair(1))]
 		pub fn close_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -352,7 +382,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(100000)]
+		#[pallet::weight(<T as Config>::WeightInfo::open_trading_pair(1))]
 		pub fn open_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -382,7 +412,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(100000)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_trading_pair(1))]
 		pub fn register_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -513,7 +543,7 @@ pub mod pallet {
 		}
 
 		/// Updates the trading pair config
-		#[pallet::weight(100000)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_trading_pair(1))]
 		pub fn update_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -640,7 +670,7 @@ pub mod pallet {
 		}
 
 		/// Deposit Assets to Orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::deposit())]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit(1))]
 		pub fn deposit(
 			origin: OriginFor<T>,
 			asset: AssetId,
@@ -679,8 +709,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Removes a proxy account from pre-registered main acocunt
-		#[pallet::weight(100000)]
+		/// Removes a proxy account from pre-registered main account
+		#[pallet::weight(<T as Config>::WeightInfo::remove_proxy_account(1))]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -709,7 +739,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight((590_500_000 as Weight).saturating_add(T::DbWeight::get().reads(3 as Weight)).saturating_add(T::DbWeight::get().writes(5 as Weight)))]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
@@ -775,18 +805,18 @@ pub mod pallet {
 		// FIXME Only for testing will be removed before mainnet launch
 		/// Insert Enclave
 		#[doc(hidden)]
-		#[pallet::weight(10000 + T::DbWeight::get().writes(1))]
-		pub fn insert_enclave(origin: OriginFor<T>, encalve: T::AccountId) -> DispatchResult {
+		#[pallet::weight(<T as Config>::WeightInfo::insert_enclave(1))]
+		pub fn insert_enclave(origin: OriginFor<T>, enclave: T::AccountId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let timestamp = <timestamp::Pallet<T>>::get();
-			<RegisteredEnclaves<T>>::insert(encalve, timestamp);
+			<RegisteredEnclaves<T>>::insert(enclave, timestamp);
 			Ok(())
 		}
 
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
-		#[pallet::weight(100000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::collect_fees(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -833,7 +863,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(100000)]
+		#[pallet::weight(<T as Config>::WeightInfo::shutdown())]
 		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(false);
@@ -846,7 +876,7 @@ pub mod pallet {
 		///This extrinsic will pause/resume the exchange according to flag
 		/// If flag is set to false it will stop the exchange
 		/// If flag is set to true it will resume the exchange
-		#[pallet::weight(1000000)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_exchange_state(1))]
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
@@ -862,7 +892,7 @@ pub mod pallet {
 		}
 
 		/// Sends the changes required in balances for list of users with a particular asset
-		#[pallet::weight(100000)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_balances(change_in_balances.len().saturated_into()))]
 		pub fn set_balances(
 			origin: OriginFor<T>,
 			change_in_balances: BoundedVec<
@@ -891,7 +921,7 @@ pub mod pallet {
 		///
 		/// params: snapshot_number: u32
 		/// account: AccountId
-		#[pallet::weight((100000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight)).saturating_add(T::DbWeight::get().writes(3 as Weight)))]
+		#[pallet::weight(<T as Config>::WeightInfo::claim_withdraw(1))]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -901,98 +931,114 @@ pub mod pallet {
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _ = ensure_signed(origin)?;
 			// This vector will keep track of withdrawals processed already
-			let mut processed_withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> =
-				BoundedVec::<Withdrawal<T::AccountId>, WithdrawalLimit>::default();
+			let mut processed_withdrawals = vec![];
+			let mut failed_withdrawals = vec![];
 			ensure!(
 				<Withdrawals<T>>::contains_key(snapshot_id),
 				Error::<T>::InvalidWithdrawalIndex
 			);
 			// This entire block of code is put inside ensure as some of the nested functions will
 			// return Err
-			ensure!(
-				<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
-					// Get mutable reference to the withdrawals vector
-					if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
-						while withdrawal_vector.len() > 0 {
-							// Perform pop operation to ensure we do not leave any withdrawal left
-							// for a double spend
-							if let Some(withdrawal) = withdrawal_vector.pop() {
-								if let Some(converted_withdrawal) = withdrawal
-									.amount
-									.saturating_mul(Decimal::from(UNIT_BALANCE))
-									.to_u128()
+			<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
+				// Get mutable reference to the withdrawals vector
+				if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
+					while withdrawal_vector.len() > 0 {
+						// Perform pop operation to ensure we do not leave any withdrawal left
+						// for a double spend
+						if let Some(withdrawal) = withdrawal_vector.pop() {
+							if let Some(converted_withdrawal) = withdrawal
+								.amount
+								.saturating_mul(Decimal::from(UNIT_BALANCE))
+								.to_u128()
+							{
+								if Self::transfer_asset(
+									&Self::get_pallet_account(),
+									&withdrawal.main_account,
+									converted_withdrawal.saturated_into(),
+									withdrawal.asset,
+								)
+								.is_ok()
 								{
-									if Self::transfer_asset(
-										&Self::get_pallet_account(),
-										&withdrawal.main_account,
-										converted_withdrawal.saturated_into(),
-										withdrawal.asset,
-									)
-									.is_ok()
-									{
-										processed_withdrawals
-											.try_push(withdrawal)
-											.unwrap_or_default();
-									} else {
-										// Storing the failed withdrawals back into the storage item
-										withdrawal_vector
-											.try_push(withdrawal.clone())
-											.unwrap_or_default();
-										Self::deposit_event(Event::WithdrawalFailed(withdrawal));
-									}
+									processed_withdrawals.push(withdrawal.to_owned());
+								} else {
+									// Storing the failed withdrawals back into the storage item
+									failed_withdrawals.push(withdrawal.to_owned());
+									Self::deposit_event(Event::WithdrawalFailed(
+										withdrawal.to_owned(),
+									));
 								}
+							} else {
+								return Err(Error::<T>::InvalidWithdrawalAmount)
 							}
 						}
-						// Not removing key from BtreeMap so that failed withdrawals can still be
-						// tracked
-						Ok(())
-					} else {
-						// This allows us to ensure we do not have someone with an invalid account
-						Err(Error::<T>::InvalidWithdrawalIndex)
 					}
-				})
-				.is_ok(),
-				Error::<T>::InvalidWithdrawalIndex
-			);
-			Self::deposit_event(Event::WithdrawalClaimed {
-				main: account.clone(),
-				withdrawals: processed_withdrawals.clone(),
-			});
-			ensure!(
-				<OnChainEvents<T>>::mutate(|onchain_events| {
-					onchain_events.try_push(
-						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-							snapshot_id,
+					// Not removing key from BtreeMap so that failed withdrawals can still be
+					// tracked
+					btree_map
+						.try_insert(
 							account.clone(),
-							processed_withdrawals.clone(),
-						),
-					)?;
-					Ok::<(), ()>(())
-				})
-				.is_ok(),
-				Error::<T>::OnchainEventsBoundedVecOverflow
-			);
-			Ok(Pays::No.into())
+							failed_withdrawals
+								.try_into()
+								.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
+						)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					Ok(())
+				} else {
+					// This allows us to ensure we do not have someone with an invalid account
+					Err(Error::<T>::InvalidWithdrawalIndex)
+				}
+			})?;
+			if !processed_withdrawals.is_empty() {
+				Self::deposit_event(Event::WithdrawalClaimed {
+					main: account.clone(),
+					withdrawals: processed_withdrawals.clone(),
+				});
+				<OnChainEvents<T>>::mutate(|onchain_events| {
+					onchain_events
+						.try_push(
+							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+								snapshot_id,
+								account.clone(),
+								processed_withdrawals
+									.clone()
+									.try_into()
+									.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
+							),
+						)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					Ok::<(), Error<T>>(())
+				})?;
+				Ok(Pays::No.into())
+			} else {
+				// If someone withdraws nothing successfully - should pay for such transaction
+				Ok(Pays::Yes.into())
+			}
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_enclave(1))]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
-			let report = verify_ias_report(&ias_report, <CertificateValidity<T>>::get())
-				.map_err(|_| <Error<T>>::RemoteAttestationVerificationFailed)?;
+			// this step is required for runtime-benchmarks
+			let cv: u64 = <CertificateValidity<T>>::get();
+			let report = verify_ias_report(&ias_report, cv)
+				.map_err(|_| Error::<T>::RemoteAttestationVerificationFailed)?;
 
-			// TODO: attested key verification enabled
-			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-				.map_err(|_| <Error<T>>::SenderIsNotAttestedEnclave)?;
-
-			// TODO: any other checks we want to run?
 			ensure!(
 				(report.status == SgxStatus::Ok) |
 					(report.status == SgxStatus::ConfigurationNeeded),
 				<Error<T>>::InvalidSgxReportStatus
 			);
+
+			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
+				.map_err(|_| Error::<T>::SenderIsNotAttestedEnclave)?;
+
+			ensure!(
+				enclave_signer != T::AccountId::decode(&mut [0u8; 32].as_slice()).unwrap(),
+				<Error<T>>::SenderIsNotAttestedEnclave
+			);
+
 			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
 				*v = T::Moment::saturated_from(report.timestamp);
 			});
@@ -1002,20 +1048,20 @@ pub mod pallet {
 		}
 
 		/// Allowlist Token
-		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
-		pub fn allowlist_token(origin: OriginFor<T>, token_add: AssetId) -> DispatchResult {
+		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
+		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
 			allowlisted_tokens
-				.try_insert(token_add)
+				.try_insert(token)
 				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
 			<AllowlistedToken<T>>::put(allowlisted_tokens);
-			Self::deposit_event(Event::<T>::TokenAllowlisted(token_add));
+			Self::deposit_event(Event::<T>::TokenAllowlisted(token));
 			Ok(())
 		}
 
 		/// Remove Allowlisted Token
-		#[pallet::weight((195_000_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
@@ -1027,7 +1073,7 @@ pub mod pallet {
 
 		/// In order to register itself - enclave account id must be allowlisted and called by
 		/// Governance
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave())]
+		#[pallet::weight(<T as Config>::WeightInfo::allowlist_enclave(1))]
 		pub fn allowlist_enclave(
 			origin: OriginFor<T>,
 			enclave_account_id: T::AccountId,
@@ -1040,7 +1086,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic to update ExchangeState
-		#[pallet::weight(1000000)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_certificate(1))]
 		pub fn update_certificate(
 			origin: OriginFor<T>,
 			certificate_valid_until: u64,
@@ -1113,7 +1159,7 @@ pub mod pallet {
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
 			main: T::AccountId,
-			withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit>,
+			withdrawals: Vec<Withdrawal<T::AccountId>>,
 		},
 		NewProxyAdded {
 			main: T::AccountId,
