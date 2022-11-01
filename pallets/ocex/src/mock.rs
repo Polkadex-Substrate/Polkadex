@@ -125,7 +125,7 @@ impl Config for Test {
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
-	type WeightInfo = ();
+	type WeightInfo = WeightInfo<Test>;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;

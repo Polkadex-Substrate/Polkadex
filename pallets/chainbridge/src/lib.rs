@@ -13,18 +13,18 @@ pub mod hashing;
 pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::{Decode, Encode, EncodeLike};
 	pub use frame_support::{
 		pallet_prelude::*, traits::StorageVersion, weights::GetDispatchInfo, PalletId, Parameter,
 	};
 	use frame_system::{self as system, pallet_prelude::*};
+	use parity_scale_codec::{Decode, Encode, EncodeLike};
 	use scale_info::TypeInfo;
 	pub use sp_core::U256;
 	use sp_runtime::{
 		traits::{AccountIdConversion, Dispatchable},
 		RuntimeDebug,
 	};
-	use sp_std::prelude::*;
+	use sp_std::{prelude::*, vec};
 
 	const DEFAULT_RELAYER_THRESHOLD: u32 = 1;
 	const MODULE_ID: PalletId = PalletId(*b"podex/bg");

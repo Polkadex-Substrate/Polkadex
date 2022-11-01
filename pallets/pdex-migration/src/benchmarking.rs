@@ -1,44 +1,37 @@
-//! Benchmarking setup for pallet-template
-
-use frame_benchmarking::{account, allowlisted_caller, benchmarks, impl_benchmark_test_suite};
-use frame_support::{assert_ok, pallet_prelude::*, traits::Get};
-use frame_system::{pallet_prelude::*, RawOrigin};
-use rand::{RngCore, SeedableRng};
-// use frame_system::Origin;
-use sp_core::H256;
+use crate::pallet::{Call, Config, Pallet as PDEXMigration, Pallet, *};
+use frame_benchmarking::{account, benchmarks, whitelisted_caller};
+use frame_support::{assert_ok, dispatch::UnfilteredDispatchable, traits::Get};
+use frame_system::RawOrigin;
 use sp_runtime::{traits::BlockNumberProvider, SaturatedConversion};
 
-use crate::pallet::{Call, Config, Pallet as PDEXMigration, Pallet, *};
+const PDEX: u128 = 1000_000_000_000;
 
-use super::*;
-
-// use crate::pallet::Call as PDEXMigration;
-// use crate::mock::{
-//     // PDEXMigration,
-//     PDEX
-// };
-pub const PDEX: u128 = 1000_000_000_000;
 benchmarks! {
 	set_migration_operational_status {
-
-	}: _(RawOrigin::Root, true)
+		let call = Call::<T>::set_migration_operational_status { status: true };
+	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
+	verify {
+		assert!(<Operational<T>>::get());
+	}
 
 	set_relayer_status {
-		let relayer : T::AccountId = account("relayer",0,0);
-	}: _ (RawOrigin::Root, relayer, true)
+		let relayer : T::AccountId = account("relayer", 0, 0);
+		let call = Call::<T>::set_relayer_status { relayer: relayer.clone(), status: true };
+	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
+	verify {
+		assert!(<Relayers<T>>::get(relayer));
+	}
 
 	mint {
+		let b in 1 .. 256;
 		let relayer1: T::AccountId = account("relayer1",0,0);
 		let relayer2: T::AccountId = account("relayer2",0,0);
 		let relayer3: T::AccountId = account("relayer3",0,0);
-		let beneficiary: T::AccountId  = allowlisted_caller();
+		let beneficiary: T::AccountId  = whitelisted_caller();
 		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
-		let mut random_slice = [0u8; 32];
-		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
-		rng.fill_bytes(&mut random_slice);
+		let random_slice = [b as u8; 32];
 		let mut eth_hash: T::Hash = T::Hash::default();
 		eth_hash.as_mut().copy_from_slice(&random_slice);
-
 
 			assert_ok!(PDEXMigration::<T>::set_migration_operational_status(RawOrigin::Root.into(),true));
 			// Register relayers
@@ -49,19 +42,21 @@ benchmarks! {
 			assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer1).into(), beneficiary.clone(),amount,eth_hash));
 			assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer2).into(), beneficiary.clone(),amount,eth_hash));
 
-	}: _(RawOrigin::Signed(relayer3),beneficiary,amount,eth_hash.into())
-
+		let call = Call::<T>::mint { beneficiary, amount, eth_tx: eth_hash.clone().into() };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(relayer3).into())? }
+	verify {
+		assert!(<EthTxns<T>>::contains_key(eth_hash));
+	}
 
 	unlock {
+		let b in 1 .. 256;
 		let relayer1 : T::AccountId = account("relayer1",0,0);
 		let relayer2  : T::AccountId = account("relayer2",0,0);
 		let relayer3 : T::AccountId = account("relayer3",0,0);
-		let beneficiary : T::AccountId  = allowlisted_caller();
+		let beneficiary : T::AccountId  = whitelisted_caller();
 
 		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
-		let mut random_slice = [0u8; 32];
-		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
-		rng.fill_bytes(&mut random_slice);
+		let random_slice = [b as u8; 32];
 		let mut eth_hash: T::Hash = T::Hash::default();
 		eth_hash.as_mut().copy_from_slice(&random_slice);
 
@@ -76,18 +71,17 @@ benchmarks! {
 			assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer3).into(), beneficiary.clone(),amount,eth_hash));
 
 		frame_system::Pallet::<T>::set_block_number(frame_system::Pallet::<T>::current_block_number()+T::LockPeriod::get());
-
-	}: _(RawOrigin::Signed(beneficiary))
+		let call = Call::<T>::unlock {};
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(beneficiary).into())? }
 
 	remove_minted_tokens {
+		let b in 1 .. 256;
 		let relayer1: T::AccountId = account("relayer1",0,0);
 		let relayer2  : T::AccountId = account("relayer2",0,0);
 		let relayer3 : T::AccountId = account("relayer3",0,0);
-		let beneficiary: T::AccountId  = allowlisted_caller();
-	  let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
-		let mut random_slice = [0u8; 32];
-		let mut rng = rand::rngs::StdRng::seed_from_u64(5 as u64);
-		rng.fill_bytes(&mut random_slice);
+		let beneficiary: T::AccountId  = whitelisted_caller();
+		let amount: T::Balance = 100u128.saturating_mul(PDEX).saturated_into();
+		let random_slice = [b as u8; 32];
 		let mut eth_hash: T::Hash = T::Hash::default();
 		eth_hash.as_mut().copy_from_slice(&random_slice);
 
@@ -100,14 +94,14 @@ benchmarks! {
 		  assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer1).into(), beneficiary.clone(),amount,eth_hash));
 			assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer2).into(), beneficiary.clone(),amount,eth_hash));
 			assert_ok!(PDEXMigration::<T>::mint(RawOrigin::Signed(relayer3).into(), beneficiary.clone(),amount,eth_hash));
-
-	}: _(RawOrigin::Root,beneficiary)
+		let call = Call::<T>::remove_minted_tokens { beneficiary };
+	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
 }
+
 #[cfg(test)]
 mod tests {
-	use crate::mock::*;
+	use super::Pallet as PDM;
+	use frame_benchmarking::impl_benchmark_test_suite;
 
-	use super::*;
-
-	impl_benchmark_test_suite!(Template, crate::mock::new_test_ext(), crate::mock::Test,);
+	impl_benchmark_test_suite!(PDM, crate::mock::new_test_ext(), crate::mock::Test,);
 }

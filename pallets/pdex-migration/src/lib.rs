@@ -24,12 +24,12 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::{Decode, Encode, MaxEncodedLen};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{fungible::Mutate, Currency, Get, LockableCurrency, WithdrawReasons},
 	};
 	use frame_system::pallet_prelude::*;
+	use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 	use scale_info::TypeInfo;
 	use sp_runtime::{
 		traits::{BlockNumberProvider, Saturating, Zero},
@@ -226,6 +226,7 @@ pub mod pallet {
 				Err(Error::<T>::NotOperational)?
 			}
 		}
+
 		#[pallet::weight(<T as Config>::WeightInfo::remove_minted_tokens())]
 		pub fn remove_minted_tokens(
 			origin: OriginFor<T>,
