@@ -595,10 +595,16 @@ pub fn test_withdrawal_fee() {
 	new_test_ext().execute_with(|| {
 		Balances::mint_into(&chainbridge::Pallet::<Test>::account_id(), 5000000000000);
 		assert_ok!(AssetHandler::withdraw_fee(Origin::signed(1), 3));
-		assert_eq!(Balances::free_balance(&chainbridge::Pallet::<Test>::account_id()), 1000000000000);
+		assert_eq!(
+			Balances::free_balance(&chainbridge::Pallet::<Test>::account_id()),
+			1000000000000
+		);
 		assert_eq!(Balances::free_balance(3), 4000000000000);
 		assert_ok!(AssetHandler::withdraw_fee(Origin::signed(1), 3));
-		assert_eq!(Balances::free_balance(&chainbridge::Pallet::<Test>::account_id()), 1000000000000);
+		assert_eq!(
+			Balances::free_balance(&chainbridge::Pallet::<Test>::account_id()),
+			1000000000000
+		);
 		assert_eq!(Balances::free_balance(3), 4000000000000);
 	});
 }
