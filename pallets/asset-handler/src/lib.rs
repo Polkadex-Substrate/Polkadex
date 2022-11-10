@@ -36,7 +36,7 @@ pub mod pallet {
 		log,
 		pallet_prelude::*,
 		traits::{
-			tokens::fungibles::{Create, Inspect, Mutate},
+			tokens::{fungible::Inspect as FungibleInspect, fungibles::{Create, Inspect, Mutate}},
 			Currency, ExistenceRequirement, ReservableCurrency,
 		},
 		PalletId,
@@ -109,7 +109,8 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Balances Pallet
-		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>
+		    + FungibleInspect<<Self as frame_system::Config>::AccountId>;
 		/// Asset Manager
 		type AssetManager: Create<<Self as frame_system::Config>::AccountId>
 			+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
@@ -427,6 +428,21 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::AssetWithdrawn(contract_add, rid, amount));
 			Ok(())
 		}
+
+		/// Withdraw Fee
+		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		pub fn withdraw_fee(origin: OriginFor<T>, beneficiary: T::AccountId) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			let reducible_balance: u128 = T::Currency::reducible_balance(&chainbridge::Pallet::<T>::account_id(), true).saturated_into();
+			T::Currency::transfer(
+				&chainbridge::Pallet::<T>::account_id(),
+				&beneficiary,
+				reducible_balance.saturated_into(),
+				ExistenceRequirement::KeepAlive,
+			)?;
+			Ok(())
+		}
+
 
 		/// Updates fee for given Chain id.
 		///
