@@ -587,6 +587,22 @@ pub fn test_convert_amount_for_foreign_chain() {
 	});
 }
 
+use frame_support::traits::tokens::fungible::Mutate;
+
+#[test]
+pub fn test_withdrawal_fee() {
+	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(|| {
+		Balances::mint_into(&chainbridge::Pallet::<Test>::account_id(), 5000000000000);
+		assert_ok!(AssetHandler::withdraw_fee(Origin::signed(1), 3));
+		assert_eq!(Balances::free_balance(&chainbridge::Pallet::<Test>::account_id()), 1000000000000);
+		assert_eq!(Balances::free_balance(3), 4000000000000);
+		assert_ok!(AssetHandler::withdraw_fee(Origin::signed(1), 3));
+		assert_eq!(Balances::free_balance(&chainbridge::Pallet::<Test>::account_id()), 1000000000000);
+		assert_eq!(Balances::free_balance(3), 4000000000000);
+	});
+}
+
 fn create_asset_data() -> (H160, u64, u8) {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let recipient = [1u8; 32];
