@@ -1,30 +1,19 @@
-name: Release_Binaries
+name: Build and publish release
+
 on:
   push:
     tags:
       - 'v*'
+
 jobs:
-  prepare:
+  build-and-publish-release:
+    name: Build Application And Publish Release
     runs-on: ubuntu-latest
     steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-    outputs:
-      upload_url: ${{steps.create_release.outputs.upload_url}}
-  buildUbuntu:
-    runs-on: ubuntu-latest
-    needs: prepare
-    steps:
-      - uses: actions/checkout@v2
-      - name: Cache Rust Dependecies
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache rust dependencies
         uses: actions/cache@v2
         with:
           path: |
@@ -32,41 +21,79 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Build Project
+
+      - name: Build application
         run: |
-            ./scripts/init.sh
-            cargo build --release
-            cat extras/customSpecRaw.json > customSpecRaw.json
-      - name: PackRelease
+          ./scripts/init.sh
+          cargo build --release
+          cat extras/customSpecRaw.json > customSpecRaw.json
+
+      - name: Prepare artifact
         run: |
-           zip PolkadexNodeUbuntu.zip --junk-paths target/release/polkadex-node  extras/customSpecRaw.json extras/polkadex.service
-      - name: Archive binary
-        uses: actions/upload-artifact@v1
+          zip PolkadexNodeUbuntu.zip --junk-paths \ 
+          target/release/polkadex-node \
+          extras/customSpecRaw.json \
+          extras/polkadex.service
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            PolkadexNodeUbuntu.zip
+            customSpecRaw.json
+          name: Release ${{ github.ref }}
+          prerelease: false
+          draft: false
+
+  push-to-docker-registry:
+    name: Push Docker Image To Docker Hub
+    runs-on: ubuntu-latest
+    needs: [ build-and-publish-release ]
+    steps:
+      - name: Log in to the Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Extract metadata (tags, labels) for docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: polkadex/mainnet
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
         with:
           name: PolkadexNodeUbuntu.zip
-          path: PolkadexNodeUbuntu.zip
-      - name: Archive chainspec
-        uses: actions/upload-artifact@v1
+
+      - name: Unzip artifact
+        run: unzip PolkadexNodeUbuntu.zip -d ${{ github.workspace }}
+
+      - name: Build and push to Docker Hub
+        uses: docker/build-push-action@v3
         with:
-          name: customSpecRaw.json
-          path: customSpecRaw.json
-      - name: Upload Release Asset
-        id: upload-release-asset0 
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          push: true
+          file: ${{ github.workspace }}/.docker/ci/release/Dockerfile
+          context: ${{ github.workspace }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  update-on-finality:
+    name: OnFinality Network Spec Update
+    runs-on: ubuntu-latest
+    needs: [ build-and-publish-release, push-to-docker-registry ]
+    steps:
+      - name: Update image version of the existing network spec
+        uses: OnFinality-io/action-onf-release@v1
         with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: PolkadexNodeUbuntu.zip
-          asset_name: PolkadexNodeUbuntu.zip
-          asset_content_type: application/octet-stream 
-      - name: Upload Release chainspec
-        id: upload-release-asset1 
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: customSpecRaw.json
-          asset_name: customSpecRaw.json
-          asset_content_type: application/json
+          onf-access-key: ${{ secrets.ONF_ACCESS_KEY }}
+          onf-secret-key: ${{ secrets.ONF_SECRET_KEY }}
+          onf-workspace-id: ${{ secrets.ONF_WORKSPACE_ID }}
+          onf-network-key: ${{ secrets.ONF_NETWORK_KEY }}
+          onf-sub-command: image
+          onf-action: add
+          image-version: ${{ github.ref }}
