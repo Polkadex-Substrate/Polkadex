@@ -30,10 +30,7 @@ jobs:
 
       - name: Prepare artifact
         run: |
-          zip PolkadexNodeUbuntu.zip --junk-paths \ 
-          target/release/polkadex-node \
-          extras/customSpecRaw.json \
-          extras/polkadex.service
+          zip PolkadexNodeUbuntu.zip --junk-paths target/release/polkadex-node extras/customSpecRaw.json extras/polkadex.service
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -41,9 +38,17 @@ jobs:
           files: |
             PolkadexNodeUbuntu.zip
             customSpecRaw.json
-          name: Release ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
           prerelease: false
           draft: false
+          generate_release_notes: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: PolkadexNodeUbuntu
+          path: ./PolkadexNodeUbuntu.zip
+          if-no-files-found: error
 
   push-to-docker-registry:
     name: Push Docker Image To Docker Hub
@@ -68,7 +73,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          name: PolkadexNodeUbuntu.zip
+          name: PolkadexNodeUbuntu
 
       - name: Unzip artifact
         run: unzip PolkadexNodeUbuntu.zip -d ${{ github.workspace }}
@@ -96,4 +101,4 @@ jobs:
           onf-network-key: ${{ secrets.ONF_NETWORK_KEY }}
           onf-sub-command: image
           onf-action: add
-          image-version: ${{ github.ref }}
+          image-version: ${{ github.ref_name }}
