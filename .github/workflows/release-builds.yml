@@ -41,7 +41,6 @@ jobs:
           name: Release ${{ github.ref_name }}
           prerelease: false
           draft: false
-          generate_release_notes: true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
