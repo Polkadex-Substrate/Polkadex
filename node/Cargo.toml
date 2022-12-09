@@ -23,6 +23,7 @@ codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.136", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.3.1"
+thea-staking = { git = "https://github.com/felixfaisal/substrate", branch = "polkadot-v0.9.28", package="pallet-staking"}
 log = "0.4.8"
 rand = "0.8.5"
 clap = { version = "3.0", features = ["derive"] }

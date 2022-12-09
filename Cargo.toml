@@ -42,6 +42,7 @@ pallet-tips = { git = "https://github.com/paritytech/substrate", branch = "polka
 pallet-proxy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-staking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+thea-staking = { git = "https://github.com/felixfaisal/substrate", branch = "polkadot-v0.9.28", package="pallet-staking", default-features = false}
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-society = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }

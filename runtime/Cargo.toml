@@ -27,6 +27,7 @@ pallet-im-online = { default-features = false, workspace = true }
 pallet-offences = { default-features = false, workspace = true }
 pallet-session = { default-features = false, workspace = true }
 pallet-staking = { default-features = false, workspace = true }
+thea-staking = { default-features = false, workspace = true }
 pallet-multisig = { default-features = false, workspace = true }
 pallet-staking-reward-curve = { workspace = true }
 pallet-sudo = { default-features = false, workspace = true }
@@ -124,6 +125,7 @@ std = [
     "pallet-offences/std",
     "pallet-session/std",
     "pallet-staking/std",
+    "thea-staking/std",
     "pallet-multisig/std",
     "pallet-sudo/std",
     "pallet-utility/std",
@@ -218,6 +220,7 @@ try-runtime = [
     "pallet-scheduler/try-runtime",
     "pallet-society/try-runtime",
     "pallet-staking/try-runtime",
+    "thea-staking/try-runtime",
     "pallet-timestamp/try-runtime",
     "pallet-tips/try-runtime",
     "pallet-treasury/try-runtime",
