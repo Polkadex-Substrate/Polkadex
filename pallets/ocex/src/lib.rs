@@ -320,7 +320,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Registers a new trading pair
+		/// Close a trading pair
 		#[pallet::weight(100000)]
 		pub fn close_trading_pair(
 			origin: OriginFor<T>,
