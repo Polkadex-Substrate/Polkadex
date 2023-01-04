@@ -47,6 +47,7 @@ jobs:
         run: |
           cat /etc/issue 
           echo "HOME=/root" >> ${GITHUB_ENV} # bug
+          apt update
           apt install -y clang lldb lld gcc
       - name: Cache Rust Dependecies
         uses: actions/cache@v2
