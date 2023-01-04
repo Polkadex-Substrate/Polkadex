@@ -269,7 +269,7 @@ pub mod pallet {
 		/// Clean IngressMessages
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			// When block's been initialized - clean up expired registrations of enclaves
-			Self::unregister_timed_out_enclaves();
+			//Self::unregister_timed_out_enclaves();
 			if let Some(snapshot_nonce) = <SnapshotNonce<T>>::get() {
 				if let Some(snapshot) = <Snapshots<T>>::get(snapshot_nonce.saturating_sub(1)) {
 					<IngressMessages<T>>::put(Vec::<
