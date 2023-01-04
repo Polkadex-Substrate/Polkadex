@@ -1,0 +1,17 @@
+[package]
+name = "relayer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+jsonrpsee = { version = "0.15.1", features = ["full"]}
+sp-core = { branch = "polkadot-v0.9.27", git = "https://github.com/paritytech/substrate.git", features = ["std"]}
+codec = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive", "full"] }
+hex = "0.4.3"
+async-trait = "0.1.58"
+tokio = {version = "1.17.0", features = ["full"] }
+polkadex-primitives = { git = "https://github.com/Polkadex-Substrate/polkadex-primitives", tag = "polkadot-v0.9.27v0.1.11" }
+serde = "1.0.137"
+serde_json = "1.0.79"
