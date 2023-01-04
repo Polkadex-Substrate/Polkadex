@@ -1,7 +1,6 @@
 use jsonrpsee::ws_client::{WsClient, WsClientBuilder};
 use std::sync::{Arc, Mutex};
 use codec::Decode;
-use hex::FromHex;
 use jsonrpsee::core::client::ClientT;
 use std::ops::Deref;
 use sp_core::storage::StorageKey;
@@ -11,7 +10,8 @@ use jsonrpsee::rpc_params;
 use polkadex_primitives::AccountId;
 use serde_json::to_value;
 use serde_json::Value;
-
+use rustc_hex::ToHex;
+use substrate_api_client::FromHexString;
 
 const PALLET: &[u8] = b"OCEX";
 // TODO: Replace with TheaMessages when it is Ready
@@ -31,16 +31,15 @@ pub trait NativeWriter {
     fn send_transaction(thea_messages: Vec<u32>);
 }
 
-pub struct NativeConnector <R: NativeReader, W: NativeWriter> {
+pub struct NativeConnector <R: NativeReader> {
     reader: R,
-    writer: W,
 }
-
-// TODO: Invoking object in Main Runtime thread to be done
 
 pub struct SubstrateReader {
     client: Arc<WsClient>,
 }
+
+// TODO: Wrapper Struct for Writer
 
 #[async_trait]
 impl NativeReader for SubstrateReader{
@@ -82,7 +81,7 @@ impl NativeReader for SubstrateReader{
 }
 
 impl SubstrateReader {
-    async fn new(node_url: &str) -> Self {
+    pub async fn new(node_url: &str) -> Self {
         let client = WsClientBuilder::default()
             .max_request_body_size(u32::MAX)
             .max_concurrent_requests(1024 * 1024 * 1024)
@@ -96,5 +95,14 @@ impl SubstrateReader {
         }
     }
 }
+
+impl <R: NativeReader>NativeConnector<R>{
+    pub fn new(reader: R) -> Self {
+        NativeConnector{
+            reader
+        }
+    }
+}
+
 
 
