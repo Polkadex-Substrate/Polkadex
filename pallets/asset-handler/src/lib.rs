@@ -47,7 +47,9 @@ pub mod pallet {
 		traits::{One, Saturating, UniqueSaturatedInto},
 		BoundedBTreeSet, SaturatedConversion,
 	};
+	use sp_io::hashing::keccak_256;
 	use sp_std::vec::Vec;
+	use sp_std::vec;
 
 	pub trait AssetHandlerWeightInfo {
 		fn create_asset(b: u32) -> Weight;
@@ -297,6 +299,49 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::AssetRegistered(rid));
 			Ok(())
 		}
+
+		/// TODO: Proper Error Handling required, Testing and Benchmarking Pending
+		/// Creates new Asset where AssetId is derived from chain_id and contract Address
+		///
+		/// # Parameters
+		///
+		/// * `origin`: `Asset` owner
+		/// * `network_id`: Network ID of asset being Bridges
+		/// * `identifier length`: Length of asset identifier length
+		/// * `asset_identifier`: Identifier for a given asset
+		#[pallet::weight(T::WeightInfo::create_asset(1))]
+		pub fn create_thea_asset(
+			origin: OriginFor<T>,
+			network_id: u8,
+			identifier_length: u8,
+			asset_identifier: BoundedVec<u8, ConstU32<1000>>,
+		) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			let mut derived_asset_id = vec![];
+			derived_asset_id.push(network_id);
+			derived_asset_id.push(identifier_length);
+			derived_asset_id.extend(asset_identifier);
+
+			// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
+			let derived_asset_id = keccak_256(derived_asset_id.as_ref());
+
+			// Derive u128 from resulting bytes
+			let mut temp = [0u8; 16];
+			temp.copy_from_slice(&derived_asset_id);
+			let asset_id = u128::from_le_bytes(temp);
+
+			// Call Assets Pallet
+			T::AssetManager::create(
+				asset_id,
+				chainbridge::Pallet::<T>::account_id(),
+				true,
+				BalanceOf::<T>::one().unique_saturated_into(),
+			)?;
+
+			Ok(())
+		}
+
+
 
 		/// Mints Asset into Recipient's Account
 		/// Only Relayers can call it.
