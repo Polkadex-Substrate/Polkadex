@@ -328,7 +328,7 @@ pub mod pallet {
 			let mut derived_asset_id = vec![];
 			derived_asset_id.push(network_id);
 			derived_asset_id.push(identifier_length);
-			derived_asset_id.extend(asset_identifier.clone());
+			derived_asset_id.extend(&asset_identifier.clone()[0..identifier_length as usize]);
 
 			// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
 			let derived_asset_id_hash = &keccak_256(derived_asset_id.as_ref())[0..16];

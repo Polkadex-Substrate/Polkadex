@@ -597,7 +597,7 @@ pub fn test_create_thea_asset(){
 		let mut derived_asset_id = vec![];
 		derived_asset_id.push(0);
 		derived_asset_id.push(5);
-		derived_asset_id.extend(asset_address.to_fixed_bytes().to_vec());
+		derived_asset_id.extend(&asset_address.to_fixed_bytes()[0..5]);
 
 		// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
 		let derived_asset_id_hash = &sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
