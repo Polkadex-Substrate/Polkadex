@@ -8,31 +8,47 @@ description = "A pallet that emits simple events that do not encapsulate generic
 license = "GPL-3.0-or-later"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-frame-support = { default-features = false, version = '3.0.0' }
-frame-system = { default-features = false, version = '3.0.0' }
-
-# Substrate packages
-sp-runtime = { version = '3.0', default-features = false }
-
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '2.0.0'
+parity-scale-codec = { workspace = true, default-features = false }
+log = { workspace = true, default-features = false }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+frame-support = { default-features = false, workspace = true }
+frame-system = { default-features = false, workspace = true }
+sp-runtime = { default-features = false, workspace = true }
+sp-std = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+ias-verify = { workspace = true, default-features = false }
+rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+test-utils = { workspace = true, default-features = false, optional = true }
+pallet-timestamp = { workspace = true, default-features = false }
 
 [dev-dependencies]
-serde = { version = "1.0.119" }
-sp-core = { default-features = false, version = '3.0.0' }
-sp-io = { default-features = false, version = '3.0.0' }
-sp-runtime = { default-features = false, version = '3.0.0' }
+test-utils = { workspace = true }
+pallet-assets = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true }
+sp-keystore = { workspace = true }
+frame-benchmarking = { workspace = true }
+anyhow = { workspace = true }
+sp-io = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-	'frame-support/std',
-	'frame-system/std',
-	'sp-runtime/std',
+    "parity-scale-codec/std",
+    "log/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-core/std",
+    "polkadex-primitives/std",
+    "ias-verify/std",
+    "rust_decimal/std",
+    "pallet-timestamp/std",
 ]

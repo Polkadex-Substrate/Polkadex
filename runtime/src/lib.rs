@@ -1273,14 +1273,14 @@ impl pallet_ocex_lmp::Config for Runtime {
 
 
 
-// parameter_types! {
-// 	pub const ProxyLimit: u32 = 3;
-// 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
-// 	pub const MsPerDay: u64 = 86_400_000;
-// }
+// parameter_types! {}
 
 impl rewards::Config for Runtime {
 	type Event = Event;
+	type NativeCurrency = Balances;
+	type OtherAssets = Assets;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
 }
 
 parameter_types! {
@@ -1351,7 +1351,7 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
-		Rewards: rewards::{Module, Call, Storage, Event<T>} = 39,
+		Rewards: rewards::{Pallet, Call, Storage, Event<T>} = 39,
 	}
 );
 /// Digest item type.
