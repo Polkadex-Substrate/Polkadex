@@ -1271,6 +1271,18 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type MsPerDay = MsPerDay;
 }
 
+
+
+// parameter_types! {
+// 	pub const ProxyLimit: u32 = 3;
+// 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+// 	pub const MsPerDay: u64 = 86_400_000;
+// }
+
+impl rewards::Config for Runtime {
+	type Event = Event;
+}
+
 parameter_types! {
 	pub const ChainId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
@@ -1338,7 +1350,8 @@ construct_runtime!(
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 35,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
-		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
+		Rewards: rewards::{Module, Call, Storage, Event<T>} = 39,
 	}
 );
 /// Digest item type.
