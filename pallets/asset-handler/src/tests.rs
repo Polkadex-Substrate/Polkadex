@@ -15,7 +15,7 @@
 use frame_support::{assert_noop, assert_ok};
 use parity_scale_codec::Decode;
 use sp_core::{H160, U256};
-use sp_runtime::{BoundedBTreeSet, TokenError};
+use sp_runtime::{BoundedBTreeSet, BoundedVec, TokenError};
 
 use crate::{
 	mock,
@@ -585,6 +585,34 @@ pub fn test_convert_amount_for_foreign_chain() {
 		<AssetPrecision<Test>>::insert(rid, PrecisionType::SamePrecision);
 		assert_eq!(AssetHandler::convert_amount_for_foreign_chain(rid, 100), Some(U256::from(100)));
 	});
+}
+
+#[test]
+pub fn test_create_thea_asset(){
+	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	new_test_ext().execute_with(||{
+		assert_ok!(AssetHandler::create_thea_asset(Origin::signed(1),0,5,BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()));
+
+		let mut derived_asset_id = vec![];
+		derived_asset_id.push(0);
+		derived_asset_id.push(5);
+		derived_asset_id.extend(asset_address.to_fixed_bytes().to_vec());
+
+		// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
+		let derived_asset_id_hash = &sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
+
+		// Derive u128 from resulting bytes
+		let mut temp = [0u8; 16];
+		temp.copy_from_slice(derived_asset_id_hash);
+		let asset_id = u128::from_le_bytes(temp);
+
+		let (network_id, identifier_length, identifier) = <TheaAssets<Test>>::get(asset_id);
+
+		// Assert Storage
+		assert_eq!(network_id, 0);
+		assert_eq!(identifier_length, 5);
+		assert_eq!(identifier.to_vec(), asset_address.to_fixed_bytes().to_vec() );
+	})
 }
 
 fn create_asset_data() -> (H160, u64, u8) {
