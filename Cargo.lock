@@ -8841,6 +8841,7 @@ dependencies = [
  "log",
  "pallet-balances",
  "parity-scale-codec",
+ "polkadex-primitives",
  "scale-info",
  "sp-core",
  "sp-io",
