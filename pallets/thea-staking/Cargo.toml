@@ -23,6 +23,7 @@ pallet-balances = { default-features = false, workspace = true }
 sp-io = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { default-features = false, workspace = true }
+polkadex-primitives = { workspace = true, default-features = false }
 
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
@@ -37,6 +38,7 @@ std = [
 	"log/std",
 	"pallet-balances/std",
 	"scale-info/std",
+	"polkadex-primitives/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
