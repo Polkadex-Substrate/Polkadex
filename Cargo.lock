@@ -4103,6 +4103,7 @@ dependencies = [
  "parity-scale-codec",
  "pdex-migration",
  "polkadex-primitives",
+ "rewards",
  "scale-info",
  "smallvec",
  "sp-api",
@@ -6002,6 +6003,32 @@ checksum = "52e44394d2086d010551b14b53b1f24e31647570cd1deb0379e2c21b329aba00"
 dependencies = [
  "hostname",
  "quick-error",
+]
+
+[[package]]
+name = "rewards"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "ias-verify",
+ "log",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "rust_decimal",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]
