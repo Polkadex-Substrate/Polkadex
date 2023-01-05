@@ -103,7 +103,7 @@ chainbridge = { path ="../pallets/chainbridge", default-features = false }
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 
 # Parachain Rewards
-reawards = {path = "../pallets/rewards", default-features = false }
+rewards = {path = "../pallets/rewards", default-features = false }
 
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
@@ -181,7 +181,7 @@ std = [
     "asset-handler/std",
     "chainbridge/std",
     "pallet-ocex-lmp/std",
-    "reawards/std",
+    "rewards/std",
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std"
 ]
