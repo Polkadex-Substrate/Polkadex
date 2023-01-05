@@ -170,6 +170,12 @@ pub mod pallet {
 	pub(super) type AssetPrecision<T: Config> =
 		StorageMap<_, Blake2_128Concat, ResourceId, PrecisionType, ValueQuery>;
 
+	/// Thea Assets
+	#[pallet::storage]
+	#[pallet::getter(fn get_thea_assets)]
+	pub(super) type TheaAssets<T: Config> =
+	StorageMap<_, Blake2_128Concat, u128, (u8, u8, BoundedVec<u8, ConstU32<1000>>), ValueQuery>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
@@ -192,6 +198,8 @@ pub mod pallet {
 		AllowlistedTokenAdded(H160),
 		/// This token got removed from Allowlisted Tokens
 		AllowlistedTokenRemoved(H160),
+		/// Thea Asset has been register
+		TheaAssetCreated(u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -320,14 +328,14 @@ pub mod pallet {
 			let mut derived_asset_id = vec![];
 			derived_asset_id.push(network_id);
 			derived_asset_id.push(identifier_length);
-			derived_asset_id.extend(asset_identifier);
+			derived_asset_id.extend(asset_identifier.clone());
 
 			// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
-			let derived_asset_id = keccak_256(derived_asset_id.as_ref());
+			let derived_asset_id_hash = &keccak_256(derived_asset_id.as_ref())[0..16];
 
 			// Derive u128 from resulting bytes
 			let mut temp = [0u8; 16];
-			temp.copy_from_slice(&derived_asset_id);
+			temp.copy_from_slice(derived_asset_id_hash);
 			let asset_id = u128::from_le_bytes(temp);
 
 			// Call Assets Pallet
@@ -337,7 +345,10 @@ pub mod pallet {
 				true,
 				BalanceOf::<T>::one().unique_saturated_into(),
 			)?;
-
+			// Update storage item
+			<TheaAssets<T>>::insert(asset_id, (network_id, identifier_length, asset_identifier));
+			// Emit Event
+			Self::deposit_event(Event::<T>::TheaAssetCreated(asset_id));
 			Ok(())
 		}
 
