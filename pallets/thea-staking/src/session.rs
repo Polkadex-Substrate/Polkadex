@@ -1,7 +1,7 @@
 use parity_scale_codec::{Encode, Decode, HasCompact};
 use scale_info::TypeInfo;
 use sp_runtime::traits::{Get, Zero};
-use crate::{Config, Pallet, SessionIndex};
+use crate::{Config, Pallet};
 use frame_support::RuntimeDebug;
 
 /// The amount of exposure (to slashing) than an individual nominator has.
@@ -36,9 +36,23 @@ impl<AccountId, Balance: Default + HasCompact> Default for Exposure<AccountId, B
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-pub struct RelayerSet< AuthorityId, Balance>{
-    session_index: SessionIndex,
-    relayers: Vec<(AuthorityId,Balance)>,
+/// Defines the limits of staking algorithm
+pub struct StakingLimits<Balance: Zero> {
+    pub mininum_relayer_stake: Balance,
+    pub minimum_nominator_stake: Balance,
+    pub maximum_nominator_per_relayer: u32,
+    pub max_relayers: u32
+}
+
+impl<Balance: Zero> Default for StakingLimits<Balance>{
+    fn default() -> Self {
+        Self{
+            mininum_relayer_stake: Balance::zero(),
+            minimum_nominator_stake: Balance::zero(),
+            maximum_nominator_per_relayer: 100,
+            max_relayers: 100,
+        }
+    }
 }
 
 impl<T: Config> Pallet<T> {

@@ -16,9 +16,6 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-    dispatch::DispatchResult,
-};
 use polkadex_primitives::AccountId;
 use sp_runtime::traits::{ Get};
 
@@ -47,7 +44,7 @@ pub mod pallet {
     use polkadex_primitives::AccountId;
     use sp_runtime::traits::{ Zero};
 
-    use crate::session::{Exposure};
+    use crate::session::{Exposure, StakingLimits};
 
     // Import various types used to declare pallet in scope.
     use super::*;
@@ -68,9 +65,6 @@ pub mod pallet {
 
         /// Delay to prune oldest staking data
         type StakingDataPruneDelay: Get<SessionIndex>;
-
-        /// Max relayers supported
-        type MaxRelayers: Get<u32>;
     }
 
     // Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -109,7 +103,9 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
         #[pallet::weight(10000)]
-        pub fn test(origin: OriginFor<T>) -> DispatchResult {
+        pub fn set_staking_limits(origin: OriginFor<T>,  staking_limits: StakingLimits<BalanceOf<T>>) -> DispatchResult {
+            ensure_root(origin)?;
+            <Stakinglimits<T>>::put(staking_limits);
             Ok(())
         }
     }
@@ -131,6 +127,11 @@ pub mod pallet {
 
     // pallet::storage attributes allow for type-safe usage of the Substrate storage database,
     // so you can keep things around between blocks.
+    #[pallet::storage]
+    #[pallet::getter(fn staking_limits)]
+    /// Currently active networks
+    pub(super) type Stakinglimits<T: Config> = StorageValue<_, StakingLimits<BalanceOf<T>>, ValueQuery>;
+
     #[pallet::storage]
     #[pallet::getter(fn active_networks)]
     /// Currently active networks
