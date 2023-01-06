@@ -1271,16 +1271,18 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type MsPerDay = MsPerDay;
 }
 
-
-
-// parameter_types! {}
+parameter_types! {
+	pub const RewardsPalletId: PalletId = PalletId(*b"REWARDSQ");
+}
 
 impl rewards::Config for Runtime {
 	type Event = Event;
+	type PalletId = RewardsPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 }
 
 parameter_types! {
