@@ -163,5 +163,19 @@ fn add_reward_beneficiaries() {
 			id,
 			BoundedVec::try_from(vec_of_ids).unwrap()
 		));
+
+		let alice_reward_info =
+			Distributor::<Test>::get(&id, &get_alice_account_with_rewards().0).unwrap();
+		assert_eq!(alice_reward_info.total_amount, get_alice_account_with_rewards().1);
+		assert_eq!(alice_reward_info.claim_amount, 0);
+		assert_eq!(alice_reward_info.staked_amount, 0);
+		assert_eq!(alice_reward_info.last_block_rewards_claim, 0);
+
+		let bob_reward_info =
+			Distributor::<Test>::get(&id, &get_bob_account_with_rewards().0).unwrap();
+		assert_eq!(bob_reward_info.total_amount, get_bob_account_with_rewards().1);
+		assert_eq!(bob_reward_info.claim_amount, 0);
+		assert_eq!(bob_reward_info.staked_amount, 0);
+		assert_eq!(bob_reward_info.last_block_rewards_claim, 0);
 	});
 }

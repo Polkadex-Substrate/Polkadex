@@ -58,13 +58,8 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::{
-		
-		Balance as RewardBalance
-	};
-	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
-	};
+	use polkadex_primitives::Balance as RewardBalance;
+	use sp_runtime::traits::{IdentifyAccount, Verify};
 	use sp_std::convert::TryInto;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
@@ -186,7 +181,7 @@ pub mod pallet {
 					total_amount: beneficiary.1,
 					claim_amount: 0,
 					staked_amount: 0,
-					last_time_rewards_claim: 0,
+					last_block_rewards_claim: 0,
 				};
 				<Distributor<T>>::insert(id, beneficiary.0, reward_info);
 			}
@@ -236,7 +231,7 @@ pub mod pallet {
 		pub total_amount: RewardBalance,
 		pub claim_amount: RewardBalance,
 		pub staked_amount: RewardBalance,
-		pub last_time_rewards_claim: u32,
+		pub last_block_rewards_claim: u32,
 	}
 
 	type RewardInfoForAccountIs = RewardInfoForAccount;
@@ -265,7 +260,6 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config> Pallet<T> {
-	
 	fn _get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
