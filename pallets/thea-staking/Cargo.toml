@@ -23,6 +23,7 @@ pallet-balances = { default-features = false, workspace = true }
 sp-io = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { default-features = false, workspace = true }
+sp-staking = { default-features = false, workspace = true }
 polkadex-primitives = { workspace = true, default-features = false }
 
 [dev-dependencies]
@@ -42,6 +43,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"sp-staking/std"
 ]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 try-runtime = ["frame-support/try-runtime"]
