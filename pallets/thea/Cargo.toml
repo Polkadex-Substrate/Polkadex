@@ -30,6 +30,8 @@ sp-runtime = { workspace = true, default-features = false }
 
 chainbridge = {path = "../chainbridge", default-features = false}
 asset-handler = {path = "../asset-handler", default-features = false}
+polkadex-primitives = { workspace = true, default-features = false }
+
 
 [features]
 default = ["std"]
@@ -47,6 +49,7 @@ std = [
     "sp-runtime/std",
     "chainbridge/std",
     "asset-handler/std",
+    "polkadex-primitives/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

@@ -37,8 +37,9 @@ pub mod pallet {
 	};
 	use sp_std::{vec, vec::Vec};
 
-	pub struct ApprovedDeposit<T:Config>{
-		pub who: T::AccountId,
+	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo)]
+	pub struct ApprovedDeposit{
+		pub who: polkadex_primitives::AccountId,
 		pub asset_id: u128,
 		pub amount: u128
 	}
@@ -70,13 +71,12 @@ pub mod pallet {
 	/// Active Relayers BLS Keys for a given Netowkr
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
-	pub(super) type RelayersBLSKeyVector<T: Config> = StorageDoubleMap<
+	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
 		_,
-		Blake2_128Concat,
-		u8,
-		u32,
-		BoundedVec<[u8; 64], ConstU32<100>>,
-		ValueQuery,
+		frame_support::Blake2_128Concat,
+		(u8, u32),
+		BoundedVec<[u8; 65], ConstU32<1000>>,
+		OptionQuery,
 	>;
 
 	/// Approved Deposits
@@ -86,7 +86,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::AccountId,
-		BoundedVec<ApprovedDeposits<T>, ConstU32<100>>,
+		BoundedVec<ApprovedDeposit, ConstU32<100>>,
 		ValueQuery,
 	>;
 
@@ -97,7 +97,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		// Deposit Approved event ( recipient, asset_id, amount, tx_hash(foreign chain))
-		DepositApproved(T::AccountId, u128, u128, H256)
+		DepositApproved(T::AccountId, u128, u128, sp_core::H256)
 	}
 
 	// Errors inform users that something went wrong.
