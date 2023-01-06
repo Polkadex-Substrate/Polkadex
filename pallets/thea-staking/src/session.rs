@@ -1,70 +1,88 @@
-use parity_scale_codec::{Encode, Decode, HasCompact};
+use frame_support::RuntimeDebug;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::traits::{Get, Saturating, Zero};
-use crate::{BalanceOf, Config, Pallet};
-use frame_support::RuntimeDebug;
+use sp_std::collections::btree_map::BTreeMap;
+
+use crate::{BalanceOf, Config, Error, Pallet, SessionIndex};
 
 /// The amount of exposure (to slashing) than an individual nominator has.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-pub struct IndividualExposure<AccountId, Balance: HasCompact> {
+#[scale_info(skip_type_params(T))]
+pub struct IndividualExposure<T:Config,AccountId> {
     /// The stash account of the nominator in question.
     pub who: AccountId,
     /// Amount of funds exposed.
     #[codec(compact)]
-    pub value: Balance,
+    pub value: BalanceOf<T>,
+    /// Any balance that is becoming free, which may eventually be transferred out of the stash
+    /// (assuming it doesn't get slashed first). It is assumed that this will be treated as a first
+    /// in, first out queue where the new (higher value) eras get pushed on the back.
+    // TODO: Bound this to MaxUnlockChunks
+    pub unlocking: Vec<UnlockChunk<T>>,
 }
 
 /// A snapshot of the stake backing a single relayer in the system.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-pub struct Exposure<AccountId: PartialEq + Clone, Balance: HasCompact + Saturating + Copy> {
+#[scale_info(skip_type_params(T))]
+pub struct Exposure<T: Config, AccountId: PartialEq + Clone + Ord> {
     /// Score of relayer
     pub score: u32,
-    /// The total balance backing this relayer.
+    /// The total active balance backing this relayer.
     #[codec(compact)]
-    pub total: Balance,
-    /// The relayer's own stash that is exposed.
-    #[codec(compact)]
-    pub own: Balance,
+    pub total: BalanceOf<T>,
     /// The portions of nominators stashes that are exposed.
-    pub others: Vec<IndividualExposure<AccountId, Balance>>,
+    pub others: BTreeMap<AccountId, IndividualExposure<T,AccountId>>,
 }
 
-impl<AccountId: PartialEq + Clone, Balance: Default + HasCompact + Saturating + Copy> Default for Exposure<AccountId, Balance> {
+impl<T: Config, AccountId: PartialEq + Clone + Ord> Default for Exposure<T,AccountId> {
     fn default() -> Self {
-        Self { score: 1000, total: Default::default(), own: Default::default(), others: vec![] }
+        Self { score: 1000, total: Default::default(), others: Default::default() }
     }
 }
 
-impl<AccountId: PartialEq + Clone, Balance: Default + HasCompact + Saturating + Copy> Exposure<AccountId, Balance> {
+impl<T:Config, AccountId: PartialEq + Clone + Ord> Exposure<T,AccountId> {
     /// Adds the given stake to own and update the total
-    pub fn add_own_stake(&mut self, stake: Balance){
-        self.own = self.own.saturating_add(stake);
+    pub fn add_own_stake(&mut self, stake: BalanceOf<T>) {
         self.total = self.total.saturating_add(stake);
     }
 
     /// Nominate a candidate
-    pub fn nominate(&mut self, nominator: &AccountId, amount: Balance) {
-        for nominator_exposure in self.others.iter_mut() {
-            if &nominator_exposure.who == nominator {
-                nominator_exposure.value = nominator_exposure.value.saturating_add(amount);
-                self.total = self.total.saturating_add(amount);
-            }
-            return;
+    pub fn nominate(&mut self, nominator: &AccountId, amount: BalanceOf<T>) {
+        if let Some(exposure) = self.others.get_mut(nominator) {
+            exposure.value = exposure.value.saturating_add(amount);
+        } else {
+            self.others.insert(nominator.clone(), IndividualExposure { who: nominator.clone(), value: amount, unlocking: Default::default() });
         }
-        // it's a new nominator so we add to list
-        self.others.push(IndividualExposure{ who: nominator.clone(), value: amount });
         self.total = self.total.saturating_add(amount);
     }
 
-    /// Remove nominator
-    pub fn remove_nominator(&mut self, nominator: &AccountId, nominator_index: u32) -> Balance {
-        let exposure = self.others.remove(nominator_index as usize);
-        if &exposure.who != nominator {
-            self.others.push(exposure);
-            return Balance::default()
+    /// Unbond stake of a nominator
+    pub fn unbond(&mut self, nominator: &AccountId, mut amount: BalanceOf<T>, session_that_will_unlock: SessionIndex) -> Result<(), Error<T>> {
+        let exposure = self.others.get_mut(nominator)
+            .ok_or_else(|| Error::<T>::NominatorNotFound)?;
+        // If the user entered amount is greater than available bonded funds then take available bond
+        if exposure.value < amount {
+            amount = exposure.value
         }
-        self.total = self.total.saturating_sub(exposure.value);
-        return exposure.value
+        exposure.unlocking.push(UnlockChunk { value: amount, era: session_that_will_unlock });
+        self.total = self.total.saturating_sub(amount);
+        Ok(())
+    }
+
+    /// Withdraw the unbonded stake
+    pub fn withdraw_unbonded(&mut self, nominator: &AccountId, current_session: SessionIndex) -> Result<BalanceOf<T>, Error<T>> {
+        let exposure = self.others.get_mut(nominator)
+            .ok_or_else(|| Error::<T>::NominatorNotFound)?;
+        let available_chunks = exposure.unlocking.drain_filter(| chunk | {
+            chunk.era <= current_session
+        }).collect::<Vec<UnlockChunk<T>>>();
+        let mut amount_available_to_withdraw: BalanceOf<T> = Default::default();
+
+        for chunk in available_chunks {
+            amount_available_to_withdraw = amount_available_to_withdraw.saturating_add(chunk.value)
+        }
+        Ok(amount_available_to_withdraw)
     }
 }
 
@@ -74,12 +92,12 @@ pub struct StakingLimits<Balance: Zero> {
     pub mininum_relayer_stake: Balance,
     pub minimum_nominator_stake: Balance,
     pub maximum_nominator_per_relayer: u32,
-    pub max_relayers: u32
+    pub max_relayers: u32,
 }
 
-impl<Balance: Zero> Default for StakingLimits<Balance>{
+impl<Balance: Zero> Default for StakingLimits<Balance> {
     fn default() -> Self {
-        Self{
+        Self {
             mininum_relayer_stake: Balance::zero(),
             minimum_nominator_stake: Balance::zero(),
             maximum_nominator_per_relayer: 100,
@@ -93,4 +111,16 @@ impl<T: Config> Pallet<T> {
     pub fn should_end_session(current_block: T::BlockNumber) -> bool {
         (current_block % T::SessionLength::get()).is_zero()
     }
+}
+
+/// Just a Balance/BlockNumber tuple to encode when a chunk of funds will be unlocked.
+#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+pub struct UnlockChunk<T: Config> {
+    /// Amount of funds to be unlocked.
+    #[codec(compact)]
+    value: BalanceOf<T>,
+    /// Era number at which point it'll be unlocked.
+    #[codec(compact)]
+    era: SessionIndex,
 }
