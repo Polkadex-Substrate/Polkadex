@@ -1275,6 +1275,7 @@ parameter_types! {
 	pub const ChainId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
 }
 
 impl chainbridge::Config for Runtime {
@@ -1292,6 +1293,13 @@ impl asset_handler::pallet::Config for Runtime {
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TreasuryPalletId = TreasuryPalletId;
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
+}
+
+impl thea::pallet::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type TheaPalletId = TheaPalletId;
 }
 
 construct_runtime!(
@@ -1338,7 +1346,8 @@ construct_runtime!(
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 35,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
-		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
+		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 	}
 );
 /// Digest item type.
