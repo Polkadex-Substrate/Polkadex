@@ -17,6 +17,7 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use std::collections::HashMap;
 use sp_runtime::traits::{ Get};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -82,6 +83,9 @@ pub mod pallet {
 
         /// Delay to prune oldest staking data
         type StakingDataPruneDelay: Get<SessionIndex>;
+
+        // TODO: @Faizal uncomment the code below for session change hook
+        //type SessionChangeNotifier: SessionChangeHook;
     }
 
     // Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -334,22 +338,27 @@ impl<T: Config> Pallet<T> {
         log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 
         let active_networks = <ActiveNetworks<T>>::get();
-
+        // map to collect all active relayers to send to session change notifier
+        let mut map: HashMap<Network,Vec<(T::AccountId,BLSPublicKey)>> = HashMap::new();
         for network in active_networks {
             log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
             // 1. Move queued_relayers to active_relayers
-            Self::move_queued_to_active(network);
+            let active = Self::move_queued_to_active(network);
+            map.insert(network,active);
             Self::compute_next_session(network, session_index);
         }
         // Increment SessionIndex
         let new_session_index = session_index.saturating_add(1);
         <CurrentIndex<T>>::put(new_session_index);
+        // TODO: @Faizal uncomment this when session change trait is ready.
+        // T::SessionChangeNotifier::on_new_session(new_session_index,map);
         Self::deposit_event(Event::NewSessionStarted {index: new_session_index})
 	}
 
-    pub fn move_queued_to_active(network: Network) {
+    pub fn move_queued_to_active(network: Network) -> Vec<(T::AccountId, BLSPublicKey)> {
         let queued = <QueuedRelayers<T>>::take(network);
-        <ActiveRelayers<T>>::insert(network,queued);
+        <ActiveRelayers<T>>::insert(network,queued.clone());
+        queued
     }
 
     pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex){
