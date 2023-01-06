@@ -39,7 +39,6 @@ pub mod pallet {
 
 	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo)]
 	pub struct ApprovedDeposit{
-		pub who: polkadex_primitives::AccountId,
 		pub asset_id: u128,
 		pub amount: u128
 	}
@@ -62,11 +61,11 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
-	/// Set ID of the current active relayer set
-	#[pallet::storage]
-	#[pallet::getter(fn get_current_active_relayer_set_id)]
-	pub(super) type CurrentActiveRelayerSetId<T: Config> =
-	StorageValue<_, u32, ValueQuery>;
+	// /// Set ID of the current active relayer set
+	// #[pallet::storage]
+	// #[pallet::getter(fn get_current_active_relayer_set_id)]
+	// pub(super) type CurrentActiveRelayerSetId<T: Config> =
+	// StorageMap<_, Blake2_128Concat, u8, u32, OptionQuery>;
 
 	/// Active Relayers BLS Keys for a given Netowkr
 	#[pallet::storage]
@@ -74,7 +73,7 @@ pub mod pallet {
 	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
 		_,
 		frame_support::Blake2_128Concat,
-		(u8, u32),
+		u8,
 		BoundedVec<[u8; 65], ConstU32<1000>>,
 		OptionQuery,
 	>;
@@ -87,6 +86,16 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::AccountId,
 		BoundedVec<ApprovedDeposit, ConstU32<100>>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_deposit_nonce)]
+	pub(super) type DepositNonce<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		u8,
+		u32,
 		ValueQuery,
 	>;
 
@@ -102,7 +111,14 @@ pub mod pallet {
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		// Nonce does not match
+		DepositNonceError,
+		// Amount cannot be zero
+		AmountCannotBeZero,
+		// Asset has not been registered
+		AssetNotRegistered,
+	}
 
 	// Hooks for Thea Pallet are defined here
 	#[pallet::hooks]
@@ -125,15 +141,39 @@ pub mod pallet {
 		/// * `amount`: The amount of assets that have been deposited in foreign chain
 		/// * `bls_signature`: The aggregated signature of majority of relayers in current active relayer set
 		#[pallet::weight(1000)]
-		pub fn approve_deposit(origin: OriginFor<T>, network_id: u8, bit_map: BoundedVec<u8, ConstU32<1000>>, recipient: T::AccountId, tx_hash: sp_core::H256, asset_id: u128, amount: u128, bls_signature: [u8;96]) -> DispatchResult {
-			// Step 1: Check if Amount is above zero
-			// Step 2: Check if Asset is valid asset (If not then the caller can be penalized)
-			// Step 3: Check if Recipient has an existential deposit ( If not then it will be covered in another issue)
-			// Step 4: Fetch the current active relayer set number ( Staking Pallet )
-			// Step 5; Fetch the current active relayer set bls keys vector ( Staking Pallet )
-			// Step 6: Call a host function with (bls keys vector, aggregated signature, bit map)
-			// Step 7: If signature checks out, Mint the said amount to the recipient
-			// Step 8: Emit an event for Frontend to receive
+		pub fn approve_deposit(origin: OriginFor<T>, network_id: u8, bit_map: BoundedVec<u8, ConstU32<1000>>, recipient: T::AccountId, tx_hash: sp_core::H256, asset_id: u128, amount: u128, bls_signature: [u8;96], deposit_nonce: u32) -> DispatchResult {
+			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
+			// Fetch Deposit Nonce
+			let nonce = <DepositNonce<T>>::get(network_id);
+			ensure!(deposit_nonce == nonce+1, Error::<T>::DepositNonceError);
+			ensure!(asset_handler::pallet::TheaAssets::<T>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
+
+			// Fetch current active relayer set BLS Keys
+			let current_active_relayer_set = Self::get_relayers_key_vector(network_id);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			// TODO: @gautham
+
+			// Update deposit Nonce
+			<DepositNonce<T>>::insert(network_id, nonce+1);
+
+			// Update Storage item
+			let approved_deposit = ApprovedDeposit{asset_id, amount};
+			if <ApprovedDeposits<T>>::contains_key(&recipient) {
+				<ApprovedDeposits<T>>::mutate(recipient.clone(), |bounded_vec|{
+					if let Some(inner_bounded_vec) = bounded_vec{
+						inner_bounded_vec.try_push(approved_deposit).unwrap();
+					}
+				});
+			} else {
+				let mut my_vec: BoundedVec<ApprovedDeposit, ConstU32<100>> = Default::default();
+				if let Ok(()) = my_vec.try_push(approved_deposit) {
+					<ApprovedDeposits<T>>::insert::<T::AccountId, BoundedVec<ApprovedDeposit, ConstU32<100>>>(recipient.clone(), my_vec);
+				}
+			}
+
+			// Emit event
+			Self::deposit_event(Event::<T>::DepositApproved(recipient, asset_id, amount, tx_hash));
 			Ok(())
 		}
 
