@@ -43,13 +43,12 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
+	use sp_io::hashing::keccak_256;
 	use sp_runtime::{
 		traits::{One, Saturating, UniqueSaturatedInto},
 		BoundedBTreeSet, SaturatedConversion,
 	};
-	use sp_io::hashing::keccak_256;
-	use sp_std::vec::Vec;
-	use sp_std::vec;
+	use sp_std::{vec, vec::Vec};
 
 	pub trait AssetHandlerWeightInfo {
 		fn create_asset(b: u32) -> Weight;
@@ -174,7 +173,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_thea_assets)]
 	pub(super) type TheaAssets<T: Config> =
-	StorageMap<_, Blake2_128Concat, u128, (u8, u8, BoundedVec<u8, ConstU32<1000>>), ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u128, (u8, u8, BoundedVec<u8, ConstU32<1000>>), ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -231,6 +230,10 @@ pub mod pallet {
 		AllowlistedTokenRemoved,
 		/// Division Overflow
 		DivisionOverflow,
+		// Amount for minting or burning cannot be Zero
+		AmountCannotBeZero,
+		// Thea Asset has not been registered
+		AssetNotRegistered,
 	}
 
 	#[pallet::hooks]
@@ -328,9 +331,10 @@ pub mod pallet {
 			let mut derived_asset_id = vec![];
 			derived_asset_id.push(network_id);
 			derived_asset_id.push(identifier_length);
-			derived_asset_id.extend(&asset_identifier.clone()[0..identifier_length as usize]);
+			derived_asset_id.extend(&asset_identifier[0..identifier_length as usize]);
 
-			// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
+			// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16
+			// bytes
 			let derived_asset_id_hash = &keccak_256(derived_asset_id.as_ref())[0..16];
 
 			// Derive u128 from resulting bytes
@@ -351,8 +355,6 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::TheaAssetCreated(asset_id));
 			Ok(())
 		}
-
-
 
 		/// Mints Asset into Recipient's Account
 		/// Only Relayers can call it.
@@ -604,6 +606,29 @@ pub mod pallet {
 					<T as Config>::AssetManager::balance(*asset, &account_id).saturated_into()
 				})
 				.collect()
+		}
+
+		pub fn mint_thea_asset(
+			asset_id: u128,
+			recipient: T::AccountId,
+			amount: u128,
+		) -> Result<(), DispatchError> {
+			ensure!(<TheaAssets<T>>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
+			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
+
+			T::AssetManager::mint_into(asset_id, &recipient, amount)?;
+			Ok(())
+		}
+
+		pub fn burn_thea_asset(
+			asset_id: u128,
+			who: T::AccountId,
+			amount: u128,
+		) -> Result<(), DispatchError> {
+			ensure!(<TheaAssets<T>>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
+			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
+			T::AssetManager::burn_from(asset_id, &who, amount)?;
+			Ok(())
 		}
 
 		#[cfg(feature = "runtime-benchmarks")]
