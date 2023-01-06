@@ -4,7 +4,7 @@ use scale_info::TypeInfo;
 use sp_runtime::traits::{Get, Saturating, Zero};
 use sp_std::collections::btree_map::BTreeMap;
 
-use crate::{BalanceOf, Config, Error, Pallet, SessionIndex};
+use crate::{BalanceOf, BLSPublicKey, Config, Error, Pallet, SessionIndex};
 
 /// The amount of exposure (to slashing) than an individual nominator has.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
@@ -31,17 +31,17 @@ pub struct Exposure<T: Config, AccountId: PartialEq + Clone + Ord> {
     /// The total active balance backing this relayer.
     #[codec(compact)]
     pub total: BalanceOf<T>,
+    /// BLS public key
+    pub bls_pub_key: BLSPublicKey,
     /// The portions of nominators stashes that are exposed.
     pub others: BTreeMap<AccountId, IndividualExposure<T,AccountId>>,
 }
 
-impl<T: Config, AccountId: PartialEq + Clone + Ord> Default for Exposure<T,AccountId> {
-    fn default() -> Self {
-        Self { score: 1000, total: Default::default(), others: Default::default() }
-    }
-}
-
 impl<T:Config, AccountId: PartialEq + Clone + Ord> Exposure<T,AccountId> {
+
+    pub fn new(bls_pub_key: BLSPublicKey) -> Self {
+        Self { score: 1000, total: Default::default(), bls_pub_key, others: Default::default() }
+    }
     /// Adds the given stake to own and update the total
     pub fn add_own_stake(&mut self, stake: BalanceOf<T>) {
         self.total = self.total.saturating_add(stake);

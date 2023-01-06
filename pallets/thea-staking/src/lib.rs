@@ -34,6 +34,7 @@ pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
 pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
 pub type Network = u8;
 pub type SessionIndex = u32;
+pub type BLSPublicKey = [u8;65];
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -129,11 +130,11 @@ pub mod pallet {
         #[pallet::call_index(1)]
         #[pallet::weight(10000)]
         /// Adds the sender as a candidate for election and join the waitlist for selection
-        pub fn add_candidate(origin: OriginFor<T>, network: Network) -> DispatchResult {
+        pub fn add_candidate(origin: OriginFor<T>, network: Network, bls_key: BLSPublicKey) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
             ensure!(!<Candidates<T>>::contains_key(network,&candidate),Error::<T>::CandidateAlreadyRegistered);
 
-            let mut exposure = Exposure::<T, T::AccountId>::default();
+            let mut exposure = Exposure::<T, T::AccountId>::new(bls_key);
             exposure.add_own_stake(T::CandidateBond::get());
             // reserve own_stake
             pallet_balances::Pallet::<T>::reserve_named(&T::StakingReserveIdentifier::get(),&candidate,T::CandidateBond::get())?;
@@ -277,12 +278,12 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn active_relayers)]
     /// Currently active relayer set
-    pub(super) type ActiveRelayers<T: Config> = StorageMap<_, Blake2_128Concat, Network, Vec<T::AccountId>, ValueQuery>;
+    pub(super) type ActiveRelayers<T: Config> = StorageMap<_, Blake2_128Concat, Network, Vec<(T::AccountId,BLSPublicKey)>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn queued_relayers)]
     /// Upcoming relayer set
-    pub(super) type QueuedRelayers<T: Config> = StorageMap<_, Blake2_128Concat, Network, Vec<T::AccountId>, ValueQuery>;
+    pub(super) type QueuedRelayers<T: Config> = StorageMap<_, Blake2_128Concat, Network, Vec<(T::AccountId,BLSPublicKey)>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn staking_data)]
@@ -359,9 +360,9 @@ impl<T: Config> Pallet<T> {
         let elected_relayers = elect_relayers::<T>(candidates);
         log::trace!(target: "runtime::thea::staking", "elected relayers of session {:?}", session_in_consideration);
         // Store their economic weights
-        let relayers = elected_relayers.iter().map(| (relayer, _) | {
-            relayer.clone()
-        }).collect::<Vec<T::AccountId>>();
+        let relayers = elected_relayers.iter().map(| (relayer, exp) | {
+            (relayer.clone(),exp.bls_pub_key)
+        }).collect::<Vec<(T::AccountId, BLSPublicKey)>>();
         <StakingData<T>>::insert(session_in_consideration,network, elected_relayers);
         <QueuedRelayers<T>>::insert(network, relayers);
         log::trace!(target: "runtime::thea::staking", "relayers of network {:?} queued for session {:?} ", network,session_in_consideration);
