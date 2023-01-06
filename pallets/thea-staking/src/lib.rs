@@ -1,3 +1,4 @@
+#![feature(drain_filter)]
 // This file is part of Polkadex.
 
 // Copyright (C) 2020-2022 Polkadex oü.
@@ -16,7 +17,6 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use polkadex_primitives::AccountId;
 use sp_runtime::traits::{ Get};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -42,7 +42,6 @@ pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_support::traits::NamedReservableCurrency;
     use frame_system::pallet_prelude::*;
-    use polkadex_primitives::AccountId;
     use sp_runtime::traits::{ Zero};
 
     use crate::session::{Exposure, StakingLimits};
@@ -64,14 +63,24 @@ pub mod pallet {
         #[pallet::constant]
         type SessionLength: Get<BlockNumber<Self>>;
 
+        /// Delay in number of sessions before unbonded stake can be withdrawn
+        #[pallet::constant]
+        type UnbondingDelay: Get<SessionIndex>;
+
+        /// Max number of unlocking chunks
+        #[pallet::constant]
+        type MaxUnlockChunks: Get<u32>;
+
+        /// Candidate Bond
+        #[pallet::constant]
+        type CandidateBond: Get<BalanceOf<Self>>;
+
         /// StakingReserveIdentifier
         #[pallet::constant]
         type StakingReserveIdentifier: Get<<Self as pallet_balances::Config>::ReserveIdentifier>;
 
         /// Delay to prune oldest staking data
         type StakingDataPruneDelay: Get<SessionIndex>;
-
-
     }
 
     // Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -108,6 +117,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+
         #[pallet::call_index(0)]
         #[pallet::weight(10000)]
         pub fn set_staking_limits(origin: OriginFor<T>,  staking_limits: StakingLimits<BalanceOf<T>>) -> DispatchResult {
@@ -118,43 +128,22 @@ pub mod pallet {
 
         #[pallet::call_index(1)]
         #[pallet::weight(10000)]
-        /// Adds the sender as a candidate for election
-        pub fn add_candidate(origin: OriginFor<T>,  own_stake: BalanceOf<T>, network: Network) -> DispatchResult {
+        /// Adds the sender as a candidate for election and join the waitlist for selection
+        pub fn add_candidate(origin: OriginFor<T>, network: Network) -> DispatchResult {
             let candidate = ensure_signed(origin)?;
-            let limits = <Stakinglimits<T>>::get();
-            if own_stake < limits.mininum_relayer_stake {
-                return Err(Error::<T>::StakingLimitsError.into())
-            }
             ensure!(!<Candidates<T>>::contains_key(network,&candidate),Error::<T>::CandidateAlreadyRegistered);
-            let mut exposure = Exposure::<T::AccountId,BalanceOf<T>>::default();
-            exposure.add_own_stake(own_stake);
+
+            let mut exposure = Exposure::<T, T::AccountId>::default();
+            exposure.add_own_stake(T::CandidateBond::get());
             // reserve own_stake
-            pallet_balances::Pallet::<T>::reserve_named(&T::StakingReserveIdentifier::get(),&candidate,own_stake)?;
+            pallet_balances::Pallet::<T>::reserve_named(&T::StakingReserveIdentifier::get(),&candidate,T::CandidateBond::get())?;
             <Candidates<T>>::insert(network,&candidate,exposure);
-            Self::deposit_event(Event::<T>::CandidateRegistered{candidate,stake:own_stake});
+            Self::deposit_event(Event::<T>::CandidateRegistered{candidate,stake:T::CandidateBond::get()});
             Ok(())
         }
 
 
         #[pallet::call_index(2)]
-        #[pallet::weight(10000)]
-        /// Increases the self stake of a candidate
-        pub fn increase_own_stake(origin: OriginFor<T>,  additional_stake: BalanceOf<T>, network: Network) -> DispatchResult {
-            let candidate = ensure_signed(origin)?;
-
-            if let Some(mut exposure) = <Candidates<T>>::get(network,&candidate) {
-                exposure.add_own_stake(additional_stake);
-                // reserve own_stake
-                pallet_balances::Pallet::<T>::reserve_named(&T::StakingReserveIdentifier::get(),&candidate,additional_stake)?;
-                <Candidates<T>>::insert(network,&candidate,exposure);
-                Self::deposit_event(Event::<T>::IncreasedCandidateStake{ candidate, stake:additional_stake});
-            }else {
-                return Err(Error::<T>::CandidateNotFound.into())
-            }
-            Ok(())
-        }
-
-        #[pallet::call_index(3)]
         #[pallet::weight(10000)]
         /// Nominate a candidate. If already nominating a candidate then calling this again will increase the stake
         pub fn nominate(origin: OriginFor<T>,  candidate: T::AccountId, network: Network, amount: BalanceOf<T>) -> DispatchResult {
@@ -175,23 +164,52 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::call_index(4)]
+        #[pallet::call_index(3)]
         #[pallet::weight(10000)]
-        /// Removes the nomination completely
-        pub fn remove_nomination(origin: OriginFor<T>,  candidate: T::AccountId, network: Network, nominator_index: u32) -> DispatchResult {
+        /// Unbonds the required amount, fails if amount is greater than active stake
+        pub fn unbond(origin: OriginFor<T>,  candidate: T::AccountId, network: Network, amount: BalanceOf<T>) -> DispatchResult {
             let nominator = ensure_signed(origin)?;
 
             if let Some(mut exposure) = <Candidates<T>>::get(network,&candidate) {
-                let stake = exposure.remove_nominator(&nominator,nominator_index);
-                // reserve own_stake
-                let still_reserved = pallet_balances::Pallet::<T>::unreserve_named(
-                    &T::StakingReserveIdentifier::get(),&nominator,stake);
-                log::error!(target: "runtime::thea::staking", "unable to unreserve {:?} out of {:?}", still_reserved, stake);
+                exposure.unbond(&nominator, amount, Self::current_index().saturating_add(T::UnbondingDelay::get()))?;
                 <Candidates<T>>::insert(network,&candidate,exposure);
-                Self::deposit_event(Event::<T>::NominationRemoved{ candidate, nominator});
+                Self::deposit_event(Event::<T>::Unbonded{ candidate, nominator, amount});
             }else {
                 return Err(Error::<T>::CandidateNotFound.into())
             }
+            Ok(())
+        }
+
+        #[pallet::call_index(4)]
+        #[pallet::weight(10000)]
+        /// Withdraws the unbonded funds
+        pub fn withdraw_unbonded(origin: OriginFor<T>,  candidate: T::AccountId, network: Network) -> DispatchResult {
+            let nominator = ensure_signed(origin)?;
+
+            if let Some(mut exposure) = <Candidates<T>>::get(network,&candidate) {
+                let amount: BalanceOf<T> = exposure.withdraw_unbonded(&nominator, Self::current_index())?;
+                // TODO: Check the cases when it fails to unreserve.
+                let _ = pallet_balances::Pallet::<T>::unreserve_named(&T::StakingReserveIdentifier::get(),
+                                                              &nominator,amount);
+                <Candidates<T>>::insert(network,&candidate,exposure);
+                Self::deposit_event(Event::<T>::UnstakeComplete{ candidate, nominator, amount});
+            }else {
+                return Err(Error::<T>::CandidateNotFound.into())
+            }
+            Ok(())
+        }
+
+        #[pallet::call_index(5)]
+        #[pallet::weight(10000)]
+        /// Moves the candidate to Inactive state, it will also put unbonding request for all stakers
+        pub fn remove_candidate(origin: OriginFor<T>, network: Network) -> DispatchResult {
+            let candidate = ensure_signed(origin)?;
+
+            let exposure = <Candidates<T>>::take(network,&candidate)
+                .ok_or_else(|| Error::<T>::CandidateNotFound)?;
+
+            <InactiveCandidates<T>>::insert(network,&candidate,exposure);
+            Self::deposit_event(Event::<T>::OutgoingCandidateAdded{candidate});
             Ok(())
         }
     }
@@ -212,15 +230,24 @@ pub mod pallet {
             candidate: T::AccountId,
             stake: BalanceOf<T>
         },
+        OutgoingCandidateAdded{
+            candidate: T::AccountId
+        },
         IncreasedCandidateStake {
             candidate: T::AccountId,
             stake: BalanceOf<T>
         },
         Nominated{ candidate: T::AccountId,
             stake: BalanceOf<T>},
-        NominationRemoved{
+        Unbonded{
             candidate: T::AccountId,
-            nominator: T::AccountId
+            nominator: T::AccountId,
+            amount: BalanceOf<T>
+        },
+        UnstakeComplete{
+            candidate: T::AccountId,
+            nominator: T::AccountId,
+            amount: BalanceOf<T>
         }
     }
 
@@ -229,7 +256,10 @@ pub mod pallet {
         /// Staking limits error
         StakingLimitsError,
         CandidateAlreadyRegistered,
-        CandidateNotFound
+        CandidateNotFound,
+        NominatorNotFound,
+        UnbondChunkLimitReached,
+        CandidateNotReadyToBeUnbonded
     }
 
     // pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -261,14 +291,28 @@ pub mod pallet {
     pub(super) type StakingData<T: Config> = StorageDoubleMap<_,
         Blake2_128Concat, SessionIndex,
          Blake2_128Concat, Network,
-        Vec<(T::AccountId,Exposure<T::AccountId, BalanceOf<T>>)>, ValueQuery>;
+        Vec<(T::AccountId,Exposure<T,T::AccountId>)>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn candidates)]
     /// Stores the economic conditions of all candidates for relayers
     pub(super) type Candidates<T: Config> = StorageDoubleMap<_, Blake2_128Concat, Network,
         Blake2_128Concat, T::AccountId,
-        Exposure<T::AccountId, BalanceOf<T>>, OptionQuery>;
+        Exposure<T,T::AccountId>, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn outgoing_candidates)]
+    /// Stores the economic conditions of all candidates who requested to leave the election process
+    pub(super) type InactiveCandidates<T: Config> = StorageDoubleMap<_, Blake2_128Concat, Network,
+        Blake2_128Concat, T::AccountId,
+        Exposure<T,T::AccountId>, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn disabled_candidates)]
+    /// Stores the economic conditions of all candidates who are disabled for misbehaviour
+    pub(super) type DisabledCandidates<T: Config> = StorageDoubleMap<_, Blake2_128Concat, Network,
+        Blake2_128Concat, T::AccountId,
+        Exposure<T,T::AccountId>, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn current_index)]
@@ -311,7 +355,7 @@ impl<T: Config> Pallet<T> {
         let session_in_consideration = expiring_session_index.saturating_add(2);
         log::trace!(target: "runtime::thea::staking", "computing relayers of session {:?}", session_in_consideration);
         // Get new queued_relayers and store them
-        let candidates =  <Candidates<T>>::iter_prefix(network).collect::<Vec<(T::AccountId, Exposure<T::AccountId,BalanceOf<T>>)>>();
+        let candidates =  <Candidates<T>>::iter_prefix(network).collect::<Vec<(T::AccountId, Exposure<T,T::AccountId>)>>();
         let elected_relayers = elect_relayers::<T>(candidates);
         log::trace!(target: "runtime::thea::staking", "elected relayers of session {:?}", session_in_consideration);
         // Store their economic weights
