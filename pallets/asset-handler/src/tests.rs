@@ -15,8 +15,7 @@
 use frame_support::{assert_noop, assert_ok};
 use parity_scale_codec::Decode;
 use sp_core::{H160, U256};
-use sp_runtime::{BoundedBTreeSet, BoundedVec, TokenError};
-use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
 
 use crate::{
 	mock,
@@ -589,10 +588,15 @@ pub fn test_convert_amount_for_foreign_chain() {
 }
 
 #[test]
-pub fn test_create_thea_asset(){
+pub fn test_create_thea_asset() {
 	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
-	new_test_ext().execute_with(||{
-		assert_ok!(AssetHandler::create_thea_asset(Origin::signed(1),0,5,BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()));
+	new_test_ext().execute_with(|| {
+		assert_ok!(AssetHandler::create_thea_asset(
+			Origin::signed(1),
+			0,
+			5,
+			BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
+		));
 
 		let mut derived_asset_id = vec![];
 		derived_asset_id.push(0);
@@ -612,16 +616,32 @@ pub fn test_create_thea_asset(){
 		// Assert Storage
 		assert_eq!(network_id, 0);
 		assert_eq!(identifier_length, 5);
-		assert_eq!(identifier.to_vec(), asset_address.to_fixed_bytes().to_vec() );
+		assert_eq!(identifier.to_vec(), asset_address.to_fixed_bytes().to_vec());
 	})
 }
 
 #[test]
-pub fn test_create_thea_asset_bad_origin(){
+pub fn test_create_thea_asset_bad_origin() {
 	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
-	new_test_ext().execute_with(||{
-		assert_noop!(AssetHandler::create_thea_asset(Origin::root(),0,5,BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()), BadOrigin);
-		assert_noop!(AssetHandler::create_thea_asset(Origin::none(),0,5,BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()), BadOrigin);
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			AssetHandler::create_thea_asset(
+				Origin::root(),
+				0,
+				5,
+				BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
+			),
+			BadOrigin
+		);
+		assert_noop!(
+			AssetHandler::create_thea_asset(
+				Origin::none(),
+				0,
+				5,
+				BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
+			),
+			BadOrigin
+		);
 	})
 }
 
