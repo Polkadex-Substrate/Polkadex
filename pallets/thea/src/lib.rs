@@ -16,6 +16,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
@@ -129,6 +135,8 @@ pub mod pallet {
 		AmountCannotBeZero,
 		// Asset has not been registered
 		AssetNotRegistered,
+		// BLS Aggregate signature failed
+		BLSSignatureVerificationFailed
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -152,12 +160,12 @@ pub mod pallet {
 		/// * `amount`: The amount of assets that have been deposited in foreign chain
 		/// * `bls_signature`: The aggregated signature of majority of relayers in current active relayer set
 		#[pallet::weight(1000)]
-		pub fn approve_deposit(origin: OriginFor<T>, bit_map: u128, bls_signature: [u8;96], payload: Payload<T::AccountId>) -> DispatchResult {
+		pub fn approve_deposit(origin: OriginFor<T>, bit_map: Vec<u8>, bls_signature: [u8;96], payload: Payload<T::AccountId>) -> DispatchResult {
 			ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
 			// Fetch Deposit Nonce
 			let nonce = <DepositNonce<T>>::get(payload.network_id);
 			ensure!(payload.deposit_nonce == nonce+1, Error::<T>::DepositNonceError);
-			ensure!(asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id), Error::<T>::AssetNotRegistered);
+			// ensure!(asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id), Error::<T>::AssetNotRegistered);
 
 			// Fetch current active relayer set BLS Keys
 			let current_active_relayer_set = Self::get_relayers_key_vector(payload.network_id).unwrap();
@@ -168,7 +176,7 @@ pub mod pallet {
 			// Step 1: Get Payload, Signature, BLS Keys Vector
 			// Step 2: Create Aggregate BLS Public Key
 			// Step 3: Verify Aggregate Signature
-			thea_primitives::thea_ext::foo(bls_signature, bit_map, payload.encode(), current_active_relayer_set.into_inner());
+			ensure!(thea_primitives::thea_ext::foo(bls_signature, bit_map, payload.encode(), current_active_relayer_set.into_inner()), Error::<T>::BLSSignatureVerificationFailed);
 
 			// Update deposit Nonce
 			<DepositNonce<T>>::insert(payload.network_id, nonce+1);

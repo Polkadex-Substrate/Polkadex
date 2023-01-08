@@ -14,10 +14,9 @@ use scale_info::TypeInfo;
 
 #[runtime_interface]
 pub trait TheaExt {
-    fn foo(agg_sig: [u8; 96], bit_map: u128, payload: Vec<u8>, bls_public_keys: Vec<BLSPublicKey>) -> bool {
+    fn foo(agg_sig: [u8; 96], bit_map: Vec<u8>, payload: Vec<u8>, bls_public_keys: Vec<BLSPublicKey>) -> bool {
         let recon_sig = Signature::from_bytes(&agg_sig).unwrap();
-        let bit_map_vec = bit_map.to_be_bytes().to_vec();
-        let mut signed_public_keys: Vec<PublicKey> = vec![];
+        let bit_map_vec = bit_map;
         let mut agg_pk: Option<AggregatePublicKey> = None;
         for x in 0..bls_public_keys.len(){
             if bit_map_vec[x] == 1 {
@@ -55,4 +54,4 @@ pub trait TheaExt {
 }
 
 #[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
-pub struct BLSPublicKey([u8; 192]);
+pub struct BLSPublicKey(pub [u8; 192]);
