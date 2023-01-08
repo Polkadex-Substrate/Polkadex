@@ -39,6 +39,7 @@ jobs:
               {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
             ]
   build:
+    name: Build | Run linters | Run tests
     needs: start-runner
     runs-on: ${{ needs.start-runner.outputs.label }}
     steps:
@@ -80,7 +81,7 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
-        run: cargo clippy  -- -D warnings
+        run: cargo clippy -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
