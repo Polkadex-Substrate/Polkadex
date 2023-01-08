@@ -36,11 +36,22 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::{vec, vec::Vec};
+	use thea_primitives::BLSPublicKey;
 
 	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo)]
 	pub struct ApprovedDeposit{
 		pub asset_id: u128,
 		pub amount: u128
+	}
+
+	#[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
+	pub struct Payload<AccountId> {
+		pub network_id: u8,
+		pub who: AccountId,
+		pub tx_hash: sp_core::H256,
+		pub asset_id: u128,
+		pub amount: u128,
+		pub deposit_nonce: u32
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -74,7 +85,7 @@ pub mod pallet {
 		_,
 		frame_support::Blake2_128Concat,
 		u8,
-		BoundedVec<[u8; 65], ConstU32<1000>>,
+		BoundedVec<BLSPublicKey, ConstU32<1000>>,
 		OptionQuery,
 	>;
 
@@ -141,26 +152,31 @@ pub mod pallet {
 		/// * `amount`: The amount of assets that have been deposited in foreign chain
 		/// * `bls_signature`: The aggregated signature of majority of relayers in current active relayer set
 		#[pallet::weight(1000)]
-		pub fn approve_deposit(origin: OriginFor<T>, network_id: u8, bit_map: BoundedVec<u8, ConstU32<1000>>, recipient: T::AccountId, tx_hash: sp_core::H256, asset_id: u128, amount: u128, bls_signature: [u8;96], deposit_nonce: u32) -> DispatchResult {
-			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
+		pub fn approve_deposit(origin: OriginFor<T>, bit_map: u128, bls_signature: [u8;96], payload: Payload<T::AccountId>) -> DispatchResult {
+			ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
 			// Fetch Deposit Nonce
-			let nonce = <DepositNonce<T>>::get(network_id);
-			ensure!(deposit_nonce == nonce+1, Error::<T>::DepositNonceError);
-			ensure!(asset_handler::pallet::TheaAssets::<T>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
+			let nonce = <DepositNonce<T>>::get(payload.network_id);
+			ensure!(payload.deposit_nonce == nonce+1, Error::<T>::DepositNonceError);
+			ensure!(asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id), Error::<T>::AssetNotRegistered);
 
 			// Fetch current active relayer set BLS Keys
-			let current_active_relayer_set = Self::get_relayers_key_vector(network_id);
+			let current_active_relayer_set = Self::get_relayers_key_vector(payload.network_id).unwrap();
 
 			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
 			// TODO: @gautham
+			// Host Function Steps
+			// Step 1: Get Payload, Signature, BLS Keys Vector
+			// Step 2: Create Aggregate BLS Public Key
+			// Step 3: Verify Aggregate Signature
+			thea_primitives::thea_ext::foo(bls_signature, bit_map, payload.encode(), current_active_relayer_set.into_inner());
 
 			// Update deposit Nonce
-			<DepositNonce<T>>::insert(network_id, nonce+1);
+			<DepositNonce<T>>::insert(payload.network_id, nonce+1);
 
 			// Update Storage item
-			let approved_deposit = ApprovedDeposit{asset_id, amount};
-			if <ApprovedDeposits<T>>::contains_key(&recipient) {
-				<ApprovedDeposits<T>>::mutate(recipient.clone(), |bounded_vec|{
+			let approved_deposit = ApprovedDeposit{asset_id: payload.asset_id, amount: payload.amount};
+			if <ApprovedDeposits<T>>::contains_key(&payload.who) {
+				<ApprovedDeposits<T>>::mutate(payload.who.clone(), |bounded_vec|{
 					if let Some(inner_bounded_vec) = bounded_vec{
 						inner_bounded_vec.try_push(approved_deposit).unwrap();
 					}
@@ -168,12 +184,12 @@ pub mod pallet {
 			} else {
 				let mut my_vec: BoundedVec<ApprovedDeposit, ConstU32<100>> = Default::default();
 				if let Ok(()) = my_vec.try_push(approved_deposit) {
-					<ApprovedDeposits<T>>::insert::<T::AccountId, BoundedVec<ApprovedDeposit, ConstU32<100>>>(recipient.clone(), my_vec);
+					<ApprovedDeposits<T>>::insert::<T::AccountId, BoundedVec<ApprovedDeposit, ConstU32<100>>>(payload.who.clone(), my_vec);
 				}
 			}
 
 			// Emit event
-			Self::deposit_event(Event::<T>::DepositApproved(recipient, asset_id, amount, tx_hash));
+			Self::deposit_event(Event::<T>::DepositApproved(payload.who, payload.asset_id, payload.amount, payload.tx_hash));
 			Ok(())
 		}
 
