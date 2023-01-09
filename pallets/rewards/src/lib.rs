@@ -44,7 +44,7 @@ mod tests;
 mod mock;
 
 const UNIT_BALANCE: u128 = 1000000000000;
-const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = 1000000000000;
+const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = 1;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -206,15 +206,25 @@ pub mod pallet {
 						.saturating_mul(conversion_factor)
 						.saturating_div(UNIT_BALANCE)
 						.saturated_into();
-					let reward_info = RewardInfoForAccount {
-						total_reward_amount: total_rewards_in_pdex,
-						claim_amount: 0_u128.saturated_into(),
-						is_intial_rewards_claimed: false,
-						is_intialized: false,
-						lock_id: REWARDS_LOCK_ID,
-						last_block_rewards_claim: reward_info.start_block,
-					};
-					<Distributor<T>>::insert(reward_id, beneficiary.0, reward_info);
+
+					if total_rewards_in_pdex > MIN_REWARDS_CLAIMABLE_AMOUNT.saturated_into() {
+						let reward_info = RewardInfoForAccount {
+							total_reward_amount: total_rewards_in_pdex,
+							claim_amount: 0_u128.saturated_into(),
+							is_intial_rewards_claimed: false,
+							is_intialized: false,
+							lock_id: REWARDS_LOCK_ID,
+							last_block_rewards_claim: reward_info.start_block,
+						};
+						<Distributor<T>>::insert(reward_id, beneficiary.0, reward_info);
+					} else {
+						//emit a event
+						Self::deposit_event(Event::UserRewardNotSatisfyingMinConstraint {
+							user: beneficiary.0,
+							amount_in_pdex: total_rewards_in_pdex,
+							reward_id,
+						});
+					}
 				}
 			} else {
 				//will not occur since we are already ensuring it above, still sanity check
@@ -284,8 +294,6 @@ pub mod pallet {
 		/// id: The reward id
 		#[pallet::weight(10_000)]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
-			//ToDo can only be called if user has called intialize
-
 			let user: T::AccountId = ensure_signed(origin)?;
 
 			//check if given id valid or not
@@ -368,7 +376,7 @@ pub mod pallet {
 								.saturating_add(rewards_claimable)
 								.saturated_into();
 
-							//set new lock
+							//set new lock on new amount
 							let reward_amount_to_lock = user_reward_info
 								.total_reward_amount
 								.saturated_into::<u128>()
@@ -425,6 +433,11 @@ pub mod pallet {
 			user: T::AccountId,
 			reward_id: u32,
 			claimed: BalanceOf<T>,
+		},
+		UserRewardNotSatisfyingMinConstraint {
+			user: T::AccountId,
+			amount_in_pdex: BalanceOf<T>,
+			reward_id: u32,
 		},
 	}
 
