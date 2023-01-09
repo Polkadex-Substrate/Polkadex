@@ -14,8 +14,7 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use sp_std::convert::TryFrom;
-use sp_std::convert::TryInto;
+use sp_std::convert::{TryFrom, TryInto};
 
 use frame_support::PalletId;
 use frame_system::EnsureRoot;

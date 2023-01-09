@@ -68,8 +68,7 @@ pub mod pallet {
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 
 	use frame_support::traits::WithdrawReasons;
-	use sp_std::cmp::min;
-	use sp_std::convert::TryInto;
+	use sp_std::{cmp::min, convert::TryInto};
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
@@ -126,7 +125,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		//ToDo: on_intialize would be added to clear events, to clear storage if everyone has been donated
+		//ToDo: on_intialize would be added to clear events, to clear storage if everyone has been
+		// donated
 	}
 
 	#[pallet::call]
@@ -228,7 +228,7 @@ pub mod pallet {
 				}
 			} else {
 				//will not occur since we are already ensuring it above, still sanity check
-				return Err(Error::<T>::RewardIdNotRegister.into());
+				return Err(Error::<T>::RewardIdNotRegister.into())
 			}
 
 			Ok(())
@@ -399,11 +399,11 @@ pub mod pallet {
 							Ok(())
 						} else {
 							//will not occur since we are already ensuring it above, sanity check
-							return Err(Error::<T>::UserNotEligible);
+							return Err(Error::<T>::UserNotEligible)
 						}
 					} else {
 						// will not occur since we are already ensuring it above, sanity check
-						return Err(Error::<T>::RewardIdNotRegister);
+						return Err(Error::<T>::RewardIdNotRegister)
 					}
 				})
 				.is_ok(),
@@ -466,7 +466,8 @@ pub mod pallet {
 	pub struct RewardInfo<T: Config> {
 		pub start_block: T::BlockNumber,
 		pub end_block: T::BlockNumber,
-		pub intial_percentage: u32, //todo: u32 value just taken for testing purpose needs to ba change
+		pub intial_percentage: u32, /* todo: u32 value just taken for testing purpose needs to
+		                             * ba change */
 	}
 
 	#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
@@ -513,7 +514,8 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	//The followling function will be used by claim extrinsic to tranfer balance from donor to beneficiary
+	//The followling function will be used by claim extrinsic to tranfer balance from donor to
+	// beneficiary
 
 	fn transfer_pdex_rewards(
 		payer: &T::AccountId,
