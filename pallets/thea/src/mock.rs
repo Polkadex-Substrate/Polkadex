@@ -14,14 +14,14 @@
 // GNU General Public License for more details.
 
 use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
-    OnFinalize, OnInitialize,
+	OnFinalize, OnInitialize,
 };
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
-    testing::Header,
-    traits::{BlakeTwo256, IdentityLookup},
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
 };
 
 use crate::pallet as thea;
@@ -44,8 +44,8 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
-        AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
-        Thea: thea::{Pallet, Storage, Call, Event<T>}
+		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
+		Thea: thea::{Pallet, Storage, Call, Event<T>}
 	}
 );
 
@@ -55,30 +55,30 @@ parameter_types! {
 }
 
 impl system::Config for Test {
-    type BaseCallFilter = frame_support::traits::Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type DbWeight = ();
-    type Origin = Origin;
-    type Call = Call;
-    type Index = u64;
-    type BlockNumber = u64;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
-    type AccountId = u64;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
-    type Event = Event;
-    type BlockHashCount = BlockHashCount;
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<Balance>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = SS58Prefix;
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type BaseCallFilter = frame_support::traits::Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
+	type DbWeight = ();
+	type Origin = Origin;
+	type Call = Call;
+	type Index = u64;
+	type BlockNumber = u64;
+	type Hash = H256;
+	type Hashing = BlakeTwo256;
+	type AccountId = u64;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type Header = Header;
+	type Event = Event;
+	type BlockHashCount = BlockHashCount;
+	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 pub const PDEX: Balance = 1_000_000_000_000;
@@ -90,15 +90,15 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Test {
-    type Balance = Balance;
-    type DustRemoval = ();
-    type Event = Event;
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Pallet<Test>;
-    type MaxLocks = MaxLocks;
-    type MaxReserves = MaxReserves;
-    type ReserveIdentifier = [u8; 8];
-    type WeightInfo = ();
+	type Balance = Balance;
+	type DustRemoval = ();
+	type Event = Event;
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = frame_system::Pallet<Test>;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -115,20 +115,20 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-    type Event = Event;
-    type Balance = Balance;
-    type AssetId = u128;
-    type Currency = Balances;
-    type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
-    type AssetDeposit = AssetDeposit;
-    type AssetAccountDeposit = AssetDeposit;
-    type MetadataDepositBase = MetadataDepositBase;
-    type MetadataDepositPerByte = MetadataDepositPerByte;
-    type ApprovalDeposit = ApprovalDeposit;
-    type StringLimit = StringLimit;
-    type Freezer = ();
-    type Extra = ();
-    type WeightInfo = ();
+	type Event = Event;
+	type Balance = Balance;
+	type AssetId = u128;
+	type Currency = Balances;
+	type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -138,36 +138,36 @@ parameter_types! {
 }
 
 impl chainbridge::Config for Test {
-    type Event = Event;
-    type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
-    type Proposal = Call;
-    type BridgeChainId = ChainId;
-    type ProposalLifetime = ProposalLifetime;
-    //type PalletId = ChainbridgePalletId;
+	type Event = Event;
+	type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type Proposal = Call;
+	type BridgeChainId = ChainId;
+	type ProposalLifetime = ProposalLifetime;
+	//type PalletId = ChainbridgePalletId;
 }
 
 impl asset_handler::pallet::Config for Test {
-    type Event = Event;
-    type Currency = Balances;
-    type AssetManager = Assets;
-    type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
-    type TreasuryPalletId = ChainbridgePalletId;
-    type WeightInfo = asset_handler::weights::WeightInfo<Test>;
+	type Event = Event;
+	type Currency = Balances;
+	type AssetManager = Assets;
+	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type TreasuryPalletId = ChainbridgePalletId;
+	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 }
 
-parameter_types!{
-    pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+parameter_types! {
+	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
 }
 
 impl thea::Config for Test {
-    type Event = Event;
-    type Currency = Balances;
-    type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
-    type TheaPalletId = TheaPalletId;
+	type Event = Event;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type TheaPalletId = TheaPalletId;
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
-    t.into()
+	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	t.into()
 }
