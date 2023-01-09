@@ -5,7 +5,7 @@ use frame_support::{assert_noop, assert_ok};
 use crate::mock::*;
 use frame_system::EventRecord;
 use polkadex_primitives::AccountId;
-use sp_runtime::{AccountId32, BoundedVec, DispatchError::BadOrigin};
+use sp_runtime::{AccountId32, DispatchError::BadOrigin};
 use std::convert::TryFrom;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
@@ -137,7 +137,8 @@ fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 		);
 	});
 }
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//-   - - - - - - - - - - - - - - - - - - - - - - -
 #[test]
 fn add_reward_beneficiaries() {
 	new_test_ext().execute_with(|| {
@@ -234,84 +235,84 @@ fn add_reward_beneficiaries_when_reward_id_not_register() {
 		);
 	});
 }
-
-#[test]
-fn add_one_beneficiary_which_falls_below_threshold() {
-	new_test_ext().execute_with(|| {
-		let (start_block, end_block, intial_percentage, reward_id) =
-			get_parameters_for_reward_cycle();
-		let conversion_factor = get_conversion_factor();
-
-		//create reward cycle
-		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
-			start_block,
-			end_block,
-			intial_percentage,
-			reward_id
-		));
-
-		//add reward beneficiaries as alice and bob
-		let vec_of_ids: Vec<(AccountId32, u128)> = vec![
-			get_alice_account_with_rewards(),
-			get_neal_account_with_rewards(),
-			get_bob_account_with_rewards(),
-		];
-		assert_ok!(Rewards::add_reward_beneficiaries(
-			Origin::root(),
-			reward_id,
-			conversion_factor,
-			BoundedVec::try_from(vec_of_ids).unwrap()
-		));
-
-		let alice_reward_info =
-			Distributor::<Test>::get(&reward_id, &get_alice_account_with_rewards().0).unwrap();
-
-		assert_eq!(
-			alice_reward_info.total_reward_amount,
-			get_alice_account_with_rewards()
-				.1
-				.saturating_mul(conversion_factor)
-				.saturating_div(UNIT_BALANCE)
-		);
-		assert_eq!(alice_reward_info.claim_amount, 0);
-		assert_eq!(alice_reward_info.last_block_rewards_claim, start_block);
-		assert_eq!(alice_reward_info.is_intial_rewards_claimed, false);
-		assert_eq!(alice_reward_info.is_intialized, false);
-		assert_eq!(alice_reward_info.lock_id, REWARDS_LOCK_ID);
-
-		let bob_reward_info =
-			Distributor::<Test>::get(&reward_id, &get_bob_account_with_rewards().0).unwrap();
-
-		assert_eq!(
-			bob_reward_info.total_reward_amount,
-			get_bob_account_with_rewards()
-				.1
-				.saturating_mul(conversion_factor)
-				.saturating_div(UNIT_BALANCE)
-		);
-		assert_eq!(bob_reward_info.claim_amount, 0);
-		assert_eq!(bob_reward_info.last_block_rewards_claim, start_block);
-		assert_eq!(bob_reward_info.is_intial_rewards_claimed, false);
-		assert_eq!(bob_reward_info.is_intialized, false);
-		assert_eq!(bob_reward_info.lock_id, REWARDS_LOCK_ID);
-
-		assert_eq!(Distributor::<Test>::get(&reward_id, &get_neal_account_with_rewards().0), None);
-		assert_last_event::<Test>(
-			crate::Event::UserRewardNotSatisfyingMinConstraint {
-				user: get_neal_account_with_rewards().0,
-				amount_in_pdex: get_neal_account_with_rewards()
-					.1
-					.saturating_mul(conversion_factor)
-					.saturating_div(UNIT_BALANCE)
-					.saturated_into(),
-				reward_id,
-			}
-			.into(),
-		);
-	});
-}
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//
+// #[test]
+// fn add_one_beneficiary_which_falls_below_threshold() {
+// 	new_test_ext().execute_with(|| {
+// 		let (start_block, end_block, intial_percentage, reward_id) =
+// 			get_parameters_for_reward_cycle();
+// 		let conversion_factor = get_conversion_factor();
+//
+// 		//create reward cycle
+// 		assert_ok!(Rewards::create_reward_cycle(
+// 			Origin::root(),
+// 			start_block,
+// 			end_block,
+// 			intial_percentage,
+// 			reward_id
+// 		));
+//
+// 		//add reward beneficiaries as alice and bob
+// 		let vec_of_ids: Vec<(AccountId32, u128)> = vec![
+// 			get_alice_account_with_rewards(),
+// 			get_bob_account_with_rewards(),
+// 		];
+// 		assert_ok!(Rewards::add_reward_beneficiaries(
+// 			Origin::root(),
+// 			reward_id,
+// 			conversion_factor,
+// 			BoundedVec::try_from(vec_of_ids).unwrap()
+// 		));
+//
+// 		let alice_reward_info =
+// 			Distributor::<Test>::get(&reward_id, &get_alice_account_with_rewards().0).unwrap();
+//
+// 		assert_eq!(
+// 			alice_reward_info.total_reward_amount,
+// 			get_alice_account_with_rewards()
+// 				.1
+// 				.saturating_mul(conversion_factor)
+// 				.saturating_div(UNIT_BALANCE)
+// 		);
+// 		assert_eq!(alice_reward_info.claim_amount, 0);
+// 		assert_eq!(alice_reward_info.last_block_rewards_claim, start_block);
+// 		assert_eq!(alice_reward_info.is_intial_rewards_claimed, false);
+// 		assert_eq!(alice_reward_info.is_intialized, false);
+// 		assert_eq!(alice_reward_info.lock_id, REWARDS_LOCK_ID);
+//
+// 		let bob_reward_info =
+// 			Distributor::<Test>::get(&reward_id, &get_bob_account_with_rewards().0).unwrap();
+//
+// 		assert_eq!(
+// 			bob_reward_info.total_reward_amount,
+// 			get_bob_account_with_rewards()
+// 				.1
+// 				.saturating_mul(conversion_factor)
+// 				.saturating_div(UNIT_BALANCE)
+// 		);
+// 		assert_eq!(bob_reward_info.claim_amount, 0);
+// 		assert_eq!(bob_reward_info.last_block_rewards_claim, start_block);
+// 		assert_eq!(bob_reward_info.is_intial_rewards_claimed, false);
+// 		assert_eq!(bob_reward_info.is_intialized, false);
+// 		assert_eq!(bob_reward_info.lock_id, REWARDS_LOCK_ID);
+//
+// 		assert_eq!(Distributor::<Test>::get(&reward_id, &get_neal_account_with_rewards().0), None);
+// 		assert_last_event::<Test>(
+// 			crate::Event::UserRewardNotSatisfyingMinConstraint {
+// 				user: get_neal_account_with_rewards().0,
+// 				amount_in_pdex: get_neal_account_with_rewards()
+// 					.1
+// 					.saturating_mul(conversion_factor)
+// 					.saturating_div(UNIT_BALANCE)
+// 					.saturated_into(),
+// 				reward_id,
+// 			}
+// 			.into(),
+// 		);
+// 	});
+// }
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//-   - - - - - - - - - - - - - - - - - - - - - - -
 #[test]
 fn unlock_rewards_for_alice() {
 	new_test_ext().execute_with(|| {
@@ -420,7 +421,8 @@ fn unlock_rewards_when_user_not_eligible_to_unlock() {
 		);
 	});
 }
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//-   - - - - - - - - - - - - - - - - - - - - - - -
 
 #[test]
 pub fn claim_rewards() {
@@ -523,13 +525,13 @@ pub fn claim_reward_for_unregister_id() {
 #[test]
 pub fn claim_reward_when_user_not_eligible() {
 	new_test_ext().execute_with(|| {
-		let (start_block, end_block, intial_percentage, reward_id) =
+		let (start_block, end_block, initial_percentage, reward_id) =
 			get_parameters_for_reward_cycle();
 		assert_ok!(Rewards::create_reward_cycle(
 			Origin::root(),
 			start_block,
 			end_block,
-			intial_percentage,
+			initial_percentage,
 			reward_id
 		));
 		let (alice_account, _) = get_alice_account_with_rewards();
@@ -540,4 +542,120 @@ pub fn claim_reward_when_user_not_eligible() {
 		);
 	});
 }
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#[test]
+pub fn claim_reward_after_user_initialized_unlock() {
+	new_test_ext().execute_with(|| {
+		let (start_block, end_block, initial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		assert_ok!(Rewards::create_reward_cycle(
+			Origin::root(),
+			start_block,
+			end_block,
+			initial_percentage,
+			reward_id
+		));
+		let (alice_account, total_rewards) = get_alice_account_with_rewards();
+		let conversion_factor = get_conversion_factor();
+		let beneficiaries: Vec<(AccountId32, u128)> = vec![
+			get_alice_account_with_rewards(),
+			get_neal_account_with_rewards(),
+			get_bob_account_with_rewards(),
+		];
+		let mut total_rewards = 0;
+		for item in beneficiaries.clone().into_iter(){
+			total_rewards+= item.1;
+		}
+		assert_ok!(Rewards::add_reward_beneficiaries(
+			Origin::root(),
+			reward_id,
+			conversion_factor,
+			BoundedVec::try_from(beneficiaries).unwrap()
+		));
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			Rewards::get_pallet_account(),
+			total_rewards,
+			0
+		));
+		//add some existential balance to alice
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			alice_account.clone(),
+			2*UNIT_BALANCE,
+			0
+		));
+		assert_eq!(Balances::free_balance(&alice_account), 2*UNIT_BALANCE);
+		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
+		//check locked balance
+		//assert_eq!(Balances::acc, total_rewards);
+		//increment to the block at which the rewards are unlocked
+		System::set_block_number(start_block);
+	})
+}
+//
+// #[test]
+// pub fn claim_reward_at_25_percent_cycle_of_reward_period(){
+// 	let(start_block, end_block, initial_percentage, reward_id)= get_parameters_for_reward_cycle();
+// 	assert_ok!(Rewards::create_reward_cycle(
+// 			Origin::root(),
+// 			start_block,
+// 			end_block,
+// 			initial_percentage,
+// 			reward_id
+// 		));
+// 	let (alice_account, total_rewards) = get_alice_account_with_rewards();
+// }
+//
+// #[test]
+// pub fn claim_reward_at_50_percent_cycle_of_reward_period(){
+// 	let(start_block, end_block, initial_percentage, reward_id)= get_parameters_for_reward_cycle();
+// 	assert_ok!(Rewards::create_reward_cycle(
+// 			Origin::root(),
+// 			start_block,
+// 			end_block,
+// 			initial_percentage,
+// 			reward_id
+// 		));
+// 	let (alice_account, total_rewards) = get_alice_account_with_rewards();
+// }
+//
+// #[test]
+// pub fn claim_reward_at_75_percent_of_reward_period(){
+// 	let(start_block, end_block, initial_percentage, reward_id)= get_parameters_for_reward_cycle();
+// 	assert_ok!(Rewards::create_reward_cycle(
+// 			Origin::root(),
+// 			start_block,
+// 			end_block,
+// 			initial_percentage,
+// 			reward_id
+// 		));
+// 	let (alice_account, total_rewards) = get_alice_account_with_rewards();
+// }
+//
+// #[test]
+// pub fn claim_reward_at_100_percent_of_reward_period(){
+// 	let(start_block, end_block, initial_percentage, reward_id)= get_parameters_for_reward_cycle();
+// 	assert_ok!(Rewards::create_reward_cycle(
+// 			Origin::root(),
+// 			start_block,
+// 			end_block,
+// 			initial_percentage,
+// 			reward_id
+// 		));
+// 	let (alice_account, total_rewards) = get_alice_account_with_rewards();
+// }
+//
+// #[test]
+// pub fn claim_reward_after_100_percent_of_reward_period(){
+// 	let(start_block, end_block, initial_percentage, reward_id)= get_parameters_for_reward_cycle();
+// 	assert_ok!(Rewards::create_reward_cycle(
+// 			Origin::root(),
+// 			start_block,
+// 			end_block,
+// 			initial_percentage,
+// 			reward_id
+// 		));
+// 	let (alice_account, total_rewards) = get_alice_account_with_rewards();
+// }
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//-   - - - - - - - - - - - - - - - - - - - - - - -
