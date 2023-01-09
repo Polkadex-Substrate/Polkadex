@@ -160,7 +160,7 @@ pub mod pallet {
 		/// * `amount`: The amount of assets that have been deposited in foreign chain
 		/// * `bls_signature`: The aggregated signature of majority of relayers in current active relayer set
 		#[pallet::weight(1000)]
-		pub fn approve_deposit(origin: OriginFor<T>, bit_map: Vec<u8>, bls_signature: [u8;96], payload: Payload<T::AccountId>) -> DispatchResult {
+		pub fn approve_deposit(origin: OriginFor<T>, bit_map: u128, bls_signature: [u8;96], payload: Payload<T::AccountId>) -> DispatchResult {
 			ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
 			// Fetch Deposit Nonce
 			let nonce = <DepositNonce<T>>::get(payload.network_id);
