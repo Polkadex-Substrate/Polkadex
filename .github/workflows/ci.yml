@@ -1,11 +1,13 @@
-name: Build-CI
+name: Continuous Integration
+
 on:
-  pull_request:
-    branches: [Develop, main-net-runtime,redux-ci-testing]
+  pull_request: []
   push:
-    branches: [Develop, main-net-runtime,redux-ci-testing]
+    branches: [Develop, main-net-runtime, redux-ci-testing]
+
 env:
   RUNNER_INSTANCE_TYPE: c5.4xlarge
+
 jobs:
   start-runner:
     name: Start self-hosted EC2 runner
@@ -37,18 +39,27 @@ jobs:
               {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
             ]
   build:
+    name: Build | Run linters | Run tests
     needs: start-runner
     runs-on: ${{ needs.start-runner.outputs.label }}
-
     steps:
-      - uses: actions/checkout@v2
-
-      - name: set dependencies. # bug self hosted https://github.com/actions-rs/toolchain/issues/137
+      - name: Set home environment variable # bug self hosted https://github.com/actions-rs/toolchain/issues/137
+        run: |
+          echo "HOME=/root" >> ${GITHUB_ENV} # bug
+      - name: Install dependencies
         run: |
           cat /etc/issue 
-          echo "HOME=/root" >> ${GITHUB_ENV} # bug
           apt update
           apt install -y clang lldb lld gcc
+      - name: Install latest nightly with wasm target
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: wasm32-unknown-unknown
+          default: true
+          components: rustfmt, clippy
+      - name: Checkout to the current branch
+        uses: actions/checkout@v3
       - name: Cache Rust Dependecies
         uses: actions/cache@v2
         with:
@@ -57,26 +68,11 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Add wasm toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Add fmt
-        # v1.5.0 includes fixes of closures formatting
+      - name: Check versions info
         run: |
-          cd ..
-          git clone --depth 1 https://github.com/rust-lang/rustfmt
-          cd rustfmt
-          git fetch --tags
-          git checkout v1.5.0
-          export CFG_RELEASE=nightly
-          export CFG_RELEASE_CHANNEL=nightly
-          cargo clean -p rustfmt-nightly
-          cargo install --path . --force
-          cd ../Polkadex
+          rustup -V
+          cargo fmt -- --version
+          cargo clippy -V
       - name: Build Project
         run: |
           cargo clean
@@ -85,11 +81,7 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
-        run: |
-          rustup update
-          rustup default nightly
-          rustup component add clippy
-          cargo clippy  -- -D warnings
+        run: cargo clippy -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
