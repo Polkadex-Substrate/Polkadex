@@ -31,16 +31,12 @@ use thea_primitives::BLSPublicKey;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
+pub fn set_kth_bit(number: u128, k_value: u8) -> u128 {
+    (1 << k_value) | number
+}
 
 #[test]
 fn test_thea_approve_deposit(){
-    // Step 1: Create BLS Public Key
-    // Step 2: Store BLS Public Key in Thea Pallet Storage
-    // Step 3: Create Payload
-    // Step 4: Sign Payload using BLS Key
-    // Step 5: Create bitmap
-    // Step 6: Register asset_id with asset_handler
-    // Step 7: Submit (Payload, Signature, BitMap)
     let mut ikm = [0 as u8; 32];
     let sk_1 = SecretKey::key_gen(&ikm, &[]).unwrap();
     let pk_1 = sk_1.sk_to_pk();
@@ -62,24 +58,27 @@ fn test_thea_approve_deposit(){
     let bls_public_key_1 = BLSPublicKey(pk_1.serialize().into());
     let bls_public_key_2 = BLSPublicKey(pk_2.serialize().into());
     let bls_public_key_3 = BLSPublicKey(pk_3.serialize().into());
-
     let dst = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
     let sig_1 = sk_1.sign(&new_payload.encode(), dst, &[]);
     let sig_2 = sk_2.sign(&new_payload.encode(), dst, &[]);
     let mut agg_sig = AggregateSignature::from_signature(&sig_1);
     agg_sig.add_signature(&sig_2, false).unwrap();
     let sig = agg_sig.to_signature().serialize();
+    let mut bit_map_1 = 0_u128;
+    bit_map_1 = set_kth_bit(bit_map_1, 0);
+    bit_map_1 = set_kth_bit(bit_map_1, 1);
+    bit_map_1 = set_kth_bit(bit_map_1, 2);
+    let mut bit_map_2 = 0_u128;
+    bit_map_2 = set_kth_bit(bit_map_2, 0);
+    bit_map_2 = set_kth_bit(bit_map_2, 1);
     new_test_ext().execute_with(|| {
-        // Storages to Update
-        // 1. Asset_id in asset_handler
-        // 2. BLS Keys
         RelayersBLSKeyVector::<Test>::insert(1, BoundedVec::try_from(vec![bls_public_key_1, bls_public_key_2, bls_public_key_3]).unwrap());
         // Testing Signature Verification Failure
-        assert_noop!(Thea::approve_deposit(Origin::signed(1), vec![1,1,1], sig.into(), new_payload.clone().into()), Error::<Test>::BLSSignatureVerificationFailed);
+        assert_noop!(Thea::approve_deposit(Origin::signed(1), bit_map_1, sig.into(), new_payload.clone().into()), Error::<Test>::BLSSignatureVerificationFailed);
         // Valid Signature
-        assert_ok!(Thea::approve_deposit(Origin::signed(1), vec![1,1,0], sig.into(), new_payload.clone().into()));
+        assert_ok!(Thea::approve_deposit(Origin::signed(1), bit_map_2, sig.into(), new_payload.clone().into()));
         // Testing Replay Attack
-        assert_noop!(Thea::approve_deposit(Origin::signed(1), vec![1,1,0], sig.into(), new_payload.into()), Error::<Test>::DepositNonceError);
+        assert_noop!(Thea::approve_deposit(Origin::signed(1), bit_map_2, sig.into(), new_payload.into()), Error::<Test>::DepositNonceError);
     });
 }
 
