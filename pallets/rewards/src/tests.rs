@@ -32,7 +32,7 @@ fn get_bob_account_with_rewards() -> (AccountId32, u128) {
 }
 
 fn get_neal_account_with_rewards() -> (AccountId32, u128) {
-	(AccountId::new(NEAL_ACCOUNT_RAW_ID), 900000000000)
+	(AccountId::new(NEAL_ACCOUNT_RAW_ID), 3000000000000)
 }
 
 fn get_parameters_for_reward_cycle() -> (u64, u64, u32, u32) {
@@ -137,7 +137,7 @@ fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 		);
 	});
 }
-
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #[test]
 fn add_reward_beneficiaries() {
 	new_test_ext().execute_with(|| {
@@ -311,3 +311,233 @@ fn add_one_beneficiary_which_falls_below_threshold() {
 		);
 	});
 }
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#[test]
+fn unlock_rewards_for_alice() {
+	new_test_ext().execute_with(|| {
+		let (start_block, end_block, intial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		let conversion_factor = get_conversion_factor();
+
+		assert_ok!(Rewards::create_reward_cycle(
+			Origin::root(),
+			start_block,
+			end_block,
+			intial_percentage,
+			reward_id
+		));
+
+		//add reward beneficiaries as alice and bob
+		let vec_of_ids: Vec<(AccountId32, u128)> =
+			vec![get_alice_account_with_rewards(), get_bob_account_with_rewards()];
+		assert_ok!(Rewards::add_reward_beneficiaries(
+			Origin::root(),
+			reward_id,
+			conversion_factor,
+			BoundedVec::try_from(vec_of_ids).unwrap()
+		));
+
+		let pallet_id_account = Rewards::get_pallet_account();
+
+		//transfer balance to pallet account
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			pallet_id_account.clone(),
+			20000000000000000,
+			0
+		));
+
+		//need to have Existential Deposit
+		assert_ok!(Rewards::transfer_pdex_rewards(
+			&pallet_id_account,
+			&get_alice_account_with_rewards().0,
+			10000000000000_u128.saturated_into()
+		));
+
+		// unlock alice reward
+		assert_ok!(Rewards::unlock_reward(
+			Origin::signed(get_alice_account_with_rewards().0.into()),
+			reward_id
+		),);
+
+		let alice_reward_info =
+			Distributor::<Test>::get(&reward_id, &get_alice_account_with_rewards().0).unwrap();
+		assert_eq!(alice_reward_info.claim_amount, 0);
+		assert_eq!(alice_reward_info.last_block_rewards_claim, start_block);
+		assert_eq!(alice_reward_info.is_intial_rewards_claimed, false);
+		assert_eq!(alice_reward_info.is_intialized, true);
+		assert_eq!(alice_reward_info.lock_id, REWARDS_LOCK_ID);
+
+		//assert event
+		assert_last_event::<Test>(
+			crate::Event::UserUnlockedReward {
+				user: get_alice_account_with_rewards().0,
+				reward_id,
+			}
+			.into(),
+		);
+	});
+}
+
+#[test]
+fn unlock_rewards_bad_origin() {
+	new_test_ext().execute_with(|| {
+		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
+		assert_noop!(Rewards::unlock_reward(Origin::root(), reward_id), BadOrigin);
+		assert_noop!(Rewards::unlock_reward(Origin::none(), reward_id), BadOrigin);
+	});
+}
+
+#[test]
+fn unlock_rewards_with_non_existing_reward_id() {
+	new_test_ext().execute_with(|| {
+		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
+		let (alice_account, _) = get_alice_account_with_rewards();
+		assert_noop!(
+			Rewards::unlock_reward(Origin::signed(alice_account.clone().into()), reward_id),
+			Error::<Test>::RewardIdNotRegister
+		);
+	});
+}
+
+#[test]
+fn unlock_rewards_when_user_not_eligible_to_unlock() {
+	new_test_ext().execute_with(|| {
+		let (start_block, end_block, intial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		assert_ok!(Rewards::create_reward_cycle(
+			Origin::root(),
+			start_block,
+			end_block,
+			intial_percentage,
+			reward_id
+		));
+		let (alice_account, _) = get_alice_account_with_rewards();
+
+		assert_noop!(
+			Rewards::unlock_reward(Origin::signed(alice_account.clone().into()), reward_id),
+			Error::<Test>::UserNotEligible
+		);
+	});
+}
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#[test]
+pub fn claim_rewards() {
+	new_test_ext().execute_with(|| {
+		let (start_block, end_block, intial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		let conversion_factor = get_conversion_factor();
+
+		//create reward cycle
+		assert_ok!(Rewards::create_reward_cycle(
+			Origin::root(),
+			start_block,
+			end_block,
+			intial_percentage,
+			reward_id
+		));
+
+		//add reward beneficiaries as alice and bob
+		let vec_of_ids: Vec<(AccountId32, u128)> = vec![
+			get_alice_account_with_rewards(),
+			get_neal_account_with_rewards(),
+			get_bob_account_with_rewards(),
+		];
+		assert_ok!(Rewards::add_reward_beneficiaries(
+			Origin::root(),
+			reward_id,
+			conversion_factor,
+			BoundedVec::try_from(vec_of_ids).unwrap()
+		));
+
+		let pallet_id_account = Rewards::get_pallet_account();
+
+		//transfer balance to pallet account
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			pallet_id_account.clone(),
+			2000000000000000000,
+			0
+		));
+
+		//need to have Existential Deposit for alice bob neal
+		assert_ok!(Rewards::transfer_pdex_rewards(
+			&pallet_id_account,
+			&get_alice_account_with_rewards().0,
+			1000000000000_u128.saturated_into()
+		));
+		assert_ok!(Rewards::transfer_pdex_rewards(
+			&pallet_id_account,
+			&get_bob_account_with_rewards().0,
+			1000000000000_u128.saturated_into()
+		));
+		assert_ok!(Rewards::transfer_pdex_rewards(
+			&pallet_id_account,
+			&get_neal_account_with_rewards().0,
+			1000000000000_u128.saturated_into()
+		));
+
+		//unlock rewards for alice bob neal
+		assert_ok!(Rewards::unlock_reward(
+			Origin::signed(get_alice_account_with_rewards().0.into()),
+			reward_id
+		));
+		assert_ok!(Rewards::unlock_reward(
+			Origin::signed(get_bob_account_with_rewards().0.into()),
+			reward_id
+		));
+		assert_ok!(Rewards::unlock_reward(
+			Origin::signed(get_neal_account_with_rewards().0.into()),
+			reward_id
+		));
+
+		System::set_block_number(5);
+		// claim rewards for alice
+		assert_ok!(Rewards::claim(
+			Origin::signed(get_alice_account_with_rewards().0.into()),
+			reward_id
+		));
+	});
+}
+
+#[test]
+pub fn claim_reward_for_bad_origin() {
+	new_test_ext().execute_with(|| {
+		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
+		assert_noop!(Rewards::claim(Origin::root(), reward_id), BadOrigin);
+	});
+}
+
+#[test]
+pub fn claim_reward_for_unregister_id() {
+	new_test_ext().execute_with(|| {
+		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
+		assert_noop!(
+			Rewards::claim(Origin::signed(get_alice_account_with_rewards().0.into()), reward_id),
+			Error::<Test>::RewardIdNotRegister
+		);
+	});
+}
+
+#[test]
+pub fn claim_reward_when_user_not_eligible() {
+	new_test_ext().execute_with(|| {
+		let (start_block, end_block, intial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		assert_ok!(Rewards::create_reward_cycle(
+			Origin::root(),
+			start_block,
+			end_block,
+			intial_percentage,
+			reward_id
+		));
+		let (alice_account, _) = get_alice_account_with_rewards();
+
+		assert_noop!(
+			Rewards::claim(Origin::signed(alice_account.clone().into()), reward_id),
+			Error::<Test>::UserNotEligible
+		);
+	});
+}
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
