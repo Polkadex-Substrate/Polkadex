@@ -26,22 +26,11 @@ mod tests;
 pub mod pallet {
 	use frame_support::{
 		dispatch::fmt::Debug,
-		log,
 		pallet_prelude::*,
-		traits::{
-			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, ExistenceRequirement, ReservableCurrency,
-		},
+		traits::{Currency, ReservableCurrency},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_core::{H160, U256};
-	use sp_io::hashing::keccak_256;
-	use sp_runtime::{
-		traits::{One, Saturating, UniqueSaturatedInto},
-		BoundedBTreeSet, SaturatedConversion,
-	};
-	use sp_std::{vec, vec::Vec};
 	use thea_primitives::BLSPublicKey;
 
 	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo)]
@@ -159,6 +148,7 @@ pub mod pallet {
 			bls_signature: [u8; 96],
 			payload: Payload<T::AccountId>,
 		) -> DispatchResult {
+			ensure_signed(origin)?;
 			ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
 			// Fetch Deposit Nonce
 			let nonce = <DepositNonce<T>>::get(payload.network_id);
