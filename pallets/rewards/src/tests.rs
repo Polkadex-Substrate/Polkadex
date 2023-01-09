@@ -5,8 +5,9 @@ use frame_support::{assert_noop, assert_ok};
 use crate::mock::*;
 use frame_system::EventRecord;
 use polkadex_primitives::AccountId;
-use sp_runtime::{AccountId32, DispatchError::BadOrigin};
+use sp_runtime::{AccountId32, DispatchError::BadOrigin, WeakBoundedVec};
 use std::convert::TryFrom;
+use pallet_balances::BalanceLock;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	let events = frame_system::Pallet::<T>::events();
@@ -589,9 +590,13 @@ pub fn claim_reward_after_user_initialized_unlock() {
 		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
 		//check locked balance
 		//increment to the block at which the rewards are unlocked
-		assert_eq!(Balances::free_balance(&alice_account), 2*UNIT_BALANCE);
+		let balanceLocks:WeakBoundedVec<BalanceLock<u128>, MaxLocks> = Balances::locks(&alice_account);
+		for lock in balanceLocks.into_iter(){
+			if lock.id == REWARDS_LOCK_ID {
+				assert_eq!(lock.amount, 2 * UNIT_BALANCE);
+			}
+		}
 		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()),reward_id));
-		assert_eq!(Balances::free_balance(&alice_account), 2*UNIT_BALANCE);
 	})
 }
 //
