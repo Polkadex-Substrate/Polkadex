@@ -24,14 +24,14 @@ pub trait TheaExt {
 		let mut agg_pk: Option<AggregatePublicKey> = None;
 		for x in bit_map_vec {
 			// Fetch public key
-			let current_public_key = &bls_public_keys[x as usize];
+			let _current_public_key = &bls_public_keys[x as usize];
 			// Create public key from Vec from bytes
 			let bls_key = PublicKey::from_bytes(&bls_public_keys[x as usize].0).unwrap();
 			// Add Public key to the already aggregated public key
 			if agg_pk.is_none() {
 				agg_pk = match AggregatePublicKey::aggregate(&[&bls_key], false) {
 					Ok(agg_pk) => Some(agg_pk),
-					Err(err) => return false,
+					Err(_err) => return false,
 				};
 			} else {
 				let mut new_agg_pk = agg_pk.unwrap();
@@ -40,7 +40,7 @@ pub trait TheaExt {
 			}
 		}
 		// Generate Aggregate Signature
-		let mut agg_sig = AggregateSignature::from_signature(&recon_sig);
+		let mut _agg_sig = AggregateSignature::from_signature(&recon_sig);
 		let dst = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 		let err = recon_sig.fast_aggregate_verify_pre_aggregated(
 			false,
