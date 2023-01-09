@@ -24,15 +24,15 @@ pub const ALICE_ACCOUNT_RAW_ID: [u8; 32] = [7u8; 32];
 pub const NEAL_ACCOUNT_RAW_ID: [u8; 32] = [5u8; 32];
 
 fn get_alice_account_with_rewards() -> (AccountId32, u128) {
-	(AccountId::new(ALICE_ACCOUNT_RAW_ID), 100000000000000)
+	(AccountId::new(ALICE_ACCOUNT_RAW_ID), 100*UNIT_BALANCE)
 }
 
 fn get_bob_account_with_rewards() -> (AccountId32, u128) {
-	(AccountId::new(BOB_ACCOUNT_RAW_ID), 200000000000000)
+	(AccountId::new(BOB_ACCOUNT_RAW_ID), 200*UNIT_BALANCE)
 }
 
 fn get_neal_account_with_rewards() -> (AccountId32, u128) {
-	(AccountId::new(NEAL_ACCOUNT_RAW_ID), 3000000000000)
+	(AccountId::new(NEAL_ACCOUNT_RAW_ID), 3*UNIT_BALANCE)
 }
 
 fn get_parameters_for_reward_cycle() -> (u64, u64, u32, u32) {
@@ -585,11 +585,13 @@ pub fn claim_reward_after_user_initialized_unlock() {
 			0
 		));
 		assert_eq!(Balances::free_balance(&alice_account), 2*UNIT_BALANCE);
+		System::set_block_number(start_block+1);
 		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
 		//check locked balance
-		//assert_eq!(Balances::acc, total_rewards);
 		//increment to the block at which the rewards are unlocked
-		System::set_block_number(start_block);
+		assert_eq!(Balances::free_balance(&alice_account), 2*UNIT_BALANCE);
+		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()),reward_id));
+		assert_eq!(Balances::free_balance(&alice_account), 2*UNIT_BALANCE);
 	})
 }
 //
