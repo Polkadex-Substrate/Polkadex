@@ -19,10 +19,9 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement, LockIdentifier},
+	traits::{Currency, ExistenceRequirement, LockIdentifier},
 	BoundedVec,
 };
-use polkadex_primitives::assets::AssetId;
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -66,7 +65,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 
-	use sp_runtime::traits::{IdentifyAccount, Saturating, Verify};
+	use sp_runtime::traits::{IdentifyAccount, Verify};
 
 	use frame_support::traits::WithdrawReasons;
 	use sp_std::{cmp::min, convert::TryInto};

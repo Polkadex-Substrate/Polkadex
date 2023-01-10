@@ -349,9 +349,6 @@ fn add_one_beneficiary_which_falls_below_threshold() {
 		assert_eq!(bob_reward_info.is_initialized, false);
 		assert_eq!(bob_reward_info.lock_id, REWARDS_LOCK_ID);
 
-		let neal_reward_info =
-			Distributor::<Test>::get(&reward_id, &get_bob_account_with_rewards().0).unwrap();
-
 		assert_eq!(
 			Distributor::<Test>::get(&reward_id, &get_neal_account_with_invalid_rewards().0),
 			None
@@ -404,7 +401,7 @@ fn initialize_claim_rewards() {
 		let pallet_id_account = Rewards::get_pallet_account();
 
 		//calculate total rewards in pdex
-		let mut total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 
 		//transfer balance to pallet account
 		assert_ok!(Balances::set_balance(
@@ -610,7 +607,7 @@ pub fn claim_reward_when_user_not_eligible() {
 }
 
 fn assert_locked_balance(user: &AccountId, reward_claimable: u128, total_reward: u128) {
-	let mut balance_locks: WeakBoundedVec<BalanceLock<u128>, MaxLocks> = Balances::locks(user);
+	let balance_locks: WeakBoundedVec<BalanceLock<u128>, MaxLocks> = Balances::locks(user);
 	for lock in balance_locks.clone().into_iter() {
 		if lock.id == REWARDS_LOCK_ID {
 			assert_eq!(lock.amount, total_reward.saturating_sub(reward_claimable));
@@ -674,7 +671,7 @@ pub fn claim_rewards_at_start_block() {
 		add_existential_deposit();
 
 		//calculate total rewards and set balance
-		let mut total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			Rewards::get_pallet_account(),
@@ -769,7 +766,7 @@ pub fn claim_rewards_at_end_block() {
 		add_existential_deposit();
 
 		//calculate total rewards and set balance
-		let mut total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			Rewards::get_pallet_account(),
@@ -873,7 +870,7 @@ pub fn claim_rewards_at_50_percentage_of_reward_period() {
 		add_existential_deposit();
 
 		//calculate total rewards and set balance
-		let mut total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			Rewards::get_pallet_account(),
@@ -972,7 +969,7 @@ pub fn claim_rewards_at_75_percentage_of_reward_period() {
 		add_existential_deposit();
 
 		//calculate total rewards and set balance
-		let mut total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			Rewards::get_pallet_account(),
@@ -1053,7 +1050,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 		add_existential_deposit();
 
 		//calculate total rewards and set balance
-		let mut total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			Rewards::get_pallet_account(),
