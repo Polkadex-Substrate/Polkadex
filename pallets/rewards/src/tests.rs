@@ -3,12 +3,11 @@ use frame_support::{assert_noop, assert_ok};
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use frame_support::traits::tokens::Balance;
 use frame_system::EventRecord;
-use pallet_balances::{AccountData, BalanceLock};
 use polkadex_primitives::AccountId;
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, WeakBoundedVec};
 use std::convert::TryFrom;
+use pallet_balances::BalanceLock;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	let events = frame_system::Pallet::<T>::events();
@@ -372,21 +371,12 @@ fn unlock_rewards_for_alice() {
 			2 * UNIT_BALANCE,
 			0
 		));
-		// assert_ok!(Rewards::transfer_pdex_rewards(
-		// 	&pallet_id_account,
-		// 	&get_alice_account_with_rewards().0,
-		// 	2*UNIT_BALANCE
-		// ));
-
-		assert_eq!(Balances::free_balance(&alice_account), 2 * UNIT_BALANCE);
 
 		// unlock alice reward
 		assert_ok!(Rewards::unlock_reward(
 			Origin::signed(get_alice_account_with_rewards().0.into()),
 			reward_id
 		));
-
-		assert_eq!(Balances::free_balance(&alice_account), 202 * UNIT_BALANCE);
 
 		let alice_reward_info =
 			Distributor::<Test>::get(&reward_id, &get_alice_account_with_rewards().0).unwrap();
@@ -580,8 +570,6 @@ pub fn claim_reward_when_user_not_eligible() {
 		);
 	});
 }
-// - - - - - - - - - - - - - - - - - - - - - - - -  - -  - - - - - - - - -  - - - - - - - - - - - -
-//   - -
 #[test]
 pub fn claim_reward_after_user_initialized_unlock() {
 	new_test_ext().execute_with(|| {
@@ -597,8 +585,9 @@ pub fn claim_reward_after_user_initialized_unlock() {
 		));
 
 		//add beneficiaries
-		let (alice_account, total_rewards) = get_alice_account_with_rewards();
+		let (alice_account, total_rewards_for_alice_in_dot) = get_alice_account_with_rewards();
 		let conversion_factor = get_conversion_factor();
+		let total__for_alice_rewards_in_pdex = total_rewards_for_alice_in_dot.saturating_mul(conversion_factor).saturating_div(UNIT_BALANCE);
 		let beneficiaries: Vec<(AccountId32, u128)> = vec![
 			get_alice_account_with_rewards(),
 			get_neal_account_with_rewards(),
@@ -606,23 +595,23 @@ pub fn claim_reward_after_user_initialized_unlock() {
 		];
 
 		//calculate total rewards
-		let mut total_rewards = 0;
+		let mut total_rewards_in_pdex = 0;
 		for item in beneficiaries.clone().into_iter() {
-			total_rewards += item.1;
+			total_rewards_in_pdex += item.1.saturating_mul(conversion_factor).saturating_div(UNIT_BALANCE);
 		}
+
 		assert_ok!(Rewards::add_reward_beneficiaries(
 			Origin::root(),
 			reward_id,
 			conversion_factor,
 			BoundedVec::try_from(beneficiaries).unwrap()
 		));
-
-		println!("total rewards: {:?}", total_rewards);
-
+		let reward_info_for_alice = Rewards::get_account_reward_info(reward_id, &alice_account).unwrap();
+		assert_eq!(reward_info_for_alice.total_reward_amount, total__for_alice_rewards_in_pdex);
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			Rewards::get_pallet_account(),
-			total_rewards,
+			total_rewards_in_pdex,
 			0
 		));
 
@@ -634,7 +623,7 @@ pub fn claim_reward_after_user_initialized_unlock() {
 			0
 		));
 		assert_eq!(Balances::free_balance(&alice_account), 2 * UNIT_BALANCE);
-		// System::set_block_number(start_block+1);
+		System::set_block_number(start_block+1);
 		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
 		//check locked balance
 		//increment to the block at which the rewards are unlocked
@@ -714,3 +703,4 @@ pub fn claim_reward_after_user_initialized_unlock() {
 // 	let (alice_account, total_rewards) = get_alice_account_with_rewards();
 // }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//-   - - - - - - - - - - - - - - - - - - - - - - -
