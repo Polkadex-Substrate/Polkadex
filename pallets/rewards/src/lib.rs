@@ -254,7 +254,6 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn unlock_reward(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
-
 			//check if given id valid or not
 			ensure!(
 				<IntializeRewards<T>>::contains_key(reward_id),
@@ -272,7 +271,7 @@ pub mod pallet {
 						// reward
 						if let Some(reward_info) = <IntializeRewards<T>>::get(&reward_id) {
 							ensure!(
-								reward_info.start_block.saturated_into::<u128>() >
+								reward_info.start_block.saturated_into::<u128>() <=
 									<frame_system::Pallet<T>>::block_number()
 										.saturated_into::<u128>(),
 								Error::<T>::RewardsCannotBeUnlockYet
