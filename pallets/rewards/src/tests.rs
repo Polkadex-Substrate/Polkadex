@@ -1012,3 +1012,97 @@ pub fn claim_rewards_at_75_percentage_of_reward_period() {
 		assert_locked_balance(&neal_account, neal_claimable, total_reward_for_neal_in_pdex);
 	})
 }
+
+#[test]
+pub fn claim_rewards_for_alice_at_multiple_intervals() {
+	new_test_ext().execute_with(|| {
+		let (start_block, end_block, initial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		//create reward cycle
+		assert_ok!(Rewards::create_reward_cycle(
+			Origin::root(),
+			start_block,
+			end_block,
+			initial_percentage,
+			reward_id
+		));
+
+		//add beneficiaries
+		let (alice_account, total_rewards_for_alice_in_dot) = get_alice_account_with_rewards();
+
+		let conversion_factor = get_conversion_factor();
+		let total_reward_for_alice_in_pdex = total_rewards_for_alice_in_dot
+			.saturating_mul(conversion_factor)
+			.saturating_div(UNIT_BALANCE);
+
+		let beneficiaries: Vec<(AccountId32, u128)> = vec![get_alice_account_with_rewards()];
+
+		assert_ok!(Rewards::add_reward_beneficiaries(
+			Origin::root(),
+			reward_id,
+			conversion_factor,
+			BoundedVec::try_from(beneficiaries.clone()).unwrap()
+		));
+
+		let reward_info_for_alice =
+			Rewards::get_account_reward_info(reward_id, &alice_account).unwrap();
+
+		assert_eq!(reward_info_for_alice.total_reward_amount, total_reward_for_alice_in_pdex);
+
+		//add some existential deposit to alice
+		add_existential_deposit();
+
+		//calculate total rewards and set balance
+		let mut total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			Rewards::get_pallet_account(),
+			total_rewards_in_pdex,
+			0
+		));
+
+		let block_number = start_block;
+		System::set_block_number(block_number);
+		//lock reward for alice
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(alice_account.clone()),
+			reward_id
+		));
+
+		//increment to the block at which the rewards are unlocked
+		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
+		let (alice_claimable, _, _) = get_rewards_claimable_at_start_block();
+
+		assert_locked_balance(&alice_account, alice_claimable, total_reward_for_alice_in_pdex);
+
+		//re try to call claim at a block at which 50% of lock rewards can be claimed
+		let require_block_to_claim_50_percentage_of_rewards =
+			start_block.saturating_add(end_block).saturating_div(2);
+		System::set_block_number(
+			start_block.saturating_add(require_block_to_claim_50_percentage_of_rewards),
+		);
+
+		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
+		let (alice_claimable, _, _) = get_rewards_when_50_percentage_of_lock_amount_claimable();
+
+		//assert locked balances
+		assert_locked_balance(&alice_account, alice_claimable, total_reward_for_alice_in_pdex);
+
+		//call claim at the end of cycle
+		System::set_block_number(end_block + 10);
+		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
+		//assert locked balances
+		assert_locked_balance(
+			&alice_account,
+			total_reward_for_alice_in_pdex,
+			total_reward_for_alice_in_pdex,
+		);
+
+		//re try to call claim at the end of cycle when all rewards claimed
+		System::set_block_number(end_block + 20);
+		assert_noop!(
+			Rewards::claim(Origin::signed(alice_account.clone()), reward_id),
+			Error::<Test>::AllRewardsAlreadyClaimed
+		);
+	})
+}
