@@ -187,7 +187,8 @@ pub mod pallet {
 		/// Parameters,
 		/// origin: The donor for the particular reward id
 		/// id: Reward id
-		/// beneficiaries: The account id who can claim the reward & the reward amount in dot with
+		/// conversion_factor: The conversion factor from dot to pdex
+		/// beneficiaries: The account id who can claim the reward & the amount in dot contributed
 		/// base 10^12 u128: the value provide here considers 1 unit = 10^12
 		#[pallet::weight(10_000)]
 		pub fn add_reward_beneficiaries(
@@ -244,7 +245,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///The extrinsic will transfer and lock users reward
+		///The extrinsic will transfer and lock users rewards in the users account
 		/// Parameters,
 		/// origin: The users address which has been mapped to reward id
 		/// id: Reward id
