@@ -318,7 +318,7 @@ pub mod pallet {
 		///
 		/// * `origin`: `Asset` owner
 		/// * `network_id`: Network ID of asset being Bridges
-		/// * `identifier length`: Length of asset identifier length
+		/// * `identifier_length`: Length of asset identifier length
 		/// * `asset_identifier`: Identifier for a given asset
 		#[pallet::weight(T::WeightInfo::create_asset(1))]
 		pub fn create_thea_asset(
