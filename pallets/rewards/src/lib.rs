@@ -43,9 +43,10 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-const UNIT_BALANCE: u128 = 1000000000000;
-const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = 1;
+const UNIT_BALANCE: u128 = 1_000_000_000_000;
+const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = 1 * UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
+pub const MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK: u128 = 15;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -65,7 +66,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 
-	use sp_runtime::traits::{IdentifyAccount, Verify};
+	use sp_runtime::traits::{IdentifyAccount, Saturating, Verify};
 
 	use frame_support::traits::WithdrawReasons;
 	use sp_std::{cmp::min, convert::TryInto};
@@ -155,6 +156,18 @@ pub mod pallet {
 			//check to ensure start block greater than end block
 			ensure!(start_block < end_block, Error::<T>::InvalidParameter);
 
+			//ensure that difference between start of vesting period - current block is greater
+			// than min difference
+			let difference_between_start_and_current_block = start_block
+				.saturated_into::<u128>()
+				.saturating_sub(<frame_system::Pallet<T>>::block_number().saturated_into::<u128>());
+			ensure!(
+				difference_between_start_and_current_block >
+					MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK,
+				Error::<T>::InvalidParameter
+			);
+
+			//ensure start block is greater than min
 			ensure!(
 				intial_percentage <= 100 && intial_percentage > 0,
 				Error::<T>::InvalidParameter
@@ -180,7 +193,7 @@ pub mod pallet {
 		pub fn add_reward_beneficiaries(
 			origin: OriginFor<T>,
 			reward_id: u32,
-			conversion_factor: u128,
+			conversion_factor: BalanceOf<T>,
 			beneficiaries: BoundedVec<
 				(T::AccountId, BalanceOf<T>),
 				polkadex_primitives::ingress::HandleBalanceLimit,
@@ -203,7 +216,7 @@ pub mod pallet {
 					//calculate total rewards receive based on the factor
 					let contribution: u128 = beneficiary.1.saturated_into();
 					let total_rewards_in_pdex: BalanceOf<T> = contribution
-						.saturating_mul(conversion_factor)
+						.saturating_mul(conversion_factor.saturated_into())
 						.saturating_div(UNIT_BALANCE)
 						.saturated_into();
 
@@ -255,6 +268,23 @@ pub mod pallet {
 			ensure!(
 				<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
 					if let Some(user_reward_info) = user_reward_info {
+						//only unlock reward if current block greater than the starting block of
+						// reward
+						if let Some(reward_info) = <IntializeRewards<T>>::get(&reward_id) {
+							ensure!(
+								reward_info.start_block.saturated_into::<u128>() >
+									<frame_system::Pallet<T>>::block_number()
+										.saturated_into::<u128>(),
+								Error::<T>::RewardsCannotBeUnlockYet
+							);
+						}
+
+						//check if user already unlocked the rewards
+						ensure!(
+							!user_reward_info.is_intialized,
+							Error::<T>::RewardsAlreadyUnlocked
+						);
+
 						//transfer funds from pallet account to users account
 						ensure!(
 							Self::transfer_pdex_rewards(
@@ -459,6 +489,10 @@ pub mod pallet {
 		AmountToLowtoRedeem,
 		/// User needs to intialize first before claiming rewards
 		UserHasNotIntializeClaimRewards,
+		/// User has already unlocked the rewards
+		RewardsAlreadyUnlocked,
+		/// Reward cycle need to get started before unlocking rewards
+		RewardsCannotBeUnlockYet,
 	}
 
 	#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
