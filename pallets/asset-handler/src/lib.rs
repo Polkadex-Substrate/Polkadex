@@ -169,7 +169,8 @@ pub mod pallet {
 	pub(super) type AssetPrecision<T: Config> =
 		StorageMap<_, Blake2_128Concat, ResourceId, PrecisionType, ValueQuery>;
 
-	/// Thea Assets
+	/// Thea Assets, asset_id(u128) -> (network_id(u8), identifier_length(u8),
+	/// identifier(BoundedVec<>))
 	#[pallet::storage]
 	#[pallet::getter(fn get_thea_assets)]
 	pub(super) type TheaAssets<T: Config> =
@@ -234,6 +235,8 @@ pub mod pallet {
 		AmountCannotBeZero,
 		// Thea Asset has not been registered
 		AssetNotRegistered,
+		// Identifier length provided is wrong
+		IdentifierLenghtMismatch,
 	}
 
 	#[pallet::hooks]
@@ -328,6 +331,12 @@ pub mod pallet {
 			asset_identifier: BoundedVec<u8, ConstU32<1000>>,
 		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			// Check for index error
+			ensure!(
+				asset_identifier.len() >= identifier_length as usize,
+				Error::<T>::IdentifierLenghtMismatch
+			);
+
 			let mut derived_asset_id = vec![];
 			derived_asset_id.push(network_id);
 			derived_asset_id.push(identifier_length);
