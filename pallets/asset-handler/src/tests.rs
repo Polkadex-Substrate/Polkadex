@@ -15,7 +15,9 @@
 use frame_support::{assert_noop, assert_ok};
 use parity_scale_codec::Decode;
 use sp_core::{H160, U256};
-use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError, DispatchError::BadOrigin, TokenError};
+use sp_runtime::{
+	BoundedBTreeSet, BoundedVec, DispatchError, DispatchError::BadOrigin, TokenError,
+};
 
 use crate::{
 	mock,
@@ -605,6 +607,12 @@ pub fn test_create_thea_asset() {
 }
 
 #[test]
+pub fn test_create_thea_asset_with_mismatching_identifier_will_return_identifier_length_mismatch_error(
+) {
+	// TODO: Implement
+}
+
+#[test]
 pub fn test_mint_thea_asset_with_unknown_recipient_will_return_cannot_create_error() {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let asset_id = create_thea_asset_id(0, 5);
@@ -647,11 +655,6 @@ pub fn test_mint_thea_asset_with_zero_amount_will_return_amount_cannot_be_zero_e
 }
 
 #[test]
-pub fn test_create_thea_asset_with_mismatching_identifier_will_return_identifier_length_mismatch_error() {
-	// TODO: Implement
-}
-
-#[test]
 pub fn test_mint_thea_asset_will_increase_asset_balance() {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let recipient = create_recipient_account();
@@ -659,8 +662,8 @@ pub fn test_mint_thea_asset_will_increase_asset_balance() {
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(create_thea_asset(asset_address, 0, 5));
-		// TODO: Investigate why `mint_thea_asset` from the next line is returns `TokenError::CannotCreate`
-		//  with provided args which suppose to be valid
+		// FIXME: Investigate why `mint_thea_asset` from the next line is returns
+		//  `TokenError::CannotCreate`  with provided args which suppose to be valid
 		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 100_u128));
 		assert_eq!(AssetHandler::account_balances(vec![asset_id], recipient)[0], 100_u128);
 	})
@@ -741,12 +744,16 @@ fn create_recipient_account() -> u64 {
 	<Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap()
 }
 
-fn create_thea_asset(asset_address: H160, network_id: u8, identifier_length: u8) -> Result<(), DispatchError> {
+fn create_thea_asset(
+	asset_address: H160,
+	network_id: u8,
+	identifier_length: u8,
+) -> Result<(), DispatchError> {
 	AssetHandler::create_thea_asset(
 		Origin::signed(1),
 		network_id,
 		identifier_length,
-		BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
+		BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap(),
 	)
 }
 
