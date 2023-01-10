@@ -244,12 +244,12 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///The extrinsic will unlock users reward
+		///The extrinsic will transfer and lock users reward
 		/// Parameters,
 		/// origin: The users address which has been mapped to reward id
 		/// id: Reward id
 		#[pallet::weight(10_000)]
-		pub fn unlock_reward(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
+		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 			//check if given id valid or not
 			ensure!(
@@ -370,7 +370,6 @@ pub mod pallet {
 							.saturating_add(factor.saturating_mul(unclaimed_blocks));
 
 						//ensure the claimable amount is greater than min claimable amount
-						println!("rewards_claimable: {:?}", rewards_claimable);
 						ensure!(
 							rewards_claimable > MIN_REWARDS_CLAIMABLE_AMOUNT,
 							Error::<T>::AmountToLowtoRedeem
