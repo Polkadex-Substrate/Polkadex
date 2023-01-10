@@ -137,21 +137,21 @@ pub mod pallet {
 		/// origin: The donor who wants to start the reward cycle
 		/// start_block: The block from which reward distribution will start
 		/// end_block: The block at which last rewards will be distributed
-		/// intial_percentage: The percentage of rewards that can be claimed at start block
+		/// initial_percentage: The percentage of rewards that can be claimed at start block
 		/// reward_id: The reward id
 		#[pallet::weight(10_000)]
 		pub fn create_reward_cycle(
 			origin: OriginFor<T>,
 			start_block: T::BlockNumber,
 			end_block: T::BlockNumber,
-			intial_percentage: u32,
+			initial_percentage: u32,
 			reward_id: u32,
 		) -> DispatchResult {
 			//check to ensure governance
 			T::GovernanceOrigin::ensure_origin(origin.clone())?;
 
 			//check to ensure no dupicate id gets added
-			ensure!(!<IntializeRewards<T>>::contains_key(reward_id), Error::<T>::DuplicateId);
+			ensure!(!<InitializeRewards<T>>::contains_key(reward_id), Error::<T>::DuplicateId);
 
 			//check to ensure start block greater than end block
 			ensure!(start_block < end_block, Error::<T>::InvalidParameter);
@@ -169,14 +169,14 @@ pub mod pallet {
 
 			//ensure start block is greater than min
 			ensure!(
-				intial_percentage <= 100 && intial_percentage > 0,
+				initial_percentage <= 100 && initial_percentage > 0,
 				Error::<T>::InvalidParameter
 			);
 
-			let reward_info = RewardInfo { start_block, end_block, intial_percentage };
+			let reward_info = RewardInfo { start_block, end_block, initial_percentage };
 
 			//inserting rewards info into storage
-			<IntializeRewards<T>>::insert(reward_id, reward_info);
+			<InitializeRewards<T>>::insert(reward_id, reward_info);
 
 			Self::deposit_event(Event::RewardCycleCreated { start_block, end_block, reward_id });
 
@@ -187,8 +187,8 @@ pub mod pallet {
 		/// Parameters,
 		/// origin: The donor for the particular reward id
 		/// id: Reward id
-		/// beneficiaries: The accountid who can claim the reward
-		/// u128: the value provide here considers 1 unit = 10^12
+		/// beneficiaries: The account id who can claim the reward & the reward amount in dot with
+		/// base 10^12 u128: the value provide here considers 1 unit = 10^12
 		#[pallet::weight(10_000)]
 		pub fn add_reward_beneficiaries(
 			origin: OriginFor<T>,
@@ -204,16 +204,14 @@ pub mod pallet {
 
 			//check if reward id present in storage
 			ensure!(
-				<IntializeRewards<T>>::contains_key(&reward_id),
+				<InitializeRewards<T>>::contains_key(&reward_id),
 				Error::<T>::RewardIdNotRegister
 			);
 
-			if let Some(reward_info) = <IntializeRewards<T>>::get(reward_id) {
+			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 				//add all the beneficiary account in storage
 				for beneficiary in beneficiaries {
-					//generate lock id
-
-					//calculate total rewards receive based on the factor
+					//calculate total rewards receive based on the conversion factor
 					let contribution: u128 = beneficiary.1.saturated_into();
 					let total_rewards_in_pdex: BalanceOf<T> = contribution
 						.saturating_mul(conversion_factor.saturated_into())
@@ -224,8 +222,8 @@ pub mod pallet {
 						let reward_info = RewardInfoForAccount {
 							total_reward_amount: total_rewards_in_pdex,
 							claim_amount: 0_u128.saturated_into(),
-							is_intial_rewards_claimed: false,
-							is_intialized: false,
+							is_initial_rewards_claimed: false,
+							is_initialized: false,
 							lock_id: REWARDS_LOCK_ID,
 							last_block_rewards_claim: reward_info.start_block,
 						};
@@ -243,7 +241,6 @@ pub mod pallet {
 				//will not occur since we are already ensuring it above, still sanity check
 				return Err(Error::<T>::RewardIdNotRegister.into())
 			}
-
 			Ok(())
 		}
 
@@ -256,64 +253,53 @@ pub mod pallet {
 			let user: T::AccountId = ensure_signed(origin)?;
 			//check if given id valid or not
 			ensure!(
-				<IntializeRewards<T>>::contains_key(reward_id),
+				<InitializeRewards<T>>::contains_key(reward_id),
 				Error::<T>::RewardIdNotRegister
 			);
 
 			//check if user is added in reward list
 			ensure!(<Distributor<T>>::contains_key(reward_id, &user), Error::<T>::UserNotEligible);
 
-			//transfer funds to users account and lock it
-			ensure!(
-				<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
-					if let Some(user_reward_info) = user_reward_info {
-						//only unlock reward if current block greater than the starting block of
-						// reward
-						if let Some(reward_info) = <IntializeRewards<T>>::get(&reward_id) {
-							ensure!(
-								reward_info.start_block.saturated_into::<u128>() <=
-									<frame_system::Pallet<T>>::block_number()
-										.saturated_into::<u128>(),
-								Error::<T>::RewardsCannotBeUnlockYet
-							);
-						}
-
-						//check if user already unlocked the rewards
+			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
+				if let Some(user_reward_info) = user_reward_info {
+					// only unlock reward if current block greater than or equal to the starting
+					// block of reward
+					if let Some(reward_info) = <InitializeRewards<T>>::get(&reward_id) {
 						ensure!(
-							!user_reward_info.is_intialized,
-							Error::<T>::RewardsAlreadyUnlocked
+							reward_info.start_block.saturated_into::<u128>() <=
+								<frame_system::Pallet<T>>::block_number()
+									.saturated_into::<u128>(),
+							Error::<T>::RewardsCannotBeUnlockYet
 						);
-
-						//transfer funds from pallet account to users account
-						ensure!(
-							Self::transfer_pdex_rewards(
-								&Self::get_pallet_account(),
-								&user,
-								user_reward_info.total_reward_amount
-							)
-							.is_ok(),
-							Error::<T>::TransferFailed
-						);
-
-						//lock funds in users account
-						T::NativeCurrency::set_lock(
-							REWARDS_LOCK_ID,
-							&user,
-							user_reward_info.total_reward_amount.saturated_into(),
-							WithdrawReasons::TRANSFER,
-						);
-
-						user_reward_info.is_intialized = true;
-						Ok(())
-					} else {
-						//sanity check
-						Err(Error::<T>::UserNotEligible)
 					}
-				})
-				.is_ok(),
-				Error::<T>::TransferFailed
-			);
 
+					//check if user already unlocked the rewards
+					ensure!(!user_reward_info.is_initialized, Error::<T>::RewardsAlreadyUnlocked);
+					//transfer funds from pallet account to users account
+					ensure!(
+						Self::transfer_pdex_rewards(
+							&Self::get_pallet_account(),
+							&user,
+							user_reward_info.total_reward_amount
+						)
+						.is_ok(),
+						Error::<T>::TransferFailed
+					);
+
+					//lock funds in users account
+					T::NativeCurrency::set_lock(
+						REWARDS_LOCK_ID,
+						&user,
+						user_reward_info.total_reward_amount.saturated_into(),
+						WithdrawReasons::TRANSFER,
+					);
+					user_reward_info.is_initialized = true;
+					Ok(())
+				} else {
+					//sanity check
+					Err(Error::<T>::UserNotEligible)
+				}
+			})?;
 			Self::deposit_event(Event::UserUnlockedReward { user, reward_id });
 			Ok(())
 		}
@@ -327,117 +313,110 @@ pub mod pallet {
 
 			//check if given id valid or not
 			ensure!(
-				<IntializeRewards<T>>::contains_key(reward_id),
+				<InitializeRewards<T>>::contains_key(reward_id),
 				Error::<T>::RewardIdNotRegister
 			);
 
 			//check if user is added in reward list
 			ensure!(<Distributor<T>>::contains_key(reward_id, &user), Error::<T>::UserNotEligible);
 
-			ensure!(
-				<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
-					if let Some(reward_info) = <IntializeRewards<T>>::get(&reward_id) {
-						if let Some(user_reward_info) = user_reward_info {
-							//check if user has intialize rewards or not
-							ensure!(
-								user_reward_info.is_intialized,
-								Error::<T>::UserHasNotIntializeClaimRewards
-							);
+			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
+				if let Some(reward_info) = <InitializeRewards<T>>::get(&reward_id) {
+					if let Some(user_reward_info) = user_reward_info {
+						//check if user has initialize rewards or not
+						ensure!(
+							user_reward_info.is_initialized,
+							Error::<T>::UserHasNotIntializeClaimRewards
+						);
 
-							let mut rewards_claimable: u128 = 0_u128.saturated_into();
+						let mut rewards_claimable: u128 = 0_u128.saturated_into();
 
-							//calculate the intial rewards that can be claimed
-							let intial_rewards_claimed = user_reward_info
-								.total_reward_amount
-								.saturated_into::<u128>()
-								.saturating_mul(reward_info.intial_percentage as u128)
-								.saturating_div(100);
+						//calculate the intial rewards that can be claimed
+						let initial_rewards_claimed = user_reward_info
+							.total_reward_amount
+							.saturated_into::<u128>()
+							.saturating_mul(reward_info.initial_percentage as u128)
+							.saturating_div(100);
 
-							//if intial rewards are not claimed add it to claimable rewards
-							if user_reward_info.is_intial_rewards_claimed == false {
-								rewards_claimable = intial_rewards_claimed;
-							}
-
-							//calculate the number of blocks the user can claim rewards
-							let current_block_no: u128 =
-								<frame_system::Pallet<T>>::block_number().saturated_into();
-							let last_reward_claimed_block_no: u128 =
-								user_reward_info.last_block_rewards_claim.saturated_into();
-							let unclaimed_blocks: u128 = min(
-								current_block_no,
-								reward_info.end_block.saturated_into::<u128>(),
-							)
-							.saturating_sub(last_reward_claimed_block_no);
-
-							let crowdloan_period = reward_info
-								.end_block
-								.saturated_into::<u128>()
-								.saturating_sub(reward_info.start_block.saturated_into::<u128>());
-
-							//calculate custom factor for the user
-							// Formula = (total_rewards - intial_rewards_claimed) / crowloan_period
-							let factor = user_reward_info
-								.total_reward_amount
-								.saturated_into::<u128>()
-								.saturating_sub(intial_rewards_claimed)
-								.saturating_div(crowdloan_period);
-
-							// add the unclaimed block rewards to claimable rewards
-							rewards_claimable = rewards_claimable
-								.saturating_add(factor.saturating_mul(unclaimed_blocks));
-
-							//ensure the claimable amount is greater than min claimable amount
-							ensure!(
-								rewards_claimable > MIN_REWARDS_CLAIMABLE_AMOUNT,
-								Error::<T>::AmountToLowtoRedeem
-							);
-
-							//remove lock
-							T::NativeCurrency::remove_lock(user_reward_info.lock_id, &user);
-
-							//update storage
-							user_reward_info.last_block_rewards_claim =
-								<frame_system::Pallet<T>>::block_number();
-							user_reward_info.is_intial_rewards_claimed = true;
-							user_reward_info.claim_amount = user_reward_info
-								.claim_amount
-								.saturated_into::<u128>()
-								.saturating_add(rewards_claimable)
-								.saturated_into();
-
-							//set new lock on new amount
-							let reward_amount_to_lock = user_reward_info
-								.total_reward_amount
-								.saturated_into::<u128>()
-								.saturating_sub(
-									user_reward_info.claim_amount.saturated_into::<u128>(),
-								);
-							T::NativeCurrency::set_lock(
-								user_reward_info.lock_id,
-								&user,
-								reward_amount_to_lock.saturated_into(),
-								WithdrawReasons::TRANSFER,
-							);
-
-							Self::deposit_event(Event::UserClaimedReward {
-								user,
-								reward_id,
-								claimed: rewards_claimable.saturated_into(),
-							});
-
-							Ok(())
-						} else {
-							//will not occur since we are already ensuring it above, sanity check
-							return Err(Error::<T>::UserNotEligible)
+						//if intial rewards are not claimed add it to claimable rewards
+						if user_reward_info.is_initial_rewards_claimed == false {
+							rewards_claimable = initial_rewards_claimed;
 						}
+
+						//calculate the number of blocks the user can claim rewards
+						let current_block_no: u128 =
+							<frame_system::Pallet<T>>::block_number().saturated_into();
+						let last_reward_claimed_block_no: u128 =
+							user_reward_info.last_block_rewards_claim.saturated_into();
+						let unclaimed_blocks: u128 =
+							min(current_block_no, reward_info.end_block.saturated_into::<u128>())
+								.saturating_sub(last_reward_claimed_block_no);
+
+						let crowdloan_period = reward_info
+							.end_block
+							.saturated_into::<u128>()
+							.saturating_sub(reward_info.start_block.saturated_into::<u128>());
+
+						//calculate custom factor for the user
+						// Formula = (total_rewards - intial_rewards_claimed) / crowloan_period
+						let factor = user_reward_info
+							.total_reward_amount
+							.saturated_into::<u128>()
+							.saturating_sub(initial_rewards_claimed)
+							.saturating_div(crowdloan_period);
+
+						// add the unclaimed block rewards to claimable rewards
+						rewards_claimable = rewards_claimable
+							.saturating_add(factor.saturating_mul(unclaimed_blocks));
+
+						//ensure the claimable amount is greater than min claimable amount
+						println!("rewards_claimable: {:?}", rewards_claimable);
+						ensure!(
+							rewards_claimable > MIN_REWARDS_CLAIMABLE_AMOUNT,
+							Error::<T>::AmountToLowtoRedeem
+						);
+
+						//remove lock
+						T::NativeCurrency::remove_lock(user_reward_info.lock_id, &user);
+
+						//update storage
+						user_reward_info.last_block_rewards_claim =
+							<frame_system::Pallet<T>>::block_number();
+						user_reward_info.is_initial_rewards_claimed = true;
+						user_reward_info.claim_amount = user_reward_info
+							.claim_amount
+							.saturated_into::<u128>()
+							.saturating_add(rewards_claimable)
+							.saturated_into();
+
+						//set new lock on new amount
+						let reward_amount_to_lock = user_reward_info
+							.total_reward_amount
+							.saturated_into::<u128>()
+							.saturating_sub(user_reward_info.claim_amount.saturated_into::<u128>());
+						T::NativeCurrency::set_lock(
+							user_reward_info.lock_id,
+							&user,
+							reward_amount_to_lock.saturated_into(),
+							WithdrawReasons::TRANSFER,
+						);
+
+						Self::deposit_event(Event::UserClaimedReward {
+							user,
+							reward_id,
+							claimed: rewards_claimable.saturated_into(),
+						});
+
+						Ok(())
 					} else {
-						// will not occur since we are already ensuring it above, sanity check
-						return Err(Error::<T>::RewardIdNotRegister)
+						//will not occur since we are already ensuring it above, sanity check
+						return Err(Error::<T>::UserNotEligible)
 					}
-				})
-				.is_ok(),
-				Error::<T>::TransferFailed
-			);
+				} else {
+					// will not occur since we are already ensuring it above, sanity check
+					return Err(Error::<T>::RewardIdNotRegister)
+				}
+			})?;
 
 			Ok(())
 		}
@@ -499,8 +478,7 @@ pub mod pallet {
 	pub struct RewardInfo<T: Config> {
 		pub start_block: T::BlockNumber,
 		pub end_block: T::BlockNumber,
-		pub intial_percentage: u32, /* todo: u32 value just taken for testing purpose needs to
-		                             * ba change */
+		pub initial_percentage: u32,
 	}
 
 	#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
@@ -508,20 +486,15 @@ pub mod pallet {
 	pub struct RewardInfoForAccount<T: Config> {
 		pub total_reward_amount: BalanceOf<T>,
 		pub claim_amount: BalanceOf<T>,
-		pub is_intial_rewards_claimed: bool,
-		pub is_intialized: bool,
+		pub is_initial_rewards_claimed: bool,
+		pub is_initialized: bool,
 		pub lock_id: [u8; 8],
 		pub last_block_rewards_claim: T::BlockNumber,
 	}
 
-	///Allowlisted tokens
-	#[pallet::storage]
-	#[pallet::getter(fn get_id)]
-	pub(super) type AllowlistedToken<T: Config> = StorageValue<_, u8, ValueQuery>;
-
 	#[pallet::storage]
 	#[pallet::getter(fn get_beneficary)]
-	pub(super) type IntializeRewards<T: Config> =
+	pub(super) type InitializeRewards<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, RewardInfo<T>, OptionQuery>;
 
 	#[pallet::storage]
