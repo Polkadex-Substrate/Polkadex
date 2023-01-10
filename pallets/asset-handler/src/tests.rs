@@ -617,6 +617,12 @@ pub fn test_create_thea_asset() {
 		assert_eq!(network_id, 0);
 		assert_eq!(identifier_length, 5);
 		assert_eq!(identifier.to_vec(), asset_address.to_fixed_bytes().to_vec());
+
+		// mint into account
+		assert_noop!(
+			AssetHandler::mint_thea_asset(asset_id, u64::MAX, 1_000_000_000_000_0_u128),
+			TokenError::CannotCreate
+		);
 	})
 }
 

@@ -355,7 +355,7 @@ pub mod pallet {
 			T::AssetManager::create(
 				asset_id,
 				chainbridge::Pallet::<T>::account_id(),
-				true,
+				false,
 				BalanceOf::<T>::one().unique_saturated_into(),
 			)?;
 			// Update storage item
