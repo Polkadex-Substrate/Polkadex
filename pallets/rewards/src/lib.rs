@@ -329,6 +329,13 @@ pub mod pallet {
 							Error::<T>::UserHasNotIntializeClaimRewards
 						);
 
+						//ensure that all rewards are not already claimed
+						ensure!(
+							!(user_reward_info.claim_amount.saturated_into::<u128>() ==
+								user_reward_info.total_reward_amount.saturated_into::<u128>()),
+							Error::<T>::AllRewardsAlreadyClaimed
+						);
+
 						let mut rewards_claimable: u128 = 0_u128.saturated_into();
 
 						//calculate the intial rewards that can be claimed
@@ -351,7 +358,6 @@ pub mod pallet {
 						let unclaimed_blocks: u128 =
 							min(current_block_no, reward_info.end_block.saturated_into::<u128>())
 								.saturating_sub(last_reward_claimed_block_no);
-
 						let crowdloan_period = reward_info
 							.end_block
 							.saturated_into::<u128>()
@@ -470,6 +476,8 @@ pub mod pallet {
 		RewardsAlreadyUnlocked,
 		/// Reward cycle need to get started before unlocking rewards
 		RewardsCannotBeUnlockYet,
+		/// User has already claimed all the available amount
+		AllRewardsAlreadyClaimed,
 	}
 
 	#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
