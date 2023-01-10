@@ -43,7 +43,7 @@ mod tests;
 mod mock;
 
 const UNIT_BALANCE: u128 = 1_000_000_000_000;
-const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = 1 * UNIT_BALANCE;
+const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
 pub const MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK: u128 = 15;
 
@@ -204,7 +204,7 @@ pub mod pallet {
 
 			//check if reward id present in storage
 			ensure!(
-				<InitializeRewards<T>>::contains_key(&reward_id),
+				<InitializeRewards<T>>::contains_key(reward_id),
 				Error::<T>::RewardIdNotRegister
 			);
 
@@ -264,7 +264,7 @@ pub mod pallet {
 				if let Some(user_reward_info) = user_reward_info {
 					// only unlock reward if current block greater than or equal to the starting
 					// block of reward
-					if let Some(reward_info) = <InitializeRewards<T>>::get(&reward_id) {
+					if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 						ensure!(
 							reward_info.start_block.saturated_into::<u128>() <=
 								<frame_system::Pallet<T>>::block_number()
@@ -321,7 +321,7 @@ pub mod pallet {
 			ensure!(<Distributor<T>>::contains_key(reward_id, &user), Error::<T>::UserNotEligible);
 
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
-				if let Some(reward_info) = <InitializeRewards<T>>::get(&reward_id) {
+				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 					if let Some(user_reward_info) = user_reward_info {
 						//check if user has initialize rewards or not
 						ensure!(
@@ -331,8 +331,8 @@ pub mod pallet {
 
 						//ensure that all rewards are not already claimed
 						ensure!(
-							!(user_reward_info.claim_amount.saturated_into::<u128>() ==
-								user_reward_info.total_reward_amount.saturated_into::<u128>()),
+							user_reward_info.claim_amount.saturated_into::<u128>() !=
+								user_reward_info.total_reward_amount.saturated_into::<u128>(),
 							Error::<T>::AllRewardsAlreadyClaimed
 						);
 
@@ -346,7 +346,7 @@ pub mod pallet {
 							.saturating_div(100);
 
 						//if intial rewards are not claimed add it to claimable rewards
-						if user_reward_info.is_initial_rewards_claimed == false {
+						if !user_reward_info.is_initial_rewards_claimed {
 							rewards_claimable = initial_rewards_claimed;
 						}
 
@@ -415,11 +415,11 @@ pub mod pallet {
 						Ok(())
 					} else {
 						//will not occur since we are already ensuring it above, sanity check
-						return Err(Error::<T>::UserNotEligible)
+						Err(Error::<T>::UserNotEligible)
 					}
 				} else {
 					// will not occur since we are already ensuring it above, sanity check
-					return Err(Error::<T>::RewardIdNotRegister)
+					Err(Error::<T>::RewardIdNotRegister)
 				}
 			})?;
 
