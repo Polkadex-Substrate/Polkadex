@@ -15,7 +15,7 @@
 use frame_support::{assert_noop, assert_ok};
 use parity_scale_codec::Decode;
 use sp_core::{H160, U256};
-use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
+use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError, DispatchError::BadOrigin, TokenError};
 
 use crate::{
 	mock,
@@ -589,27 +589,11 @@ pub fn test_convert_amount_for_foreign_chain() {
 
 #[test]
 pub fn test_create_thea_asset() {
-	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let asset_id = create_thea_asset_id(0, 5);
+
 	new_test_ext().execute_with(|| {
-		assert_ok!(AssetHandler::create_thea_asset(
-			Origin::signed(1),
-			0,
-			5,
-			BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
-		));
-
-		let mut derived_asset_id = vec![];
-		derived_asset_id.push(0);
-		derived_asset_id.push(5);
-		derived_asset_id.extend(&asset_address.to_fixed_bytes()[0..5]);
-
-		// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
-		let derived_asset_id_hash = &sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
-
-		// Derive u128 from resulting bytes
-		let mut temp = [0u8; 16];
-		temp.copy_from_slice(derived_asset_id_hash);
-		let asset_id = u128::from_le_bytes(temp);
+		assert_ok!(create_thea_asset(asset_address, 0, 5));
 
 		let (network_id, identifier_length, identifier) = <TheaAssets<Test>>::get(asset_id);
 
@@ -617,8 +601,16 @@ pub fn test_create_thea_asset() {
 		assert_eq!(network_id, 0);
 		assert_eq!(identifier_length, 5);
 		assert_eq!(identifier.to_vec(), asset_address.to_fixed_bytes().to_vec());
+	})
+}
 
-		// mint into account
+#[test]
+pub fn test_mint_thea_asset_with_unknown_recipient_will_return_cannot_create_error() {
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let asset_id = create_thea_asset_id(0, 5);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(create_thea_asset(asset_address, 0, 5));
 		assert_noop!(
 			AssetHandler::mint_thea_asset(asset_id, u64::MAX, 1_000_000_000_000_0_u128),
 			TokenError::CannotCreate
@@ -627,8 +619,72 @@ pub fn test_create_thea_asset() {
 }
 
 #[test]
+pub fn test_mint_thea_asset_with_not_registered_asset_will_return_asset_not_registered_error() {
+	let recipient = create_recipient_account();
+	let asset_id = create_thea_asset_id(0, 5);
+
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			AssetHandler::mint_thea_asset(asset_id, recipient, 1_000_000_000_000_0_u128),
+			Error::<Test>::AssetNotRegistered
+		);
+	})
+}
+
+#[test]
+pub fn test_mint_thea_asset_with_zero_amount_will_return_amount_cannot_be_zero_error() {
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let recipient = create_recipient_account();
+	let asset_id = create_thea_asset_id(0, 5);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(create_thea_asset(asset_address, 0, 5));
+		assert_noop!(
+			AssetHandler::mint_thea_asset(asset_id, recipient, 0_u128),
+			Error::<Test>::AmountCannotBeZero
+		);
+	})
+}
+
+#[test]
+pub fn test_create_thea_asset_with_mismatching_identifier_will_return_identifier_length_mismatch_error() {
+	// TODO: Implement
+}
+
+#[test]
+pub fn test_mint_thea_asset_will_increase_asset_balance() {
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let recipient = create_recipient_account();
+	let asset_id = create_thea_asset_id(0, 5);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(create_thea_asset(asset_address, 0, 5));
+		// TODO: Investigate why `mint_thea_asset` from the next line is returns `TokenError::CannotCreate`
+		//  with provided args which suppose to be valid
+		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 100_u128));
+		assert_eq!(AssetHandler::account_balances(vec![asset_id], recipient)[0], 100_u128);
+	})
+}
+
+#[test]
+pub fn test_burn_thea_asset_with_not_registered_asset_will_return_asset_not_registered_error() {
+	// TODO: Implement
+}
+
+#[test]
+pub fn test_burn_thea_asset_with_zero_amount_will_return_amount_cannot_be_zero_error() {
+	// TODO: Implement
+}
+
+#[test]
+pub fn test_burn_thea_asset_will_reduce_asset_balance() {
+	// TODO: Implement
+}
+
+#[test]
 pub fn test_create_thea_asset_bad_origin() {
-	let (asset_address, _recipient, _sender, chain_id) = withdraw_data();
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AssetHandler::create_thea_asset(
@@ -653,8 +709,7 @@ pub fn test_create_thea_asset_bad_origin() {
 
 fn create_asset_data() -> (H160, u64, u8) {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let recipient = [1u8; 32];
-	let recipient = <Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap();
+	let recipient = create_recipient_account();
 	let chain_id = 1;
 
 	(asset_address, recipient, chain_id)
@@ -664,8 +719,7 @@ fn mint_asset_data() -> (H160, u64, [u8; 32], u64, u8, u64) {
 	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
 	let relayer = 1u64;
 	let recipient = [1u8; 32];
-	let recipeint_account =
-		<Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap();
+	let recipeint_account = create_recipient_account();
 	let chain_id = 1;
 	let account = 0u64;
 
@@ -679,4 +733,37 @@ fn withdraw_data() -> (H160, H160, u64, u8) {
 	let chain_id = 2;
 
 	(asset_address, recipient, sender, chain_id)
+}
+
+fn create_recipient_account() -> u64 {
+	let recipient = [1u8; 32];
+
+	<Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap()
+}
+
+fn create_thea_asset(asset_address: H160, network_id: u8, identifier_length: u8) -> Result<(), DispatchError> {
+	AssetHandler::create_thea_asset(
+		Origin::signed(1),
+		network_id,
+		identifier_length,
+		BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
+	)
+}
+
+fn create_thea_asset_id(network_id: u8, identifier_length: u8) -> u128 {
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let mut derived_asset_id = vec![];
+
+	derived_asset_id.push(network_id);
+	derived_asset_id.push(identifier_length);
+	derived_asset_id.extend(&asset_address.to_fixed_bytes()[0..identifier_length as usize]);
+
+	// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
+	let derived_asset_id_hash = &sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
+	// Derive u128 from resulting bytes
+	let mut temp = [0u8; 16];
+
+	temp.copy_from_slice(derived_asset_id_hash);
+
+	u128::from_le_bytes(temp)
 }
