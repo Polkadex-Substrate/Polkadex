@@ -372,7 +372,7 @@ fn add_one_beneficiary_which_falls_below_threshold() {
 	});
 }
 #[test]
-fn unlock_rewards() {
+fn initialize_claim_rewards() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, initial_percentage, reward_id) =
 			get_parameters_for_reward_cycle();
@@ -422,7 +422,7 @@ fn unlock_rewards() {
 		System::set_block_number(start_block);
 
 		// unlock alice reward
-		assert_ok!(Rewards::unlock_reward(
+		assert_ok!(Rewards::initialize_claim_rewards(
 			Origin::signed(get_alice_account_with_rewards().0.into()),
 			reward_id
 		));
@@ -457,7 +457,7 @@ fn unlock_rewards() {
 
 		let (bob_account, _) = get_bob_account_with_rewards();
 		// unlock bob reward
-		assert_ok!(Rewards::unlock_reward(
+		assert_ok!(Rewards::initialize_claim_rewards(
 			Origin::signed(get_bob_account_with_rewards().0.into()),
 			reward_id
 		));
@@ -489,7 +489,7 @@ fn unlock_rewards() {
 
 		let (neal_account, _) = get_neal_account_with_rewards();
 		// unlock bob reward
-		assert_ok!(Rewards::unlock_reward(
+		assert_ok!(Rewards::initialize_claim_rewards(
 			Origin::signed(get_neal_account_with_rewards().0.into()),
 			reward_id
 		));
@@ -522,28 +522,31 @@ fn unlock_rewards() {
 }
 
 #[test]
-fn unlock_rewards_bad_origin() {
+fn initialize_claim_rewards_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
-		assert_noop!(Rewards::unlock_reward(Origin::root(), reward_id), BadOrigin);
-		assert_noop!(Rewards::unlock_reward(Origin::none(), reward_id), BadOrigin);
+		assert_noop!(Rewards::initialize_claim_rewards(Origin::root(), reward_id), BadOrigin);
+		assert_noop!(Rewards::initialize_claim_rewards(Origin::none(), reward_id), BadOrigin);
 	});
 }
 
 #[test]
-fn unlock_rewards_with_non_existing_reward_id() {
+fn initialize_claim_rewards_with_non_existing_reward_id() {
 	new_test_ext().execute_with(|| {
 		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
 		let (alice_account, _) = get_alice_account_with_rewards();
 		assert_noop!(
-			Rewards::unlock_reward(Origin::signed(alice_account.clone().into()), reward_id),
+			Rewards::initialize_claim_rewards(
+				Origin::signed(alice_account.clone().into()),
+				reward_id
+			),
 			Error::<Test>::RewardIdNotRegister
 		);
 	});
 }
 
 #[test]
-fn unlock_rewards_when_user_not_eligible_to_unlock() {
+fn initialize_claim_rewards_when_user_not_eligible_to_unlock() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, initial_percentage, reward_id) =
 			get_parameters_for_reward_cycle();
@@ -557,7 +560,10 @@ fn unlock_rewards_when_user_not_eligible_to_unlock() {
 		let (alice_account, _) = get_alice_account_with_rewards();
 
 		assert_noop!(
-			Rewards::unlock_reward(Origin::signed(alice_account.clone().into()), reward_id),
+			Rewards::initialize_claim_rewards(
+				Origin::signed(alice_account.clone().into()),
+				reward_id
+			),
 			Error::<Test>::UserNotEligible
 		);
 	});
@@ -679,11 +685,20 @@ pub fn claim_rewards_at_start_block() {
 		System::set_block_number(start_block);
 
 		//unlock reward for alice
-		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(alice_account.clone()),
+			reward_id
+		));
 		//unlock reward for bob
-		assert_ok!(Rewards::unlock_reward(Origin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(bob_account.clone()),
+			reward_id
+		));
 		//unlock reward for neal
-		assert_ok!(Rewards::unlock_reward(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(neal_account.clone()),
+			reward_id
+		));
 
 		let (alice_claimable, bob_claimable, neal_claimable) =
 			get_rewards_claimable_at_start_block();
@@ -765,11 +780,20 @@ pub fn claim_rewards_at_end_block() {
 		System::set_block_number(end_block);
 
 		//unlock reward for alice
-		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(alice_account.clone()),
+			reward_id
+		));
 		//unlock reward for bob
-		assert_ok!(Rewards::unlock_reward(Origin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(bob_account.clone()),
+			reward_id
+		));
 		//unlock reward for neal
-		assert_ok!(Rewards::unlock_reward(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(neal_account.clone()),
+			reward_id
+		));
 
 		//increment to the block at which the rewards are unlocked
 		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
@@ -864,11 +888,20 @@ pub fn claim_rewards_at_50_percentage_of_reward_period() {
 		);
 
 		//unlock reward for alice
-		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(alice_account.clone()),
+			reward_id
+		));
 		//unlock reward for bob
-		assert_ok!(Rewards::unlock_reward(Origin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(bob_account.clone()),
+			reward_id
+		));
 		//unlock reward for neal
-		assert_ok!(Rewards::unlock_reward(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(neal_account.clone()),
+			reward_id
+		));
 
 		//increment to the block at which the rewards are unlocked
 		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
@@ -950,11 +983,20 @@ pub fn claim_rewards_at_75_percentage_of_reward_period() {
 		let require_block_to_claim_75_percentage_of_rewards = 95;
 		System::set_block_number(require_block_to_claim_75_percentage_of_rewards);
 		//unlock reward for alice
-		assert_ok!(Rewards::unlock_reward(Origin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(alice_account.clone()),
+			reward_id
+		));
 		//unlock reward for bob
-		assert_ok!(Rewards::unlock_reward(Origin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(bob_account.clone()),
+			reward_id
+		));
 		//unlock reward for neal
-		assert_ok!(Rewards::unlock_reward(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::initialize_claim_rewards(
+			Origin::signed(neal_account.clone()),
+			reward_id
+		));
 
 		//increment to the block at which the rewards are unlocked
 		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
