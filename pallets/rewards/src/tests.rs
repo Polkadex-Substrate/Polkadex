@@ -183,8 +183,7 @@ fn create_reward_cycle_when_start_block_greater_than_end_block() {
 #[test]
 fn create_reward_cycle_when_block_range_is_invalid() {
 	new_test_ext().execute_with(|| {
-		let (_, end_block, initial_percentage, reward_id) =
-			get_parameters_for_reward_cycle();
+		let (_, end_block, initial_percentage, reward_id) = get_parameters_for_reward_cycle();
 		let start_block = 10;
 		assert_noop!(
 			Rewards::create_reward_cycle(

@@ -204,6 +204,12 @@ pub mod pallet {
 			);
 
 			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
+				//calculate crowdloan period
+				let crowdloan_period = reward_info
+					.end_block
+					.saturated_into::<u128>()
+					.saturating_sub(reward_info.start_block.saturated_into::<u128>());
+
 				//add all the beneficiary account in storage
 				for beneficiary in beneficiaries {
 					//calculate total rewards receive based on the conversion factor
@@ -214,6 +220,20 @@ pub mod pallet {
 						.saturated_into();
 
 					if total_rewards_in_pdex > MIN_REWARDS_CLAIMABLE_AMOUNT.saturated_into() {
+						let initial_rewards_claimable: BalanceOf<T> = total_rewards_in_pdex
+							.saturated_into::<u128>()
+							.saturating_mul(reward_info.initial_percentage as u128)
+							.saturating_div(100)
+							.saturated_into();
+
+						//calculate custom factor for the user
+						// Formula = (total_rewards - initial_rewards_claimed) / crowdloan_period
+						let factor: BalanceOf<T> = total_rewards_in_pdex
+							.saturated_into::<u128>()
+							.saturating_sub(initial_rewards_claimable.saturated_into::<u128>())
+							.saturating_div(crowdloan_period)
+							.saturated_into();
+
 						let reward_info = RewardInfoForAccount {
 							total_reward_amount: total_rewards_in_pdex,
 							claim_amount: 0_u128.saturated_into(),
@@ -221,6 +241,8 @@ pub mod pallet {
 							is_initialized: false,
 							lock_id: REWARDS_LOCK_ID,
 							last_block_rewards_claim: reward_info.start_block,
+							initial_rewards_claimable,
+							factor,
 						};
 						<Distributor<T>>::insert(reward_id, beneficiary.0, reward_info);
 					} else {
@@ -334,16 +356,10 @@ pub mod pallet {
 
 						let mut rewards_claimable: u128 = 0_u128.saturated_into();
 
-						//calculate the intial rewards that can be claimed
-						let initial_rewards_claimed = user_reward_info
-							.total_reward_amount
-							.saturated_into::<u128>()
-							.saturating_mul(reward_info.initial_percentage as u128)
-							.saturating_div(100);
-
-						//if intial rewards are not claimed add it to claimable rewards
+						//if initial rewards are not claimed add it to claimable rewards
 						if !user_reward_info.is_initial_rewards_claimed {
-							rewards_claimable = initial_rewards_claimed;
+							rewards_claimable =
+								user_reward_info.initial_rewards_claimable.saturated_into::<u128>();
 						}
 
 						//calculate the number of blocks the user can claim rewards
@@ -354,22 +370,14 @@ pub mod pallet {
 						let unclaimed_blocks: u128 =
 							min(current_block_no, reward_info.end_block.saturated_into::<u128>())
 								.saturating_sub(last_reward_claimed_block_no);
-						let crowdloan_period = reward_info
-							.end_block
-							.saturated_into::<u128>()
-							.saturating_sub(reward_info.start_block.saturated_into::<u128>());
-
-						//calculate custom factor for the user
-						// Formula = (total_rewards - intial_rewards_claimed) / crowloan_period
-						let factor = user_reward_info
-							.total_reward_amount
-							.saturated_into::<u128>()
-							.saturating_sub(initial_rewards_claimed)
-							.saturating_div(crowdloan_period);
 
 						// add the unclaimed block rewards to claimable rewards
-						rewards_claimable = rewards_claimable
-							.saturating_add(factor.saturating_mul(unclaimed_blocks));
+						rewards_claimable = rewards_claimable.saturating_add(
+							user_reward_info
+								.factor
+								.saturated_into::<u128>()
+								.saturating_mul(unclaimed_blocks),
+						);
 
 						//ensure the claimable amount is greater than min claimable amount
 						ensure!(
@@ -492,6 +500,8 @@ pub mod pallet {
 		pub is_initialized: bool,
 		pub lock_id: [u8; 8],
 		pub last_block_rewards_claim: T::BlockNumber,
+		pub initial_rewards_claimable: BalanceOf<T>,
+		pub factor: BalanceOf<T>,
 	}
 
 	#[pallet::storage]
