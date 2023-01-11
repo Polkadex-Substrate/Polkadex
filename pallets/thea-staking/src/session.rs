@@ -114,5 +114,5 @@ pub struct UnlockChunk<T: Config> {
 	pub(crate) value: BalanceOf<T>,
 	/// Era number at which point it'll be unlocked.
 	#[codec(compact)]
-	era: SessionIndex,
+	pub(crate) era: SessionIndex,
 }

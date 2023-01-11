@@ -1,203 +1,320 @@
-// This file is part of Substrate.
+use std::collections::{BTreeSet, HashSet};
+use crate::{mock::*, Error, Event, Exposure, Stakinglimits, IndividualExposure};
+use frame_support::{assert_noop, assert_ok};
+use frame_support::traits::fungible::Mutate;
+use frame_support::traits::TheseExcept;
+use crate as thea_staking;
+use crate::session::{StakingLimits, UnlockChunk};
 
-// Copyright (C) 2019-2022 Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+//TODO Things to test
+//1. Bound -> Nominate -> Bound
+//2/ Bound : CandidateNotFound
 
-//! Tests for pallet-example-basic.
 
-use crate::*;
-use frame_support::{
-	assert_ok,
-	dispatch::{DispatchInfo, GetDispatchInfo},
-	parameter_types,
-	traits::{ConstU64, OnInitialize},
-};
-use sp_core::H256;
-// The testing primitives are very useful for avoiding having to work with signatures
-// or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
-use sp_runtime::{
-	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage,
-};
-// Reexport crate as its pallet name for construct_runtime.
-use crate as pallet_example_basic;
-
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
-
-// For testing the pallet, we construct a mock runtime.
-frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Example: pallet_example_basic::{Pallet, Call, Storage, Config<T>, Event<T>},
-	}
-);
-
-parameter_types! {
-	pub BlockWeights: frame_system::limits::BlockWeights =
-		frame_system::limits::BlockWeights::simple_max(frame_support::weights::Weight::from_ref_time(1024));
-}
-impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
-	type BlockLength = ();
-	type DbWeight = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type Index = u64;
-	type BlockNumber = u64;
-	type Hash = H256;
-	type RuntimeCall = RuntimeCall;
-	type Hashing = BlakeTwo256;
-	type AccountId = u64;
-	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<250>;
-	type Version = ();
-	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<u64>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ();
-	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-}
-
-impl pallet_balances::Config for Test {
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type Balance = u64;
-	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposit = ConstU64<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
-}
-
-impl Config for Test {
-	type MagicNumber = ConstU64<1_000_000_000>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-}
-
-// This function basically just builds a genesis storage key/value store according to
-// our desired mockup.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	let t = GenesisConfig {
-		// We use default for brevity, but you can configure as desired if needed.
-		system: Default::default(),
-		balances: Default::default(),
-		example: pallet_example_basic::GenesisConfig {
-			dummy: 42,
-			// we configure the map with (key, value) pairs.
-			bar: vec![(1, 2), (2, 3)],
-			foo: 24,
-		},
-	}
-	.build_storage()
-	.unwrap();
-	t.into()
+#[test]
+fn test_add_candidate_with_valid_inputs_returns_ok() {
+    new_test_ext().execute_with(|| {
+        let candidate = 1;
+        let network_id: u8 = 0;
+        let bls_key = [1u8;65];
+        Balances::mint_into(&candidate, 10_000_000_000_000u128);
+        assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
+        assert_eq!(Balances::free_balance(&candidate), 9_000_000_000_000);
+        assert_eq!(Balances::reserved_balance(&candidate), 1_000_000_000_000);
+        let exposure = Exposure {
+            score: 1000,
+            total: 1_000_000_000_000,
+            bls_pub_key: bls_key,
+            stakers: Default::default()
+        };
+        assert_eq!(TheaStaking::candidates(network_id ,candidate), Some(exposure));
+        assert_eq!(TheaStaking::candidates_to_network(candidate), Some(network_id));
+    });
 }
 
 #[test]
-fn it_works_for_optional_value() {
-	new_test_ext().execute_with(|| {
-		// Check that GenesisBuilder works properly.
-		let val1 = 42;
-		let val2 = 27;
-		assert_eq!(Example::dummy(), Some(val1));
-
-		// Check that accumulate works when we have Some value in Dummy already.
-		assert_ok!(Example::accumulate_dummy(RuntimeOrigin::signed(1), val2));
-		assert_eq!(Example::dummy(), Some(val1 + val2));
-
-		// Check that accumulate works when we Dummy has None in it.
-		<Example as OnInitialize<u64>>::on_initialize(2);
-		assert_ok!(Example::accumulate_dummy(RuntimeOrigin::signed(1), val1));
-		assert_eq!(Example::dummy(), Some(val1 + val2 + val1));
-	});
+fn test_add_candidate_with_already_registered_candidate_returns_CandidateAlreadyRegistered_error() {
+    new_test_ext().execute_with(|| {
+        let candidate = 1;
+        let network_id: u8 = 0;
+        let bls_key = [1u8;65];
+        Balances::mint_into(&candidate, 10_000_000_000_000u128);
+        assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
+        assert_noop!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key), Error::<Test>::CandidateAlreadyRegistered);
+    });
 }
 
 #[test]
-fn it_works_for_default_value() {
-	new_test_ext().execute_with(|| {
-		assert_eq!(Example::foo(), 24);
-		assert_ok!(Example::accumulate_foo(RuntimeOrigin::signed(1), 1));
-		assert_eq!(Example::foo(), 25);
-	});
+fn test_add_candidate_with_low_free_balance_returns_low_balance_error() {
+    new_test_ext().execute_with(|| {
+        let candidate = 1;
+        let network_id: u8 = 0;
+        let bls_key = [1u8;65];
+        Balances::mint_into(&candidate, 10_000_000_000u128);
+        assert_noop!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key), pallet_balances::Error::<Test>::InsufficientBalance);
+    });
 }
 
 #[test]
-fn set_dummy_works() {
-	new_test_ext().execute_with(|| {
-		let test_val = 133;
-		assert_ok!(Example::set_dummy(RuntimeOrigin::root(), test_val.into()));
-		assert_eq!(Example::dummy(), Some(test_val));
-	});
+fn test_bound_with_valid_arguments_first_time_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        // Give some Balance to Nominator
+        let nominator = 2;
+        Balances::mint_into(&nominator, 10_000_000_000_000u128);
+        assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
+        let individual_exposure = IndividualExposure {
+            who: nominator,
+            value: 1_000_000_000_000u128,
+            backing: None,
+            unlocking: vec![]
+        };
+        assert_eq!(TheaStaking::stakers(nominator), Some(individual_exposure));
+    });
 }
 
 #[test]
-fn signed_ext_watch_dummy_works() {
-	new_test_ext().execute_with(|| {
-		let call = pallet_example_basic::Call::set_dummy { new_value: 10 }.into();
-		let info = DispatchInfo::default();
-
-		assert_eq!(
-			WatchDummy::<Test>(PhantomData)
-				.validate(&1, &call, &info, 150)
-				.unwrap()
-				.priority,
-			u64::MAX,
-		);
-		assert_eq!(
-			WatchDummy::<Test>(PhantomData).validate(&1, &call, &info, 250),
-			InvalidTransaction::ExhaustsResources.into(),
-		);
-	})
+fn test_bound_with_low_nominators_balance_returns_StakingLimitsError() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        let nominator = 2;
+        assert_noop!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_00u128), Error::<Test>::StakingLimitsError);
+    });
 }
 
 #[test]
-fn counted_map_works() {
-	new_test_ext().execute_with(|| {
-		assert_eq!(CountedMap::<Test>::count(), 0);
-		CountedMap::<Test>::insert(3, 3);
-		assert_eq!(CountedMap::<Test>::count(), 1);
-	})
+fn test_bound_with_low_nominators_balance_return_InsufficientBalance() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        let nominator = 2;
+        assert_noop!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128), pallet_balances::Error::<Test>::InsufficientBalance);
+    });
 }
 
 #[test]
-fn weights_work() {
-	// must have a defined weight.
-	let default_call = pallet_example_basic::Call::<Test>::accumulate_dummy { increase_by: 10 };
-	let info1 = default_call.get_dispatch_info();
-	// aka. `let info = <Call<Test> as GetDispatchInfo>::get_dispatch_info(&default_call);`
-	// TODO: account for proof size weight
-	assert!(info1.weight.ref_time() > 0);
+fn test_nominate_with_valid_arguments_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        register_nominator();
+        let (candidate, network_id, bls_key) = get_candidate();
+        let nominator = 2;
+        assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+        let mut stakers: BTreeSet<u64> = BTreeSet::new();
+        stakers.insert(nominator);
+        let exposure = Exposure {
+            score: 1000,
+            total: 2_000_000_000_000,
+            bls_pub_key: bls_key,
+            stakers
+        };
+        assert_eq!(TheaStaking::candidates(network_id, candidate), Some(exposure));
+        let nominator_exposure = IndividualExposure {
+            who: nominator,
+            value: 1_000_000_000_000u128,
+            backing: Some((network_id, candidate)),
+            unlocking: vec![]
+        };
+        assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
+    });
+}
 
-	// `set_dummy` is simpler than `accumulate_dummy`, and the weight
-	//   should be less.
-	let custom_call = pallet_example_basic::Call::<Test>::set_dummy { new_value: 20 };
-	let info2 = custom_call.get_dispatch_info();
-	// TODO: account for proof size weight
-	assert!(info1.weight.ref_time() > info2.weight.ref_time());
+#[test]
+fn test_nominate_with_invalid_nominator_returns_StakerNotFound() {
+    new_test_ext().execute_with(|| {
+        let nominator = 2;
+        let candidate = 1;
+        assert_noop!(TheaStaking::nominate(Origin::signed(nominator), candidate), Error::<Test>::StakerNotFound);
+    })
+}
+
+#[test]
+fn test_nominate_with_already_staked_relayer_returns_StakerAlreadyNominating() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        register_nominator();
+        let (candidate, ..) = get_candidate();
+        let nominator = 2;
+        assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+        assert_noop!(TheaStaking::nominate(Origin::signed(nominator), candidate), Error::<Test>::StakerAlreadyNominating);
+    })
+}
+
+#[test]
+fn test_nominate_with_wrong_candidate_returns_CandidateNotFound() {
+    new_test_ext().execute_with(|| {
+        insert_staking_limit();
+        register_nominator();
+        let (candidate, ..) = get_candidate();
+        let nominator = 2;
+        assert_noop!(TheaStaking::nominate(Origin::signed(nominator), candidate), Error::<Test>::CandidateNotFound);
+    });
+}
+
+// If Nominator tries to bound more with nominating anyone. Then Nominator will loose tokens
+// This test should pass.
+#[ignore]
+#[test]
+fn test_bound_with_valid_arguments_second_time_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        // Give some Balance to Nominator
+        let nominator = 2;
+        Balances::mint_into(&nominator, 10_000_000_000_000u128);
+        assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
+        assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
+        let individual_exposure = IndividualExposure {
+            who: nominator,
+            value: 2_000_000_000_000u128,
+            backing: None,
+            unlocking: vec![]
+        };
+        assert_eq!(TheaStaking::stakers(nominator), Some(individual_exposure));
+    });
+}
+
+#[test]
+fn test_unbond_with_valid_arguments_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        register_nominator();
+        let (candidate, network, bls_key) = get_candidate();
+        let nominator = 2;
+        assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+        assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
+        let mut stakers: BTreeSet<u64> = BTreeSet::new();
+        stakers.insert(nominator);
+        let relayer_exposure = Exposure {
+            score: 1000,
+            total: 1_900_000_000_000u128,
+            bls_pub_key: bls_key,
+            stakers: stakers
+        };
+        assert_eq!(TheaStaking::candidates(network, candidate), Some(relayer_exposure));
+    })
+}
+
+#[test]
+fn test_unbond_with_unregistered_nominator_returns_StakerNotFound_error() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        let nominator = 2u64;
+        assert_noop!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000), Error::<Test>::StakerNotFound);
+    })
+}
+
+#[test]
+fn test_unbond_with_zero_nomination_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        register_nominator();
+        let nominator = 2u64;
+        assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
+        let unlocking_chunk = UnlockChunk { value: 1_00_000_000_000, era: 10 };
+        let nominator_exposure = IndividualExposure {
+            who: nominator,
+            value: 1_000_000_000_000,
+            backing: None,
+            unlocking: vec![unlocking_chunk]
+        };
+        assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
+    })
+}
+
+#[test]
+fn test_withdraw_unbounded_with_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        register_nominator();
+        unbonding();
+        let nominator = 2u64;
+        assert_ok!(TheaStaking::withdraw_unbonded(Origin::signed(nominator)));
+    })
+}
+
+#[test]
+fn test_withdraw_unbouded_with_unregistered_nominator_returns_error() {
+    new_test_ext().execute_with(|| {
+        let nominator = 2u64;
+        assert_noop!(TheaStaking::withdraw_unbonded(Origin::signed(nominator)), Error::<Test>::CandidateNotFound);
+    })
+}
+
+#[test]
+fn test_remove_candidate_with_right_arguments_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        let (candidate,network,..) = get_candidate();
+        assert_ok!(TheaStaking::remove_candidate(Origin::signed(candidate), network));
+    })
+}
+
+#[test]
+fn test_remove_candidate_with_wrong_netowork_id_returns_error() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        let (candidate,..) = get_candidate();
+        let wrong_network_id = 5;
+        assert_noop!(TheaStaking::remove_candidate(Origin::signed(candidate),wrong_network_id), Error::<Test>::CandidateNotFound);
+    })
+}
+
+#[test]
+fn test_remove_candidate_with_unregistered_nominator_returns_error() {
+    new_test_ext().execute_with(|| {
+        let (candidate, network_id, ..) = get_candidate();
+        assert_noop!(TheaStaking::remove_candidate(Origin::signed(candidate), network_id), Error::<Test>::CandidateNotFound);
+    })
+}
+
+#[ignore]
+#[test]
+fn test_unbond_with_amount_more_than_staked_amount_returns_error() {}
+
+#[ignore]
+#[test]
+fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {}
+
+fn unbonding() {
+    let nominator = 2u64;
+    assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
+}
+
+fn register_nominator() {
+    let nominator = 2;
+    Balances::mint_into(&nominator, 10_000_000_000_000u128);
+    assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
+}
+
+fn register_candidate() {
+    let (candidate, network_id, bls_key) = get_candidate();
+    Balances::mint_into(&candidate, 10_000_000_000_000u128);
+    assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
+}
+
+fn insert_staking_limit() {
+    let staking_limits = StakingLimits {
+        mininum_relayer_stake: 1_000_000_000_000u128,
+        minimum_nominator_stake: 1_000_000_000_000u128,
+        maximum_nominator_per_relayer: 10,
+        max_relayers: 10
+    };
+    <Stakinglimits<Test>>::put(staking_limits);
+}
+
+fn get_candidate() -> (u64, u8, [u8;65]) {
+    let candidate = 1;
+    let network_id: u8 = 0;
+    let bls_key = [1u8;65];
+    (candidate, network_id, bls_key)
 }
