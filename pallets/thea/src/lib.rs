@@ -24,7 +24,7 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use std::collections::BTreeSet;
+	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
 	use frame_support::{
 		dispatch::fmt::Debug,
