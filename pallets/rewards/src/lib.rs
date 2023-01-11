@@ -168,7 +168,7 @@ pub mod pallet {
 
 			let reward_info = RewardInfo { start_block, end_block, initial_percentage };
 
-			//inserting rewards info into the storage
+			//inserting reward info into the storage
 			<InitializeRewards<T>>::insert(reward_id, reward_info);
 
 			Self::deposit_event(Event::RewardCycleCreated { start_block, end_block, reward_id });
