@@ -272,11 +272,6 @@ pub mod pallet {
 				Self::get_relayers_key_vector(payload.network_id).unwrap();
 
 			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
-			// TODO: @gautham
-			// Host Function Steps
-			// Step 1: Get Payload, Signature, BLS Keys Vector
-			// Step 2: Create Aggregate BLS Public Key
-			// Step 3: Verify Aggregate Signature
 			ensure!(
 				thea_primitives::thea_ext::bls_verify(
 					&bls_signature,
