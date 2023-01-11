@@ -36,6 +36,8 @@ mod election;
 mod session;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod mock;
 
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
@@ -414,7 +416,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_nominate(nominator: T::AccountId, candidate: T::AccountId) -> Result<(), Error<T>> {
-		let nominator_exposure =
+		let mut nominator_exposure =
 			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
 		ensure!(nominator_exposure.backing.is_none(), Error::<T>::StakerAlreadyNominating);
 		let network = <CandidateToNetworkMapping<T>>::get(&candidate)
@@ -423,9 +425,10 @@ impl<T: Config> Pallet<T> {
 			.ok_or_else(|| Error::<T>::CandidateNotFound)?;
 
 		ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
-
+        exposure.stakers.insert(nominator.clone());
 		exposure.total = exposure.total.saturating_add(nominator_exposure.value);
-
+        nominator_exposure.backing = Some((network, candidate.clone()));
+		<Stakers<T>>::insert(&nominator, nominator_exposure);
 		<Candidates<T>>::insert(network, &candidate, exposure);
 		Self::deposit_event(Event::<T>::Nominated { candidate, nominator });
 		Ok(())
@@ -449,6 +452,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
+		//FIXME: 1) Check if given amount is greater then actual bonded amount then reject
+		//FIXME 2) If nominator completely withdraw then it should be remove from Nominators Exposure as well as Individual exposure
 		let mut individual_exposure =
 			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
 
@@ -474,6 +479,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_bond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
 		let limits = <Stakinglimits<T>>::get();
+		//FIXME: minimum_nominator_stake should be only checked once
 		ensure!(amount >= limits.minimum_nominator_stake, Error::<T>::StakingLimitsError);
 		if let Some(individual_exposure) = <Stakers<T>>::get(&nominator) {
 			if let Some((network, candidate)) = individual_exposure.backing {
@@ -492,6 +498,7 @@ impl<T: Config> Pallet<T> {
 					return Err(Error::<T>::CandidateNotFound.into())
 				}
 			} else {
+				//FIXME: Handle this case
 			}
 		} else {
 			// reserve stake
