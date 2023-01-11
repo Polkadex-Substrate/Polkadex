@@ -123,21 +123,15 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		//ToDo: on_intialize would be added to clear events, to clear storage if everyone has been
-		// donated
-	}
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// The extrinsic will be used to start a new reward cycle
-		/// Parameters
-		/// origin: The donor who wants to start the reward cycle
-		/// start_block: The block from which reward distribution will start
-		/// end_block: The block at which last rewards will be distributed
-		/// initial_percentage: The percentage of rewards that can be claimed at start block
-		/// reward_id: The reward id
+		/// # Parameters
+		/// * `origin`: The donor who wants to start the reward cycle
+		/// * `start_block`: The block from which reward distribution will start
+		/// * `end_block`: The block at which last rewards will be distributed
+		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block
+		/// * `reward_id`: The reward id
 		#[pallet::weight(10_000)]
 		pub fn create_reward_cycle(
 			origin: OriginFor<T>,
@@ -149,11 +143,11 @@ pub mod pallet {
 			//check to ensure governance
 			T::GovernanceOrigin::ensure_origin(origin.clone())?;
 
-			//check to ensure no dupicate id gets added
+			//check to ensure no duplicate id gets added
 			ensure!(!<InitializeRewards<T>>::contains_key(reward_id), Error::<T>::DuplicateId);
 
 			//check to ensure start block greater than end block
-			ensure!(start_block < end_block, Error::<T>::InvalidParameter);
+			ensure!(start_block < end_block, Error::<T>::InvalidBlocksRange);
 
 			//ensure that difference between start of vesting period - current block is greater
 			// than min difference
@@ -163,18 +157,18 @@ pub mod pallet {
 			ensure!(
 				difference_between_start_and_current_block >
 					MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK,
-				Error::<T>::InvalidParameter
+				Error::<T>::InvalidBlocksRange
 			);
 
-			//ensure start block is greater than min
+			//ensure percentage range is valid
 			ensure!(
 				initial_percentage <= 100 && initial_percentage > 0,
-				Error::<T>::InvalidParameter
+				Error::<T>::InvalidInitialPercentage
 			);
 
 			let reward_info = RewardInfo { start_block, end_block, initial_percentage };
 
-			//inserting rewards info into storage
+			//inserting rewards info into the storage
 			<InitializeRewards<T>>::insert(reward_id, reward_info);
 
 			Self::deposit_event(Event::RewardCycleCreated { start_block, end_block, reward_id });
@@ -183,11 +177,12 @@ pub mod pallet {
 		}
 
 		///The extrinsic will add beneficiaries for particular reward id
-		/// Parameters,
-		/// origin: The donor for the particular reward id
-		/// id: Reward id
-		/// conversion_factor: The conversion factor from dot to pdex
-		/// beneficiaries: The account id who can claim the reward & the amount in dot contributed
+		/// # Parameters,
+		/// * `origin`: The donor for the particular reward id
+		/// * `id`: Reward id
+		/// * `conversion_factor`: The conversion factor from dot to pdex
+		/// * `beneficiaries: The account id who can claim the reward & the amount in dot
+		///   contributed
 		/// base 10^12 u128: the value provide here considers 1 unit = 10^12
 		#[pallet::weight(10_000)]
 		pub fn add_reward_beneficiaries(
@@ -245,9 +240,9 @@ pub mod pallet {
 		}
 
 		///The extrinsic will transfer and lock users rewards in the users account
-		/// Parameters,
-		/// origin: The users address which has been mapped to reward id
-		/// id: Reward id
+		/// # Parameters,
+		/// * `origin`: The users address which has been mapped to reward id
+		/// * `id`: Reward id
 		#[pallet::weight(10_000)]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
@@ -305,8 +300,9 @@ pub mod pallet {
 		}
 
 		/// The user will use the extrinsic to claim rewards
-		/// origin: The users address which has been mapped to reward id
-		/// id: The reward id
+		/// # Parameters
+		/// * `origin`: The users address which has been mapped to reward id
+		/// * `id`: The reward id
 		#[pallet::weight(10_000)]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
@@ -326,7 +322,7 @@ pub mod pallet {
 						//check if user has initialize rewards or not
 						ensure!(
 							user_reward_info.is_initialized,
-							Error::<T>::UserHasNotIntializeClaimRewards
+							Error::<T>::UserHasNotInitializeClaimRewards
 						);
 
 						//ensure that all rewards are not already claimed
@@ -378,7 +374,7 @@ pub mod pallet {
 						//ensure the claimable amount is greater than min claimable amount
 						ensure!(
 							rewards_claimable > MIN_REWARDS_CLAIMABLE_AMOUNT,
-							Error::<T>::AmountToLowtoRedeem
+							Error::<T>::AmountToLowToRedeem
 						);
 
 						//remove lock
@@ -427,9 +423,6 @@ pub mod pallet {
 		}
 	}
 
-	/// Events are a simple means of reporting specific conditions and
-	/// circumstances that have happened that users, Dapps and/or chain explorers would find
-	/// interesting and otherwise difficult to detect.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -458,8 +451,10 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// The id has already been taken
 		DuplicateId,
-		/// start block should be smaller than end block
-		InvalidParameter,
+		/// invalid block range provided
+		InvalidBlocksRange,
+		///  invalid percentage range
+		InvalidInitialPercentage,
 		/// reward id doesn't correctly map to donor
 		IncorrectDonorAccount,
 		/// The reward Id is not register
@@ -468,10 +463,10 @@ pub mod pallet {
 		UserNotEligible,
 		/// Transfer of funds failed
 		TransferFailed,
-		/// Amount to low to reedeem
-		AmountToLowtoRedeem,
-		/// User needs to intialize first before claiming rewards
-		UserHasNotIntializeClaimRewards,
+		/// Amount to low to redeem
+		AmountToLowToRedeem,
+		/// User needs to initialize first before claiming rewards
+		UserHasNotInitializeClaimRewards,
 		/// User has already unlocked the rewards
 		RewardsAlreadyUnlocked,
 		/// Reward cycle need to get started before unlocking rewards
@@ -517,19 +512,13 @@ pub mod pallet {
 	>;
 }
 
-// The main implementation block for the pallet. Functions here fall into three broad
-// categories:
-// - Public interface. These are functions that are `pub` and generally fall into inspector
-// functions that do not write to storage and operation functions that do.
-// - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config> Pallet<T> {
 	fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	//The followling function will be used by claim extrinsic to tranfer balance from donor to
-	// beneficiary
-
+	//The following function will be used by initialize_claim_rewards extrinsic to transfer balance
+	// from pallet account to beneficiary account
 	fn transfer_pdex_rewards(
 		payer: &T::AccountId,
 		payee: &T::AccountId,

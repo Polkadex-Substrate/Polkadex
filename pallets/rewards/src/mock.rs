@@ -1,8 +1,4 @@
-use crate::*;
-// use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
-// 	OnFinalize, OnInitialize,
-// };
-use crate::pallet as rewards;
+use crate::{pallet as rewards, *};
 use frame_support::{
 	parameter_types,
 	traits::{ConstU64, OnTimestampSet},
@@ -115,13 +111,6 @@ impl pallet_assets::Config for Test {
 	type WeightInfo = ();
 }
 
-// impl Config for Test {
-// 	type Event = Event;
-// 	type NativeCurrency = Balances;
-// 	type OtherAssets = Assets;
-// 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
-// 	type Signature = Signature;
-// }
 use sp_std::cell::RefCell;
 thread_local! {
 	pub static CAPTURED_MOMENT: RefCell<Option<Moment>> = RefCell::new(None);

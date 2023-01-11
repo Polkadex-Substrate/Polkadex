@@ -1,9 +1,9 @@
 [package]
 name = "rewards"
 version = "1.0.0"
-edition = "2018"
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
-repository = 'https://github.com/substrate-developer-hub/recipes'
+edition = "2021"
+authors = ["Polkadex Authors"]
+repository = 'https://github.com/Polkadex-Substrate/Polkadex/'
 description = "A pallet that will give parachain rewards to participants"
 license = "GPL-3.0-or-later"
 
