@@ -181,6 +181,25 @@ fn create_reward_cycle_when_start_block_greater_than_end_block() {
 }
 
 #[test]
+fn create_reward_cycle_when_block_range_is_invalid() {
+	new_test_ext().execute_with(|| {
+		let (_, end_block, initial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		let start_block = 10;
+		assert_noop!(
+			Rewards::create_reward_cycle(
+				Origin::root(),
+				start_block,
+				end_block,
+				initial_percentage,
+				reward_id
+			),
+			Error::<Test>::InvalidBlocksRange
+		);
+	});
+}
+
+#[test]
 fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, _, reward_id) = get_parameters_for_reward_cycle();
@@ -372,6 +391,7 @@ fn add_one_beneficiary_which_falls_below_threshold() {
 		);
 	});
 }
+
 #[test]
 fn initialize_claim_rewards() {
 	new_test_ext().execute_with(|| {
@@ -519,6 +539,62 @@ fn initialize_claim_rewards() {
 				panic!("Invalid lock id");
 			}
 		}
+	});
+}
+
+#[test]
+fn initialize_claim_rewards_when_vesting_period_not_started() {
+	new_test_ext().execute_with(|| {
+		let (start_block, end_block, initial_percentage, reward_id) =
+			get_parameters_for_reward_cycle();
+		let conversion_factor = get_conversion_factor();
+
+		assert_ok!(Rewards::create_reward_cycle(
+			Origin::root(),
+			start_block,
+			end_block,
+			initial_percentage,
+			reward_id
+		));
+
+		//add reward beneficiaries as alice and bob
+		let beneficiaries: Vec<(AccountId32, u128)> = vec![get_alice_account_with_rewards()];
+
+		assert_ok!(Rewards::add_reward_beneficiaries(
+			Origin::root(),
+			reward_id,
+			conversion_factor,
+			BoundedVec::try_from(beneficiaries.clone()).unwrap()
+		));
+
+		let pallet_id_account = Rewards::get_pallet_account();
+
+		//calculate total rewards in pdex
+		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
+
+		//transfer balance to pallet account
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			pallet_id_account.clone(),
+			total_rewards_in_pdex,
+			0
+		));
+
+		assert_eq!(Balances::free_balance(&pallet_id_account), total_rewards_in_pdex);
+
+		//alice bob neal need to have Existential Deposit
+		add_existential_deposit();
+
+		System::set_block_number(start_block - 1);
+
+		// unlock alice reward when vesting period not started
+		assert_noop!(
+			Rewards::initialize_claim_rewards(
+				Origin::signed(get_alice_account_with_rewards().0.into()),
+				reward_id
+			),
+			Error::<Test>::RewardsCannotBeUnlockYet
+		);
 	});
 }
 
@@ -700,6 +776,11 @@ pub fn claim_rewards_at_start_block() {
 			Origin::signed(neal_account.clone()),
 			reward_id
 		));
+		//try to unlock reward for neal again
+		assert_noop!(
+			Rewards::initialize_claim_rewards(Origin::signed(neal_account.clone()), reward_id),
+			Error::<Test>::RewardsAlreadyUnlocked
+		);
 
 		let (alice_claimable, bob_claimable, neal_claimable) =
 			get_rewards_claimable_at_start_block();
