@@ -13,13 +13,13 @@ use scale_info::TypeInfo;
 
 #[runtime_interface]
 pub trait TheaExt {
-	fn foo(
-		agg_sig: [u8; 96],
+	fn bls_verify(
+		agg_sig: &[u8; 96],
 		bit_map: u128,
-		payload: Vec<u8>,
-		bls_public_keys: Vec<BLSPublicKey>,
+		payload: &[u8],
+		bls_public_keys: &[BLSPublicKey],
 	) -> bool {
-		let recon_sig = Signature::from_bytes(&agg_sig).unwrap();
+		let recon_sig = Signature::from_bytes(agg_sig).unwrap();
 		let bit_map_vec = return_set_bits(bit_map);
 		let mut agg_pk: Option<AggregatePublicKey> = None;
 		for x in bit_map_vec {
