@@ -47,6 +47,7 @@ pub mod pallet {
 	pub struct ApprovedDeposit {
 		pub asset_id: u128,
 		pub amount: u128,
+		pub tx_hash: sp_core::H256
 	}
 
 	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
@@ -168,9 +169,13 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		// Deposit Approved event ( recipient, asset_id, amount, tx_hash(foreign chain))
-		DepositApproved(T::AccountId, u128, u128, sp_core::H256),
+		DepositApproved(u8,T::AccountId, u128, u128, sp_core::H256),
 		// Deposit claimed event ( recipient, number of deposits claimed )
-		DepositClaimed(T::AccountId, u128, u128),
+		DepositClaimed(T::AccountId, u128, u128,sp_core::H256),
+		// Withdrawal Queued ( beneficiary, assetId, amount )
+		WithdrawalQueued(T::AccountId, Vec<u8>,u128,u128, u32),
+		// Withdrawal Ready (Network id, Nonce )
+		WithdrawalReady(Network,u32)
 	}
 
 	// Errors inform users that something went wrong.
@@ -200,6 +205,12 @@ pub mod pallet {
 		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
 			// TODO: Calculate proper weight for single claim call on on_idle
 			let single_claim_weight: Weight = 100_000_000;
+
+			if remaining_weight < single_claim_weight {
+				// We need enough weight for at least one claim process if not it's a no-op
+				return remaining_weight
+			}
+
 			let mut accounts = <AccountWithPendingDeposits<T>>::get();
 			if accounts.len() == 0 {
 				return remaining_weight
@@ -287,7 +298,7 @@ pub mod pallet {
 
 			// Update Storage item
 			let approved_deposit =
-				ApprovedDeposit { asset_id: payload.asset_id, amount: payload.amount };
+				ApprovedDeposit { asset_id: payload.asset_id, amount: payload.amount , tx_hash: payload.tx_hash};
 			if <ApprovedDeposits<T>>::contains_key(&payload.who) {
 				<ApprovedDeposits<T>>::mutate(payload.who.clone(), |bounded_vec| {
 					if let Some(inner_bounded_vec) = bounded_vec {
@@ -309,6 +320,7 @@ pub mod pallet {
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositApproved(
+				payload.network_id,
 				payload.who,
 				payload.asset_id,
 				payload.amount,
@@ -384,6 +396,8 @@ pub mod pallet {
 			let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
 				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
 
+			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
+
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 
 			// Ensure pending withdrawals have space for a new withdrawal
@@ -416,7 +430,7 @@ pub mod pallet {
 				asset_id,
 				amount: amount.saturated_into(),
 				network: network.saturated_into(),
-				beneficiary,
+				beneficiary: beneficiary.clone(),
 			};
 
 			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
@@ -425,17 +439,18 @@ pub mod pallet {
 
 			if pending_withdrawals.is_full() | pay_for_remaining {
 				// If it is full then we move it to ready queue and update withdrawal nonce
-				let withdrawal_nonce = <WithdrawalNonces<T>>::get(network).saturating_add(1);
+				let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 				<ReadyWithdrawls<T>>::insert(
 					network,
 					withdrawal_nonce,
 					pending_withdrawals.clone(),
 				);
-				<WithdrawalNonces<T>>::insert(network, withdrawal_nonce);
+				<WithdrawalNonces<T>>::insert(network, withdrawal_nonce.saturating_add(1));
+				Self::deposit_event(Event::<T>::WithdrawalReady(network, withdrawal_nonce));
 				pending_withdrawals = BoundedVec::default();
 			}
 			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
-
+			Self::deposit_event(Event::<T>::WithdrawalQueued(user, beneficiary, asset_id, amount, withdrawal_nonce));
 			Ok(())
 		}
 	}
@@ -456,7 +471,7 @@ pub mod pallet {
 				deposit.amount,
 			)?;
 			// Emit event
-			Self::deposit_event(Event::<T>::DepositClaimed(recipient.clone(), deposit.asset_id, deposit.amount));
+			Self::deposit_event(Event::<T>::DepositClaimed(recipient.clone(), deposit.asset_id, deposit.amount, deposit.tx_hash));
 			Ok(())
 		}
 	}
