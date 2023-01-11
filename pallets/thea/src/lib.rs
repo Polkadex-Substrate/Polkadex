@@ -24,19 +24,37 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use std::collections::BTreeSet;
+
 	use frame_support::{
 		dispatch::fmt::Debug,
+		log,
 		pallet_prelude::*,
-		traits::{Currency, ReservableCurrency},
+		traits::{Currency, ExistenceRequirement, ReservableCurrency},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::{
+		traits::{AccountIdConversion, Zero},
+		SaturatedConversion,
+	};
+
 	use thea_primitives::BLSPublicKey;
 
-	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo)]
+	pub type Network = u32;
+
+	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo, Copy)]
 	pub struct ApprovedDeposit {
 		pub asset_id: u128,
 		pub amount: u128,
+	}
+
+	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
+	pub struct ApprovedWithdraw {
+		pub asset_id: u128,
+		pub amount: u128,
+		pub network: u8,
+		pub beneficiary: Vec<u8>,
 	}
 
 	#[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
@@ -65,6 +83,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	// /// Set ID of the current active relayer set
@@ -95,9 +114,53 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Pending Withdrawals for batch completion
+	#[pallet::storage]
+	#[pallet::getter(fn pending_withdrawals)]
+	pub(super) type PendingWithdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, BoundedVec<ApprovedWithdraw, ConstU32<10>>, ValueQuery>;
+
+	/// Withdrawal Fees for each network
+	#[pallet::storage]
+	#[pallet::getter(fn witdrawal_fees)]
+	pub(super) type WithdrawalFees<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, u128, OptionQuery>;
+
+	/// Withdrawal batches ready for sigining
+	#[pallet::storage]
+	#[pallet::getter(fn ready_withdrawals)]
+	pub(super) type ReadyWithdrawls<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		u32,
+		Blake2_128Concat,
+		Network,
+		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
+		ValueQuery,
+	>;
+
+	/// Withdrawal nonces for each network
+	#[pallet::storage]
+	#[pallet::getter(fn withdrawal_nonces)]
+	pub(super) type WithdrawalNonces<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
+
+	/// Accounts which have a pending deposit
+	#[pallet::storage]
+	#[pallet::getter(fn accounts_with_pending_deposits)]
+	pub(super) type AccountWithPendingDeposits<T: Config> =
+		StorageValue<_, BTreeSet<T::AccountId>, ValueQuery>;
+
+	/// Asset id to network mapping
+	/// u128 => u8
+	#[pallet::storage]
+	#[pallet::getter(fn asset_id_to_network)]
+	pub(super) type AssetIdToNetworkMapping<T: Config> =
+		StorageMap<_, Blake2_128Concat, u128, Network, OptionQuery>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn get_deposit_nonce)]
-	pub(super) type DepositNonce<T: Config> = StorageMap<_, Blake2_128Concat, u8, u32, ValueQuery>;
+	pub(super) type DepositNonce<T: Config> = StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -106,6 +169,8 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		// Deposit Approved event ( recipient, asset_id, amount, tx_hash(foreign chain))
 		DepositApproved(T::AccountId, u128, u128, sp_core::H256),
+		// Deposit claimed event ( recipient, number of deposits claimed )
+		DepositClaimed(T::AccountId, u128, u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -119,11 +184,54 @@ pub mod pallet {
 		AssetNotRegistered,
 		// BLS Aggregate signature failed
 		BLSSignatureVerificationFailed,
+		// Beneficiary Size too long
+		BeneficiaryTooLong,
+		// Unable to find mapping between asset id to network
+		UnableFindNetworkForAssetId,
+		// Too many withdrawals in queue,
+		WithdrawalNotAllowed,
+		// Withdrawal fee is not configured this network
+		WithdrawalFeeConfigNotFound,
 	}
 
 	// Hooks for Thea Pallet are defined here
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
+			// TODO: Calculate proper weight for single claim call on on_idle
+			let single_claim_weight: Weight = 100_000_000;
+			let mut accounts = <AccountWithPendingDeposits<T>>::get();
+			if accounts.len() == 0 {
+				return remaining_weight
+			}
+
+			while let Some(account) = accounts.pop_first() {
+				if let Some(mut pending_deposits) = <ApprovedDeposits<T>>::get(&account) {
+					while let Some(deposit) = pending_deposits.pop() {
+						if let Err(err) = Self::execute_deposit(deposit, &account) {
+							// Force push is fine as it was part of the bounded vec
+							pending_deposits.force_push(deposit);
+							// We can't do much here other than to log an error.
+							log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user: {:?}, Err: {:?}",account,err);
+						}
+						// reduce the remaining_weight
+						remaining_weight = remaining_weight.saturating_add(single_claim_weight);
+						if remaining_weight.is_zero() {
+							break
+						}
+					}
+
+					if !pending_deposits.is_empty() {
+						<ApprovedDeposits<T>>::insert(&account, pending_deposits);
+						accounts.insert(account);
+					}
+				}
+			}
+
+			<AccountWithPendingDeposits<T>>::put(accounts);
+			remaining_weight
+		}
+	}
 
 	// Extrinsics for Thea Pallet are defined here
 	#[pallet::call]
@@ -151,10 +259,13 @@ pub mod pallet {
 			ensure_signed(origin)?;
 			ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
 			// Fetch Deposit Nonce
-			let nonce = <DepositNonce<T>>::get(payload.network_id);
+			let nonce = <DepositNonce<T>>::get(payload.network_id.saturated_into::<Network>());
 			ensure!(payload.deposit_nonce == nonce + 1, Error::<T>::DepositNonceError);
-			// ensure!(asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id),
-			// Error::<T>::AssetNotRegistered);
+			// Ensure assets are registered
+			ensure!(
+				asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id),
+				Error::<T>::AssetNotRegistered
+			);
 
 			// Fetch current active relayer set BLS Keys
 			let current_active_relayer_set =
@@ -167,17 +278,17 @@ pub mod pallet {
 			// Step 2: Create Aggregate BLS Public Key
 			// Step 3: Verify Aggregate Signature
 			ensure!(
-				thea_primitives::thea_ext::foo(
-					bls_signature,
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
 					bit_map,
-					payload.encode(),
-					current_active_relayer_set.into_inner()
+					&payload.encode(),
+					&current_active_relayer_set.into_inner()
 				),
 				Error::<T>::BLSSignatureVerificationFailed
 			);
 
 			// Update deposit Nonce
-			<DepositNonce<T>>::insert(payload.network_id, nonce + 1);
+			<DepositNonce<T>>::insert(payload.network_id.saturated_into::<Network>(), nonce + 1);
 
 			// Update Storage item
 			let approved_deposit =
@@ -195,6 +306,9 @@ pub mod pallet {
 						T::AccountId,
 						BoundedVec<ApprovedDeposit, ConstU32<100>>,
 					>(payload.who.clone(), my_vec);
+					<AccountWithPendingDeposits<T>>::mutate(|accounts| {
+						accounts.insert(payload.who.clone())
+					});
 				}
 			}
 
@@ -207,8 +321,148 @@ pub mod pallet {
 			));
 			Ok(())
 		}
+
+		/// Manually claim an approved deposit
+		///
+		/// # Parameters
+		///
+		/// * `origin`: User
+		/// * `num_deposits`: Number of deposits to claim from available deposits,
+		/// (it's used to parametrise the weight of this extrinsic)
+		#[pallet::weight(1000)]
+		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+
+			if let Some(mut deposits) = <ApprovedDeposits<T>>::get(&user) {
+				let length: u32 = if deposits.len().saturated_into::<u32>() <= num_deposits {
+					deposits.len().saturated_into()
+				} else {
+					num_deposits
+				}
+				.saturated_into();
+
+				for _ in 0..length {
+					if let Some(deposit) = deposits.pop() {
+						if let Err(err) = Self::execute_deposit(deposit, &user) {
+							// Force push is fine as it will have the capacity.
+							deposits.force_push(deposit);
+							// Save it back on failure
+							<ApprovedDeposits<T>>::insert(&user, deposits.clone());
+							return Err(err)
+						}
+					} else {
+						break
+					}
+				}
+
+				if !deposits.is_empty() {
+					// If pending deposits are available, save it back
+					<ApprovedDeposits<T>>::insert(&user, deposits)
+				} else {
+					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
+				}
+			}
+
+			Ok(())
+		}
+
+		/// Initiate the withdraw for user
+		///
+		/// # Parameters
+		///
+		/// * `origin`: User
+		/// * `asset_id`: Asset id
+		/// * `amount`: Amount of asset to withdraw
+		#[pallet::weight(1000)]
+		pub fn withdraw(
+			origin: OriginFor<T>,
+			asset_id: u128,
+			amount: u128,
+			beneficiary: Vec<u8>,
+			pay_for_remaining: bool,
+		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			// Put a soft limit of size of beneficiary vector to avoid spam
+			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
+
+			// Find native network of this asset
+			let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
+				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
+
+			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
+
+			// Ensure pending withdrawals have space for a new withdrawal
+			ensure!(pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
+
+			let mut total_fees = <WithdrawalFees<T>>::get(network)
+				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
+
+			if pay_for_remaining {
+				// User is ready to pay for remaining pending withdrawal for quick withdrawal
+				let extra_withdrawals_available = 10usize.saturating_sub(pending_withdrawals.len());
+				total_fees = total_fees
+					.saturating_add(total_fees.saturating_mul(extra_withdrawals_available.saturated_into()))
+			}
+
+			// Pay the fees
+			<T as Config>::Currency::transfer(
+				&user,
+				&Self::thea_account(),
+				total_fees.saturated_into(),
+				ExistenceRequirement::KeepAlive,
+			)?;
+
+			// TODO: Update Thea Staking pallet about fees collected
+
+			// Burn assets
+			asset_handler::pallet::Pallet::<T>::burn_thea_asset(asset_id, user.clone(), amount)?;
+
+			let withdrawal = ApprovedWithdraw {
+				asset_id,
+				amount: amount.saturated_into(),
+				network: network.saturated_into(),
+				beneficiary,
+			};
+
+			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
+				// This should not fail because of is_full check above
+			}
+
+			if pending_withdrawals.is_full() | pay_for_remaining {
+				// If it is full then we move it to ready queue and update withdrawal nonce
+				let withdrawal_nonce = <WithdrawalNonces<T>>::get(network).saturating_add(1);
+				<ReadyWithdrawls<T>>::insert(
+					network,
+					withdrawal_nonce,
+					pending_withdrawals.clone(),
+				);
+				<WithdrawalNonces<T>>::insert(network, withdrawal_nonce);
+				pending_withdrawals = BoundedVec::default();
+			}
+			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
+
+			Ok(())
+		}
 	}
 
 	// Helper Functions for Thea Pallet
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		pub fn thea_account() -> T::AccountId {
+			T::TheaPalletId::get().into_account_truncating()
+		}
+
+		pub fn execute_deposit(
+			deposit: ApprovedDeposit,
+			recipient: &T::AccountId,
+		) -> Result<(), DispatchError> {
+			asset_handler::pallet::Pallet::<T>::mint_thea_asset(
+				deposit.asset_id,
+				recipient.clone(),
+				deposit.amount,
+			)?;
+			// Emit event
+			Self::deposit_event(Event::<T>::DepositClaimed(recipient.clone(), deposit.asset_id, deposit.amount));
+			Ok(())
+		}
+	}
 }

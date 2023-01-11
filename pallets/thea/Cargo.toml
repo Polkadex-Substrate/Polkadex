@@ -55,6 +55,7 @@ std = [
     "chainbridge/std",
     "asset-handler/std",
     "polkadex-primitives/std",
+    "thea-primitives/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
