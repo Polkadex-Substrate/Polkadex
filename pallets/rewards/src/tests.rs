@@ -175,7 +175,7 @@ fn create_reward_cycle_when_start_block_greater_than_end_block() {
 				initial_percentage,
 				reward_id
 			),
-			Error::<Test>::InvalidParameter
+			Error::<Test>::InvalidBlocksRange
 		);
 	});
 }
@@ -185,8 +185,12 @@ fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, _, reward_id) = get_parameters_for_reward_cycle();
 		assert_noop!(
-			Rewards::create_reward_cycle(Origin::root(), end_block, start_block, 101, reward_id),
-			Error::<Test>::InvalidParameter
+			Rewards::create_reward_cycle(Origin::root(), start_block, end_block, 101, reward_id),
+			Error::<Test>::InvalidInitialPercentage
+		);
+		assert_noop!(
+			Rewards::create_reward_cycle(Origin::root(), start_block, end_block, 0, reward_id),
+			Error::<Test>::InvalidInitialPercentage
 		);
 	});
 }
