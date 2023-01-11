@@ -47,7 +47,7 @@ pub mod pallet {
 	pub struct ApprovedDeposit {
 		pub asset_id: u128,
 		pub amount: u128,
-		pub tx_hash: sp_core::H256
+		pub tx_hash: sp_core::H256,
 	}
 
 	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
@@ -118,8 +118,13 @@ pub mod pallet {
 	/// Pending Withdrawals for batch completion
 	#[pallet::storage]
 	#[pallet::getter(fn pending_withdrawals)]
-	pub(super) type PendingWithdrawals<T: Config> =
-		StorageMap<_, Blake2_128Concat, Network, BoundedVec<ApprovedWithdraw, ConstU32<10>>, ValueQuery>;
+	pub(super) type PendingWithdrawals<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		Network,
+		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
+		ValueQuery,
+	>;
 
 	/// Withdrawal Fees for each network
 	#[pallet::storage]
@@ -161,7 +166,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_deposit_nonce)]
-	pub(super) type DepositNonce<T: Config> = StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
+	pub(super) type DepositNonce<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -169,13 +175,15 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		// Deposit Approved event ( recipient, asset_id, amount, tx_hash(foreign chain))
-		DepositApproved(u8,T::AccountId, u128, u128, sp_core::H256),
+		DepositApproved(u8, T::AccountId, u128, u128, sp_core::H256),
 		// Deposit claimed event ( recipient, number of deposits claimed )
-		DepositClaimed(T::AccountId, u128, u128,sp_core::H256),
+		DepositClaimed(T::AccountId, u128, u128, sp_core::H256),
 		// Withdrawal Queued ( beneficiary, assetId, amount )
-		WithdrawalQueued(T::AccountId, Vec<u8>,u128,u128, u32),
+		WithdrawalQueued(T::AccountId, Vec<u8>, u128, u128, u32),
 		// Withdrawal Ready (Network id, Nonce )
-		WithdrawalReady(Network,u32)
+		WithdrawalReady(Network, u32),
+		// Withdrawal Executed (Nonce, network, Tx hash )
+		WithdrawalExecuted(u32, Network, sp_core::H256),
 	}
 
 	// Errors inform users that something went wrong.
@@ -297,8 +305,11 @@ pub mod pallet {
 			<DepositNonce<T>>::insert(payload.network_id.saturated_into::<Network>(), nonce + 1);
 
 			// Update Storage item
-			let approved_deposit =
-				ApprovedDeposit { asset_id: payload.asset_id, amount: payload.amount , tx_hash: payload.tx_hash};
+			let approved_deposit = ApprovedDeposit {
+				asset_id: payload.asset_id,
+				amount: payload.amount,
+				tx_hash: payload.tx_hash,
+			};
 			if <ApprovedDeposits<T>>::contains_key(&payload.who) {
 				<ApprovedDeposits<T>>::mutate(payload.who.clone(), |bounded_vec| {
 					if let Some(inner_bounded_vec) = bounded_vec {
@@ -373,6 +384,34 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Extrinsic to update withdrawal completion status by relayer
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `withdrawal_nonce`: Withdrawal Nonce
+		/// * `network`: Network id
+		/// * `tx_hash`: Vec<u8>
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		#[pallet::weight(1000)]
+		pub fn batch_withdrawal_complete(
+			origin: OriginFor<T>,
+			withdrawal_nonce: u32,
+			network: Network,
+			tx_hash: sp_core::H256,
+			_bit_map: u128,
+			_bls_signature: [u8; 96],
+		) -> DispatchResult {
+			ensure_signed(origin)?;
+
+			// TODO: Something to verify BLS signature
+			<ReadyWithdrawls<T>>::take(network, withdrawal_nonce);
+
+			Self::deposit_event(Event::<T>::WithdrawalExecuted(withdrawal_nonce, network, tx_hash));
+			Ok(())
+		}
+
 		/// Initiate the withdraw for user
 		///
 		/// # Parameters
@@ -409,8 +448,9 @@ pub mod pallet {
 			if pay_for_remaining {
 				// User is ready to pay for remaining pending withdrawal for quick withdrawal
 				let extra_withdrawals_available = 10usize.saturating_sub(pending_withdrawals.len());
-				total_fees = total_fees
-					.saturating_add(total_fees.saturating_mul(extra_withdrawals_available.saturated_into()))
+				total_fees = total_fees.saturating_add(
+					total_fees.saturating_mul(extra_withdrawals_available.saturated_into()),
+				)
 			}
 
 			// Pay the fees
@@ -450,7 +490,13 @@ pub mod pallet {
 				pending_withdrawals = BoundedVec::default();
 			}
 			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
-			Self::deposit_event(Event::<T>::WithdrawalQueued(user, beneficiary, asset_id, amount, withdrawal_nonce));
+			Self::deposit_event(Event::<T>::WithdrawalQueued(
+				user,
+				beneficiary,
+				asset_id,
+				amount,
+				withdrawal_nonce,
+			));
 			Ok(())
 		}
 	}
@@ -471,7 +517,12 @@ pub mod pallet {
 				deposit.amount,
 			)?;
 			// Emit event
-			Self::deposit_event(Event::<T>::DepositClaimed(recipient.clone(), deposit.asset_id, deposit.amount, deposit.tx_hash));
+			Self::deposit_event(Event::<T>::DepositClaimed(
+				recipient.clone(),
+				deposit.asset_id,
+				deposit.amount,
+				deposit.tx_hash,
+			));
 			Ok(())
 		}
 	}
