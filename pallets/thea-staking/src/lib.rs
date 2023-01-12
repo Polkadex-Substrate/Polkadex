@@ -33,11 +33,11 @@ use crate::{
 pub use pallet::*;
 
 mod election;
+#[cfg(test)]
+mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-mod mock;
 
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
@@ -282,7 +282,7 @@ pub mod pallet {
 		CandidateAlreadyNominated,
 		OnlyOneRelayerCanBeNominated,
 		StashAndControllerMustBeSame,
-		AmountIsGreaterThanBondedAmount
+		AmountIsGreaterThanBondedAmount,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -425,9 +425,9 @@ impl<T: Config> Pallet<T> {
 			.ok_or_else(|| Error::<T>::CandidateNotFound)?;
 
 		ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
-        exposure.stakers.insert(nominator.clone());
+		exposure.stakers.insert(nominator.clone());
 		exposure.total = exposure.total.saturating_add(nominator_exposure.value);
-        nominator_exposure.backing = Some((network, candidate.clone()));
+		nominator_exposure.backing = Some((network, candidate.clone()));
 		<Stakers<T>>::insert(&nominator, nominator_exposure);
 		<Candidates<T>>::insert(network, &candidate, exposure);
 		Self::deposit_event(Event::<T>::Nominated { candidate, nominator });
@@ -452,17 +452,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
-		//FIXME: 1) Check if given amount is greater then actual bonded amount then reject
-		//FIXME 2) If nominator completely withdraw then it should be remove from Nominators Exposure as well as Individual exposure
 		let mut individual_exposure =
 			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
-		ensure!(individual_exposure.value>=amount, Error::<T>::AmountIsGreaterThanBondedAmount);
+		ensure!(individual_exposure.value >= amount, Error::<T>::AmountIsGreaterThanBondedAmount);
 		if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
 			if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
 				exposure.total = exposure.total.saturating_sub(amount);
 				if individual_exposure.value == amount {
 					exposure.stakers.remove(&nominator);
-
 				}
 				<Candidates<T>>::insert(network, &candidate, exposure);
 				Self::deposit_event(Event::<T>::Unbonded {
