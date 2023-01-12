@@ -44,7 +44,7 @@ pub trait TheaExt {
 		let dst = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 		let err = recon_sig.fast_aggregate_verify_pre_aggregated(
 			false,
-			&payload,
+			payload,
 			dst,
 			&agg_pk.unwrap().to_public_key(),
 		);

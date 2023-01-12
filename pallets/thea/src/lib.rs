@@ -220,12 +220,13 @@ pub mod pallet {
 			}
 
 			let mut accounts = <AccountWithPendingDeposits<T>>::get();
-			if accounts.len() == 0 {
+			if accounts.is_empty() {
 				return remaining_weight
 			}
 
 			while let Some(account) = accounts.pop_first() {
 				if let Some(mut pending_deposits) = <ApprovedDeposits<T>>::get(&account) {
+					// FIXME: This leads to an infinite loop if execute_deposit fails
 					while let Some(deposit) = pending_deposits.pop() {
 						if let Err(err) = Self::execute_deposit(deposit, &account) {
 							// Force push is fine as it was part of the bounded vec
@@ -234,7 +235,7 @@ pub mod pallet {
 							log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user: {:?}, Err: {:?}",account,err);
 						}
 						// reduce the remaining_weight
-						remaining_weight = remaining_weight.saturating_add(single_claim_weight);
+						remaining_weight = remaining_weight.saturating_sub(single_claim_weight);
 						if remaining_weight.is_zero() {
 							break
 						}
@@ -432,6 +433,8 @@ pub mod pallet {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 
 			// Find native network of this asset
+			#[allow(clippy::unnecessary_lazy_evaluations)]
+			// TODO: Remove once merged to asset-handler
 			let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
 				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
 
@@ -442,6 +445,8 @@ pub mod pallet {
 			// Ensure pending withdrawals have space for a new withdrawal
 			ensure!(pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
 
+			#[allow(clippy::unnecessary_lazy_evaluations)]
+			// TODO: Remove once merged to asset-handler
 			let mut total_fees = <WithdrawalFees<T>>::get(network)
 				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
 
