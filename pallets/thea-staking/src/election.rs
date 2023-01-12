@@ -3,8 +3,8 @@ use sp_std::vec::Vec;
 
 /// Algorithm to elect relayers from all candidates
 pub fn elect_relayers<T: Config>(
-	mut candidates: Vec<(T::AccountId, Exposure<T, T::AccountId>)>,
-) -> Vec<(T::AccountId, Exposure<T, T::AccountId>)> {
+	mut candidates: Vec<(T::AccountId, Exposure<T>)>,
+) -> Vec<(T::AccountId, Exposure<T>)> {
 	// If we don't have preffered number of relayers we take everyone
 	let max_relayers = <Stakinglimits<T>>::get().max_relayers;
 	if candidates.len() <= max_relayers as usize {
