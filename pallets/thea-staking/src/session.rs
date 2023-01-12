@@ -54,7 +54,7 @@ impl<T: Config, AccountId: Encode + TypeInfo> IndividualExposure<T, AccountId> {
 /// A snapshot of the stake backing a single relayer in the system.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub struct Exposure<T: Config, AccountId: PartialEq + Clone + Ord> {
+pub struct Exposure<T: Config> {
 	/// Score of relayer
 	pub score: u32,
 	/// The total active balance backing this relayer.
@@ -63,10 +63,10 @@ pub struct Exposure<T: Config, AccountId: PartialEq + Clone + Ord> {
 	/// BLS public key
 	pub bls_pub_key: BLSPublicKey,
 	/// The portions of nominators stashes that are exposed.
-	pub stakers: BTreeSet<AccountId>,
+	pub stakers: BTreeSet<T::AccountId>,
 }
 
-impl<T: Config, AccountId: PartialEq + Clone + Ord> Exposure<T, AccountId> {
+impl<T: Config> Exposure<T> {
 	pub fn new(bls_pub_key: BLSPublicKey) -> Self {
 		Self { score: 1000, total: Default::default(), bls_pub_key, stakers: Default::default() }
 	}

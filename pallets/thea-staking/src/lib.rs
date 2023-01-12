@@ -60,6 +60,8 @@ pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
 
+	//pub type StakingInfo = (Config::AccountId, Exposure<Config, <dyn Config>::AccountId>);
+
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
@@ -156,7 +158,7 @@ pub mod pallet {
 				Error::<T>::CandidateAlreadyRegistered
 			);
 
-			let mut exposure = Exposure::<T, T::AccountId>::new(bls_key);
+			let mut exposure = Exposure::<T>::new(bls_key);
 			exposure.add_own_stake(T::CandidateBond::get());
 			// reserve own_stake
 			pallet_balances::Pallet::<T>::reserve_named(
@@ -217,8 +219,8 @@ pub mod pallet {
 		pub fn remove_candidate(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			let candidate = ensure_signed(origin)?;
 
-			let exposure = <Candidates<T>>::take(network, &candidate)
-				.ok_or_else(|| Error::<T>::CandidateNotFound)?;
+			let exposure =
+				<Candidates<T>>::take(network, &candidate).ok_or(Error::<T>::CandidateNotFound)?;
 
 			<InactiveCandidates<T>>::insert(network, &candidate, exposure);
 			Self::deposit_event(Event::<T>::OutgoingCandidateAdded { candidate });
@@ -321,7 +323,7 @@ pub mod pallet {
 		SessionIndex,
 		Blake2_128Concat,
 		Network,
-		Vec<(T::AccountId, Exposure<T, T::AccountId>)>,
+		Vec<(T::AccountId, Exposure<T>)>,
 		ValueQuery,
 	>;
 
@@ -346,7 +348,7 @@ pub mod pallet {
 		Network,
 		Blake2_128Concat,
 		T::AccountId,
-		Exposure<T, T::AccountId>,
+		Exposure<T>,
 		OptionQuery,
 	>;
 
@@ -365,7 +367,7 @@ pub mod pallet {
 		Network,
 		Blake2_128Concat,
 		T::AccountId,
-		Exposure<T, T::AccountId>,
+		Exposure<T>,
 		OptionQuery,
 	>;
 
@@ -378,7 +380,7 @@ pub mod pallet {
 		Network,
 		Blake2_128Concat,
 		T::AccountId,
-		Exposure<T, T::AccountId>,
+		Exposure<T>,
 		OptionQuery,
 	>;
 
@@ -418,12 +420,12 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_nominate(nominator: T::AccountId, candidate: T::AccountId) -> Result<(), Error<T>> {
 		let mut nominator_exposure =
-			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
+			<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
 		ensure!(nominator_exposure.backing.is_none(), Error::<T>::StakerAlreadyNominating);
-		let network = <CandidateToNetworkMapping<T>>::get(&candidate)
-			.ok_or_else(|| Error::<T>::CandidateNotFound)?;
-		let mut exposure = <Candidates<T>>::get(network, &candidate)
-			.ok_or_else(|| Error::<T>::CandidateNotFound)?;
+		let network =
+			<CandidateToNetworkMapping<T>>::get(&candidate).ok_or(Error::<T>::CandidateNotFound)?;
+		let mut exposure =
+			<Candidates<T>>::get(network, &candidate).ok_or(Error::<T>::CandidateNotFound)?;
 
 		ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
 		exposure.stakers.insert(nominator.clone());
@@ -446,22 +448,22 @@ impl<T: Config> Pallet<T> {
 			<Stakers<T>>::insert(&nominator, exposure);
 			Self::deposit_event(Event::<T>::BondsWithdrawn { nominator, amount });
 		} else {
-			return Err(Error::<T>::CandidateNotFound.into())
+			return Err(Error::<T>::CandidateNotFound)
 		}
 		Ok(())
 	}
 
 	pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
 		let mut individual_exposure =
-			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
+			<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
 		ensure!(individual_exposure.value >= amount, Error::<T>::AmountIsGreaterThanBondedAmount);
 		if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
-			if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
+			if let Some(mut exposure) = <Candidates<T>>::get(network, candidate) {
 				exposure.total = exposure.total.saturating_sub(amount);
 				if individual_exposure.value == amount {
 					exposure.stakers.remove(&nominator);
 				}
-				<Candidates<T>>::insert(network, &candidate, exposure);
+				<Candidates<T>>::insert(network, candidate, exposure);
 				Self::deposit_event(Event::<T>::Unbonded {
 					candidate: Some(candidate.clone()),
 					nominator: nominator.clone(),
@@ -533,8 +535,8 @@ impl<T: Config> Pallet<T> {
 		let session_in_consideration = expiring_session_index.saturating_add(2);
 		log::trace!(target: "runtime::thea::staking", "computing relayers of session {:?}", session_in_consideration);
 		// Get new queued_relayers and store them
-		let candidates = <Candidates<T>>::iter_prefix(network)
-			.collect::<Vec<(T::AccountId, Exposure<T, T::AccountId>)>>();
+		let candidates =
+			<Candidates<T>>::iter_prefix(network).collect::<Vec<(T::AccountId, Exposure<T>)>>();
 		let elected_relayers = elect_relayers::<T>(candidates);
 		log::trace!(target: "runtime::thea::staking", "elected relayers of session {:?}", session_in_consideration);
 		// Store their economic weights
