@@ -173,7 +173,7 @@ pub mod pallet {
 	/// identifier(BoundedVec<>))
 	#[pallet::storage]
 	#[pallet::getter(fn get_thea_assets)]
-	pub(super) type TheaAssets<T: Config> =
+	pub type TheaAssets<T: Config> =
 		StorageMap<_, Blake2_128Concat, u128, (u8, u8, BoundedVec<u8, ConstU32<1000>>), ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
