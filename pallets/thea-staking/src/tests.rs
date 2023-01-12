@@ -7,11 +7,6 @@ use crate as thea_staking;
 use crate::session::{StakingLimits, UnlockChunk};
 
 
-//TODO Things to test
-//1. Bound -> Nominate -> Bound
-//2/ Bound : CandidateNotFound
-
-
 #[test]
 fn test_add_candidate_with_valid_inputs_returns_ok() {
     new_test_ext().execute_with(|| {
@@ -390,13 +385,46 @@ fn rotate_session_init() {
 
 }
 
-#[ignore]
 #[test]
-fn test_unbond_with_amount_more_than_staked_amount_returns_error() {}
+fn test_unbond_with_amount_more_than_staked_amount_returns_error() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        register_nominator();
+        let nominator = 2u64;
+        assert_noop!(TheaStaking::unbond(Origin::signed(nominator), 1000_000_000_000_000), Error::<Test>::AmountIsGreaterThanBondedAmount);
+    })
+}
 
-#[ignore]
 #[test]
-fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {}
+fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
+    new_test_ext().execute_with(|| {
+        register_candidate();
+        insert_staking_limit();
+        register_nominator();
+        let nominator = 2u64;
+        let candidate = 1u64;
+        let network_id = 0;
+        let bls_key = [1;65];
+        assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+        assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000u128));
+        let mut stakers: BTreeSet<u64> = BTreeSet::new();
+        let exposure = Exposure {
+            score: 1000,
+            total: 1_000_000_000_000,
+            bls_pub_key: bls_key,
+            stakers
+        };
+        assert_eq!(TheaStaking::candidates(network_id, candidate), Some(exposure));
+        let nominator_exposure = IndividualExposure {
+            who: nominator,
+            value: 1_000_000_000_000u128,
+            backing: None,
+            unlocking: vec![UnlockChunk { value: 1000000000000, era: 10 }]
+        };
+        assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
+    })
+}
 
 fn unbonding() {
     let nominator = 2u64;
