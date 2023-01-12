@@ -282,6 +282,7 @@ pub mod pallet {
 		CandidateAlreadyNominated,
 		OnlyOneRelayerCanBeNominated,
 		StashAndControllerMustBeSame,
+		AmountIsGreaterThanBondedAmount
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -455,10 +456,14 @@ impl<T: Config> Pallet<T> {
 		//FIXME 2) If nominator completely withdraw then it should be remove from Nominators Exposure as well as Individual exposure
 		let mut individual_exposure =
 			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
-
+		ensure!(individual_exposure.value>=amount, Error::<T>::AmountIsGreaterThanBondedAmount);
 		if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
 			if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
 				exposure.total = exposure.total.saturating_sub(amount);
+				if individual_exposure.value == amount {
+					exposure.stakers.remove(&nominator);
+
+				}
 				<Candidates<T>>::insert(network, &candidate, exposure);
 				Self::deposit_event(Event::<T>::Unbonded {
 					candidate: Some(candidate.clone()),
@@ -467,7 +472,9 @@ impl<T: Config> Pallet<T> {
 				});
 			}
 		}
-
+		if individual_exposure.value == amount {
+			individual_exposure.backing = None;
+		}
 		individual_exposure
 			.unbond(amount, Self::current_index().saturating_add(T::UnbondingDelay::get()));
 
