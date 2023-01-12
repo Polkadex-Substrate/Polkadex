@@ -1,5 +1,5 @@
 use frame_support::RuntimeDebug;
-use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::traits::{Get, Saturating, Zero};
 use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
