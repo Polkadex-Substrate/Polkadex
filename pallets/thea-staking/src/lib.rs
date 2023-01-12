@@ -33,6 +33,8 @@ use crate::{
 pub use pallet::*;
 
 mod election;
+#[cfg(test)]
+mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
@@ -280,6 +282,7 @@ pub mod pallet {
 		CandidateAlreadyNominated,
 		OnlyOneRelayerCanBeNominated,
 		StashAndControllerMustBeSame,
+		AmountIsGreaterThanBondedAmount,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -394,7 +397,6 @@ impl<T: Config> Pallet<T> {
 	pub fn rotate_session() {
 		let session_index = <CurrentIndex<T>>::get();
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
-
 		let active_networks = <ActiveNetworks<T>>::get();
 		// map to collect all active relayers to send to session change notifier
 		let mut map: HashMap<Network, Vec<(T::AccountId, BLSPublicKey)>> = HashMap::new();
@@ -414,7 +416,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_nominate(nominator: T::AccountId, candidate: T::AccountId) -> Result<(), Error<T>> {
-		let nominator_exposure =
+		let mut nominator_exposure =
 			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
 		ensure!(nominator_exposure.backing.is_none(), Error::<T>::StakerAlreadyNominating);
 		let network = <CandidateToNetworkMapping<T>>::get(&candidate)
@@ -423,9 +425,10 @@ impl<T: Config> Pallet<T> {
 			.ok_or_else(|| Error::<T>::CandidateNotFound)?;
 
 		ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
-
+		exposure.stakers.insert(nominator.clone());
 		exposure.total = exposure.total.saturating_add(nominator_exposure.value);
-
+		nominator_exposure.backing = Some((network, candidate.clone()));
+		<Stakers<T>>::insert(&nominator, nominator_exposure);
 		<Candidates<T>>::insert(network, &candidate, exposure);
 		Self::deposit_event(Event::<T>::Nominated { candidate, nominator });
 		Ok(())
@@ -434,7 +437,6 @@ impl<T: Config> Pallet<T> {
 	pub fn do_withdraw_unbonded(nominator: T::AccountId) -> Result<(), Error<T>> {
 		if let Some(mut exposure) = <Stakers<T>>::get(&nominator) {
 			let amount: BalanceOf<T> = exposure.withdraw_unbonded(Self::current_index());
-			// TODO: Check the cases when it fails to unreserve.
 			let _ = pallet_balances::Pallet::<T>::unreserve_named(
 				&T::StakingReserveIdentifier::get(),
 				&nominator,
@@ -451,10 +453,13 @@ impl<T: Config> Pallet<T> {
 	pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
 		let mut individual_exposure =
 			<Stakers<T>>::get(&nominator).ok_or_else(|| Error::<T>::StakerNotFound)?;
-
+		ensure!(individual_exposure.value >= amount, Error::<T>::AmountIsGreaterThanBondedAmount);
 		if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
 			if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
 				exposure.total = exposure.total.saturating_sub(amount);
+				if individual_exposure.value == amount {
+					exposure.stakers.remove(&nominator);
+				}
 				<Candidates<T>>::insert(network, &candidate, exposure);
 				Self::deposit_event(Event::<T>::Unbonded {
 					candidate: Some(candidate.clone()),
@@ -463,7 +468,9 @@ impl<T: Config> Pallet<T> {
 				});
 			}
 		}
-
+		if individual_exposure.value == amount {
+			individual_exposure.backing = None;
+		}
 		individual_exposure
 			.unbond(amount, Self::current_index().saturating_add(T::UnbondingDelay::get()));
 
@@ -474,6 +481,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_bond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
 		let limits = <Stakinglimits<T>>::get();
+		//FIXME: minimum_nominator_stake should be only checked once
 		ensure!(amount >= limits.minimum_nominator_stake, Error::<T>::StakingLimitsError);
 		if let Some(individual_exposure) = <Stakers<T>>::get(&nominator) {
 			if let Some((network, candidate)) = individual_exposure.backing {
@@ -492,6 +500,7 @@ impl<T: Config> Pallet<T> {
 					return Err(Error::<T>::CandidateNotFound.into())
 				}
 			} else {
+				//FIXME: Handle this case
 			}
 		} else {
 			// reserve stake
