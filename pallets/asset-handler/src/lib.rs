@@ -236,7 +236,7 @@ pub mod pallet {
 		// Thea Asset has not been registered
 		AssetNotRegistered,
 		// Identifier length provided is wrong
-		IdentifierLenghtMismatch,
+		IdentifierLengthMismatch,
 	}
 
 	#[pallet::hooks]
@@ -334,7 +334,7 @@ pub mod pallet {
 			// Check for index error
 			ensure!(
 				asset_identifier.len() >= identifier_length as usize,
-				Error::<T>::IdentifierLenghtMismatch
+				Error::<T>::IdentifierLengthMismatch
 			);
 
 			let mut derived_asset_id = vec![];
