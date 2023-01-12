@@ -12,12 +12,12 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+use asset_handler::pallet::TheaAssets;
 use frame_support::{assert_noop, assert_ok};
 use parity_scale_codec::{Decode, Encode};
 use sp_core::{crypto::AccountId32, H160, U256};
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
-use asset_handler::pallet::TheaAssets;
 
 use crate::{
 	mock,
@@ -75,7 +75,7 @@ fn test_thea_approve_deposit() {
 			BoundedVec::try_from(vec![bls_public_key_1, bls_public_key_2, bls_public_key_3])
 				.unwrap(),
 		);
-		TheaAssets::<Test>::insert(1,(0,0,BoundedVec::try_from(vec![]).unwrap()));
+		TheaAssets::<Test>::insert(1, (0, 0, BoundedVec::try_from(vec![]).unwrap()));
 		// Testing Signature Verification Failure
 		assert_noop!(
 			Thea::approve_deposit(
