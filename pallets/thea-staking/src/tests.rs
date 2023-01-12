@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, HashSet};
-use crate::{mock::*, Error, Event, Exposure, Stakinglimits, IndividualExposure};
+use crate::{mock::*, Error, Event, Exposure, Stakinglimits, IndividualExposure, StakingData, CurrentIndex, ActiveNetworks};
 use frame_support::{assert_noop, assert_ok};
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::TheseExcept;
@@ -277,6 +277,119 @@ fn test_remove_candidate_with_unregistered_nominator_returns_error() {
     })
 }
 
+#[test]
+fn test_elect_relayers_with_candidates_less_than_max_candidates_allowed_returns_all_provided_candidates() {
+    new_test_ext().execute_with(|| {
+        insert_staking_limit();
+            let candidate_one = 1u64;
+        let exposure_for_candidate_one = Exposure {
+            score: 1000,
+            total: 1_000_000_000_000u128,
+            bls_pub_key: [1u8;65],
+            stakers: Default::default()
+        };
+        let candidate_two = 2u64;
+        let exposure_for_candidate_two = Exposure {
+            score: 1000,
+            total: 1_000_000_000_000u128,
+            bls_pub_key: [1u8;65],
+            stakers: Default::default()
+        };
+        let actual_candidates_list = vec![(candidate_one, exposure_for_candidate_one.clone()), (candidate_two, exposure_for_candidate_two.clone())];
+        let expected_candidate_list = vec![(candidate_one, exposure_for_candidate_one), (candidate_two, exposure_for_candidate_two)];
+        assert_eq!(crate::elect_relayers::<Test>(actual_candidates_list), expected_candidate_list);
+    })
+}
+
+#[test]
+fn test_elect_relayers_with_candidates_more_than_max_candidates_allowed_returns_candidates_with_more_stake() {
+    new_test_ext().execute_with(|| {
+        insert_staking_limit();
+        let candidate_one = 1u64;
+        let exposure_for_candidate_one = Exposure {
+            score: 1000,
+            total: 1_000_000_000_000u128,
+            bls_pub_key: [1u8;65],
+            stakers: Default::default()
+        };
+        let candidate_two = 2u64;
+        let exposure_for_candidate_two = Exposure {
+            score: 1000,
+            total: 2_000_000_000_000u128,
+            bls_pub_key: [1u8;65],
+            stakers: Default::default()
+        };
+        let candidate_three = 3u64;
+        let exposure_for_candidate_three = Exposure {
+            score: 1000,
+            total: 3_000_000_000_000u128,
+            bls_pub_key: [3u8;65],
+            stakers: Default::default()
+        };
+        let actual_candidate_list = vec![(candidate_one, exposure_for_candidate_one), (candidate_two, exposure_for_candidate_two.clone()), (candidate_three, exposure_for_candidate_three.clone())];
+        let expected_candidate_list = vec![(candidate_three, exposure_for_candidate_three), (candidate_two, exposure_for_candidate_two)];
+        assert_eq!(crate::elect_relayers::<Test>(actual_candidate_list), expected_candidate_list);
+    })
+}
+
+//TODO: Should we also check if BLS Key is already registered or not?
+
+#[test]
+fn test_compute_next_session_with_valid_arguments() {
+    new_test_ext().execute_with(|| {
+        insert_staking_limit();
+        register_candidate();
+        register_new_candidate(2, 0, [2;65]);
+        let candidate_one_exposure = Exposure {
+            score: 1000,
+            total: 1_000_000_000_000u128,
+            bls_pub_key: [1u8;65],
+            stakers: Default::default()
+        };
+        let candidate_two_exposure = Exposure {
+            score: 1000,
+            total: 1_000_000_000_000u128,
+            bls_pub_key: [2;65],
+            stakers: Default::default()
+        };
+        let current_session = 0;
+        let session_in_consideration = 2;
+        let current_network = 0;
+        TheaStaking::compute_next_session(current_network, current_session);
+        let actual_staking_data = TheaStaking::staking_data(session_in_consideration, current_network);
+        let expected_staking_data = vec![(1u64, candidate_one_exposure), (2u64,candidate_two_exposure)];
+        assert_eq!(actual_staking_data, expected_staking_data);
+        let actual_queued_candidates = TheaStaking::queued_relayers(current_network);
+        let expected_queued_candidates = vec![(1, [1;65]), (2,[2;65])];
+        assert_eq!(actual_queued_candidates, expected_queued_candidates);
+    })
+}
+
+#[test]
+fn test_rotate_session() {
+    new_test_ext().execute_with(|| {
+        rotate_session_init();
+        let candidate_one = 1u64;
+        let candidate_two = 2u64;
+        assert_eq!(TheaStaking::active_relayers(0), vec![]);
+        TheaStaking::rotate_session();
+        assert_eq!(TheaStaking::queued_relayers(0), vec![(candidate_one, [1;65]), (candidate_two, [2;65])]);
+        assert_eq!(TheaStaking::active_relayers(0), vec![]);
+        TheaStaking::rotate_session(); //Update current session
+        assert_eq!(TheaStaking::active_relayers(0), vec![(candidate_one, [1;65]), (candidate_two, [2;65])]);
+    })
+}
+
+fn rotate_session_init() {
+    let current_session = 1;
+    <CurrentIndex<Test>>::put(current_session);
+    <ActiveNetworks<Test>>::put(vec![0]);
+    register_candidate();
+    register_new_candidate(2, 0, [2;65]);
+    insert_staking_limit();
+
+}
+
 #[ignore]
 #[test]
 fn test_unbond_with_amount_more_than_staked_amount_returns_error() {}
@@ -302,12 +415,17 @@ fn register_candidate() {
     assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
 }
 
+fn register_new_candidate(candidate_id: u64, network_id: u8, bls_key: [u8;65]) {
+    Balances::mint_into(&candidate_id, 10_000_000_000_000u128);
+    assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate_id), network_id, bls_key));
+}
+
 fn insert_staking_limit() {
     let staking_limits = StakingLimits {
         mininum_relayer_stake: 1_000_000_000_000u128,
         minimum_nominator_stake: 1_000_000_000_000u128,
         maximum_nominator_per_relayer: 10,
-        max_relayers: 10
+        max_relayers: 2
     };
     <Stakinglimits<Test>>::put(staking_limits);
 }

@@ -396,7 +396,6 @@ impl<T: Config> Pallet<T> {
 	pub fn rotate_session() {
 		let session_index = <CurrentIndex<T>>::get();
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
-
 		let active_networks = <ActiveNetworks<T>>::get();
 		// map to collect all active relayers to send to session change notifier
 		let mut map: HashMap<Network, Vec<(T::AccountId, BLSPublicKey)>> = HashMap::new();
