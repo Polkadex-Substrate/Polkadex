@@ -437,7 +437,6 @@ impl<T: Config> Pallet<T> {
 	pub fn do_withdraw_unbonded(nominator: T::AccountId) -> Result<(), Error<T>> {
 		if let Some(mut exposure) = <Stakers<T>>::get(&nominator) {
 			let amount: BalanceOf<T> = exposure.withdraw_unbonded(Self::current_index());
-			// TODO: Check the cases when it fails to unreserve.
 			let _ = pallet_balances::Pallet::<T>::unreserve_named(
 				&T::StakingReserveIdentifier::get(),
 				&nominator,
