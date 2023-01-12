@@ -6113,8 +6113,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "ias-verify",
  "log",
+ "once_cell",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
@@ -6128,7 +6128,6 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
- "test-utils",
 ]
 
 [[package]]
