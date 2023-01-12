@@ -27,6 +27,7 @@ use crate::{
 
 const ASSET_ADDRESS: &str = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const RECIPIENT_ADDRESS: &str = "0x0Edd7B63bDc5D0E88F7FDd8A38F802450f458fBA";
+const UNIT_BALANCE: u128 = 1_000_000_000_000;
 
 #[test]
 pub fn test_create_asset_will_successfully_create_asset() {
@@ -671,17 +672,46 @@ pub fn test_mint_thea_asset_will_increase_asset_balance() {
 
 #[test]
 pub fn test_burn_thea_asset_with_not_registered_asset_will_return_asset_not_registered_error() {
-	// TODO: Implement
+	let user = create_recipient_account();
+	let non_register_asset_id = 2;
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			AssetHandler::burn_thea_asset(non_register_asset_id, user, 100_u128),
+			Error::<Test>::AssetNotRegistered
+		);
+	})
 }
 
 #[test]
 pub fn test_burn_thea_asset_with_zero_amount_will_return_amount_cannot_be_zero_error() {
-	// TODO: Implement
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let user = create_recipient_account();
+	let asset_id = create_thea_asset_id(0, 5);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(create_thea_asset(asset_address, 0, 5));
+		assert_noop!(
+			AssetHandler::burn_thea_asset(asset_id, user, 0_u128),
+			Error::<Test>::AmountCannotBeZero
+		);
+	})
 }
 
 #[test]
 pub fn test_burn_thea_asset_will_reduce_asset_balance() {
-	// TODO: Implement
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	let user = create_recipient_account();
+	let asset_id = create_thea_asset_id(0, 5);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(create_thea_asset(asset_address, 0, 5));
+		//user needs to have existential deposit
+		assert_ok!(Balances::set_balance(Origin::root(), user, 1 * UNIT_BALANCE, 0));
+		assert_ok!(AssetHandler::mint_thea_asset(asset_id, user, 100_u128));
+		assert_eq!(AssetHandler::account_balances(vec![asset_id], user)[0], 100_u128);
+		assert_ok!(AssetHandler::burn_thea_asset(asset_id, user, 100_u128));
+		assert_eq!(AssetHandler::account_balances(vec![asset_id], user)[0], 0_u128);
+	})
 }
 
 #[test]
