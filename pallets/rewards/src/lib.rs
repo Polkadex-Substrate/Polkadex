@@ -42,6 +42,8 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
+mod crowloan_rewardees;
+
 const UNIT_BALANCE: u128 = 1_000_000_000_000;
 const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
@@ -273,6 +275,36 @@ pub mod pallet {
 				<InitializeRewards<T>>::contains_key(reward_id),
 				Error::<T>::RewardIdNotRegister
 			);
+
+			let account_in_vec: Vec<u8> = T::AccountId::encode(&user);
+
+			//get reward info of user from const hash map
+			if let Some((total_rewards_in_pdex, initial_rewards_claimable, factor)) =
+				crowloan_rewardees::HASHMAP.get(&account_in_vec)
+			{
+				if let Some(reward_info) = <InitializeRewards<T>>::take(reward_id) {
+					if total_rewards_in_pdex.clone() > MIN_REWARDS_CLAIMABLE_AMOUNT.saturated_into()
+					{
+						let reward_info = RewardInfoForAccount {
+							total_reward_amount: (total_rewards_in_pdex.clone()).saturated_into(),
+							claim_amount: 0_u128.saturated_into(),
+							is_initial_rewards_claimed: false,
+							is_initialized: false,
+							lock_id: REWARDS_LOCK_ID,
+							last_block_rewards_claim: reward_info.start_block,
+							initial_rewards_claimable: (initial_rewards_claimable.clone())
+								.saturated_into(),
+							factor: (factor.clone()).saturated_into(),
+						};
+						<Distributor<T>>::insert(reward_id, user.clone(), reward_info);
+					}
+				} else {
+					//sanity check
+					return Err(Error::<T>::RewardIdNotRegister.into())
+				}
+			} else {
+				return Err(Error::<T>::UserNotEligible.into())
+			}
 
 			//check if user is added in reward list
 			ensure!(<Distributor<T>>::contains_key(reward_id, &user), Error::<T>::UserNotEligible);
