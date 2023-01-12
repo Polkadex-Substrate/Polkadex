@@ -1,15 +1,15 @@
 use frame_support::RuntimeDebug;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::traits::{Get, Saturating, Zero};
-use std::collections::BTreeSet;
+use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
 use crate::{BLSPublicKey, BalanceOf, Config, Network, Pallet, SessionIndex};
 
 /// The amount of exposure (to slashing) than an individual nominator has.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub struct IndividualExposure<T: Config, AccountId> {
+pub struct IndividualExposure<T: Config, AccountId: Encode + TypeInfo> {
 	/// The stash account of the nominator in question.
 	pub who: AccountId,
 	/// Amount of funds exposed.
@@ -24,7 +24,7 @@ pub struct IndividualExposure<T: Config, AccountId> {
 	pub unlocking: Vec<UnlockChunk<T>>,
 }
 
-impl<T: Config, AccountId> IndividualExposure<T, AccountId> {
+impl<T: Config, AccountId: Encode + TypeInfo> IndividualExposure<T, AccountId> {
 	/// Unbond stake of a nominator
 	pub fn unbond(&mut self, mut amount: BalanceOf<T>, session_that_will_unlock: SessionIndex) {
 		// If the user entered amount is greater than available bonded funds then take available

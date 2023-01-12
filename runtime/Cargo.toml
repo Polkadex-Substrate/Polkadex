@@ -80,6 +80,8 @@ sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
+thea-staking = { default-features = false, path = "../pallets/thea-staking" }
+pallet-nomination-pools = { default-features = false, workspace = true }
 #end added
 
 # Used for the node template"s RPCs
@@ -179,7 +181,9 @@ std = [
     "chainbridge/std",
     "pallet-ocex-lmp/std",
     "frame-try-runtime/std",
-    "pallet-asset-handler-runtime-api/std"
+    "pallet-asset-handler-runtime-api/std",
+    "thea-staking/std",
+    "pallet-nomination-pools/std"
 ]
 runtime-benchmarks = [
     #theirs

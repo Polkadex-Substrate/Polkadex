@@ -23,7 +23,7 @@ use sp_runtime::{
 	DispatchError,
 };
 use sp_staking::{EraIndex, StakingInterface};
-use std::collections::HashMap;
+use sp_std::collections::btree_map::BTreeMap;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use crate::{
@@ -31,6 +31,7 @@ use crate::{
 	session::{Exposure, IndividualExposure},
 };
 pub use pallet::*;
+use sp_std::vec::Vec;
 
 mod election;
 #[cfg(test)]
@@ -399,7 +400,7 @@ impl<T: Config> Pallet<T> {
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
 		// map to collect all active relayers to send to session change notifier
-		let mut map: HashMap<Network, Vec<(T::AccountId, BLSPublicKey)>> = HashMap::new();
+		let mut map: BTreeMap<Network, Vec<(T::AccountId, BLSPublicKey)>> = BTreeMap::new();
 		for network in active_networks {
 			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
 			// 1. Move queued_relayers to active_relayers
@@ -515,7 +516,7 @@ impl<T: Config> Pallet<T> {
 					who: nominator.clone(),
 					value: amount,
 					backing: None,
-					unlocking: vec![],
+					unlocking: Vec::new(),
 				},
 			)
 		}
