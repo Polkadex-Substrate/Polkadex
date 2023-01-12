@@ -27,7 +27,6 @@ use sp_runtime::{
 use crate::pallet as asset_handler;
 
 use frame_support::PalletId;
-use sp_runtime::traits::AccountIdConversion;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -157,7 +156,6 @@ impl asset_handler::Config for Test {
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let _alice = 1u64;
-	let bridge_id: u64 = PalletId(*b"polka/bg").into_account_truncating();
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_balances::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)
