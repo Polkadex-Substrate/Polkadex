@@ -81,8 +81,7 @@ pub fn test_create_asset_with_already_existed_asset_will_return_already_register
 
 #[test]
 pub fn test_mint_asset_with_invalid_resource_id() {
-	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
-		mint_asset_data();
+	let (asset_address, relayer, recipient, _, chain_id, account) = mint_asset_data();
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(
@@ -117,8 +116,7 @@ pub fn test_mint_asset_with_invalid_resource_id() {
 
 #[test]
 pub fn test_register_asset_twice_create_error() {
-	let (asset_address, relayer, recipient, recipient_account, chain_id, account) =
-		mint_asset_data();
+	let (asset_address, _, _, _, chain_id, account) = mint_asset_data();
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
 		assert_ok!(AssetHandler::create_asset(
@@ -610,7 +608,13 @@ pub fn test_create_thea_asset() {
 #[test]
 pub fn test_create_thea_asset_with_mismatching_identifier_will_return_identifier_length_mismatch_error(
 ) {
-	// TODO: Implement
+	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			create_thea_asset(asset_address, 0, 25),
+			Error::<Test>::IdentifierLengthMismatch
+		);
+	})
 }
 
 #[test]
@@ -663,8 +667,8 @@ pub fn test_mint_thea_asset_will_increase_asset_balance() {
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(create_thea_asset(asset_address, 0, 5));
-		// FIXME: Investigate why `mint_thea_asset` from the next line is returns
-		//  `TokenError::CannotCreate`  with provided args which suppose to be valid
+		//recipient needs to have existential deposit
+		assert_ok!(Balances::set_balance(Origin::root(), recipient, 1 * UNIT_BALANCE, 0));
 		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 100_u128));
 		assert_eq!(AssetHandler::account_balances(vec![asset_id], recipient)[0], 100_u128);
 	})
