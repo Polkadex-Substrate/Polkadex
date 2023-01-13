@@ -60,8 +60,6 @@ pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
 
-	//pub type StakingInfo = (Config::AccountId, Exposure<Config, <dyn Config>::AccountId>);
-
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
@@ -109,11 +107,6 @@ pub mod pallet {
 	// Pallet implements [`Hooks`] trait to define some logic to execute in some context.
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		// `on_finalize` is executed at the end of block after all extrinsic are dispatched.
-		fn on_finalize(_n: T::BlockNumber) {
-			// Perform necessary data/state clean up here.
-		}
-
 		// `on_initialize` is executed at the beginning of the block before any extrinsic are
 		// dispatched.
 		//
@@ -133,6 +126,14 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		//TODO: benchmark Thea Pallet. Issue #605
+		/// Set Staking Limit
+		/// Only Root User can call it
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Root User
+		/// * `staking_limit`: Limits of Staking algorithm.
 		#[pallet::call_index(0)]
 		#[pallet::weight(10000)]
 		pub fn set_staking_limits(
@@ -144,9 +145,14 @@ pub mod pallet {
 			Ok(())
 		}
 
+        /// Adds the sender as a candidate for election and to the waitlist for selection.
+		///
+		/// # Parameters
+		///
+		/// * `network`: Network for which User wants to apply for candidature.
+		/// * `bls_key`: BLS Key of Candidate.
 		#[pallet::call_index(1)]
 		#[pallet::weight(10000)]
-		/// Adds the sender as a candidate for election and join the waitlist for selection
 		pub fn add_candidate(
 			origin: OriginFor<T>,
 			network: Network,
@@ -175,36 +181,49 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Nominates candidate for Active Relayer Set for provided network.
+		/// Can be called by Nominator who already staked.
+		///
+		///# Parameters
+		///
+		///* `candidate`: Candidate to be nominated.
 		#[pallet::call_index(2)]
 		#[pallet::weight(10000)]
-		/// Nominate a candidate.
 		pub fn nominate(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 			Self::do_nominate(nominator, candidate)?;
 			Ok(())
 		}
 
+		/// Locks Balance of Nominator for Staking purpose.
+		///
+		/// # Parameters
+		///
+		/// `amount`: Amount to be locked.
 		#[pallet::call_index(3)]
 		#[pallet::weight(10000)]
-		/// Locks new free balance to a staker account
 		pub fn bond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 			Self::do_bond(nominator, amount)?;
 			Ok(())
 		}
 
+		/// Unbonds provided amount which Nominator wants to unlock.
+		///
+		///# Parameters
+		///
+		/// `amount`: Amount which User wants to Unbond.
 		#[pallet::call_index(4)]
 		#[pallet::weight(10000)]
-		/// Unbonds the required amount, fails if amount is greater than active stake
 		pub fn unbond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 			Self::do_unbond(nominator, amount)?;
 			Ok(())
 		}
 
+		/// Withdraws Unlocked funds
 		#[pallet::call_index(5)]
 		#[pallet::weight(10000)]
-		/// Withdraws the unbonded funds
 		pub fn withdraw_unbonded(origin: OriginFor<T>) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 
@@ -212,10 +231,15 @@ pub mod pallet {
 			Ok(())
 		}
 
+		//TODO: After removing candidature, Candidate can't claim back bonded amount. #607
+
+		/// Removes Candidate from Active/Waiting Set.
+		///
+		/// # Parameters
+		///
+		/// `network`: Network from which Candidate will be removed.
 		#[pallet::call_index(6)]
 		#[pallet::weight(10000)]
-		/// Moves the candidate to Inactive state, it will also put unbonding request for all
-		/// stakers
 		pub fn remove_candidate(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			let candidate = ensure_signed(origin)?;
 
@@ -486,7 +510,7 @@ impl<T: Config> Pallet<T> {
 		let limits = <Stakinglimits<T>>::get();
 		//FIXME: minimum_nominator_stake should be only checked once
 		ensure!(amount >= limits.minimum_nominator_stake, Error::<T>::StakingLimitsError);
-		if let Some(individual_exposure) = <Stakers<T>>::get(&nominator) {
+		if let Some(mut individual_exposure) = <Stakers<T>>::get(&nominator) {
 			if let Some((network, candidate)) = individual_exposure.backing {
 				if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
 					exposure.total = exposure.total.saturating_add(amount);
@@ -503,7 +527,16 @@ impl<T: Config> Pallet<T> {
 					return Err(Error::<T>::CandidateNotFound.into())
 				}
 			} else {
-				//FIXME: Handle this case
+				pallet_balances::Pallet::<T>::reserve_named(
+					&T::StakingReserveIdentifier::get(),
+					&nominator,
+					amount,
+				)?;
+				individual_exposure.value += amount;
+				<Stakers<T>>::insert(
+					&nominator,
+					individual_exposure
+				);
 			}
 		} else {
 			// reserve stake

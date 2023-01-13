@@ -172,9 +172,6 @@ fn test_nominate_with_wrong_candidate_returns_CandidateNotFound() {
 	});
 }
 
-// If Nominator tries to bound more with nominating anyone. Then Nominator will loose tokens
-// This test should pass.
-#[ignore]
 #[test]
 fn test_bound_with_valid_arguments_second_time_returns_ok() {
 	new_test_ext().execute_with(|| {
@@ -194,6 +191,7 @@ fn test_bound_with_valid_arguments_second_time_returns_ok() {
 		assert_eq!(TheaStaking::stakers(nominator), Some(individual_exposure));
 	});
 }
+
 
 #[test]
 fn test_unbond_with_valid_arguments_returns_ok() {
