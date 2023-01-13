@@ -190,6 +190,7 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
+ "pallet-transaction-payment",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -4067,6 +4068,7 @@ name = "node-polkadex-runtime"
 version = "4.0.0"
 dependencies = [
  "asset-handler",
+ "assets-transaction-payment",
  "chainbridge",
  "frame-benchmarking",
  "frame-election-provider-support",
