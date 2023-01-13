@@ -5394,6 +5394,7 @@ name = "polkadex-node"
 version = "4.0.0"
 dependencies = [
  "assert_cmd",
+ "assets-transaction-payment",
  "async-std",
  "clap 3.2.22",
  "frame-benchmarking",
