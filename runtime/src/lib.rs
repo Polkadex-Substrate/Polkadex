@@ -93,6 +93,7 @@ pub mod impls;
 /// Constant values used within the runtime.
 pub mod constants;
 mod weights;
+pub mod signedpayload;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1370,7 +1371,8 @@ pub type SignedExtra = (
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// The payload being signed in transactions.
-pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
+// pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
+pub type SignedPayload = signedpayload::SignedPayload<Call, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
