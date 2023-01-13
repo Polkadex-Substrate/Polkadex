@@ -86,6 +86,8 @@ use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
+use pallet_assets::mock::Balances;
+use pallet_bags_list::mock::Runtime;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -253,6 +255,7 @@ parameter_types! {
 }
 use scale_info::TypeInfo;
 use sp_npos_elections::ExtendedBalance;
+use swap::pallet::Event;
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
@@ -1294,6 +1297,17 @@ impl asset_handler::pallet::Config for Runtime {
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const SwapPalletId:PalletId = PalletId(*b"SWAPPALLET")
+}
+
+impl swap::pallet::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type PoolCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type SwapPalletId = SwapPalletId;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1339,6 +1353,7 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38
+		Swap: swap::pallet::{Pallet, call, Storage, Event<T>}=39
 	}
 );
 /// Digest item type.

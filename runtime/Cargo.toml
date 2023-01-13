@@ -102,6 +102,9 @@ chainbridge = { path ="../pallets/chainbridge", default-features = false }
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 
+#Swap
+swap = {path ="../pallets/swap", default-features=false }
+
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
@@ -179,7 +182,8 @@ std = [
     "chainbridge/std",
     "pallet-ocex-lmp/std",
     "frame-try-runtime/std",
-    "pallet-asset-handler-runtime-api/std"
+    "pallet-asset-handler-runtime-api/std",
+    "swap/std",
 ]
 runtime-benchmarks = [
     #theirs
