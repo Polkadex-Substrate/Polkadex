@@ -27,9 +27,9 @@ use frame_support::{
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{
-		ConstU16, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly, Everything, Get,
-		Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced,
-		U128CurrencyToVote,
+		fungibles::CreditOf, ConstU16, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly,
+		Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
+		OnUnbalanced, U128CurrencyToVote,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -92,8 +92,8 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-mod weights;
 pub mod signedpayload;
+mod weights;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -252,8 +252,10 @@ parameter_types! {
 	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
 	pub const MaxPending: u16 = 32;
 }
+use assets_transaction_payment::payment::{HandleSwap, NegativeImbalanceOf};
 use scale_info::TypeInfo;
 use sp_npos_elections::ExtendedBalance;
+use sp_runtime::traits::ConvertInto;
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
@@ -1046,7 +1048,11 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			assets_transaction_payment::ChargeTransactionPayment::<Runtime> {
+				signature_scheme: 0,
+				asset_id: None,
+				tip,
+			},
 		);
 		let raw_payload = SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1295,6 +1301,26 @@ impl asset_handler::pallet::Config for Runtime {
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
 }
 
+/// Handler to convert alternate tokens
+pub struct AlternateTokenSwapper;
+impl HandleSwap<Runtime> for AlternateTokenSwapper {
+	fn swap(credit: CreditOf<AccountId, Assets>) -> NegativeImbalanceOf<Runtime> {
+		// TODO: @Emmanuel integrate Polkapool here
+		// FIXME: Is there a better way to convert here?
+		NegativeImbalanceOf::new(credit.peek().saturated_into::<u128>().saturated_into())
+	}
+}
+
+impl assets_transaction_payment::pallet::Config for Runtime {
+	type Event = Event;
+	type Fungibles = Assets;
+	type OnChargeAssetTransaction = assets_transaction_payment::payment::FungiblesAdapter<
+		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto>,
+		AlternateTokenSwapper,
+		DealWithFees,
+	>;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1339,7 +1365,8 @@ construct_runtime!(
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 35,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
-		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38
+		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
+		AssetsTransactionPayment: assets_transaction_payment::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 	}
 );
 /// Digest item type.
@@ -1366,7 +1393,7 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	assets_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;

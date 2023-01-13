@@ -18,6 +18,7 @@ frame-benchmarking = { workspace = true, default-features = false,  optional = t
 frame-system = { workspace = true, default-features = false }
 pallet-balances = { workspace = true, default-features = false }
 pallet-assets = { workspace = true, default-features = false }
+pallet-transaction-payment = { workspace = true, default-features = false }
 
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
@@ -36,7 +37,8 @@ std = [
 	"sp-std/std",
 	"sp-runtime/std",
 	"pallet-balances/std",
-	"pallet-assets/std"
+	"pallet-assets/std",
+	"pallet-transaction-payment/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
