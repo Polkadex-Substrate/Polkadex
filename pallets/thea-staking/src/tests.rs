@@ -192,7 +192,6 @@ fn test_bound_with_valid_arguments_second_time_returns_ok() {
 	});
 }
 
-
 #[test]
 fn test_unbond_with_valid_arguments_returns_ok() {
 	new_test_ext().execute_with(|| {

@@ -145,7 +145,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-        /// Adds the sender as a candidate for election and to the waitlist for selection.
+		/// Adds the sender as a candidate for election and to the waitlist for selection.
 		///
 		/// # Parameters
 		///
@@ -186,7 +186,7 @@ pub mod pallet {
 		///
 		///# Parameters
 		///
-		///* `candidate`: Candidate to be nominated.
+		/// * `candidate`: Candidate to be nominated.
 		#[pallet::call_index(2)]
 		#[pallet::weight(10000)]
 		pub fn nominate(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
@@ -533,10 +533,7 @@ impl<T: Config> Pallet<T> {
 					amount,
 				)?;
 				individual_exposure.value += amount;
-				<Stakers<T>>::insert(
-					&nominator,
-					individual_exposure
-				);
+				<Stakers<T>>::insert(&nominator, individual_exposure);
 			}
 		} else {
 			// reserve stake
