@@ -91,7 +91,11 @@ pub fn create_extrinsic(
 		)),
 		frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-		pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
+		assets_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>{
+			signature_scheme: 0,
+			asset_id: None,
+			tip
+		},
 	);
 
 	let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
@@ -105,7 +109,7 @@ pub fn create_extrinsic(
 			best_hash,
 			(),
 			(),
-			(),
+			0,
 		),
 	);
 	use codec::Encode;
