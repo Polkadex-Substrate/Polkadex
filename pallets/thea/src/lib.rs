@@ -39,7 +39,7 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 
-	use thea_primitives::BLSPublicKey;
+	use thea_primitives::{BLSPublicKey, Payload};
 
 	pub type Network = u32;
 
@@ -56,16 +56,6 @@ pub mod pallet {
 		pub amount: u128,
 		pub network: u8,
 		pub beneficiary: Vec<u8>,
-	}
-
-	#[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
-	pub struct Payload<AccountId> {
-		pub network_id: u8,
-		pub who: AccountId,
-		pub tx_hash: sp_core::H256,
-		pub asset_id: u128,
-		pub amount: u128,
-		pub deposit_nonce: u32,
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
