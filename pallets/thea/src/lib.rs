@@ -77,12 +77,6 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	// /// Set ID of the current active relayer set
-	// #[pallet::storage]
-	// #[pallet::getter(fn get_current_active_relayer_set_id)]
-	// pub(super) type CurrentActiveRelayerSetId<T: Config> =
-	// StorageMap<_, Blake2_128Concat, u8, u32, OptionQuery>;
-
 	/// Active Relayers BLS Keys for a given Netowkr
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
@@ -154,6 +148,7 @@ pub mod pallet {
 	pub(super) type AssetIdToNetworkMapping<T: Config> =
 		StorageMap<_, Blake2_128Concat, u128, Network, OptionQuery>;
 
+	/// Deposit Nonce for Thea Deposits
 	#[pallet::storage]
 	#[pallet::getter(fn get_deposit_nonce)]
 	pub(super) type DepositNonce<T: Config> =
