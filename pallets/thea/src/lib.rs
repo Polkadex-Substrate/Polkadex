@@ -191,7 +191,7 @@ pub mod pallet {
 		// Withdrawal fee is not configured this network
 		WithdrawalFeeConfigNotFound,
 		// No approved deposits for the provided account
-		NoApprovedDeposit
+		NoApprovedDeposit,
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -270,8 +270,7 @@ pub mod pallet {
 			);
 
 			// Fetch current active relayer set BLS Keys
-			let current_active_relayer_set =
-				Self::get_relayers_key_vector(payload.network_id);
+			let current_active_relayer_set = Self::get_relayers_key_vector(payload.network_id);
 
 			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
 			ensure!(
@@ -363,7 +362,7 @@ pub mod pallet {
 					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
 				}
 			} else {
-				return Err(Error::<T>::NoApprovedDeposit.into());
+				return Err(Error::<T>::NoApprovedDeposit.into())
 			}
 
 			Ok(())
@@ -405,7 +404,8 @@ pub mod pallet {
 		/// * `asset_id`: Asset id
 		/// * `amount`: Amount of asset to withdraw
 		/// * `beneficiary`: beneficiary of the withdraw
-		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick withdrawal
+		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
+		///   withdrawal
 		#[pallet::weight(1000)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
