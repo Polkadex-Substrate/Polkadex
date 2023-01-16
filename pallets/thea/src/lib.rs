@@ -246,14 +246,9 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `origin`: Active relayer
-		/// * `network_id`: id of the foreign chain network
 		/// * `bit_map`: The bit map of current relayer set that have signed the Deposit Transaction
-		/// * `recipient`: The address of the user who initiated a deposit
-		/// * `tx_hash`: Hash of the transaction on the foreign chain
-		/// * `asset_id`: The asset id of the asset being deposited
-		/// * `amount`: The amount of assets that have been deposited in foreign chain
 		/// * `bls_signature`: The aggregated signature of majority of relayers in current active
-		///   relayer set
+		/// * `payload`: Deposit payload that has been signed by the current active relayer set
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
