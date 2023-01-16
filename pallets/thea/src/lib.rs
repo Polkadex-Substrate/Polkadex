@@ -85,7 +85,7 @@ pub mod pallet {
 		frame_support::Blake2_128Concat,
 		u8,
 		BoundedVec<BLSPublicKey, ConstU32<1000>>,
-		OptionQuery,
+		ValueQuery,
 	>;
 
 	/// Approved Deposits
@@ -269,7 +269,7 @@ pub mod pallet {
 
 			// Fetch current active relayer set BLS Keys
 			let current_active_relayer_set =
-				Self::get_relayers_key_vector(payload.network_id).unwrap();
+				Self::get_relayers_key_vector(payload.network_id);
 
 			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
 			ensure!(
