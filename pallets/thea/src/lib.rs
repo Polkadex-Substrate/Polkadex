@@ -190,6 +190,8 @@ pub mod pallet {
 		WithdrawalNotAllowed,
 		// Withdrawal fee is not configured this network
 		WithdrawalFeeConfigNotFound,
+		// No approved deposits for the provided account
+		NoApprovedDeposit
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -360,6 +362,8 @@ pub mod pallet {
 				} else {
 					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
 				}
+			} else {
+				return Err(Error::<T>::NoApprovedDeposit.into());
 			}
 
 			Ok(())
@@ -386,7 +390,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_signed(origin)?;
 
-			// TODO: Something to verify BLS signature
+			// TODO: This will be refactored when work on withdrawal begins
 			<ReadyWithdrawls<T>>::take(network, withdrawal_nonce);
 
 			Self::deposit_event(Event::<T>::WithdrawalExecuted(withdrawal_nonce, network, tx_hash));
@@ -400,6 +404,8 @@ pub mod pallet {
 		/// * `origin`: User
 		/// * `asset_id`: Asset id
 		/// * `amount`: Amount of asset to withdraw
+		/// * `beneficiary`: beneficiary of the withdraw
+		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick withdrawal
 		#[pallet::weight(1000)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -414,7 +420,7 @@ pub mod pallet {
 
 			// Find native network of this asset
 			#[allow(clippy::unnecessary_lazy_evaluations)]
-			// TODO: Remove once merged to asset-handler
+			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
 				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
 
@@ -426,7 +432,7 @@ pub mod pallet {
 			ensure!(pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
 
 			#[allow(clippy::unnecessary_lazy_evaluations)]
-			// TODO: Remove once merged to asset-handler
+			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let mut total_fees = <WithdrawalFees<T>>::get(network)
 				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
 
@@ -446,7 +452,7 @@ pub mod pallet {
 				ExistenceRequirement::KeepAlive,
 			)?;
 
-			// TODO: Update Thea Staking pallet about fees collected
+			// TODO[#610]: Update Thea Staking pallet about fees collected
 
 			// Burn assets
 			asset_handler::pallet::Pallet::<T>::burn_thea_asset(asset_id, user.clone(), amount)?;
