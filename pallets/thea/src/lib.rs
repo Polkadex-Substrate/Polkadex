@@ -251,6 +251,7 @@ pub mod pallet {
 		/// * `bit_map`: The bit map of current relayer set that have signed the Deposit Transaction
 		/// * `bls_signature`: The aggregated signature of majority of relayers in current active
 		/// * `payload`: Deposit payload that has been signed by the current active relayer set
+		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
@@ -329,6 +330,7 @@ pub mod pallet {
 		/// * `origin`: User
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
 		/// (it's used to parametrise the weight of this extrinsic)
+		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
@@ -378,6 +380,7 @@ pub mod pallet {
 		/// * `tx_hash`: Vec<u8>
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn batch_withdrawal_complete(
 			origin: OriginFor<T>,
@@ -406,6 +409,7 @@ pub mod pallet {
 		/// * `beneficiary`: beneficiary of the withdraw
 		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
 		///   withdrawal
+		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
