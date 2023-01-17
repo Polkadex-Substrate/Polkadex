@@ -92,9 +92,10 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
+pub mod ethereum;
 pub mod signedpayload;
-mod weights;
 mod unchecked_extrinsic;
+mod weights;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1051,7 +1052,7 @@ where
 			frame_system::CheckWeight::<Runtime>::new(),
 			assets_transaction_payment::ChargeAssetTransactionPayment::<Runtime> {
 				signature_scheme: 0,
-				asset_id: None,
+				asset_id: 0,
 				tip,
 			},
 		);
@@ -1398,7 +1399,8 @@ pub type SignedExtra = (
 );
 /// Unchecked extrinsic type as expected by this runtime.
 // pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
-pub type UncheckedExtrinsic = unchecked_extrinsic::UncheckedExtrinsic<Address, Call, Signature,SignedExtra>;
+pub type UncheckedExtrinsic =
+	unchecked_extrinsic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// The payload being signed in transactions.
 // pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 pub type SignedPayload = signedpayload::SignedPayload<Call, SignedExtra>;

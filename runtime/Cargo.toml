@@ -68,6 +68,7 @@ sp-transaction-pool = { default-features = false, workspace = true }
 sp-version = { default-features = false, workspace = true }
 sp-io = { workspace = true, default-features = false }
 sp-finality-grandpa = { workspace = true, default-features = false }
+sp-runtime-interface = { workspace= true, default-features = false }
 
 #added
 sp-authority-discovery = { default-features = false, workspace = true }
@@ -105,6 +106,12 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 
 serde = { version = "1.0.136", features = ["derive"], optional = true }
 parity-util-mem = { version = "0.11.0", default-features = false, features = ["primitive-types"] }
+ethers-derive-eip712 = { version="0.13.0", optional=true}
+ethers-core = {version="0.13.0", optional = true, features = ["eip712", "macros"]}
+ethers-contract = {version="0.13.0", optional = true, features = ["abigen"]}
+ethers = {version="0.13.0", optional = true}
+serde_json = {version="1.0.91", optional = true , default-features = false}
+hex = {version="0.4.3", optional = true, default-features = false}
 
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
@@ -118,7 +125,14 @@ substrate-wasm-builder = { workspace = true }
 default = ["std"]
 std = [
     "parity-scale-codec/std",
+    "ethers-derive-eip712",
+    "ethers-core",
+    "ethers",
+    "ethers-contract",
     "scale-info/std",
+    "serde_json/std",
+    "hex/std",
+    "sp-runtime-interface/std",
     "log/std",
     "serde",
     "pallet-authorship/std",

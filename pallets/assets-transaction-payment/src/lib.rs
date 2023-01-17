@@ -7,10 +7,14 @@ use crate::{
 	pallet::{AllowedAssets, Config, Event, Pallet},
 	payment::OnChargeAssetTransaction,
 };
-use frame_support::{dispatch::{DispatchInfo, PostDispatchInfo}, log, traits::{
-	fungibles::{CreditOf, Inspect},
-	IsType,
-}};
+use frame_support::{
+	dispatch::{DispatchInfo, PostDispatchInfo},
+	log,
+	traits::{
+		fungibles::{CreditOf, Inspect},
+		IsType,
+	},
+};
 use pallet_transaction_payment::OnChargeTransaction;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -65,7 +69,9 @@ pub enum InitialPayment<T: Config> {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::{payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf, ChargeAssetIdOf, InitialPayment};
+	use crate::{
+		payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf, ChargeAssetIdOf, InitialPayment,
+	};
 	use frame_support::{pallet_prelude::*, traits::tokens::fungibles::Balanced};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
@@ -130,7 +136,7 @@ pub mod pallet {
 #[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct ChargeAssetTransactionPayment<T: Config> {
-	pub asset_id: Option<ChargeAssetIdOf<T>>,
+	pub asset_id: ChargeAssetIdOf<T>,
 	pub tip: BalanceOf<T>,
 	pub signature_scheme: u8,
 }
@@ -140,7 +146,7 @@ where
 	T::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	AssetBalanceOf<T>: Send + Sync + FixedPointOperand,
 	BalanceOf<T>: Send + Sync + FixedPointOperand + IsType<ChargeAssetBalanceOf<T>>,
-	ChargeAssetIdOf<T>: Send + Sync,
+	ChargeAssetIdOf<T>: Send + Sync + Zero,
 	CreditOf<T::AccountId, T::Fungibles>: IsType<ChargeAssetLiquidityOf<T>>,
 {
 	/// Fee withdrawal logic that dispatches to either `OnChargeAssetTransaction` or
@@ -156,12 +162,12 @@ where
 		debug_assert!(self.tip <= fee, "tip should be included in the computed fee");
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
-		} else if let Some(asset_id) = self.asset_id {
+		} else if self.asset_id != Zero::zero() {
 			T::OnChargeAssetTransaction::withdraw_fee(
 				who,
 				call,
 				info,
-				asset_id,
+				self.asset_id,
 				fee.into(),
 				self.tip.into(),
 			)
@@ -192,7 +198,7 @@ where
 	T::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	AssetBalanceOf<T>: Send + Sync + FixedPointOperand,
 	BalanceOf<T>: Send + Sync + From<u64> + FixedPointOperand + IsType<ChargeAssetBalanceOf<T>>,
-	ChargeAssetIdOf<T>: Send + Sync,
+	ChargeAssetIdOf<T>: Send + Sync + Zero,
 	CreditOf<T::AccountId, T::Fungibles>: IsType<ChargeAssetLiquidityOf<T>>,
 {
 	const IDENTIFIER: &'static str = "AssetsTransactionPayment";
@@ -205,7 +211,7 @@ where
 		// who paid the fee - this is an option to allow for a Default impl.
 		T::AccountId,
 		// imbalance resulting from withdrawing the fee
-		InitialPayment<T>
+		InitialPayment<T>,
 	);
 
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> {
