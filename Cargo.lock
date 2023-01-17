@@ -4095,6 +4095,7 @@ dependencies = [
  "pallet-indices",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-nomination-pools",
  "pallet-ocex-lmp",
  "pallet-offences",
  "pallet-preimage",
@@ -4138,6 +4139,7 @@ dependencies = [
  "substrate-wasm-builder",
  "thea",
  "thea-primitives",
+ "thea-staking",
 ]
 
 [[package]]
@@ -4755,6 +4757,23 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-nomination-pools"
+version = "1.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
  "sp-std",
 ]
 
@@ -8815,6 +8834,25 @@ dependencies = [
  "polkadex-primitives",
  "scale-info",
  "sp-runtime-interface",
+ "sp-std",
+]
+
+[[package]]
+name = "thea-staking"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
  "sp-std",
 ]
 

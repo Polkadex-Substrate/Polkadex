@@ -12,8 +12,8 @@ members = [
     "pallets/pdex-migration",
     "pallets/ocex",
     "pallets/thea",
-    "thea-primitives"
-    "pallets/thea-staking"
+    "thea-primitives",
+    "pallets/thea-staking",
 ]
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
