@@ -209,7 +209,6 @@ where
 	);
 
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> {
-		panic!("{:?}, {:?}, {:?}",self.tip, self.signature_scheme, self.asset_id);
 		Ok(self.signature_scheme)
 	}
 
@@ -220,8 +219,6 @@ where
 		info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> TransactionValidity {
-
-		log::error!(target:"thea-signing","Reached here");
 		use pallet_transaction_payment::ChargeTransactionPayment;
 		let (fee, inital_payment) = self.withdraw_fee(who, call, info, len)?;
 		// Check if the given asset is valid
