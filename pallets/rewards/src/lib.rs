@@ -42,8 +42,7 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-const UNIT_BALANCE: u128 = 1_000_000_000_000;
-const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = UNIT_BALANCE;
+const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
 pub const MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK: u128 = 15;
 
@@ -57,10 +56,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		pallet_prelude::{OptionQuery, *},
-		traits::{
-			fungibles::{Create, Inspect, Mutate},
-			Currency, LockableCurrency, ReservableCurrency,
-		},
+		traits::{Currency, LockableCurrency, ReservableCurrency},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
@@ -68,6 +64,7 @@ pub mod pallet {
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 
 	use frame_support::traits::WithdrawReasons;
+	use polkadex_primitives::UNIT_BALANCE;
 	use sp_std::{cmp::min, convert::TryInto};
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -87,14 +84,6 @@ pub mod pallet {
 		type NativeCurrency: Currency<Self::AccountId>
 			+ ReservableCurrency<Self::AccountId>
 			+ LockableCurrency<Self::AccountId>;
-
-		/// Assets Pallet
-		type OtherAssets: Mutate<
-				<Self as frame_system::Config>::AccountId,
-				Balance = BalanceOf<Self>,
-				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>
-			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		type Public: Clone
 			+ PartialEq

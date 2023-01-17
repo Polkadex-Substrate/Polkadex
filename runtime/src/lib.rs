@@ -1279,7 +1279,6 @@ impl rewards::Config for Runtime {
 	type Event = Event;
 	type PalletId = RewardsPalletId;
 	type NativeCurrency = Balances;
-	type OtherAssets = Assets;
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
