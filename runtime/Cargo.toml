@@ -187,7 +187,7 @@ std = [
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
-    "pallet-nomination-pools/std"
+    "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
 ]
