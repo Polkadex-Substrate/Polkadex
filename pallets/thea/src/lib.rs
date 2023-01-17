@@ -39,7 +39,7 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 
-	use thea_primitives::BLSPublicKey;
+	use thea_primitives::{BLSPublicKey, Payload};
 
 	pub type Network = u32;
 
@@ -56,16 +56,6 @@ pub mod pallet {
 		pub amount: u128,
 		pub network: u8,
 		pub beneficiary: Vec<u8>,
-	}
-
-	#[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
-	pub struct Payload<AccountId> {
-		pub network_id: u8,
-		pub who: AccountId,
-		pub tx_hash: sp_core::H256,
-		pub asset_id: u128,
-		pub amount: u128,
-		pub deposit_nonce: u32,
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -87,12 +77,6 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	// /// Set ID of the current active relayer set
-	// #[pallet::storage]
-	// #[pallet::getter(fn get_current_active_relayer_set_id)]
-	// pub(super) type CurrentActiveRelayerSetId<T: Config> =
-	// StorageMap<_, Blake2_128Concat, u8, u32, OptionQuery>;
-
 	/// Active Relayers BLS Keys for a given Netowkr
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
@@ -101,7 +85,7 @@ pub mod pallet {
 		frame_support::Blake2_128Concat,
 		u8,
 		BoundedVec<BLSPublicKey, ConstU32<1000>>,
-		OptionQuery,
+		ValueQuery,
 	>;
 
 	/// Approved Deposits
@@ -164,6 +148,7 @@ pub mod pallet {
 	pub(super) type AssetIdToNetworkMapping<T: Config> =
 		StorageMap<_, Blake2_128Concat, u128, Network, OptionQuery>;
 
+	/// Deposit Nonce for Thea Deposits
 	#[pallet::storage]
 	#[pallet::getter(fn get_deposit_nonce)]
 	pub(super) type DepositNonce<T: Config> =
@@ -205,6 +190,8 @@ pub mod pallet {
 		WithdrawalNotAllowed,
 		// Withdrawal fee is not configured this network
 		WithdrawalFeeConfigNotFound,
+		// No approved deposits for the provided account
+		NoApprovedDeposit,
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -261,14 +248,9 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `origin`: Active relayer
-		/// * `network_id`: id of the foreign chain network
 		/// * `bit_map`: The bit map of current relayer set that have signed the Deposit Transaction
-		/// * `recipient`: The address of the user who initiated a deposit
-		/// * `tx_hash`: Hash of the transaction on the foreign chain
-		/// * `asset_id`: The asset id of the asset being deposited
-		/// * `amount`: The amount of assets that have been deposited in foreign chain
 		/// * `bls_signature`: The aggregated signature of majority of relayers in current active
-		///   relayer set
+		/// * `payload`: Deposit payload that has been signed by the current active relayer set
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
@@ -288,8 +270,7 @@ pub mod pallet {
 			);
 
 			// Fetch current active relayer set BLS Keys
-			let current_active_relayer_set =
-				Self::get_relayers_key_vector(payload.network_id).unwrap();
+			let current_active_relayer_set = Self::get_relayers_key_vector(payload.network_id);
 
 			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
 			ensure!(
@@ -380,6 +361,8 @@ pub mod pallet {
 				} else {
 					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
 				}
+			} else {
+				return Err(Error::<T>::NoApprovedDeposit.into())
 			}
 
 			Ok(())
@@ -406,7 +389,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_signed(origin)?;
 
-			// TODO: Something to verify BLS signature
+			// TODO: This will be refactored when work on withdrawal begins
 			<ReadyWithdrawls<T>>::take(network, withdrawal_nonce);
 
 			Self::deposit_event(Event::<T>::WithdrawalExecuted(withdrawal_nonce, network, tx_hash));
@@ -420,6 +403,9 @@ pub mod pallet {
 		/// * `origin`: User
 		/// * `asset_id`: Asset id
 		/// * `amount`: Amount of asset to withdraw
+		/// * `beneficiary`: beneficiary of the withdraw
+		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
+		///   withdrawal
 		#[pallet::weight(1000)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -434,7 +420,7 @@ pub mod pallet {
 
 			// Find native network of this asset
 			#[allow(clippy::unnecessary_lazy_evaluations)]
-			// TODO: Remove once merged to asset-handler
+			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
 				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
 
@@ -446,7 +432,7 @@ pub mod pallet {
 			ensure!(pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
 
 			#[allow(clippy::unnecessary_lazy_evaluations)]
-			// TODO: Remove once merged to asset-handler
+			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let mut total_fees = <WithdrawalFees<T>>::get(network)
 				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
 
@@ -466,7 +452,7 @@ pub mod pallet {
 				ExistenceRequirement::KeepAlive,
 			)?;
 
-			// TODO: Update Thea Staking pallet about fees collected
+			// TODO[#610]: Update Thea Staking pallet about fees collected
 
 			// Burn assets
 			asset_handler::pallet::Pallet::<T>::burn_thea_asset(asset_id, user.clone(), amount)?;

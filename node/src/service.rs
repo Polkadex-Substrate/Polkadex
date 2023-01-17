@@ -26,7 +26,6 @@ use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_executor::NativeElseWasmExecutor;
-// use sc_executor::native_executor_instance;
 use sc_network::{Event, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sp_runtime::traits::Block as BlockT;
@@ -45,14 +44,6 @@ type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
 	sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
-// Our native executor instance.
-// native_executor_instance!(
-// 	pub Executor,
-// 	node_polkadex_runtime::api::dispatch,
-// 	node_polkadex_runtime::native_version,
-// 	// Make the executor aware of the custom host functions.
-// 	thea_primitives::thea_ext::HostFunctions,
-// );
 /// Fetch the nonce of the given `account` from the chain state.
 ///
 /// Note: Should only be used for tests.
