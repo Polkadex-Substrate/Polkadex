@@ -7,16 +7,14 @@ use crate::{
 	pallet::{AllowedAssets, Config, Event, Pallet},
 	payment::OnChargeAssetTransaction,
 };
-use frame_support::{
-	dispatch::{DispatchInfo, PostDispatchInfo},
-	traits::{
-		fungibles::{CreditOf, Inspect},
-		IsType,
-	},
-};
+use frame_support::{dispatch::{DispatchInfo, PostDispatchInfo}, log, traits::{
+	fungibles::{CreditOf, Inspect},
+	IsType,
+}};
 use pallet_transaction_payment::OnChargeTransaction;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
+use sp_core::RuntimeDebug;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, PostDispatchInfoOf, SignedExtension, Zero},
 	transaction_validity::{
@@ -67,7 +65,7 @@ pub enum InitialPayment<T: Config> {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::{payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf, ChargeAssetIdOf};
+	use crate::{payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf, ChargeAssetIdOf, InitialPayment};
 	use frame_support::{pallet_prelude::*, traits::tokens::fungibles::Balanced};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
@@ -106,7 +104,7 @@ pub mod pallet {
 			who: T::AccountId,
 			actual_fee: BalanceOf<T>,
 			tip: BalanceOf<T>,
-			asset_id: Option<ChargeAssetIdOf<T>>,
+			asset_id: AssetIdOf<T>,
 		},
 	}
 
@@ -131,13 +129,13 @@ pub mod pallet {
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub struct ChargeTransactionPayment<T: Config> {
-	pub signature_scheme: u8,
+pub struct ChargeAssetTransactionPayment<T: Config> {
 	pub asset_id: Option<ChargeAssetIdOf<T>>,
 	pub tip: BalanceOf<T>,
+	pub signature_scheme: u8,
 }
 
-impl<T: Config> ChargeTransactionPayment<T>
+impl<T: Config> ChargeAssetTransactionPayment<T>
 where
 	T::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	AssetBalanceOf<T>: Send + Sync + FixedPointOperand,
@@ -178,7 +176,7 @@ where
 	}
 }
 
-impl<T: Config> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
+impl<T: Config> sp_std::fmt::Debug for ChargeAssetTransactionPayment<T> {
 	#[cfg(feature = "std")]
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		write!(f, "ChargeTransactionPayment<{:?}>", self)
@@ -189,7 +187,7 @@ impl<T: Config> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
 	}
 }
 
-impl<T: Config> SignedExtension for ChargeTransactionPayment<T>
+impl<T: Config> SignedExtension for ChargeAssetTransactionPayment<T>
 where
 	T::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	AssetBalanceOf<T>: Send + Sync + FixedPointOperand,
@@ -207,12 +205,11 @@ where
 		// who paid the fee - this is an option to allow for a Default impl.
 		T::AccountId,
 		// imbalance resulting from withdrawing the fee
-		InitialPayment<T>,
-		// Fee paid in asset
-		Option<ChargeAssetIdOf<T>>,
+		InitialPayment<T>
 	);
 
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> {
+		panic!("{:?}, {:?}, {:?}",self.tip, self.signature_scheme, self.asset_id);
 		Ok(self.signature_scheme)
 	}
 
@@ -223,6 +220,8 @@ where
 		info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> TransactionValidity {
+
+		log::error!(target:"thea-signing","Reached here");
 		use pallet_transaction_payment::ChargeTransactionPayment;
 		let (fee, inital_payment) = self.withdraw_fee(who, call, info, len)?;
 		// Check if the given asset is valid
@@ -257,7 +256,7 @@ where
 			},
 			_ => {},
 		}
-		Ok((self.tip, who.clone(), initial_payment, self.asset_id))
+		Ok((self.tip, who.clone(), initial_payment))
 	}
 
 	fn post_dispatch(
@@ -267,7 +266,7 @@ where
 		len: usize,
 		result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
-		if let Some((tip, who, initial_payment, asset_id)) = pre {
+		if let Some((tip, who, initial_payment)) = pre {
 			match initial_payment {
 				InitialPayment::Native(already_withdrawn) => {
 					pallet_transaction_payment::ChargeTransactionPayment::<T>::post_dispatch(
@@ -282,6 +281,7 @@ where
 					let actual_fee = pallet_transaction_payment::Pallet::<T>::compute_actual_fee(
 						len as u32, info, post_info, tip,
 					);
+					let asset_id = already_withdrawn.asset();
 					T::OnChargeAssetTransaction::correct_and_deposit_fee(
 						&who,
 						info,
