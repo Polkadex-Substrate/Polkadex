@@ -103,6 +103,9 @@ assets-transaction-payment = {path="../pallets/assets-transaction-payment", defa
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 
+serde = { version = "1.0.136", features = ["derive"], optional = true }
+parity-util-mem = { version = "0.11.0", default-features = false, features = ["primitive-types"] }
+
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
@@ -117,9 +120,11 @@ std = [
     "parity-scale-codec/std",
     "scale-info/std",
     "log/std",
+    "serde",
     "pallet-authorship/std",
     "pallet-babe/std",
     "pallet-balances/std",
+    "parity-util-mem/std",
     "pallet-grandpa/std",
     "pallet-im-online/std",
     "pallet-offences/std",
