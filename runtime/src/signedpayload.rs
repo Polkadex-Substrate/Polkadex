@@ -1,3 +1,4 @@
+use crate::ethereum::ethereum_signing;
 use parity_scale_codec::{Encode, EncodeLike};
 use sp_io::hashing::blake2_256;
 use sp_runtime::{traits::SignedExtension, transaction_validity::TransactionValidityError};
@@ -52,7 +53,6 @@ where
 	/// Payloads longer than 256 bytes are going to be `blake2_256`-hashed.
 	fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
 		let signature_scheme = parse_signature_scheme::<Extra>(&self.0.additional_signed);
-
 		self.0.using_encoded(|payload| {
 			match signature_scheme {
 				// Ethereum like signing
@@ -69,10 +69,6 @@ where
 	Call: Encode + Clone,
 	Extra: SignedExtension + Clone,
 {
-}
-
-pub fn ethereum_signing(_payload: &[u8]) -> Vec<u8> {
-	todo!()
 }
 
 pub fn substrate_signing(payload: &[u8]) -> Vec<u8> {

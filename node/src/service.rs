@@ -91,10 +91,10 @@ pub fn create_extrinsic(
 		)),
 		frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-		assets_transaction_payment::ChargeAssetTransactionPayment::<node_polkadex_runtime::Runtime>{
+		assets_transaction_payment::ChargeAssetTransactionPayment::<node_polkadex_runtime::Runtime> {
 			signature_scheme: 0,
-			asset_id: None,
-			tip
+			asset_id: 0,
+			tip,
 		},
 	);
 
