@@ -110,7 +110,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 /// Runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("polkadex-node"),
+	spec_name: create_runtime_str!("node"),
 	impl_name: create_runtime_str!("polkadex-official"),
 	authoring_version: 10,
 	// Per convention: if the runtime behavior changes, increment spec_version
@@ -1411,7 +1411,7 @@ construct_runtime!(
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 39,
-		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 40
+		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 40,
 		Rewards: rewards::{Pallet, Call, Storage, Event<T>} = 41,
 	}
 );
