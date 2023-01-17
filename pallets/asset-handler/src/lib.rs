@@ -231,9 +231,9 @@ pub mod pallet {
 		AllowlistedTokenRemoved,
 		/// Division Overflow
 		DivisionOverflow,
-		// Amount for minting or burning cannot be Zero
+		/// Amount for minting or burning cannot be Zero
 		AmountCannotBeZero,
-		// Thea Asset has not been registered
+		/// Thea Asset has not been registered
 		AssetNotRegistered,
 		// Identifier length provided is wrong
 		IdentifierLengthMismatch,
