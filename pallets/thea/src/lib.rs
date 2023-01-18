@@ -234,7 +234,6 @@ pub mod pallet {
 					}
 				}
 			}
-
 			<AccountWithPendingDeposits<T>>::put(accounts);
 			remaining_weight
 		}
@@ -293,6 +292,7 @@ pub mod pallet {
 				amount: payload.amount,
 				tx_hash: payload.tx_hash,
 			};
+			// TODO[#610]: Will be refactored in integration with Staking
 			if <ApprovedDeposits<T>>::contains_key(&payload.who) {
 				<ApprovedDeposits<T>>::mutate(payload.who.clone(), |bounded_vec| {
 					if let Some(inner_bounded_vec) = bounded_vec {
