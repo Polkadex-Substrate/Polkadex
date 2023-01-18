@@ -2,7 +2,7 @@ use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core;
 use sp_std::vec::Vec;
-
+use polkadex_primitives::AccountId;
 pub type Network = u8;
 pub type SessionIndex = u32;
 
@@ -29,4 +29,17 @@ pub struct Payload<AccountId> {
 	pub asset_id: u128,
 	pub amount: u128,
 	pub deposit_nonce: u32,
+}
+
+impl Payload<AccountId> {
+	pub fn new(network_id: u8, who: AccountId, amount: u128, deposit_nonce: u32) -> Self {
+		Payload {
+			network_id,
+			who,
+			tx_hash: sp_core::H256::zero(),
+			asset_id: 1,
+			amount,
+			deposit_nonce,
+		}
+	}
 }

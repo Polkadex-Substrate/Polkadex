@@ -24,7 +24,7 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
+	// use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
 	use frame_support::{
 		dispatch::fmt::Debug,
@@ -45,7 +45,7 @@ pub mod pallet {
 	};
 	use thea_primitives::{
 		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, Payload, SessionIndex},
-		BLSPublicKey,Payload
+		BLSPublicKey,
 	};
 	use thea_staking::SessionChanged;
 
@@ -72,7 +72,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
 	pub(super) type RelayersBLSKeyVector<T: Config> =
-		StorageMap<_, Blake2_128Concat, Network, Vec<BLSPublicKey>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, Network, Vec<BLSPublicKey>, ValueQuery>;
 
 	/// Approved Deposits
 	#[pallet::storage]
