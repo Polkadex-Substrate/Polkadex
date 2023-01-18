@@ -50,7 +50,10 @@ pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
 pub trait SessionChanged {
 	type Network;
 	type BLSPublicKey;
-	fn on_new_session(map: BTreeMap<Self::Network, Vec<Self::BLSPublicKey>>);
+	type AccountId;
+	fn on_new_session(
+		map: BTreeMap<Self::Network, (Vec<Self::BLSPublicKey>, Vec<Self::AccountId>)>,
+	);
 }
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -98,7 +101,11 @@ pub mod pallet {
 		type StakingDataPruneDelay: Get<SessionIndex>;
 
 		// TODO: @Faizal uncomment the code below for session change hook
-		type SessionChangeNotifier: SessionChanged<Network = Network, BLSPublicKey = BLSPublicKey>;
+		type SessionChangeNotifier: SessionChanged<
+			Network = Network,
+			BLSPublicKey = BLSPublicKey,
+			AccountId = Self::AccountId,
+		>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -430,7 +437,7 @@ impl<T: Config> Pallet<T> {
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
 		// map to collect all active relayers to send to session change notifier
-		let mut map: BTreeMap<Network, Vec<BLSPublicKey>> = BTreeMap::new();
+		let mut map: BTreeMap<Network, (Vec<BLSPublicKey>, Vec<T::AccountId>)> = BTreeMap::new();
 		for network in active_networks {
 			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
 			// 1. Move queued_relayers to active_relayers
@@ -558,14 +565,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn move_queued_to_active(network: Network) -> Vec<BLSPublicKey> {
+	pub fn move_queued_to_active(network: Network) -> (Vec<BLSPublicKey>, Vec<T::AccountId>) {
 		let queued = <QueuedRelayers<T>>::take(network);
 		<ActiveRelayers<T>>::insert(network, queued.clone());
 		let mut vec_of_bls_keys: Vec<BLSPublicKey> = Vec::new();
-		for (_, bls_key) in queued {
+		let mut account_ids: Vec<T::AccountId> = Vec::new();
+		for (account_id, bls_key) in queued {
 			vec_of_bls_keys.push(bls_key);
+			account_ids.push(account_id);
 		}
-		vec_of_bls_keys
+		(vec_of_bls_keys, account_ids)
 	}
 
 	pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {
