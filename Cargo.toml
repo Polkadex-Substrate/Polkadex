@@ -13,6 +13,8 @@ members = [
     "pallets/ocex",
     "pallets/thea-staking",
     "pallets/rewards"
+    "pallets/thea",
+    "thea-primitives",
 ]
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
