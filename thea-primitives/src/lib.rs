@@ -11,6 +11,8 @@ use sp_std::{vec, vec::Vec};
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
+pub mod thea_types;
+
 #[runtime_interface]
 pub trait TheaExt {
 	fn bls_verify(
