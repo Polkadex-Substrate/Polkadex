@@ -252,7 +252,6 @@ pub mod pallet {
 					}
 				}
 			}
-
 			<AccountWithPendingDeposits<T>>::put(accounts);
 			remaining_weight
 		}
