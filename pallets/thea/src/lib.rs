@@ -261,96 +261,15 @@ pub mod pallet {
 	// Extrinsics for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		// A Deposit transaction is called by the nodes with an aggregated BLS Signature
-		//
-		// # Parameters
-		//
-		// * `origin`: Active relayer
-		// * `bit_map`: The bit map of current relayer set that have signed the Deposit Transaction
-		// * `bls_signature`: The aggregated signature of majority of relayers in current active
-		// * `payload`: Deposit payload that has been signed by the current active relayer set
-		// TODO: [Issue #606] Use benchmarks
-		// #[pallet::weight(1000)]
-		// pub fn approve_deposit(
-		// 	origin: OriginFor<T>,
-		// 	bit_map: u128,
-		// 	bls_signature: [u8; 96],
-		// 	payload: SoloChainMessages<T::AccountId>,
-		// ) -> DispatchResult {
-		// 	ensure_signed(origin)?;
-		// 	ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
-		// 	// Fetch Deposit Nonce
-		// 	let nonce = <DepositNonce<T>>::get(payload.network_id.saturated_into::<Network>());
-		// 	ensure!(payload.deposit_nonce == nonce + 1, Error::<T>::DepositNonceError);
-		// 	// Ensure assets are registered
-		// 	ensure!(
-		// 		asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id),
-		// 		Error::<T>::AssetNotRegistered
-		// 	);
-		//
-		// 	// Fetch current active relayer set BLS Keys
-		// 	let current_active_relayer_set = Self::get_relayers_key_vector(payload.network_id);
-		//
-		// 	// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
-		// 	ensure!(
-		// 		thea_primitives::thea_ext::bls_verify(
-		// 			&bls_signature,
-		// 			bit_map,
-		// 			&payload.encode(),
-		// 			&current_active_relayer_set.into_inner()
-		// 		),
-		// 		Error::<T>::BLSSignatureVerificationFailed
-		// 	);
-		//
-		// 	// Update deposit Nonce
-		// 	<DepositNonce<T>>::insert(payload.network_id.saturated_into::<Network>(), nonce + 1);
-		//
-		// 	// Update Storage item
-		// 	let approved_deposit = ApprovedDeposit {
-		// 		asset_id: payload.asset_id,
-		// 		amount: payload.amount,
-		// 		tx_hash: payload.tx_hash,
-		// 	};
-		// 	if <ApprovedDeposits<T>>::contains_key(&payload.who) {
-		// 		<ApprovedDeposits<T>>::mutate(payload.who.clone(), |bounded_vec| {
-		// 			if let Some(inner_bounded_vec) = bounded_vec {
-		// 				inner_bounded_vec.try_push(approved_deposit).unwrap();
-		// 			}
-		// 		});
-		// 	} else {
-		// 		let mut my_vec: BoundedVec<ApprovedDeposit, ConstU32<100>> = Default::default();
-		// 		if let Ok(()) = my_vec.try_push(approved_deposit) {
-		// 			<ApprovedDeposits<T>>::insert::<
-		// 				T::AccountId,
-		// 				BoundedVec<ApprovedDeposit, ConstU32<100>>,
-		// 			>(payload.who.clone(), my_vec);
-		// 			<AccountWithPendingDeposits<T>>::mutate(|accounts| {
-		// 				accounts.insert(payload.who.clone())
-		// 			});
-		// 		}
-		// 	}
-		//
-		// 	// Emit event
-		// 	Self::deposit_event(Event::<T>::DepositApproved(
-		// 		payload.network_id,
-		// 		payload.who,
-		// 		payload.asset_id,
-		// 		payload.amount,
-		// 		payload.tx_hash,
-		// 	));
-		// 	Ok(())
-		// }
-
 		///Approve Deposit
 		#[pallet::weight(1000)]
-		pub fn approve_new_deposit(
+		pub fn approve_deposit(
 			origin: OriginFor<T>,
 			bit_map: u128,
 			bls_signature: [u8; 96],
 			payload: sp_std::boxed::Box<SoloChainMessages<T::AccountId>>,
 		) -> DispatchResult {
 			ensure_signed(origin)?;
-			//TODO: Add amount tester
 			Self::do_deposit(*payload, bit_map, bls_signature)?;
 			Ok(())
 		}
@@ -628,7 +547,7 @@ pub mod pallet {
 				Self::convert_multi_location_to_recipient_address(&recipient),
 				Self::convert_multi_asset_to_asset_id_and_amount(asset_and_amount),
 			) {
-				let network_id: u8 = 0; //TODO Get Netowrk I dfrom AssetHandler Pallet
+				let network_id: u8 = asset_handler::pallet::Pallet::<T>::get_parachain_network_id();
 				Self::validation(nonce, asset, amount, network_id)?;
 				Ok(ApprovedDeposit::new(asset, amount, recipient, network_id, transaction_hash))
 			} else {

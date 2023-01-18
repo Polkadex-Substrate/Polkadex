@@ -698,6 +698,10 @@ pub mod pallet {
 			Ok(asset_id)
 		}
 
+		pub fn get_parachain_network_id() -> u8 {
+			T::ParachainNetworkId::get()
+		}
+
 		#[cfg(feature = "runtime-benchmarks")]
 		pub fn register_asset(rid: ResourceId) {
 			T::AssetManager::create(
