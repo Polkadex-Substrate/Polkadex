@@ -69,5 +69,3 @@ runtime-benchmarks = [
     "chainbridge/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
 ]
-
-

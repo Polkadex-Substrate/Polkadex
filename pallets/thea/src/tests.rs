@@ -18,6 +18,7 @@ use parity_scale_codec::{Decode, Encode};
 use sp_core::{crypto::AccountId32, H160, U256};
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
+use thea_primitives::Payload;
 
 use crate::{
 	mock,
