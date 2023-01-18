@@ -1400,8 +1400,7 @@ pub type SignedExtra = (
 );
 /// Unchecked extrinsic type as expected by this runtime.
 // pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
-pub type UncheckedExtrinsic =
-	unchecked_extrinsic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
+pub type UncheckedExtrinsic = unchecked_extrinsic::UncheckedExtrinsic<Address, Call, SignedExtra>;
 /// The payload being signed in transactions.
 // pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 pub type SignedPayload = signedpayload::SignedPayload<Call, SignedExtra>;
