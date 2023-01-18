@@ -49,13 +49,9 @@ pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
 
 use polkadex_primitives::AccountId;
 pub trait SessionChanged {
-	type NetworkID;
+	type Network;
 	type BLSPublicKey;
-	type AccountId;
-	fn on_new_session(
-		network_id: Self::NetworkID,
-		map: BTreeMap<Network, Vec<(Self::AccountId, Self::BLSPublicKey)>>,
-	) -> u32;
+	fn on_new_session(map: BTreeMap<Self::Network, Vec<Self::BLSPublicKey>>);
 }
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -104,11 +100,7 @@ pub mod pallet {
 		type StakingDataPruneDelay: Get<SessionIndex>;
 
 		// TODO: @Faizal uncomment the code below for session change hook
-		type SessionChangeNotifier: SessionChanged<
-			NetworkID = Network,
-			BLSPublicKey = BLSPublicKey,
-			AccountId = Self::AccountId,
-		>;
+		type SessionChangeNotifier: SessionChanged<Network = Network, BLSPublicKey = BLSPublicKey>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -440,7 +432,7 @@ impl<T: Config> Pallet<T> {
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
 		// map to collect all active relayers to send to session change notifier
-		let mut map: BTreeMap<Network, Vec<(T::AccountId, BLSPublicKey)>> = BTreeMap::new();
+		let mut map: BTreeMap<Network, Vec<BLSPublicKey>> = BTreeMap::new();
 		for network in active_networks {
 			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
 			// 1. Move queued_relayers to active_relayers
@@ -451,9 +443,7 @@ impl<T: Config> Pallet<T> {
 		// Increment SessionIndex
 		let new_session_index = session_index.saturating_add(1);
 		<CurrentIndex<T>>::put(new_session_index);
-		// TODO: @Faizal uncomment this when session change trait is ready.
-		//ToDo: Handle unwrap
-		T::SessionChangeNotifier::on_new_session(new_session_index.try_into().unwrap(), map);
+		T::SessionChangeNotifier::on_new_session(map);
 		Self::deposit_event(Event::NewSessionStarted { index: new_session_index })
 	}
 
@@ -570,10 +560,14 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn move_queued_to_active(network: Network) -> Vec<(T::AccountId, BLSPublicKey)> {
+	pub fn move_queued_to_active(network: Network) -> Vec<BLSPublicKey> {
 		let queued = <QueuedRelayers<T>>::take(network);
 		<ActiveRelayers<T>>::insert(network, queued.clone());
-		queued
+		let mut vec_of_bls_keys: Vec<BLSPublicKey> = Vec::new();
+		for (_, bls_key) in queued {
+			vec_of_bls_keys.push(bls_key);
+		}
+		vec_of_bls_keys
 	}
 
 	pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {
