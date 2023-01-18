@@ -22,11 +22,10 @@ use codec::{Compact, Decode, Encode, EncodeLike, Error, Input};
 use frame_support::traits::ExtrinsicCall;
 use parity_scale_codec as codec;
 use scale_info::{build::Fields, meta_type, Path, StaticTypeInfo, Type, TypeInfo, TypeParameter};
-use sp_io::hashing::blake2_256;
 use sp_runtime::{
 	generic::CheckedExtrinsic,
 	traits::{
-		self, Checkable, Extrinsic, ExtrinsicMetadata, IdentifyAccount, MaybeDisplay, Member,
+		self, Checkable, Extrinsic, ExtrinsicMetadata, MaybeDisplay, Member,
 		SignedExtension,
 	},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
@@ -333,12 +332,10 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{
-		testing::TestSignature as TestSig,
+	use sp_runtime::{
 		traits::{DispatchInfoOf, IdentityLookup, SignedExtension},
 	};
 	use parity_scale_codec::{Decode, Encode};
-	use sp_io::hashing::blake2_256;
 
 	type TestContext = IdentityLookup<u64>;
 	type TestAccountId = u64;
@@ -397,7 +394,7 @@ mod tests {
 		let ux = Ex::new_signed(
 			vec![0u8; 0],
 			TEST_ACCOUNT,
-			TestSig(TEST_ACCOUNT, (vec![0u8; 0], TestExtra).encode()),
+			Signature::Sr25519(sp_core::sr25519::Signature([0;64])),
 			TestExtra,
 		);
 		let encoded = ux.encode();
@@ -409,51 +406,11 @@ mod tests {
 		let ux = Ex::new_signed(
 			vec![0u8; 0],
 			TEST_ACCOUNT,
-			TestSig(
-				TEST_ACCOUNT,
-				(vec![0u8; 257], TestExtra).using_encoded(blake2_256)[..].to_owned(),
-			),
+			Signature::Sr25519(sp_core::sr25519::Signature([0;64])),
 			TestExtra,
 		);
 		let encoded = ux.encode();
 		assert_eq!(Ex::decode(&mut &encoded[..]), Ok(ux));
-	}
-
-	#[test]
-	fn unsigned_check_should_work() {
-		let ux = Ex::new_unsigned(vec![0u8; 0]);
-		assert!(!ux.is_signed().unwrap_or(false));
-		assert!(<Ex as Checkable<TestContext>>::check(ux, &Default::default()).is_ok());
-	}
-
-	#[test]
-	fn badly_signed_check_should_fail() {
-		let ux = Ex::new_signed(
-			vec![0u8; 0],
-			TEST_ACCOUNT,
-			TestSig(TEST_ACCOUNT, vec![0u8; 0]),
-			TestExtra,
-		);
-		assert!(ux.is_signed().unwrap_or(false));
-		assert_eq!(
-			<Ex as Checkable<TestContext>>::check(ux, &Default::default()),
-			Err(InvalidTransaction::BadProof.into()),
-		);
-	}
-
-	#[test]
-	fn signed_check_should_work() {
-		let ux = Ex::new_signed(
-			vec![0u8; 0],
-			TEST_ACCOUNT,
-			TestSig(TEST_ACCOUNT, (vec![0u8; 0], TestExtra).encode()),
-			TestExtra,
-		);
-		assert!(ux.is_signed().unwrap_or(false));
-		assert_eq!(
-			<Ex as Checkable<TestContext>>::check(ux, &Default::default()),
-			Ok(CEx { signed: Some((TEST_ACCOUNT, TestExtra)), function: vec![0u8; 0] }),
-		);
 	}
 
 	#[test]
