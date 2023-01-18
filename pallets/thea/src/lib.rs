@@ -24,10 +24,6 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use sp_std::collections::btree_map::BTreeMap;
-	use polkadex_primitives::AccountId;
-	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
-	use thea_staking::SessionChanged;
 	use frame_support::{
 		dispatch::fmt::Debug,
 		log,
@@ -36,39 +32,20 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
+	use polkadex_primitives::AccountId;
 	use sp_runtime::{
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
 	};
-	use thea_staking::{Network as NetworkStaking, BLSPublicKey as StakingBLSPublicKey};
-
-	use thea_primitives::BLSPublicKey;
-	pub type Network = u32;
-
-	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo, Copy)]
-	pub struct ApprovedDeposit {
-		pub asset_id: u128,
-		pub amount: u128,
-		pub tx_hash: sp_core::H256,
-	}
-
-	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
-	pub struct ApprovedWithdraw {
-		pub asset_id: u128,
-		pub amount: u128,
-		pub network: u8,
-		pub beneficiary: Vec<u8>,
-	}
-
-	#[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
-	pub struct Payload<AccountId> {
-		pub network_id: u8,
-		pub who: AccountId,
-		pub tx_hash: sp_core::H256,
-		pub asset_id: u128,
-		pub amount: u128,
-		pub deposit_nonce: u32,
-	}
+	use sp_std::{
+		collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+		vec::Vec,
+	};
+	use thea_primitives::{
+		thea_types::{Network, SessionIndex,ApprovedDeposit,ApprovedWithdraw,Payload},
+		BLSPublicKey,
+	};
+	use thea_staking::SessionChanged;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -89,7 +66,7 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	// /// Set ID of the current active relayer set
+	/// Set ID of the current active relayer set
 	// #[pallet::storage]
 	// #[pallet::getter(fn get_current_active_relayer_set_id)]
 	// pub(super) type CurrentActiveRelayerSetId<T: Config> =
@@ -98,13 +75,8 @@ pub mod pallet {
 	/// Active Relayers BLS Keys for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
-	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
-		_,
-		frame_support::Blake2_128Concat,
-		u8,
-		Vec<BLSPublicKey>,
-		OptionQuery,
-	>;
+	pub(super) type RelayersBLSKeyVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, u8, Vec<BLSPublicKey>, OptionQuery>;
 
 	/// Approved Deposits
 	#[pallet::storage]
@@ -140,9 +112,9 @@ pub mod pallet {
 	pub(super) type ReadyWithdrawls<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		u32,
-		Blake2_128Concat,
 		Network,
+		Blake2_128Concat,
+		u32,
 		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
 		ValueQuery,
 	>;
@@ -508,13 +480,13 @@ pub mod pallet {
 		}
 	}
 
-	impl<T:Config>  SessionChanged for Pallet<T> {
-		type NetworkID = NetworkStaking;
-		type BLSPublicKey = StakingBLSPublicKey;
+	impl<T: Config> SessionChanged for Pallet<T> {
+		type NetworkID = Network;
+		type BLSPublicKey = BLSPublicKey;
 		type AccountId = T::AccountId;
 		fn on_new_session(
 			network_id: Self::NetworkID,
-			map: BTreeMap<Self::NetworkID, Vec<(Self::AccountId, Self::BLSPublicKey)>>
+			map: BTreeMap<Self::NetworkID, Vec<(Self::AccountId, Self::BLSPublicKey)>>,
 		) -> u32 {
 			// <RelayersBLSKeyVector<T>>::insert(network_id, Vec::new(map))
 			0

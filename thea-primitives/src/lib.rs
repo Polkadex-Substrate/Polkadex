@@ -56,8 +56,9 @@ pub trait TheaExt {
 		false
 	}
 }
-
-#[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone, Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, PartialOrd, Ord, Eq, Copy,
+)]
 pub struct BLSPublicKey(pub [u8; 192]);
 
 pub fn return_set_bits(bit_map: u128) -> Vec<u8> {

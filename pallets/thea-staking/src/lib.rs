@@ -32,8 +32,8 @@ use crate::{
 };
 pub use pallet::*;
 use sp_std::vec::Vec;
-// use thea_primitives::thea_types::{Network,BLSPublicKey,SessionIndex};
-
+use thea_primitives::thea_types::{Network,SessionIndex};
+use thea_primitives::BLSPublicKey;
 mod election;
 #[cfg(test)]
 mod mock;
@@ -44,10 +44,6 @@ mod tests;
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
 pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
-pub type Network = u8;
-pub type SessionIndex = u32;
-pub type BLSPublicKey = [u8; 65];
-
 
 use polkadex_primitives::AccountId;
 pub trait SessionChanged{
