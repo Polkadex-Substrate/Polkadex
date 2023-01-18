@@ -35,6 +35,7 @@ pallet-asset-handler-rpc = {path = "../pallets/asset-handler/rpc"}
 polkadex-client = { path = "../client"}
 
 # Substrate dependencies
+thea-primitives = {path = "../thea-primitives"}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
