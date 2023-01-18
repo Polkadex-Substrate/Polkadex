@@ -76,7 +76,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
 	pub(super) type RelayersBLSKeyVector<T: Config> =
-		StorageMap<_, Blake2_128Concat, u8, Vec<BLSPublicKey>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, Network, Vec<BLSPublicKey>, OptionQuery>;
 
 	/// Approved Deposits
 	#[pallet::storage]
@@ -481,15 +481,13 @@ pub mod pallet {
 	}
 
 	impl<T: Config> SessionChanged for Pallet<T> {
-		type NetworkID = Network;
+		type Network = Network;
 		type BLSPublicKey = BLSPublicKey;
-		type AccountId = T::AccountId;
-		fn on_new_session(
-			network_id: Self::NetworkID,
-			map: BTreeMap<Self::NetworkID, Vec<(Self::AccountId, Self::BLSPublicKey)>>,
-		) -> u32 {
-			// <RelayersBLSKeyVector<T>>::insert(network_id, Vec::new(map))
-			0
+		fn on_new_session(map: BTreeMap<Self::Network, Vec<Self::BLSPublicKey>>) {
+			//loop through btreemap and insert the new BLS pub keys for each netowok
+			for (network_id, vec_of_bls_keys) in map {
+				<RelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys)
+			}
 		}
 	}
 
