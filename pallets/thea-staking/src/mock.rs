@@ -137,8 +137,9 @@ impl<Test> SessionChanged for thea::pallet::Pallet<Test> {
 	type Network = Network;
 	type BLSPublicKey = BLSPublicKey;
 	type AccountId = u64;
+	type OnSessionChange = OnSessionChange<u64>;
 	fn on_new_session(
-		map: BTreeMap<Self::Network, (Vec<Self::BLSPublicKey>, Vec<Self::AccountId>)>,
+		map: BTreeMap<Self::Network, Self::OnSessionChange>,
 	) {
 	}
 }

@@ -33,7 +33,7 @@ use crate::{
 pub use pallet::*;
 use sp_std::vec::Vec;
 use thea_primitives::{
-	thea_types::{Network, SessionIndex},
+	thea_types::{Network, SessionIndex,OnSessionChange},
 	BLSPublicKey,
 };
 mod election;
@@ -51,8 +51,9 @@ pub trait SessionChanged {
 	type Network;
 	type BLSPublicKey;
 	type AccountId;
+	type OnSessionChange;
 	fn on_new_session(
-		map: BTreeMap<Self::Network, (Vec<Self::BLSPublicKey>, Vec<Self::AccountId>)>,
+		map: BTreeMap<Self::Network, Self::OnSessionChange>,
 	);
 }
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -105,6 +106,7 @@ pub mod pallet {
 			Network = Network,
 			BLSPublicKey = BLSPublicKey,
 			AccountId = Self::AccountId,
+			OnSessionChange = OnSessionChange<Self::AccountId>,
 		>;
 	}
 
@@ -437,7 +439,7 @@ impl<T: Config> Pallet<T> {
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
 		// map to collect all active relayers to send to session change notifier
-		let mut map: BTreeMap<Network, (Vec<BLSPublicKey>, Vec<T::AccountId>)> = BTreeMap::new();
+		let mut map: BTreeMap<Network, OnSessionChange<T::AccountId>> = BTreeMap::new();
 		for network in active_networks {
 			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
 			// 1. Move queued_relayers to active_relayers
@@ -565,7 +567,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn move_queued_to_active(network: Network) -> (Vec<BLSPublicKey>, Vec<T::AccountId>) {
+	pub fn move_queued_to_active(network: Network) -> OnSessionChange<T::AccountId> {
 		let queued = <QueuedRelayers<T>>::take(network);
 		<ActiveRelayers<T>>::insert(network, queued.clone());
 		let mut vec_of_bls_keys: Vec<BLSPublicKey> = Vec::new();
