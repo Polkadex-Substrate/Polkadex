@@ -346,10 +346,10 @@ where
 mod tests {
 	use super::*;
 	use crate::{
-		codec::{Decode, Encode},
 		testing::TestSignature as TestSig,
 		traits::{DispatchInfoOf, IdentityLookup, SignedExtension},
 	};
+	use parity_scale_codec::{Decode, Encode};
 	use sp_io::hashing::blake2_256;
 
 	type TestContext = IdentityLookup<u64>;
