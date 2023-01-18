@@ -47,7 +47,6 @@ mod tests;
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
 pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
 
-use polkadex_primitives::AccountId;
 pub trait SessionChanged {
 	type Network;
 	type BLSPublicKey;
@@ -59,7 +58,6 @@ pub trait SessionChanged {
 pub mod pallet {
 	use frame_support::{pallet_prelude::*, traits::NamedReservableCurrency};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::AccountId;
 	use sp_runtime::traits::Zero;
 
 	use crate::session::{Exposure, IndividualExposure, StakingLimits};

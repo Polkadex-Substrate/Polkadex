@@ -27,14 +27,12 @@ pub mod pallet {
 	// use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
 	use frame_support::{
-		dispatch::fmt::Debug,
 		log,
 		pallet_prelude::*,
 		traits::{Currency, ExistenceRequirement, ReservableCurrency},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::AccountId;
 	use sp_runtime::{
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
@@ -44,7 +42,7 @@ pub mod pallet {
 		vec::Vec,
 	};
 	use thea_primitives::{
-		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, Payload, SessionIndex},
+		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, Payload},
 		BLSPublicKey,
 	};
 	use thea_staking::SessionChanged;
