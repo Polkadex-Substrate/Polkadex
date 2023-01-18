@@ -10,13 +10,14 @@ use frame_support::{
 	traits::{fungible::Mutate, TheseExcept},
 };
 use std::collections::{BTreeSet, HashSet};
+use thea_primitives::BLSPublicKey;
 
 #[test]
 fn test_add_candidate_with_valid_inputs_returns_ok() {
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let network_id: u8 = 0;
-		let bls_key = [1u8; 65];
+		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
 		Balances::mint_into(&candidate, 10_000_000_000_000u128);
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
 		assert_eq!(Balances::free_balance(&candidate), 9_000_000_000_000);
@@ -37,7 +38,7 @@ fn test_add_candidate_with_already_registered_candidate_returns_CandidateAlready
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let network_id: u8 = 0;
-		let bls_key = [1u8; 65];
+		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
 		Balances::mint_into(&candidate, 10_000_000_000_000u128);
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
 		assert_noop!(
@@ -52,7 +53,7 @@ fn test_add_candidate_with_low_free_balance_returns_low_balance_error() {
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let network_id: u8 = 0;
-		let bls_key = [1u8; 65];
+		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
 		Balances::mint_into(&candidate, 10_000_000_000u128);
 		assert_noop!(
 			TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key),
@@ -129,7 +130,6 @@ fn test_nominate_with_valid_arguments_returns_ok() {
 		assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
 	});
 }
-
 #[test]
 fn test_nominate_with_invalid_nominator_returns_StakerNotFound() {
 	new_test_ext().execute_with(|| {
@@ -307,14 +307,14 @@ fn test_elect_relayers_with_candidates_less_than_max_candidates_allowed_returns_
 		let exposure_for_candidate_one = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
-			bls_pub_key: [1u8; 65],
+			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
 		let candidate_two = 2u64;
 		let exposure_for_candidate_two = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
-			bls_pub_key: [1u8; 65],
+			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
 		let actual_candidates_list = vec![
@@ -338,21 +338,21 @@ fn test_elect_relayers_with_candidates_more_than_max_candidates_allowed_returns_
 		let exposure_for_candidate_one = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
-			bls_pub_key: [1u8; 65],
+			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
 		let candidate_two = 2u64;
 		let exposure_for_candidate_two = Exposure {
 			score: 1000,
 			total: 2_000_000_000_000u128,
-			bls_pub_key: [1u8; 65],
+			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
 		let candidate_three = 3u64;
 		let exposure_for_candidate_three = Exposure {
 			score: 1000,
 			total: 3_000_000_000_000u128,
-			bls_pub_key: [3u8; 65],
+			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
 		let actual_candidate_list = vec![
@@ -367,7 +367,6 @@ fn test_elect_relayers_with_candidates_more_than_max_candidates_allowed_returns_
 		assert_eq!(crate::elect_relayers::<Test>(actual_candidate_list), expected_candidate_list);
 	})
 }
-
 //TODO: Should we also check if BLS Key is already registered or not?
 
 #[test]
@@ -375,17 +374,17 @@ fn test_compute_next_session_with_valid_arguments() {
 	new_test_ext().execute_with(|| {
 		insert_staking_limit();
 		register_candidate();
-		register_new_candidate(2, 0, [2; 65]);
+		register_new_candidate(2, 0, BLSPublicKey([2u8; 192]));
 		let candidate_one_exposure = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
-			bls_pub_key: [1u8; 65],
+			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
 		let candidate_two_exposure = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
-			bls_pub_key: [2; 65],
+			bls_pub_key: BLSPublicKey([2u8; 192]),
 			stakers: Default::default(),
 		};
 		let current_session = 0;
@@ -398,7 +397,8 @@ fn test_compute_next_session_with_valid_arguments() {
 			vec![(1u64, candidate_one_exposure), (2u64, candidate_two_exposure)];
 		assert_eq!(actual_staking_data, expected_staking_data);
 		let actual_queued_candidates = TheaStaking::queued_relayers(current_network);
-		let expected_queued_candidates = vec![(1, [1; 65]), (2, [2; 65])];
+		let expected_queued_candidates =
+			vec![(1, BLSPublicKey([1u8; 192])), (2, BLSPublicKey([2u8; 192]))];
 		assert_eq!(actual_queued_candidates, expected_queued_candidates);
 	})
 }
@@ -413,13 +413,19 @@ fn test_rotate_session() {
 		TheaStaking::rotate_session();
 		assert_eq!(
 			TheaStaking::queued_relayers(0),
-			vec![(candidate_one, [1; 65]), (candidate_two, [2; 65])]
+			vec![
+				(candidate_one, BLSPublicKey([1u8; 192])),
+				(candidate_two, BLSPublicKey([2u8; 192]))
+			]
 		);
 		assert_eq!(TheaStaking::active_relayers(0), vec![]);
 		TheaStaking::rotate_session(); //Update current session
 		assert_eq!(
 			TheaStaking::active_relayers(0),
-			vec![(candidate_one, [1; 65]), (candidate_two, [2; 65])]
+			vec![
+				(candidate_one, BLSPublicKey([1u8; 192])),
+				(candidate_two, BLSPublicKey([2u8; 192]))
+			]
 		);
 	})
 }
@@ -429,7 +435,7 @@ fn rotate_session_init() {
 	<CurrentIndex<Test>>::put(current_session);
 	<ActiveNetworks<Test>>::put(vec![0]);
 	register_candidate();
-	register_new_candidate(2, 0, [2; 65]);
+	register_new_candidate(2, 0, BLSPublicKey([2; 192]));
 	insert_staking_limit();
 }
 
@@ -456,7 +462,7 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		let nominator = 2u64;
 		let candidate = 1u64;
 		let network_id = 0;
-		let bls_key = [1; 65];
+		let bls_key = BLSPublicKey([1; 192]);
 		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000u128));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
@@ -490,7 +496,7 @@ fn register_candidate() {
 	assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
 }
 
-fn register_new_candidate(candidate_id: u64, network_id: u8, bls_key: [u8; 65]) {
+fn register_new_candidate(candidate_id: u64, network_id: u8, bls_key: BLSPublicKey) {
 	Balances::mint_into(&candidate_id, 10_000_000_000_000u128);
 	assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate_id), network_id, bls_key));
 }
@@ -505,9 +511,9 @@ fn insert_staking_limit() {
 	<Stakinglimits<Test>>::put(staking_limits);
 }
 
-fn get_candidate() -> (u64, u8, [u8; 65]) {
+fn get_candidate() -> (u64, u8, BLSPublicKey) {
 	let candidate = 1;
 	let network_id: u8 = 0;
-	let bls_key = [1u8; 65];
+	let bls_key = BLSPublicKey([1u8; 192]);
 	(candidate, network_id, bls_key)
 }
