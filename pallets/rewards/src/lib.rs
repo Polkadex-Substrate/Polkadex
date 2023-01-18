@@ -365,8 +365,12 @@ pub mod pallet {
 
 						//ensure total_rewards_claimable - rewards_claimed > rewards_claimable
 						ensure!(
-								user_reward_info.total_reward_amount.saturated_into::<u128>().saturating_sub(user_reward_info.claim_amount.saturated_into::<u128>())
-								>=  rewards_claimable,
+							user_reward_info
+								.total_reward_amount
+								.saturated_into::<u128>()
+								.saturating_sub(
+									user_reward_info.claim_amount.saturated_into::<u128>()
+								) >= rewards_claimable,
 							Error::<T>::AllRewardsAlreadyClaimed
 						);
 
