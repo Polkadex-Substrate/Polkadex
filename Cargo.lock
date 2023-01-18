@@ -8834,6 +8834,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
+ "sp-core",
  "sp-runtime-interface",
  "sp-std",
 ]
@@ -8855,6 +8856,7 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
+ "thea-primitives",
 ]
 
 [[package]]
