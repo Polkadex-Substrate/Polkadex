@@ -32,8 +32,10 @@ use crate::{
 };
 pub use pallet::*;
 use sp_std::vec::Vec;
-use thea_primitives::thea_types::{Network,SessionIndex};
-use thea_primitives::BLSPublicKey;
+use thea_primitives::{
+	thea_types::{Network, SessionIndex},
+	BLSPublicKey,
+};
 mod election;
 #[cfg(test)]
 mod mock;
@@ -46,13 +48,13 @@ pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
 pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
 
 use polkadex_primitives::AccountId;
-pub trait SessionChanged{
+pub trait SessionChanged {
 	type NetworkID;
 	type BLSPublicKey;
 	type AccountId;
 	fn on_new_session(
 		network_id: Self::NetworkID,
-		map: BTreeMap<Network, Vec<(Self::AccountId, Self::BLSPublicKey)>>
+		map: BTreeMap<Network, Vec<(Self::AccountId, Self::BLSPublicKey)>>,
 	) -> u32;
 }
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -61,8 +63,8 @@ pub trait SessionChanged{
 pub mod pallet {
 	use frame_support::{pallet_prelude::*, traits::NamedReservableCurrency};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::Zero;
 	use polkadex_primitives::AccountId;
+	use sp_runtime::traits::Zero;
 
 	use crate::session::{Exposure, IndividualExposure, StakingLimits};
 	// Import various types used to declare pallet in scope.
@@ -102,7 +104,11 @@ pub mod pallet {
 		type StakingDataPruneDelay: Get<SessionIndex>;
 
 		// TODO: @Faizal uncomment the code below for session change hook
-		type SessionChangeNotifier: SessionChanged<NetworkID = Network, BLSPublicKey=BLSPublicKey, AccountId=Self::AccountId>;
+		type SessionChangeNotifier: SessionChanged<
+			NetworkID = Network,
+			BLSPublicKey = BLSPublicKey,
+			AccountId = Self::AccountId,
+		>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
