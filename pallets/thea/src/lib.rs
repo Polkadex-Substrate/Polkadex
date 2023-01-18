@@ -42,7 +42,7 @@ pub mod pallet {
 		vec::Vec,
 	};
 	use thea_primitives::{
-		thea_types::{Network, SessionIndex,ApprovedDeposit,ApprovedWithdraw,Payload},
+		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, Payload, SessionIndex},
 		BLSPublicKey,
 	};
 	use thea_staking::SessionChanged;
