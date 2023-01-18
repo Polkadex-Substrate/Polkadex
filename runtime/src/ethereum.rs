@@ -40,7 +40,7 @@ pub trait EthereumSigner {
 
 		if let Ok(hash) = eth_signing_payload.encode_eip712() {
 			hash.to_vec()
-		}else {
+		} else {
 			Vec::new()
 		}
 	}

@@ -67,8 +67,7 @@ pub enum InitialPayment<T: Config> {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::{
-		payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf};
+	use crate::{payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf};
 	use frame_support::{pallet_prelude::*, traits::tokens::fungibles::Balanced};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
@@ -125,7 +124,33 @@ pub mod pallet {
 	// These functions materialize as "extrinsics", which are often compared to transactions.
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		/// A way to add new tokens for payment for fees
+		#[pallet::weight(10000)]
+		pub fn allow_list_token_for_fees(origin: OriginFor<T>, asset: AssetIdOf<T>) -> DispatchResult {
+			// TODO: Add a governance origin instead of root
+			ensure_root(origin)?;
+			<AllowedAssets<T>>::mutate(| allowed_assets| {
+				if !allowed_assets.contains(&asset){
+					allowed_assets.push(asset);
+				}
+			});
+			Ok(())
+		}
+
+		/// A way to remove tokens for payment for fees
+		#[pallet::weight(10000)]
+		pub fn block_token_for_fees(origin: OriginFor<T>, asset: AssetIdOf<T>) -> DispatchResult {
+			// TODO: Add a governance origin instead of root
+			ensure_root(origin)?;
+			<AllowedAssets<T>>::mutate(| allowed_assets| {
+				if let Some(pos) = allowed_assets.iter().position(|&x| { x == asset }){
+					allowed_assets.remove(pos);
+				}
+			});
+			Ok(())
+		}
+	}
 
 	impl<T: Config> Pallet<T> {}
 }
@@ -159,7 +184,9 @@ where
 		debug_assert!(self.tip <= fee, "tip should be included in the computed fee");
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
+
 		} else if self.asset_id != Zero::zero() {
+			// If the asset id is zero, then we treat that case as payment in PDEX,
 			T::OnChargeAssetTransaction::withdraw_fee(
 				who,
 				call,
