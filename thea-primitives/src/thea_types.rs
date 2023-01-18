@@ -1,8 +1,8 @@
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use polkadex_primitives::AccountId;
 use scale_info::TypeInfo;
 use sp_core;
 use sp_std::vec::Vec;
-use polkadex_primitives::AccountId;
 pub type Network = u8;
 pub type SessionIndex = u32;
 
