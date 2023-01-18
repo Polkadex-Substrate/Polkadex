@@ -332,13 +332,6 @@ pub mod pallet {
 							Error::<T>::UserHasNotInitializeClaimRewards
 						);
 
-						//ensure that all rewards are not already claimed
-						ensure!(
-							user_reward_info.claim_amount.saturated_into::<u128>() !=
-								user_reward_info.total_reward_amount.saturated_into::<u128>(),
-							Error::<T>::AllRewardsAlreadyClaimed
-						);
-
 						let mut rewards_claimable: u128 = 0_u128.saturated_into();
 
 						//if initial rewards are not claimed add it to claimable rewards
@@ -368,6 +361,13 @@ pub mod pallet {
 						ensure!(
 							rewards_claimable > MIN_REWARDS_CLAIMABLE_AMOUNT,
 							Error::<T>::AmountToLowToRedeem
+						);
+
+						//ensure total_rewards_claimable - rewards_claimed > rewards_claimable
+						ensure!(
+								user_reward_info.total_reward_amount.saturated_into::<u128>().saturating_sub(user_reward_info.claim_amount.saturated_into::<u128>())
+								>=  rewards_claimable,
+							Error::<T>::AllRewardsAlreadyClaimed
 						);
 
 						//remove lock
