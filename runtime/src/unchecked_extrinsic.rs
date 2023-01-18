@@ -25,8 +25,7 @@ use scale_info::{build::Fields, meta_type, Path, StaticTypeInfo, Type, TypeInfo,
 use sp_runtime::{
 	generic::CheckedExtrinsic,
 	traits::{
-		self, Checkable, Extrinsic, ExtrinsicMetadata, MaybeDisplay, Member,
-		SignedExtension,
+		self, Checkable, Extrinsic, ExtrinsicMetadata, MaybeDisplay, Member, SignedExtension,
 	},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 	OpaqueExtrinsic,
@@ -332,10 +331,8 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sp_runtime::{
-		traits::{DispatchInfoOf, IdentityLookup, SignedExtension},
-	};
 	use parity_scale_codec::{Decode, Encode};
+	use sp_runtime::traits::{DispatchInfoOf, IdentityLookup, SignedExtension};
 
 	type TestContext = IdentityLookup<u64>;
 	type TestAccountId = u64;
@@ -394,7 +391,7 @@ mod tests {
 		let ux = Ex::new_signed(
 			vec![0u8; 0],
 			TEST_ACCOUNT,
-			Signature::Sr25519(sp_core::sr25519::Signature([0;64])),
+			Signature::Sr25519(sp_core::sr25519::Signature([0; 64])),
 			TestExtra,
 		);
 		let encoded = ux.encode();
@@ -406,7 +403,7 @@ mod tests {
 		let ux = Ex::new_signed(
 			vec![0u8; 0],
 			TEST_ACCOUNT,
-			Signature::Sr25519(sp_core::sr25519::Signature([0;64])),
+			Signature::Sr25519(sp_core::sr25519::Signature([0; 64])),
 			TestExtra,
 		);
 		let encoded = ux.encode();
