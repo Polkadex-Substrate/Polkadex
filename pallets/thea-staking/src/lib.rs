@@ -33,7 +33,7 @@ use crate::{
 pub use pallet::*;
 use sp_std::vec::Vec;
 use thea_primitives::{
-	thea_types::{Network, SessionIndex,OnSessionChange},
+	thea_types::{Network, OnSessionChange, SessionIndex},
 	BLSPublicKey,
 };
 mod election;
@@ -49,12 +49,8 @@ pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
 
 pub trait SessionChanged {
 	type Network;
-	type BLSPublicKey;
-	type AccountId;
 	type OnSessionChange;
-	fn on_new_session(
-		map: BTreeMap<Self::Network, Self::OnSessionChange>,
-	);
+	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>);
 }
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -104,8 +100,6 @@ pub mod pallet {
 		// TODO: @Faizal uncomment the code below for session change hook
 		type SessionChangeNotifier: SessionChanged<
 			Network = Network,
-			BLSPublicKey = BLSPublicKey,
-			AccountId = Self::AccountId,
 			OnSessionChange = OnSessionChange<Self::AccountId>,
 		>;
 	}

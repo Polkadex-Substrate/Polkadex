@@ -1,13 +1,13 @@
+use crate::BLSPublicKey;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::AccountId;
 use scale_info::TypeInfo;
 use sp_core;
 use sp_std::vec::Vec;
-use crate::BLSPublicKey;
 
 pub type Network = u8;
 pub type SessionIndex = u32;
-pub type OnSessionChange<AccountId> = (Vec<BLSPublicKey>,Vec<AccountId>);
+pub type OnSessionChange<AccountId> = (Vec<BLSPublicKey>, Vec<AccountId>);
 
 #[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo, Copy)]
 pub struct ApprovedDeposit {
