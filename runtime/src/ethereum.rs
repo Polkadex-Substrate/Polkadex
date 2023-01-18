@@ -23,7 +23,12 @@ pub struct EthereumSignerPayload {
 
 /// Converts the inner call payload to hash that was used for signing
 pub fn ethereum_signing(payload: &[u8]) -> Vec<u8> {
-	ethereum_signer::encode(payload)
+	let payload: Vec<u8> = if payload.len() > 256 {
+		sp_io::hashing::blake2_256(payload).to_vec()
+	} else {
+		payload.to_vec()
+	};
+	ethereum_signer::encode(&payload[..])
 }
 
 #[runtime_interface]
@@ -33,8 +38,10 @@ pub trait EthereumSigner {
 			transaction: "0x".to_owned() + &hex::encode(inner_call_payload),
 		};
 
-		// TODO: Hopefully this should never panic but need to see how to handle this.
-		let hash: [u8; 32] = eth_signing_payload.encode_eip712().unwrap();
-		hash.to_vec()
+		if let Ok(hash) = eth_signing_payload.encode_eip712() {
+			hash.to_vec()
+		}else {
+			Vec::new()
+		}
 	}
 }

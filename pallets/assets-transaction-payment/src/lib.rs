@@ -9,7 +9,6 @@ use crate::{
 };
 use frame_support::{
 	dispatch::{DispatchInfo, PostDispatchInfo},
-	log,
 	traits::{
 		fungibles::{CreditOf, Inspect},
 		IsType,
@@ -18,7 +17,6 @@ use frame_support::{
 use pallet_transaction_payment::OnChargeTransaction;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_core::RuntimeDebug;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, PostDispatchInfoOf, SignedExtension, Zero},
 	transaction_validity::{
@@ -70,8 +68,7 @@ pub enum InitialPayment<T: Config> {
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::{
-		payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf, ChargeAssetIdOf, InitialPayment,
-	};
+		payment::OnChargeAssetTransaction, AssetIdOf, BalanceOf};
 	use frame_support::{pallet_prelude::*, traits::tokens::fungibles::Balanced};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
