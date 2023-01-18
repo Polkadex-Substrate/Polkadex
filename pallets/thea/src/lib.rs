@@ -33,6 +33,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
+	use polkadex_primitives::AccountId;
 	use sp_runtime::{
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
@@ -71,6 +72,11 @@ pub mod pallet {
 	#[pallet::getter(fn get_relayers_key_vector)]
 	pub(super) type RelayersBLSKeyVector<T: Config> =
 		StorageMap<_, Blake2_128Concat, Network, Vec<BLSPublicKey>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_authority_list)]
+	pub(super) type AuthorityListVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<AccountId>, ValueQuery>;
 
 	/// Approved Deposits
 	#[pallet::storage]
@@ -483,10 +489,15 @@ pub mod pallet {
 	impl<T: Config> SessionChanged for Pallet<T> {
 		type Network = Network;
 		type BLSPublicKey = BLSPublicKey;
-		fn on_new_session(map: BTreeMap<Self::Network, Vec<Self::BLSPublicKey>>) {
-			//loop through btreemap and insert the new BLS pub keys for each netowok
-			for (network_id, vec_of_bls_keys) in map {
-				<RelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys)
+		type AccountId = AccountId;
+		fn on_new_session(
+			map: BTreeMap<Self::Network, (Vec<Self::BLSPublicKey>, Vec<Self::AccountId>)>,
+		) {
+			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
+			// network
+			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
+				<RelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
+				<AuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
 			}
 		}
 	}

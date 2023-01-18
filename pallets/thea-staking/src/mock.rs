@@ -110,7 +110,6 @@ impl chainbridge::Config for Test {
 	type Proposal = Call;
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
-	//type PalletId = ChainbridgePalletId;
 }
 
 impl asset_handler::pallet::Config for Test {
@@ -137,7 +136,11 @@ impl thea::pallet::Config for Test {
 impl<Test> SessionChanged for thea::pallet::Pallet<Test> {
 	type Network = Network;
 	type BLSPublicKey = BLSPublicKey;
-	fn on_new_session(map: BTreeMap<Self::Network, Vec<Self::BLSPublicKey>>) {}
+	type AccountId = u64;
+	fn on_new_session(
+		map: BTreeMap<Self::Network, (Vec<Self::BLSPublicKey>, Vec<Self::AccountId>)>,
+	) {
+	}
 }
 
 parameter_types! {
