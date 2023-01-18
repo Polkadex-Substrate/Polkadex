@@ -12,7 +12,7 @@ members = [
     "pallets/pdex-migration",
     "pallets/ocex",
     "pallets/thea-staking",
-    "pallets/rewards"
+    "pallets/rewards",
     "pallets/thea",
     "thea-primitives",
 ]
