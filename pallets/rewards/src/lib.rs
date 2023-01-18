@@ -357,13 +357,8 @@ pub mod pallet {
 								.saturating_mul(unclaimed_blocks),
 						);
 
-						//ensure the claimable amount is greater than min claimable amount
-						ensure!(
-							rewards_claimable > MIN_REWARDS_CLAIMABLE_AMOUNT,
-							Error::<T>::AmountToLowToRedeem
-						);
-
-						//ensure total_rewards_claimable - rewards_claimed > rewards_claimable
+						//ensure total_rewards_claimable - rewards_claimed >= rewards_claimable
+						//sanity check
 						ensure!(
 							user_reward_info
 								.total_reward_amount
@@ -372,6 +367,12 @@ pub mod pallet {
 									user_reward_info.claim_amount.saturated_into::<u128>()
 								) >= rewards_claimable,
 							Error::<T>::AllRewardsAlreadyClaimed
+						);
+
+						//ensure the claimable amount is greater than min claimable amount
+						ensure!(
+							rewards_claimable > MIN_REWARDS_CLAIMABLE_AMOUNT,
+							Error::<T>::AmountToLowToRedeem
 						);
 
 						//remove lock

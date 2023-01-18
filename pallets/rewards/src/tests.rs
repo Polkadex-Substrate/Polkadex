@@ -1183,7 +1183,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 		System::set_block_number(end_block + 20);
 		assert_noop!(
 			Rewards::claim(Origin::signed(alice_account.clone()), reward_id),
-			Error::<Test>::AllRewardsAlreadyClaimed
+			Error::<Test>::AmountToLowToRedeem
 		);
 	})
 }
