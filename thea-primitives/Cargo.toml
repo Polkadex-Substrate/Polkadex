@@ -12,6 +12,7 @@ frame-system = { workspace = true, default-features = false }
 polkadex-primitives = {workspace = true, default-features = false}
 sp-std = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
+xcm = { workspace = true, default-features = false }
 
 # For primitive structs
 parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
@@ -25,5 +26,6 @@ std = [
     "frame-system/std",
     "parity-scale-codec/std",
     "scale-info/std",
-    "sp-core/std"
+    "sp-core/std",
+    "xcm/std"
 ]

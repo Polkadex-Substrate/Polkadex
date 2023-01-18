@@ -9,8 +9,8 @@ use sp_runtime_interface::runtime_interface;
 use sp_std::{vec, vec::Vec};
 
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadex_primitives::AccountId;
 use scale_info::TypeInfo;
+use xcm::latest::{MultiAsset, MultiLocation};
 
 #[runtime_interface]
 pub trait TheaExt {
@@ -59,25 +59,22 @@ pub trait TheaExt {
 #[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct BLSPublicKey(pub [u8; 192]);
 
-#[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
-pub struct Payload<AccountId> {
-	pub network_id: u8,
-	pub who: AccountId,
-	pub tx_hash: sp_core::H256,
-	pub asset_id: u128,
-	pub amount: u128,
-	pub deposit_nonce: u32,
+#[allow(clippy::all)]
+#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
+pub enum SoloChainMessages<AccountId> {
+	///(network_id:u8, who:AccountId, tx_hash: H256, asset_id: u128, amount: u128, deposit_nonce:
+	/// u32)
+	Deposit(u8, AccountId, sp_core::H256, u128, u128, u32),
+	///(recipient: MultiLocation, Asset&Amount: MultiAsset, deposit_nonce: u32, transaction_hash:
+	/// H256)
+	ParachainDeposit(MultiLocation, MultiAsset, u32, sp_core::H256),
 }
 
-impl Payload<AccountId> {
-	pub fn new(network_id: u8, who: AccountId, amount: u128, deposit_nonce: u32) -> Self {
-		Payload {
-			network_id,
-			who,
-			tx_hash: sp_core::H256::zero(),
-			asset_id: 1,
-			amount,
-			deposit_nonce,
+impl<AccountId> SoloChainMessages<AccountId> {
+	pub fn get_nonce(&self) -> u32 {
+		match self {
+			SoloChainMessages::Deposit(_, _, _, _, _, nonce) => *nonce,
+			SoloChainMessages::ParachainDeposit(_, _, nonce, _) => *nonce,
 		}
 	}
 }

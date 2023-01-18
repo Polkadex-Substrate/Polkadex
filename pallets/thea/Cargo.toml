@@ -33,6 +33,8 @@ asset-handler = {path = "../asset-handler", default-features = false}
 polkadex-primitives = { workspace = true, default-features = false }
 thea-primitives = {path = "../../thea-primitives", default-features = false}
 
+xcm = { workspace = true, default-features = false }
+
 [dev-dependencies]
 blst = {version = "0.3.10"}
 sp-application-crypto = { workspace = true }
@@ -55,7 +57,8 @@ std = [
     "chainbridge/std",
     "asset-handler/std",
     "polkadex-primitives/std",
-    "thea-primitives/std"
+    "thea-primitives/std",
+    "xcm/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

@@ -1273,6 +1273,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 
 parameter_types! {
 	pub const ChainId: u8 = 1;
+	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
@@ -1293,6 +1294,7 @@ impl asset_handler::pallet::Config for Runtime {
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TreasuryPalletId = TreasuryPalletId;
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
+	type ParachainNetworkId = ParachainNetworkId;
 }
 
 impl thea::pallet::Config for Runtime {
