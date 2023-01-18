@@ -24,8 +24,6 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	// use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
-
 	use frame_support::{
 		log,
 		pallet_prelude::*,
@@ -46,6 +44,7 @@ pub mod pallet {
 		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, Payload},
 		BLSPublicKey,
 	};
+	use thea_primitives::thea_types::OnSessionChange;
 	use thea_staking::SessionChanged;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -76,7 +75,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_authority_list)]
 	pub(super) type AuthorityListVector<T: Config> =
-		StorageMap<_, Blake2_128Concat, Network, Vec<AccountId>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, Network, Vec<T::AccountId>, ValueQuery>;
 
 	/// Approved Deposits
 	#[pallet::storage]
@@ -490,8 +489,9 @@ pub mod pallet {
 		type Network = Network;
 		type BLSPublicKey = BLSPublicKey;
 		type AccountId = AccountId;
+		type OnSessionChange = OnSessionChange<T::AccountId>;
 		fn on_new_session(
-			map: BTreeMap<Self::Network, (Vec<Self::BLSPublicKey>, Vec<Self::AccountId>)>,
+			map: BTreeMap<Self::Network, Self::OnSessionChange>,
 		) {
 			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
 			// network
