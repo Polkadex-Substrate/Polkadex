@@ -26,6 +26,8 @@ sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 
+xcm = { workspace = true, default-features = false }
+
 chainbridge = {path = "../chainbridge", default-features = false}
 
 [features]
@@ -43,6 +45,7 @@ std = [
 	"sp-std/std",
 	"sp-runtime/std",
 	"chainbridge/std",
+	"xcm/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

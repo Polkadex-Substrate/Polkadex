@@ -38,16 +38,34 @@ pub mod pallet {
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
 	};
+	use xcm::{
+		latest::{Fungibility, Junction, MultiAsset, MultiLocation},
+		prelude::X1,
+	};
 
-	use thea_primitives::{BLSPublicKey, Payload};
+	use thea_primitives::{BLSPublicKey, SoloChainMessages};
 
 	pub type Network = u32;
 
-	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo, Copy)]
-	pub struct ApprovedDeposit {
+	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
+	pub struct ApprovedDeposit<AccountId> {
 		pub asset_id: u128,
 		pub amount: u128,
+		pub recipient: AccountId,
+		pub network_id: u8,
 		pub tx_hash: sp_core::H256,
+	}
+
+	impl<AccountId> ApprovedDeposit<AccountId> {
+		fn new(
+			asset_id: u128,
+			amount: u128,
+			recipient: AccountId,
+			network_id: u8,
+			transaction_hash: sp_core::H256,
+		) -> Self {
+			ApprovedDeposit { asset_id, amount, recipient, network_id, tx_hash: transaction_hash }
+		}
 	}
 
 	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
@@ -95,7 +113,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::AccountId,
-		BoundedVec<ApprovedDeposit, ConstU32<100>>,
+		BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>>,
 		OptionQuery,
 	>;
 
@@ -215,9 +233,9 @@ pub mod pallet {
 				if let Some(mut pending_deposits) = <ApprovedDeposits<T>>::get(&account) {
 					// FIXME: This leads to an infinite loop if execute_deposit fails
 					while let Some(deposit) = pending_deposits.pop() {
-						if let Err(err) = Self::execute_deposit(deposit, &account) {
+						if let Err(err) = Self::execute_deposit(deposit.clone(), &account) {
 							// Force push is fine as it was part of the bounded vec
-							pending_deposits.force_push(deposit);
+							pending_deposits.force_push(deposit.clone());
 							// We can't do much here other than to log an error.
 							log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user: {:?}, Err: {:?}",account,err);
 						}
@@ -243,83 +261,97 @@ pub mod pallet {
 	// Extrinsics for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// A Deposit transaction is called by the nodes with an aggregated BLS Signature
-		///
-		/// # Parameters
-		///
-		/// * `origin`: Active relayer
-		/// * `bit_map`: The bit map of current relayer set that have signed the Deposit Transaction
-		/// * `bls_signature`: The aggregated signature of majority of relayers in current active
-		/// * `payload`: Deposit payload that has been signed by the current active relayer set
+		// A Deposit transaction is called by the nodes with an aggregated BLS Signature
+		//
+		// # Parameters
+		//
+		// * `origin`: Active relayer
+		// * `bit_map`: The bit map of current relayer set that have signed the Deposit Transaction
+		// * `bls_signature`: The aggregated signature of majority of relayers in current active
+		// * `payload`: Deposit payload that has been signed by the current active relayer set
 		// TODO: [Issue #606] Use benchmarks
+		// #[pallet::weight(1000)]
+		// pub fn approve_deposit(
+		// 	origin: OriginFor<T>,
+		// 	bit_map: u128,
+		// 	bls_signature: [u8; 96],
+		// 	payload: SoloChainMessages<T::AccountId>,
+		// ) -> DispatchResult {
+		// 	ensure_signed(origin)?;
+		// 	ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
+		// 	// Fetch Deposit Nonce
+		// 	let nonce = <DepositNonce<T>>::get(payload.network_id.saturated_into::<Network>());
+		// 	ensure!(payload.deposit_nonce == nonce + 1, Error::<T>::DepositNonceError);
+		// 	// Ensure assets are registered
+		// 	ensure!(
+		// 		asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id),
+		// 		Error::<T>::AssetNotRegistered
+		// 	);
+		//
+		// 	// Fetch current active relayer set BLS Keys
+		// 	let current_active_relayer_set = Self::get_relayers_key_vector(payload.network_id);
+		//
+		// 	// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+		// 	ensure!(
+		// 		thea_primitives::thea_ext::bls_verify(
+		// 			&bls_signature,
+		// 			bit_map,
+		// 			&payload.encode(),
+		// 			&current_active_relayer_set.into_inner()
+		// 		),
+		// 		Error::<T>::BLSSignatureVerificationFailed
+		// 	);
+		//
+		// 	// Update deposit Nonce
+		// 	<DepositNonce<T>>::insert(payload.network_id.saturated_into::<Network>(), nonce + 1);
+		//
+		// 	// Update Storage item
+		// 	let approved_deposit = ApprovedDeposit {
+		// 		asset_id: payload.asset_id,
+		// 		amount: payload.amount,
+		// 		tx_hash: payload.tx_hash,
+		// 	};
+		// 	if <ApprovedDeposits<T>>::contains_key(&payload.who) {
+		// 		<ApprovedDeposits<T>>::mutate(payload.who.clone(), |bounded_vec| {
+		// 			if let Some(inner_bounded_vec) = bounded_vec {
+		// 				inner_bounded_vec.try_push(approved_deposit).unwrap();
+		// 			}
+		// 		});
+		// 	} else {
+		// 		let mut my_vec: BoundedVec<ApprovedDeposit, ConstU32<100>> = Default::default();
+		// 		if let Ok(()) = my_vec.try_push(approved_deposit) {
+		// 			<ApprovedDeposits<T>>::insert::<
+		// 				T::AccountId,
+		// 				BoundedVec<ApprovedDeposit, ConstU32<100>>,
+		// 			>(payload.who.clone(), my_vec);
+		// 			<AccountWithPendingDeposits<T>>::mutate(|accounts| {
+		// 				accounts.insert(payload.who.clone())
+		// 			});
+		// 		}
+		// 	}
+		//
+		// 	// Emit event
+		// 	Self::deposit_event(Event::<T>::DepositApproved(
+		// 		payload.network_id,
+		// 		payload.who,
+		// 		payload.asset_id,
+		// 		payload.amount,
+		// 		payload.tx_hash,
+		// 	));
+		// 	Ok(())
+		// }
+
+		///Approve Deposit
 		#[pallet::weight(1000)]
-		pub fn approve_deposit(
+		pub fn approve_new_deposit(
 			origin: OriginFor<T>,
 			bit_map: u128,
 			bls_signature: [u8; 96],
-			payload: Payload<T::AccountId>,
+			payload: sp_std::boxed::Box<SoloChainMessages<T::AccountId>>,
 		) -> DispatchResult {
 			ensure_signed(origin)?;
-			ensure!(payload.amount > 0, Error::<T>::AmountCannotBeZero);
-			// Fetch Deposit Nonce
-			let nonce = <DepositNonce<T>>::get(payload.network_id.saturated_into::<Network>());
-			ensure!(payload.deposit_nonce == nonce + 1, Error::<T>::DepositNonceError);
-			// Ensure assets are registered
-			ensure!(
-				asset_handler::pallet::TheaAssets::<T>::contains_key(payload.asset_id),
-				Error::<T>::AssetNotRegistered
-			);
-
-			// Fetch current active relayer set BLS Keys
-			let current_active_relayer_set = Self::get_relayers_key_vector(payload.network_id);
-
-			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
-			ensure!(
-				thea_primitives::thea_ext::bls_verify(
-					&bls_signature,
-					bit_map,
-					&payload.encode(),
-					&current_active_relayer_set.into_inner()
-				),
-				Error::<T>::BLSSignatureVerificationFailed
-			);
-
-			// Update deposit Nonce
-			<DepositNonce<T>>::insert(payload.network_id.saturated_into::<Network>(), nonce + 1);
-
-			// Update Storage item
-			let approved_deposit = ApprovedDeposit {
-				asset_id: payload.asset_id,
-				amount: payload.amount,
-				tx_hash: payload.tx_hash,
-			};
-			if <ApprovedDeposits<T>>::contains_key(&payload.who) {
-				<ApprovedDeposits<T>>::mutate(payload.who.clone(), |bounded_vec| {
-					if let Some(inner_bounded_vec) = bounded_vec {
-						inner_bounded_vec.try_push(approved_deposit).unwrap();
-					}
-				});
-			} else {
-				let mut my_vec: BoundedVec<ApprovedDeposit, ConstU32<100>> = Default::default();
-				if let Ok(()) = my_vec.try_push(approved_deposit) {
-					<ApprovedDeposits<T>>::insert::<
-						T::AccountId,
-						BoundedVec<ApprovedDeposit, ConstU32<100>>,
-					>(payload.who.clone(), my_vec);
-					<AccountWithPendingDeposits<T>>::mutate(|accounts| {
-						accounts.insert(payload.who.clone())
-					});
-				}
-			}
-
-			// Emit event
-			Self::deposit_event(Event::<T>::DepositApproved(
-				payload.network_id,
-				payload.who,
-				payload.asset_id,
-				payload.amount,
-				payload.tx_hash,
-			));
+			//TODO: Add amount tester
+			Self::do_deposit(*payload, bit_map, bls_signature)?;
 			Ok(())
 		}
 
@@ -345,7 +377,7 @@ pub mod pallet {
 
 				for _ in 0..length {
 					if let Some(deposit) = deposits.pop() {
-						if let Err(err) = Self::execute_deposit(deposit, &user) {
+						if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
 							// Force push is fine as it will have the capacity.
 							deposits.force_push(deposit);
 							// Save it back on failure
@@ -502,8 +534,158 @@ pub mod pallet {
 			T::TheaPalletId::get().into_account_truncating()
 		}
 
+		pub fn do_deposit(
+			payload: SoloChainMessages<T::AccountId>,
+			bit_map: u128,
+			bls_signature: [u8; 96],
+		) -> Result<(), DispatchError> {
+			let approved_deposit = match payload.clone() {
+				SoloChainMessages::Deposit(
+					network_id,
+					recipient,
+					transaction_hash,
+					asset_id,
+					amount,
+					nonce,
+				) => Self::handle_normal_deposit(
+					network_id,
+					recipient,
+					transaction_hash,
+					asset_id,
+					amount,
+					nonce,
+				)?,
+				SoloChainMessages::ParachainDeposit(recipient, asset, nonce, transaction_hash) =>
+					Self::handle_parachain_deposit(recipient, asset, nonce, transaction_hash)?,
+			};
+			// Fetch current active relayer set BLS Keys
+			let current_active_relayer_set =
+				Self::get_relayers_key_vector(approved_deposit.network_id);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&payload.encode(),
+					&current_active_relayer_set.into_inner()
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+			<DepositNonce<T>>::insert(
+				approved_deposit.network_id.saturated_into::<Network>(),
+				payload.get_nonce() + 1,
+			);
+
+			if <ApprovedDeposits<T>>::contains_key(&approved_deposit.recipient) {
+				<ApprovedDeposits<T>>::mutate(approved_deposit.recipient.clone(), |bounded_vec| {
+					if let Some(inner_bounded_vec) = bounded_vec {
+						inner_bounded_vec.try_push(approved_deposit.clone()).unwrap();
+					}
+				});
+			} else {
+				let mut my_vec: BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>> =
+					Default::default();
+				if let Ok(()) = my_vec.try_push(approved_deposit.clone()) {
+					<ApprovedDeposits<T>>::insert::<
+						T::AccountId,
+						BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>>,
+					>(approved_deposit.recipient.clone(), my_vec);
+					<AccountWithPendingDeposits<T>>::mutate(|accounts| {
+						accounts.insert(approved_deposit.recipient.clone())
+					});
+				}
+			}
+			Self::deposit_event(Event::<T>::DepositApproved(
+				approved_deposit.network_id,
+				approved_deposit.recipient,
+				approved_deposit.asset_id,
+				approved_deposit.amount,
+				approved_deposit.tx_hash,
+			));
+			Ok(())
+		}
+
+		pub fn handle_normal_deposit(
+			network_id: u8,
+			recipient: T::AccountId,
+			tx_hash: sp_core::H256,
+			asset_id: u128,
+			amount: u128,
+			deposit_nonce: u32,
+		) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
+			Self::validation(deposit_nonce, asset_id, amount, network_id)?;
+			Ok(ApprovedDeposit::new(asset_id, amount, recipient, network_id, tx_hash))
+		}
+
+		pub fn handle_parachain_deposit(
+			recipient: MultiLocation,
+			asset_and_amount: MultiAsset,
+			nonce: u32,
+			transaction_hash: sp_core::H256,
+		) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
+			if let (Some(recipient), Some((asset, amount))) = (
+				Self::convert_multi_location_to_recipient_address(&recipient),
+				Self::convert_multi_asset_to_asset_id_and_amount(asset_and_amount),
+			) {
+				let network_id: u8 = 0; //TODO Get Netowrk I dfrom AssetHandler Pallet
+				Self::validation(nonce, asset, amount, network_id)?;
+				Ok(ApprovedDeposit::new(asset, amount, recipient, network_id, transaction_hash))
+			} else {
+				Err(Error::<T>::NoApprovedDeposit.into())
+			}
+		}
+
+		pub fn convert_multi_asset_to_asset_id_and_amount(
+			asset_and_amount: MultiAsset,
+		) -> Option<(u128, u128)> {
+			let MultiAsset { id, fun } = asset_and_amount;
+			match fun {
+				Fungibility::Fungible(fun) => {
+					if let Ok(asset) =
+						asset_handler::pallet::Pallet::<T>::generate_asset_id_for_parachain(id)
+					{
+						Some((asset, fun))
+					} else {
+						None
+					}
+				},
+				_ => None,
+			}
+		}
+
+		pub fn convert_multi_location_to_recipient_address(
+			recipient_address: &MultiLocation,
+		) -> Option<T::AccountId> {
+			match recipient_address {
+				MultiLocation {
+					parents: _,
+					interior: X1(Junction::AccountId32 { network: _, id }),
+				} => T::AccountId::decode(&mut &id[..]).ok(),
+				_ => None,
+			}
+		}
+
+		pub fn validation(
+			deposit_nonce: u32,
+			asset_id: u128,
+			amount: u128,
+			network_id: u8,
+		) -> Result<(), DispatchError> {
+			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
+			// Fetch Deposit Nonce
+			let nonce = <DepositNonce<T>>::get(network_id.saturated_into::<Network>());
+			ensure!(deposit_nonce == nonce + 1, Error::<T>::DepositNonceError);
+			// Ensure assets are registered
+			ensure!(
+				asset_handler::pallet::TheaAssets::<T>::contains_key(asset_id),
+				Error::<T>::AssetNotRegistered
+			);
+			Ok(())
+		}
+
 		pub fn execute_deposit(
-			deposit: ApprovedDeposit,
+			deposit: ApprovedDeposit<T::AccountId>,
 			recipient: &T::AccountId,
 		) -> Result<(), DispatchError> {
 			asset_handler::pallet::Pallet::<T>::mint_thea_asset(
