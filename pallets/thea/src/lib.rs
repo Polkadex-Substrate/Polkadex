@@ -488,7 +488,7 @@ pub mod pallet {
 			network_id: Self::NetworkID,
 			map: BTreeMap<Self::NetworkID, Vec<(Self::AccountId, Self::BLSPublicKey)>>,
 		) -> u32 {
-			// <RelayersBLSKeyVector<T>>::insert(network_id, Vec::new(map))
+			// <RelayersBLSKeyVector<T>>::insert(network_id, );
 			0
 		}
 	}
