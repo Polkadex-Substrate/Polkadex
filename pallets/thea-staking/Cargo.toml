@@ -25,6 +25,7 @@ sp-runtime = { default-features = false, workspace = true }
 sp-std = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
 polkadex-primitives = { workspace = true, default-features = false }
+#thea-primitives = {path = "../../thea-primitives", default-features = false}
 
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
@@ -43,7 +44,8 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"sp-staking/std"
+	"sp-staking/std",
+#	"thea-primitives/std"
 ]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 try-runtime = ["frame-support/try-runtime"]
