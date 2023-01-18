@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![allow(clippy::recursive_format_impl)]
 
 pub mod payment;
 
@@ -127,11 +128,14 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// A way to add new tokens for payment for fees
 		#[pallet::weight(10000)]
-		pub fn allow_list_token_for_fees(origin: OriginFor<T>, asset: AssetIdOf<T>) -> DispatchResult {
+		pub fn allow_list_token_for_fees(
+			origin: OriginFor<T>,
+			asset: AssetIdOf<T>,
+		) -> DispatchResult {
 			// TODO: Add a governance origin instead of root
 			ensure_root(origin)?;
-			<AllowedAssets<T>>::mutate(| allowed_assets| {
-				if !allowed_assets.contains(&asset){
+			<AllowedAssets<T>>::mutate(|allowed_assets| {
+				if !allowed_assets.contains(&asset) {
 					allowed_assets.push(asset);
 				}
 			});
@@ -143,8 +147,8 @@ pub mod pallet {
 		pub fn block_token_for_fees(origin: OriginFor<T>, asset: AssetIdOf<T>) -> DispatchResult {
 			// TODO: Add a governance origin instead of root
 			ensure_root(origin)?;
-			<AllowedAssets<T>>::mutate(| allowed_assets| {
-				if let Some(pos) = allowed_assets.iter().position(|&x| { x == asset }){
+			<AllowedAssets<T>>::mutate(|allowed_assets| {
+				if let Some(pos) = allowed_assets.iter().position(|&x| x == asset) {
 					allowed_assets.remove(pos);
 				}
 			});
@@ -184,7 +188,6 @@ where
 		debug_assert!(self.tip <= fee, "tip should be included in the computed fee");
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
-
 		} else if self.asset_id != Zero::zero() {
 			// If the asset id is zero, then we treat that case as payment in PDEX,
 			T::OnChargeAssetTransaction::withdraw_fee(
@@ -209,7 +212,7 @@ where
 impl<T: Config> sp_std::fmt::Debug for ChargeAssetTransactionPayment<T> {
 	#[cfg(feature = "std")]
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-		write!(f, "ChargeTransactionPayment<{:?}>", self)
+		write!(f, "ChargeTransactionPayment<{self:?}>")
 	}
 	#[cfg(not(feature = "std"))]
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
@@ -252,14 +255,11 @@ where
 		use pallet_transaction_payment::ChargeTransactionPayment;
 		let (fee, inital_payment) = self.withdraw_fee(who, call, info, len)?;
 		// Check if the given asset is valid
-		match inital_payment {
-			InitialPayment::Asset(asset) => {
-				let allowed_assets = <AllowedAssets<T>>::get();
-				if !allowed_assets.contains(&asset.asset()) {
-					return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
-				}
-			},
-			_ => {},
+		if let InitialPayment::Asset(asset) = inital_payment {
+			let allowed_assets = <AllowedAssets<T>>::get();
+			if !allowed_assets.contains(&asset.asset()) {
+				return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
+			}
 		}
 		let priority = ChargeTransactionPayment::<T>::get_priority(info, len, self.tip, fee);
 		Ok(ValidTransaction { priority, ..Default::default() })
@@ -274,14 +274,11 @@ where
 	) -> Result<Self::Pre, TransactionValidityError> {
 		let (_fee, initial_payment) = self.withdraw_fee(who, call, info, len)?;
 		// Check if the given asset is valid
-		match &initial_payment {
-			InitialPayment::Asset(asset) => {
-				let allowed_assets = <AllowedAssets<T>>::get();
-				if !allowed_assets.contains(&asset.asset()) {
-					return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
-				}
-			},
-			_ => {},
+		if let InitialPayment::Asset(asset) = &initial_payment {
+			let allowed_assets = <AllowedAssets<T>>::get();
+			if !allowed_assets.contains(&asset.asset()) {
+				return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
+			}
 		}
 		Ok((self.tip, who.clone(), initial_payment))
 	}
