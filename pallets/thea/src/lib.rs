@@ -31,7 +31,6 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::AccountId;
 	use sp_runtime::{
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
@@ -41,10 +40,9 @@ pub mod pallet {
 		vec::Vec,
 	};
 	use thea_primitives::{
-		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, Payload},
+		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, OnSessionChange, Payload},
 		BLSPublicKey,
 	};
-	use thea_primitives::thea_types::OnSessionChange;
 	use thea_staking::SessionChanged;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -487,12 +485,8 @@ pub mod pallet {
 
 	impl<T: Config> SessionChanged for Pallet<T> {
 		type Network = Network;
-		type BLSPublicKey = BLSPublicKey;
-		type AccountId = AccountId;
 		type OnSessionChange = OnSessionChange<T::AccountId>;
-		fn on_new_session(
-			map: BTreeMap<Self::Network, Self::OnSessionChange>,
-		) {
+		fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
 			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
 			// network
 			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
