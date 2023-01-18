@@ -54,7 +54,7 @@ pub trait SessionChanged {
 	type AccountId;
 	fn on_new_session(
 		network_id: Self::NetworkID,
-		map: BTreeMap<Network, Vec<(Self::AccountId, Self::BLSPublicKey)>>,
+		map: BTreeMap<Self::NetworkID, Vec<(Self::AccountId, Self::BLSPublicKey)>>,
 	) -> u32;
 }
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -451,7 +451,6 @@ impl<T: Config> Pallet<T> {
 		// Increment SessionIndex
 		let new_session_index = session_index.saturating_add(1);
 		<CurrentIndex<T>>::put(new_session_index);
-		// TODO: @Faizal uncomment this when session change trait is ready.
 		//ToDo: Handle unwrap
 		T::SessionChangeNotifier::on_new_session(new_session_index.try_into().unwrap(), map);
 		Self::deposit_event(Event::NewSessionStarted { index: new_session_index })
