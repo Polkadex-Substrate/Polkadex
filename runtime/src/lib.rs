@@ -1323,7 +1323,7 @@ impl assets_transaction_payment::pallet::Config for Runtime {
 		AlternateTokenSwapper,
 		DealWithFees,
 	>;
-  }
+}
 impl thea::pallet::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;

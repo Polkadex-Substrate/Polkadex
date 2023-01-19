@@ -748,6 +748,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "blst"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a30d0edd9dd1c60ddb42b80341c7852f6f985279a5c1a83659dcb65899dec99"
+dependencies = [
+ "cc",
+ "glob",
+ "threadpool",
+ "which 4.3.0",
+ "zeroize",
+]
+
+[[package]]
 name = "borsh"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -790,19 +803,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "blst"
-version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a30d0edd9dd1c60ddb42b80341c7852f6f985279a5c1a83659dcb65899dec99"
-dependencies = [
- "cc",
- "glob",
- "threadpool",
- "which 4.3.0",
- "zeroize",
 ]
 
 [[package]]
@@ -10132,6 +10132,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
+ "sp-core",
  "sp-runtime-interface",
  "sp-std",
 ]
