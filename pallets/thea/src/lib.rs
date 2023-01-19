@@ -42,6 +42,8 @@ pub mod pallet {
 		latest::{Fungibility, Junction, MultiAsset, MultiLocation},
 		prelude::X1,
 	};
+	use xcm::latest::{AssetId, Junctions, NetworkId};
+	use xcm::prelude::Fungible;
 
 	use thea_primitives::{BLSPublicKey, SoloChainMessages};
 
@@ -74,6 +76,11 @@ pub mod pallet {
 		pub amount: u128,
 		pub network: u8,
 		pub beneficiary: Vec<u8>,
+	}
+
+	enum Beneficiary {
+		Parachain(ML),
+		ben()
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -349,6 +356,22 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Initiate Withdraw
+		#[pallet::weight(1000)]
+		pub fn withdraw_new(
+			origin: OriginFor<T>,
+			asset_id: u128,
+			amount: u128,
+			beneficiary: Vec<u8>,
+			pay_for_remaining: bool,
+		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			// Put a soft limit of size of beneficiary vector to avoid spam
+			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
+			Self::do_withdraw(asset_id, amount, beneficiary, pay_for_remaining)?;
+			Ok(())
+		}
+
 		/// Initiate the withdraw for user
 		///
 		/// # Parameters
@@ -450,6 +473,37 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		pub fn thea_account() -> T::AccountId {
 			T::TheaPalletId::get().into_account_truncating()
+		}
+
+		pub fn do_withdraw(asset_id: u128,
+						   amount: u128,
+						   beneficiary: Vec<u8>,
+						   pay_for_remaining: bool) -> Result<(), DispatchError> {
+			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
+			#[allow(clippy::unnecessary_lazy_evaluations)]
+				// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
+				let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
+				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
+			if let true = network == asset_handler::pallet::Pallet::<T>::get_parachain_network_id() as u32 { //TODO Netowrk Id should be u8
+				Self::handle_parachain_withdraw(asset_id, amount, beneficiary, pay_for_remaining)?;
+			} else {
+				unimplemented!()
+			}
+			Ok(())
+		}
+
+		pub fn handle_parachain_withdraw(asset_id: u128, amount: u128, beneficiary: Vec<u8>, pay_for_remaining: bool) -> Result<(), DispatchError> {
+			let (network_id, identifier_length, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
+			let asset_identifier: AssetId = Decode::decode(&mut &asset_identifier.to_vec()[..]).map_err(|_| Error::<T>::DepositNonceError)?; //TODO: Change the error
+			let asset_and_amount: MultiAsset = MultiAsset{id: asset_identifier, fun: Fungible(amount)};
+			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
+
+			unimplemented!();
+ 		}
+
+		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {
+			let recipient: [u8;32] = recipient.try_into().map_err(|_| Error::<T>::DepositNonceError)?; //TODO Handle error
+			Ok(MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 {network: NetworkId::Any, id:recipient}) }) //TODO: CHekc Parent and Recipient Address
 		}
 
 		pub fn do_deposit(
