@@ -97,7 +97,6 @@ pub mod pallet {
 		/// Delay to prune oldest staking data
 		type StakingDataPruneDelay: Get<SessionIndex>;
 
-		// TODO: @Faizal uncomment the code below for session change hook
 		type SessionChangeNotifier: SessionChanged<
 			Network = Network,
 			OnSessionChange = OnSessionChange<Self::AccountId>,
