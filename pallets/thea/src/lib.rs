@@ -38,19 +38,20 @@ pub mod pallet {
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
 	};
-	use xcm::{
-		latest::{Junction, MultiLocation},
-		prelude::X1,
-	};
-	use xcm::latest::{AssetId, Junctions, NetworkId};
-	use xcm::prelude::Fungible;
-
 	use thea_primitives::{
-		normal_deposit::Deposit, parachain_primitives::ParachainDeposit, AssetIdConverter,
-		BLSPublicKey, TokenType,
+		normal_deposit::Deposit,
+		parachain_primitives::{ParachainDeposit, ParachainWithdraw},
+		AssetIdConverter, BLSPublicKey, TokenType,
 	};
+	use xcm::{
+		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
+		prelude::{Fungible, X1},
+	};
+	use xcm::latest::{Instruction, MultiAssetFilter, MultiAssets, WeightLimit, Xcm};
+	use xcm::v2::WildMultiAsset;
+	use sp_std::vec;
 
-	pub type Network = u32;
+	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
 	pub struct ApprovedDeposit<AccountId> {
@@ -88,11 +89,7 @@ pub mod pallet {
 		pub amount: u128,
 		pub network: u8,
 		pub beneficiary: Vec<u8>,
-	}
-
-	enum Beneficiary {
-		Parachain(ML),
-		ben()
+		pub payload: Vec<u8>,
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -159,9 +156,9 @@ pub mod pallet {
 	pub(super) type ReadyWithdrawls<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		u32,
+		u8,
 		Blake2_128Concat,
-		Network,
+		u32,
 		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
 		ValueQuery,
 	>;
@@ -389,39 +386,126 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			// Put a soft limit of size of beneficiary vector to avoid spam
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-			Self::do_withdraw(asset_id, amount, beneficiary, pay_for_remaining)?;
+			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
 			Ok(())
 		}
 
-		/// Initiate the withdraw for user
-		///
-		/// # Parameters
-		///
-		/// * `origin`: User
-		/// * `asset_id`: Asset id
-		/// * `amount`: Amount of asset to withdraw
-		/// * `beneficiary`: beneficiary of the withdraw
-		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
-		///   withdrawal
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
-		pub fn withdraw(
-			origin: OriginFor<T>,
+		// /// Initiate the withdraw for user
+		// ///
+		// /// # Parameters
+		// ///
+		// /// * `origin`: User
+		// /// * `asset_id`: Asset id
+		// /// * `amount`: Amount of asset to withdraw
+		// /// * `beneficiary`: beneficiary of the withdraw
+		// /// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for
+		// quick ///   withdrawal
+		// // TODO: [Issue #606] Use benchmarks
+		// #[pallet::weight(1000)]
+		// pub fn withdraw(
+		// 	origin: OriginFor<T>,
+		// 	asset_id: u128,
+		// 	amount: u128,
+		// 	beneficiary: Vec<u8>,
+		// 	pay_for_remaining: bool,
+		// ) -> DispatchResult {
+		// 	let user = ensure_signed(origin)?;
+		// 	// Put a soft limit of size of beneficiary vector to avoid spam
+		// 	ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
+		//
+		// 	// Find native network of this asset
+		// 	#[allow(clippy::unnecessary_lazy_evaluations)]
+		// 	// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
+		// 	let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
+		// 		.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
+		//
+		// 	let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
+		//
+		// 	let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
+		//
+		// 	// Ensure pending withdrawals have space for a new withdrawal
+		// 	ensure!(pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
+		//
+		// 	#[allow(clippy::unnecessary_lazy_evaluations)]
+		// 	// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
+		// 	let mut total_fees = <WithdrawalFees<T>>::get(network)
+		// 		.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
+		//
+		// 	if pay_for_remaining {
+		// 		// User is ready to pay for remaining pending withdrawal for quick withdrawal
+		// 		let extra_withdrawals_available = 10usize.saturating_sub(pending_withdrawals.len());
+		// 		total_fees = total_fees.saturating_add(
+		// 			total_fees.saturating_mul(extra_withdrawals_available.saturated_into()),
+		// 		)
+		// 	}
+		//
+		// 	// Pay the fees
+		// 	<T as Config>::Currency::transfer(
+		// 		&user,
+		// 		&Self::thea_account(),
+		// 		total_fees.saturated_into(),
+		// 		ExistenceRequirement::KeepAlive,
+		// 	)?;
+		//
+		// 	// TODO[#610]: Update Thea Staking pallet about fees collected
+		//
+		// 	// Burn assets
+		// 	asset_handler::pallet::Pallet::<T>::burn_thea_asset(asset_id, user.clone(), amount)?;
+		//
+		// 	let withdrawal = ApprovedWithdraw {
+		// 		asset_id,
+		// 		amount: amount.saturated_into(),
+		// 		network: network.saturated_into(),
+		// 		beneficiary: beneficiary.clone(),
+		// 	};
+		//
+		// 	if let Err(()) = pending_withdrawals.try_push(withdrawal) {
+		// 		// This should not fail because of is_full check above
+		// 	}
+		//
+		// 	if pending_withdrawals.is_full() | pay_for_remaining {
+		// 		// If it is full then we move it to ready queue and update withdrawal nonce
+		// 		let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
+		// 		<ReadyWithdrawls<T>>::insert(
+		// 			network,
+		// 			withdrawal_nonce,
+		// 			pending_withdrawals.clone(),
+		// 		);
+		// 		<WithdrawalNonces<T>>::insert(network, withdrawal_nonce.saturating_add(1));
+		// 		Self::deposit_event(Event::<T>::WithdrawalReady(network, withdrawal_nonce));
+		// 		pending_withdrawals = BoundedVec::default();
+		// 	}
+		// 	<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
+		// 	Self::deposit_event(Event::<T>::WithdrawalQueued(
+		// 		user,
+		// 		beneficiary,
+		// 		asset_id,
+		// 		amount,
+		// 		withdrawal_nonce,
+		// 	));
+		// 	Ok(())
+		// }
+	}
+
+	// Helper Functions for Thea Pallet
+	impl<T: Config> Pallet<T> {
+		pub fn thea_account() -> T::AccountId {
+			T::TheaPalletId::get().into_account_truncating()
+		}
+
+		pub fn do_withdraw(
+			user: T::AccountId,
 			asset_id: u128,
 			amount: u128,
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
-		) -> DispatchResult {
-			let user = ensure_signed(origin)?;
-			// Put a soft limit of size of beneficiary vector to avoid spam
+		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-
-			// Find native network of this asset
 			#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
 				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
-
+			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
@@ -460,6 +544,7 @@ pub mod pallet {
 				amount: amount.saturated_into(),
 				network: network.saturated_into(),
 				beneficiary: beneficiary.clone(),
+				payload,
 			};
 
 			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
@@ -488,43 +573,61 @@ pub mod pallet {
 			));
 			Ok(())
 		}
-	}
 
-	// Helper Functions for Thea Pallet
-	impl<T: Config> Pallet<T> {
-		pub fn thea_account() -> T::AccountId {
-			T::TheaPalletId::get().into_account_truncating()
-		}
-
-		pub fn do_withdraw(asset_id: u128,
-						   amount: u128,
-						   beneficiary: Vec<u8>,
-						   pay_for_remaining: bool) -> Result<(), DispatchError> {
-			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-			#[allow(clippy::unnecessary_lazy_evaluations)]
-				// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-				let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
-				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
-			if let true = network == asset_handler::pallet::Pallet::<T>::get_parachain_network_id() as u32 { //TODO Netowrk Id should be u8
-				Self::handle_parachain_withdraw(asset_id, amount, beneficiary, pay_for_remaining)?;
-			} else {
-				unimplemented!()
+		pub fn withdrawal_router(
+			network_id: u8,
+			asset_id: u128,
+			amount: u128,
+			recipient: Vec<u8>,
+		) -> Result<Vec<u8>, DispatchError> {
+			match network_id {
+				1 => Self::handle_parachain_withdraw(asset_id, amount, recipient),
+				_ => unimplemented!(),
 			}
-			Ok(())
 		}
 
-		pub fn handle_parachain_withdraw(asset_id: u128, amount: u128, beneficiary: Vec<u8>, pay_for_remaining: bool) -> Result<(), DispatchError> {
-			let (network_id, identifier_length, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
-			let asset_identifier: AssetId = Decode::decode(&mut &asset_identifier.to_vec()[..]).map_err(|_| Error::<T>::DepositNonceError)?; //TODO: Change the error
-			let asset_and_amount: MultiAsset = MultiAsset{id: asset_identifier, fun: Fungible(amount)};
+		pub fn handle_parachain_withdraw(
+			asset_id: u128,
+			amount: u128,
+			beneficiary: Vec<u8>,
+		) -> Result<Vec<u8>, DispatchError> {
+			let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
+			let asset_identifier: AssetId = Decode::decode(&mut &asset_identifier.to_vec()[..])
+				.map_err(|_| Error::<T>::DepositNonceError)?; //TODO: Change the error
+			let asset_and_amount = MultiAsset { id: asset_identifier, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
+			let xcm_messages = Self::generate_xcm_messages(recipient, asset_and_amount)?;
+			Ok(xcm_messages.encode())
+		}
 
-			unimplemented!();
- 		}
+		pub fn generate_xcm_messages(
+			recipient: MultiLocation,
+			asset_id: MultiAsset,
+		) -> Result<ParachainWithdraw, DispatchError> {
+			let mut xcm: Xcm<()> = Xcm::new();
+            // WithdrawAsset
+			xcm.0.push(Instruction::WithdrawAsset(MultiAssets::from(vec![asset_id.clone()])));
+			// Buy Execution
+			xcm.0.push(Instruction::BuyExecution{fees: asset_id, weight_limit: WeightLimit::Unlimited});
+			// DepositAsset
+			xcm.0.push(Instruction::DepositAsset {
+				assets: MultiAssetFilter::Wild(WildMultiAsset::All),
+				max_assets: 1,
+				beneficiary: recipient
+			});
+			Ok(ParachainWithdraw { xcm_messages: xcm })
+		}
 
 		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {
-			let recipient: [u8;32] = recipient.try_into().map_err(|_| Error::<T>::DepositNonceError)?; //TODO Handle error
-			Ok(MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 {network: NetworkId::Any, id:recipient}) }) //TODO: CHekc Parent and Recipient Address
+			let recipient: [u8; 32] =
+				recipient.try_into().map_err(|_| Error::<T>::DepositNonceError)?; //TODO Handle error
+			Ok(MultiLocation {
+				parents: 0,
+				interior: Junctions::X1(Junction::AccountId32 {
+					network: NetworkId::Any,
+					id: recipient,
+				}),
+			}) //TODO: CHekc Parent and Recipient Address
 		}
 
 		pub fn do_deposit(

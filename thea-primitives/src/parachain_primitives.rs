@@ -6,7 +6,10 @@ use polkadex_primitives::BoundedVec;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_std::{vec, vec::Vec};
-use xcm::latest::{Fungibility, MultiAsset, MultiLocation};
+use xcm::{
+	latest::{Fungibility, MultiAsset, MultiLocation},
+	prelude::Xcm,
+};
 
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct ParachainDeposit {
@@ -50,4 +53,9 @@ impl AssetIdConverter for ParachainDeposit {
 	fn to_asset_id(&self) -> Self {
 		todo!()
 	}
+}
+
+#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
+pub struct ParachainWithdraw {
+	pub xcm_messages: Xcm<()>,
 }
