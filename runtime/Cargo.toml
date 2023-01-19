@@ -81,6 +81,8 @@ sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
+thea-staking = { default-features = false, path = "../pallets/thea-staking" }
+pallet-nomination-pools = { default-features = false, workspace = true }
 #end added
 
 # Used for the node template"s RPCs
@@ -104,6 +106,7 @@ assets-transaction-payment = {path="../pallets/assets-transaction-payment", defa
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 
+
 serde = { version = "1.0.136", features = ["derive"], optional = true }
 parity-util-mem = { version = "0.11.0", default-features = false, features = ["primitive-types"] }
 ethers-derive-eip712 = { version="0.13.0", optional=true}
@@ -112,6 +115,11 @@ ethers-contract = {version="0.13.0", optional = true, features = ["abigen"]}
 ethers = {version="0.13.0", optional = true}
 serde_json = {version="1.0.91", optional = true , default-features = false}
 hex = {version="0.4.3", optional = true, default-features = false}
+
+# Thea
+thea = {path = "../pallets/thea", default-features = false }
+thea-primitives = { path = "../thea-primitives", default-features = false  }
+
 
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
@@ -200,7 +208,12 @@ std = [
     "pallet-ocex-lmp/std",
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std",
-    "assets-transaction-payment/std"
+    "assets-transaction-payment/std",
+    "thea-staking/std",
+    "pallet-nomination-pools/std",
+    "pallet-asset-handler-runtime-api/std",
+    "thea/std",
+
 ]
 runtime-benchmarks = [
     #theirs
