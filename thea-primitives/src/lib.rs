@@ -10,7 +10,9 @@ use sp_std::{vec, vec::Vec};
 
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use xcm::latest::{MultiAsset, MultiLocation};
+
+pub mod normal_deposit;
+pub mod parachain_primitives;
 
 #[runtime_interface]
 pub trait TheaExt {
@@ -59,22 +61,27 @@ pub trait TheaExt {
 #[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct BLSPublicKey(pub [u8; 192]);
 
-#[allow(clippy::all)]
-#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
-pub enum SoloChainMessages<AccountId> {
-	///(network_id:u8, who:AccountId, tx_hash: H256, asset_id: u128, amount: u128, deposit_nonce:
-	/// u32)
-	Deposit(u8, AccountId, sp_core::H256, u128, u128, u32),
-	///(recipient: MultiLocation, Asset&Amount: MultiAsset, deposit_nonce: u32, transaction_hash:
-	/// H256)
-	ParachainDeposit(MultiLocation, MultiAsset, u32, sp_core::H256),
+pub trait AssetIdConverter {
+	/// Get Asset Id
+	fn get_asset_id(&self) -> Option<u128>;
+
+	/// To Asset Id
+	fn to_asset_id(&self) -> Self;
 }
 
-impl<AccountId> SoloChainMessages<AccountId> {
-	pub fn get_nonce(&self) -> u32 {
+#[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum TokenType {
+	Fungible(u8),
+	NonFungible(u8),
+	Generic(u8),
+}
+
+impl TokenType {
+	pub fn get_network_id(&self) -> u8 {
 		match self {
-			SoloChainMessages::Deposit(_, _, _, _, _, nonce) => *nonce,
-			SoloChainMessages::ParachainDeposit(_, _, nonce, _) => *nonce,
+			TokenType::Fungible(network_id) => *network_id,
+			TokenType::NonFungible(network_id) => *network_id,
+			TokenType::Generic(network_id) => *network_id,
 		}
 	}
 }
