@@ -747,14 +747,18 @@ mod tests {
 					),
 					frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(index),
 					frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-					pallet_transaction_payment::ChargeTransactionPayment::<
+					assets_transaction_payment::ChargeAssetTransactionPayment::<
 						node_polkadex_runtime::Runtime,
-					>::from(tip),
+					> {
+						asset_id: 0,
+						tip: 0,
+						signature_scheme: 0,
+					},
 				);
 				let raw_payload = SignedPayload::from_raw(
 					function,
 					extra,
-					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
+					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (), 0),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();
