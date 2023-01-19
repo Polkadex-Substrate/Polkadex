@@ -12,6 +12,9 @@ members = [
     "pallets/pdex-migration",
     "pallets/assets-transaction-payment",
     "pallets/ocex",
+    "pallets/thea",
+    "thea-primitives",
+    "pallets/thea-staking",
 ]
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
@@ -131,6 +134,7 @@ sc-authority-discovery = { git = "https://github.com/paritytech/substrate", bran
 sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+pallet-nomination-pools = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, package="sp-finality-grandpa" }
 polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.10", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
