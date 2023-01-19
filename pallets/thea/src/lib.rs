@@ -43,7 +43,9 @@ pub mod pallet {
 		prelude::X1,
 	};
 
-	use thea_primitives::{BLSPublicKey, SoloChainMessages};
+	use thea_primitives::{AssetIdConverter, BLSPublicKey, SoloChainMessages};
+	use thea_primitives::normal_deposit::Deposit;
+	use thea_primitives::parachain_primitives::ParachainDeposit;
 
 	pub type Network = u32;
 
@@ -54,6 +56,7 @@ pub mod pallet {
 		pub recipient: AccountId,
 		pub network_id: u8,
 		pub tx_hash: sp_core::H256,
+		pub deposit_nonce: u32
 	}
 
 	impl<AccountId> ApprovedDeposit<AccountId> {
@@ -63,8 +66,9 @@ pub mod pallet {
 			recipient: AccountId,
 			network_id: u8,
 			transaction_hash: sp_core::H256,
+			deposit_nonce: u32
 		) -> Self {
-			ApprovedDeposit { asset_id, amount, recipient, network_id, tx_hash: transaction_hash }
+			ApprovedDeposit { asset_id, amount, recipient, network_id, tx_hash: transaction_hash, deposit_nonce}
 		}
 	}
 
@@ -266,10 +270,11 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			bit_map: u128,
 			bls_signature: [u8; 96],
-			payload: sp_std::boxed::Box<SoloChainMessages<T::AccountId>>,
+			network_id: u8,
+			payload: Vec<u8>,
 		) -> DispatchResult {
 			ensure_signed(origin)?;
-			Self::do_deposit(*payload, bit_map, bls_signature)?;
+			Self::do_deposit(network_id, payload, bit_map, bls_signature)?;
 			Ok(())
 		}
 
@@ -453,29 +458,15 @@ pub mod pallet {
 		}
 
 		pub fn do_deposit(
-			payload: SoloChainMessages<T::AccountId>,
+			network_id: u8,
+			payload: Vec<u8>,
 			bit_map: u128,
 			bls_signature: [u8; 96],
 		) -> Result<(), DispatchError> {
-			let approved_deposit = match payload.clone() {
-				SoloChainMessages::Deposit(
-					network_id,
-					recipient,
-					transaction_hash,
-					asset_id,
-					amount,
-					nonce,
-				) => Self::handle_normal_deposit(
-					network_id,
-					recipient,
-					transaction_hash,
-					asset_id,
-					amount,
-					nonce,
-				)?,
-				SoloChainMessages::ParachainDeposit(recipient, asset, nonce, transaction_hash) =>
-					Self::handle_parachain_deposit(recipient, asset, nonce, transaction_hash)?,
-			};
+			// From NetoworkId get Actual Strucutre
+			// Handle Structure
+			// Forward it to expected handler
+			let approved_deposit = Self::router(network_id, payload.clone()).map_err(|_| Error::<T>::NoApprovedDeposit)?; //TODO: Fix the error
 			// Fetch current active relayer set BLS Keys
 			let current_active_relayer_set =
 				Self::get_relayers_key_vector(approved_deposit.network_id);
@@ -485,14 +476,14 @@ pub mod pallet {
 				thea_primitives::thea_ext::bls_verify(
 					&bls_signature,
 					bit_map,
-					&payload.encode(),
+					&payload,
 					&current_active_relayer_set.into_inner()
 				),
 				Error::<T>::BLSSignatureVerificationFailed
 			);
 			<DepositNonce<T>>::insert(
 				approved_deposit.network_id.saturated_into::<Network>(),
-				payload.get_nonce() + 1,
+				approved_deposit.deposit_nonce + 1,
 			);
 
 			if <ApprovedDeposits<T>>::contains_key(&approved_deposit.recipient) {
@@ -524,34 +515,35 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn handle_normal_deposit(
-			network_id: u8,
-			recipient: T::AccountId,
-			tx_hash: sp_core::H256,
-			asset_id: u128,
-			amount: u128,
-			deposit_nonce: u32,
-		) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
-			Self::validation(deposit_nonce, asset_id, amount, network_id)?;
-			Ok(ApprovedDeposit::new(asset_id, amount, recipient, network_id, tx_hash))
+		pub fn router(network_id: u8, payload: Vec<u8>) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
+			match network_id {
+				1 => Self::handle_parachain_deposit(payload),
+				2 => Self::handle_normal_deposit(payload),
+				_ => Err(Error::<T>::NoApprovedDeposit.into()) //TODO FIx the error
+			}
 		}
 
-		pub fn handle_parachain_deposit(
-			recipient: MultiLocation,
-			asset_and_amount: MultiAsset,
-			nonce: u32,
-			transaction_hash: sp_core::H256,
-		) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
+		pub fn handle_parachain_deposit(payload: Vec<u8>) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
+			let parachain_deposit: ParachainDeposit = Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::NoApprovedDeposit)?; //TODO Fix the error
 			if let (Some(recipient), Some((asset, amount))) = (
-				Self::convert_multi_location_to_recipient_address(&recipient),
-				Self::convert_multi_asset_to_asset_id_and_amount(asset_and_amount),
+				Self::convert_multi_location_to_recipient_address(&parachain_deposit.recipient),
+				parachain_deposit.convert_multi_asset_to_asset_id_and_amount(),
 			) {
 				let network_id: u8 = asset_handler::pallet::Pallet::<T>::get_parachain_network_id();
-				Self::validation(nonce, asset, amount, network_id)?;
-				Ok(ApprovedDeposit::new(asset, amount, recipient, network_id, transaction_hash))
+				Self::validation(parachain_deposit.deposit_nonce, asset, amount, network_id)?;
+				Ok(ApprovedDeposit::new(asset, amount, recipient, network_id, parachain_deposit.transaction_hash, parachain_deposit.deposit_nonce))
 			} else {
-				Err(Error::<T>::NoApprovedDeposit.into())
+				Err(Error::<T>::NoApprovedDeposit.into()) //TODO Change the error
 			}
+		}
+
+		pub fn handle_normal_deposit(
+			payload: Vec<u8>
+		) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
+			let deposit= Deposit::decode(&mut &payload[..]).map_err(|_| Error::<T>::NoApprovedDeposit)?; // TODO: Fix The error
+			let asset_id = deposit.get_asset_id().ok_or(Error::<T>::NoApprovedDeposit)?; // TODO: Fix the error
+			Self::validation(deposit.deposit_nonce, asset_id, deposit.amount, deposit.network_id)?;
+			Ok(ApprovedDeposit::new(asset_id, deposit.amount, deposit.recipient, deposit.network_id, deposit.transaction_hash, deposit.deposit_nonce))
 		}
 
 		pub fn convert_multi_asset_to_asset_id_and_amount(
