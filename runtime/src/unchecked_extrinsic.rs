@@ -332,9 +332,7 @@ where
 mod tests {
 	use super::*;
 	use parity_scale_codec::{Decode, Encode};
-	use sp_runtime::traits::{DispatchInfoOf, IdentityLookup, SignedExtension};
-
-	type TestContext = IdentityLookup<u64>;
+	use sp_runtime::traits::{DispatchInfoOf, SignedExtension};
 	type TestAccountId = u64;
 	type TestCall = Vec<u8>;
 
@@ -366,7 +364,6 @@ mod tests {
 	}
 
 	type Ex = UncheckedExtrinsic<TestAccountId, TestCall, TestExtra>;
-	type CEx = CheckedExtrinsic<TestAccountId, TestCall, TestExtra>;
 
 	#[test]
 	fn unsigned_codec_should_work() {
