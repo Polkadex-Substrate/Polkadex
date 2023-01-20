@@ -9,8 +9,9 @@ use sp_runtime_interface::runtime_interface;
 use sp_std::{vec, vec::Vec};
 
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadex_primitives::AccountId;
 use scale_info::TypeInfo;
+
+pub mod thea_types;
 
 #[runtime_interface]
 pub trait TheaExt {
@@ -55,32 +56,10 @@ pub trait TheaExt {
 		false
 	}
 }
-
-#[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone, Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, PartialOrd, Ord, Eq, Copy,
+)]
 pub struct BLSPublicKey(pub [u8; 192]);
-
-#[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
-pub struct Payload<AccountId> {
-	pub network_id: u8,
-	pub who: AccountId,
-	pub tx_hash: sp_core::H256,
-	pub asset_id: u128,
-	pub amount: u128,
-	pub deposit_nonce: u32,
-}
-
-impl Payload<AccountId> {
-	pub fn new(network_id: u8, who: AccountId, amount: u128, deposit_nonce: u32) -> Self {
-		Payload {
-			network_id,
-			who,
-			tx_hash: sp_core::H256::zero(),
-			asset_id: 1,
-			amount,
-			deposit_nonce,
-		}
-	}
-}
 
 pub fn return_set_bits(bit_map: u128) -> Vec<u8> {
 	let mut set_bits: Vec<u8> = vec![];
