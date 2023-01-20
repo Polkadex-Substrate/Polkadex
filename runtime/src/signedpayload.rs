@@ -72,6 +72,9 @@ where
 }
 
 pub fn substrate_signing(payload: &[u8]) -> Vec<u8> {
+	// FIXME: Temporary Fix is to remove the
+	// last byte until https://github.com/polkadot-js/api/issues/5431 is resolved.
+	let payload: &[u8] = &payload[0..payload.len()-2];
 	if payload.len() > 256 {
 		blake2_256(payload).to_vec()
 	} else {
