@@ -32,6 +32,7 @@ impl ParachainDeposit {
 
 impl AssetIdConverter for ParachainDeposit {
 	fn get_asset_id(&self) -> Option<u128> {
+		// FIXME: Not cool @zk
 		if let Ok(asset_identifier) =
 			BoundedVec::<u8, ConstU32<100>>::try_from(Encode::encode(self))
 		{

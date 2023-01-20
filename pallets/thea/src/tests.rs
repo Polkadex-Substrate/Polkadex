@@ -25,7 +25,14 @@ use crate::{
 	pallet::*,
 };
 use blst::min_sig::*;
-use thea_primitives::BLSPublicKey;
+// use frame_support::metadata::StorageEntryModifier::Default as ;
+use thea_primitives::{BLSPublicKey, TokenType};
+use sp_std::default::Default;
+use thea_primitives::parachain_primitives::ParachainDeposit;
+use xcm::{
+	latest::{Fungibility, MultiAsset, MultiLocation, AssetId, Junction, NetworkId},
+	prelude::{Xcm, X1},
+};
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -33,86 +40,94 @@ pub fn set_kth_bit(number: u128, k_value: u8) -> u128 {
 	(1 << k_value) | number
 }
 
-// #[test]
-// fn test_thea_approve_deposit() {
-// 	let mut ikm = [0 as u8; 32];
-// 	let sk_1 = SecretKey::key_gen(&ikm, &[]).unwrap();
-// 	let pk_1 = sk_1.sk_to_pk();
-// 	let mut ikm = [1 as u8; 32];
-// 	let sk_2 = SecretKey::key_gen(&ikm, &[]).unwrap();
-// 	let pk_2 = sk_2.sk_to_pk();
-// 	let mut ikm = [2 as u8; 32];
-// 	let sk_3 = SecretKey::key_gen(&ikm, &[]).unwrap();
-// 	let pk_3 = sk_3.sk_to_pk();
-// 	let account_id = create_account_id();
-// 	let new_payload = Payload::<u64> {
-// 		network_id: 1,
-// 		who: 2,
-// 		tx_hash: sp_core::H256::default(),
-// 		asset_id: 1,
-// 		amount: 2,
-// 		deposit_nonce: 1,
-// 	};
-// 	let bls_public_key_1 = BLSPublicKey(pk_1.serialize().into());
-// 	let bls_public_key_2 = BLSPublicKey(pk_2.serialize().into());
-// 	let bls_public_key_3 = BLSPublicKey(pk_3.serialize().into());
-// 	let dst = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
-// 	let sig_1 = sk_1.sign(&new_payload.encode(), dst, &[]);
-// 	let sig_2 = sk_2.sign(&new_payload.encode(), dst, &[]);
-// 	let mut agg_sig = AggregateSignature::from_signature(&sig_1);
-// 	agg_sig.add_signature(&sig_2, false).unwrap();
-// 	let sig = agg_sig.to_signature().serialize();
-// 	let mut bit_map_1 = 0_u128;
-// 	bit_map_1 = set_kth_bit(bit_map_1, 0);
-// 	bit_map_1 = set_kth_bit(bit_map_1, 1);
-// 	bit_map_1 = set_kth_bit(bit_map_1, 2);
-// 	let mut bit_map_2 = 0_u128;
-// 	bit_map_2 = set_kth_bit(bit_map_2, 0);
-// 	bit_map_2 = set_kth_bit(bit_map_2, 1);
-// 	new_test_ext().execute_with(|| {
-// 		RelayersBLSKeyVector::<Test>::insert(
-// 			1,
-// 			BoundedVec::try_from(vec![bls_public_key_1, bls_public_key_2, bls_public_key_3])
-// 				.unwrap(),
-// 		);
-// 		TheaAssets::<Test>::insert(1, (0, 0, BoundedVec::try_from(vec![]).unwrap()));
-// 		// Testing Signature Verification Failure
-// 		assert_noop!(
-// 			Thea::approve_deposit(
-// 				Origin::signed(1),
-// 				bit_map_1,
-// 				sig.into(),
-// 				new_payload.clone().into()
-// 			),
-// 			Error::<Test>::BLSSignatureVerificationFailed
-// 		);
-// 		// Valid Signature
-// 		assert_ok!(Thea::approve_deposit(
-// 			Origin::signed(1),
-// 			bit_map_2,
-// 			sig.into(),
-// 			new_payload.clone().into()
-// 		));
-// 		// Testing Replay Attack
-// 		assert_noop!(
-// 			Thea::approve_deposit(Origin::signed(1), bit_map_2, sig.into(), new_payload.into()),
-// 			Error::<Test>::DepositNonceError
-// 		);
-// 	});
-// }
-//
-// fn create_account_id() -> AccountId32 {
-// 	const PHRASE: &str =
-// 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-// 	let keystore = KeyStore::new();
-// 	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
-// 		&keystore,
-// 		KEY_TYPE,
-// 		Some(&format!("{}/hunter1", PHRASE)),
-// 	)
-// 	.expect("Unable to create sr25519 key pair")
-// 	.try_into()
-// 	.expect("Unable to convert to AccountId32");
-//
-// 	return account_id
-// }
+#[test]
+fn test_thea_approve_deposit() {
+	let mut ikm = [0 as u8; 32];
+	let sk_1 = SecretKey::key_gen(&ikm, &[]).unwrap();
+	let pk_1 = sk_1.sk_to_pk();
+	let mut ikm = [1 as u8; 32];
+	let sk_2 = SecretKey::key_gen(&ikm, &[]).unwrap();
+	let pk_2 = sk_2.sk_to_pk();
+	let mut ikm = [2 as u8; 32];
+	let sk_3 = SecretKey::key_gen(&ikm, &[]).unwrap();
+	let pk_3 = sk_3.sk_to_pk();
+	let account_id = create_account_id();
+	let multi_asset = MultiAsset {
+		id: AssetId::Concrete(MultiLocation::default()),
+		fun: Fungibility::Fungible(10_u128)
+	};
+	let multi_location = MultiLocation {
+		parents: 0,
+		interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: create_account_id().encode().try_into().unwrap() }),
+	};
+	let new_payload = ParachainDeposit{
+		recipient: multi_location,
+		asset_and_amount: multi_asset,
+		deposit_nonce: 1,
+		transaction_hash: sp_core::H256::zero(),
+		network_id: 1
+	};
+	let bls_public_key_1 = BLSPublicKey(pk_1.serialize().into());
+	let bls_public_key_2 = BLSPublicKey(pk_2.serialize().into());
+	let bls_public_key_3 = BLSPublicKey(pk_3.serialize().into());
+	let dst = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
+	let sig_1 = sk_1.sign(&new_payload.encode(), dst, &[]);
+	let sig_2 = sk_2.sign(&new_payload.encode(), dst, &[]);
+	let mut agg_sig = AggregateSignature::from_signature(&sig_1);
+	agg_sig.add_signature(&sig_2, false).unwrap();
+	let sig = agg_sig.to_signature().serialize();
+	let mut bit_map_1 = 0_u128;
+	bit_map_1 = set_kth_bit(bit_map_1, 0);
+	bit_map_1 = set_kth_bit(bit_map_1, 1);
+	bit_map_1 = set_kth_bit(bit_map_1, 2);
+	let mut bit_map_2 = 0_u128;
+	bit_map_2 = set_kth_bit(bit_map_2, 0);
+	bit_map_2 = set_kth_bit(bit_map_2, 1);
+	new_test_ext().execute_with(|| {
+		RelayersBLSKeyVector::<Test>::insert(
+			1,
+			BoundedVec::try_from(vec![bls_public_key_1, bls_public_key_2, bls_public_key_3])
+				.unwrap(),
+		);
+		TheaAssets::<Test>::insert(1, (0, 0, BoundedVec::try_from(vec![]).unwrap()));
+		// Testing Signature Verification Failure
+		// assert_noop!(
+		// 	Thea::approve_deposit(
+		// 		Origin::signed(1),
+		// 		bit_map_1,
+		// 		sig.into(),
+		// 		new_payload.clone().into()
+		// 	),
+		// 	Error::<Test>::BLSSignatureVerificationFailed
+		// );
+		// Valid Signature
+		assert_ok!(Thea::approve_deposit(
+			Origin::signed(1),
+			bit_map_2,
+			sig.into(),
+			TokenType::Fungible(1_u8),
+			new_payload.encode()
+		));
+		// Testing Replay Attack
+		// assert_noop!(
+		// 	Thea::approve_deposit(Origin::signed(1), bit_map_2, sig.into(), new_payload.into()),
+		// 	Error::<Test>::DepositNonceError
+		// );
+	});
+}
+
+fn create_account_id() -> AccountId32 {
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	let keystore = KeyStore::new();
+	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
+		&keystore,
+		KEY_TYPE,
+		Some(&format!("{}/hunter1", PHRASE)),
+	)
+	.expect("Unable to create sr25519 key pair")
+	.try_into()
+	.expect("Unable to convert to AccountId32");
+
+	return account_id
+}
