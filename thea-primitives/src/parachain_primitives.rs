@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+// #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::AssetIdConverter;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -11,7 +11,7 @@ use xcm::{
 	prelude::Xcm,
 };
 
-#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct ParachainDeposit {
 	pub recipient: MultiLocation,
 	pub asset_and_amount: MultiAsset,
