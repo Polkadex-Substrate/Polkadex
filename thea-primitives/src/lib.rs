@@ -56,7 +56,7 @@ pub trait TheaExt {
 	}
 }
 
-#[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Clone)]
 pub struct BLSPublicKey(pub [u8; 192]);
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
