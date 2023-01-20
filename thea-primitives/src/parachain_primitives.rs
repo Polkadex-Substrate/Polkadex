@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::AssetIdConverter;
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::BoundedVec;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
