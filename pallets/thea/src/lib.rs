@@ -111,7 +111,7 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	/// Active Relayers BLS Keys for a given Netowkr
+	/// Active Relayers BLS Keys for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
 	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
@@ -121,6 +121,39 @@ pub mod pallet {
 		BoundedVec<BLSPublicKey, ConstU32<1000>>,
 		ValueQuery,
 	>;
+
+	/// Active Relayers ECDSA Keys for a given Network
+	#[pallet::storage]
+	#[pallet::getter(fn get_auth_list)]
+	pub(super) type AuthorityListEcdsa<T: Config> = StorageMap<
+		_,
+		frame_support::Blake2_128Concat,
+		u8,
+		BoundedVec<T::AccountId, ConstU32<1000>>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_bls_key)]
+	pub(super) type AccountToBls<T: Config> = StorageMap<
+		_,
+		frame_support::Blake2_128Concat,
+		T::AccountId,
+		BLSPublicKey,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_auth_index)]
+	pub(super) type AuthIndex<T: Config> = StorageMap<
+		_,
+		frame_support::Blake2_128Concat,
+		T::AccountId,
+		u16,
+		OptionQuery,
+	>;
+
+
 
 	/// Approved Deposits
 	#[pallet::storage]
@@ -284,6 +317,38 @@ pub mod pallet {
 	// Extrinsics for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+
+		// Add Relayer BLS Keys and ECDSA
+		#[pallet::weight(1000)]
+		pub fn add_relayer_info(
+			origin: OriginFor<T>,
+			network_id: u8,
+			bls_key: [u8; 192],
+			who: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			// Fetch Storage
+			let mut current_bls = Self::get_relayers_key_vector(0);
+			let mut current_ecdsa = Self::get_auth_list(0);
+			let key = BLSPublicKey(bls_key);
+
+			// Perform computation
+			let auth_index = current_ecdsa.len();
+
+			// Update Storage
+			current_bls.try_push(key.clone()).unwrap();
+			<RelayersBLSKeyVector<T>>::insert(network_id, current_bls);
+			current_ecdsa.try_push(who.clone()).unwrap();
+			<AuthorityListEcdsa<T>>::insert(network_id, current_ecdsa);
+			<AuthIndex<T>>::insert(&who, auth_index as u16);
+			<AccountToBls<T>>::insert(&who, key);
+
+			Ok(())
+		}
+
+
+
 		///Approve Deposit
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
