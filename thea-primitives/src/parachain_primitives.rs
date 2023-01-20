@@ -11,7 +11,7 @@ use xcm::{
 	prelude::Xcm,
 };
 
-#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
+#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug, MaxEncodedLen)]
 pub struct ParachainDeposit {
 	pub recipient: MultiLocation,
 	pub asset_and_amount: MultiAsset,
