@@ -11,7 +11,6 @@ use sp_std::vec::Vec;
 /// actually contains.
 pub struct SignedPayload<Call, Extra: SignedExtension>((Call, Extra, Extra::AdditionalSigned));
 
-
 impl<Call, Extra> SignedPayload<Call, Extra>
 where
 	Call: Encode + Clone,
@@ -51,7 +50,7 @@ where
 		self.0.using_encoded(|payload| {
 			// FIXME: Temporary Fix is to remove the
 			// last byte until https://github.com/polkadot-js/api/issues/5431 is resolved.
-			let payload_trimmed = &payload[0..payload.len()-1];
+			let payload_trimmed = &payload[0..payload.len() - 1];
 			match signature_scheme {
 				// Ethereum like signing
 				1 => f(&ethereum_signing(payload_trimmed)),
