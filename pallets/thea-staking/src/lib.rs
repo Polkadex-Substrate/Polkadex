@@ -32,7 +32,10 @@ use crate::{
 };
 pub use pallet::*;
 use sp_std::vec::Vec;
-
+use thea_primitives::{
+	thea_types::{Network, OnSessionChange, SessionIndex},
+	BLSPublicKey,
+};
 mod election;
 #[cfg(test)]
 mod mock;
@@ -43,10 +46,12 @@ mod tests;
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
 pub type BlockNumber<T> = <T as frame_system::Config>::BlockNumber;
-pub type Network = u8;
-pub type SessionIndex = u32;
-pub type BLSPublicKey = [u8; 65];
 
+pub trait SessionChanged {
+	type Network;
+	type OnSessionChange;
+	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>);
+}
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[frame_support::pallet]
@@ -56,7 +61,6 @@ pub mod pallet {
 	use sp_runtime::traits::Zero;
 
 	use crate::session::{Exposure, IndividualExposure, StakingLimits};
-
 	// Import various types used to declare pallet in scope.
 	use super::*;
 
@@ -93,8 +97,10 @@ pub mod pallet {
 		/// Delay to prune oldest staking data
 		type StakingDataPruneDelay: Get<SessionIndex>;
 
-		// TODO: @Faizal uncomment the code below for session change hook
-		//type SessionChangeNotifier: SessionChangeHook;
+		type SessionChangeNotifier: SessionChanged<
+			Network = Network,
+			OnSessionChange = OnSessionChange<Self::AccountId>,
+		>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -426,7 +432,7 @@ impl<T: Config> Pallet<T> {
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
 		// map to collect all active relayers to send to session change notifier
-		let mut map: BTreeMap<Network, Vec<(T::AccountId, BLSPublicKey)>> = BTreeMap::new();
+		let mut map: BTreeMap<Network, OnSessionChange<T::AccountId>> = BTreeMap::new();
 		for network in active_networks {
 			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
 			// 1. Move queued_relayers to active_relayers
@@ -437,8 +443,7 @@ impl<T: Config> Pallet<T> {
 		// Increment SessionIndex
 		let new_session_index = session_index.saturating_add(1);
 		<CurrentIndex<T>>::put(new_session_index);
-		// TODO: @Faizal uncomment this when session change trait is ready.
-		// T::SessionChangeNotifier::on_new_session(new_session_index,map);
+		T::SessionChangeNotifier::on_new_session(map);
 		Self::deposit_event(Event::NewSessionStarted { index: new_session_index })
 	}
 
@@ -555,10 +560,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn move_queued_to_active(network: Network) -> Vec<(T::AccountId, BLSPublicKey)> {
+	pub fn move_queued_to_active(network: Network) -> OnSessionChange<T::AccountId> {
 		let queued = <QueuedRelayers<T>>::take(network);
 		<ActiveRelayers<T>>::insert(network, queued.clone());
-		queued
+		let mut vec_of_bls_keys: Vec<BLSPublicKey> = Vec::new();
+		let mut account_ids: Vec<T::AccountId> = Vec::new();
+		for (account_id, bls_key) in queued {
+			vec_of_bls_keys.push(bls_key);
+			account_ids.push(account_id);
+		}
+		(vec_of_bls_keys, account_ids)
 	}
 
 	pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {

@@ -25,5 +25,5 @@ std = [
     "frame-system/std",
     "parity-scale-codec/std",
     "scale-info/std",
-    "sp-core/std"
+    "sp-core/std",
 ]

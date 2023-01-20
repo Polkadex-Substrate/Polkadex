@@ -8822,6 +8822,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "thea-primitives",
+ "thea-staking",
 ]
 
 [[package]]
@@ -8833,6 +8834,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
+ "sp-core",
  "sp-runtime-interface",
  "sp-std",
 ]
@@ -8841,10 +8843,13 @@ dependencies = [
 name = "thea-staking"
 version = "4.0.0-dev"
 dependencies = [
+ "asset-handler",
+ "chainbridge",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "pallet-assets",
  "pallet-balances",
  "parity-scale-codec",
  "polkadex-primitives",
@@ -8854,6 +8859,8 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
+ "thea",
+ "thea-primitives",
 ]
 
 [[package]]
