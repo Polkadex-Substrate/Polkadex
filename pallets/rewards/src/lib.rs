@@ -15,12 +15,13 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::borrow_interior_mutable_const)]
+#![allow(clippy::declare_interior_mutable_const)]
 
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
 	traits::{Currency, ExistenceRequirement, LockIdentifier},
-	BoundedVec,
 };
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::{
@@ -41,11 +42,11 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-mod crowloan_rewardees;
+mod crowdloan_rewardees;
 
-const UNIT_BALANCE: u128 = 1_000_000_000_000;
-const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = UNIT_BALANCE;
+const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
+//ToDo: Issue no xxx should modify this constant value if required.
 pub const MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK: u128 = 15;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -62,7 +63,6 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::UNIT_BALANCE;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 	use sp_std::{cmp::min, convert::TryInto};
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
@@ -138,7 +138,7 @@ pub mod pallet {
 			ensure!(start_block < end_block, Error::<T>::InvalidBlocksRange);
 
 			//ensure that difference between start of vesting period - current block is greater
-			// than min difference
+			//than min difference
 			let difference_between_start_and_current_block = start_block
 				.saturated_into::<u128>()
 				.saturating_sub(<frame_system::Pallet<T>>::block_number().saturated_into::<u128>());
@@ -164,92 +164,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///The extrinsic will add beneficiaries for particular reward id
-		/// # Parameters,
-		/// * `origin`: The donor for the particular reward id
-		/// * `id`: Reward id
-		/// * `conversion_factor`: The conversion factor from dot to pdex
-		/// * `beneficiaries: The account id who can claim the reward & the amount in dot
-		///   contributed
-		/// base 10^12 u128: the value provide here considers 1 unit = 10^12
-		#[pallet::weight(10_000)]
-		pub fn add_reward_beneficiaries(
-			origin: OriginFor<T>,
-			reward_id: u32,
-			conversion_factor: BalanceOf<T>,
-			beneficiaries: BoundedVec<
-				(T::AccountId, BalanceOf<T>),
-				polkadex_primitives::ingress::HandleBalanceLimit,
-			>,
-		) -> DispatchResult {
-			//check to ensure governance
-			T::GovernanceOrigin::ensure_origin(origin)?;
-
-			//check if reward id present in storage
-			ensure!(
-				<InitializeRewards<T>>::contains_key(reward_id),
-				Error::<T>::RewardIdNotRegister
-			);
-
-			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
-				//calculate crowdloan period
-				let crowdloan_period = reward_info
-					.end_block
-					.saturated_into::<u128>()
-					.saturating_sub(reward_info.start_block.saturated_into::<u128>());
-
-				//add all the beneficiary account in storage
-				for beneficiary in beneficiaries {
-					//calculate total rewards receive based on the conversion factor
-					let contribution: u128 = beneficiary.1.saturated_into();
-					let total_rewards_in_pdex: BalanceOf<T> = contribution
-						.saturating_mul(conversion_factor.saturated_into())
-						.saturating_div(UNIT_BALANCE)
-						.saturated_into();
-
-					if total_rewards_in_pdex > MIN_REWARDS_CLAIMABLE_AMOUNT.saturated_into() {
-						let initial_rewards_claimable: BalanceOf<T> = total_rewards_in_pdex
-							.saturated_into::<u128>()
-							.saturating_mul(reward_info.initial_percentage as u128)
-							.saturating_div(100)
-							.saturated_into();
-
-						//calculate custom factor for the user
-						// Formula = (total_rewards - initial_rewards_claimed) / crowdloan_period
-						let factor: BalanceOf<T> = total_rewards_in_pdex
-							.saturated_into::<u128>()
-							.saturating_sub(initial_rewards_claimable.saturated_into::<u128>())
-							.saturating_div(crowdloan_period)
-							.saturated_into();
-
-						let reward_info = RewardInfoForAccount {
-							total_reward_amount: total_rewards_in_pdex,
-							claim_amount: 0_u128.saturated_into(),
-							is_initial_rewards_claimed: false,
-							is_initialized: false,
-							lock_id: REWARDS_LOCK_ID,
-							last_block_rewards_claim: reward_info.start_block,
-							initial_rewards_claimable,
-							factor,
-						};
-						<Distributor<T>>::insert(reward_id, beneficiary.0, reward_info);
-					} else {
-						//emit a event
-						Self::deposit_event(Event::UserRewardNotSatisfyingMinConstraint {
-							user: beneficiary.0,
-							amount_in_pdex: total_rewards_in_pdex,
-							reward_id,
-						});
-					}
-				}
-			} else {
-				//will not occur since we are already ensuring it above, still sanity check
-				return Err(Error::<T>::RewardIdNotRegister.into())
-			}
-			Ok(())
-		}
-
-		///The extrinsic will transfer and lock users rewards in the users account
+		///The extrinsic will transfer and lock users rewards into users account
 		/// # Parameters,
 		/// * `origin`: The users address which has been mapped to reward id
 		/// * `id`: Reward id
@@ -262,26 +177,46 @@ pub mod pallet {
 				Error::<T>::RewardIdNotRegister
 			);
 
+			// check if rewards can be unlocked at current block
+			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
+				ensure!(
+					reward_info.start_block.saturated_into::<u128>() <=
+						<frame_system::Pallet<T>>::block_number().saturated_into::<u128>(),
+					Error::<T>::RewardsCannotBeUnlockYet
+				);
+			} else {
+				//sanity check
+				return Err(Error::<T>::RewardIdNotRegister.into())
+			}
+
+			//check if user has already initialize the reward
+			ensure!(
+				!<Distributor<T>>::contains_key(reward_id, &user),
+				Error::<T>::RewardsAlreadyInitialized
+			);
+
 			let account_in_vec: Vec<u8> = T::AccountId::encode(&user);
 
-			//get reward info of user from const hash map
+			//get info of user from pre defined hash map
 			if let Some((total_rewards_in_pdex, initial_rewards_claimable, factor)) =
-				crowloan_rewardees::HASHMAP.get(&account_in_vec)
+				crowdloan_rewardees::HASHMAP.get(&account_in_vec)
 			{
+				//get reward info
 				if let Some(reward_info) = <InitializeRewards<T>>::take(reward_id) {
-					if total_rewards_in_pdex.clone() > MIN_REWARDS_CLAIMABLE_AMOUNT.saturated_into()
-					{
+					if *total_rewards_in_pdex > MIN_REWARDS_CLAIMABLE_AMOUNT {
+						//initialize reward info struct
 						let reward_info = RewardInfoForAccount {
-							total_reward_amount: (total_rewards_in_pdex.clone()).saturated_into(),
+							total_reward_amount: (*total_rewards_in_pdex).saturated_into(),
 							claim_amount: 0_u128.saturated_into(),
 							is_initial_rewards_claimed: false,
 							is_initialized: false,
 							lock_id: REWARDS_LOCK_ID,
 							last_block_rewards_claim: reward_info.start_block,
-							initial_rewards_claimable: (initial_rewards_claimable.clone())
+							initial_rewards_claimable: (*initial_rewards_claimable)
 								.saturated_into(),
-							factor: (factor.clone()).saturated_into(),
+							factor: (*factor).saturated_into(),
 						};
+						//insert reward info into storage
 						<Distributor<T>>::insert(reward_id, user.clone(), reward_info);
 					}
 				} else {
@@ -297,17 +232,6 @@ pub mod pallet {
 
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
 				if let Some(user_reward_info) = user_reward_info {
-					// only unlock reward if current block greater than or equal to the starting
-					// block of reward
-					if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
-						ensure!(
-							reward_info.start_block.saturated_into::<u128>() <=
-								<frame_system::Pallet<T>>::block_number()
-									.saturated_into::<u128>(),
-							Error::<T>::RewardsCannotBeUnlockYet
-						);
-					}
-
 					//check if user already unlocked the rewards
 					ensure!(!user_reward_info.is_initialized, Error::<T>::RewardsAlreadyUnlocked);
 					//transfer funds from pallet account to users account
@@ -504,6 +428,8 @@ pub mod pallet {
 		RewardsCannotBeUnlockYet,
 		/// User has already claimed all the available amount
 		AllRewardsAlreadyClaimed,
+		/// User has already initialize the rewards
+		RewardsAlreadyInitialized,
 	}
 
 	#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
