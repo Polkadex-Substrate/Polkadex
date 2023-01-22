@@ -1,11 +1,11 @@
 use once_cell::unsync::Lazy;
-use polkadex_primitives::AccountId;
-use sp_std::{cell::Cell, collections::btree_map::BTreeMap, fmt::Error, ops::Deref, vec::Vec};
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 /// Hashmap of beneficiary
 /// Vec<u8> = beneficiary account
 /// (u128,u128,u128) = (total rewards, initial rewards, factor)
 /// Map will be added when values are provided
+//ToDo: Issue no xxx should modify the map with correct values.
 pub const HASHMAP: Lazy<BTreeMap<Vec<u8>, (u128, u128, u128)>> = Lazy::new(|| {
 	BTreeMap::from([
 		(
