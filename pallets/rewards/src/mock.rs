@@ -132,7 +132,6 @@ impl rewards::Config for Test {
 	type PalletId = RewardsPalletId;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type NativeCurrency = Balances;
-	type OtherAssets = Assets;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
 }

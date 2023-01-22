@@ -5,7 +5,7 @@ use frame_support::{assert_noop, assert_ok};
 use crate::mock::*;
 use frame_system::EventRecord;
 use pallet_balances::BalanceLock;
-use polkadex_primitives::AccountId;
+use polkadex_primitives::{AccountId, UNIT_BALANCE};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, WeakBoundedVec};
 use std::convert::TryFrom;
 
@@ -1183,7 +1183,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 		System::set_block_number(end_block + 20);
 		assert_noop!(
 			Rewards::claim(Origin::signed(alice_account.clone()), reward_id),
-			Error::<Test>::AllRewardsAlreadyClaimed
+			Error::<Test>::AmountToLowToRedeem
 		);
 	})
 }
