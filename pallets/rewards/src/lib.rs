@@ -22,13 +22,12 @@ use frame_support::{
 	traits::{Currency, ExistenceRequirement, LockIdentifier},
 	BoundedVec,
 };
-
 use pallet_timestamp::{self as timestamp};
-use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
+use sp_runtime::{
+	traits::{AccountIdConversion, UniqueSaturatedInto},
+	SaturatedConversion,
+};
 use sp_std::prelude::*;
-
-use sp_runtime::SaturatedConversion;
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -59,17 +58,12 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		pallet_prelude::{OptionQuery, *},
-		traits::{
-			fungibles::{Create, Inspect, Mutate},
-			Currency, LockableCurrency, ReservableCurrency,
-		},
+		traits::{Currency, LockableCurrency, ReservableCurrency, WithdrawReasons},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-
+	use polkadex_primitives::UNIT_BALANCE;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
-
-	use frame_support::traits::WithdrawReasons;
 	use sp_std::{cmp::min, convert::TryInto};
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -89,14 +83,6 @@ pub mod pallet {
 		type NativeCurrency: Currency<Self::AccountId>
 			+ ReservableCurrency<Self::AccountId>
 			+ LockableCurrency<Self::AccountId>;
-
-		/// Assets Pallet
-		type OtherAssets: Mutate<
-				<Self as frame_system::Config>::AccountId,
-				Balance = BalanceOf<Self>,
-				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>
-			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		type Public: Clone
 			+ PartialEq
@@ -197,7 +183,7 @@ pub mod pallet {
 			>,
 		) -> DispatchResult {
 			//check to ensure governance
-			T::GovernanceOrigin::ensure_origin(origin.clone())?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 
 			//check if reward id present in storage
 			ensure!(
@@ -379,13 +365,6 @@ pub mod pallet {
 							Error::<T>::UserHasNotInitializeClaimRewards
 						);
 
-						//ensure that all rewards are not already claimed
-						ensure!(
-							user_reward_info.claim_amount.saturated_into::<u128>() !=
-								user_reward_info.total_reward_amount.saturated_into::<u128>(),
-							Error::<T>::AllRewardsAlreadyClaimed
-						);
-
 						let mut rewards_claimable: u128 = 0_u128.saturated_into();
 
 						//if initial rewards are not claimed add it to claimable rewards
@@ -409,6 +388,18 @@ pub mod pallet {
 								.factor
 								.saturated_into::<u128>()
 								.saturating_mul(unclaimed_blocks),
+						);
+
+						//ensure total_rewards_claimable - rewards_claimed >= rewards_claimable
+						//sanity check
+						ensure!(
+							user_reward_info
+								.total_reward_amount
+								.saturated_into::<u128>()
+								.saturating_sub(
+									user_reward_info.claim_amount.saturated_into::<u128>()
+								) >= rewards_claimable,
+							Error::<T>::AllRewardsAlreadyClaimed
 						);
 
 						//ensure the claimable amount is greater than min claimable amount
@@ -491,9 +482,9 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// The id has already been taken
 		DuplicateId,
-		/// invalid block range provided
+		/// Invalid block range provided
 		InvalidBlocksRange,
-		///  invalid percentage range
+		/// Invalid percentage range
 		InvalidInitialPercentage,
 		/// reward id doesn't correctly map to donor
 		IncorrectDonorAccount,

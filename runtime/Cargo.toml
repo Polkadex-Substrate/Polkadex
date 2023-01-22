@@ -80,6 +80,8 @@ sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
+thea-staking = { default-features = false, path = "../pallets/thea-staking" }
+pallet-nomination-pools = { default-features = false, workspace = true }
 #end added
 
 # Used for the node template"s RPCs
@@ -104,6 +106,10 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 
 # Parachain Rewards
 rewards = {path = "../pallets/rewards", default-features = false }
+
+# Thea
+thea = {path = "../pallets/thea", default-features = false }
+thea-primitives = { path = "../thea-primitives", default-features = false  }
 
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
@@ -183,7 +189,11 @@ std = [
     "pallet-ocex-lmp/std",
     "rewards/std",
     "frame-try-runtime/std",
-    "pallet-asset-handler-runtime-api/std"
+    "pallet-asset-handler-runtime-api/std",
+    "thea-staking/std",
+    "pallet-nomination-pools/std",
+    "pallet-asset-handler-runtime-api/std",
+    "thea/std",
 ]
 runtime-benchmarks = [
     #theirs
