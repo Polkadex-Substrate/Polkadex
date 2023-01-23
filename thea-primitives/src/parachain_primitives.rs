@@ -6,11 +6,8 @@ use polkadex_primitives::BoundedVec;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_std::{vec, vec::Vec};
-use xcm::{
-	latest::{Fungibility, MultiAsset, MultiLocation},
-	prelude::Xcm,
-};
-use xcm::latest::AssetId;
+use xcm::{latest::{Fungibility, MultiAsset, MultiLocation}, prelude::Xcm, VersionedMultiAssets, VersionedMultiLocation};
+use xcm::latest::{AssetId, MultiAssets};
 
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub enum AssetType {
@@ -87,5 +84,15 @@ impl AssetIdConverter for ParachainDeposit {
 
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct ParachainWithdraw {
-	pub xcm_messages: Xcm<()>,
+	pub assets: VersionedMultiAssets,
+	pub destination: VersionedMultiLocation
+}
+
+impl ParachainWithdraw {
+	pub fn get_parachain_withdraw(asset: MultiAsset, destination: MultiLocation) -> Self {
+		Self {
+			assets: VersionedMultiAssets::V1(MultiAssets::from(vec![asset])),
+			destination: VersionedMultiLocation::V1(destination)
+		}
+	}
 }

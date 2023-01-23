@@ -92,6 +92,12 @@ pub mod pallet {
 		pub payload: Vec<u8>,
 	}
 
+	impl ApprovedWithdraw {
+		pub fn decode_payload(&self) -> Option<ParachainWithdraw> {
+			ParachainWithdraw::decode(&mut &self.payload[..]).ok()
+		}
+	}
+
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -596,26 +602,8 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::DepositNonceError)?; //TODO: Change the error
 			let asset_and_amount = MultiAsset { id: asset_identifier, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
-			let xcm_messages = Self::generate_xcm_messages(recipient, asset_and_amount)?;
-			Ok(xcm_messages.encode())
-		}
-
-		pub fn generate_xcm_messages(
-			recipient: MultiLocation,
-			asset_id: MultiAsset,
-		) -> Result<ParachainWithdraw, DispatchError> {
-			let mut xcm: Xcm<()> = Xcm::new();
-            // WithdrawAsset
-			xcm.0.push(Instruction::WithdrawAsset(MultiAssets::from(vec![asset_id.clone()])));
-			// Buy Execution
-			xcm.0.push(Instruction::BuyExecution{fees: asset_id, weight_limit: WeightLimit::Unlimited});
-			// DepositAsset
-			xcm.0.push(Instruction::DepositAsset {
-				assets: MultiAssetFilter::Wild(WildMultiAsset::All),
-				max_assets: 1,
-				beneficiary: recipient
-			});
-			Ok(ParachainWithdraw { xcm_messages: xcm })
+			let parachain_withdraw = ParachainWithdraw::get_parachain_withdraw(asset_and_amount, recipient);
+			Ok(parachain_withdraw.encode())
 		}
 
 		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {

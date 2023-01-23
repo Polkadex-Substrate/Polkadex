@@ -30,6 +30,9 @@ xcm = { workspace = true, default-features = false }
 
 chainbridge = {path = "../chainbridge", default-features = false}
 
+thea-primitives = {path = "../../thea-primitives", default-features = false}
+
+
 [features]
 default = ["std"]
 std = [
@@ -45,7 +48,8 @@ std = [
 	"sp-std/std",
 	"sp-runtime/std",
 	"chainbridge/std",
-	"xcm/std"
+	"xcm/std",
+	"thea-primitives/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
