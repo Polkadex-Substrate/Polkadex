@@ -90,7 +90,7 @@ fn add_existential_deposit() {
 		0
 	));
 }
-//________________________________________________________________________________________________________________________________
+
 #[test]
 fn create_reward_cycle() {
 	new_test_ext().execute_with(|| {
@@ -207,13 +207,12 @@ fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 		);
 	});
 }
-/*
+
 #[test]
 fn initialize_claim_rewards() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, initial_percentage, reward_id) =
 			get_parameters_for_reward_cycle();
-		let conversion_factor = get_conversion_factor();
 		let (alice_account, _) = get_alice_account_with_rewards();
 
 		assert_ok!(Rewards::create_reward_cycle(
@@ -225,18 +224,7 @@ fn initialize_claim_rewards() {
 		));
 
 		//add reward beneficiaries as alice and bob
-		let beneficiaries: Vec<(AccountId32, u128)> = vec![
-			get_alice_account_with_rewards(),
-			get_bob_account_with_rewards(),
-			get_neal_account_with_rewards(),
-		];
-
-		assert_ok!(Rewards::add_reward_beneficiaries(
-			Origin::root(),
-			reward_id,
-			conversion_factor,
-			BoundedVec::try_from(beneficiaries.clone()).unwrap()
-		));
+		let beneficiaries: Vec<(AccountId32, u128)> = vec![get_alice_account_with_rewards()];
 
 		let pallet_id_account = Rewards::get_pallet_account();
 
@@ -253,7 +241,7 @@ fn initialize_claim_rewards() {
 
 		assert_eq!(Balances::free_balance(&pallet_id_account), total_rewards_in_pdex);
 
-		//alice bob neal need to have Existential Deposit
+		//alice needs to have Existential Deposit
 		add_existential_deposit();
 
 		System::set_block_number(start_block);
@@ -291,73 +279,8 @@ fn initialize_claim_rewards() {
 				panic!("Invalid lock id");
 			}
 		}
-
-		let (bob_account, _) = get_bob_account_with_rewards();
-		// unlock bob reward
-		assert_ok!(Rewards::initialize_claim_rewards(
-			Origin::signed(get_bob_account_with_rewards().0.into()),
-			reward_id
-		));
-
-		let bob_reward_info =
-			Distributor::<Test>::get(&reward_id, &get_bob_account_with_rewards().0).unwrap();
-		assert_eq!(bob_reward_info.claim_amount, 0);
-		assert_eq!(bob_reward_info.last_block_rewards_claim, start_block);
-		assert_eq!(bob_reward_info.is_initial_rewards_claimed, false);
-		assert_eq!(bob_reward_info.is_initialized, true);
-		assert_eq!(bob_reward_info.lock_id, REWARDS_LOCK_ID);
-
-		//assert event
-		assert_last_event::<Test>(
-			crate::Event::UserUnlockedReward { user: get_bob_account_with_rewards().0, reward_id }
-				.into(),
-		);
-
-		let balance_locks: WeakBoundedVec<BalanceLock<u128>, MaxLocks> =
-			Balances::locks(&bob_account);
-
-		for lock in balance_locks.into_iter() {
-			if lock.id == REWARDS_LOCK_ID {
-				assert_eq!(lock.amount, 400 * UNIT_BALANCE);
-			} else {
-				panic!("Invalid lock id");
-			}
-		}
-
-		let (neal_account, _) = get_neal_account_with_rewards();
-		// unlock bob reward
-		assert_ok!(Rewards::initialize_claim_rewards(
-			Origin::signed(get_neal_account_with_rewards().0.into()),
-			reward_id
-		));
-
-		let neal_reward_info =
-			Distributor::<Test>::get(&reward_id, &get_neal_account_with_rewards().0).unwrap();
-		assert_eq!(neal_reward_info.claim_amount, 0);
-		assert_eq!(neal_reward_info.last_block_rewards_claim, start_block);
-		assert_eq!(neal_reward_info.is_initial_rewards_claimed, false);
-		assert_eq!(neal_reward_info.is_initialized, true);
-		assert_eq!(neal_reward_info.lock_id, REWARDS_LOCK_ID);
-
-		//assert event
-		assert_last_event::<Test>(
-			crate::Event::UserUnlockedReward { user: get_neal_account_with_rewards().0, reward_id }
-				.into(),
-		);
-
-		let balance_locks: WeakBoundedVec<BalanceLock<u128>, MaxLocks> =
-			Balances::locks(&neal_account);
-
-		for lock in balance_locks.into_iter() {
-			if lock.id == REWARDS_LOCK_ID {
-				assert_eq!(lock.amount, 600 * UNIT_BALANCE);
-			} else {
-				panic!("Invalid lock id");
-			}
-		}
 	});
 }
-*/
 
 #[test]
 fn initialize_claim_rewards_when_vesting_period_not_started() {
@@ -443,11 +366,11 @@ fn initialize_claim_rewards_when_user_not_eligible_to_unlock() {
 			initial_percentage,
 			reward_id
 		));
-		let (alice_account, _) = get_alice_account_with_rewards();
+		let (bob_account, _) = get_bob_account_with_rewards();
 		System::set_block_number(start_block);
 		assert_noop!(
 			Rewards::initialize_claim_rewards(
-				Origin::signed(alice_account.clone().into()),
+				Origin::signed(bob_account.clone().into()),
 				reward_id
 			),
 			Error::<Test>::UserNotEligible
