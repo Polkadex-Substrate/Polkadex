@@ -11,7 +11,6 @@ use sp_std::vec::Vec;
 /// actually contains.
 pub struct SignedPayload<Call, Extra: SignedExtension>((Call, Extra, Extra::AdditionalSigned));
 
-
 impl<Call, Extra> SignedPayload<Call, Extra>
 where
 	Call: Encode + Clone,
