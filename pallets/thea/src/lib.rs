@@ -83,15 +83,6 @@ pub mod pallet {
 		}
 	}
 
-	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
-	pub struct ApprovedWithdraw {
-		pub asset_id: u128,
-		pub amount: u128,
-		pub network: u8,
-		pub beneficiary: Vec<u8>,
-		pub payload: Vec<u8>,
-	}
-
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	/// Configure the pallet by specifying the parameters and types on which it depends.
