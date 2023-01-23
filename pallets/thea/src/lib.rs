@@ -33,6 +33,8 @@ pub mod pallet {
 		traits::{Currency, ExistenceRequirement, ReservableCurrency},
 		PalletId,
 	};
+	// use frame_support::metadata::StorageEntryModifier::Default;
+	use sp_std::default::Default;
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{
 		traits::{AccountIdConversion, Zero},
@@ -443,6 +445,18 @@ pub mod pallet {
 			// Put a soft limit of size of beneficiary vector to avoid spam
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
+			Ok(())
+		}
+
+		// Test extrinsic for withdraw
+		#[pallet::weight(1000)]
+		pub fn withdraw_test(
+			origin: OriginFor<T>,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			let nonce = <WithdrawalNonces<T>>::get(0);
+			<ReadyWithdrawls<T>>::insert(0, nonce, BoundedVec::try_from(vec![ApprovedWithdraw::default()]).unwrap());
+			<WithdrawalNonces<T>>::insert(0, nonce.saturating_add(1));
 			Ok(())
 		}
 
