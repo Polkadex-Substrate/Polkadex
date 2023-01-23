@@ -92,7 +92,7 @@ fn test_thea_approve_deposit() {
 			BoundedVec::try_from(vec![bls_public_key_1, bls_public_key_2, bls_public_key_3])
 				.unwrap(),
 		);
-		TheaAssets::<Test>::insert(1, (0, 0, BoundedVec::try_from(vec![]).unwrap()));
+		//TheaAssets::<Test>::insert(1, (0, 0, BoundedVec::try_from(vec![]).unwrap()));
 		// Testing Signature Verification Failure
 		// assert_noop!(
 		// 	Thea::approve_deposit(
