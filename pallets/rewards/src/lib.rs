@@ -46,7 +46,7 @@ mod crowdloan_rewardees;
 
 const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
-//ToDo: Issue no xxx should modify this constant value if required.
+//ToDo: Issue no #2(Reward-Calculation) should modify this constant value if required.
 pub const MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK: u128 = 15;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
