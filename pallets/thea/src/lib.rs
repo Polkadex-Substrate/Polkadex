@@ -636,8 +636,7 @@ pub mod pallet {
 			bit_map: u128,
 			bls_signature: [u8; 96],
 		) -> Result<(), DispatchError> {
-			let approved_deposit = Self::router(token_type, payload.clone())
-				.map_err(|_| Error::<T>::NoApprovedDeposit)?;
+			let approved_deposit = Self::router(token_type, payload.clone())?;
 			let current_active_relayer_set =
 				Self::get_relayers_key_vector(approved_deposit.network_id);
 
