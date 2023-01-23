@@ -10,6 +10,7 @@ use sp_std::{vec, vec::Vec};
 
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
+use crate::parachain_primitives::ParachainWithdraw;
 
 pub mod normal_deposit;
 pub mod parachain_primitives;
@@ -60,6 +61,22 @@ pub trait TheaExt {
 
 #[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct BLSPublicKey(pub [u8; 192]);
+
+#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
+pub struct ApprovedWithdraw {
+	pub asset_id: u128,
+	pub amount: u128,
+	pub network: u8,
+	pub beneficiary: Vec<u8>,
+	pub payload: Vec<u8>,
+}
+
+impl ApprovedWithdraw {
+	pub fn decode_payload(&self) -> Option<ParachainWithdraw> {
+		ParachainWithdraw::decode(&mut &self.payload[..]).ok()
+	}
+}
+
 
 pub trait AssetIdConverter {
 	/// Get Asset Id
