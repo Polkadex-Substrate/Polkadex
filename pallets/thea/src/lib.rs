@@ -50,6 +50,7 @@ pub mod pallet {
 	use xcm::latest::{Instruction, MultiAssetFilter, MultiAssets, WeightLimit, Xcm};
 	use xcm::v2::WildMultiAsset;
 	use sp_std::vec;
+	use thea_primitives::ApprovedWithdraw;
 
 	pub type Network = u8;
 
@@ -83,21 +84,6 @@ pub mod pallet {
 		}
 	}
 
-	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
-	pub struct ApprovedWithdraw {
-		pub asset_id: u128,
-		pub amount: u128,
-		pub network: u8,
-		pub beneficiary: Vec<u8>,
-		pub payload: Vec<u8>,
-	}
-
-	impl ApprovedWithdraw {
-		pub fn decode_payload(&self) -> Option<ParachainWithdraw> {
-			ParachainWithdraw::decode(&mut &self.payload[..]).ok()
-		}
-	}
-
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -125,6 +111,17 @@ pub mod pallet {
 		frame_support::Blake2_128Concat,
 		u8,
 		BoundedVec<BLSPublicKey, ConstU32<1000>>,
+		ValueQuery,
+	>;
+
+	/// Active Relayers ECDSA Keys for a given Network
+	#[pallet::storage]
+	#[pallet::getter(fn get_auth_list)]
+	pub(super) type AuthorityListEcdsa<T: Config> = StorageMap<
+		_,
+		frame_support::Blake2_128Concat,
+		u8,
+		BoundedVec<T::AccountId, ConstU32<1000>>,
 		ValueQuery,
 	>;
 
@@ -290,6 +287,32 @@ pub mod pallet {
 	// Extrinsics for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Helper extrinsic for testing purpose only
+		#[pallet::weight(1000)]
+		pub fn add_relayer_info(
+			origin: OriginFor<T>,
+			network_id: u8,
+			bls_key: [u8; 192],
+			who: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			// Fetch Storage
+			let mut current_bls = Self::get_relayers_key_vector(network_id);
+			let mut current_ecdsa = Self::get_auth_list(network_id);
+			let key = BLSPublicKey(bls_key);
+
+
+			// Update Storage
+			current_bls.try_push(key).unwrap();
+			<RelayersBLSKeyVector<T>>::insert(network_id, current_bls);
+			current_ecdsa.try_push(who.clone()).unwrap();
+			<AuthorityListEcdsa<T>>::insert(network_id, current_ecdsa);
+
+			Ok(())
+		}
+
+
 		///Approve Deposit
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
