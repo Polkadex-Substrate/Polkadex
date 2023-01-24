@@ -128,7 +128,11 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		// Register Account
+		/// Register pallet account into orderbook
+		///
+		/// # Parameters
+		///
+		/// * `origin`: governance
 		#[pallet::weight(10_000)]
 		pub fn register_account(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -145,7 +149,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// Deposit
+		/// Deposit assets to orderbook
+		///
+		/// # Parameters
+		///
+		/// * `origin`: governance
+		/// * `asset`: asset id to deposit
+		/// * `amount`: amount to deposit
 		#[pallet::weight(10_000)]
 		pub fn deposit_to_orderbook(
 			origin: OriginFor<T>,
@@ -158,7 +168,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// Withdraw
+		/// Withdraw assets from orderbook
+		///
+		/// # Parameters
+		///
+		/// * `origin`: governance
+		/// * `asset`: asset id to withdraw
+		/// * `amount`: amount to withdraw
+		/// * `do_force_withdraw`: if set to true all active orders will be canceled and then the
+		///   given amount will be withdrawn
 		#[pallet::weight(10_000)]
 		pub fn withdraw_from_orderbook(
 			origin: OriginFor<T>,
