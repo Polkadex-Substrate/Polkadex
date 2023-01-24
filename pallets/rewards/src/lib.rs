@@ -13,10 +13,15 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
+// Start of lease period: 2022-06-06 07:47
+// End of the lease period: 2024-04-08 07:47
+// Polkadex block 1,815,527 has the closest timestamp when the lease period started.
+// 96 weeks =  672 days = 58060800 seconds = 4838400 blocks
+// Start block on PDEX solo chain: 1815527
+// End block on PDEX solo chain: 6653927
+
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::borrow_interior_mutable_const)]
-#![allow(clippy::declare_interior_mutable_const)]
 
 use frame_support::{
 	dispatch::DispatchResult,
@@ -46,9 +51,6 @@ mod crowdloan_rewardees;
 
 const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
-//ToDo: Issue no #2(Reward-Calculation) should modify this constant value if required.
-pub const MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK: u128 = 15;
-
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
@@ -137,17 +139,6 @@ pub mod pallet {
 			//check to ensure start block greater than end block
 			ensure!(start_block < end_block, Error::<T>::InvalidBlocksRange);
 
-			//ensure that difference between start of vesting period - current block is greater
-			//than min difference
-			let difference_between_start_and_current_block = start_block
-				.saturated_into::<u128>()
-				.saturating_sub(<frame_system::Pallet<T>>::block_number().saturated_into::<u128>());
-			ensure!(
-				difference_between_start_and_current_block >
-					MIN_DIFFERENCE_BETWEEN_START_AND_END_BLOCK,
-				Error::<T>::InvalidBlocksRange
-			);
-
 			//ensure percentage range is valid
 			ensure!(
 				initial_percentage <= 100 && initial_percentage > 0,
@@ -167,7 +158,7 @@ pub mod pallet {
 		///The extrinsic will transfer and lock users rewards into users account
 		/// # Parameters,
 		/// * `origin`: The users address which has been mapped to reward id
-		/// * `id`: Reward id
+		/// * `reward_id`: Reward id
 		#[pallet::weight(10_000)]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
@@ -196,7 +187,8 @@ pub mod pallet {
 			);
 
 			let account_in_vec: Vec<u8> = T::AccountId::encode(&user);
-
+			#[allow(clippy::borrow_interior_mutable_const)]
+			#[allow(clippy::declare_interior_mutable_const)]
 			//get info of user from pre defined hash map
 			if let Some((total_rewards_in_pdex, initial_rewards_claimable, factor)) =
 				crowdloan_rewardees::HASHMAP.get(&account_in_vec)
@@ -218,6 +210,8 @@ pub mod pallet {
 						};
 						//insert reward info into storage
 						<Distributor<T>>::insert(reward_id, user.clone(), reward_info);
+					} else {
+						return Err(Error::<T>::AmountToLowtoInitializeRewards.into())
 					}
 				} else {
 					//sanity check
@@ -430,6 +424,8 @@ pub mod pallet {
 		AllRewardsAlreadyClaimed,
 		/// User has already initialize the rewards
 		RewardsAlreadyInitialized,
+		/// Amount to low to initialize the rewards
+		AmountToLowtoInitializeRewards,
 	}
 
 	#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
