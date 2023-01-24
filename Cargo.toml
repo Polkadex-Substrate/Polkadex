@@ -14,6 +14,7 @@ members = [
     "pallets/thea",
     "thea-primitives",
     "pallets/thea-staking",
+    "pallets/liquidity",
 ]
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]

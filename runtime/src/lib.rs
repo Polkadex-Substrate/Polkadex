@@ -1272,6 +1272,19 @@ impl pallet_ocex_lmp::Config for Runtime {
 }
 
 parameter_types! {
+	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQUIDID");
+}
+
+impl liquidity::Config for Runtime {
+	type Event = Event;
+	type PalletId = LiquidityPalletId;
+	type NativeCurrency = Balances;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+}
+
+parameter_types! {
 	pub const ChainId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
@@ -1408,6 +1421,7 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 42,
 	}
 );
 /// Digest item type.

@@ -3658,6 +3658,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4d2456c373231a208ad294c33dc5bff30051eafd954cd4caae83a712b12854d"
 
 [[package]]
+name = "liquidity"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "ias-verify",
+ "log",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "rust_decimal",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4073,6 +4099,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
+ "liquidity",
  "log",
  "orml-vesting",
  "pallet-asset-handler-runtime-api",
