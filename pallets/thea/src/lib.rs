@@ -40,19 +40,13 @@ pub mod pallet {
 	};
 	use thea_primitives::{
 		normal_deposit::Deposit,
-		parachain_primitives::{ParachainDeposit, ParachainWithdraw},
-		AssetIdConverter, BLSPublicKey, TokenType,
+		parachain_primitives::{ParachainAsset, ParachainDeposit, ParachainWithdraw},
+		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
 	};
 	use xcm::{
 		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 		prelude::{Fungible, X1},
 	};
-	use xcm::latest::{Instruction, MultiAssetFilter, MultiAssets, WeightLimit, Xcm};
-	use xcm::v2::WildMultiAsset;
-	use sp_std::vec;
-	use asset_handler::pallet::TheaAssets;
-	use thea_primitives::ApprovedWithdraw;
-	use thea_primitives::parachain_primitives::ParachainAsset;
 
 	pub type Network = u8;
 
@@ -212,7 +206,7 @@ pub mod pallet {
 		/// Withdrawal Executed (Nonce, network, Tx hash )
 		WithdrawalExecuted(u32, Network, sp_core::H256),
 		/// Withdrawal Fee Set (NetworkId, Amount)
-		WithdrawalFeeSet(u8, u128)
+		WithdrawalFeeSet(u8, u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -247,7 +241,7 @@ pub mod pallet {
 		/// Bounded Vector Overflow
 		BoundedVectorOverflow,
 		/// Bounded Vector Not Present
-		BoundedVectorNotPresent
+		BoundedVectorNotPresent,
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -313,7 +307,6 @@ pub mod pallet {
 			let mut current_ecdsa = Self::get_auth_list(network_id);
 			let key = BLSPublicKey(bls_key);
 
-
 			// Update Storage
 			current_bls.try_push(key).unwrap();
 			<RelayersBLSKeyVector<T>>::insert(network_id, current_bls);
@@ -322,7 +315,6 @@ pub mod pallet {
 
 			Ok(())
 		}
-
 
 		///Approve Deposit
 		#[pallet::weight(1000)]
@@ -431,7 +423,11 @@ pub mod pallet {
 
 		/// Add Token Config
 		#[pallet::weight(1000)]
-		pub fn set_withdrawal_fee(origin: OriginFor<T>, network_id: u8, fee: u128) -> DispatchResult {
+		pub fn set_withdrawal_fee(
+			origin: OriginFor<T>,
+			network_id: u8,
+			fee: u128,
+		) -> DispatchResult {
 			ensure_root(origin)?;
 			<WithdrawalFees<T>>::insert(network_id, fee);
 			Self::deposit_event(Event::<T>::WithdrawalFeeSet(network_id, fee));
@@ -455,7 +451,7 @@ pub mod pallet {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 			//#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			let (network,..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
+			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
@@ -472,7 +468,8 @@ pub mod pallet {
 
 			if pay_for_remaining {
 				// User is ready to pay for remaining pending withdrawal for quick withdrawal
-				let extra_withdrawals_available = T::WithdrawalSize::get().saturating_sub(pending_withdrawals.len() as u32);
+				let extra_withdrawals_available =
+					T::WithdrawalSize::get().saturating_sub(pending_withdrawals.len() as u32);
 				total_fees = total_fees.saturating_add(
 					total_fees.saturating_mul(extra_withdrawals_available.saturated_into()),
 				)
@@ -545,12 +542,14 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 		) -> Result<Vec<u8>, DispatchError> {
 			let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
-			let asset_identifier: ParachainAsset = Decode::decode(&mut &asset_identifier.to_vec()[..])
-				.map_err(|_| Error::<T>::FailedToDecode)?;
+			let asset_identifier: ParachainAsset =
+				Decode::decode(&mut &asset_identifier.to_vec()[..])
+					.map_err(|_| Error::<T>::FailedToDecode)?;
 			let asset_id = AssetId::Concrete(asset_identifier.location);
 			let asset_and_amount = MultiAsset { id: asset_id, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
-			let parachain_withdraw = ParachainWithdraw::get_parachain_withdraw(asset_and_amount, recipient);
+			let parachain_withdraw =
+				ParachainWithdraw::get_parachain_withdraw(asset_and_amount, recipient);
 			Ok(parachain_withdraw.encode())
 		}
 
@@ -587,14 +586,19 @@ pub mod pallet {
 			);
 
 			if <ApprovedDeposits<T>>::contains_key(&approved_deposit.recipient) {
-				<ApprovedDeposits<T>>::try_mutate(approved_deposit.recipient.clone(), |bounded_vec| {
-					if let Some(inner_bounded_vec) = bounded_vec {
-						inner_bounded_vec.try_push(approved_deposit.clone()).map_err(|_| Error::<T>::BoundedVectorOverflow)?;
-						Ok::<(), Error<T>>(().into())
-					} else {
-						Err(Error::<T>::BoundedVectorNotPresent.into())
-					}
-				})?;
+				<ApprovedDeposits<T>>::try_mutate(
+					approved_deposit.recipient.clone(),
+					|bounded_vec| {
+						if let Some(inner_bounded_vec) = bounded_vec {
+							inner_bounded_vec
+								.try_push(approved_deposit.clone())
+								.map_err(|_| Error::<T>::BoundedVectorOverflow)?;
+							Ok::<(), Error<T>>(())
+						} else {
+							Err(Error::<T>::BoundedVectorNotPresent)
+						}
+					},
+				)?;
 			} else {
 				let mut my_vec: BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>> =
 					Default::default();

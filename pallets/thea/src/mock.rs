@@ -26,9 +26,9 @@ use sp_runtime::{
 
 use crate::pallet as thea;
 
+use asset_handler::pallet::WithdrawalLimit;
 use frame_support::PalletId;
 use sp_runtime::traits::AccountIdConversion;
-use asset_handler::pallet::WithdrawalLimit;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
