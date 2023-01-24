@@ -6,6 +6,8 @@ use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 /// (u128,u128,u128) = (total rewards, initial rewards, factor)
 /// Map will be added when values are provided
 //ToDo: Issue no #2(Reward-Calculation) should modify the map with correct values.
+#[allow(clippy::borrow_interior_mutable_const)]
+#[allow(clippy::declare_interior_mutable_const)]
 pub const HASHMAP: Lazy<BTreeMap<Vec<u8>, (u128, u128, u128)>> = Lazy::new(|| {
 	BTreeMap::from([
 		(

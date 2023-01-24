@@ -105,7 +105,7 @@ chainbridge = { path ="../pallets/chainbridge", default-features = false }
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 
 # Parachain Rewards
-rewards = {path = "../pallets/rewards", default-features = false }
+rewards = { path = "../pallets/rewards", default-features = false }
 
 # Thea
 thea = {path = "../pallets/thea", default-features = false }
