@@ -25,14 +25,17 @@ use crate::{
 	pallet::*,
 };
 use blst::min_sig::*;
+use frame_support::traits::fungibles::Mutate;
+use sp_runtime::traits::ConstU32;
 // use frame_support::metadata::StorageEntryModifier::Default as ;
 use thea_primitives::{AssetIdConverter, BLSPublicKey, TokenType};
 use sp_std::default::Default;
-use thea_primitives::parachain_primitives::{ParachainAsset, ParachainDeposit};
+use thea_primitives::parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit};
 use xcm::{
 	latest::{Fungibility, MultiAsset, MultiLocation, AssetId, Junction, NetworkId},
 	prelude::{Xcm, X1},
 };
+use xcm::latest::Junctions;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -53,7 +56,7 @@ fn test_thea_approve_deposit() {
 	let pk_3 = sk_3.sk_to_pk();
 	let account_id = create_account_id();
 	let multi_asset = MultiAsset {
-		id: AssetId::Concrete(MultiLocation::default()),
+		id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
 		fun: Fungibility::Fungible(10_u128)
 	};
 	let multi_location = MultiLocation {
@@ -86,7 +89,9 @@ fn test_thea_approve_deposit() {
 	bit_map_2 = set_kth_bit(bit_map_2, 0);
 	bit_map_2 = set_kth_bit(bit_map_2, 1);
 	new_test_ext().execute_with(|| {
-		asset_handler::pallet::TheaAssets::<Test>::insert(asset_id.unwrap(), (1, 1, BoundedVec::default()));
+		//asset_handler::pallet::TheaAssets::<Test>::insert(asset_id.unwrap(), (1, 1, BoundedVec::default()));
+		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id)));
 		RelayersBLSKeyVector::<Test>::insert(
 			1,
 			BoundedVec::try_from(vec![bls_public_key_1, bls_public_key_2, bls_public_key_3])
@@ -117,6 +122,38 @@ fn test_thea_approve_deposit() {
 		// 	Error::<Test>::DepositNonceError
 		// );
 	});
+}
+
+#[test]
+fn test_withdrawal() {
+	new_test_ext().execute_with(|| {
+		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id.clone())));
+		let asset_id = generate_asset_id(asset_id);
+		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
+		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(asset_id, &1, 1000000000000u128));
+
+		assert_ok!(Thea::do_withdraw(1, asset_id, 1000000000u128, [1;32].to_vec(), false));
+	})
+}
+
+pub fn generate_asset_id(asset_id: AssetId) -> u128 {
+	if let AssetId::Concrete(ml) = asset_id {
+		let parachain_asset = ParachainAsset { location: ml, asset_type: AssetType::Fungible };
+	    let asset_identifier = BoundedVec::<u8, ConstU32<1000>>::try_from(parachain_asset.encode()).unwrap();
+		let identifier_length = asset_identifier.len();
+		let mut derived_asset_id: Vec<u8> = vec![];
+		derived_asset_id.push(1u8);
+		derived_asset_id.push(identifier_length as u8);
+		derived_asset_id.extend(&asset_identifier.to_vec());
+		let derived_asset_id_hash =
+			&sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
+		let mut temp = [0u8; 16];
+		temp.copy_from_slice(derived_asset_id_hash);
+		u128::from_le_bytes(temp)
+	} else {
+		0
+	}
 }
 
 fn create_account_id() -> AccountId32 {
