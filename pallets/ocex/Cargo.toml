@@ -27,6 +27,8 @@ rust_decimal = { workspace = true, features = ["scale-codec"], default-features 
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 test-utils = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
+liquidity = { path = "../liquidity", default-features = false }
+
 
 [dev-dependencies]
 test-utils = { workspace = true }
@@ -53,6 +55,7 @@ std = [
     "ias-verify/std",
     "rust_decimal/std",
     "pallet-timestamp/std",
+    "liquidity/std",
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",

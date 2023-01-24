@@ -1282,6 +1282,7 @@ impl liquidity::Config for Runtime {
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type CallOcex = OCEX;
 }
 
 parameter_types! {

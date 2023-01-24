@@ -23,6 +23,7 @@ use frame_support::{
 use pallet_timestamp::{self as timestamp};
 
 use frame_system::ensure_signed;
+use polkadex_primitives::AccountId;
 use sp_std::prelude::*;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -36,7 +37,19 @@ pub const PALLET_PROXY_ACCOUNT: [u8; 32] = [6u8; 32];
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 
-#[allow(clippy::too_many_arguments)]
+pub trait LiquidityModifier {
+	type AssetId;
+	type AccountId;
+	fn on_deposit(account: Self::AccountId, asset: Self::AssetId, balance: u128) -> DispatchResult;
+	fn on_withdraw(
+		account: Self::AccountId,
+		asset: Self::AssetId,
+		balance: u128,
+		do_force_withdraw: bool,
+	) -> DispatchResult;
+	fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult;
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
@@ -53,7 +66,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::{AccountId, AssetId};
+	use polkadex_primitives::{AccountId, AssetId, Balance};
 	use sp_runtime::{
 		traits::{AccountIdConversion, IdentifyAccount, Verify},
 		SaturatedConversion,
@@ -93,6 +106,8 @@ pub mod pallet {
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+
+		type CallOcex: LiquidityModifier<AssetId = AssetId, AccountId = Self::AccountId>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -118,13 +133,15 @@ pub mod pallet {
 		pub fn register_account(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let pallet_account = Self::get_pallet_account();
-
 			//ToDo: Hardcore in someway the proxy account as well.
 			let proxy_account = AccountId::from(PALLET_PROXY_ACCOUNT);
-
-			ensure!(<PalletRegister<T>>::try_get(), Error::<T>::PalletAlreadyRegistered);
-
-			//ToDo: Call ocex pallet register function.
+			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
+			T::CallOcex::on_register(pallet_account.clone(), pallet_account.clone())?;
+			<PalletRegister<T>>::put(true);
+			Self::deposit_event(Event::PalletAccountRegister {
+				main_account: pallet_account.clone(),
+				proxy_account: pallet_account.clone(),
+			});
 			Ok(())
 		}
 
@@ -136,9 +153,8 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-
-			//ToDo: Call ocex pallet deposit function
-
+			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
+			T::CallOcex::on_deposit(Self::get_pallet_account(), asset, amount.saturated_into())?;
 			Ok(())
 		}
 
@@ -151,9 +167,13 @@ pub mod pallet {
 			do_force_withdraw: bool,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-
-			//ToDo: Call ocex pallet direct_withdraw function.
-
+			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
+			T::CallOcex::on_withdraw(
+				Self::get_pallet_account(),
+				asset,
+				amount.saturated_into(),
+				do_force_withdraw,
+			)?;
 			Ok(())
 		}
 	}
@@ -166,11 +186,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn is_pallet_register)]
-	pub(super) type PalletRegister<T: Config> = StorageValue<_, bool, OptionQuery>;
+	pub(super) type PalletRegister<T: Config> = StorageValue<_, bool, ValueQuery>;
 	/// Events are a simple means of reporting specific conditions and
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {}
+	pub enum Event<T: Config> {
+		PalletAccountRegister { main_account: T::AccountId, proxy_account: T::AccountId },
+	}
 }
