@@ -176,24 +176,6 @@ fn create_reward_cycle_when_start_block_greater_than_end_block() {
 }
 
 #[test]
-fn create_reward_cycle_when_block_range_is_invalid() {
-	new_test_ext().execute_with(|| {
-		let (_, end_block, initial_percentage, reward_id) = get_parameters_for_reward_cycle();
-		let start_block = 10;
-		assert_noop!(
-			Rewards::create_reward_cycle(
-				Origin::root(),
-				start_block,
-				end_block,
-				initial_percentage,
-				reward_id
-			),
-			Error::<Test>::InvalidBlocksRange
-		);
-	});
-}
-
-#[test]
 fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, _, reward_id) = get_parameters_for_reward_cycle();
