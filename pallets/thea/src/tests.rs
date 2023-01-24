@@ -28,14 +28,15 @@ use blst::min_sig::*;
 use frame_support::traits::fungibles::Mutate;
 use sp_runtime::traits::ConstU32;
 // use frame_support::metadata::StorageEntryModifier::Default as ;
-use thea_primitives::{ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType};
 use sp_std::default::Default;
-use thea_primitives::parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw};
+use thea_primitives::{
+	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
+	ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
+};
 use xcm::{
-	latest::{Fungibility, MultiAsset, MultiLocation, AssetId, Junction, NetworkId},
+	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::{Xcm, X1},
 };
-use xcm::latest::Junctions;
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 pub const DST: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
@@ -50,18 +51,21 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 		register_bls_public_keys();
 		let multi_asset = MultiAsset {
 			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(10_u128)
+			fun: Fungibility::Fungible(10_u128),
 		};
 		let multi_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: create_account_id().encode().try_into().unwrap() }),
+			interior: X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				id: create_account_id().encode().try_into().unwrap(),
+			}),
 		};
-		let new_payload = ParachainDeposit{
+		let new_payload = ParachainDeposit {
 			recipient: multi_location,
 			asset_and_amount: multi_asset,
 			deposit_nonce: 1,
 			transaction_hash: sp_core::H256::zero(),
-			network_id: 1
+			network_id: 1,
 		};
 		let sig = sign_payload(new_payload.encode());
 
@@ -74,7 +78,10 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id)));
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
+			Origin::signed(1),
+			Box::from(asset_id)
+		));
 		assert_ok!(Thea::approve_deposit(
 			Origin::signed(1),
 			bit_map_2,
@@ -88,7 +95,7 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 #[test]
 fn test_approve_deposit_returns_failed_to_decode() {
 	new_test_ext().execute_with(|| {
-		let sig = [1;96];
+		let sig = [1; 96];
 		let mut bit_map_1 = 0_u128;
 		bit_map_1 = set_kth_bit(bit_map_1, 0);
 		bit_map_1 = set_kth_bit(bit_map_1, 1);
@@ -98,15 +105,21 @@ fn test_approve_deposit_returns_failed_to_decode() {
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		let wrong_payload = [1;32];
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id)));
-		assert_noop!(Thea::approve_deposit(
+		let wrong_payload = [1; 32];
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
 			Origin::signed(1),
-			bit_map_2,
-			sig.into(),
-			TokenType::Fungible(1_u8),
-			wrong_payload.to_vec()
-		), Error::<Test>::FailedToDecode);
+			Box::from(asset_id)
+		));
+		assert_noop!(
+			Thea::approve_deposit(
+				Origin::signed(1),
+				bit_map_2,
+				sig.into(),
+				TokenType::Fungible(1_u8),
+				wrong_payload.to_vec()
+			),
+			Error::<Test>::FailedToDecode
+		);
 	})
 }
 
@@ -114,20 +127,21 @@ fn test_approve_deposit_returns_failed_to_decode() {
 fn test_approve_deposits_with_wrong_multi_asset_returns_failed_to_handle_parachain_deposit() {
 	new_test_ext().execute_with(|| {
 		register_bls_public_keys();
-		let multi_asset = MultiAsset {
-			id: AssetId::Abstract(vec![1;10]),
-			fun: Fungibility::Fungible(10_u128)
-		};
+		let multi_asset =
+			MultiAsset { id: AssetId::Abstract(vec![1; 10]), fun: Fungibility::Fungible(10_u128) };
 		let multi_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: create_account_id().encode().try_into().unwrap() }),
+			interior: X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				id: create_account_id().encode().try_into().unwrap(),
+			}),
 		};
-		let new_payload = ParachainDeposit{
+		let new_payload = ParachainDeposit {
 			recipient: multi_location,
 			asset_and_amount: multi_asset,
 			deposit_nonce: 1,
 			transaction_hash: sp_core::H256::zero(),
-			network_id: 1
+			network_id: 1,
 		};
 		let sig = sign_payload(new_payload.encode());
 
@@ -140,14 +154,20 @@ fn test_approve_deposits_with_wrong_multi_asset_returns_failed_to_handle_paracha
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id)));
-		assert_noop!(Thea::approve_deposit(
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
 			Origin::signed(1),
-			bit_map_2,
-			sig.into(),
-			TokenType::Fungible(1_u8),
-			new_payload.encode()
-		), Error::<Test>::FailedToHandleParachainDeposit);
+			Box::from(asset_id)
+		));
+		assert_noop!(
+			Thea::approve_deposit(
+				Origin::signed(1),
+				bit_map_2,
+				sig.into(),
+				TokenType::Fungible(1_u8),
+				new_payload.encode()
+			),
+			Error::<Test>::FailedToHandleParachainDeposit
+		);
 	})
 }
 
@@ -158,20 +178,23 @@ fn test_approve_deposits_with_wrong_signature_returns_bls_signature_verification
 	new_test_ext().execute_with(|| {
 		let multi_asset = MultiAsset {
 			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(10_u128)
+			fun: Fungibility::Fungible(10_u128),
 		};
 		let multi_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: create_account_id().encode().try_into().unwrap() }),
+			interior: X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				id: create_account_id().encode().try_into().unwrap(),
+			}),
 		};
-		let new_payload = ParachainDeposit{
+		let new_payload = ParachainDeposit {
 			recipient: multi_location,
 			asset_and_amount: multi_asset,
 			deposit_nonce: 1,
 			transaction_hash: sp_core::H256::zero(),
-			network_id: 1
+			network_id: 1,
 		};
-		let wrong_sig = [1;96];
+		let wrong_sig = [1; 96];
 
 		let mut bit_map_1 = 0_u128;
 		bit_map_1 = set_kth_bit(bit_map_1, 0);
@@ -182,14 +205,20 @@ fn test_approve_deposits_with_wrong_signature_returns_bls_signature_verification
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id)));
-		assert_noop!(Thea::approve_deposit(
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
 			Origin::signed(1),
-			bit_map_2,
-			wrong_sig.into(),
-			TokenType::Fungible(1_u8),
-			new_payload.encode()
-		), Error::<Test>::BLSSignatureVerificationFailed);
+			Box::from(asset_id)
+		));
+		assert_noop!(
+			Thea::approve_deposit(
+				Origin::signed(1),
+				bit_map_2,
+				wrong_sig.into(),
+				TokenType::Fungible(1_u8),
+				new_payload.encode()
+			),
+			Error::<Test>::BLSSignatureVerificationFailed
+		);
 	})
 }
 
@@ -199,18 +228,21 @@ fn test_approve_deposit_with_zero_amount_return_amount_cannot_be_zero() {
 		register_bls_public_keys();
 		let multi_asset = MultiAsset {
 			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(0_u128)
+			fun: Fungibility::Fungible(0_u128),
 		};
 		let multi_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: create_account_id().encode().try_into().unwrap() }),
+			interior: X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				id: create_account_id().encode().try_into().unwrap(),
+			}),
 		};
-		let new_payload = ParachainDeposit{
+		let new_payload = ParachainDeposit {
 			recipient: multi_location,
 			asset_and_amount: multi_asset,
 			deposit_nonce: 1,
 			transaction_hash: sp_core::H256::zero(),
-			network_id: 1
+			network_id: 1,
 		};
 		let sig = sign_payload(new_payload.encode());
 
@@ -223,14 +255,20 @@ fn test_approve_deposit_with_zero_amount_return_amount_cannot_be_zero() {
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id)));
-		assert_noop!(Thea::approve_deposit(
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
 			Origin::signed(1),
-			bit_map_2,
-			sig.into(),
-			TokenType::Fungible(1_u8),
-			new_payload.encode()
-		), Error::<Test>::AmountCannotBeZero);
+			Box::from(asset_id)
+		));
+		assert_noop!(
+			Thea::approve_deposit(
+				Origin::signed(1),
+				bit_map_2,
+				sig.into(),
+				TokenType::Fungible(1_u8),
+				new_payload.encode()
+			),
+			Error::<Test>::AmountCannotBeZero
+		);
 	})
 }
 
@@ -240,18 +278,21 @@ fn test_approve_deposit_with_wrong_nonce_return_deposit_nonce_error() {
 		register_bls_public_keys();
 		let multi_asset = MultiAsset {
 			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(1000_u128)
+			fun: Fungibility::Fungible(1000_u128),
 		};
 		let multi_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: create_account_id().encode().try_into().unwrap() }),
+			interior: X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				id: create_account_id().encode().try_into().unwrap(),
+			}),
 		};
-		let new_payload = ParachainDeposit{
+		let new_payload = ParachainDeposit {
 			recipient: multi_location,
 			asset_and_amount: multi_asset,
 			deposit_nonce: 10,
 			transaction_hash: sp_core::H256::zero(),
-			network_id: 1
+			network_id: 1,
 		};
 		let sig = sign_payload(new_payload.encode());
 
@@ -264,14 +305,20 @@ fn test_approve_deposit_with_wrong_nonce_return_deposit_nonce_error() {
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id)));
-		assert_noop!(Thea::approve_deposit(
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
 			Origin::signed(1),
-			bit_map_2,
-			sig.into(),
-			TokenType::Fungible(1_u8),
-			new_payload.encode()
-		), Error::<Test>::DepositNonceError);
+			Box::from(asset_id)
+		));
+		assert_noop!(
+			Thea::approve_deposit(
+				Origin::signed(1),
+				bit_map_2,
+				sig.into(),
+				TokenType::Fungible(1_u8),
+				new_payload.encode()
+			),
+			Error::<Test>::DepositNonceError
+		);
 	})
 }
 
@@ -281,18 +328,21 @@ fn test_approve_deposit_with_unregistered_asset_return_asset_not_registered() {
 		register_bls_public_keys();
 		let multi_asset = MultiAsset {
 			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(1000_u128)
+			fun: Fungibility::Fungible(1000_u128),
 		};
 		let multi_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: create_account_id().encode().try_into().unwrap() }),
+			interior: X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				id: create_account_id().encode().try_into().unwrap(),
+			}),
 		};
-		let new_payload = ParachainDeposit{
+		let new_payload = ParachainDeposit {
 			recipient: multi_location,
 			asset_and_amount: multi_asset,
 			deposit_nonce: 1,
 			transaction_hash: sp_core::H256::zero(),
-			network_id: 1
+			network_id: 1,
 		};
 		let sig = sign_payload(new_payload.encode());
 
@@ -304,13 +354,16 @@ fn test_approve_deposit_with_unregistered_asset_return_asset_not_registered() {
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
 
-		assert_noop!(Thea::approve_deposit(
-			Origin::signed(1),
-			bit_map_2,
-			sig.into(),
-			TokenType::Fungible(1_u8),
-			new_payload.encode()
-		), Error::<Test>::AssetNotRegistered);
+		assert_noop!(
+			Thea::approve_deposit(
+				Origin::signed(1),
+				bit_map_2,
+				sig.into(),
+				TokenType::Fungible(1_u8),
+				new_payload.encode()
+			),
+			Error::<Test>::AssetNotRegistered
+		);
 	})
 }
 
@@ -320,27 +373,45 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		let multi_asset = MultiAsset {
 			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(1000_u128)
+			fun: Fungibility::Fungible(1000_u128),
 		};
 		let multi_location = MultiLocation {
 			parents: 1,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1;32] }),
+			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
 		};
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id.clone())));
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
+			Origin::signed(1),
+			Box::from(asset_id.clone())
+		));
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
-		let beneficiary: [u8;32] = [1;32];
+		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
-		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(generate_asset_id(asset_id.clone()), &1, 1_000_000_000_000));
-		assert_ok!(Thea::withdraw(Origin::signed(1), generate_asset_id(asset_id.clone()), 1000u128, beneficiary.to_vec(), false));
+		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
+			Origin::root(),
+			1,
+			1_000_000_000_000,
+			0
+		));
+		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(
+			generate_asset_id(asset_id.clone()),
+			&1,
+			1_000_000_000_000
+		));
+		assert_ok!(Thea::withdraw(
+			Origin::signed(1),
+			generate_asset_id(asset_id.clone()),
+			1000u128,
+			beneficiary.to_vec(),
+			false
+		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
 		let payload = ParachainWithdraw::get_parachain_withdraw(multi_asset, multi_location);
 		let approved_withdraw = ApprovedWithdraw {
 			asset_id: generate_asset_id(asset_id),
 			amount: 1000,
 			network: 1,
-			beneficiary: vec![1;32],
-			payload: payload.encode()
+			beneficiary: vec![1; 32],
+			payload: payload.encode(),
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -352,27 +423,45 @@ fn test_withdraw_returns_ok() {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		let multi_asset = MultiAsset {
 			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(1000_u128)
+			fun: Fungibility::Fungible(1000_u128),
 		};
 		let multi_location = MultiLocation {
 			parents: 1,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1;32] }),
+			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
 		};
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id.clone())));
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
+			Origin::signed(1),
+			Box::from(asset_id.clone())
+		));
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
-		let beneficiary: [u8;32] = [1;32];
+		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
-		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(generate_asset_id(asset_id.clone()), &1, 1_000_000_000_000));
-		assert_ok!(Thea::withdraw(Origin::signed(1), generate_asset_id(asset_id.clone()), 1000u128, beneficiary.to_vec(), false));
+		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
+			Origin::root(),
+			1,
+			1_000_000_000_000,
+			0
+		));
+		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(
+			generate_asset_id(asset_id.clone()),
+			&1,
+			1_000_000_000_000
+		));
+		assert_ok!(Thea::withdraw(
+			Origin::signed(1),
+			generate_asset_id(asset_id.clone()),
+			1000u128,
+			beneficiary.to_vec(),
+			false
+		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
 		let payload = ParachainWithdraw::get_parachain_withdraw(multi_asset, multi_location);
 		let approved_withdraw = ApprovedWithdraw {
 			asset_id: generate_asset_id(asset_id),
 			amount: 1000,
 			network: 1,
-			beneficiary: vec![1;32],
-			payload: payload.encode()
+			beneficiary: vec![1; 32],
+			payload: payload.encode(),
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -381,26 +470,44 @@ fn test_withdraw_returns_ok() {
 #[test]
 fn test_withdraw_with_wrong_benificiary_length() {
 	new_test_ext().execute_with(|| {
-		let beneficiary: [u8;1000] = [1;1000];
-		assert_noop!(Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false), Error::<Test>::BeneficiaryTooLong);
+		let beneficiary: [u8; 1000] = [1; 1000];
+		assert_noop!(
+			Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
+			Error::<Test>::BeneficiaryTooLong
+		);
 	})
 }
 
 #[test]
 fn test_withdraw_with_wrong_asset_id_returns_UnableFindNetworkForAssetId() {
 	new_test_ext().execute_with(|| {
-		let beneficiary: [u8;32] = [1;32];
-		assert_noop!(Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false), Error::<Test>::UnableFindNetworkForAssetId);
+		let beneficiary: [u8; 32] = [1; 32];
+		assert_noop!(
+			Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
+			Error::<Test>::UnableFindNetworkForAssetId
+		);
 	})
 }
 
 #[test]
 fn test_withdraw_with_no_fee_config() {
 	new_test_ext().execute_with(|| {
-		let beneficiary: [u8;32] = [1;32];
+		let beneficiary: [u8; 32] = [1; 32];
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id.clone())));
-		assert_noop!(Thea::withdraw(Origin::signed(1), generate_asset_id(asset_id), 1000u128, beneficiary.to_vec(), false), Error::<Test>::WithdrawalFeeConfigNotFound);
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
+			Origin::signed(1),
+			Box::from(asset_id.clone())
+		));
+		assert_noop!(
+			Thea::withdraw(
+				Origin::signed(1),
+				generate_asset_id(asset_id),
+				1000u128,
+				beneficiary.to_vec(),
+				false
+			),
+			Error::<Test>::WithdrawalFeeConfigNotFound
+		);
 	})
 }
 
@@ -431,14 +538,10 @@ fn get_bls_keys() -> (PrivateKeys, PublicKeys) {
 
 fn register_bls_public_keys() {
 	let (_, public_keys) = get_bls_keys();
-	RelayersBLSKeyVector::<Test>::insert(
-		1,
-		BoundedVec::try_from(public_keys)
-			.unwrap(),
-	);
+	RelayersBLSKeyVector::<Test>::insert(1, BoundedVec::try_from(public_keys).unwrap());
 }
 
-fn sign_payload(payload: Vec<u8>) -> [u8;96] {
+fn sign_payload(payload: Vec<u8>) -> [u8; 96] {
 	let (private_keys, _) = get_bls_keys();
 	let sig_1 = private_keys[0].sign(&payload, DST, &[]);
 	let sig_2 = private_keys[1].sign(&payload, DST, &[]);
@@ -451,26 +554,38 @@ fn sign_payload(payload: Vec<u8>) -> [u8;96] {
 fn test_withdrawal_returns_ok() {
 	new_test_ext().execute_with(|| {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(Origin::signed(1), Box::from(asset_id.clone())));
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
+			Origin::signed(1),
+			Box::from(asset_id.clone())
+		));
 		let asset_id = generate_asset_id(asset_id);
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
-		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(asset_id, &1, 1000000000000u128));
+		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
+			Origin::root(),
+			1,
+			1_000_000_000_000,
+			0
+		));
+		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(
+			asset_id,
+			&1,
+			1000000000000u128
+		));
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
-		assert_ok!(Thea::do_withdraw(1, asset_id, 1000000000u128, [1;32].to_vec(), false));
+		assert_ok!(Thea::do_withdraw(1, asset_id, 1000000000u128, [1; 32].to_vec(), false));
 	})
 }
 
 pub fn generate_asset_id(asset_id: AssetId) -> u128 {
 	if let AssetId::Concrete(ml) = asset_id {
 		let parachain_asset = ParachainAsset { location: ml, asset_type: AssetType::Fungible };
-	    let asset_identifier = BoundedVec::<u8, ConstU32<1000>>::try_from(parachain_asset.encode()).unwrap();
+		let asset_identifier =
+			BoundedVec::<u8, ConstU32<1000>>::try_from(parachain_asset.encode()).unwrap();
 		let identifier_length = asset_identifier.len();
 		let mut derived_asset_id: Vec<u8> = vec![];
 		derived_asset_id.push(1u8);
 		derived_asset_id.push(identifier_length as u8);
 		derived_asset_id.extend(&asset_identifier.to_vec());
-		let derived_asset_id_hash =
-			&sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
+		let derived_asset_id_hash = &sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
 		let mut temp = [0u8; 16];
 		temp.copy_from_slice(derived_asset_id_hash);
 		u128::from_le_bytes(temp)
@@ -478,7 +593,6 @@ pub fn generate_asset_id(asset_id: AssetId) -> u128 {
 		0
 	}
 }
-
 
 fn create_account_id() -> AccountId32 {
 	const PHRASE: &str =
@@ -489,9 +603,9 @@ fn create_account_id() -> AccountId32 {
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
 	)
-		.expect("Unable to create sr25519 key pair")
-		.try_into()
-		.expect("Unable to convert to AccountId32");
+	.expect("Unable to create sr25519 key pair")
+	.try_into()
+	.expect("Unable to convert to AccountId32");
 
 	return account_id
 }

@@ -1277,6 +1277,7 @@ parameter_types! {
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const WithdrawalSize: u32 = 10;
 }
 
 impl chainbridge::Config for Runtime {
@@ -1302,6 +1303,7 @@ impl thea::pallet::Config for Runtime {
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
 }
 
 //Install Staking Pallet

@@ -49,8 +49,8 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::{vec, vec::Vec};
-	use xcm::latest::AssetId;
 	use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
+	use xcm::latest::AssetId;
 
 	pub trait AssetHandlerWeightInfo {
 		fn create_asset(b: u32) -> Weight;
@@ -246,7 +246,7 @@ pub mod pallet {
 		/// ReservedParachainNetworkId
 		ReservedParachainNetworkId,
 		/// AssetId Abstract Not Handled
-		AssetIdAbstractNotHandled
+		AssetIdAbstractNotHandled,
 	}
 
 	#[pallet::hooks]
@@ -686,7 +686,8 @@ pub mod pallet {
 		) -> Result<(u8, BoundedVec<u8, ConstU32<1000>>, usize), DispatchError> {
 			let network_id = T::ParachainNetworkId::get();
 			if let AssetId::Concrete(asset_location) = asset {
-				let asset_identifier = ParachainAsset { location: asset_location, asset_type: AssetType::Fungible };
+				let asset_identifier =
+					ParachainAsset { location: asset_location, asset_type: AssetType::Fungible };
 				let asset_identifier = BoundedVec::try_from(asset_identifier.encode())
 					.map_err(|_| Error::<T>::IdentifierLengthMismatch)?;
 				let identifier_length = asset_identifier.len();

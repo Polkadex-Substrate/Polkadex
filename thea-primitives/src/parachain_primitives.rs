@@ -6,19 +6,21 @@ use polkadex_primitives::BoundedVec;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_std::{vec, vec::Vec};
-use xcm::{latest::{Fungibility, MultiAsset, MultiLocation}, prelude::Xcm, VersionedMultiAssets, VersionedMultiLocation};
-use xcm::latest::{AssetId, MultiAssets};
+use xcm::{
+	latest::{AssetId, Fungibility, MultiAsset, MultiAssets, MultiLocation},
+	VersionedMultiAssets, VersionedMultiLocation,
+};
 
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub enum AssetType {
 	Fungible,
-	NonFungible
+	NonFungible,
 }
 
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct ParachainAsset {
 	pub location: MultiLocation,
-	pub asset_type: AssetType
+	pub asset_type: AssetType,
 }
 
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
@@ -42,14 +44,10 @@ impl ParachainDeposit {
 	pub fn get_parachain_asset(&self) -> Option<ParachainAsset> {
 		let MultiAsset { id, .. } = self.asset_and_amount.clone();
 		if let AssetId::Concrete(multilocation) = id {
-			Some(ParachainAsset {
-				location: multilocation,
-				asset_type: AssetType::Fungible,
-			})
+			Some(ParachainAsset { location: multilocation, asset_type: AssetType::Fungible })
 		} else {
 			None
 		}
-
 	}
 }
 
@@ -57,7 +55,7 @@ impl AssetIdConverter for ParachainDeposit {
 	fn get_asset_id(&self) -> Option<u128> {
 		if let Some(parachain_asset) = self.get_parachain_asset() {
 			if let Ok(asset_identifier) =
-			BoundedVec::<u8, ConstU32<1000>>::try_from(parachain_asset.encode())
+				BoundedVec::<u8, ConstU32<1000>>::try_from(parachain_asset.encode())
 			{
 				let identifier_length = asset_identifier.len();
 				let mut derived_asset_id: Vec<u8> = vec![];
@@ -85,14 +83,14 @@ impl AssetIdConverter for ParachainDeposit {
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct ParachainWithdraw {
 	pub assets: VersionedMultiAssets,
-	pub destination: VersionedMultiLocation
+	pub destination: VersionedMultiLocation,
 }
 
 impl ParachainWithdraw {
 	pub fn get_parachain_withdraw(asset: MultiAsset, destination: MultiLocation) -> Self {
 		Self {
 			assets: VersionedMultiAssets::V1(MultiAssets::from(vec![asset])),
-			destination: VersionedMultiLocation::V1(destination)
+			destination: VersionedMultiLocation::V1(destination),
 		}
 	}
 }

@@ -8,9 +8,9 @@ use sp_runtime_interface::runtime_interface;
 
 use sp_std::{vec, vec::Vec};
 
+use crate::parachain_primitives::ParachainWithdraw;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use crate::parachain_primitives::ParachainWithdraw;
 
 pub mod normal_deposit;
 pub mod parachain_primitives;
@@ -76,7 +76,6 @@ impl ApprovedWithdraw {
 		ParachainWithdraw::decode(&mut &self.payload[..]).ok()
 	}
 }
-
 
 pub trait AssetIdConverter {
 	/// Get Asset Id
