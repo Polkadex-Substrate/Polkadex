@@ -540,7 +540,6 @@ pub mod pallet {
 			let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
 			let asset_identifier: ParachainAsset = Decode::decode(&mut &asset_identifier.to_vec()[..])
 				.map_err(|_| Error::<T>::DepositNonceError)?; //TODO: Change the error
-			println!("asset_id {:?}", asset_identifier);
 			let asset_id = AssetId::Concrete(asset_identifier.location);
 			let asset_and_amount = MultiAsset { id: asset_id, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
