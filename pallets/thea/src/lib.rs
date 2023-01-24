@@ -52,6 +52,7 @@ pub mod pallet {
 	use sp_std::vec;
 	use asset_handler::pallet::TheaAssets;
 	use thea_primitives::ApprovedWithdraw;
+	use thea_primitives::parachain_primitives::ParachainAsset;
 
 	pub type Network = u8;
 
@@ -197,16 +198,18 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		// Deposit Approved event ( recipient, asset_id, amount, tx_hash(foreign chain))
+		/// Deposit Approved event ( recipient, asset_id, amount, tx_hash(foreign chain))
 		DepositApproved(u8, T::AccountId, u128, u128, sp_core::H256),
-		// Deposit claimed event ( recipient, number of deposits claimed )
+		/// Deposit claimed event ( recipient, number of deposits claimed )
 		DepositClaimed(T::AccountId, u128, u128, sp_core::H256),
-		// Withdrawal Queued ( beneficiary, assetId, amount )
+		/// Withdrawal Queued ( beneficiary, assetId, amount )
 		WithdrawalQueued(T::AccountId, Vec<u8>, u128, u128, u32),
-		// Withdrawal Ready (Network id, Nonce )
+		/// Withdrawal Ready (Network id, Nonce )
 		WithdrawalReady(Network, u32),
-		// Withdrawal Executed (Nonce, network, Tx hash )
+		/// Withdrawal Executed (Nonce, network, Tx hash )
 		WithdrawalExecuted(u32, Network, sp_core::H256),
+		/// Withdrawal Fee Set (NetworkId, Amount)
+		WithdrawalFeeSet(u8, u128)
 	}
 
 	// Errors inform users that something went wrong.
@@ -399,7 +402,6 @@ pub mod pallet {
 
 			// TODO: This will be refactored when work on withdrawal begins
 			<ReadyWithdrawls<T>>::take(network, withdrawal_nonce);
-
 			Self::deposit_event(Event::<T>::WithdrawalExecuted(withdrawal_nonce, network, tx_hash));
 			Ok(())
 		}
@@ -420,101 +422,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// /// Initiate the withdraw for user
-		// ///
-		// /// # Parameters
-		// ///
-		// /// * `origin`: User
-		// /// * `asset_id`: Asset id
-		// /// * `amount`: Amount of asset to withdraw
-		// /// * `beneficiary`: beneficiary of the withdraw
-		// /// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for
-		// quick ///   withdrawal
-		// // TODO: [Issue #606] Use benchmarks
-		// #[pallet::weight(1000)]
-		// pub fn withdraw(
-		// 	origin: OriginFor<T>,
-		// 	asset_id: u128,
-		// 	amount: u128,
-		// 	beneficiary: Vec<u8>,
-		// 	pay_for_remaining: bool,
-		// ) -> DispatchResult {
-		// 	let user = ensure_signed(origin)?;
-		// 	// Put a soft limit of size of beneficiary vector to avoid spam
-		// 	ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-		//
-		// 	// Find native network of this asset
-		// 	#[allow(clippy::unnecessary_lazy_evaluations)]
-		// 	// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-		// 	let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
-		// 		.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
-		//
-		// 	let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
-		//
-		// 	let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
-		//
-		// 	// Ensure pending withdrawals have space for a new withdrawal
-		// 	ensure!(pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
-		//
-		// 	#[allow(clippy::unnecessary_lazy_evaluations)]
-		// 	// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-		// 	let mut total_fees = <WithdrawalFees<T>>::get(network)
-		// 		.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
-		//
-		// 	if pay_for_remaining {
-		// 		// User is ready to pay for remaining pending withdrawal for quick withdrawal
-		// 		let extra_withdrawals_available = 10usize.saturating_sub(pending_withdrawals.len());
-		// 		total_fees = total_fees.saturating_add(
-		// 			total_fees.saturating_mul(extra_withdrawals_available.saturated_into()),
-		// 		)
-		// 	}
-		//
-		// 	// Pay the fees
-		// 	<T as Config>::Currency::transfer(
-		// 		&user,
-		// 		&Self::thea_account(),
-		// 		total_fees.saturated_into(),
-		// 		ExistenceRequirement::KeepAlive,
-		// 	)?;
-		//
-		// 	// TODO[#610]: Update Thea Staking pallet about fees collected
-		//
-		// 	// Burn assets
-		// 	asset_handler::pallet::Pallet::<T>::burn_thea_asset(asset_id, user.clone(), amount)?;
-		//
-		// 	let withdrawal = ApprovedWithdraw {
-		// 		asset_id,
-		// 		amount: amount.saturated_into(),
-		// 		network: network.saturated_into(),
-		// 		beneficiary: beneficiary.clone(),
-		// 	};
-		//
-		// 	if let Err(()) = pending_withdrawals.try_push(withdrawal) {
-		// 		// This should not fail because of is_full check above
-		// 	}
-		//
-		// 	if pending_withdrawals.is_full() | pay_for_remaining {
-		// 		// If it is full then we move it to ready queue and update withdrawal nonce
-		// 		let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
-		// 		<ReadyWithdrawls<T>>::insert(
-		// 			network,
-		// 			withdrawal_nonce,
-		// 			pending_withdrawals.clone(),
-		// 		);
-		// 		<WithdrawalNonces<T>>::insert(network, withdrawal_nonce.saturating_add(1));
-		// 		Self::deposit_event(Event::<T>::WithdrawalReady(network, withdrawal_nonce));
-		// 		pending_withdrawals = BoundedVec::default();
-		// 	}
-		// 	<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
-		// 	Self::deposit_event(Event::<T>::WithdrawalQueued(
-		// 		user,
-		// 		beneficiary,
-		// 		asset_id,
-		// 		amount,
-		// 		withdrawal_nonce,
-		// 	));
-		// 	Ok(())
-		// }
+		/// Add Token Config
+		#[pallet::weight(1000)]
+		pub fn set_withdrawal_fee(origin: OriginFor<T>, network_id: u8, fee: u128) -> DispatchResult {
+			ensure_root(origin)?;
+			<WithdrawalFees<T>>::insert(network_id, fee);
+			Self::deposit_event(Event::<T>::WithdrawalFeeSet(network_id, fee));
+			Ok(())
+		}
 	}
 
 	// Helper Functions for Thea Pallet
@@ -546,7 +461,7 @@ pub mod pallet {
 			#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			// let mut total_fees = <WithdrawalFees<T>>::get(network)
-			// 	.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)? //TODO: Create extrinsic for this
+			// 	.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?; //TODO: Create extrinsic for this
 			let mut total_fees: u128 = 0;
 
 			if pay_for_remaining {
@@ -623,9 +538,11 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 		) -> Result<Vec<u8>, DispatchError> {
 			let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
-			let asset_identifier: AssetId = Decode::decode(&mut &asset_identifier.to_vec()[..])
+			let asset_identifier: ParachainAsset = Decode::decode(&mut &asset_identifier.to_vec()[..])
 				.map_err(|_| Error::<T>::DepositNonceError)?; //TODO: Change the error
-			let asset_and_amount = MultiAsset { id: asset_identifier, fun: Fungible(amount) };
+			println!("asset_id {:?}", asset_identifier);
+			let asset_id = AssetId::Concrete(asset_identifier.location);
+			let asset_and_amount = MultiAsset { id: asset_id, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
 			let parachain_withdraw = ParachainWithdraw::get_parachain_withdraw(asset_and_amount, recipient);
 			Ok(parachain_withdraw.encode())
@@ -635,7 +552,7 @@ pub mod pallet {
 			let recipient: [u8; 32] =
 				recipient.try_into().map_err(|_| Error::<T>::DepositNonceError)?; //TODO Handle error
 			Ok(MultiLocation {
-				parents: 0,
+				parents: 1,
 				interior: Junctions::X1(Junction::AccountId32 {
 					network: NetworkId::Any,
 					id: recipient,
