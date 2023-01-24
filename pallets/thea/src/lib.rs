@@ -50,6 +50,7 @@ pub mod pallet {
 	use xcm::latest::{Instruction, MultiAssetFilter, MultiAssets, WeightLimit, Xcm};
 	use xcm::v2::WildMultiAsset;
 	use sp_std::vec;
+	use asset_handler::pallet::TheaAssets;
 	use thea_primitives::ApprovedWithdraw;
 
 	pub type Network = u8;
@@ -532,20 +533,21 @@ pub mod pallet {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 			#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			let network = <AssetIdToNetworkMapping<T>>::get(asset_id)
-				.ok_or_else(|| Error::<T>::UnableFindNetworkForAssetId)?;
+			let (network,..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
+			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 
 			// Ensure pending withdrawals have space for a new withdrawal
-			ensure!(pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
+			ensure!(!pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
 
 			#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			let mut total_fees = <WithdrawalFees<T>>::get(network)
-				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
+			// let mut total_fees = <WithdrawalFees<T>>::get(network)
+			// 	.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)? //TODO: Create extrinsic for this
+			let mut total_fees: u128 = 0;
 
 			if pay_for_remaining {
 				// User is ready to pay for remaining pending withdrawal for quick withdrawal
