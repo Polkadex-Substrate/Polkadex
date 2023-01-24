@@ -1,0 +1,43 @@
+[package]
+name = "liquidity"
+authors = ["Polkadex Authors"]
+description = "Pallet for adding liquidity through governance"
+edition = "2021"
+homepage = "https://polkadex.trade"
+version = "1.0.0"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+parity-scale-codec = { workspace = true, default-features = false }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+frame-support = { default-features = false, workspace = true }
+frame-system = { default-features = false, workspace = true }
+sp-runtime = { default-features = false, workspace = true }
+sp-std = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+
+[dev-dependencies]
+pallet-assets = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true }
+sp-keystore = { workspace = true }
+frame-benchmarking = { workspace = true }
+anyhow = { workspace = true }
+sp-io = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-core/std",
+    "polkadex-primitives/std",
+]
