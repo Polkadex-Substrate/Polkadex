@@ -4809,6 +4809,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "ias-verify",
+ "liquidity",
  "log",
  "pallet-assets",
  "pallet-balances",

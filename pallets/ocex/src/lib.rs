@@ -71,6 +71,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
+	use liquidity::LiquidityModifier;
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -1093,6 +1094,30 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<CertificateValidity<T>>::put(certificate_valid_until);
+			Ok(())
+		}
+	}
+
+	impl<T: Config> LiquidityModifier for Pallet<T> {
+		type AssetId = AssetId;
+		type AccountId = T::AccountId;
+
+		fn on_deposit(
+			account: Self::AccountId,
+			asset: Self::AssetId,
+			balance: u128,
+		) -> DispatchResult {
+			Ok(())
+		}
+		fn on_withdraw(
+			account: Self::AccountId,
+			asset: Self::AssetId,
+			balance: u128,
+			do_force_withdraw: bool,
+		) -> DispatchResult {
+			Ok(())
+		}
+		fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult {
 			Ok(())
 		}
 	}
