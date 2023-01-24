@@ -234,6 +234,15 @@ fn initialize_claim_rewards() {
 			reward_id
 		));
 
+		//try to unlock reward for alice again
+		assert_noop!(
+			Rewards::initialize_claim_rewards(
+				Origin::signed(get_alice_account_with_rewards().0.into()),
+				reward_id
+			),
+			Error::<Test>::RewardsAlreadyInitialized
+		);
+
 		let alice_reward_info =
 			Distributor::<Test>::get(&reward_id, &get_alice_account_with_rewards().0).unwrap();
 		assert_eq!(alice_reward_info.claim_amount, 0);

@@ -194,7 +194,7 @@ pub mod pallet {
 				crowdloan_rewardees::HASHMAP.get(&account_in_vec)
 			{
 				//get reward info
-				if let Some(reward_info) = <InitializeRewards<T>>::take(reward_id) {
+				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 					if *total_rewards_in_pdex > MIN_REWARDS_CLAIMABLE_AMOUNT {
 						//initialize reward info struct
 						let reward_info = RewardInfoForAccount {
@@ -227,7 +227,13 @@ pub mod pallet {
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
 				if let Some(user_reward_info) = user_reward_info {
 					//check if user already unlocked the rewards
-					ensure!(!user_reward_info.is_initialized, Error::<T>::RewardsAlreadyUnlocked);
+					//sanity check: if user is calling initialize_for the second time it will fail
+					// in the above ensure, if user is calling initialize for the first time the
+					// flag is set to false by default
+					ensure!(
+						!user_reward_info.is_initialized,
+						Error::<T>::RewardsAlreadyInitialized
+					);
 					//transfer funds from pallet account to users account
 					ensure!(
 						Self::transfer_pdex_rewards(
@@ -416,8 +422,6 @@ pub mod pallet {
 		AmountToLowToRedeem,
 		/// User needs to initialize first before claiming rewards
 		UserHasNotInitializeClaimRewards,
-		/// User has already unlocked the rewards
-		RewardsAlreadyUnlocked,
 		/// Reward cycle need to get started before unlocking rewards
 		RewardsCannotBeUnlockYet,
 		/// User has already claimed all the available amount
