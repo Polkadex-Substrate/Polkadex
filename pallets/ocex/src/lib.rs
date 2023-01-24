@@ -1072,7 +1072,12 @@ pub mod pallet {
 			balance: u128,
 			do_force_withdraw: bool,
 		) -> DispatchResult {
-			Self::direct_withdrawal(account, asset, balance.saturated_into(), do_force_withdraw)?;
+			Self::withdrawal_from_orderbook(
+				account,
+				asset,
+				balance.saturated_into(),
+				do_force_withdraw,
+			)?;
 			Ok(())
 		}
 		fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult {
@@ -1157,13 +1162,30 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn direct_withdrawal(
-			account: T::AccountId,
+		fn withdrawal_from_orderbook(
+			user: T::AccountId,
 			asset: AssetId,
-			balance: BalanceOf<T>,
+			amount: BalanceOf<T>,
 			do_force_withdraw: bool,
 		) -> DispatchResult {
-			//ToDo: Implement direct withdrawal and emit an ingress message.
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
+			// Check if account is registered
+			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
+			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
+				.checked_div(Decimal::from(UNIT_BALANCE))
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+
+			//ToDo: Change ingress message to Direct Withdrawal one.
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
+					user.clone(),
+					asset,
+					converted_amount,
+				));
+			});
+			Self::deposit_event(Event::WithdrawFromOrderbook(user, asset, amount));
 			Ok(())
 		}
 	}
@@ -1225,6 +1247,8 @@ pub mod pallet {
 		WithdrawalFailed(Withdrawal<T::AccountId>),
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
+		/// Withdraw Assets from Orderbook
+		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
 	}
 
 	///Allowlisted tokens
