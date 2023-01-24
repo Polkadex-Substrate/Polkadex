@@ -309,23 +309,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register_main_account(1))]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
-			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
-			ensure!(
-				!<Accounts<T>>::contains_key(&main_account),
-				Error::<T>::MainAccountAlreadyRegistered
-			);
-
-			let mut account_info = AccountInfo::new(main_account.clone());
-			ensure!(account_info.add_proxy(proxy.clone()).is_ok(), Error::<T>::ProxyLimitExceeded);
-			<Accounts<T>>::insert(&main_account, account_info);
-
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
-					main_account.clone(),
-					proxy.clone(),
-				));
-			});
-			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
+			Self::register_user(main_account, proxy)?;
 			Ok(())
 		}
 
@@ -678,35 +662,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
-			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
-			// Check if account is registered
-			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
-			// TODO: Check if asset is enabled for deposit
-
-			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
-			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
-				.checked_div(Decimal::from(UNIT_BALANCE))
-				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-
-			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
-			// Get Storage Map Value
-			if let Some(expected_total_amount) =
-				converted_amount.checked_add(Self::total_assets(asset))
-			{
-				<TotalAssets<T>>::insert(asset, expected_total_amount);
-			} else {
-				return Err(Error::<T>::AmountOverflow.into())
-			}
-
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
-					user.clone(),
-					asset,
-					converted_amount,
-				));
-			});
-			Self::deposit_event(Event::DepositSuccessful { user, asset, amount });
+			Self::do_deposit(user, asset, amount)?;
 			Ok(())
 		}
 
@@ -1107,6 +1063,7 @@ pub mod pallet {
 			asset: Self::AssetId,
 			balance: u128,
 		) -> DispatchResult {
+			Self::do_deposit(account, asset, balance.saturated_into())?;
 			Ok(())
 		}
 		fn on_withdraw(
@@ -1115,9 +1072,11 @@ pub mod pallet {
 			balance: u128,
 			do_force_withdraw: bool,
 		) -> DispatchResult {
+			Self::direct_withdrawal(account, asset, balance.saturated_into(), do_force_withdraw)?;
 			Ok(())
 		}
 		fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult {
+			Self::register_user(main_account, proxy)?;
 			Ok(())
 		}
 	}
@@ -1142,6 +1101,70 @@ pub mod pallet {
 				<RegisteredEnclaves<T>>::remove(enclave);
 			}
 			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
+		}
+
+		fn do_deposit(user: T::AccountId, asset: AssetId, amount: BalanceOf<T>) -> DispatchResult {
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
+			// Check if account is registered
+			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
+			// TODO: Check if asset is enabled for deposit
+
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
+			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
+				.checked_div(Decimal::from(UNIT_BALANCE))
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+
+			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
+			// Get Storage Map Value
+			if let Some(expected_total_amount) =
+				converted_amount.checked_add(Self::total_assets(asset))
+			{
+				<TotalAssets<T>>::insert(asset, expected_total_amount);
+			} else {
+				return Err(Error::<T>::AmountOverflow.into())
+			}
+
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
+					user.clone(),
+					asset,
+					converted_amount,
+				));
+			});
+			Self::deposit_event(Event::DepositSuccessful { user, asset, amount });
+			Ok(())
+		}
+
+		fn register_user(main_account: T::AccountId, proxy: T::AccountId) -> DispatchResult {
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			ensure!(
+				!<Accounts<T>>::contains_key(&main_account),
+				Error::<T>::MainAccountAlreadyRegistered
+			);
+
+			let mut account_info = AccountInfo::new(main_account.clone());
+			ensure!(account_info.add_proxy(proxy.clone()).is_ok(), Error::<T>::ProxyLimitExceeded);
+			<Accounts<T>>::insert(&main_account, account_info);
+
+			<IngressMessages<T>>::mutate(|ingress_messages| {
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
+					main_account.clone(),
+					proxy.clone(),
+				));
+			});
+			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
+			Ok(())
+		}
+
+		fn direct_withdrawal(
+			account: T::AccountId,
+			asset: AssetId,
+			balance: BalanceOf<T>,
+			do_force_withdraw: bool,
+		) -> DispatchResult {
+			//ToDo: Implement direct withdrawal and emit an ingress message.
+			Ok(())
 		}
 	}
 
