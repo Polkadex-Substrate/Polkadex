@@ -3665,14 +3665,11 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "ias-verify",
- "log",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
- "rust_decimal",
  "scale-info",
  "sp-application-crypto",
  "sp-core",
@@ -3680,7 +3677,6 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
- "test-utils",
 ]
 
 [[package]]
