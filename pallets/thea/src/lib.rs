@@ -99,6 +99,9 @@ pub mod pallet {
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<PalletId>;
+		/// Total Withdrawals
+		#[pallet::constant]
+		type WithdrawalSize: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -215,32 +218,36 @@ pub mod pallet {
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
-		// Nonce does not match
+		/// Nonce does not match
 		DepositNonceError,
-		// Amount cannot be zero
+		/// Amount cannot be zero
 		AmountCannotBeZero,
-		// Asset has not been registered
+		/// Asset has not been registered
 		AssetNotRegistered,
-		// BLS Aggregate signature failed
+		/// BLS Aggregate signature failed
 		BLSSignatureVerificationFailed,
-		// Beneficiary Size too long
+		/// Beneficiary Size too long
 		BeneficiaryTooLong,
-		// Unable to find mapping between asset id to network
+		/// Unable to find mapping between asset id to network
 		UnableFindNetworkForAssetId,
-		// Too many withdrawals in queue,
+		/// Too many withdrawals in queue,
 		WithdrawalNotAllowed,
-		// Withdrawal fee is not configured this network
+		/// Withdrawal fee is not configured this network
 		WithdrawalFeeConfigNotFound,
-		// No approved deposits for the provided account
+		/// No approved deposits for the provided account
 		NoApprovedDeposit,
-		// Token type not handled
+		/// Token type not handled
 		TokenTypeNotHandled,
-		// Failed To Decode
+		/// Failed To Decode
 		FailedToDecode,
-		// Failed To Handle Parachain Deposit
+		/// Failed To Handle Parachain Deposit
 		FailedToHandleParachainDeposit,
-		// Failed to get AssetId
+		/// Failed to get AssetId
 		FailedToGetAssetId,
+		/// Bounded Vector Overflow
+		BoundedVectorOverflow,
+		/// Bounded Vector Not Present
+		BoundedVectorNotPresent
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -408,7 +415,7 @@ pub mod pallet {
 
 		/// Initiate Withdraw
 		#[pallet::weight(1000)]
-		pub fn withdraw_new(
+		pub fn withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
 			amount: u128,
@@ -446,7 +453,7 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-			#[allow(clippy::unnecessary_lazy_evaluations)]
+			//#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let (network,..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
@@ -460,13 +467,12 @@ pub mod pallet {
 
 			#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			// let mut total_fees = <WithdrawalFees<T>>::get(network)
-			// 	.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?; //TODO: Create extrinsic for this
-			let mut total_fees: u128 = 0;
+			let mut total_fees = <WithdrawalFees<T>>::get(network)
+				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
 
 			if pay_for_remaining {
 				// User is ready to pay for remaining pending withdrawal for quick withdrawal
-				let extra_withdrawals_available = 10usize.saturating_sub(pending_withdrawals.len());
+				let extra_withdrawals_available = T::WithdrawalSize::get().saturating_sub(pending_withdrawals.len() as u32);
 				total_fees = total_fees.saturating_add(
 					total_fees.saturating_mul(extra_withdrawals_available.saturated_into()),
 				)
@@ -508,15 +514,16 @@ pub mod pallet {
 				<WithdrawalNonces<T>>::insert(network, withdrawal_nonce.saturating_add(1));
 				Self::deposit_event(Event::<T>::WithdrawalReady(network, withdrawal_nonce));
 				pending_withdrawals = BoundedVec::default();
+			} else {
+				Self::deposit_event(Event::<T>::WithdrawalQueued(
+					user,
+					beneficiary,
+					asset_id,
+					amount,
+					withdrawal_nonce,
+				));
 			}
 			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
-			Self::deposit_event(Event::<T>::WithdrawalQueued(
-				user,
-				beneficiary,
-				asset_id,
-				amount,
-				withdrawal_nonce,
-			));
 			Ok(())
 		}
 
@@ -539,7 +546,7 @@ pub mod pallet {
 		) -> Result<Vec<u8>, DispatchError> {
 			let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
 			let asset_identifier: ParachainAsset = Decode::decode(&mut &asset_identifier.to_vec()[..])
-				.map_err(|_| Error::<T>::DepositNonceError)?; //TODO: Change the error
+				.map_err(|_| Error::<T>::FailedToDecode)?;
 			let asset_id = AssetId::Concrete(asset_identifier.location);
 			let asset_and_amount = MultiAsset { id: asset_id, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
@@ -556,7 +563,7 @@ pub mod pallet {
 					network: NetworkId::Any,
 					id: recipient,
 				}),
-			}) //TODO: CHekc Parent and Recipient Address
+			})
 		}
 
 		pub fn do_deposit(
@@ -578,17 +585,16 @@ pub mod pallet {
 				),
 				Error::<T>::BLSSignatureVerificationFailed
 			);
-			<DepositNonce<T>>::insert(
-				approved_deposit.network_id.saturated_into::<Network>(),
-				approved_deposit.deposit_nonce + 1,
-			);
 
 			if <ApprovedDeposits<T>>::contains_key(&approved_deposit.recipient) {
-				<ApprovedDeposits<T>>::mutate(approved_deposit.recipient.clone(), |bounded_vec| {
+				<ApprovedDeposits<T>>::try_mutate(approved_deposit.recipient.clone(), |bounded_vec| {
 					if let Some(inner_bounded_vec) = bounded_vec {
-						inner_bounded_vec.try_push(approved_deposit.clone()).unwrap();
+						inner_bounded_vec.try_push(approved_deposit.clone()).map_err(|_| Error::<T>::BoundedVectorOverflow)?;
+						Ok::<(), Error<T>>(().into())
+					} else {
+						Err(Error::<T>::BoundedVectorNotPresent.into())
 					}
-				});
+				})?;
 			} else {
 				let mut my_vec: BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>> =
 					Default::default();
@@ -600,8 +606,14 @@ pub mod pallet {
 					<AccountWithPendingDeposits<T>>::mutate(|accounts| {
 						accounts.insert(approved_deposit.recipient.clone())
 					});
+				} else {
+					return Err(Error::<T>::BoundedVectorOverflow.into())
 				}
 			}
+			<DepositNonce<T>>::insert(
+				approved_deposit.network_id.saturated_into::<Network>(),
+				approved_deposit.deposit_nonce + 1,
+			);
 			Self::deposit_event(Event::<T>::DepositApproved(
 				approved_deposit.network_id,
 				approved_deposit.recipient,

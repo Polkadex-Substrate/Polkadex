@@ -62,7 +62,7 @@ pub trait TheaExt {
 #[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct BLSPublicKey(pub [u8; 192]);
 
-#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
+#[derive(Encode, Decode, Clone, Debug, TypeInfo, Eq, PartialEq)]
 pub struct ApprovedWithdraw {
 	pub asset_id: u128,
 	pub amount: u128,
