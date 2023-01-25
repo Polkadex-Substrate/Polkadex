@@ -41,13 +41,14 @@ pub trait TheaExt {
 					Ok(agg_pk) => Some(agg_pk),
 					Err(_err) => return false,
 				};
-			} else {
-				if let Some(mut new_agg_pk) = agg_pk {
-					new_agg_pk.add_public_key(&bls_key, false).unwrap();
+			} else if let Some(mut new_agg_pk) = agg_pk {
+				if new_agg_pk.add_public_key(&bls_key, false).is_ok() {
 					agg_pk = Some(new_agg_pk);
 				} else {
 					return false
 				}
+			} else {
+				return false
 			}
 		}
 		// Generate Aggregate Signature
