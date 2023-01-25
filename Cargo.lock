@@ -8835,6 +8835,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "thea-primitives",
+ "thea-staking",
  "xcm",
 ]
 

@@ -14,6 +14,7 @@ use scale_info::TypeInfo;
 
 pub mod normal_deposit;
 pub mod parachain_primitives;
+pub mod thea_types;
 
 #[runtime_interface]
 pub trait TheaExt {
@@ -59,7 +60,9 @@ pub trait TheaExt {
 	}
 }
 
-#[derive(Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone, Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, PartialOrd, Ord, Eq, Copy,
+)]
 pub struct BLSPublicKey(pub [u8; 192]);
 
 #[derive(Encode, Decode, Clone, Debug, TypeInfo, Eq, PartialEq)]
