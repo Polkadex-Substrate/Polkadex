@@ -26,6 +26,9 @@ use frame_system::ensure_signed;
 use polkadex_primitives::AccountId;
 use sp_std::prelude::*;
 
+//constant proxy value
+const PROXY_ACCOUNT_BYTES: [u8; 32] = [0; 32];
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -122,6 +125,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Pallet already register
 		PalletAlreadyRegistered,
+		/// Unable to create proxy account
+		UnableToCreateProxyAccount
 	}
 
 	#[pallet::hooks]
@@ -137,16 +142,16 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn register_account(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			let pallet_account = Self::get_pallet_account();
-			//ToDo: Hardcore in someway the proxy account as well.
-			let proxy_account = AccountId::from(PALLET_PROXY_ACCOUNT);
-			// let proxy_account = T::AccountId::encode(&proxy_account.into_account_truncating());
+			let main_account = Self::get_pallet_account();
+			let proxy_account = T::AccountId::decode(&mut &PROXY_ACCOUNT_BYTES[..])
+				.map_err(|_| Error::<T>::UnableToCreateProxyAccount)?;
+
 			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
-			T::CallOcex::on_register(pallet_account.clone(), pallet_account.clone())?;
+			T::CallOcex::on_register(main_account.clone(), proxy_account.clone())?;
 			<PalletRegister<T>>::put(true);
 			Self::deposit_event(Event::PalletAccountRegister {
-				main_account: pallet_account.clone(),
-				proxy_account: pallet_account.clone(),
+				main_account,
+				proxy_account,
 			});
 			Ok(())
 		}
