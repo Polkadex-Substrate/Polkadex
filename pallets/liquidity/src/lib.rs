@@ -16,13 +16,8 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	dispatch::DispatchResult,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
-};
-use frame_system::ensure_signed;
+use frame_support::{dispatch::DispatchResult, traits::Currency};
 use pallet_timestamp::{self as timestamp};
-use polkadex_primitives::AccountId;
 use sp_std::prelude::*;
 
 #[cfg(test)]
@@ -66,16 +61,11 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		pallet_prelude::*,
-		sp_tracing::debug,
-		storage::bounded_btree_map::BoundedBTreeMap,
-		traits::{
-			fungibles::{Create, Inspect, Mutate},
-			Currency, ReservableCurrency,
-		},
+		traits::{Currency, ReservableCurrency},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::{AccountId, AssetId, Balance};
+	use polkadex_primitives::AssetId;
 	use sp_runtime::{
 		traits::{AccountIdConversion, IdentifyAccount, Verify},
 		SaturatedConversion,
@@ -152,8 +142,7 @@ pub mod pallet {
 			let main_account = Self::get_pallet_account();
 			let proxy_account = T::AccountId::decode(&mut &PROXY_ACCOUNT_BYTES[..])
 				.map_err(|_| Error::<T>::UnableToCreateProxyAccount)?;
-
-			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
+			ensure!(!<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
 			T::CallOcex::on_register(main_account.clone(), proxy_account.clone())?;
 			<PalletRegister<T>>::put(true);
 			Self::deposit_event(Event::PalletAccountRegister { main_account, proxy_account });
@@ -174,7 +163,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			ensure!(!<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
+			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
 			T::CallOcex::on_deposit(Self::get_pallet_account(), asset, amount.saturated_into())?;
 			Ok(())
 		}
@@ -196,7 +185,7 @@ pub mod pallet {
 			do_force_withdraw: bool,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			ensure!(!<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
+			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
 			let proxy_account = T::AccountId::decode(&mut &PROXY_ACCOUNT_BYTES[..])
 				.map_err(|_| Error::<T>::UnableToCreateProxyAccount)?;
 
@@ -212,7 +201,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		fn get_pallet_account() -> T::AccountId {
+		pub fn get_pallet_account() -> T::AccountId {
 			T::PalletId::get().into_account_truncating()
 		}
 	}
