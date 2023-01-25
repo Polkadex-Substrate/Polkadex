@@ -1,0 +1,68 @@
+[package]
+authors = ['Parallel Team']
+edition = '2021'
+name    = 'pallet-amm'
+version = '1.9.5'
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[dependencies]
+parity-scale-codec = { package = 'parity-scale-codec', version = '3.1.5', features = ['max-encoded-len'], default-features = false }
+frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.32', default-features = false, optional = true }
+frame-support      = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.32', default-features = false }
+frame-system       = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.32', default-features = false }
+num-traits         = { default-features = false, version = '0.2' }
+pallet-assets      = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.32', default-features = false }
+scale-info         = { version = '2.1', default-features = false, features = ['derive'] }
+serde              = { version = '1.0.136', features = ['derive'], optional = true }
+sp-arithmetic      = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.32', default-features = false }
+sp-runtime         = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.32', default-features = false }
+sp-std             = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.32', default-features = false }
+
+
+pallet-balances = { workspace = true, default-features = false }
+pallet-sudo = { workspace = true, default-features = false }
+chainbridge = { path = "../chainbridge", default-features = false }
+asset-handler = { path = "../asset-handler", default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+thea-primitives = { path = "../../thea-primitives", default-features = false }
+thea-staking = { path = "../thea-staking", default-features = false }
+support = {path = "../support", default-fetaures = false}
+router = { path = "../router", default-features = false}
+
+[dev-dependencies]
+sp-core                 = { branch = 'polkadot-v0.9.32', git = 'https://github.com/paritytech/substrate.git' }
+sp-io                   = { branch = 'polkadot-v0.9.32', git = 'https://github.com/paritytech/substrate.git' }
+
+[features]
+default = ['std']
+std     = [
+    'serde',
+    'parity-scale-codec/std',
+    'frame-benchmarking/std',
+    'frame-support/std',
+    'frame-system/std',
+    'sp-arithmetic/std',
+    'sp-runtime/std',
+    'sp-std/std',
+    'pallet-assets/std',
+    'scale-info/std',
+    'num-traits/std',
+    "pallet-balances/std",
+    "pallet-sudo/std",
+    "pallet-assets/std",
+    "chainbridge/std",
+    "asset-handler/std",
+    "polkadex-primitives/std",
+    "thea-primitives/std",
+    "thea-staking/std",
+    "support/std",
+    "router/std"
+]
+
+runtime-benchmarks = ['frame-benchmarking', 'frame-system/runtime-benchmarks']
+
+[lib]
+doctest = false
+

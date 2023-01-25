@@ -26,21 +26,22 @@ mod tests;
 mod benchmarking;
 
 pub mod weights;
+
+use frame_support::traits::fungibles::Transfer;
+use sp_runtime::DispatchError;
 pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use std::cmp::min;
 	use chainbridge::{BridgeChainId, ResourceId};
-	use frame_support::{
-		dispatch::fmt::Debug,
-		log,
-		pallet_prelude::*,
-		traits::{
-			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, ExistenceRequirement, ReservableCurrency,
-		},
-		PalletId,
-	};
+	use frame_support::{dispatch::fmt::Debug, log, pallet_prelude::*, traits::{
+		tokens::fungibles::{Create, Inspect, Mutate},
+		Currency, ExistenceRequirement, ReservableCurrency,
+	}, PalletId, fail};
+	use frame_support::traits::fungibles::Transfer;
+	use frame_support::traits::tokens::{DepositConsequence, WithdrawConsequence};
+	use frame_support::traits::WithdrawReasons;
 	use frame_system::pallet_prelude::*;
 	use sp_core::{H160, U256};
 	use sp_io::hashing::keccak_256;
@@ -114,16 +115,22 @@ pub mod pallet {
 		/// Asset Manager
 		type AssetManager: Create<<Self as frame_system::Config>::AccountId>
 			+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
-			+ Inspect<<Self as frame_system::Config>::AccountId>;
+			+ Inspect<<Self as frame_system::Config>::AccountId>
+		+ Transfer<<Self as frame_system::Config>::AccountId>;
 
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+
+		//PDEX asset id
+		#[pallet::constant]
+		type NativeCurrencyId: Get<u128>;
 
 		/// Treasury PalletId
 		#[pallet::constant]
 		type TreasuryPalletId: Get<PalletId>;
 
 		type WeightInfo: AssetHandlerWeightInfo;
+
 	}
 
 	#[pallet::pallet]
@@ -237,6 +244,12 @@ pub mod pallet {
 		AssetNotRegistered,
 		// Identifier length provided is wrong
 		IdentifierLengthMismatch,
+		//when trying to burn PDEX asset
+		CannotBurnNativeAsset,
+		//when trying to mint PDEX asset
+		CannotMintNativeAsset,
+		//when cannot transfer PDEX asset
+		NativeAssetTransferFailed
 	}
 
 	#[pallet::hooks]
@@ -657,4 +670,120 @@ pub mod pallet {
 				.unwrap();
 		}
 	}
+
+	impl<T: Config> Inspect<T::AccountId> for Pallet<T> {
+		type AssetId = u128;
+		type Balance = u128;
+
+		fn total_issuance(asset: Self::AssetId) -> Self::Balance {
+			// when asset is not polkadex
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::total_issuance(asset.saturated_into()).saturated_into()
+			} else {
+				T::Currency::total_issuance().saturated_into()
+			}
+		}
+
+		fn minimum_balance(asset: Self::AssetId) -> Self::Balance {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::minimum_balance(asset.saturated_into()).saturated_into()
+			} else {
+				T::Currency::minimum_balance().saturated_into()
+			}
+		}
+
+		fn balance(asset: Self::AssetId, who: &T::AccountId) -> Self::Balance {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::balance(asset.saturated_into(), who).saturated_into()
+			} else {
+				T::Currency::total_balance(who).saturated_into()
+			}
+		}
+
+		fn reducible_balance(asset: Self::AssetId, who: &T::AccountId, keep_alive: bool) -> Self::Balance {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::reducible_balance(asset.saturated_into(), who, keep_alive).saturated_into()
+			} else {
+				T::Currency::free_balance(who).saturated_into()
+			}
+		}
+
+		fn can_deposit(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance, mint: bool) -> DepositConsequence {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::can_deposit(asset, who, amount.saturated_into(), mint)
+			} else {
+				// balance of native asset can always be increased
+				DepositConsequence::Success
+			}
+		}
+
+		fn can_withdraw(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance) -> WithdrawConsequence<Self::Balance> {
+			return if asset != T::NativeCurrencyId::get() {
+				let consequences= T::AssetManager::can_withdraw(asset.saturated_into(), who, amount.saturated_into());
+				return consequences.into();
+			} else {
+				todo!()
+			}
+		}
+	}
+
+	impl<T:Config> Transfer<T::AccountId> for Pallet<T> {
+		fn transfer(asset: Self::AssetId, source: &T::AccountId, dest: &T::AccountId, amount: Self::Balance, keep_alive: bool) -> Result<Self::Balance, DispatchError> {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::transfer(asset, source, dest ,amount.saturated_into(), keep_alive).map(|x|{
+					x.saturated_into()
+				})
+			} else {
+				let existence_requirement = if keep_alive { ExistenceRequirement::KeepAlive} else {ExistenceRequirement::AllowDeath};
+				 T::Currency::transfer(source, dest, amount.saturated_into(), existence_requirement)?;
+				 Ok(amount)
+			}
+		}
+	}
+
+	impl<T:Config> Mutate<T::AccountId> for Pallet<T>{
+		fn mint_into(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::mint_into(asset, who, amount.saturated_into()).map(|x|{
+					x.saturated_into()
+				})
+			} else {
+				fail!(Error::<T>::CannotMintNativeAsset)
+			}
+		}
+
+		fn burn_from(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance) -> Result<Self::Balance, DispatchError> {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::burn_from(asset, who, amount.saturated_into()).map(|x|{
+					x.saturated_into()
+				})
+			} else {
+				fail!(Error::<T>::CannotBurnNativeAsset)
+			}
+		}
+
+		fn slash(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance) -> Result<Self::Balance, DispatchError> {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::slash(asset, who, amount.saturated_into()).map(|x|{
+					x.saturated_into()
+				})
+			} else {
+				let (_,balance) =  T::Currency::slash(who,amount.saturated_into());
+				Ok(balance.saturated_into())
+			}
+		}
+
+		fn teleport(asset: Self::AssetId, source: &T::AccountId, dest: &T::AccountId, amount: Self::Balance) -> Result<Self::Balance, DispatchError> {
+			return if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::teleport(asset, source, dest, amount.saturated_into()).map(|x|{
+					x.saturated_into()
+				})
+			} else {
+			   	T::Currency::transfer(source, dest, amount.saturated_into(), ExistenceRequirement::KeepAlive)?;
+				Ok(amount)
+			}
+		}
+	}
 }
+
+
