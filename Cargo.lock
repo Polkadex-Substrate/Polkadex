@@ -4151,6 +4151,7 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "thea",
+ "thea-cross-chain-governance",
  "thea-primitives",
  "thea-staking",
 ]
@@ -8837,6 +8838,24 @@ dependencies = [
  "thea-primitives",
  "thea-staking",
  "xcm",
+]
+
+[[package]]
+name = "thea-cross-chain-governance"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
 ]
 
 [[package]]

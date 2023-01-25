@@ -1364,6 +1364,19 @@ impl pallet_nomination_pools::Config for Runtime {
 	type MaxPointsToBalance = MaxPointsToBalance;
 }
 
+parameter_types! {
+	pub const StakingAmount: u128 = 1_000_000_000_000_000u128;
+	pub const StakingReserveIdentifierForTheaGov: [u8; 8] = [2u8;8];
+
+}
+
+impl thea_cross_chain_governance::Config for Runtime {
+	type Event = Event;
+	type StakingAmount = StakingAmount;
+	type StakingReserveIdentifier = StakingReserveIdentifierForTheaGov;
+	type CouncilHandlerOrigin = frame_system::EnsureSigned<Self::AccountId>;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1412,6 +1425,7 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
+		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 42
 	}
 );
 /// Digest item type.

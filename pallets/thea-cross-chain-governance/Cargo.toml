@@ -1,0 +1,40 @@
+[package]
+name = "thea-cross-chain-governance"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+parity-scale-codec = {workspace = true, default-features = false }
+log = { workspace = true, default-features = false }
+scale-info =  { workspace = true, default-features = false, features = ["derive"] }
+frame-benchmarking = { default-features = false, workspace = true , optional = true}
+frame-support = { default-features = false, workspace = true }
+frame-system ={ default-features = false, workspace = true }
+pallet-balances = { default-features = false, workspace = true }
+sp-io = { default-features = false, workspace = true }
+sp-runtime = { default-features = false, workspace = true }
+sp-std = { default-features = false, workspace = true }
+sp-staking = { default-features = false, workspace = true }
+
+[dev-dependencies]
+sp-core = { default-features = false, workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "parity-scale-codec/std",
+    "log/std",
+    "scale-info/std",
+    "frame-benchmarking/default",
+    "frame-support/default",
+    "frame-system/default",
+    "pallet-balances/default",
+    "sp-io/default",
+    "sp-runtime/default",
+    "sp-std/default",
+    "sp-staking/default",
+    "sp-core/default",
+    "pallet-balances/std"
+]
