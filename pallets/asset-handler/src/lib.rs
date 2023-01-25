@@ -33,7 +33,6 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use std::cmp::min;
 	use chainbridge::{BridgeChainId, ResourceId};
 	use frame_support::{dispatch::fmt::Debug, log, pallet_prelude::*, traits::{
 		tokens::fungibles::{Create, Inspect, Mutate},

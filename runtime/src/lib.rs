@@ -86,7 +86,6 @@ use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
-use pallet_bags_list::mock::Runtime;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1335,18 +1334,19 @@ parameter_types! {
 
 //Install Swap pallet
 parameter_types! {
-	pub const SwapPalletId: PalletId = PalletId(*b"sw/account");
-	pub DefaultLpFee: Ratio = Ratio::from_rational(30u32, 10000u32);
-	pub DefaultProtocolFee: Ratio = Ratio::from_rational(0u32, 10000u32);
+	pub const SwapPalletId: PalletId = PalletId(*b"sw/accnt");
+	pub DefaultLpFee: Permill = Permill::from_rational(30u32, 10000u32);
+	pub OneAccount: AccountId = AccountId::from([1u8; 32]);
+	pub DefaultProtocolFee: Permill = Permill::from_rational(0u32, 10000u32);
 	pub const MinimumLiquidity: u128 = 1_000u128;
 	pub const MaxLengthRoute: u8 = 10;
 }
 
-impl swap::Config for Runtime {
+impl pallet_amm::Config for Runtime {
 	type Event = Event;
 	type Assets = AssetHandler;
 	type PalletId = SwapPalletId;
-	type LockAccountId = SwapPalletId;
+	type LockAccountId = OneAccount;
 	type CreatePoolOrigin = EnsureRootOrHalfCouncil;
 	type ProtocolFeeUpdateOrigin = EnsureRootOrHalfCouncil;
 	type LpFee = DefaultLpFee;
@@ -1355,20 +1355,20 @@ impl swap::Config for Runtime {
 	type GetNativeCurrencyId = NativeCurrencyId;
 }
 
-//
-// //Install Router pallet
-// parameter_types! {
-// 	pub const RouterPalletId: PalletId = PalletId(*b"rw/account");
-// }
-//
-// impl router::Config for Runtime{
-// 	type Event = Event;
-// 	type PalletId = RouterPalletId;
-// 	type AMM = ();
-// 	type Assets = ();
-// 	type GetNativeCurrencyId = NativeCurrencyId;
-// 	type MaxLengthRoute = MaxLengthRoute;
-// }
+
+//Install Router pallet
+parameter_types! {
+	pub const RouterPalletId: PalletId = PalletId(*b"rw/accnt");
+}
+
+impl router::Config for Runtime{
+	type Event = Event;
+	type PalletId = RouterPalletId;
+	type AMM = Swap;
+	type Assets = AssetHandler;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type MaxLengthRoute = MaxLengthRoute;
+}
 
 use sp_runtime::traits::Convert;
 pub struct BalanceToU256;
@@ -1448,6 +1448,8 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
+		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 42,
+		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 43,
 	}
 );
 /// Digest item type.
