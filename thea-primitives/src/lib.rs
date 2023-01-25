@@ -24,7 +24,12 @@ pub trait TheaExt {
 		payload: &[u8],
 		bls_public_keys: &[BLSPublicKey],
 	) -> bool {
-		let recon_sig = Signature::from_bytes(agg_sig).unwrap();
+		let recon_sig = match Signature::from_bytes(agg_sig) {
+			Ok(sig) => sig,
+			Err(_e) => {
+				return false
+			},
+		};
 		let bit_map_vec = return_set_bits(bit_map);
 		let mut agg_pk: Option<AggregatePublicKey> = None;
 		for x in bit_map_vec {
@@ -39,22 +44,27 @@ pub trait TheaExt {
 					Err(_err) => return false,
 				};
 			} else {
-				let mut new_agg_pk = agg_pk.unwrap();
-				new_agg_pk.add_public_key(&bls_key, false).unwrap();
-				agg_pk = Some(new_agg_pk);
+				if let Some(mut new_agg_pk) = agg_pk {
+					new_agg_pk.add_public_key(&bls_key, false).unwrap();
+					agg_pk = Some(new_agg_pk);
+				} else {
+					return false
+				}
 			}
 		}
 		// Generate Aggregate Signature
 		let mut _agg_sig = AggregateSignature::from_signature(&recon_sig);
 		let dst = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
-		let err = recon_sig.fast_aggregate_verify_pre_aggregated(
-			false,
-			payload,
-			dst,
-			&agg_pk.unwrap().to_public_key(),
-		);
-		if err == BLST_ERROR::BLST_SUCCESS {
-			return true
+		if let Some(agg_pk) = agg_pk {
+			let err = recon_sig.fast_aggregate_verify_pre_aggregated(
+				false,
+				payload,
+				dst,
+				&agg_pk.to_public_key(),
+			);
+			if err == BLST_ERROR::BLST_SUCCESS {
+				return true
+			}
 		}
 		false
 	}
