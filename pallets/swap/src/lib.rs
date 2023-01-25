@@ -38,43 +38,43 @@ use frame_support::{
 	transactional, Blake2_128Concat, PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use support::{ConvertToBigUint, Pool};
-use polkadex_primitives::{Balance};
-use sp_runtime::{traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Saturating, Zero}, ArithmeticError, DispatchError, FixedPointNumber, FixedU128, SaturatedConversion, Permill};
+use polkadex_primitives::Balance;
+use sp_runtime::{
+	traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Saturating, Zero},
+	ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, SaturatedConversion,
+};
 use sp_std::{cmp::min, result::Result, vec::Vec};
+use support::{ConvertToBigUint, Pool};
 
 pub use pallet::*;
 // pub use weights::WeightInfo;
 
-use num_traits::cast::ToPrimitive;
-use num_traits::{CheckedDiv, CheckedMul};
+use num_traits::{cast::ToPrimitive,CheckedMul, CheckedDiv};
 
 pub type Ratio = Permill;
 pub type CurrencyId = u128;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type AssetIdOf<T, I = ()> =
-<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
+	<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 pub type BalanceOf<T, I = ()> =
-<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+	<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use polkadex_primitives::Balance;
 	use super::*;
+	use polkadex_primitives::Balance;
 
 	pub type Amounts<T, I> = sp_std::vec::Vec<BalanceOf<T, I>>;
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
-
-		type Event: From<Event<Self, I>>
-		+ IsType<<Self as frame_system::Config>::Event>;
+		type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Currency type for deposit/withdraw assets to/from amm
 		/// module
 		type Assets: Transfer<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
-		+ Inspect<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
-		+ Mutate<Self::AccountId, AssetId = CurrencyId, Balance = Balance>;
+			+ Inspect<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
+			+ Mutate<Self::AccountId, AssetId = CurrencyId, Balance = Balance>;
 
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -146,7 +146,8 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
 	pub enum Event<T: Config<I>, I: 'static = ()> {
 		/// Add liquidity into pool
-		/// [sender, base_currency_id, quote_currency_id, base_amount_added, quote_amount_added, lp_token_id, new_base_amount, new_quote_amount]
+		/// [sender, base_currency_id, quote_currency_id, base_amount_added, quote_amount_added,
+		/// lp_token_id, new_base_amount, new_quote_amount]
 		LiquidityAdded(
 			T::AccountId,
 			AssetIdOf<T, I>,
@@ -158,7 +159,8 @@ pub mod pallet {
 			BalanceOf<T, I>,
 		),
 		/// Remove liquidity from pool
-		/// [sender, base_currency_id, quote_currency_id, liquidity, base_amount_removed, quote_amount_removed, lp_token_id, new_base_amount, new_quote_amount]
+		/// [sender, base_currency_id, quote_currency_id, liquidity, base_amount_removed,
+		/// quote_amount_removed, lp_token_id, new_base_amount, new_quote_amount]
 		LiquidityRemoved(
 			T::AccountId,
 			AssetIdOf<T, I>,
@@ -172,14 +174,10 @@ pub mod pallet {
 		),
 		/// A Pool has been created
 		/// [trader, currency_id_in, currency_id_out, lp_token_id]
-		PoolCreated(
-			T::AccountId,
-			AssetIdOf<T, I>,
-			AssetIdOf<T, I>,
-			AssetIdOf<T, I>,
-		),
+		PoolCreated(T::AccountId, AssetIdOf<T, I>, AssetIdOf<T, I>, AssetIdOf<T, I>),
 		/// Trade using liquidity
-		/// [trader, currency_id_in, currency_id_out, amount_in, amount_out, lp_token_id, new_quote_amount, new_base_amount]
+		/// [trader, currency_id_in, currency_id_out, amount_in, amount_out, lp_token_id,
+		/// new_quote_amount, new_base_amount]
 		Traded(
 			T::AccountId,
 			AssetIdOf<T, I>,
@@ -263,15 +261,15 @@ pub mod pallet {
 						Self::get_ideal_amounts(pool, (base_amount, quote_amount))?;
 
 					ensure!(
-                        ideal_base_amount <= base_amount && ideal_quote_amount <= quote_amount,
-                        Error::<T, I>::InsufficientAmountIn
-                    );
+						ideal_base_amount <= base_amount && ideal_quote_amount <= quote_amount,
+						Error::<T, I>::InsufficientAmountIn
+					);
 
 					ensure!(
-                        ideal_base_amount >= minimum_base_amount
-                            && ideal_quote_amount >= minimum_quote_amount,
-                        Error::<T, I>::NotAnIdealPrice
-                    );
+						ideal_base_amount >= minimum_base_amount &&
+							ideal_quote_amount >= minimum_quote_amount,
+						Error::<T, I>::NotAnIdealPrice
+					);
 
 					Self::do_mint_protocol_fee(pool)?;
 
@@ -283,16 +281,16 @@ pub mod pallet {
 					)?;
 
 					log::trace!(
-                        target: "amm::add_liquidity",
-                        "who: {:?}, base_asset: {:?}, quote_asset: {:?}, ideal_amounts: {:?},\
-                        desired_amounts: {:?}, minimum_amounts: {:?}",
-                        &who,
-                        &base_asset,
-                        &quote_asset,
-                        &(ideal_base_amount, ideal_quote_amount),
-                        &desired_amounts,
-                        &minimum_amounts
-                    );
+						target: "amm::add_liquidity",
+						"who: {:?}, base_asset: {:?}, quote_asset: {:?}, ideal_amounts: {:?},\
+						desired_amounts: {:?}, minimum_amounts: {:?}",
+						&who,
+						&base_asset,
+						&quote_asset,
+						&(ideal_base_amount, ideal_quote_amount),
+						&desired_amounts,
+						&minimum_amounts
+					);
 
 					Self::deposit_event(Event::<T, I>::LiquidityAdded(
 						who,
@@ -334,13 +332,13 @@ pub mod pallet {
 					Self::do_remove_liquidity(&who, pool, liquidity, (base_asset, quote_asset))?;
 
 				log::trace!(
-                    target: "amm::remove_liquidity",
-                    "who: {:?}, base_asset: {:?}, quote_asset: {:?}, liquidity: {:?}",
-                    &who,
-                    &base_asset,
-                    &quote_asset,
-                    &liquidity
-                );
+					target: "amm::remove_liquidity",
+					"who: {:?}, base_asset: {:?}, quote_asset: {:?}, liquidity: {:?}",
+					&who,
+					&base_asset,
+					&quote_asset,
+					&liquidity
+				);
 
 				Self::deposit_event(Event::<T, I>::LiquidityRemoved(
 					who,
@@ -377,9 +375,9 @@ pub mod pallet {
 
 			let (is_inverted, base_asset, quote_asset) = Self::sort_assets(pair)?;
 			ensure!(
-                !Pools::<T, I>::contains_key(&base_asset, &quote_asset),
-                Error::<T, I>::PoolAlreadyExists
-            );
+				!Pools::<T, I>::contains_key(&base_asset, &quote_asset),
+				Error::<T, I>::PoolAlreadyExists
+			);
 
 			let (base_amount, quote_amount) = if is_inverted {
 				(liquidity_amounts.1, liquidity_amounts.0)
@@ -390,9 +388,9 @@ pub mod pallet {
 			// check that this is a new asset to avoid using an asset that
 			// already has tokens minted
 			ensure!(
-                T::Assets::total_issuance(lp_token_id).is_zero(),
-                Error::<T, I>::LpTokenAlreadyExists
-            );
+				T::Assets::total_issuance(lp_token_id).is_zero(),
+				Error::<T, I>::LpTokenAlreadyExists
+			);
 
 			let mut pool = Pool::new(lp_token_id);
 
@@ -413,16 +411,16 @@ pub mod pallet {
 			Pools::<T, I>::insert(&base_asset, &quote_asset, pool);
 
 			log::trace!(
-                target: "amm::create_pool",
-                "lptoken_receiver: {:?}, base_asset: {:?}, quote_asset: {:?}, base_amount: {:?}, quote_amount: {:?},\
-                 liquidity_amounts: {:?}",
-                &lptoken_receiver,
-                &base_asset,
-                &quote_asset,
-                &base_amount,
-                &quote_amount,
-                &liquidity_amounts
-            );
+				target: "amm::create_pool",
+				"lptoken_receiver: {:?}, base_asset: {:?}, quote_asset: {:?}, base_amount: {:?}, quote_amount: {:?},\
+				 liquidity_amounts: {:?}",
+				&lptoken_receiver,
+				&base_asset,
+				&quote_asset,
+				&base_amount,
+				&quote_amount,
+				&liquidity_amounts
+			);
 
 			Self::deposit_event(Event::<T, I>::LiquidityAdded(
 				lptoken_receiver,
@@ -458,9 +456,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			T::ProtocolFeeUpdateOrigin::ensure_origin(origin)?;
 			ProtocolFeeReceiver::<T, I>::put(protocol_fee_receiver.clone());
-			Self::deposit_event(Event::<T, I>::ProtocolFeeReceiverUpdated(
-				protocol_fee_receiver,
-			));
+			Self::deposit_event(Event::<T, I>::ProtocolFeeReceiverUpdated(protocol_fee_receiver));
 			Ok(().into())
 		}
 	}
@@ -485,12 +481,12 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		quote_pool: BalanceOf<T, I>,
 	) -> Result<BalanceOf<T, I>, DispatchError> {
 		log::trace!(
-            target: "amm::quote",
-            "base_amount: {:?}, base_pool: {:?}, quote_pool: {:?}",
-            &base_amount,
-            &base_pool,
-            &quote_pool
-        );
+			target: "amm::quote",
+			"base_amount: {:?}, base_pool: {:?}, quote_pool: {:?}",
+			&base_amount,
+			&base_pool,
+			&quote_pool
+		);
 
 		Ok(base_amount
 			.get_big_uint()
@@ -504,18 +500,18 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		(curr_a, curr_b): (AssetIdOf<T, I>, AssetIdOf<T, I>),
 	) -> Result<(bool, AssetIdOf<T, I>, AssetIdOf<T, I>), DispatchError> {
 		if curr_a > curr_b {
-			return Ok((false, curr_a, curr_b));
+			return Ok((false, curr_a, curr_b))
 		}
 
 		if curr_a < curr_b {
-			return Ok((true, curr_b, curr_a));
+			return Ok((true, curr_b, curr_a))
 		}
 
 		log::trace!(
-            target: "amm::sort_assets",
-            "pair: {:?}",
-            &(curr_a, curr_b)
-        );
+			target: "amm::sort_assets",
+			"pair: {:?}",
+			&(curr_a, curr_b)
+		);
 
 		Err(Error::<T, I>::IdenticalAssets.into())
 	}
@@ -527,13 +523,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		(base_amount, quote_amount): (BalanceOf<T, I>, BalanceOf<T, I>),
 	) -> Result<(BalanceOf<T, I>, BalanceOf<T, I>), DispatchError> {
 		log::trace!(
-            target: "amm::get_ideal_amounts",
-            "pair: {:?}",
-            &(base_amount, quote_amount)
-        );
+			target: "amm::get_ideal_amounts",
+			"pair: {:?}",
+			&(base_amount, quote_amount)
+		);
 
 		if pool.is_empty() {
-			return Ok((base_amount, quote_amount));
+			return Ok((base_amount, quote_amount))
 		}
 
 		let ideal_quote_amount = Self::quote(base_amount, pool.base_amount, pool.quote_amount)?;
@@ -609,12 +605,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		}
 	}
 
-	// given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
+	// given an input amount of an asset and pair reserves, returns the maximum output amount of the
+	// other asset
 	//
 	// amountIn = amountIn * (1 - fee_percent)
 	// reserveIn * reserveOut = (reserveIn + amountIn) * (reserveOut - amountOut)
-	// reserveIn * reserveOut = reserveIn * reserveOut + amountIn * reserveOut - (reserveIn + amountIn) * amountOut
-	// amountIn * reserveOut = (reserveIn + amountIn) * amountOut
+	// reserveIn * reserveOut = reserveIn * reserveOut + amountIn * reserveOut - (reserveIn +
+	// amountIn) * amountOut amountIn * reserveOut = (reserveIn + amountIn) * amountOut
 	//
 	// amountOut = amountIn * reserveOut / (reserveIn + amountIn)
 	fn get_amount_out(
@@ -624,45 +621,35 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	) -> Result<BalanceOf<T, I>, DispatchError> {
 		let fees = T::LpFee::get().mul_ceil(amount_in);
 
-		let amount_in = amount_in
-			.checked_sub(fees)
-			.ok_or(ArithmeticError::Underflow)?;
+		let amount_in = amount_in.checked_sub(fees).ok_or(ArithmeticError::Underflow)?;
 
-		let (amount_in, reserve_in, reserve_out) = (
-			amount_in.get_big_uint(),
-			reserve_in.get_big_uint(),
-			reserve_out.get_big_uint(),
-		);
+		let (amount_in, reserve_in, reserve_out) =
+			(amount_in.get_big_uint(), reserve_in.get_big_uint(), reserve_out.get_big_uint());
 
-		let numerator = amount_in
-			.checked_mul(&reserve_out)
-			.ok_or(ArithmeticError::Overflow)?;
+		let numerator = amount_in.checked_mul(&reserve_out).ok_or(ArithmeticError::Overflow)?;
 
-		let denominator = reserve_in
-			.checked_add(&amount_in)
-			.ok_or(ArithmeticError::Overflow)?;
+		let denominator = reserve_in.checked_add(&amount_in).ok_or(ArithmeticError::Overflow)?;
 
-		let amount_out = numerator
-			.checked_div(&denominator)
-			.ok_or(ArithmeticError::Underflow)?;
+		let amount_out = numerator.checked_div(&denominator).ok_or(ArithmeticError::Underflow)?;
 
 		log::trace!(
-            target: "amm::get_amount_out",
-            "amount_in: {:?}, reserve_in: {:?}, reserve_out: {:?}, fees: {:?}, numerator: {:?}, denominator: {:?},\
-             amount_out: {:?}",
-            &amount_in,
-            &reserve_in,
-            &reserve_out,
-            &fees,
-            &numerator,
-            &denominator,
-            &amount_out
-        );
+			target: "amm::get_amount_out",
+			"amount_in: {:?}, reserve_in: {:?}, reserve_out: {:?}, fees: {:?}, numerator: {:?}, denominator: {:?},\
+			 amount_out: {:?}",
+			&amount_in,
+			&reserve_in,
+			&reserve_out,
+			&fees,
+			&numerator,
+			&denominator,
+			&amount_out
+		);
 
 		Ok(amount_out.to_u128().ok_or(ArithmeticError::Overflow)?)
 	}
 
-	// given an output amount of an asset and pair reserves, returns a required input amount of the other asset
+	// given an output amount of an asset and pair reserves, returns a required input amount of the
+	// other asset
 	//
 	// amountOut = amountIn * reserveOut / (reserveIn + amountIn)
 	// amountOut * reserveIn + amountOut * amountIn  = amountIn * reserveOut
@@ -677,24 +664,14 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		reserve_in: BalanceOf<T, I>,
 		reserve_out: BalanceOf<T, I>,
 	) -> Result<BalanceOf<T, I>, DispatchError> {
-		ensure!(
-            amount_out < reserve_out,
-            Error::<T, I>::InsufficientSupplyOut
-        );
+		ensure!(amount_out < reserve_out, Error::<T, I>::InsufficientSupplyOut);
 
-		let (amount_out, reserve_in, reserve_out) = (
-			amount_out.get_big_uint(),
-			reserve_in.get_big_uint(),
-			reserve_out.get_big_uint(),
-		);
+		let (amount_out, reserve_in, reserve_out) =
+			(amount_out.get_big_uint(), reserve_in.get_big_uint(), reserve_out.get_big_uint());
 
-		let numerator = reserve_in
-			.checked_mul(&amount_out)
-			.ok_or(ArithmeticError::Overflow)?;
+		let numerator = reserve_in.checked_mul(&amount_out).ok_or(ArithmeticError::Overflow)?;
 
-		let denominator = reserve_out
-			.checked_sub(&amount_out)
-			.ok_or(ArithmeticError::Underflow)?;
+		let denominator = reserve_out.checked_sub(&amount_out).ok_or(ArithmeticError::Underflow)?;
 
 		let amount_in = numerator
 			.checked_div(&denominator)
@@ -707,15 +684,15 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			.ok_or(ArithmeticError::Underflow)?;
 
 		log::trace!(
-            target: "amm::get_amount_in",
-            "amount_out: {:?}, reserve_in: {:?}, reserve_out: {:?}, numerator: {:?}, denominator: {:?}, amount_in: {:?}",
-            &amount_out,
-            &reserve_in,
-            &reserve_out,
-            &numerator,
-            &denominator,
-            &amount_in
-        );
+			target: "amm::get_amount_in",
+			"amount_out: {:?}, reserve_in: {:?}, reserve_out: {:?}, numerator: {:?}, denominator: {:?}, amount_in: {:?}",
+			&amount_out,
+			&reserve_in,
+			&reserve_out,
+			&numerator,
+			&denominator,
+			&amount_in
+		);
 
 		Ok(fee_percent
 			.saturating_reciprocal_mul_ceil(amount_in)
@@ -731,9 +708,8 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		let block_timestamp = frame_system::Pallet::<T>::block_number();
 
 		if pool.block_timestamp_last != block_timestamp {
-			let time_elapsed: BalanceOf<T, I> = block_timestamp
-				.saturating_sub(pool.block_timestamp_last)
-				.saturated_into();
+			let time_elapsed: BalanceOf<T, I> =
+				block_timestamp.saturating_sub(pool.block_timestamp_last).saturated_into();
 
 			// compute by multiplying the numerator with the time elapsed
 			let price0_fraction = FixedU128::saturating_from_rational(
@@ -791,13 +767,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			)?;
 
 			/*
-            *----------------------------------------------------------------------------
-                        ideal_base_amount(x)    | ideal_quote_amount        | sqrt(z)
-             U128       2000                    |  1000                     | 1414
-             U128(Error)2000000000000000000000  |  1000000000000000000000   | None
-             BigUInt    2000000000000000000000  |  1000000000000000000000   | 1414213562373095047801
-            -----------------------------------------------------------------------------
-            */
+			*----------------------------------------------------------------------------
+						ideal_base_amount(x)    | ideal_quote_amount        | sqrt(z)
+			 U128       2000                    |  1000                     | 1414
+			 U128(Error)2000000000000000000000  |  1000000000000000000000   | None
+			 BigUInt    2000000000000000000000  |  1000000000000000000000   | 1414213562373095047801
+			-----------------------------------------------------------------------------
+			*/
 
 			ideal_base_amount
 				.get_big_uint()
@@ -862,17 +838,17 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		}
 
 		log::trace!(
-            target: "amm::do_add_liquidity",
-            "who: {:?}, total_supply: {:?}, liquidity: {:?}, base_asset: {:?}, quote_asset: {:?}, ideal_base_amount: {:?},\
-             ideal_quote_amount: {:?}",
-            &who,
-            &total_supply,
-            &liquidity,
-            &base_asset,
-            &quote_asset,
-            &ideal_base_amount,
-            &ideal_quote_amount
-        );
+			target: "amm::do_add_liquidity",
+			"who: {:?}, total_supply: {:?}, liquidity: {:?}, base_asset: {:?}, quote_asset: {:?}, ideal_base_amount: {:?},\
+			 ideal_quote_amount: {:?}",
+			&who,
+			&total_supply,
+			&liquidity,
+			&base_asset,
+			&quote_asset,
+			&ideal_base_amount,
+			&ideal_quote_amount
+		);
 
 		Ok(())
 	}
@@ -943,15 +919,15 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		}
 
 		log::trace!(
-            target: "amm::do_remove_liquidity",
-            "who: {:?}, liquidity: {:?}, base_asset: {:?}, quote_asset: {:?}, base_amount: {:?}, quote_amount: {:?}",
-            &who,
-            &liquidity,
-            &base_asset,
-            &quote_asset,
-            &base_amount,
-            &quote_amount
-        );
+			target: "amm::do_remove_liquidity",
+			"who: {:?}, liquidity: {:?}, base_asset: {:?}, quote_asset: {:?}, base_amount: {:?}, quote_amount: {:?}",
+			&who,
+			&liquidity,
+			&base_asset,
+			&quote_asset,
+			&base_amount,
+			&quote_amount
+		);
 
 		Ok((base_amount, quote_amount))
 	}
@@ -974,7 +950,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			}
 
 			// if fees are off and k_last is zero return
-			return Ok(Zero::zero());
+			return Ok(Zero::zero())
 		}
 
 		// if the early exits do not return we know that k_last is not zero
@@ -993,7 +969,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			.sqrt();
 
 		if root_k <= root_k_last {
-			return Ok(Zero::zero());
+			return Ok(Zero::zero())
 		}
 
 		let total_supply = T::Assets::total_issuance(pool.lp_token_id).get_big_uint();
@@ -1020,21 +996,17 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			.to_u128()
 			.ok_or(ArithmeticError::Overflow)?;
 
-		T::Assets::mint_into(
-			pool.lp_token_id,
-			&Self::protolcol_fee_receiver()?,
-			protocol_fees,
-		)?;
+		T::Assets::mint_into(pool.lp_token_id, &Self::protolcol_fee_receiver()?, protocol_fees)?;
 
 		log::trace!(
-            target: "amm::do_mint_protocol_fee",
-            "root_k: {:?}, total_supply: {:?}, numerator: {:?}, denominator: {:?}, protocol_fees: {:?}",
-            &root_k,
-            &total_supply,
-            &numerator,
-            &denominator,
-            &protocol_fees
-        );
+			target: "amm::do_mint_protocol_fee",
+			"root_k: {:?}, total_supply: {:?}, numerator: {:?}, denominator: {:?}, protocol_fees: {:?}",
+			&root_k,
+			&total_supply,
+			&numerator,
+			&denominator,
+			&protocol_fees
+		);
 		Ok(protocol_fees)
 	}
 
@@ -1058,20 +1030,16 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				};
 
 				ensure!(
-                    amount_in >= T::LpFee::get().saturating_reciprocal_mul_ceil(One::one()),
-                    Error::<T, I>::InsufficientAmountIn
-                );
+					amount_in >= T::LpFee::get().saturating_reciprocal_mul_ceil(One::one()),
+					Error::<T, I>::InsufficientAmountIn
+				);
 				ensure!(!supply_out.is_zero(), Error::<T, I>::InsufficientAmountOut);
 
 				let amount_out = Self::get_amount_out(amount_in, supply_in, supply_out)?;
 
 				let (new_supply_in, new_supply_out) = (
-					supply_in
-						.checked_add(amount_in)
-						.ok_or(ArithmeticError::Overflow)?,
-					supply_out
-						.checked_sub(amount_out)
-						.ok_or(ArithmeticError::Underflow)?,
+					supply_in.checked_add(amount_in).ok_or(ArithmeticError::Overflow)?,
+					supply_out.checked_sub(amount_out).ok_or(ArithmeticError::Underflow)?,
 				);
 
 				if is_inverted {
@@ -1100,14 +1068,14 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				)?;
 
 				log::trace!(
-                    target: "amm::do_trade",
-                    "who: {:?}, asset_in: {:?}, asset_out: {:?}, amount_in: {:?}, amount_out: {:?}",
-                    &who,
-                    &asset_in,
-                    &asset_out,
-                    &amount_in,
-                    &amount_out,
-                );
+					target: "amm::do_trade",
+					"who: {:?}, asset_in: {:?}, asset_out: {:?}, amount_in: {:?}, amount_out: {:?}",
+					&who,
+					&asset_in,
+					&asset_out,
+					&amount_in,
+					&amount_out,
+				);
 
 				Self::deposit_event(Event::<T, I>::Traded(
 					who.clone(),
@@ -1127,8 +1095,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 }
 
 impl<T: Config<I>, I: 'static>
-support::AMM<AccountIdOf<T>, AssetIdOf<T, I>, BalanceOf<T, I>, T::BlockNumber>
-for Pallet<T, I>
+	support::AMM<AccountIdOf<T>, AssetIdOf<T, I>, BalanceOf<T, I>, T::BlockNumber> for Pallet<T, I>
 {
 	/// Based on the path specified and the available pool balances
 	/// this will return the amounts outs when trading the specified
@@ -1181,7 +1148,7 @@ for Pallet<T, I>
 	)> {
 		for (base_asset, quote_asset, pool) in Pools::<T, I>::iter() {
 			if pool.lp_token_id == asset_id {
-				return Some((base_asset, quote_asset, pool));
+				return Some((base_asset, quote_asset, pool))
 			}
 		}
 		None
@@ -1192,7 +1159,7 @@ for Pallet<T, I>
 		(base_asset, quote_asset): (AssetIdOf<T, I>, AssetIdOf<T, I>),
 	) -> Option<Pool<AssetIdOf<T, I>, BalanceOf<T, I>, T::BlockNumber>> {
 		if let Ok((_, base_asset, quote_asset)) = Self::sort_assets((base_asset, quote_asset)) {
-			return Pools::<T, I>::get(base_asset, quote_asset);
+			return Pools::<T, I>::get(base_asset, quote_asset)
 		}
 		None
 	}

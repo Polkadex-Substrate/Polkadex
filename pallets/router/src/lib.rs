@@ -29,7 +29,6 @@ pub use pallet::*;
 
 // pub mod weights;
 // pub use weights::WeightInfo;
-type CurrencyId=u32;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -91,9 +90,9 @@ pub mod pallet {
 
 		/// Currency type for deposit/withdraw assets to/from amm route
 		/// module
-		type Assets: Transfer<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
-		+ Inspect<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
-		+ Mutate<Self::AccountId, AssetId = CurrencyId, Balance = Balance>;
+		type Assets: Transfer<Self::AccountId, AssetId = u128, Balance = Balance>
+		+ Inspect<Self::AccountId, AssetId = u128, Balance = Balance>
+		+ Mutate<Self::AccountId, AssetId = u128, Balance = Balance>;
 	}
 
 	#[pallet::pallet]
@@ -168,7 +167,7 @@ pub mod pallet {
 			// get all the pool asset pairs from the AMM
 			let pools = T::AMM::get_pools()?;
 
-			let mut graph: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+			let mut graph: BTreeMap<u128, Vec<u128>> = BTreeMap::new();
 
 			// build a non directed graph from pool asset pairs
 			pools.into_iter().for_each(|(a, b)| {
@@ -183,7 +182,7 @@ pub mod pallet {
 			let mut start = token_in;
 			let mut end = token_out;
 
-			let mut queue: Vec<(u32, u32, Vec<u32>)> = Vec::from([(start, end, path)]);
+			let mut queue: Vec<(u128, u128, Vec<u128>)> = Vec::from([(start, end, path)]);
 
 			// check that both tokens exist in graph
 			ensure!(
