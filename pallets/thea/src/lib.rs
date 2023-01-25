@@ -24,7 +24,10 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
+	use sp_std::{
+		collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+		vec::Vec,
+	};
 
 	use frame_support::{
 		dispatch::fmt::Debug,
@@ -41,8 +44,10 @@ pub mod pallet {
 	use thea_primitives::{
 		normal_deposit::Deposit,
 		parachain_primitives::{ParachainAsset, ParachainDeposit, ParachainWithdraw},
+		thea_types::OnSessionChange,
 		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
 	};
+	use thea_staking::SessionChanged;
 	use xcm::{
 		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 		prelude::{Fungible, X1},
@@ -432,6 +437,24 @@ pub mod pallet {
 			<WithdrawalFees<T>>::insert(network_id, fee);
 			Self::deposit_event(Event::<T>::WithdrawalFeeSet(network_id, fee));
 			Ok(())
+		}
+	}
+
+	impl<T: Config> SessionChanged for Pallet<T> {
+		type Network = Network;
+		type OnSessionChange = OnSessionChange<T::AccountId>;
+		fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
+			// network
+			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
+				if let (Ok(relayer_bls_keys), Ok(authority_list)) = (
+					BoundedVec::try_from(vec_of_bls_keys),
+					BoundedVec::try_from(vec_of_account_ids),
+				) {
+					<RelayersBLSKeyVector<T>>::insert(network_id, relayer_bls_keys);
+					<AuthorityListEcdsa<T>>::insert(network_id, authority_list);
+				}
+			}
 		}
 	}
 
