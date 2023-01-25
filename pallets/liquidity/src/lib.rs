@@ -20,11 +20,16 @@ use frame_support::{
 	dispatch::DispatchResult,
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
 };
-use pallet_timestamp::{self as timestamp};
-
 use frame_system::ensure_signed;
+use pallet_timestamp::{self as timestamp};
 use polkadex_primitives::AccountId;
 use sp_std::prelude::*;
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod mock;
 
 //constant proxy value
 const PROXY_ACCOUNT_BYTES: [u8; 32] = [0; 32];
@@ -128,7 +133,7 @@ pub mod pallet {
 		/// Unable to create proxy account
 		UnableToCreateProxyAccount,
 		/// Account not register
-		PalletAccountNotRegistered
+		PalletAccountNotRegistered,
 	}
 
 	#[pallet::hooks]
@@ -151,10 +156,7 @@ pub mod pallet {
 			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
 			T::CallOcex::on_register(main_account.clone(), proxy_account.clone())?;
 			<PalletRegister<T>>::put(true);
-			Self::deposit_event(Event::PalletAccountRegister {
-				main_account,
-				proxy_account,
-			});
+			Self::deposit_event(Event::PalletAccountRegister { main_account, proxy_account });
 			Ok(())
 		}
 
