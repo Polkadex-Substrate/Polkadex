@@ -1068,12 +1068,14 @@ pub mod pallet {
 		}
 		fn on_withdraw(
 			account: Self::AccountId,
+			proxy_account: Self::AccountId,
 			asset: Self::AssetId,
 			balance: u128,
 			do_force_withdraw: bool,
 		) -> DispatchResult {
 			Self::withdrawal_from_orderbook(
 				account,
+				proxy_account,
 				asset,
 				balance.saturated_into(),
 				do_force_withdraw,
@@ -1113,8 +1115,6 @@ pub mod pallet {
 			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			// Check if account is registered
 			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
-			// TODO: Check if asset is enabled for deposit
-
 			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
 			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
 				.checked_div(Decimal::from(UNIT_BALANCE))
@@ -1164,6 +1164,7 @@ pub mod pallet {
 
 		fn withdrawal_from_orderbook(
 			user: T::AccountId,
+			proxy_account: T::AccountId,
 			asset: AssetId,
 			amount: BalanceOf<T>,
 			do_force_withdraw: bool,
@@ -1179,11 +1180,14 @@ pub mod pallet {
 
 			//ToDo: Change ingress message to Direct Withdrawal one.
 			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
-					user.clone(),
-					asset,
-					converted_amount,
-				));
+				ingress_messages.push(
+					polkadex_primitives::ingress::IngressMessages::DirectWithdrawal(
+						proxy_account,
+						asset,
+						converted_amount,
+						do_force_withdraw,
+					),
+				);
 			});
 			Self::deposit_event(Event::WithdrawFromOrderbook(user, asset, amount));
 			Ok(())

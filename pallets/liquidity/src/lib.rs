@@ -43,6 +43,7 @@ pub trait LiquidityModifier {
 	fn on_deposit(account: Self::AccountId, asset: Self::AssetId, balance: u128) -> DispatchResult;
 	fn on_withdraw(
 		account: Self::AccountId,
+		proxy_account: Self::AccountId,
 		asset: Self::AssetId,
 		balance: u128,
 		do_force_withdraw: bool,
@@ -139,6 +140,7 @@ pub mod pallet {
 			let pallet_account = Self::get_pallet_account();
 			//ToDo: Hardcore in someway the proxy account as well.
 			let proxy_account = AccountId::from(PALLET_PROXY_ACCOUNT);
+			// let proxy_account = T::AccountId::encode(&proxy_account.into_account_truncating());
 			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
 			T::CallOcex::on_register(pallet_account.clone(), pallet_account.clone())?;
 			<PalletRegister<T>>::put(true);
@@ -187,6 +189,7 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
 			T::CallOcex::on_withdraw(
+				Self::get_pallet_account(),
 				Self::get_pallet_account(),
 				asset,
 				amount.saturated_into(),
