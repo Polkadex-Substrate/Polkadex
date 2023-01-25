@@ -45,7 +45,7 @@ pub mod pallet {
 		normal_deposit::Deposit,
 		parachain_primitives::{ParachainAsset, ParachainDeposit, ParachainWithdraw},
 		thea_types::OnSessionChange,
-		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
+		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaPalletMessages, TokenType,
 	};
 	use thea_staking::SessionChanged;
 	use xcm::{
@@ -150,6 +150,11 @@ pub mod pallet {
 		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
 		ValueQuery,
 	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_ingress_messages)]
+	pub(super) type IngressMessages<T: Config> =
+		StorageValue<_, Vec<TheaPalletMessages>, ValueQuery>;
 
 	/// Withdrawal Fees for each network
 	#[pallet::storage]
@@ -292,11 +297,26 @@ pub mod pallet {
 			<AccountWithPendingDeposits<T>>::put(accounts);
 			remaining_weight
 		}
+
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
+			// TODO: Benchmarking for Thea Pallet
+			1000 as Weight
+		}
 	}
 
 	// Extrinsics for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Helper extrinsic for testing only
+		#[pallet::weight(1000)]
+		pub fn initiate_key(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+			<IngressMessages<T>>::mutate(|messages| {
+				messages.push(TheaPalletMessages::EcdsaReady(10));
+			});
+			Ok(())
+		}
 		/// Helper extrinsic for testing purpose only
 		#[pallet::weight(1000)]
 		pub fn add_relayer_info(

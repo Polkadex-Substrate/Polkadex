@@ -105,6 +105,12 @@ impl TokenType {
 	}
 }
 
+#[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum TheaPalletMessages {
+	// Begin Distributed key generation and the amount of offline stages
+	EcdsaReady(u16),
+}
+
 pub fn return_set_bits(bit_map: u128) -> Vec<u8> {
 	let mut set_bits: Vec<u8> = vec![];
 	for i in 0..128 {
