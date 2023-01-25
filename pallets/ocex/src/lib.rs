@@ -49,6 +49,7 @@ type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
+const WITHDRAWAL_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -1110,7 +1111,11 @@ pub mod pallet {
 			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
 		}
 
-		fn do_deposit(user: T::AccountId, asset: AssetId, amount: BalanceOf<T>) -> DispatchResult {
+		pub fn do_deposit(
+			user: T::AccountId,
+			asset: AssetId,
+			amount: BalanceOf<T>,
+		) -> DispatchResult {
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			// Check if account is registered
@@ -1141,7 +1146,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn register_user(main_account: T::AccountId, proxy: T::AccountId) -> DispatchResult {
+		pub fn register_user(main_account: T::AccountId, proxy: T::AccountId) -> DispatchResult {
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
 			ensure!(
 				!<Accounts<T>>::contains_key(&main_account),
@@ -1162,7 +1167,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn withdrawal_from_orderbook(
+		pub fn withdrawal_from_orderbook(
 			user: T::AccountId,
 			proxy_account: T::AccountId,
 			asset: AssetId,
@@ -1173,12 +1178,10 @@ pub mod pallet {
 			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
 			// Check if account is registered
 			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
-			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
+			ensure!(amount.saturated_into::<u128>() <= WITHDRAWAL_MAX, Error::<T>::AmountOverflow);
 			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
 				.checked_div(Decimal::from(UNIT_BALANCE))
 				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-
-			//ToDo: Change ingress message to Direct Withdrawal one.
 			<IngressMessages<T>>::mutate(|ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::DirectWithdrawal(
