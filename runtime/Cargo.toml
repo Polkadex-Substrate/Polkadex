@@ -108,6 +108,12 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 thea = {path = "../pallets/thea", default-features = false }
 thea-primitives = { path = "../thea-primitives", default-features = false  }
 
+#swap
+pallet-amm = { path="../pallets/swap", default-features = false }
+
+#router for swap
+router= { path="../pallets/router", default-features=false }
+
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
@@ -187,9 +193,12 @@ std = [
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
+    "thea-primitives/std",
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
+    "pallet-amm/std",
+    "router/std"
 ]
 runtime-benchmarks = [
     #theirs

@@ -86,6 +86,7 @@ use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
+use pallet_bags_list::mock::Runtime;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1276,6 +1277,7 @@ parameter_types! {
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const NativeCurrencyId: u128 = 0;
 }
 
 impl chainbridge::Config for Runtime {
@@ -1293,6 +1295,7 @@ impl asset_handler::pallet::Config for Runtime {
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TreasuryPalletId = TreasuryPalletId;
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
+	type NativeCurrencyId = NativeCurrencyId;
 }
 
 impl thea::pallet::Config for Runtime {
@@ -1329,6 +1332,43 @@ parameter_types! {
 	pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
 	pub const MaxPointsToBalance: u8 = 10;
 }
+
+//Install Swap pallet
+parameter_types! {
+	pub const SwapPalletId: PalletId = PalletId(*b"sw/account");
+	pub DefaultLpFee: Ratio = Ratio::from_rational(30u32, 10000u32);
+	pub DefaultProtocolFee: Ratio = Ratio::from_rational(0u32, 10000u32);
+	pub const MinimumLiquidity: u128 = 1_000u128;
+	pub const MaxLengthRoute: u8 = 10;
+}
+
+impl swap::Config for Runtime {
+	type Event = Event;
+	type Assets = AssetHandler;
+	type PalletId = SwapPalletId;
+	type LockAccountId = SwapPalletId;
+	type CreatePoolOrigin = EnsureRootOrHalfCouncil;
+	type ProtocolFeeUpdateOrigin = EnsureRootOrHalfCouncil;
+	type LpFee = DefaultLpFee;
+	type MinimumLiquidity = MinimumLiquidity;
+	type MaxLengthRoute = MaxLengthRoute;
+	type GetNativeCurrencyId = NativeCurrencyId;
+}
+
+//
+// //Install Router pallet
+// parameter_types! {
+// 	pub const RouterPalletId: PalletId = PalletId(*b"rw/account");
+// }
+//
+// impl router::Config for Runtime{
+// 	type Event = Event;
+// 	type PalletId = RouterPalletId;
+// 	type AMM = ();
+// 	type Assets = ();
+// 	type GetNativeCurrencyId = NativeCurrencyId;
+// 	type MaxLengthRoute = MaxLengthRoute;
+// }
 
 use sp_runtime::traits::Convert;
 pub struct BalanceToU256;
