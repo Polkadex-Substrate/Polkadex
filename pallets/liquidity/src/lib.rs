@@ -126,7 +126,9 @@ pub mod pallet {
 		/// Pallet already register
 		PalletAlreadyRegistered,
 		/// Unable to create proxy account
-		UnableToCreateProxyAccount
+		UnableToCreateProxyAccount,
+		/// Account not register
+		PalletAccountNotRegistered
 	}
 
 	#[pallet::hooks]
@@ -170,7 +172,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
+			ensure!(!<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
 			T::CallOcex::on_deposit(Self::get_pallet_account(), asset, amount.saturated_into())?;
 			Ok(())
 		}
@@ -192,10 +194,13 @@ pub mod pallet {
 			do_force_withdraw: bool,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
+			ensure!(!<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
+			let proxy_account = T::AccountId::decode(&mut &PROXY_ACCOUNT_BYTES[..])
+				.map_err(|_| Error::<T>::UnableToCreateProxyAccount)?;
+
 			T::CallOcex::on_withdraw(
 				Self::get_pallet_account(),
-				Self::get_pallet_account(),
+				proxy_account,
 				asset,
 				amount.saturated_into(),
 				do_force_withdraw,
