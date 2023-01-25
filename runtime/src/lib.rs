@@ -1374,7 +1374,7 @@ impl thea_cross_chain_governance::Config for Runtime {
 	type Event = Event;
 	type StakingAmount = StakingAmount;
 	type StakingReserveIdentifier = StakingReserveIdentifierForTheaGov;
-	type CouncilHandlerOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type CouncilHandlerOrigin = EnsureRootOrHalfCouncil;
 }
 
 construct_runtime!(
