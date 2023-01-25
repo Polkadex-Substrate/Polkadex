@@ -87,6 +87,7 @@ jobs:
       - name: Run Cargo Trampulin
         uses: actions-rs/tarpaulin@v0.1
         with:
+          version: '0.22.0'
           args: '--exclude polkadex-node node-polkadex-runtime --workspace --timeout 180'
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
