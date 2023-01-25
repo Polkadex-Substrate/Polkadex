@@ -26,9 +26,7 @@ pub trait TheaExt {
 	) -> bool {
 		let recon_sig = match Signature::from_bytes(agg_sig) {
 			Ok(sig) => sig,
-			Err(_e) => {
-				return false
-			},
+			Err(_e) => return false,
 		};
 		let bit_map_vec = return_set_bits(bit_map);
 		let mut agg_pk: Option<AggregatePublicKey> = None;
