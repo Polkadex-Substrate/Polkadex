@@ -18,15 +18,14 @@
 use polkadex_primitives::AssetId;
 
 use crate::{pallet as liquidity, *};
-use pallet_ocex_lmp::WeightInfo;
-
 use frame_support::{
 	parameter_types,
 	traits::{ConstU128, ConstU64, OnTimestampSet},
 	PalletId,
 };
 use frame_system::EnsureRoot;
-use polkadex_primitives::{Moment, Signature};
+use pallet_ocex_lmp::WeightInfo;
+use polkadex_primitives::{AccountId, Moment, Signature};
 use sp_application_crypto::sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -138,19 +137,23 @@ impl<Test> LiquidityModifier for pallet_ocex_lmp::Pallet<Test> {
 	type AssetId = AssetId;
 	type AccountId = AccountId;
 
-	fn on_deposit(account: Self::AccountId, asset: Self::AssetId, balance: u128) -> DispatchResult {
-		Ok(())
-	}
-	fn on_withdraw(
-		account: Self::AccountId,
-		proxy_account: Self::AccountId,
-		asset: Self::AssetId,
-		balance: u128,
-		do_force_withdraw: bool,
+	fn on_deposit(
+		_account: Self::AccountId,
+		_asset: Self::AssetId,
+		_balance: u128,
 	) -> DispatchResult {
 		Ok(())
 	}
-	fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult {
+	fn on_withdraw(
+		_account: Self::AccountId,
+		_proxy_account: Self::AccountId,
+		_asset: Self::AssetId,
+		_balance: u128,
+		_do_force_withdraw: bool,
+	) -> DispatchResult {
+		Ok(())
+	}
+	fn on_register(_main_account: Self::AccountId, _proxy: Self::AccountId) -> DispatchResult {
 		Ok(())
 	}
 }
@@ -184,7 +187,7 @@ parameter_types! {
 	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQUIDID");
 }
 
-impl liquidity::Config for Test {
+impl Config for Test {
 	type Event = Event;
 	type PalletId = LiquidityPalletId;
 	type NativeCurrency = Balances;
