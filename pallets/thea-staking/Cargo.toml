@@ -25,9 +25,14 @@ sp-runtime = { default-features = false, workspace = true }
 sp-std = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
 polkadex-primitives = { workspace = true, default-features = false }
+pallet-assets = { workspace = true, default-features = false }
+thea-primitives = { path = "../../thea-primitives", default-features = false }
+asset-handler = { path = "../asset-handler", default-features = false }
+chainbridge = { path = "../chainbridge", default-features = false }
 
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
+thea = { path = "../thea", default-features = false }
 
 [features]
 default = ["std"]
@@ -38,12 +43,19 @@ std = [
 	"frame-system/std",
 	"log/std",
 	"pallet-balances/std",
+	"pallet-assets/std",
 	"scale-info/std",
 	"polkadex-primitives/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"sp-staking/std"
+	"sp-staking/std",
+	"thea-primitives/std",
+	"thea/std",
+	"asset-handler/std",
+	"chainbridge/std",
 ]
-runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+]
 try-runtime = ["frame-support/try-runtime"]

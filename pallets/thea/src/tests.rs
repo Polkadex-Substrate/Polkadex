@@ -18,7 +18,7 @@ use parity_scale_codec::{Decode, Encode};
 use sp_core::{crypto::AccountId32, H160, U256};
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
-use thea_primitives::Payload;
+use thea_primitives::thea_types::Payload;
 
 use crate::{
 	mock,
@@ -73,8 +73,7 @@ fn test_thea_approve_deposit() {
 	new_test_ext().execute_with(|| {
 		RelayersBLSKeyVector::<Test>::insert(
 			1,
-			BoundedVec::try_from(vec![bls_public_key_1, bls_public_key_2, bls_public_key_3])
-				.unwrap(),
+			vec![bls_public_key_1, bls_public_key_2, bls_public_key_3],
 		);
 		TheaAssets::<Test>::insert(1, (0, 0, BoundedVec::try_from(vec![]).unwrap()));
 		// Testing Signature Verification Failure
