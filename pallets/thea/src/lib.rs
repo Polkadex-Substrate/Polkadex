@@ -24,10 +24,7 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
-
 	use frame_support::{
-		dispatch::fmt::Debug,
 		log,
 		pallet_prelude::*,
 		traits::{Currency, ExistenceRequirement, ReservableCurrency},
@@ -38,25 +35,15 @@ pub mod pallet {
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
 	};
-
-	use thea_primitives::{BLSPublicKey, Payload};
-
-	pub type Network = u32;
-
-	#[derive(Encode, Decode, Clone, Debug, MaxEncodedLen, TypeInfo, Copy)]
-	pub struct ApprovedDeposit {
-		pub asset_id: u128,
-		pub amount: u128,
-		pub tx_hash: sp_core::H256,
-	}
-
-	#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
-	pub struct ApprovedWithdraw {
-		pub asset_id: u128,
-		pub amount: u128,
-		pub network: u8,
-		pub beneficiary: Vec<u8>,
-	}
+	use sp_std::{
+		collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+		vec::Vec,
+	};
+	use thea_primitives::{
+		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, OnSessionChange, Payload},
+		BLSPublicKey,
+	};
+	use thea_staking::SessionChanged;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -80,13 +67,13 @@ pub mod pallet {
 	/// Active Relayers BLS Keys for a given Netowkr
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
-	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
-		_,
-		frame_support::Blake2_128Concat,
-		u8,
-		BoundedVec<BLSPublicKey, ConstU32<1000>>,
-		ValueQuery,
-	>;
+	pub(super) type RelayersBLSKeyVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<BLSPublicKey>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_authority_list)]
+	pub(super) type AuthorityListVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<T::AccountId>, ValueQuery>;
 
 	/// Approved Deposits
 	#[pallet::storage]
@@ -122,9 +109,9 @@ pub mod pallet {
 	pub(super) type ReadyWithdrawls<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		u32,
-		Blake2_128Concat,
 		Network,
+		Blake2_128Concat,
+		u32,
 		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
 		ValueQuery,
 	>;
@@ -278,7 +265,7 @@ pub mod pallet {
 					&bls_signature,
 					bit_map,
 					&payload.encode(),
-					&current_active_relayer_set.into_inner()
+					&current_active_relayer_set
 				),
 				Error::<T>::BLSSignatureVerificationFailed
 			);
@@ -493,6 +480,19 @@ pub mod pallet {
 				withdrawal_nonce,
 			));
 			Ok(())
+		}
+	}
+
+	impl<T: Config> SessionChanged for Pallet<T> {
+		type Network = Network;
+		type OnSessionChange = OnSessionChange<T::AccountId>;
+		fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
+			// network
+			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
+				<RelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
+				<AuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
+			}
 		}
 	}
 

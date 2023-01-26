@@ -28,10 +28,11 @@ sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 
-chainbridge = {path = "../chainbridge", default-features = false}
-asset-handler = {path = "../asset-handler", default-features = false}
+chainbridge = { path = "../chainbridge", default-features = false }
+asset-handler = { path = "../asset-handler", default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
-thea-primitives = {path = "../../thea-primitives", default-features = false}
+thea-primitives = { path = "../../thea-primitives", default-features = false }
+thea-staking = { path = "../thea-staking", default-features = false }
 
 [dev-dependencies]
 blst = {version = "0.3.10"}
@@ -55,7 +56,8 @@ std = [
     "chainbridge/std",
     "asset-handler/std",
     "polkadex-primitives/std",
-    "thea-primitives/std"
+    "thea-primitives/std",
+    "thea-staking/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
