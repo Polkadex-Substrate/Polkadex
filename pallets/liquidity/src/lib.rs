@@ -19,7 +19,6 @@
 use frame_support::{dispatch::DispatchResult, traits::Currency};
 use pallet_timestamp::{self as timestamp};
 use sp_std::prelude::*;
-
 #[cfg(test)]
 mod tests;
 
@@ -65,7 +64,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::AssetId;
+	use polkadex_primitives::{AccountId, AssetId};
 	use sp_runtime::{
 		traits::{AccountIdConversion, IdentifyAccount, Verify},
 		SaturatedConversion,
@@ -107,6 +106,9 @@ pub mod pallet {
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 
 		type CallOcex: LiquidityModifier<AssetId = AssetId, AccountId = Self::AccountId>;
+
+		#[pallet::constant]
+		type PalletsProxyAccount : Get<Self::AccountId>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
