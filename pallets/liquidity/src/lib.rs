@@ -25,9 +25,6 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-//constant proxy value
-const PROXY_ACCOUNT_BYTES: [u8; 32] = [0; 32];
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -35,7 +32,6 @@ pub use pallet::*;
 type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-pub const PALLET_PROXY_ACCOUNT: [u8; 32] = [6u8; 32];
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 
@@ -64,7 +60,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::{AccountId, AssetId};
+	use polkadex_primitives::{AssetId};
 	use sp_runtime::{
 		traits::{AccountIdConversion, IdentifyAccount, Verify},
 		SaturatedConversion,
@@ -106,9 +102,6 @@ pub mod pallet {
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 
 		type CallOcex: LiquidityModifier<AssetId = AssetId, AccountId = Self::AccountId>;
-
-		#[pallet::constant]
-		type PalletsProxyAccount : Get<Self::AccountId>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -124,6 +117,8 @@ pub mod pallet {
 		PalletAlreadyRegistered,
 		/// Unable to create proxy account
 		UnableToCreateProxyAccount,
+		/// Unable to create proxy account
+		UnableToCreateMainAccount,
 		/// Account not register
 		PalletAccountNotRegistered,
 	}
@@ -138,15 +133,28 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `origin`: governance
+		/// * `account_generation_key`: u32 value that will be used to generate main account and proxy account
 		#[pallet::weight(10_000)]
-		pub fn register_account(origin: OriginFor<T>) -> DispatchResult {
+		pub fn register_account(origin: OriginFor<T>, account_generation_key:u32) -> DispatchResult {
+			//ensure called by governance
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			let main_account = Self::get_pallet_account();
-			let proxy_account = T::AccountId::decode(&mut &PROXY_ACCOUNT_BYTES[..])
-				.map_err(|_| Error::<T>::UnableToCreateProxyAccount)?;
-			ensure!(!<PalletRegister<T>>::get(), Error::<T>::PalletAlreadyRegistered);
+
+			//create main account and proxy account
+			let main_account = Self::generate_proxy_account(account_generation_key)
+				.map_err(|error| error)?;
+
+			let proxy_account = Self::generate_main_account(account_generation_key)
+				.map_err(|error| error)?;
+
+
+			//ensure account not register already
+			ensure!(!<RegisterGovernanceAccounts<T>>::contains_key(account_generation_key), Error::<T>::PalletAlreadyRegistered);
+
+			//call ocex register
 			T::CallOcex::on_register(main_account.clone(), proxy_account.clone())?;
-			<PalletRegister<T>>::put(true);
+
+			//insert accounts in storage
+			<RegisterGovernanceAccounts<T>>::insert(account_generation_key, (main_account.clone(),proxy_account.clone()));
 			Self::deposit_event(Event::PalletAccountRegister { main_account, proxy_account });
 			Ok(())
 		}
@@ -158,15 +166,23 @@ pub mod pallet {
 		/// * `origin`: governance
 		/// * `asset`: asset id to deposit
 		/// * `amount`: amount to deposit
+		/// * `account_generation_key`: u32 value that was used to generate main account and proxy account
 		#[pallet::weight(10_000)]
 		pub fn deposit_to_orderbook(
 			origin: OriginFor<T>,
 			asset: AssetId,
 			amount: BalanceOf<T>,
+			account_generation_key: u32,
 		) -> DispatchResult {
+			//ensure called by governance
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
-			T::CallOcex::on_deposit(Self::get_pallet_account(), asset, amount.saturated_into())?;
+
+			//check if the account present
+			let (main_account, _)  = <RegisterGovernanceAccounts<T>>::try_get(account_generation_key)
+				.map_err(|_| Error::<T>::PalletAccountNotRegistered)?;
+
+			//call ocex deposit
+			T::CallOcex::on_deposit(main_account, asset, amount.saturated_into())?;
 			Ok(())
 		}
 
@@ -178,6 +194,7 @@ pub mod pallet {
 		/// * `asset`: asset id to withdraw
 		/// * `amount`: amount to withdraw
 		/// * `do_force_withdraw`: if set to true all active orders will be canceled and then the
+		/// * `account_generation_key`: u32 value that was used to generate main account and proxy account
 		///   given amount will be withdrawn
 		#[pallet::weight(10_000)]
 		pub fn withdraw_from_orderbook(
@@ -185,14 +202,17 @@ pub mod pallet {
 			asset: AssetId,
 			amount: BalanceOf<T>,
 			do_force_withdraw: bool,
+			account_generation_key: u32,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			ensure!(<PalletRegister<T>>::get(), Error::<T>::PalletAccountNotRegistered);
-			let proxy_account = T::AccountId::decode(&mut &PROXY_ACCOUNT_BYTES[..])
-				.map_err(|_| Error::<T>::UnableToCreateProxyAccount)?;
 
+			//check if the account present
+			let (main_account, proxy_account)  = <RegisterGovernanceAccounts<T>>::try_get(account_generation_key)
+				.map_err(|_| Error::<T>::PalletAccountNotRegistered)?;
+
+			//call ocex withdraw
 			T::CallOcex::on_withdraw(
-				Self::get_pallet_account(),
+				main_account,
 				proxy_account,
 				asset,
 				amount.saturated_into(),
@@ -206,11 +226,34 @@ pub mod pallet {
 		pub fn get_pallet_account() -> T::AccountId {
 			T::PalletId::get().into_account_truncating()
 		}
+
+		pub fn generate_proxy_account(value_provided_by_governance: u32) -> Result<T::AccountId, Error<T>> {
+			let mut result = [0u8; 32];
+			for i in 0..32 {
+				result[i] = (value_provided_by_governance >> (i * 8)) as u8;
+			}
+			let proxy_account = T::AccountId::decode(&mut &result[..]).map_err(|_| Error::<T>::UnableToCreateProxyAccount.into())?;
+			Ok(proxy_account)
+		}
+
+		pub fn generate_main_account(value_provided_by_governance: u32) -> Result<T::AccountId, Error<T>> {
+			let mut result = [0u8; 32];
+			let decoded_pallet_account_to_value = T::AccountId::encoded_size(&Self::get_pallet_account()) as u32;
+			for i in 0..17 {
+				result[i] = (decoded_pallet_account_to_value >> (i * 8)) as u8;
+			}
+			for i in 17..32 {
+				result[i] = (value_provided_by_governance >> (i * 8)) as u8;
+			}
+			let main_account = T::AccountId::decode(&mut &result[..]).map_err(|_| Error::<T>::UnableToCreateMainAccount.into())?;
+			Ok(main_account)
+		}
 	}
 
 	#[pallet::storage]
-	#[pallet::getter(fn is_pallet_register)]
-	pub(super) type PalletRegister<T: Config> = StorageValue<_, bool, ValueQuery>;
+	#[pallet::getter(fn is_account_register)]
+	pub(super) type RegisterGovernanceAccounts<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, (T::AccountId, T::AccountId), OptionQuery>;
 	/// Events are a simple means of reporting specific conditions and
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
