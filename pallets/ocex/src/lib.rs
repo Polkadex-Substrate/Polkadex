@@ -738,6 +738,7 @@ pub mod pallet {
 			})
 		}
 
+		//TODO: Benchmark set_snapshot
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u32) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
