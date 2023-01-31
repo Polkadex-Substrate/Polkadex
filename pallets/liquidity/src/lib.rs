@@ -260,7 +260,7 @@ pub mod pallet {
 				T::AccountId::encoded_size(&Self::get_pallet_account()) as u32;
 			//initial 16 bits taken from pallet id
 			for i in 0..17 {
-				result[i] = (decoded_pallet_account_to_value >> i ) as u8;
+				result[i] = (decoded_pallet_account_to_value >> i) as u8;
 			}
 			//remaining 16 bits taken from value provided by governance
 			for i in 17..32 {
