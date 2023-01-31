@@ -1272,8 +1272,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQUIDID");
-	pub const PalletProxyAccount: AccountId = AccountId::new([1;32]);
+	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQU/IDI");
 }
 
 impl liquidity::Config for Runtime {
@@ -1284,7 +1283,6 @@ impl liquidity::Config for Runtime {
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type CallOcex = OCEX;
-	type PalletsProxyAccount = PalletProxyAccount;
 }
 
 parameter_types! {
