@@ -60,7 +60,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::{AssetId};
+	use polkadex_primitives::AssetId;
 	use sp_runtime::{
 		traits::{AccountIdConversion, IdentifyAccount, Verify},
 		SaturatedConversion,
@@ -133,28 +133,37 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `origin`: governance
-		/// * `account_generation_key`: u32 value that will be used to generate main account and proxy account
+		/// * `account_generation_key`: u32 value that will be used to generate main account and
+		///   proxy account
 		#[pallet::weight(10_000)]
-		pub fn register_account(origin: OriginFor<T>, account_generation_key:u32) -> DispatchResult {
+		pub fn register_account(
+			origin: OriginFor<T>,
+			account_generation_key: u32,
+		) -> DispatchResult {
 			//ensure called by governance
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
 			//create main account and proxy account
-			let main_account = Self::generate_proxy_account(account_generation_key)
-				.map_err(|error| error)?;
+			let main_account =
+				Self::generate_proxy_account(account_generation_key).map_err(|error| error)?;
 
-			let proxy_account = Self::generate_main_account(account_generation_key)
-				.map_err(|error| error)?;
-
+			let proxy_account =
+				Self::generate_main_account(account_generation_key).map_err(|error| error)?;
 
 			//ensure account not register already
-			ensure!(!<RegisterGovernanceAccounts<T>>::contains_key(account_generation_key), Error::<T>::PalletAlreadyRegistered);
+			ensure!(
+				!<RegisterGovernanceAccounts<T>>::contains_key(account_generation_key),
+				Error::<T>::PalletAlreadyRegistered
+			);
 
 			//call ocex register
 			T::CallOcex::on_register(main_account.clone(), proxy_account.clone())?;
 
 			//insert accounts in storage
-			<RegisterGovernanceAccounts<T>>::insert(account_generation_key, (main_account.clone(),proxy_account.clone()));
+			<RegisterGovernanceAccounts<T>>::insert(
+				account_generation_key,
+				(main_account.clone(), proxy_account.clone()),
+			);
 			Self::deposit_event(Event::PalletAccountRegister { main_account, proxy_account });
 			Ok(())
 		}
@@ -166,7 +175,8 @@ pub mod pallet {
 		/// * `origin`: governance
 		/// * `asset`: asset id to deposit
 		/// * `amount`: amount to deposit
-		/// * `account_generation_key`: u32 value that was used to generate main account and proxy account
+		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
+		///   account
 		#[pallet::weight(10_000)]
 		pub fn deposit_to_orderbook(
 			origin: OriginFor<T>,
@@ -178,8 +188,9 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
 			//check if the account present
-			let (main_account, _)  = <RegisterGovernanceAccounts<T>>::try_get(account_generation_key)
-				.map_err(|_| Error::<T>::PalletAccountNotRegistered)?;
+			let (main_account, _) =
+				<RegisterGovernanceAccounts<T>>::try_get(account_generation_key)
+					.map_err(|_| Error::<T>::PalletAccountNotRegistered)?;
 
 			//call ocex deposit
 			T::CallOcex::on_deposit(main_account, asset, amount.saturated_into())?;
@@ -194,8 +205,8 @@ pub mod pallet {
 		/// * `asset`: asset id to withdraw
 		/// * `amount`: amount to withdraw
 		/// * `do_force_withdraw`: if set to true all active orders will be canceled and then the
-		/// * `account_generation_key`: u32 value that was used to generate main account and proxy account
-		///   given amount will be withdrawn
+		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
+		///   account given amount will be withdrawn
 		#[pallet::weight(10_000)]
 		pub fn withdraw_from_orderbook(
 			origin: OriginFor<T>,
@@ -207,8 +218,9 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
 			//check if the account present
-			let (main_account, proxy_account)  = <RegisterGovernanceAccounts<T>>::try_get(account_generation_key)
-				.map_err(|_| Error::<T>::PalletAccountNotRegistered)?;
+			let (main_account, proxy_account) =
+				<RegisterGovernanceAccounts<T>>::try_get(account_generation_key)
+					.map_err(|_| Error::<T>::PalletAccountNotRegistered)?;
 
 			//call ocex withdraw
 			T::CallOcex::on_withdraw(
@@ -227,25 +239,35 @@ pub mod pallet {
 			T::PalletId::get().into_account_truncating()
 		}
 
-		pub fn generate_proxy_account(value_provided_by_governance: u32) -> Result<T::AccountId, Error<T>> {
+		pub fn generate_proxy_account(
+			value_provided_by_governance: u32,
+		) -> Result<T::AccountId, Error<T>> {
 			let mut result = [0u8; 32];
+
 			for i in 0..32 {
-				result[i] = (value_provided_by_governance >> (i * 8)) as u8;
+				result[i] = (value_provided_by_governance >> i) as u8;
 			}
-			let proxy_account = T::AccountId::decode(&mut &result[..]).map_err(|_| Error::<T>::UnableToCreateProxyAccount.into())?;
+			let proxy_account = T::AccountId::decode(&mut &result[..])
+				.map_err(|_| Error::<T>::UnableToCreateProxyAccount.into())?;
 			Ok(proxy_account)
 		}
 
-		pub fn generate_main_account(value_provided_by_governance: u32) -> Result<T::AccountId, Error<T>> {
+		pub fn generate_main_account(
+			value_provided_by_governance: u32,
+		) -> Result<T::AccountId, Error<T>> {
 			let mut result = [0u8; 32];
-			let decoded_pallet_account_to_value = T::AccountId::encoded_size(&Self::get_pallet_account()) as u32;
+			let decoded_pallet_account_to_value =
+				T::AccountId::encoded_size(&Self::get_pallet_account()) as u32;
+			//initial 16 bits taken from pallet id
 			for i in 0..17 {
-				result[i] = (decoded_pallet_account_to_value >> (i * 8)) as u8;
+				result[i] = (decoded_pallet_account_to_value >> i ) as u8;
 			}
+			//remaining 16 bits taken from value provided by governance
 			for i in 17..32 {
-				result[i] = (value_provided_by_governance >> (i * 8)) as u8;
+				result[i] = (value_provided_by_governance >> i) as u8;
 			}
-			let main_account = T::AccountId::decode(&mut &result[..]).map_err(|_| Error::<T>::UnableToCreateMainAccount.into())?;
+			let main_account = T::AccountId::decode(&mut &result[..])
+				.map_err(|_| Error::<T>::UnableToCreateMainAccount.into())?;
 			Ok(main_account)
 		}
 	}
