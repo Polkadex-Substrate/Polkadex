@@ -32,6 +32,8 @@ pub use pallet::*;
 type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+const LENGTH_OF_HALF_BYTES: usize = 16;
+
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 
@@ -143,18 +145,16 @@ pub mod pallet {
 			//ensure called by governance
 			T::GovernanceOrigin::ensure_origin(origin)?;
 
-			//create main account and proxy account
-			let main_account =
-				Self::generate_proxy_account(account_generation_key).map_err(|error| error)?;
-
-			let proxy_account =
-				Self::generate_main_account(account_generation_key).map_err(|error| error)?;
-
 			//ensure account not register already
 			ensure!(
 				!<RegisterGovernanceAccounts<T>>::contains_key(account_generation_key),
 				Error::<T>::PalletAlreadyRegistered
 			);
+
+			//create main account and proxy account
+			let main_account = Self::generate_proxy_account(account_generation_key)?;
+
+			let proxy_account = Self::generate_main_account(account_generation_key)?;
 
 			//call ocex register
 			T::CallOcex::on_register(main_account.clone(), proxy_account.clone())?;
@@ -244,11 +244,12 @@ pub mod pallet {
 		) -> Result<T::AccountId, Error<T>> {
 			let mut result = [0u8; 32];
 
-			for i in 0..32 {
-				result[i] = (value_provided_by_governance >> i) as u8;
+			for (i, item) in result.iter_mut().enumerate() {
+				*item = (value_provided_by_governance >> i) as u8;
 			}
+
 			let proxy_account = T::AccountId::decode(&mut &result[..])
-				.map_err(|_| Error::<T>::UnableToCreateProxyAccount.into())?;
+				.map_err(|_| Error::<T>::UnableToCreateProxyAccount)?;
 			Ok(proxy_account)
 		}
 
@@ -258,16 +259,17 @@ pub mod pallet {
 			let mut result = [0u8; 32];
 			let decoded_pallet_account_to_value =
 				T::AccountId::encoded_size(&Self::get_pallet_account()) as u32;
-			//initial 16 bits taken from pallet id
-			for i in 0..17 {
-				result[i] = (decoded_pallet_account_to_value >> i) as u8;
+
+			for (i, item) in result.iter_mut().enumerate() {
+				if i <= LENGTH_OF_HALF_BYTES {
+					*item = (decoded_pallet_account_to_value >> i) as u8;
+				} else {
+					*item = (value_provided_by_governance >> i) as u8;
+				}
 			}
-			//remaining 16 bits taken from value provided by governance
-			for i in 17..32 {
-				result[i] = (value_provided_by_governance >> i) as u8;
-			}
+
 			let main_account = T::AccountId::decode(&mut &result[..])
-				.map_err(|_| Error::<T>::UnableToCreateMainAccount.into())?;
+				.map_err(|_| Error::<T>::UnableToCreateMainAccount)?;
 			Ok(main_account)
 		}
 	}
