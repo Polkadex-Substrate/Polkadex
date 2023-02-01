@@ -1276,7 +1276,7 @@ parameter_types! {
 	pub const RewardsPalletId: PalletId = PalletId(*b"REWARDSQ");
 }
 
-impl rewards::Config for Runtime {
+impl pallet_rewards::Config for Runtime {
 	type Event = Event;
 	type PalletId = RewardsPalletId;
 	type NativeCurrency = Balances;
@@ -1421,7 +1421,7 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
-		Rewards: rewards::{Pallet, Call, Storage, Event<T>} = 42,
+		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
 	}
 );
 /// Digest item type.

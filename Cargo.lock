@@ -4194,6 +4194,7 @@ dependencies = [
  "pallet-proxy",
  "pallet-randomness-collective-flip",
  "pallet-recovery",
+ "pallet-rewards",
  "pallet-scheduler",
  "pallet-session",
  "pallet-society",
@@ -4209,7 +4210,6 @@ dependencies = [
  "parity-scale-codec",
  "pdex-migration",
  "polkadex-primitives",
- "rewards",
  "scale-info",
  "smallvec",
  "sp-api",
@@ -4978,6 +4978,28 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-rewards"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "frame-support",
+ "frame-system",
+ "once_cell",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
  "sp-runtime",
  "sp-std",
 ]
@@ -6139,29 +6161,6 @@ checksum = "52e44394d2086d010551b14b53b1f24e31647570cd1deb0379e2c21b329aba00"
 dependencies = [
  "hostname",
  "quick-error",
-]
-
-[[package]]
-name = "rewards"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "once_cell",
- "pallet-assets",
- "pallet-balances",
- "pallet-timestamp",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "sp-application-crypto",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
