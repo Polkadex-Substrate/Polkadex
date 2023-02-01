@@ -25,6 +25,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Balances: pallet_balances,
 		TheaGovernence: pallet_thea_governence,
+		IdentityPallet: pallet_identity,
 	}
 );
 
@@ -73,6 +74,30 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const BasicDeposit: Balance = 1;       // 258 bytes on-chain
+	pub const FieldDeposit: Balance = 1;        // 66 bytes on-chain
+	pub const SubAccountDeposit: Balance = 1;   // 53 bytes on-chain
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxAdditionalFields: u32 = 100;
+	pub const MaxRegistrars: u32 = 20;
+}
+
+impl pallet_identity::Config for Test {
+	type Event = Event;
+	type Currency = Balances;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type Slashed = ();
+	type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type RegistrarOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Test>;
 }
 
 parameter_types! {
