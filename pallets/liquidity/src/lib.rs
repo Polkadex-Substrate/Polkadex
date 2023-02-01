@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 
-// Copyright (C) 2020-2022 Polkadex oü.
+// Copyright (C) 2020-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -204,9 +204,9 @@ pub mod pallet {
 		/// * `origin`: governance
 		/// * `asset`: asset id to withdraw
 		/// * `amount`: amount to withdraw
-		/// * `do_force_withdraw`: if set to true all active orders will be canceled and then the
+		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
-		///   account given amount will be withdrawn
+		///  account given amount will be withdrawn
 		#[pallet::weight(10_000)]
 		pub fn withdraw_from_orderbook(
 			origin: OriginFor<T>,
