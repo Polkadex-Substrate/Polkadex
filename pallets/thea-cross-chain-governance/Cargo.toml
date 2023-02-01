@@ -17,6 +17,8 @@ sp-io = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
+polkadex-primitives = { workspace = true, default-features = false }
+pallet-identity = { default-features = false, workspace = true }
 
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
@@ -36,5 +38,7 @@ std = [
     "sp-std/default",
     "sp-staking/default",
     "sp-core/default",
-    "pallet-balances/std"
+    "pallet-balances/std",
+    "polkadex-primitives/std",
+    "pallet-identity/std"
 ]

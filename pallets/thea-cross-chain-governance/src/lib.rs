@@ -25,11 +25,13 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_balances::Config {
+	pub trait Config:
+		frame_system::Config + pallet_balances::Config + pallet_identity::Config
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Stake required to apply for candidature
-		type StakingAmount: Get<u128>;
+		type StakingAmount: Get<polkadex_primitives::Balance>;
 		/// StakingReserveIdentifier
 		#[pallet::constant]
 		type StakingReserveIdentifier: Get<<Self as pallet_balances::Config>::ReserveIdentifier>;
@@ -57,7 +59,7 @@ pub mod pallet {
 		/// New Candidate Added. [candidate]
 		NewAccountAdded(T::AccountId),
 		/// Candidate Approved. [candidate]
-		CandidateApproved(T::AccountId),
+		CandidateApproved(sp_std::vec::Vec<T::AccountId>),
 		/// New Keys Added [candidate]
 		NewKeysAdded(T::AccountId),
 	}
@@ -77,6 +79,8 @@ pub mod pallet {
 		CandidateNotFound,
 		/// Member Not Found
 		MemberNotFound,
+		/// Candidate doesnt have identity
+		IdentityNotFound,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -85,19 +89,29 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Apply for candidature
+		///
+		/// # Parameters
+		///
+		///  `keys_list`: List of keys to be added.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn apply_for_candidature(origin: OriginFor<T>, keys_list: KeysMap) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			//ensure!(pallet_identity::Pallet::<T>::has_identity(&who, 3),
+			// Error::<T>::IdentityNotFound);
 			Self::do_apply(&who, keys_list)?;
 			Self::deposit_event(Event::<T>::NewAccountAdded(who));
 			Ok(())
 		}
 
 		/// Approve candidate request
+		///
+		/// # Parameters
+		///
+		/// * `new_keys`: List of candidates to be approved.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn approve_candidature(
 			origin: OriginFor<T>,
-			candidate: T::AccountId,
+			candidate: sp_std::vec::Vec<T::AccountId>,
 		) -> DispatchResult {
 			T::CouncilHandlerOrigin::ensure_origin(origin)?;
 			Self::do_approve(&candidate)?;
@@ -106,6 +120,10 @@ pub mod pallet {
 		}
 
 		/// Add keys for new Networks
+		///
+		/// # Parameters
+		///
+		/// * `new_keys`: Key Map to be removed.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn add_new_keys(origin: OriginFor<T>, new_keys: KeysMap) -> DispatchResult {
 			let member = ensure_signed(origin)?;
@@ -115,10 +133,14 @@ pub mod pallet {
 		}
 
 		/// Remove from Active List
+		///
+		/// # Parameters
+		///
+		/// * `candidate`: List of Candidates to be removed.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn remove_candidate(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
+		pub fn remove_candidate(origin: OriginFor<T>, candidates: sp_std::vec::Vec<T::AccountId>) -> DispatchResult {
 			T::CouncilHandlerOrigin::ensure_origin(origin)?;
-			Self::do_remove(&candidate)?;
+			Self::do_remove(&candidates)?;
 			Ok(())
 		}
 	}
@@ -137,14 +159,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn do_approve(candidate: &T::AccountId) -> DispatchResult {
-			ensure!(!<ActiveMembers<T>>::contains_key(candidate), Error::<T>::AlreadyMember);
-			if let Some(keys_map) = <Candidates<T>>::get(candidate) {
-				<ActiveMembers<T>>::insert(candidate, keys_map);
-				Ok(())
-			} else {
-				Err(Error::<T>::CandidateNotFound.into())
+		#[frame_support::transactional]
+		fn do_approve(candidates: &sp_std::vec::Vec<T::AccountId>) -> DispatchResult {
+			for candidate in candidates {
+				ensure!(!<ActiveMembers<T>>::contains_key(candidate), Error::<T>::AlreadyMember);
+				if let Some(keys_map) = <Candidates<T>>::get(candidate) {
+					<ActiveMembers<T>>::insert(candidate, keys_map);
+				} else {
+					return Err(Error::<T>::CandidateNotFound.into())
+				}
 			}
+			Ok(())
 		}
 
 		fn do_add_keys(member: &T::AccountId, new_keys: KeysMap) -> DispatchResult {
@@ -160,9 +185,11 @@ pub mod pallet {
 			}
 		}
 
-		fn do_remove(candidate: &T::AccountId) -> DispatchResult {
-			<Candidates<T>>::remove(candidate);
-			<ActiveMembers<T>>::remove(candidate);
+		fn do_remove(candidates: &sp_std::vec::Vec<T::AccountId>) -> DispatchResult {
+			for candidate in candidates {
+				<Candidates<T>>::remove(candidate);
+				<ActiveMembers<T>>::remove(candidate);
+			}
 			Ok(())
 		}
 	}
