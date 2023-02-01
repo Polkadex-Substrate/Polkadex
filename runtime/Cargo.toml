@@ -105,7 +105,7 @@ chainbridge = { path ="../pallets/chainbridge", default-features = false }
 pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 
 # Parachain Rewards
-rewards = { path = "../pallets/rewards", default-features = false }
+pallet-rewards = { path = "../pallets/rewards", default-features = false }
 
 # Thea
 thea = { path = "../pallets/thea", default-features = false }
@@ -187,7 +187,7 @@ std = [
     "asset-handler/std",
     "chainbridge/std",
     "pallet-ocex-lmp/std",
-    "rewards/std",
+    "pallet-rewards/std",
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
