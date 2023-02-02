@@ -21,6 +21,7 @@ fn test_apply_for_candidature_returns_ok() {
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
+		add_identity(candidate);
 		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
 	})
 }
@@ -31,6 +32,7 @@ fn test_apply_for_candidature_with_already_registered_member_returns_already_mem
 		let key_map = get_keylist();
 		let candidate = 1;
 		<ActiveMembers<Test>>::insert(candidate, key_map.clone());
+		add_identity(candidate);
 		assert_noop!(
 			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
 			Error::<Test>::AlreadyMember
@@ -44,6 +46,7 @@ fn test_apply_for_candidature_with_already_registered_candidate_returns_already_
 		let key_map = get_keylist();
 		let candidate = 1;
 		<Candidates<Test>>::insert(candidate, key_map.clone());
+		add_identity(candidate);
 		assert_noop!(
 			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
 			Error::<Test>::AlreadyApplied
@@ -56,6 +59,13 @@ fn test_apply_for_candidature_with_not_enough_balnce_returns_error() {
 	new_test_ext().execute_with(|| {
 		let key_map = get_keylist();
 		let candidate = 1;
+		add_identity(candidate);
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			candidate,
+			0,
+			0
+		));
 		assert_noop!(
 			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
 			pallet_balances::Error::<Test>::InsufficientBalance
@@ -75,6 +85,7 @@ fn test_approve_candidature_returns_ok() {
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
+		add_identity(candidate);
 		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
 		assert_ok!(TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate]));
 	})
@@ -121,6 +132,7 @@ fn test_add_new_keys_returns_ok() {
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
+		add_identity(candidate);
 		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
 		assert_ok!(TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate]));
 		let new_keys = get_keylist_arg(2);
@@ -150,7 +162,7 @@ fn test_remove_candidate_returns_ok() {
 }
 
 #[test]
-fn test_approve_candidate_with_cobo_of_right_and_wrong_candidates_returns_error() {
+fn test_approve_candidate_with_combo_of_right_and_wrong_candidates_returns_error() {
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let key_map = get_keylist();
@@ -162,6 +174,7 @@ fn test_approve_candidate_with_cobo_of_right_and_wrong_candidates_returns_error(
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
+		add_identity(candidate);
 		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
 		assert_noop!(TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate, wrong_candidate]), Error::<Test>::CandidateNotFound);
 		// Verify is first candidate is registered or not?
@@ -169,9 +182,45 @@ fn test_approve_candidate_with_cobo_of_right_and_wrong_candidates_returns_error(
 	})
 }
 
-// fn add_identity() {
-// 	IdentityPallet::set_identity(RuntimeOrigin::signed(10), Box::new(ten()));
-// }
+#[test]
+fn test_apply_for_candidature_without_identity_returns_identity_not_found() {
+	new_test_ext().execute_with(|| {
+		let candidate = 1;
+		let key_map = get_keylist();
+		let general_council = 2;
+		assert_ok!(Balances::set_balance(
+			Origin::root(),
+			candidate,
+			1 * 10_000_000_000_000_000u128,
+			0
+		));
+		assert_noop!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map), Error::<Test>::IdentityNotFound);
+	})
+}
+
+fn add_identity(id: u64) {
+	assert_ok!(Balances::set_balance(
+			Origin::root(),
+			id,
+			1 * 10_000_000_000_000_000u128,
+			0
+		));
+	assert_ok!(IdentityPallet::set_identity(Origin::signed(id), Box::new(ten())));
+}
+
+fn ten() -> IdentityInfo<MaxAdditionalFields> {
+	IdentityInfo {
+		additional: BoundedVec::default(),
+		display: Data::Raw(b"ten".to_vec().try_into().unwrap()),
+		legal: Data::Raw(b"The Right Ordinal Ten, Esq.".to_vec().try_into().unwrap()),
+		web: Default::default(),
+		riot: Default::default(),
+		email: Default::default(),
+		pgp_fingerprint: None,
+		image: Default::default(),
+		twitter: Default::default()
+	}
+}
 
 fn get_keylist() -> KeysMap {
 	let identifier = 1;
