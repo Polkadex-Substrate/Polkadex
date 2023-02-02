@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-parity-scale-codec = {workspace = true, default-features = false }
+parity-scale-codec = { workspace = true, default-features = false }
 log = { workspace = true, default-features = false }
 scale-info =  { workspace = true, default-features = false, features = ["derive"] }
 frame-benchmarking = { default-features = false, workspace = true , optional = true}
