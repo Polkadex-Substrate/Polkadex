@@ -242,11 +242,3 @@ fn get_keylist_arg(idetifier: u8) -> KeysMap {
 	key_list.try_insert(network_id, key).unwrap();
 	key_list
 }
-
-// fn ten() -> IdentityInfo<MaxAdditionalFields> {
-// 	IdentityInfo {
-// 		display: Data::Raw(b"ten".to_vec().try_into().unwrap()),
-// 		legal: Data::Raw(b"The Right Ordinal Ten, Esq.".to_vec().try_into().unwrap()),
-// 		..Default::default()
-// 	}
-// }
