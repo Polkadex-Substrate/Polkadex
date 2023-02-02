@@ -355,26 +355,23 @@ pub mod pallet {
 			derived_asset_id.push(network_id);
 			derived_asset_id.push(identifier_length);
 			derived_asset_id.extend(&asset_identifier[0..identifier_length as usize]);
-
-			// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16
-			// bytes
 			let asset_id = Self::get_asset_id(derived_asset_id);
-
-			// Call Assets Pallet
 			T::AssetManager::create(
 				asset_id,
 				chainbridge::Pallet::<T>::account_id(),
 				false,
 				BalanceOf::<T>::one().unique_saturated_into(),
 			)?;
-			// Update storage item
 			<TheaAssets<T>>::insert(asset_id, (network_id, identifier_length, asset_identifier));
-			// Emit Event
 			Self::deposit_event(Event::<T>::TheaAssetCreated(asset_id));
 			Ok(())
 		}
 
 		/// Create Parachain Asset
+		///
+		/// # Parameters
+		///
+		/// * `asset`: Parachain Asset
 		#[pallet::weight(T::WeightInfo::create_asset(1))]
 		pub fn create_parachain_asset(
 			origin: OriginFor<T>,
