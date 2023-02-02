@@ -9,7 +9,7 @@ edition = "2021"
 parity-scale-codec = { workspace = true, default-features = false }
 log = { workspace = true, default-features = false }
 scale-info =  { workspace = true, default-features = false, features = ["derive"] }
-frame-benchmarking = { default-features = false, workspace = true , optional = true}
+frame-benchmarking = { default-features = false, workspace = true , optional = true }
 frame-support = { default-features = false, workspace = true }
 frame-system ={ default-features = false, workspace = true }
 pallet-balances = { default-features = false, workspace = true }
