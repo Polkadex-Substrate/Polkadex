@@ -60,12 +60,7 @@ fn test_apply_for_candidature_with_not_enough_balnce_returns_error() {
 		let key_map = get_keylist();
 		let candidate = 1;
 		add_identity(candidate);
-		assert_ok!(Balances::set_balance(
-			Origin::root(),
-			candidate,
-			0,
-			0
-		));
+		assert_ok!(Balances::set_balance(Origin::root(), candidate, 0, 0));
 		assert_noop!(
 			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
 			pallet_balances::Error::<Test>::InsufficientBalance
@@ -87,7 +82,10 @@ fn test_approve_candidature_returns_ok() {
 		));
 		add_identity(candidate);
 		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
-		assert_ok!(TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate]));
+		assert_ok!(TheaGovernence::approve_candidature(
+			Origin::signed(general_council),
+			vec![candidate]
+		));
 	})
 }
 
@@ -134,7 +132,10 @@ fn test_add_new_keys_returns_ok() {
 		));
 		add_identity(candidate);
 		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
-		assert_ok!(TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate]));
+		assert_ok!(TheaGovernence::approve_candidature(
+			Origin::signed(general_council),
+			vec![candidate]
+		));
 		let new_keys = get_keylist_arg(2);
 		assert_ok!(TheaGovernence::add_new_keys(Origin::signed(candidate), new_keys));
 	})
@@ -157,7 +158,10 @@ fn test_remove_candidate_returns_ok() {
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let general_council = 2;
-		assert_ok!(TheaGovernence::remove_candidate(Origin::signed(general_council), vec![candidate]));
+		assert_ok!(TheaGovernence::remove_candidate(
+			Origin::signed(general_council),
+			vec![candidate]
+		));
 	})
 }
 
@@ -176,7 +180,13 @@ fn test_approve_candidate_with_combo_of_right_and_wrong_candidates_returns_error
 		));
 		add_identity(candidate);
 		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
-		assert_noop!(TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate, wrong_candidate]), Error::<Test>::CandidateNotFound);
+		assert_noop!(
+			TheaGovernence::approve_candidature(
+				Origin::signed(general_council),
+				vec![candidate, wrong_candidate]
+			),
+			Error::<Test>::CandidateNotFound
+		);
 		// Verify is first candidate is registered or not?
 		assert!(!<ActiveMembers<Test>>::contains_key(candidate));
 	})
@@ -194,17 +204,15 @@ fn test_apply_for_candidature_without_identity_returns_identity_not_found() {
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
-		assert_noop!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map), Error::<Test>::IdentityNotFound);
+		assert_noop!(
+			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
+			Error::<Test>::IdentityNotFound
+		);
 	})
 }
 
 fn add_identity(id: u64) {
-	assert_ok!(Balances::set_balance(
-			Origin::root(),
-			id,
-			1 * 10_000_000_000_000_000u128,
-			0
-		));
+	assert_ok!(Balances::set_balance(Origin::root(), id, 1 * 10_000_000_000_000_000u128, 0));
 	assert_ok!(IdentityPallet::set_identity(Origin::signed(id), Box::new(ten())));
 }
 
@@ -218,7 +226,7 @@ fn ten() -> IdentityInfo<MaxAdditionalFields> {
 		email: Default::default(),
 		pgp_fingerprint: None,
 		image: Default::default(),
-		twitter: Default::default()
+		twitter: Default::default(),
 	}
 }
 

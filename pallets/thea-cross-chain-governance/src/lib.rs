@@ -96,8 +96,10 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn apply_for_candidature(origin: OriginFor<T>, keys_list: KeysMap) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(pallet_identity::Pallet::<T>::has_identity(&who, 3),
-			 Error::<T>::IdentityNotFound);
+			ensure!(
+				pallet_identity::Pallet::<T>::has_identity(&who, 3),
+				Error::<T>::IdentityNotFound
+			);
 			Self::do_apply(&who, keys_list)?;
 			Self::deposit_event(Event::<T>::NewAccountAdded(who));
 			Ok(())
@@ -138,7 +140,10 @@ pub mod pallet {
 		///
 		/// * `candidate`: List of Candidates to be removed.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn remove_candidate(origin: OriginFor<T>, candidates: sp_std::vec::Vec<T::AccountId>) -> DispatchResult {
+		pub fn remove_candidate(
+			origin: OriginFor<T>,
+			candidates: sp_std::vec::Vec<T::AccountId>,
+		) -> DispatchResult {
 			T::CouncilHandlerOrigin::ensure_origin(origin)?;
 			Self::do_remove(&candidates)?;
 			Ok(())
