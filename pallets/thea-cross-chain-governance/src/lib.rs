@@ -96,8 +96,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn apply_for_candidature(origin: OriginFor<T>, keys_list: KeysMap) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			//ensure!(pallet_identity::Pallet::<T>::has_identity(&who, 3),
-			// Error::<T>::IdentityNotFound);
+			ensure!(pallet_identity::Pallet::<T>::has_identity(&who, 3),
+			 Error::<T>::IdentityNotFound);
 			Self::do_apply(&who, keys_list)?;
 			Self::deposit_event(Event::<T>::NewAccountAdded(who));
 			Ok(())
