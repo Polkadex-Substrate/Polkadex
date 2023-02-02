@@ -39,6 +39,7 @@ pub mod pallet {
 		collections::{btree_map::BTreeMap, btree_set::BTreeSet},
 		vec::Vec,
 	};
+
 	use thea_primitives::{
 		thea_types::{ApprovedDeposit, ApprovedWithdraw, Network, OnSessionChange, Payload},
 		BLSPublicKey,
@@ -64,7 +65,7 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	/// Active Relayers BLS Keys for a given Netowkr
+	/// Active Relayers BLS Keys for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
 	pub(super) type RelayersBLSKeyVector<T: Config> =
@@ -73,6 +74,20 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_authority_list)]
 	pub(super) type AuthorityListVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<T::AccountId>, ValueQuery>;
+
+	/// Queued Relayers BLS Keys for a given Network ( these are relayers who are waiting for
+	/// public key update ack from foreign chain to become active )
+	#[pallet::storage]
+	#[pallet::getter(fn get_queued_relayers_key_vector)]
+	pub(super) type QueuedRelayersBLSKeyVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<BLSPublicKey>, ValueQuery>;
+
+	/// Queued Relayers AccountIds for a given Network ( these are relayers who are waiting for
+	// 	/// public key update ack from foreign chain to become active )
+	#[pallet::storage]
+	#[pallet::getter(fn get_queued_authority_list)]
+	pub(super) type QueuedAuthorityListVector<T: Config> =
 		StorageMap<_, Blake2_128Concat, Network, Vec<T::AccountId>, ValueQuery>;
 
 	/// Approved Deposits
@@ -135,10 +150,22 @@ pub mod pallet {
 	pub(super) type AssetIdToNetworkMapping<T: Config> =
 		StorageMap<_, Blake2_128Concat, u128, Network, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn active_networks)]
+	/// Currently active networks ( this is controlled by thea-staking pallet through the trait
+	/// below)
+	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
+
 	/// Deposit Nonce for Thea Deposits
 	#[pallet::storage]
 	#[pallet::getter(fn get_deposit_nonce)]
 	pub(super) type DepositNonce<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
+
+	/// Thea Session Ids for each network
+	#[pallet::storage]
+	#[pallet::getter(fn get_thea_session_id)]
+	pub(super) type TheaSessionId<T: Config> =
 		StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
@@ -156,6 +183,8 @@ pub mod pallet {
 		WithdrawalReady(Network, u32),
 		// Withdrawal Executed (Nonce, network, Tx hash )
 		WithdrawalExecuted(u32, Network, sp_core::H256),
+		// Thea Public Key Updated ( network, new session id )
+		TheaKeyUpdated(Network, u32),
 	}
 
 	// Errors inform users that something went wrong.
@@ -481,6 +510,42 @@ pub mod pallet {
 			));
 			Ok(())
 		}
+
+		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		/// * `tx_hash`: Transaction hash of key update on foreign chain
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
+		#[pallet::weight(1000)]
+		pub fn thea_key_rotation_complete(
+			origin: OriginFor<T>,
+			network: Network,
+			tx_hash: sp_core::H256,
+			bit_map: u128,
+			bls_signature: [u8; 96],
+		) -> DispatchResult {
+			let _relayer = ensure_signed(origin)?;
+			// Fetch current active relayer set BLS Keys
+			let current_active_relayer_set = Self::get_relayers_key_vector(network);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&tx_hash.encode(),
+					&current_active_relayer_set
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+			Self::move_queued_to_active(network);
+			Ok(())
+		}
 	}
 
 	impl<T: Config> SessionChanged for Pallet<T> {
@@ -490,14 +555,42 @@ pub mod pallet {
 			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
 			// network
 			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
-				<RelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
-				<AuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
+				let current_round = <TheaSessionId<T>>::get(network_id);
+				// Check if it is genesis round
+				if current_round.is_zero() {
+					<RelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
+					<AuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
+				} else {
+					<QueuedRelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
+					<QueuedAuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
+				}
 			}
+		}
+
+		// Update the local storage about all networks
+		fn set_new_networks(networks: BTreeSet<Network>) {
+			<ActiveNetworks<T>>::put(networks)
 		}
 	}
 
 	// Helper Functions for Thea Pallet
 	impl<T: Config> Pallet<T> {
+		// Move Queued Authoritys and BLSKeys to Active Storage. It will triggered by
+		// submission of new thea key updation on all foreign chains to Polkadex.
+		pub fn move_queued_to_active(network: Network) {
+			let (vec_of_bls_keys, vec_of_account_ids) = (
+				<QueuedRelayersBLSKeyVector<T>>::get(network),
+				<QueuedAuthorityListVector<T>>::get(network),
+			);
+			<RelayersBLSKeyVector<T>>::insert(network, vec_of_bls_keys);
+			<AuthorityListVector<T>>::insert(network, vec_of_account_ids);
+			let current_session_id = <TheaSessionId<T>>::get(network).saturating_add(1);
+			<TheaSessionId<T>>::insert(network, current_session_id);
+			// TODO: Add IngressMessages::RelayerSetChange(current_session_id) to notify all
+			// relayers of relayer set change ( it will be added after #635 is merged to develop )
+			Self::deposit_event(Event::<T>::TheaKeyUpdated(network, current_session_id));
+		}
+
 		pub fn thea_account() -> T::AccountId {
 			T::TheaPalletId::get().into_account_truncating()
 		}

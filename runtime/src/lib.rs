@@ -1321,6 +1321,7 @@ impl thea_staking::Config for Runtime {
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
 	type SessionChangeNotifier = Thea;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 }
 
 //Install Nomination Pool
