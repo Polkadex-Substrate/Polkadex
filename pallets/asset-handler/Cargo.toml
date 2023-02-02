@@ -28,9 +28,9 @@ sp-runtime = { workspace = true, default-features = false }
 
 xcm = { workspace = true, default-features = false }
 
-chainbridge = {path = "../chainbridge", default-features = false}
+chainbridge = { path = "../chainbridge", default-features = false }
 
-thea-primitives = {path = "../../thea-primitives", default-features = false}
+thea-primitives = { path = "../../thea-primitives", default-features = false }
 
 
 [features]

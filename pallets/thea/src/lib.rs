@@ -298,6 +298,12 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Helper extrinsic for testing purpose only
+		///
+		/// # Parameters
+		///
+		/// * `network_id`: Network Id which Relayer will support.
+		/// * `bls_key`: BLS Key of Relayer.
+		/// * `who`: Account ID of Relayer.
 		#[pallet::weight(1000)]
 		pub fn add_relayer_info(
 			origin: OriginFor<T>,
@@ -313,15 +319,24 @@ pub mod pallet {
 			let key = BLSPublicKey(bls_key);
 
 			// Update Storage
-			current_bls.try_push(key).unwrap();
+			current_bls.try_push(key).map_err(|_| Error::<T>::BoundedVectorOverflow)?;
 			<RelayersBLSKeyVector<T>>::insert(network_id, current_bls);
-			current_ecdsa.try_push(who.clone()).unwrap();
+			current_ecdsa
+				.try_push(who.clone())
+				.map_err(|_| Error::<T>::BoundedVectorOverflow)?;
 			<AuthorityListEcdsa<T>>::insert(network_id, current_ecdsa);
 
 			Ok(())
 		}
 
 		///Approve Deposit
+		///
+		/// # Parameters
+		///
+		/// * `bit_map`: Relayers signed the payload.
+		/// * `bls_signature`: BLS Signature.
+		/// * `token_type`: Token Type.
+		/// * `payload`: Encoded Deposit Payload.
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
@@ -410,7 +425,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Initiate Withdraw
+		/// Initiate Withdrawal request
+		///
+		/// # Parameters
+		///
+		/// * `origin`: User
+		/// * `asset_id`: Asset id
+		/// * `amount`: Amount of asset to withdraw
+		/// * `beneficiary`: beneficiary of the withdraw
+		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
+		///   withdrawal
+		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -427,6 +452,11 @@ pub mod pallet {
 		}
 
 		/// Add Token Config
+		///
+		/// # Parameters
+		///
+		/// * `network_id`: Network Id.
+		/// * `fee`: Withdrawal Fee.
 		#[pallet::weight(1000)]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
@@ -472,7 +502,6 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-			//#[allow(clippy::unnecessary_lazy_evaluations)]
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);

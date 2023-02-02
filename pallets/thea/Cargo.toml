@@ -31,7 +31,7 @@ sp-runtime = { workspace = true, default-features = false }
 chainbridge = {path = "../chainbridge", default-features = false}
 asset-handler = {path = "../asset-handler", default-features = false}
 polkadex-primitives = { workspace = true, default-features = false }
-thea-primitives = {path = "../../thea-primitives", default-features = false}
+thea-primitives = { path = "../../thea-primitives", default-features = false }
 thea-staking = { path = "../thea-staking", default-features = false }
 
 xcm = { workspace = true, default-features = false }

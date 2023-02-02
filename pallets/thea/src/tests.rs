@@ -27,7 +27,6 @@ use crate::{
 use blst::min_sig::*;
 use frame_support::traits::fungibles::Mutate;
 use sp_runtime::traits::ConstU32;
-// use frame_support::metadata::StorageEntryModifier::Default as ;
 use sp_std::default::Default;
 use thea_primitives::{
 	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
