@@ -25,6 +25,10 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
