@@ -630,6 +630,13 @@ impl<T: Config> Pallet<T> {
 		(vec_of_bls_keys, account_ids)
 	}
 
+	pub fn get_queued_relayers_bls_keys(network: Network) -> Vec<BLSPublicKey> {
+		<QueuedRelayers<T>>::get(network)
+			.iter()
+			.map(|(_, b)| *b)
+			.collect::<Vec<BLSPublicKey>>()
+	}
+
 	pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {
 		let session_in_consideration = expiring_session_index.saturating_add(2);
 		log::trace!(target: "runtime::thea::staking", "computing relayers of session {:?}", session_in_consideration);
