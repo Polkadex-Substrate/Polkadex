@@ -1283,6 +1283,7 @@ impl pallet_rewards::Config for Runtime {
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type WeightInfo = pallet_rewards::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1677,6 +1678,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
+			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1708,6 +1710,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

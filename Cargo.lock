@@ -4987,6 +4987,7 @@ name = "pallet-rewards"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "once_cell",
@@ -5002,6 +5003,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
