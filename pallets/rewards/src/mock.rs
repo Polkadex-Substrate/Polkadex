@@ -134,6 +134,7 @@ impl rewards::Config for Test {
 	type NativeCurrency = Balances;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
+	type WeightInfo = weights::WeightInfo<Test>;
 }
 
 impl pallet_timestamp::Config for Test {
