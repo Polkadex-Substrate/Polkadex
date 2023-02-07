@@ -6404,6 +6404,7 @@ version = "0.1.0"
 dependencies = [
  "frame-benchmarking",
  "node-polkadex-runtime",
+ "polkadex-extrinsic",
  "sc-executor",
  "thea-primitives",
 ]
