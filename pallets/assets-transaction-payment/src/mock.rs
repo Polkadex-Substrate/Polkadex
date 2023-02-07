@@ -3,7 +3,7 @@ use frame_support::{
     parameter_types,
     traits::{fungibles::CreditOf,ConstU128, ConstU64, OnTimestampSet, OnUnbalanced, Currency},
     PalletId,
-    weights::{ConstantMultiplier,WeightToFeePolynomial, WeightToFeeCoefficients}
+    weights::{ConstantMultiplier,WeightToFeePolynomial, WeightToFeeCoefficients, WeightToFeeCoefficient, constants::ExtrinsicBaseWeight}
 };
 use frame_system::EnsureRoot;
 use polkadex_primitives::{Moment, Signature};
@@ -19,6 +19,8 @@ use crate::payment::{HandleSwap, NegativeImbalanceOf};
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use polkadex_primitives::Balance;
 use sp_runtime::Perquintill;
+use smallvec::smallvec;
+use sp_runtime::Perbill;
 
 use crate::{self as assets_transaction_payment, Config};
 
@@ -89,8 +91,14 @@ pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
     type Balance = Balance;
     fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-        // smallvec![WeightToFeeCoefficient
-        // ]
+        let p: Balance = 1_000_000_000_000;
+        let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
+        smallvec![WeightToFeeCoefficient {
+			degree: 1,
+			negative: false,
+			coeff_frac: Perbill::from_rational(p % q, q),
+			coeff_integer: p / q,
+		}]
     }
 }
 

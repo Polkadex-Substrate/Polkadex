@@ -213,6 +213,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
+ "smallvec",
  "sp-application-crypto",
  "sp-core",
  "sp-io",
