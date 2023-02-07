@@ -194,7 +194,7 @@ std = [
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
-    "thea-cross-chain-governance/std"
+    "thea-cross-chain-governance/std",
     "liquidity/std",
 ]
 runtime-benchmarks = [

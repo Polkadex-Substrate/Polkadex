@@ -15,7 +15,7 @@ members = [
     "thea-primitives",
     "pallets/thea-staking",
     "pallets/liquidity",
-    "pallets/thea-cross-chain-governance"
+    "pallets/thea-cross-chain-governance",
 ]
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
