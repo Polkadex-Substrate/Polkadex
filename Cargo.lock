@@ -3679,7 +3679,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "test-utils",
- "thea-primitives",
 ]
 
 [[package]]
@@ -4812,6 +4811,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "ias-verify",
+ "liquidity",
  "log",
  "pallet-assets",
  "pallet-balances",
@@ -4827,7 +4827,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "test-utils",
- "thea-primitives",
 ]
 
 [[package]]

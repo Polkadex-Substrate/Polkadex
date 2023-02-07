@@ -74,6 +74,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
+	use liquidity::LiquidityModifier;
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -87,7 +88,6 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-	use thea_primitives::liquidity::LiquidityModifier;
 
 	pub trait OcexWeightInfo {
 		fn register_main_account(_b: u32) -> Weight;

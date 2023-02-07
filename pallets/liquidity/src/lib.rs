@@ -41,10 +41,29 @@ const LENGTH_OF_HALF_BYTES: usize = 16;
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 
+// Trait to add liquidity in OCEX pallet
+pub trait LiquidityModifier {
+	type AssetId;
+	type AccountId;
+	fn on_deposit(account: Self::AccountId, asset: Self::AssetId, balance: u128) -> DispatchResult;
+	fn on_withdraw(
+		account: Self::AccountId,
+		proxy_account: Self::AccountId,
+		asset: Self::AssetId,
+		balance: u128,
+		do_force_withdraw: bool,
+	) -> DispatchResult;
+	fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult;
+	#[cfg(feature = "runtime-benchmarks")]
+	fn set_exchange_state_to_true() -> DispatchResult;
+	#[cfg(feature = "runtime-benchmarks")]
+	fn allowlist_and_create_token(account: Self::AccountId, token: u128) -> DispatchResult;
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
-	use thea_primitives::liquidity::LiquidityModifier;
+	// use thea_primitives::liquidity::LiquidityModifier;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use frame_support::{

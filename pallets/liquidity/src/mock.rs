@@ -15,14 +15,14 @@
 
 //! Tests for liquidity pallet
 
-use crate::{pallet as liquidity, *};
+use crate::{pallet as liquidity, LiquidityModifier, *};
 use frame_support::{
 	parameter_types,
 	traits::{ConstU128, ConstU64, OnTimestampSet},
 	PalletId,
 };
-use pallet_ocex_lmp::WeightInfo as OcexWeightInfo;
 use frame_system::EnsureRoot;
+use pallet_ocex_lmp::WeightInfo as OcexWeightInfo;
 use polkadex_primitives::{AccountId, AssetId, Moment, Signature};
 use sp_application_crypto::sp_core::H256;
 use sp_runtime::{
@@ -30,7 +30,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::cell::RefCell;
-use thea_primitives::liquidity::LiquidityModifier;
 // use pallet_ocex_lmp;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;

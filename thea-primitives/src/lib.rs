@@ -11,7 +11,6 @@ use sp_std::{vec, vec::Vec};
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
-pub mod liquidity;
 pub mod thea_types;
 
 #[runtime_interface]
