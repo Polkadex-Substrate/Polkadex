@@ -1440,7 +1440,7 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
-		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 42
+		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 42,
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 43,
 	}
 );
