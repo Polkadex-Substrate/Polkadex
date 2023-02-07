@@ -207,6 +207,7 @@ runtime-benchmarks = [
     "pallet-ocex-lmp/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks",
+    "liquidity/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
@@ -239,4 +240,5 @@ try-runtime = [
     "pallet-utility/try-runtime",
     "orml-vesting/try-runtime",
     "pdex-migration/try-runtime",
+    "liquidity/try-runtime",
 ]

@@ -15,24 +15,23 @@
 
 //! Tests for liquidity pallet
 
-use polkadex_primitives::AssetId;
-
 use crate::{pallet as liquidity, *};
 use frame_support::{
 	parameter_types,
 	traits::{ConstU128, ConstU64, OnTimestampSet},
 	PalletId,
 };
+use pallet_ocex_lmp::WeightInfo as OcexWeightInfo;
 use frame_system::EnsureRoot;
-use pallet_ocex_lmp::WeightInfo;
-use polkadex_primitives::{AccountId, Moment, Signature};
+use polkadex_primitives::{AccountId, AssetId, Moment, Signature};
 use sp_application_crypto::sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::cell::RefCell;
-
+use thea_primitives::liquidity::LiquidityModifier;
+// use pallet_ocex_lmp;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -126,7 +125,7 @@ impl pallet_ocex_lmp::Config for Test {
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
-	type WeightInfo = WeightInfo<Test>;
+	type WeightInfo = OcexWeightInfo<Test>;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
@@ -154,6 +153,14 @@ impl<Test> LiquidityModifier for pallet_ocex_lmp::Pallet<Test> {
 		Ok(())
 	}
 	fn on_register(_main_account: Self::AccountId, _proxy: Self::AccountId) -> DispatchResult {
+		Ok(())
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	fn set_exchange_state_to_true() -> DispatchResult {
+		Ok(())
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	fn allowlist_and_create_token(_account: Self::AccountId, _token: u128) -> DispatchResult {
 		Ok(())
 	}
 }
@@ -195,6 +202,7 @@ impl Config for Test {
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type CallOcex = OCEX;
+	type WeightInfo = weights::WeightInfo<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

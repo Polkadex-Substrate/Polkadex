@@ -27,8 +27,7 @@ rust_decimal = { workspace = true, features = ["scale-codec"], default-features 
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 test-utils = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
-liquidity = { path = "../liquidity", default-features = false }
-
+thea-primitives = { path = "../../thea-primitives", default-features = false }
 
 [dev-dependencies]
 test-utils = { workspace = true }
@@ -55,13 +54,15 @@ std = [
     "ias-verify/std",
     "rust_decimal/std",
     "pallet-timestamp/std",
-    "liquidity/std",
+#    "liquidity/std",
+    "thea-primitives/std"
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
-    "test-utils"
+    "test-utils",
+    "thea-primitives/runtime-benchmarks"
 ]
 try-runtime = ["frame-support/try-runtime"]

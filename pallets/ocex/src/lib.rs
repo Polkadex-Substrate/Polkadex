@@ -28,7 +28,6 @@ use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -37,6 +36,9 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::One;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -72,7 +74,6 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use ias_verify::{verify_ias_report, SgxStatus};
-	use liquidity::LiquidityModifier;
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -86,6 +87,7 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
+	use thea_primitives::liquidity::LiquidityModifier;
 
 	pub trait OcexWeightInfo {
 		fn register_main_account(_b: u32) -> Weight;
@@ -1085,6 +1087,33 @@ pub mod pallet {
 		}
 		fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult {
 			Self::register_user(main_account, proxy)?;
+			Ok(())
+		}
+
+		#[cfg(feature = "runtime-benchmarks")]
+		fn set_exchange_state_to_true() -> DispatchResult {
+			<ExchangeState<T>>::put(true);
+			Ok(())
+		}
+
+		#[cfg(feature = "runtime-benchmarks")]
+		fn allowlist_and_create_token(account: Self::AccountId, token: u128) -> DispatchResult {
+			let asset: AssetId = AssetId::asset(token);
+			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
+			allowlisted_tokens
+				.try_insert(asset)
+				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
+			<AllowlistedToken<T>>::put(allowlisted_tokens);
+			let amount = BalanceOf::<T>::decode(&mut &(u128::MAX).to_le_bytes()[..])
+				.map_err(|_| Error::<T>::FailedToConvertDecimaltoBalance)?;
+			//create asset and mint into it.
+			T::OtherAssets::create(
+				token,
+				Self::get_pallet_account(),
+				true,
+				BalanceOf::<T>::one().unique_saturated_into(),
+			)?;
+			T::OtherAssets::mint_into(token, &account.clone(), amount)?;
 			Ok(())
 		}
 	}

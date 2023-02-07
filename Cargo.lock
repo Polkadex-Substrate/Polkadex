@@ -3679,6 +3679,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "test-utils",
+ "thea-primitives",
 ]
 
 [[package]]
@@ -4811,7 +4812,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "ias-verify",
- "liquidity",
  "log",
  "pallet-assets",
  "pallet-balances",
@@ -4827,6 +4827,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "test-utils",
+ "thea-primitives",
 ]
 
 [[package]]
@@ -8873,6 +8874,7 @@ name = "thea-primitives"
 version = "0.1.0"
 dependencies = [
  "blst",
+ "frame-support",
  "frame-system",
  "parity-scale-codec",
  "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
