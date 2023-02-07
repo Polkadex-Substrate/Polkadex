@@ -211,6 +211,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "parity-scale-codec",
+ "polkadex-extrinsic",
  "polkadex-primitives",
  "scale-info",
  "smallvec",
@@ -4920,10 +4921,6 @@ dependencies = [
  "asset-handler",
  "assets-transaction-payment",
  "chainbridge",
- "ethers",
- "ethers-contract",
- "ethers-core",
- "ethers-derive-eip712",
  "frame-benchmarking",
  "frame-election-provider-support",
  "frame-executive",
@@ -4932,7 +4929,6 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex",
  "hex-literal",
  "log",
  "orml-vesting",
@@ -4976,12 +4972,10 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
- "parity-util-mem",
  "pdex-migration",
+ "polkadex-extrinsic",
  "polkadex-primitives",
  "scale-info",
- "serde",
- "serde_json",
  "smallvec",
  "sp-api",
  "sp-authority-discovery",
@@ -4994,7 +4988,6 @@ dependencies = [
  "sp-npos-elections",
  "sp-offchain",
  "sp-runtime",
- "sp-runtime-interface",
  "sp-session",
  "sp-staking",
  "sp-std",
@@ -6413,6 +6406,29 @@ dependencies = [
  "node-polkadex-runtime",
  "sc-executor",
  "thea-primitives",
+]
+
+[[package]]
+name = "polkadex-extrinsic"
+version = "0.1.0"
+dependencies = [
+ "ethers",
+ "ethers-contract",
+ "ethers-core",
+ "ethers-derive-eip712",
+ "frame-support",
+ "hex",
+ "parity-scale-codec",
+ "parity-util-mem",
+ "polkadex-primitives",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-runtime-interface",
+ "sp-std",
 ]
 
 [[package]]

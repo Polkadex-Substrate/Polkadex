@@ -15,6 +15,7 @@ members = [
     "pallets/thea",
     "thea-primitives",
     "pallets/thea-staking",
+    "polkadex-extrinsic",
 ]
 
 [patch."https://github.com/open-web3-stack/open-runtime-module-library.git"]
