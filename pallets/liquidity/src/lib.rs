@@ -41,23 +41,10 @@ const LENGTH_OF_HALF_BYTES: usize = 16;
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 
-pub trait LiquidityModifier {
-	type AssetId;
-	type AccountId;
-	fn on_deposit(account: Self::AccountId, asset: Self::AssetId, balance: u128) -> DispatchResult;
-	fn on_withdraw(
-		account: Self::AccountId,
-		proxy_account: Self::AccountId,
-		asset: Self::AssetId,
-		balance: u128,
-		do_force_withdraw: bool,
-	) -> DispatchResult;
-	fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult;
-}
-
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
+	use thea_primitives::liquidity::LiquidityModifier;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use frame_support::{
@@ -71,6 +58,13 @@ pub mod pallet {
 		traits::{AccountIdConversion, IdentifyAccount, Verify},
 		SaturatedConversion,
 	};
+
+	pub trait LiquidityWeightInfo {
+		fn register_account(_a: u32) -> Weight;
+		fn deposit_to_orderbook(_a: u32, _i: u32) -> Weight;
+		fn withdraw_from_orderbook(a: u32, _i: u32) -> Weight;
+	}
+
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
@@ -108,6 +102,8 @@ pub mod pallet {
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 
 		type CallOcex: LiquidityModifier<AssetId = AssetId, AccountId = Self::AccountId>;
+
+		type WeightInfo: LiquidityWeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -141,7 +137,7 @@ pub mod pallet {
 		/// * `origin`: governance
 		/// * `account_generation_key`: u32 value that will be used to generate main account and
 		///   proxy account
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_account(1))]
 		pub fn register_account(
 			origin: OriginFor<T>,
 			account_generation_key: u32,
@@ -156,9 +152,9 @@ pub mod pallet {
 			);
 
 			//create main account and proxy account
-			let main_account = Self::generate_proxy_account(account_generation_key)?;
+			let main_account = Self::generate_main_account(account_generation_key)?;
 
-			let proxy_account = Self::generate_main_account(account_generation_key)?;
+			let proxy_account = Self::generate_proxy_account(account_generation_key)?;
 
 			//call ocex register
 			T::CallOcex::on_register(main_account.clone(), proxy_account.clone())?;
@@ -181,7 +177,7 @@ pub mod pallet {
 		/// * `amount`: amount to deposit
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
 		///   account
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2))]
 		pub fn deposit_to_orderbook(
 			origin: OriginFor<T>,
 			asset: AssetId,
@@ -197,7 +193,10 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::PalletAccountNotRegistered)?;
 
 			//call ocex deposit
-			T::CallOcex::on_deposit(main_account, asset, amount.saturated_into())?;
+			T::CallOcex::on_deposit(main_account.clone(), asset, amount.saturated_into())?;
+
+			Self::deposit_event(Event::DepositToPalletAccount { main_account, asset, amount });
+
 			Ok(())
 		}
 
@@ -211,7 +210,7 @@ pub mod pallet {
 		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
 		///  account given amount will be withdrawn
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2))]
 		pub fn withdraw_from_orderbook(
 			origin: OriginFor<T>,
 			asset: AssetId,
@@ -228,12 +227,15 @@ pub mod pallet {
 
 			//call ocex withdraw
 			T::CallOcex::on_withdraw(
-				main_account,
+				main_account.clone(),
 				proxy_account,
 				asset,
 				amount.saturated_into(),
 				do_force_withdraw,
 			)?;
+
+			Self::deposit_event(Event::WithdrawFromPalletAccount { main_account, asset, amount });
+
 			Ok(())
 		}
 	}
@@ -243,13 +245,20 @@ pub mod pallet {
 			T::PalletId::get().into_account_truncating()
 		}
 
+		// To generate proxy account value provided by governance is used.
 		pub fn generate_proxy_account(
 			value_provided_by_governance: u32,
 		) -> Result<T::AccountId, Error<T>> {
 			let mut result = [0u8; 32];
+			let mut last_index = 0;
 
-			for (i, item) in result.iter_mut().enumerate() {
-				*item = (value_provided_by_governance >> i) as u8;
+			for _ in 0..8 {
+				value_provided_by_governance
+					.to_le_bytes()
+					.into_iter()
+					.enumerate()
+					.for_each(|v| result[v.0 + last_index] = v.1);
+				last_index += 4;
 			}
 
 			let proxy_account = T::AccountId::decode(&mut &result[..])
@@ -257,19 +266,31 @@ pub mod pallet {
 			Ok(proxy_account)
 		}
 
+		// To generate main account initial half bytes are used from pallet account while rest from
+		// value provided by governance.
 		pub fn generate_main_account(
 			value_provided_by_governance: u32,
 		) -> Result<T::AccountId, Error<T>> {
 			let mut result = [0u8; 32];
+			let mut last_index = 0;
 			let decoded_pallet_account_to_value =
 				T::AccountId::encoded_size(&Self::get_pallet_account()) as u32;
 
-			for (i, item) in result.iter_mut().enumerate() {
-				if i <= LENGTH_OF_HALF_BYTES {
-					*item = (decoded_pallet_account_to_value >> i) as u8;
+			for _ in 0..8 {
+				if last_index < LENGTH_OF_HALF_BYTES {
+					decoded_pallet_account_to_value
+						.to_le_bytes()
+						.into_iter()
+						.enumerate()
+						.for_each(|v| result[v.0 + last_index] = v.1);
 				} else {
-					*item = (value_provided_by_governance >> i) as u8;
+					value_provided_by_governance
+						.to_le_bytes()
+						.into_iter()
+						.enumerate()
+						.for_each(|v| result[v.0 + last_index] = v.1);
 				}
+				last_index += 4;
 			}
 
 			let main_account = T::AccountId::decode(&mut &result[..])
@@ -288,6 +309,19 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		PalletAccountRegister { main_account: T::AccountId, proxy_account: T::AccountId },
+		PalletAccountRegister {
+			main_account: T::AccountId,
+			proxy_account: T::AccountId,
+		},
+		DepositToPalletAccount {
+			main_account: T::AccountId,
+			asset: AssetId,
+			amount: BalanceOf<T>,
+		},
+		WithdrawFromPalletAccount {
+			main_account: T::AccountId,
+			asset: AssetId,
+			amount: BalanceOf<T>,
+		},
 	}
 }

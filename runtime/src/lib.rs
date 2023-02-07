@@ -1283,6 +1283,7 @@ impl liquidity::Config for Runtime {
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type CallOcex = OCEX;
+	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1678,6 +1679,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
+			list_benchmark!(list, extra, liquidity, Liquidity);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1709,6 +1711,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+			add_benchmark!(params, batches, liquidity, Liquidity);
+
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
