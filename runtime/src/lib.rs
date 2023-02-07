@@ -117,7 +117,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 280,
+	spec_version: 281,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1288,9 +1288,11 @@ impl pallet_rewards::Config for Runtime {
 
 parameter_types! {
 	pub const ChainId: u8 = 1;
+	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const WithdrawalSize: u32 = 10;
 }
 
 impl chainbridge::Config for Runtime {
@@ -1308,6 +1310,7 @@ impl asset_handler::pallet::Config for Runtime {
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TreasuryPalletId = TreasuryPalletId;
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
+	type ParachainNetworkId = ParachainNetworkId;
 }
 
 impl thea::pallet::Config for Runtime {
@@ -1315,6 +1318,7 @@ impl thea::pallet::Config for Runtime {
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
 }
 
 //Install Staking Pallet
@@ -1335,6 +1339,7 @@ impl thea_staking::Config for Runtime {
 	type CandidateBond = CandidateBond;
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
+	type SessionChangeNotifier = Thea;
 }
 
 //Install Nomination Pool
@@ -1372,6 +1377,19 @@ impl pallet_nomination_pools::Config for Runtime {
 	type MaxUnbonding = ConstU32<8>;
 	type PalletId = NominationPoolsPalletId;
 	type MaxPointsToBalance = MaxPointsToBalance;
+}
+
+parameter_types! {
+	pub const StakingAmount: u128 = 1_000_000_000_000_000u128;
+	pub const StakingReserveIdentifierForTheaGov: [u8; 8] = [2u8;8];
+
+}
+
+impl thea_cross_chain_governance::Config for Runtime {
+	type Event = Event;
+	type StakingAmount = StakingAmount;
+	type StakingReserveIdentifier = StakingReserveIdentifierForTheaGov;
+	type CouncilHandlerOrigin = EnsureRootOrHalfCouncil;
 }
 
 construct_runtime!(
@@ -1423,6 +1441,7 @@ construct_runtime!(
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
+		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 43
 	}
 );
 /// Digest item type.
