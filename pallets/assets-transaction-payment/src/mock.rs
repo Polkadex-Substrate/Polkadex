@@ -24,7 +24,33 @@ use sp_runtime::Perbill;
 
 use crate::{self as assets_transaction_payment, Config};
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
+
+pub type SignedExtra = (
+    frame_system::CheckSpecVersion<Runtime>,
+    frame_system::CheckTxVersion<Runtime>,
+    frame_system::CheckGenesis<Runtime>,
+    frame_system::CheckMortality<Runtime>,
+    frame_system::CheckNonce<Runtime>,
+    frame_system::CheckWeight<Runtime>,
+    assets_transaction_payment::ChargeAssetTransactionPayment<Runtime>,
+);
+
+
+#[derive(PartialEq, Eq, Clone)]
+pub struct UncheckedExtrinsic<Address, Call, Extra>
+    where
+        Extra: SignedExtension,
+{
+    /// The signature, address, number of extrinsics have come before from
+    /// the same signer and an era describing the longevity of this transaction,
+    /// if this is a signed extrinsic.
+    pub signature: Option<(Address, Signature, Extra)>,
+    /// The function that should be called.
+    pub function: Call,
+}
+
+type UncheckedExtrinsic = UncheckedExtrinsic<Address, Call, SignedExtra>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // For testing the pallet, we construct a mock runtime.
@@ -190,7 +216,7 @@ impl Config for Test {
     type Event = Event;
     type Fungibles = Assets;
     type OnChargeAssetTransaction = crate::payment::FungiblesAdapter<
-        pallet_assets::BalanceToAssetBalance<Balances, Test, ConvertInto>,
+        pallet_assets<::BalanceToAssetBalance<Balances, Test, ConvertInto>,
         AlternateTokenSwapper,
         DealWithFees,
     >;

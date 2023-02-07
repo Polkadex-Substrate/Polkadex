@@ -22,7 +22,7 @@ pallet-transaction-payment = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 test-utils = { workspace = true, default-features = false, optional = true }
-
+polkadex-extrinsic = { path = "../../polkadex-extrinsic", default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
@@ -48,5 +48,6 @@ std = [
 	"pallet-transaction-payment/std",
 	"polkadex-primitives/std",
 	"pallet-timestamp/std",
-	"test-utils/std"
+	"test-utils/std",
+	"polkadex-extrinsic/std",
 ]
