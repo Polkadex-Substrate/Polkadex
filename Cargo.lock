@@ -8894,7 +8894,7 @@ dependencies = [
  "pallet-balances",
  "pallet-identity",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -8908,7 +8908,6 @@ name = "thea-primitives"
 version = "0.1.0"
 dependencies = [
  "blst",
- "frame-support",
  "frame-system",
  "parity-scale-codec",
  "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
