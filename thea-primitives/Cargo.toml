@@ -9,7 +9,6 @@ edition = "2021"
 sp-runtime-interface = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
 blst = {version = "0.3.10", default-features = false, optional=true}
 frame-system = { workspace = true, default-features = false }
-frame-support = { default-features = false, workspace = true }
 polkadex-primitives = {workspace = true, default-features = false}
 sp-std = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
@@ -32,11 +31,5 @@ std = [
     "sp-core/std",
     "sp-runtime/std",
     "sp-io/std",
-    "xcm/std"
-    "frame-support/std",
+    "xcm/std",
 ]
-runtime-benchmarks = [
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-]
-try-runtime = ["frame-support/try-runtime"]
