@@ -5,7 +5,7 @@ pub struct ExecutorDispatch;
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 	type ExtendHostFunctions = (
 		frame_benchmarking::benchmarking::HostFunctions,
-		node_polkadex_runtime::ethereum::ethereum_signer::HostFunctions,
+		polkadex_extrinsic::ethereum::ethereum_signer::HostFunctions,
 		thea_primitives::thea_ext::HostFunctions,
 	);
 
