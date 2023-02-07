@@ -26,6 +26,13 @@ use sp_runtime::{
 	DispatchResult, FixedPointOperand,
 };
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod test;
+
+
 // Type aliases used for interaction with `OnChargeTransaction`.
 pub(crate) type OnChargeTransactionOf<T> =
 	<T as pallet_transaction_payment::Config>::OnChargeTransaction;

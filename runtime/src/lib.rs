@@ -435,6 +435,7 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
+
 parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
