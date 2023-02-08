@@ -907,7 +907,7 @@ fn test_deposit_account_not_registered() {
 }
 
 #[test]
-fn test_deposit_abc() {
+fn test_deposit() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
 	new_test_ext().execute_with(|| {
