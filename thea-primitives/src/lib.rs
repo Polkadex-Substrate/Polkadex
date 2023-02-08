@@ -81,7 +81,8 @@ pub enum TheaPalletMessages {
 	// Sign Q Public Key
 	SignQdPublicKey,
 	// Thea Key Rotation Complete
-	TheaKeyRotationComplete
+	TheaKeyRotationComplete,
+}
 
 #[derive(Encode, Decode, Clone, Debug, TypeInfo, Eq, PartialEq)]
 pub struct ApprovedWithdraw {
