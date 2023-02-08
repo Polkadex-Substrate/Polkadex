@@ -605,7 +605,8 @@ pub mod pallet {
 		}
 
 		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {
-			let recipient: MultiLocation = Decode::decode(&mut &recipient[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+			let recipient: MultiLocation =
+				Decode::decode(&mut &recipient[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			Ok(recipient)
 		}
 
