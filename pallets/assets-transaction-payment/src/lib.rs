@@ -197,7 +197,7 @@ where
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
 		} else if self.asset_id != Zero::zero() {
-			// If the asset id is zero, then we treat that case as payment in PDEX,
+			// If not native asset call our withdraw_fee method
 			T::OnChargeAssetTransaction::withdraw_fee(
 				who,
 				call,
@@ -208,6 +208,7 @@ where
 			)
 			.map(|i| (fee, InitialPayment::Asset(i.into())))
 		} else {
+			// If the asset id is zero, then we treat that case as payment in PDEX,
 			<OnChargeTransactionOf<T> as OnChargeTransaction<T>>::withdraw_fee(
 				who, call, info, fee, self.tip,
 			)
