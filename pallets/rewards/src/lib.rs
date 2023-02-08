@@ -174,11 +174,6 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_claim_rewards())]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
-			//check if given id valid or not
-			ensure!(
-				<InitializeRewards<T>>::contains_key(reward_id),
-				Error::<T>::RewardIdNotRegister
-			);
 
 			// check if rewards can be unlocked at current block
 			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
@@ -188,7 +183,7 @@ pub mod pallet {
 					Error::<T>::RewardsCannotBeUnlockYet
 				);
 			} else {
-				//sanity check
+				//reward id not register yet
 				return Err(Error::<T>::RewardIdNotRegister.into())
 			}
 
@@ -201,7 +196,7 @@ pub mod pallet {
 			let account_in_vec: Vec<u8> = T::AccountId::encode(&user);
 			#[allow(clippy::borrow_interior_mutable_const)]
 			#[allow(clippy::declare_interior_mutable_const)]
-			//get info of user from pre defined hash map
+			//get info of user from pre defined hash map and add it in storage
 			if let Some((total_rewards_in_pdex, initial_rewards_claimable, factor)) =
 				crowdloan_rewardees::HASHMAP.get(&account_in_vec)
 			{
@@ -209,7 +204,7 @@ pub mod pallet {
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 					if *total_rewards_in_pdex > MIN_REWARDS_CLAIMABLE_AMOUNT {
 						//initialize reward info struct
-						let reward_info = RewardInfoForAccount {
+						let mut reward_info = RewardInfoForAccount {
 							total_reward_amount: (*total_rewards_in_pdex).saturated_into(),
 							claim_amount: 0_u128.saturated_into(),
 							is_initial_rewards_claimed: false,
@@ -220,6 +215,29 @@ pub mod pallet {
 								.saturated_into(),
 							factor: (*factor).saturated_into(),
 						};
+
+						//transfer funds from pallet account to users account
+						ensure!(
+						Self::transfer_pdex_rewards(
+							&Self::get_pallet_account(),
+							&user,
+							reward_info.total_reward_amount
+						)
+						.is_ok(),
+						Error::<T>::TransferFailed
+						);
+
+						//lock users funds in his account
+						T::NativeCurrency::set_lock(
+							REWARDS_LOCK_ID,
+							&user,
+							reward_info.total_reward_amount,
+							WithdrawReasons::TRANSFER,
+						);
+
+						//set initialize flag as true
+						reward_info.is_initialized = true;
+
 						//insert reward info into storage
 						<Distributor<T>>::insert(reward_id, user.clone(), reward_info);
 					} else {
@@ -233,44 +251,6 @@ pub mod pallet {
 				return Err(Error::<T>::UserNotEligible.into())
 			}
 
-			//check if user is added in reward list
-			ensure!(<Distributor<T>>::contains_key(reward_id, &user), Error::<T>::UserNotEligible);
-
-			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
-				if let Some(user_reward_info) = user_reward_info {
-					//check if user already unlocked the rewards
-					//sanity check: if user is calling initialize_for the second time it will fail
-					// in the above ensure, if user is calling initialize for the first time the
-					// flag is set to false by default
-					ensure!(
-						!user_reward_info.is_initialized,
-						Error::<T>::RewardsAlreadyInitialized
-					);
-					//transfer funds from pallet account to users account
-					ensure!(
-						Self::transfer_pdex_rewards(
-							&Self::get_pallet_account(),
-							&user,
-							user_reward_info.total_reward_amount
-						)
-						.is_ok(),
-						Error::<T>::TransferFailed
-					);
-
-					//lock funds in users account
-					T::NativeCurrency::set_lock(
-						REWARDS_LOCK_ID,
-						&user,
-						user_reward_info.total_reward_amount.saturated_into(),
-						WithdrawReasons::TRANSFER,
-					);
-					user_reward_info.is_initialized = true;
-					Ok(())
-				} else {
-					//sanity check
-					Err(Error::<T>::UserNotEligible)
-				}
-			})?;
 			Self::deposit_event(Event::UserUnlockedReward { user, reward_id });
 			Ok(())
 		}
@@ -282,15 +262,6 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
-
-			//check if given id valid or not
-			ensure!(
-				<InitializeRewards<T>>::contains_key(reward_id),
-				Error::<T>::RewardIdNotRegister
-			);
-
-			//check if user is added in reward list
-			ensure!(<Distributor<T>>::contains_key(reward_id, &user), Error::<T>::UserNotEligible);
 
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
@@ -377,11 +348,11 @@ pub mod pallet {
 
 						Ok(())
 					} else {
-						//will not occur since we are already ensuring it above, sanity check
+						//user not present in reward list
 						Err(Error::<T>::UserNotEligible)
 					}
 				} else {
-					// will not occur since we are already ensuring it above, sanity check
+					// given reward id not valid
 					Err(Error::<T>::RewardIdNotRegister)
 				}
 			})?;
