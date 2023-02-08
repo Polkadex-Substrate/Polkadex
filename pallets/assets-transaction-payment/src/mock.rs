@@ -1,7 +1,7 @@
 use crate::*;
 use frame_support::{
     parameter_types,
-    traits::{fungibles::CreditOf,ConstU128, ConstU64, OnTimestampSet, OnUnbalanced, Currency},
+    traits::{fungibles::CreditOf,ConstU128, ConstU64, OnTimestampSet, OnUnbalanced, Currency,EitherOfDiverse},
     PalletId,
     weights::{ConstantMultiplier,WeightToFeePolynomial, WeightToFeeCoefficients, WeightToFeeCoefficient, constants::ExtrinsicBaseWeight}
 };
@@ -9,10 +9,12 @@ use frame_system::EnsureRoot;
 use polkadex_primitives::{Moment, Signature,AccountIndex};
 use sp_std::cell::RefCell;
 use sp_runtime::{
+    Permill,
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup,ConvertInto},
     SaturatedConversion,
-    FixedPointNumber
+    FixedPointNumber,
+    Percent,
 };
 use sp_application_crypto::sp_core::H256;
 use crate::payment::{HandleSwap, NegativeImbalanceOf};
@@ -37,7 +39,7 @@ pub type SignedExtra = (
     ChargeAssetTransactionPayment<Test>,
 );
 
-// does not work
+// does not work since MockBlock
 // type Block = frame_system::mocking::MockBlock<Test>;
 // type UncheckedExtrinsic = polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<Address,Call,SignedExtra>;
 
@@ -51,6 +53,7 @@ pub type MockBlock = sp_runtime::generic::Block<
 
 type Block = MockBlock;
 type UncheckedExtrinsic = MockUncheckedExtrinsic;
+type CouncilCollective = pallet_collective::Instance1;
 
 // For testing the pallet, we construct a mock runtime.
 frame_support::construct_runtime!(
@@ -64,7 +67,10 @@ frame_support::construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>},
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
 		AssetsTransactionPayment: assets_transaction_payment::{Pallet, Call, Storage, Event<T>},
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
+        ChildBounties: pallet_child_bounties,
 	}
 );
 
@@ -148,10 +154,6 @@ impl pallet_transaction_payment::Config for Test {
 use polkadex_primitives::AccountId;
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
-    }
-}
 parameter_types! {
 	pub const LockPeriod: u64 = 201600;
 	pub const MaxRelayers: u32 = 3;
@@ -201,9 +203,82 @@ impl pallet_timestamp::Config for Test {
     type WeightInfo = ();
 }
 
-pub struct AlternateTokenSwapper;
-pub struct DealWithFees;
 
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBondMinimum: Balance = 100;
+	pub const SpendPeriod: BlockNumber = 24;
+	pub const Burn: Permill = Permill::from_percent(0);
+	pub const TipCountdown: BlockNumber = 10;
+	pub const TipFindersFee: Percent = Percent::from_percent(20);
+	pub const TipReportDepositBase: Balance = 100;
+	pub const DataDepositPerByte: Balance = 100;
+	pub const BountyDepositBase: Balance = 100;
+	pub const BountyDepositPayoutDelay: BlockNumber = 8;
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const BountyUpdatePeriod: BlockNumber = 90;
+	pub const MaximumReasonLength: u32 = 16384;
+	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+	pub const BountyValueMinimum: Balance = 10;
+	pub const MaxApprovals: u32 = 100;
+	pub const MaxActiveChildBountyCount: u32 = 5;
+	pub const ChildBountyValueMinimum: Balance = 100;
+	pub const CuratorDepositMax: Balance = 100;
+	pub const CuratorDepositMin: Balance = 10;
+	pub const ChildBountyCuratorDepositBase: Permill = Permill::from_percent(10);
+}
+
+impl pallet_treasury::Config for Test {
+    type PalletId = TreasuryPalletId;
+    type Currency = Balances;
+    type ApproveOrigin = EnsureRoot<sp_runtime::AccountId32>;
+    type RejectOrigin = EnsureRoot<sp_runtime::AccountId32>;
+    type Event = Event;
+    type OnSlash = ();
+    type ProposalBond = ProposalBond;
+    type ProposalBondMinimum = ProposalBondMinimum;
+    type SpendPeriod = SpendPeriod;
+    type Burn = Burn;
+    type BurnDestination = ();
+    type SpendFunds = Bounties;
+    type WeightInfo = ();
+    type MaxApprovals = MaxApprovals;
+    type ProposalBondMaximum = ();
+    type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
+}
+
+
+impl pallet_bounties::Config for Test {
+    type Event = Event;
+    type BountyDepositBase = BountyDepositBase;
+    type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
+    type BountyUpdatePeriod = BountyUpdatePeriod;
+    type BountyValueMinimum = BountyValueMinimum;
+    type DataDepositPerByte = DataDepositPerByte;
+    type MaximumReasonLength = MaximumReasonLength;
+    type WeightInfo = ();
+    type ChildBountyManager = ChildBounties;
+    type CuratorDepositMultiplier = BountyCuratorDeposit;
+    type CuratorDepositMax = CuratorDepositMax;
+    type CuratorDepositMin = CuratorDepositMin;
+}
+
+impl pallet_child_bounties::Config for Test {
+    type MaxActiveChildBountyCount = MaxActiveChildBountyCount;
+    type ChildBountyValueMinimum = ChildBountyValueMinimum;
+    type Event = Event;
+    type WeightInfo = ();
+}
+
+
+pub struct DealWithFees;
+impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
+        //empty method
+    }
+}
+
+pub struct AlternateTokenSwapper;
 impl HandleSwap<Test> for AlternateTokenSwapper {
     fn swap(credit: CreditOf<AccountId, Assets>) -> NegativeImbalanceOf<Test> {
         NegativeImbalanceOf::new(credit.peek().saturated_into::<u128>().saturated_into())
@@ -211,80 +286,16 @@ impl HandleSwap<Test> for AlternateTokenSwapper {
 }
 
 
-impl Config for Test {
+impl assets_transaction_payment::Config for Test {
     type Event = Event;
     type Fungibles = Assets;
-    type OnChargeAssetTransaction = crate::payment::FungiblesAdapter<
+    type OnChargeAssetTransaction = payment::FungiblesAdapter<
         pallet_assets::BalanceToAssetBalance<Balances, Test, ConvertInto>,
         AlternateTokenSwapper,
         DealWithFees,
     >;
 }
-//________________________________________________________________
-// implement transaction traits
-// pub const BlockHashCount: BlockNumber = 2400;
-//
-// impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
-//     where
-//         Call: From<LocalCall>,
-// {
-//     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
-//         call: Call,
-//         public: <Signature as traits::Verify>::Signer,
-//         account: AccountId,
-//         nonce: Index,
-//     ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
-//         let tip = 0;
-//         // take the biggest period possible.
-//         let period =
-//             BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
-//         let current_block = System::block_number()
-//             .saturated_into::<u64>()
-//             // The `System::block_number` is initialized with `n+1`,
-//             // so the actual block number is `n`.
-//             .saturating_sub(1);
-//         let extra = (
-//             frame_system::CheckSpecVersion::<Test>::new(),
-//             frame_system::CheckTxVersion::<Test>::new(),
-//             frame_system::CheckGenesis::<Test>::new(),
-//             frame_system::CheckMortality::<Test>::from(generic::Era::mortal(
-//                 period,
-//                 current_block,
-//             )),
-//             frame_system::CheckNonce::<Test>::from(nonce),
-//             frame_system::CheckWeight::<Test>::new(),
-//             assets_transaction_payment::ChargeAssetTransactionPayment::<Runtime> {
-//                 signature_scheme: 0,
-//                 asset_id: 0,
-//                 tip,
-//             },
-//         );
-//         let raw_payload = SignedPayload::new(call, extra)
-//             .map_err(|e| {
-//                 log::warn!("Unable to create signed payload: {:?}", e);
-//             })
-//             .ok()?;
-//         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
-//         let address = Indices::unlookup(account);
-//         let (call, extra, _) = raw_payload.deconstruct();
-//         Some((call, (address, signature, extra)))
-//     }
-// }
-//
-// impl frame_system::offchain::SigningTypes for Test {
-//     type Public = <Signature as traits::Verify>::Signer;
-//     type Signature = Signature;
-// }
-//
-// impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
-//     where
-//         Call: From<C>,
-// {
-//     type Extrinsic = UncheckedExtrinsic;
-//     type OverarchingCall = Call;
-// }
 
-//________________________________________________________________
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
     t.into()
