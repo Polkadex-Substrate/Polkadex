@@ -396,7 +396,10 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			&1,
 			1_000_000_000_000
 		));
-		let beneficiary: MultiLocation = MultiLocation::new(1, Junctions::X1(Junction::AccountId32 {network: NetworkId::Any, id: beneficiary}));
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
 		assert_ok!(Thea::withdraw(
 			Origin::signed(1),
 			generate_asset_id(asset_id.clone()),
@@ -435,7 +438,10 @@ fn test_withdraw_returns_ok() {
 		));
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
-		let beneficiary: MultiLocation = MultiLocation::new(1, Junctions::X1(Junction::AccountId32 {network: NetworkId::Any, id: beneficiary}));
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
 		// Mint Asset to Alice
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
 			Origin::root(),
@@ -494,7 +500,10 @@ fn test_withdraw_with_wrong_asset_id_returns_UnableFindNetworkForAssetId() {
 fn test_withdraw_with_no_fee_config() {
 	new_test_ext().execute_with(|| {
 		let beneficiary: [u8; 32] = [1; 32];
-		let beneficiary: MultiLocation = MultiLocation::new(1, Junctions::X1(Junction::AccountId32 {network: NetworkId::Any, id: beneficiary}));
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
 			Origin::signed(1),
@@ -574,8 +583,17 @@ fn test_withdrawal_returns_ok() {
 		));
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
-		let beneficiary: MultiLocation = MultiLocation::new(1,Junctions::X1(Junction::AccountId32 {network: NetworkId::Any, id: beneficiary}));
-		assert_ok!(Thea::do_withdraw(1, asset_id, 1000000000u128, beneficiary.encode().to_vec(), false));
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
+		assert_ok!(Thea::do_withdraw(
+			1,
+			asset_id,
+			1000000000u128,
+			beneficiary.encode().to_vec(),
+			false
+		));
 	})
 }
 
