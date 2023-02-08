@@ -179,6 +179,8 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "thea-primitives",
+ "xcm",
 ]
 
 [[package]]
@@ -1336,6 +1338,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6919815d73839e7ad218de758883aae3a257ba6759ce7a9992501efbb53d705c"
 dependencies = [
  "const-oid",
+]
+
+[[package]]
+name = "derivative"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -4138,6 +4151,7 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "thea",
+ "thea-cross-chain-governance",
  "thea-primitives",
  "thea-staking",
 ]
@@ -8823,6 +8837,27 @@ dependencies = [
  "sp-std",
  "thea-primitives",
  "thea-staking",
+ "xcm",
+]
+
+[[package]]
+name = "thea-cross-chain-governance"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-identity",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
 ]
 
 [[package]]
@@ -8835,8 +8870,11 @@ dependencies = [
  "polkadex-primitives",
  "scale-info",
  "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-runtime-interface",
  "sp-std",
+ "xcm",
 ]
 
 [[package]]
@@ -10031,6 +10069,31 @@ dependencies = [
  "curve25519-dalek 3.2.0",
  "rand_core 0.5.1",
  "zeroize",
+]
+
+[[package]]
+name = "xcm"
+version = "0.9.28"
+source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.28#314298c32ac6df996ea8f3fe23fa5d3768340066"
+dependencies = [
+ "derivative",
+ "impl-trait-for-tuples",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "xcm-procedural",
+]
+
+[[package]]
+name = "xcm-procedural"
+version = "0.9.28"
+source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.28#314298c32ac6df996ea8f3fe23fa5d3768340066"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

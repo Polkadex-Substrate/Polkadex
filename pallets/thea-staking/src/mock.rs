@@ -102,6 +102,7 @@ parameter_types! {
 	pub const ChainId: u8 = 1;
 	pub const ProposalLifetime: u64 = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+	pub const ParachainNetworkId: u8 = 1;
 }
 
 impl chainbridge::Config for Test {
@@ -119,10 +120,12 @@ impl asset_handler::pallet::Config for Test {
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TreasuryPalletId = ChainbridgePalletId;
 	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
+	type ParachainNetworkId = ParachainNetworkId;
 }
 
 parameter_types! {
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const WithdrawalSize: u32 = 10;
 }
 
 impl thea::pallet::Config for Test {
@@ -130,6 +133,7 @@ impl thea::pallet::Config for Test {
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
 }
 
 //defined trait for Session Change
