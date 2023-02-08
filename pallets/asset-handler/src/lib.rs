@@ -341,7 +341,6 @@ pub mod pallet {
 			asset_identifier: BoundedVec<u8, ConstU32<1000>>,
 		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
-			// Check for index error
 			ensure!(
 				T::ParachainNetworkId::get() != network_id,
 				Error::<T>::ReservedParachainNetworkId

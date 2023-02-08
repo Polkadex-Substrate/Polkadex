@@ -49,7 +49,7 @@ pub mod pallet {
 	};
 	use thea_staking::SessionChanged;
 	use xcm::{
-		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
+		latest::{AssetId, Junction, MultiAsset, MultiLocation},
 		prelude::{Fungible, X1},
 	};
 
@@ -446,7 +446,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			// Put a soft limit of size of beneficiary vector to avoid spam
-			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
 			Ok(())
 		}
@@ -501,7 +500,7 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
-			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
+			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
@@ -606,15 +605,8 @@ pub mod pallet {
 		}
 
 		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {
-			let recipient: [u8; 32] =
-				recipient.try_into().map_err(|_| Error::<T>::DepositNonceError)?; //TODO Handle error
-			Ok(MultiLocation {
-				parents: 1,
-				interior: Junctions::X1(Junction::AccountId32 {
-					network: NetworkId::Any,
-					id: recipient,
-				}),
-			})
+			let recipient: MultiLocation = Decode::decode(&mut &recipient[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+			Ok(recipient)
 		}
 
 		pub fn do_deposit(
