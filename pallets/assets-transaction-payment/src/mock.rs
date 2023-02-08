@@ -36,12 +36,8 @@ pub type SignedExtra = (
     frame_system::CheckMortality<Test>,
     frame_system::CheckNonce<Test>,
     frame_system::CheckWeight<Test>,
-    ChargeAssetTransactionPayment<Test>,
+    ChargeAssetTransactionPayment<Test>
 );
-
-// does not work since MockBlock
-// type Block = frame_system::mocking::MockBlock<Test>;
-// type UncheckedExtrinsic = polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<Address,Call,SignedExtra>;
 
 pub type MockUncheckedExtrinsic = polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<
     Address,Call,SignedExtra
@@ -53,7 +49,6 @@ pub type MockBlock = sp_runtime::generic::Block<
 
 type Block = MockBlock;
 type UncheckedExtrinsic = MockUncheckedExtrinsic;
-type CouncilCollective = pallet_collective::Instance1;
 
 // For testing the pallet, we construct a mock runtime.
 frame_support::construct_runtime!(
