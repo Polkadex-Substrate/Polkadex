@@ -37,9 +37,20 @@ pub type SignedExtra = (
     ChargeAssetTransactionPayment<Test>,
 );
 
+// does not work
+// type Block = frame_system::mocking::MockBlock<Test>;
+// type UncheckedExtrinsic = polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<Address,Call,SignedExtra>;
 
-type Block = frame_system::mocking::MockBlock<Test>;
-type UncheckedExtrinsic = polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<Address,Call,SignedExtra>;
+pub type MockUncheckedExtrinsic = polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<
+    Address,Call,SignedExtra
+>;
+pub type MockBlock = sp_runtime::generic::Block<
+    Header,
+    MockUncheckedExtrinsic,
+>;
+
+type Block = MockBlock;
+type UncheckedExtrinsic = MockUncheckedExtrinsic;
 
 // For testing the pallet, we construct a mock runtime.
 frame_support::construct_runtime!(
