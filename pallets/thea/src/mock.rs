@@ -26,6 +26,7 @@ use sp_runtime::{
 
 use crate::pallet as thea;
 
+use asset_handler::pallet::WithdrawalLimit;
 use frame_support::PalletId;
 use sp_runtime::traits::AccountIdConversion;
 
@@ -133,6 +134,7 @@ impl pallet_assets::Config for Test {
 
 parameter_types! {
 	pub const ChainId: u8 = 1;
+	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: u64 = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 }
@@ -153,10 +155,12 @@ impl asset_handler::pallet::Config for Test {
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TreasuryPalletId = ChainbridgePalletId;
 	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
+	type ParachainNetworkId = ParachainNetworkId;
 }
 
 parameter_types! {
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const WithdrawalSize: u32 = 10;
 }
 
 impl thea::Config for Test {
@@ -164,6 +168,7 @@ impl thea::Config for Test {
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
 }
 
 // Build genesis storage according to the mock runtime.
