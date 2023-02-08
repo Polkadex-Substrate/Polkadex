@@ -131,6 +131,7 @@ impl pallet_assets::Config for Test {
 
 parameter_types! {
 	pub const ChainId: u8 = 1;
+	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: u64 = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 }
@@ -151,6 +152,7 @@ impl asset_handler::Config for Test {
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TreasuryPalletId = ChainbridgePalletId;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
+	type ParachainNetworkId = ParachainNetworkId;
 }
 
 // Build genesis storage according to the mock runtime.
