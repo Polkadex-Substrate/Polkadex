@@ -41,17 +41,14 @@ pub mod pallet {
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
 	};
-	use sp_std::{
-		collections::{btree_map::BTreeMap, btree_set::BTreeSet},
-		vec::Vec,
-	};
-
 
 	use thea_primitives::{
+		thea_types::OnSessionChange,
+		BLSPublicKey, TheaPalletMessages,
 		normal_deposit::Deposit,
 		parachain_primitives::{ParachainAsset, ParachainDeposit, ParachainWithdraw},
-		thea_types::OnSessionChange,
-		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
+		AssetIdConverter, TokenType,
+		ApprovedWithdraw
 	};
 	use thea_staking::SessionChanged;
 	use xcm::{
@@ -122,18 +119,18 @@ pub mod pallet {
 		_,
 		frame_support::Blake2_128Concat,
 		u8,
-		BoundedVec<BLSPublicKey, ConstU32<1000>>,
+		Vec<BLSPublicKey>,
 		ValueQuery,
 	>;
 
 	/// Active Relayers ECDSA Keys for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_auth_list)]
-	pub(super) type AuthorityListEcdsa<T: Config> = StorageMap<
+	pub(super) type AuthorityListVector<T: Config> = StorageMap<
 		_,
 		frame_support::Blake2_128Concat,
 		u8,
-		BoundedVec<T::AccountId, ConstU32<1000>>,
+		Vec<T::AccountId>,
 		ValueQuery,
 	>;
 
@@ -233,19 +230,19 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_queued_queued_thea_public_keys)]
 	pub(super) type QueuedQueuedTheaPublicKey<T: Config> =
-		StorageMap<_, Blake2_128Concat, Network, sp_core::ecdsa::Public, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, Network, [u8; 64], OptionQuery>;
 
 	/// Pre-generated Thea public keys for each network waiting for ack
 	#[pallet::storage]
 	#[pallet::getter(fn get_queued_thea_public_keys)]
 	pub(super) type QueuedTheaPublicKey<T: Config> =
-		StorageMap<_, Blake2_128Concat, Network, sp_core::ecdsa::Public, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, Network, [u8; 64], OptionQuery>;
 
 	/// Active Thea public keys for each network
 	#[pallet::storage]
 	#[pallet::getter(fn get_thea_public_keys)]
 	pub(super) type TheaPublicKey<T: Config> =
-		StorageMap<_, Blake2_128Concat, Network, sp_core::ecdsa::Public, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, Network, [u8; 64], OptionQuery>;
 
 	/// Foreign Chain Ack transactions map
 	#[pallet::storage]
@@ -259,6 +256,11 @@ pub mod pallet {
 		u128,
 		OptionQuery,
 	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_ingress_messages)]
+	pub(super) type IngressMessages<T: Config> =
+	StorageValue<_, Vec<TheaPalletMessages>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -365,43 +367,17 @@ pub mod pallet {
 			<AccountWithPendingDeposits<T>>::put(accounts);
 			remaining_weight
 		}
+
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
+			// TODO: Benchmarking for Thea Pallet
+			1000 as Weight
+		}
 	}
 
 	// Extrinsics for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Helper extrinsic for testing purpose only
-		///
-		/// # Parameters
-		///
-		/// * `network_id`: Network Id which Relayer will support.
-		/// * `bls_key`: BLS Key of Relayer.
-		/// * `who`: Account ID of Relayer.
-		#[pallet::weight(1000)]
-		pub fn add_relayer_info(
-			origin: OriginFor<T>,
-			network_id: u8,
-			bls_key: [u8; 192],
-			who: T::AccountId,
-		) -> DispatchResult {
-			ensure_root(origin)?;
-
-			// Fetch Storage
-			let mut current_bls = Self::get_relayers_key_vector(network_id);
-			let mut current_ecdsa = Self::get_auth_list(network_id);
-			let key = BLSPublicKey(bls_key);
-
-			// Update Storage
-			current_bls.try_push(key).map_err(|_| Error::<T>::BoundedVectorOverflow)?;
-			<RelayersBLSKeyVector<T>>::insert(network_id, current_bls);
-			current_ecdsa
-				.try_push(who.clone())
-				.map_err(|_| Error::<T>::BoundedVectorOverflow)?;
-			<AuthorityListEcdsa<T>>::insert(network_id, current_ecdsa);
-
-			Ok(())
-		}
-
 		///Approve Deposit
 		///
 		/// # Parameters
@@ -541,23 +517,155 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::WithdrawalFeeSet(network_id, fee));
 			Ok(())
 		}
-	}
 
-	impl<T: Config> SessionChanged for Pallet<T> {
-		type Network = Network;
-		type OnSessionChange = OnSessionChange<T::AccountId>;
-		fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
-			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
-			// network
-			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
-				if let (Ok(relayer_bls_keys), Ok(authority_list)) = (
-					BoundedVec::try_from(vec_of_bls_keys),
-					BoundedVec::try_from(vec_of_account_ids),
-				) {
-					<RelayersBLSKeyVector<T>>::insert(network_id, relayer_bls_keys);
-					<AuthorityListEcdsa<T>>::insert(network_id, authority_list);
-				}
+		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		/// * `tx_hash`: Transaction hash of key update on foreign chain
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
+		#[pallet::weight(1000)]
+		pub fn thea_key_rotation_complete(
+			origin: OriginFor<T>,
+			network: Network,
+			tx_hash: sp_core::H256,
+			bit_map: u128,
+			bls_signature: [u8; 96],
+		) -> DispatchResult {
+			let _relayer = ensure_signed(origin)?;
+
+			// Check if tx_hash is already included
+			ensure!(
+				<ForeignChainAckTxns<T>>::get(network, tx_hash).is_none(),
+				Error::<T>::DuplicateAckTxHash
+			);
+
+			// Fetch current active relayer set BLS Keys
+			let current_relayer_set = Self::get_relayers_key_vector(network);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&(tx_hash, network).encode(),
+					&current_relayer_set
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+
+			Self::move_queued_to_active(network)?;
+			// To avoid replay attack
+			<ForeignChainAckTxns<T>>::insert(network, tx_hash, bit_map);
+			// Emit an ingress message
+			<IngressMessages<T>>::mutate(|messages| {
+				messages.push(TheaPalletMessages::TheaKeyRotationComplete)
+			});
+
+			Ok(())
+		}
+
+		/// Extrinsic to update solo chain that a new Thea Key has been set by Sudo
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		/// * `public_key`: New Public Key for thea (Raw Uncompressed)
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
+		#[pallet::weight(1000)]
+		pub fn set_thea_key_complete(
+			origin: OriginFor<T>,
+			network: Network,
+			public_key: [u8; 64],
+			bit_map: u128,
+			bls_signature: [u8; 96]
+		) -> DispatchResult {
+			let _relayer = ensure_signed(origin)?;
+			// Verify BLS Signature
+			// Fetch Current BLS Keys
+			let current_thea_key = <TheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
+			ensure!(public_key != current_thea_key, Error::<T>::QueuedTheaPublicKeyNotFound);
+			let bls_keys = Self::get_relayers_key_vector(network);
+			// Call Host Function
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&public_key.encode(),
+					&bls_keys
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+			// Update Active Public Key
+			<TheaPublicKey<T>>::insert(network, public_key);
+			// Incrementing Current Round Index
+			let current_round_index = <TheaSessionId<T>>::get(network);
+			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
+			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
+			Ok(())
+		}
+
+		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		/// * `public_key`: Thea Public Key
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
+		#[pallet::weight(1000)]
+		pub fn thea_queued_queued_public_key(
+			origin: OriginFor<T>,
+			network: Network,
+			public_key: [u8; 64],
+			bit_map: u128,
+			bls_signature: [u8; 96],
+		) -> DispatchResult {
+			let _relayer = ensure_signed(origin)?;
+			// Fetch current active relayer set BLS Keys
+
+			let current_public_key = <QueuedQueuedTheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
+			ensure!(public_key != current_public_key, Error::<T>::QueuedTheaPublicKeyNotFound);
+
+			let queued_queued_relayers =
+				thea_staking::Pallet::<T>::get_queued_relayers_bls_keys(network);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&public_key.encode(),
+					&queued_queued_relayers
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+
+			// Move queued_queued to queued
+			if let Some(queued_queued) = <QueuedQueuedTheaPublicKey<T>>::take(network) {
+				<QueuedTheaPublicKey<T>>::insert(network, queued_queued);
+				<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
+				// Emit an Ingress Message to sign the Qd Public Key
+				<IngressMessages<T>>::mutate(|messages| {
+					messages.push(TheaPalletMessages::SignQdPublicKey)
+				});
+			} else {
+				// If there is no QQPublicKey already then we should set the one we received
+				// as the new QQPublicKey rather than returning an Error
+				<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
 			}
+
+			// Add the new one to queued_queued
+			Ok(())
 		}
 	}
 
@@ -705,7 +813,7 @@ pub mod pallet {
 					&bls_signature,
 					bit_map,
 					&payload,
-					&current_active_relayer_set.into_inner()
+					&current_active_relayer_set
 				),
 				Error::<T>::BLSSignatureVerificationFailed
 			);
@@ -752,97 +860,6 @@ pub mod pallet {
 			));
 			Ok(())
 		}
-
-		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
-		///
-		/// # Parameters
-		///
-		/// * `origin`: Any relayer
-		/// * `network`: Network id
-		/// * `tx_hash`: Transaction hash of key update on foreign chain
-		/// * `bit_map`: Bitmap of Thea relayers
-		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
-		pub fn thea_key_rotation_complete(
-			origin: OriginFor<T>,
-			network: Network,
-			tx_hash: sp_core::H256,
-			bit_map: u128,
-			bls_signature: [u8; 96],
-		) -> DispatchResult {
-			let _relayer = ensure_signed(origin)?;
-
-			// Check if tx_hash is already included
-			ensure!(
-				<ForeignChainAckTxns<T>>::get(network, tx_hash).is_none(),
-				Error::<T>::DuplicateAckTxHash
-			);
-
-			// Fetch current active relayer set BLS Keys
-			let queued_relayer_set = Self::get_queued_relayers_key_vector(network);
-
-			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
-			ensure!(
-				thea_primitives::thea_ext::bls_verify(
-					&bls_signature,
-					bit_map,
-					&(tx_hash, network).encode(),
-					&queued_relayer_set
-				),
-				Error::<T>::BLSSignatureVerificationFailed
-			);
-
-			Self::move_queued_to_active(network)?;
-			Ok(())
-		}
-
-		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
-		///
-		/// # Parameters
-		///
-		/// * `origin`: Any relayer
-		/// * `network`: Network id
-		/// * `public_key`: Thea Public Key
-		/// * `bit_map`: Bitmap of Thea relayers
-		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
-		pub fn thea_queued_queued_public_key(
-			origin: OriginFor<T>,
-			network: Network,
-			public_key: sp_core::ecdsa::Public,
-			bit_map: u128,
-			bls_signature: [u8; 96],
-		) -> DispatchResult {
-			let _relayer = ensure_signed(origin)?;
-			// Fetch current active relayer set BLS Keys
-
-			let queued_queued_relayers =
-				thea_staking::Pallet::<T>::get_queued_relayers_bls_keys(network);
-
-			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
-			ensure!(
-				thea_primitives::thea_ext::bls_verify(
-					&bls_signature,
-					bit_map,
-					&public_key.encode(),
-					&queued_queued_relayers
-				),
-				Error::<T>::BLSSignatureVerificationFailed
-			);
-
-			// Move queued_queued to queued
-			if let Some(queued_queued) = <QueuedQueuedTheaPublicKey<T>>::take(network) {
-				<QueuedTheaPublicKey<T>>::insert(network, queued_queued);
-			} else {
-				return Err(Error::<T>::QueuedQueuedTheaPublicNotFound.into())
-			}
-
-			// Add the new one to queued_queued
-			<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
-			Ok(())
-		}
 	}
 
 	impl<T: Config> SessionChanged for Pallet<T> {
@@ -861,6 +878,10 @@ pub mod pallet {
 					<QueuedRelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
 					<QueuedAuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
 				}
+				// Inform ingress message to Relayer
+				<IngressMessages<T>>::mutate(|messages| {
+					messages.push(TheaPalletMessages::EcdsaReady(10))
+				});
 			}
 		}
 
@@ -894,10 +915,6 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::TheaKeyUpdated(network, current_session_id));
 			Ok(())
 		}
-
-		pub fn thea_account() -> T::AccountId {
-			T::TheaPalletId::get().into_account_truncating()
-      }
 
 		pub fn router(
 			token_type: TokenType,
