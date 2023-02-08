@@ -32,7 +32,6 @@ mod mock;
 #[cfg(test)]
 mod test;
 
-
 // Type aliases used for interaction with `OnChargeTransaction`.
 pub(crate) type OnChargeTransactionOf<T> =
 	<T as pallet_transaction_payment::Config>::OnChargeTransaction;
@@ -57,7 +56,7 @@ pub(crate) type ChargeAssetBalanceOf<T> =
 // Asset id type alias.
 pub(crate) type ChargeAssetIdOf<T> =
 	<<T as Config>::OnChargeAssetTransaction as OnChargeAssetTransaction<T>>::AssetId;
-// Liquity info type alias.
+// Liquidity info type alias.
 pub(crate) type ChargeAssetLiquidityOf<T> =
 	<<T as Config>::OnChargeAssetTransaction as OnChargeAssetTransaction<T>>::LiquidityInfo;
 
@@ -123,6 +122,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Migration is not operational yet
 		NotOperational,
+		/// Token not allowlisted
+		TokenNotAllowlisted,
 	}
 
 	#[pallet::hooks]
