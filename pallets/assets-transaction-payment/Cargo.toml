@@ -28,6 +28,10 @@ sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 smallvec = { workspace = true }
+pallet-treasury = { default-features = false, workspace = true }
+pallet-collective = { default-features = false, workspace = true }
+pallet-bounties = { default-features = false, workspace = true }
+pallet-child-bounties = { default-features = false, workspace = true }
 
 [dev-dependencies]
 sp-application-crypto = { workspace = true }
@@ -50,4 +54,8 @@ std = [
 	"pallet-timestamp/std",
 	"test-utils/std",
 	"polkadex-extrinsic/std",
+	"pallet-treasury/std",
+	"pallet-collective/std",
+	"pallet-bounties/std",
+	"pallet-child-bounties/std",
 ]
