@@ -6,7 +6,7 @@ use frame_support::{
     weights::{ConstantMultiplier,WeightToFeePolynomial, WeightToFeeCoefficients, WeightToFeeCoefficient, constants::ExtrinsicBaseWeight}
 };
 use frame_system::EnsureRoot;
-use polkadex_primitives::{Moment, Signature};
+use polkadex_primitives::{Moment, Signature,AccountIndex};
 use sp_std::cell::RefCell;
 use sp_runtime::{
     testing::Header,
@@ -17,41 +17,29 @@ use sp_runtime::{
 use sp_application_crypto::sp_core::H256;
 use crate::payment::{HandleSwap, NegativeImbalanceOf};
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-use polkadex_primitives::Balance;
+use polkadex_primitives::{Balance,Index,BlockNumber};
 use sp_runtime::Perquintill;
 use smallvec::smallvec;
 use sp_runtime::Perbill;
+use polkadex_extrinsic;
 
 use crate::{self as assets_transaction_payment, Config};
 
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
 
 pub type SignedExtra = (
-    frame_system::CheckSpecVersion<Runtime>,
-    frame_system::CheckTxVersion<Runtime>,
-    frame_system::CheckGenesis<Runtime>,
-    frame_system::CheckMortality<Runtime>,
-    frame_system::CheckNonce<Runtime>,
-    frame_system::CheckWeight<Runtime>,
-    assets_transaction_payment::ChargeAssetTransactionPayment<Runtime>,
+    frame_system::CheckSpecVersion<Test>,
+    frame_system::CheckTxVersion<Test>,
+    frame_system::CheckGenesis<Test>,
+    frame_system::CheckMortality<Test>,
+    frame_system::CheckNonce<Test>,
+    frame_system::CheckWeight<Test>,
+    ChargeAssetTransactionPayment<Test>,
 );
 
 
-#[derive(PartialEq, Eq, Clone)]
-pub struct UncheckedExtrinsic<Address, Call, Extra>
-    where
-        Extra: SignedExtension,
-{
-    /// The signature, address, number of extrinsics have come before from
-    /// the same signer and an era describing the longevity of this transaction,
-    /// if this is a signed extrinsic.
-    pub signature: Option<(Address, Signature, Extra)>,
-    /// The function that should be called.
-    pub function: Call,
-}
-
-type UncheckedExtrinsic = UncheckedExtrinsic<Address, Call, SignedExtra>;
 type Block = frame_system::mocking::MockBlock<Test>;
+type UncheckedExtrinsic = polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<Address,Call,SignedExtra>;
 
 // For testing the pallet, we construct a mock runtime.
 frame_support::construct_runtime!(
@@ -151,7 +139,6 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
-
     }
 }
 parameter_types! {
@@ -188,6 +175,7 @@ thread_local! {
 	pub static CAPTURED_MOMENT: RefCell<Option<Moment>> = RefCell::new(None);
 }
 
+
 pub struct MockOnTimestampSet;
 impl OnTimestampSet<Moment> for MockOnTimestampSet {
     fn on_timestamp_set(moment: Moment) {
@@ -216,12 +204,76 @@ impl Config for Test {
     type Event = Event;
     type Fungibles = Assets;
     type OnChargeAssetTransaction = crate::payment::FungiblesAdapter<
-        pallet_assets<::BalanceToAssetBalance<Balances, Test, ConvertInto>,
+        pallet_assets::BalanceToAssetBalance<Balances, Test, ConvertInto>,
         AlternateTokenSwapper,
         DealWithFees,
     >;
 }
+//________________________________________________________________
+// implement transaction traits
+// pub const BlockHashCount: BlockNumber = 2400;
+//
+// impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
+//     where
+//         Call: From<LocalCall>,
+// {
+//     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+//         call: Call,
+//         public: <Signature as traits::Verify>::Signer,
+//         account: AccountId,
+//         nonce: Index,
+//     ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
+//         let tip = 0;
+//         // take the biggest period possible.
+//         let period =
+//             BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+//         let current_block = System::block_number()
+//             .saturated_into::<u64>()
+//             // The `System::block_number` is initialized with `n+1`,
+//             // so the actual block number is `n`.
+//             .saturating_sub(1);
+//         let extra = (
+//             frame_system::CheckSpecVersion::<Test>::new(),
+//             frame_system::CheckTxVersion::<Test>::new(),
+//             frame_system::CheckGenesis::<Test>::new(),
+//             frame_system::CheckMortality::<Test>::from(generic::Era::mortal(
+//                 period,
+//                 current_block,
+//             )),
+//             frame_system::CheckNonce::<Test>::from(nonce),
+//             frame_system::CheckWeight::<Test>::new(),
+//             assets_transaction_payment::ChargeAssetTransactionPayment::<Runtime> {
+//                 signature_scheme: 0,
+//                 asset_id: 0,
+//                 tip,
+//             },
+//         );
+//         let raw_payload = SignedPayload::new(call, extra)
+//             .map_err(|e| {
+//                 log::warn!("Unable to create signed payload: {:?}", e);
+//             })
+//             .ok()?;
+//         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+//         let address = Indices::unlookup(account);
+//         let (call, extra, _) = raw_payload.deconstruct();
+//         Some((call, (address, signature, extra)))
+//     }
+// }
+//
+// impl frame_system::offchain::SigningTypes for Test {
+//     type Public = <Signature as traits::Verify>::Signer;
+//     type Signature = Signature;
+// }
+//
+// impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+//     where
+//         Call: From<C>,
+// {
+//     type Extrinsic = UncheckedExtrinsic;
+//     type OverarchingCall = Call;
+// }
 
+//________________________________________________________________
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
     t.into()
