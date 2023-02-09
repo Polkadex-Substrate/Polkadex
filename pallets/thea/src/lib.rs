@@ -271,8 +271,8 @@ pub mod pallet {
 		DepositApproved(u8, T::AccountId, u128, u128, sp_core::H256),
 		/// Deposit claimed event ( recipient, number of deposits claimed )
 		DepositClaimed(T::AccountId, u128, u128, sp_core::H256),
-		/// Withdrawal Queued ( beneficiary, assetId, amount )
-		WithdrawalQueued(T::AccountId, Vec<u8>, u128, u128, u32),
+		/// Withdrawal Queued ( beneficiary, assetId, amount, index )
+		WithdrawalQueued(T::AccountId, Vec<u8>, u128, u128, u32, u32),
 		/// Withdrawal Ready (Network id, Nonce )
 		WithdrawalReady(Network, u32),
 		/// Withdrawal Executed (Nonce, network, Tx hash )
@@ -752,6 +752,7 @@ pub mod pallet {
 					asset_id,
 					amount,
 					withdrawal_nonce,
+					(pending_withdrawals.len() - 1) as u32
 				));
 			}
 			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
