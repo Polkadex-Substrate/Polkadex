@@ -727,6 +727,7 @@ pub mod pallet {
 				network: network.saturated_into(),
 				beneficiary: beneficiary.clone(),
 				payload,
+				index: pending_withdrawals.len() as u32
 			};
 
 			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
