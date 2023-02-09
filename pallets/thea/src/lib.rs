@@ -537,8 +537,8 @@ pub mod pallet {
 
 			// TODO[#610]: Update Thea Staking pallet about fees collected
 
-			// Burn assets
-			asset_handler::pallet::Pallet::<T>::burn_thea_asset(asset_id, user.clone(), amount)?;
+			// Handle assets
+			asset_handler::pallet::Pallet::<T>::handle_asset(asset_id, user.clone(), amount)?;
 
 			let withdrawal = ApprovedWithdraw {
 				asset_id,
