@@ -24,9 +24,11 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use crate::pallet as asset_handler;
+use crate::pallet as thea;
 
+use asset_handler::pallet::WithdrawalLimit;
 use frame_support::PalletId;
+use sp_runtime::traits::AccountIdConversion;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -43,7 +45,8 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
-		AssetHandler: asset_handler::{Pallet, Call, Storage, Event<T>}
+		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
+		Thea: thea::{Pallet, Storage, Call, Event<T>}
 	}
 );
 
@@ -145,33 +148,31 @@ impl chainbridge::Config for Test {
 	//type PalletId = ChainbridgePalletId;
 }
 
-impl asset_handler::Config for Test {
+impl asset_handler::pallet::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TreasuryPalletId = ChainbridgePalletId;
-	type WeightInfo = crate::weights::WeightInfo<Test>;
+	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 	type ParachainNetworkId = ParachainNetworkId;
+}
+
+parameter_types! {
+	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const WithdrawalSize: u32 = 10;
+}
+
+impl thea::Config for Test {
+	type Event = Event;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let _alice = 1u64;
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	pallet_balances::GenesisConfig::<Test>::default()
-		.assimilate_storage(&mut t)
-		.unwrap();
 	t.into()
-}
-
-pub fn run_to_block(n: u64) {
-	while System::block_number() < n {
-		if System::block_number() > 1 {
-			System::on_finalize(System::block_number());
-		}
-		System::set_block_number(System::block_number() + 1);
-		System::on_initialize(System::block_number());
-		AssetHandler::on_initialize(System::block_number());
-	}
 }
