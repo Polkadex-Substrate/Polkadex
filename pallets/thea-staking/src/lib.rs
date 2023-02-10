@@ -17,12 +17,19 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{ensure, pallet_prelude::*, traits::NamedReservableCurrency};
+use frame_support::{
+	ensure,
+	pallet_prelude::*,
+	traits::{NamedReservableCurrency, ValidatorSet, ValidatorSetWithIdentification},
+};
 use sp_runtime::{
 	traits::{Get, Saturating},
-	DispatchError,
+	DispatchError, Perbill,
 };
-use sp_staking::{EraIndex, StakingInterface};
+use sp_staking::{
+	offence::{Kind, Offence, ReportOffence},
+	EraIndex, StakingInterface,
+};
 use sp_std::collections::btree_map::BTreeMap;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -52,6 +59,70 @@ pub trait SessionChanged {
 	type OnSessionChange;
 	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>);
 }
+
+/// A type for representing the validator id in a session.
+pub type ValidatorId<T> = <<T as Config>::ValidatorSet as ValidatorSet<
+	<T as frame_system::Config>::AccountId,
+>>::ValidatorId;
+
+/// A tuple of (ValidatorId, Identification) where `Identification` is the full identification of
+/// `ValidatorId`.
+pub type IdentificationTuple<T> = (
+	ValidatorId<T>,
+	<<T as Config>::ValidatorSet as ValidatorSetWithIdentification<
+		<T as frame_system::Config>::AccountId,
+	>>::Identification,
+);
+
+// An offence that is filed if a validator didn't send a keygen message.
+#[derive(RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Clone, PartialEq, Eq))]
+pub struct UnresponsivenessOffence<Offender> {
+	/// The current session index in which we report the unresponsive validators.
+	///
+	/// It acts as a time measure for unresponsiveness reports and effectively will always point
+	/// at the end of the session.
+	pub session_index: SessionIndex,
+	/// The size of the validator set in current session/era.
+	pub validator_set_count: u32,
+	/// Authorities that were unresponsive during the current era.
+	pub offenders: Vec<Offender>,
+}
+
+impl<Offender: Clone> Offence<Offender> for UnresponsivenessOffence<Offender> {
+	const ID: Kind = *b"im-online:offlin";
+	type TimeSlot = SessionIndex;
+
+	fn offenders(&self) -> Vec<Offender> {
+		self.offenders.clone()
+	}
+
+	fn session_index(&self) -> SessionIndex {
+		self.session_index
+	}
+
+	fn validator_set_count(&self) -> u32 {
+		self.validator_set_count
+	}
+
+	fn time_slot(&self) -> Self::TimeSlot {
+		self.session_index
+	}
+
+	fn slash_fraction(&self, offenders: u32) -> Perbill {
+		// the formula is min((3 * (k - (n / 10 + 1))) / n, 1) * 0.07
+		// basically, 10% can be offline with no slash, but after that, it linearly climbs up to 7%
+		// when 13/30 are offline (around 5% when 1/3 are offline).
+		let validator_set_count = self.validator_set_count();
+		if let Some(threshold) = offenders.checked_sub(validator_set_count / 10 + 1) {
+			let x = Perbill::from_rational(3 * threshold, validator_set_count);
+			x.saturating_mul(Perbill::from_percent(7))
+		} else {
+			Perbill::default()
+		}
+	}
+}
+
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[frame_support::pallet]
@@ -100,6 +171,16 @@ pub mod pallet {
 		type SessionChangeNotifier: SessionChanged<
 			Network = Network,
 			OnSessionChange = OnSessionChange<Self::AccountId>,
+		>;
+
+		/// A type for retrieving the validators supposed to be participating in a session
+		type ValidatorSet: ValidatorSetWithIdentification<Self::AccountId>;
+
+		/// Misbehavior reporting API
+		type ReportMisbehavior: ReportOffence<
+			Self::AccountId,
+			IdentificationTuple<Self>,
+			UnresponsivenessOffence<IdentificationTuple<Self>>,
 		>;
 	}
 
