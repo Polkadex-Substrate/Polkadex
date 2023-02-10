@@ -510,6 +510,46 @@ fn test_withdraw_with_no_fee_config() {
 	})
 }
 
+#[test]
+fn transfer_native_asset() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 1000;
+		let para_id = 2040;
+		let multi_location = MultiLocation {
+			parents: 1,
+			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
+		};
+		let asset_location = MultiLocation { parents: 1, interior: Junctions::X1(Junction::Parachain(para_id)) };
+		let asset = MultiAsset{ id: AssetId::Concrete(asset_location), fun: 10_000_000_000_000u128.into() };
+		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
+		let beneficiary: [u8; 32] = [1; 32];
+		// Mint Asset to Alice
+		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
+			Origin::root(),
+			1,
+			1_000_000_000_000_000_000,
+			0
+		));
+		assert_ok!(Thea::withdraw(
+			Origin::signed(1),
+			asset_id.clone(),
+			10_000_000_000_000u128,
+			beneficiary.to_vec(),
+			false
+		));
+		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
+		let payload = ParachainWithdraw::get_parachain_withdraw(asset, multi_location);
+		let approved_withdraw = ApprovedWithdraw {
+			asset_id: asset_id,
+			amount: 10_000_000_000_000u128,
+			network: 1,
+			beneficiary: vec![1; 32],
+			payload: payload.encode(),
+		};
+		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
+	})
+}
+
 pub type PrivateKeys = Vec<SecretKey>;
 pub type PublicKeys = Vec<BLSPublicKey>;
 

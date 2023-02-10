@@ -52,6 +52,7 @@ pub mod pallet {
 		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 		prelude::{Fungible, X1},
 	};
+	use thea_primitives::parachain_primitives::AssetType;
 
 	pub type Network = u8;
 
@@ -101,6 +102,8 @@ pub mod pallet {
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
+		/// Para Id
+		type ParaId: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -503,11 +506,13 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
+			let (mut network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
+			if asset_id == T::PolkadexAssetId::get() {
+				network = 1;
+			};
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
-
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 
 			// Ensure pending withdrawals have space for a new withdrawal
@@ -536,10 +541,10 @@ pub mod pallet {
 			)?;
 
 			// TODO[#610]: Update Thea Staking pallet about fees collected
-
+			println!("Here");
 			// Handle assets
 			asset_handler::pallet::Pallet::<T>::handle_asset(asset_id, user.clone(), amount)?;
-
+            println!("Here 3");
 			let withdrawal = ApprovedWithdraw {
 				asset_id,
 				amount: amount.saturated_into(),
@@ -593,10 +598,17 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: Vec<u8>,
 		) -> Result<Vec<u8>, DispatchError> {
-			let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
-			let asset_identifier: ParachainAsset =
-				Decode::decode(&mut &asset_identifier.to_vec()[..])
-					.map_err(|_| Error::<T>::FailedToDecode)?;
+			let asset_identifier = if asset_id != T::PolkadexAssetId::get() {
+				let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
+				let asset_identifier: ParachainAsset =
+					Decode::decode(&mut &asset_identifier.to_vec()[..])
+						.map_err(|_| Error::<T>::FailedToDecode)?;
+				asset_identifier
+			} else {
+				let para_id = T::ParaId::get();
+				let asset_location = MultiLocation{ parents: 1, interior: Junctions::X1(Junction::Parachain(para_id)) };
+				ParachainAsset { location: asset_location, asset_type: AssetType::Fungible }
+			};
 			let asset_id = AssetId::Concrete(asset_identifier.location);
 			let asset_and_amount = MultiAsset { id: asset_id, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;

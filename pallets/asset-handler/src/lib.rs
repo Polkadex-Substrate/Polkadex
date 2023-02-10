@@ -682,7 +682,10 @@ pub mod pallet {
 
 		pub fn lock_pdex_asset(amount: u128, who: T::AccountId) -> DispatchResult {
 			let polkadex_holder_account = T::PDEXHolderAccount::get();
-			T::Currency::transfer(&who, &polkadex_holder_account, amount.saturated_into(), ExistenceRequirement::KeepAlive)
+			let current_balance = T::Currency::free_balance(&who);
+			println!("Here 2 {:?} > {:?}", current_balance, amount);
+
+			T::Currency::transfer(&who, &polkadex_holder_account, amount.saturated_into(), ExistenceRequirement::AllowDeath)
 		}
 
 		pub fn burn_thea_asset(
