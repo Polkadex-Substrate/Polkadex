@@ -519,8 +519,12 @@ fn transfer_native_asset() {
 			parents: 1,
 			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
 		};
-		let asset_location = MultiLocation { parents: 1, interior: Junctions::X1(Junction::Parachain(para_id)) };
-		let asset = MultiAsset{ id: AssetId::Concrete(asset_location), fun: 10_000_000_000_000u128.into() };
+		let asset_location =
+			MultiLocation { parents: 1, interior: Junctions::X1(Junction::Parachain(para_id)) };
+		let asset = MultiAsset {
+			id: AssetId::Concrete(asset_location),
+			fun: 10_000_000_000_000u128.into(),
+		};
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
@@ -540,7 +544,7 @@ fn transfer_native_asset() {
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
 		let payload = ParachainWithdraw::get_parachain_withdraw(asset, multi_location);
 		let approved_withdraw = ApprovedWithdraw {
-			asset_id: asset_id,
+			asset_id,
 			amount: 10_000_000_000_000u128,
 			network: 1,
 			beneficiary: vec![1; 32],

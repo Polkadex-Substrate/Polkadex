@@ -1290,7 +1290,7 @@ impl chainbridge::Config for Runtime {
 }
 
 parameter_types! {
-    pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
+	pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
 	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
 	pub const ParaId: u32 = 2040;
 }
