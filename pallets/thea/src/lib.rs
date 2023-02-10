@@ -43,7 +43,7 @@ pub mod pallet {
 	};
 	use thea_primitives::{
 		normal_deposit::Deposit,
-		parachain_primitives::{ParachainAsset, ParachainDeposit, ParachainWithdraw},
+		parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
 		thea_types::OnSessionChange,
 		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
 	};
@@ -52,7 +52,6 @@ pub mod pallet {
 		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 		prelude::{Fungible, X1},
 	};
-	use thea_primitives::parachain_primitives::AssetType;
 
 	pub type Network = u8;
 
@@ -541,10 +540,8 @@ pub mod pallet {
 			)?;
 
 			// TODO[#610]: Update Thea Staking pallet about fees collected
-			println!("Here");
 			// Handle assets
 			asset_handler::pallet::Pallet::<T>::handle_asset(asset_id, user.clone(), amount)?;
-            println!("Here 3");
 			let withdrawal = ApprovedWithdraw {
 				asset_id,
 				amount: amount.saturated_into(),
@@ -599,14 +596,18 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 		) -> Result<Vec<u8>, DispatchError> {
 			let asset_identifier = if asset_id != T::PolkadexAssetId::get() {
-				let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
+				let (_, _, asset_identifier) =
+					asset_handler::pallet::TheaAssets::<T>::get(asset_id);
 				let asset_identifier: ParachainAsset =
 					Decode::decode(&mut &asset_identifier.to_vec()[..])
 						.map_err(|_| Error::<T>::FailedToDecode)?;
 				asset_identifier
 			} else {
 				let para_id = T::ParaId::get();
-				let asset_location = MultiLocation{ parents: 1, interior: Junctions::X1(Junction::Parachain(para_id)) };
+				let asset_location = MultiLocation {
+					parents: 1,
+					interior: Junctions::X1(Junction::Parachain(para_id)),
+				};
 				ParachainAsset { location: asset_location, asset_type: AssetType::Fungible }
 			};
 			let asset_id = AssetId::Concrete(asset_identifier.location);
