@@ -513,7 +513,6 @@ pub mod pallet {
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
-
 			// Ensure pending withdrawals have space for a new withdrawal
 			ensure!(!pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
 
