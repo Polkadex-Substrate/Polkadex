@@ -1292,6 +1292,7 @@ impl chainbridge::Config for Runtime {
 parameter_types! {
     pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
 	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
+	pub const ParaId: u32 = 2040;
 }
 
 impl asset_handler::pallet::Config for Runtime {
@@ -1312,6 +1313,7 @@ impl thea::pallet::Config for Runtime {
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
+	type ParaId = ParaId;
 }
 
 //Install Staking Pallet
