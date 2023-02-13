@@ -32,6 +32,13 @@ chainbridge = { path = "../chainbridge", default-features = false }
 
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
+pallet-session = { workspace = true, default-features = false }
+pallet-offences = { workspace = true, default-features = false }
+pallet-babe= { workspace = true, default-features = false }
+pallet-timestamp = { workspace = true, default-features = false }
+pallet-staking = { workspace = true, default-features = false }
+pallet-staking-reward-curve = { workspace = true, default-features = false }
+pallet-election-provider-multi-phase = { default-features = false, workspace = true }
 thea = { path = "../thea", default-features = false }
 
 [features]
