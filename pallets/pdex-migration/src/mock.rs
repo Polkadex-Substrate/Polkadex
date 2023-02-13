@@ -58,10 +58,10 @@ impl system::Config for Test {
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
-pub const PDEX: Balance = 1000_000_000_000;
+pub const PDEX: Balance = 1_000_000_000_000;
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * PDEX;
+	pub const ExistentialDeposit: Balance = PDEX;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }

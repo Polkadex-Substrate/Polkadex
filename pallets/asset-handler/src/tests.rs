@@ -91,7 +91,7 @@ pub fn test_mint_asset_with_invalid_resource_id() {
 			PrecisionType::LowPrecision(1000000)
 		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
-		let mut rid_malicious = rid.clone();
+		let mut rid_malicious = rid;
 		rid_malicious[17] = rid[17].saturating_sub(1);
 		let asset_id = AssetHandler::convert_asset_id(rid);
 		let asset_id_malicious = AssetHandler::convert_asset_id(rid_malicious);
@@ -146,7 +146,7 @@ pub fn test_mint_asset_with_not_registered_asset_will_return_unknown_asset_error
 		allowlist_token(asset_address);
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let mut asset_id = AssetHandler::convert_asset_id(rid);
-		asset_id = asset_id + 100000000;
+		asset_id += 100000000;
 		// Add new Relayer and verify storage
 		assert_ok!(ChainBridge::add_relayer(Origin::signed(account), relayer));
 		assert!(ChainBridge::relayers(relayer));
@@ -625,7 +625,7 @@ pub fn test_mint_thea_asset_with_unknown_recipient_will_return_cannot_create_err
 	new_test_ext().execute_with(|| {
 		assert_ok!(create_thea_asset(asset_address, 0, 5));
 		assert_noop!(
-			AssetHandler::mint_thea_asset(asset_id, u64::MAX, 1_000_000_000_000_0_u128),
+			AssetHandler::mint_thea_asset(asset_id, u64::MAX, 10_000_000_000_000_u128),
 			TokenError::CannotCreate
 		);
 	})
@@ -638,7 +638,7 @@ pub fn test_mint_thea_asset_with_not_registered_asset_will_return_asset_not_regi
 
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AssetHandler::mint_thea_asset(asset_id, recipient, 1_000_000_000_000_0_u128),
+			AssetHandler::mint_thea_asset(asset_id, recipient, 10_000_000_000_000_u128),
 			Error::<Test>::AssetNotRegistered
 		);
 	})
@@ -668,7 +668,7 @@ pub fn test_mint_thea_asset_will_increase_asset_balance() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(create_thea_asset(asset_address, 0, 5));
 		//recipient needs to have existential deposit
-		assert_ok!(Balances::set_balance(Origin::root(), recipient, 1 * UNIT_BALANCE, 0));
+		assert_ok!(Balances::set_balance(Origin::root(), recipient, UNIT_BALANCE, 0));
 		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 100_u128));
 		assert_eq!(AssetHandler::account_balances(vec![asset_id], recipient)[0], 100_u128);
 	})
@@ -710,7 +710,7 @@ pub fn test_burn_thea_asset_will_reduce_asset_balance() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(create_thea_asset(asset_address, 0, 5));
 		//user needs to have existential deposit
-		assert_ok!(Balances::set_balance(Origin::root(), user, 1 * UNIT_BALANCE, 0));
+		assert_ok!(Balances::set_balance(Origin::root(), user, UNIT_BALANCE, 0));
 		assert_ok!(AssetHandler::mint_thea_asset(asset_id, user, 100_u128));
 		assert_eq!(AssetHandler::account_balances(vec![asset_id], user)[0], 100_u128);
 		assert_ok!(AssetHandler::burn_thea_asset(asset_id, user, 100_u128));

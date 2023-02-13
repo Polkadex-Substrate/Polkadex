@@ -35,10 +35,10 @@ pub fn set_relayer_status_works() {
 		let relayer = 2u64;
 		let non_relayer = 3u64;
 		assert_ok!(PDEXMigration::set_relayer_status(Origin::root(), relayer, true));
-		assert_eq!(Relayers::<Test>::get(&relayer), true);
+		assert_eq!(Relayers::<Test>::get(relayer), true);
 		assert_ok!(PDEXMigration::set_relayer_status(Origin::root(), relayer, false));
-		assert_eq!(Relayers::<Test>::get(&relayer), false);
-		assert_eq!(Relayers::<Test>::get(&non_relayer), false);
+		assert_eq!(Relayers::<Test>::get(relayer), false);
+		assert_eq!(Relayers::<Test>::get(non_relayer), false);
 	});
 }
 
@@ -188,7 +188,7 @@ pub fn mint_works() {
 			valid_amount,
 			eth_hash
 		));
-		assert_eq!(EthTxns::<Test>::get(&eth_hash).approvals, 1);
+		assert_eq!(EthTxns::<Test>::get(eth_hash).approvals, 1);
 		assert_eq!(pallet_balances::Pallet::<Test>::total_issuance(), initial_total_issuance);
 		// Ensure no new tokens are created yet
 		// Register remaining two relayers
@@ -199,7 +199,7 @@ pub fn mint_works() {
 			valid_amount,
 			eth_hash
 		));
-		assert_eq!(EthTxns::<Test>::get(&eth_hash).approvals, 2);
+		assert_eq!(EthTxns::<Test>::get(eth_hash).approvals, 2);
 		assert_eq!(pallet_balances::Pallet::<Test>::total_issuance(), initial_total_issuance);
 		assert_ok!(PDEXMigration::set_relayer_status(Origin::root(), relayer3, true));
 		assert_ok!(PDEXMigration::mint(
@@ -208,7 +208,7 @@ pub fn mint_works() {
 			valid_amount,
 			eth_hash
 		));
-		assert_eq!(EthTxns::<Test>::get(&eth_hash).approvals, 3);
+		assert_eq!(EthTxns::<Test>::get(eth_hash).approvals, 3);
 		// Ensure total issuance increased by valid_amount
 		assert_eq!(
 			pallet_balances::Pallet::<Test>::total_issuance(),
@@ -219,7 +219,7 @@ pub fn mint_works() {
 			pallet_balances::Pallet::<Test>::transfer(
 				Origin::signed(beneficiary),
 				100,
-				valid_amount - 1 * PDEX
+				valid_amount - PDEX
 			), // minus 1 PDEX is because of existential deposit
 			pallet_balances::Error::<Test>::LiquidityRestrictions
 		);
@@ -235,10 +235,10 @@ pub fn mint_works() {
 		assert_ok!(pallet_balances::Pallet::<Test>::transfer(
 			Origin::signed(beneficiary),
 			100,
-			valid_amount - 1 * PDEX
+			valid_amount - PDEX
 		));
 		// Check balances
 		assert_eq!(pallet_balances::Pallet::<Test>::free_balance(100), 99 * PDEX);
-		assert_eq!(pallet_balances::Pallet::<Test>::free_balance(beneficiary), 1 * PDEX);
+		assert_eq!(pallet_balances::Pallet::<Test>::free_balance(beneficiary), PDEX);
 	});
 }

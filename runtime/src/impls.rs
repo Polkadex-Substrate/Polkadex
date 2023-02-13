@@ -97,7 +97,7 @@ mod multiplier_tests {
 
 	fn run_with_system_weight<F>(w: Weight, assertions: F)
 	where
-		F: Fn() -> (),
+		F: Fn(),
 	{
 		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
 			.build_storage::<Runtime>()
@@ -113,12 +113,12 @@ mod multiplier_tests {
 	fn truth_value_update_poc_works() {
 		let fm = Multiplier::saturating_from_rational(1, 2);
 		let test_set = vec![
-			(0, fm.clone()),
-			(100, fm.clone()),
-			(1000, fm.clone()),
-			(target(), fm.clone()),
-			(max_normal() / 2, fm.clone()),
-			(max_normal(), fm.clone()),
+			(0, fm),
+			(100, fm),
+			(1000, fm),
+			(target(), fm),
+			(max_normal() / 2, fm),
+			(max_normal(), fm),
 		];
 		test_set.into_iter().for_each(|(w, fm)| {
 			run_with_system_weight(w, || {
@@ -257,7 +257,7 @@ mod multiplier_tests {
 					Multiplier::from_inner(100),
 				);
 				// must always increase
-				assert!(next > original, "{:?} !>= {:?}", next, original);
+				assert!(next > original, "{next:?} !>= {original:?}");
 				original = next;
 			});
 		});
@@ -272,7 +272,7 @@ mod multiplier_tests {
 			for _ in 0..100 {
 				// decreases
 				next = runtime_multiplier_update(original);
-				assert!(next < original, "{:?} !<= {:?}", next, original);
+				assert!(next < original, "{next:?} !<= {original:?}");
 				original = next;
 			}
 		})

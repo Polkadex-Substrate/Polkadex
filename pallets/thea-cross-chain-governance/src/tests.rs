@@ -18,7 +18,7 @@ fn test_apply_for_candidature_returns_ok() {
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			candidate,
-			1 * 10_000_000_000_000_000u128,
+			10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
@@ -77,7 +77,7 @@ fn test_approve_candidature_returns_ok() {
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			candidate,
-			1 * 10_000_000_000_000_000u128,
+			10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
@@ -95,7 +95,7 @@ fn test_approve_candidate_with_already_registered_member_returns_already_member_
 		let candidate = 1;
 		let general_council = 2;
 		let key_map = get_keylist();
-		<ActiveMembers<Test>>::insert(candidate, key_map.clone());
+		<ActiveMembers<Test>>::insert(candidate, key_map);
 		assert_noop!(
 			TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate]),
 			Error::<Test>::AlreadyMember
@@ -127,7 +127,7 @@ fn test_add_new_keys_returns_ok() {
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			candidate,
-			1 * 10_000_000_000_000_000u128,
+			10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
@@ -175,7 +175,7 @@ fn test_approve_candidate_with_combo_of_right_and_wrong_candidates_returns_error
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			candidate,
-			1 * 10_000_000_000_000_000u128,
+			10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
@@ -201,7 +201,7 @@ fn test_apply_for_candidature_without_identity_returns_identity_not_found() {
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			candidate,
-			1 * 10_000_000_000_000_000u128,
+			10_000_000_000_000_000u128,
 			0
 		));
 		assert_noop!(
@@ -212,7 +212,7 @@ fn test_apply_for_candidature_without_identity_returns_identity_not_found() {
 }
 
 fn add_identity(id: u64) {
-	assert_ok!(Balances::set_balance(Origin::root(), id, 1 * 10_000_000_000_000_000u128, 0));
+	assert_ok!(Balances::set_balance(Origin::root(), id, 10_000_000_000_000_000u128, 0));
 	assert_ok!(IdentityPallet::set_identity(Origin::signed(id), Box::new(ten())));
 }
 

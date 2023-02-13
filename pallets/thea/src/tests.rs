@@ -83,7 +83,7 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 		assert_ok!(Thea::approve_deposit(
 			Origin::signed(1),
 			bit_map_2,
-			sig.into(),
+			sig,
 			TokenType::Fungible(1_u8),
 			new_payload.encode()
 		));
@@ -112,7 +112,7 @@ fn test_approve_deposit_returns_failed_to_decode() {
 			Thea::approve_deposit(
 				Origin::signed(1),
 				bit_map_2,
-				sig.into(),
+				sig,
 				TokenType::Fungible(1_u8),
 				wrong_payload.to_vec()
 			),
@@ -160,7 +160,7 @@ fn test_approve_deposits_with_wrong_multi_asset_returns_failed_to_handle_paracha
 			Thea::approve_deposit(
 				Origin::signed(1),
 				bit_map_2,
-				sig.into(),
+				sig,
 				TokenType::Fungible(1_u8),
 				new_payload.encode()
 			),
@@ -211,7 +211,7 @@ fn test_approve_deposits_with_wrong_signature_returns_bls_signature_verification
 			Thea::approve_deposit(
 				Origin::signed(1),
 				bit_map_2,
-				wrong_sig.into(),
+				wrong_sig,
 				TokenType::Fungible(1_u8),
 				new_payload.encode()
 			),
@@ -261,7 +261,7 @@ fn test_approve_deposit_with_zero_amount_return_amount_cannot_be_zero() {
 			Thea::approve_deposit(
 				Origin::signed(1),
 				bit_map_2,
-				sig.into(),
+				sig,
 				TokenType::Fungible(1_u8),
 				new_payload.encode()
 			),
@@ -311,7 +311,7 @@ fn test_approve_deposit_with_wrong_nonce_return_deposit_nonce_error() {
 			Thea::approve_deposit(
 				Origin::signed(1),
 				bit_map_2,
-				sig.into(),
+				sig,
 				TokenType::Fungible(1_u8),
 				new_payload.encode()
 			),
@@ -356,7 +356,7 @@ fn test_approve_deposit_with_unregistered_asset_return_asset_not_registered() {
 			Thea::approve_deposit(
 				Origin::signed(1),
 				bit_map_2,
-				sig.into(),
+				sig,
 				TokenType::Fungible(1_u8),
 				new_payload.encode()
 			),
@@ -515,21 +515,21 @@ pub type PublicKeys = Vec<BLSPublicKey>;
 fn get_bls_keys() -> (PrivateKeys, PublicKeys) {
 	let mut private_keys: PrivateKeys = vec![];
 	let _public_keys: PublicKeys = vec![];
-	let ikm = [0 as u8; 32];
+	let ikm = [0_u8; 32];
 	let sk_1 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_1 = sk_1.sk_to_pk();
-	private_keys.push(sk_1.clone());
-	let ikm = [1 as u8; 32];
+	private_keys.push(sk_1);
+	let ikm = [1_u8; 32];
 	let sk_2 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_2 = sk_2.sk_to_pk();
-	private_keys.push(sk_2.clone());
-	let ikm = [2 as u8; 32];
+	private_keys.push(sk_2);
+	let ikm = [2_u8; 32];
 	let sk_3 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_3 = sk_3.sk_to_pk();
-	private_keys.push(sk_3.clone());
-	let bls_public_key_1 = BLSPublicKey(pk_1.serialize().into());
-	let bls_public_key_2 = BLSPublicKey(pk_2.serialize().into());
-	let bls_public_key_3 = BLSPublicKey(pk_3.serialize().into());
+	private_keys.push(sk_3);
+	let bls_public_key_1 = BLSPublicKey(pk_1.serialize());
+	let bls_public_key_2 = BLSPublicKey(pk_2.serialize());
+	let bls_public_key_3 = BLSPublicKey(pk_3.serialize());
 	let public_keys: PublicKeys = vec![bls_public_key_1, bls_public_key_2, bls_public_key_3];
 	(private_keys, public_keys)
 }
@@ -599,11 +599,11 @@ fn create_account_id() -> AccountId32 {
 	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
 		&keystore,
 		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
+		Some(&format!("{PHRASE}/hunter1")),
 	)
 	.expect("Unable to create sr25519 key pair")
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	account_id
 }
