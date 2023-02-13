@@ -1308,7 +1308,7 @@ impl thea::pallet::Config for Runtime {
 
 //Install Staking Pallet
 parameter_types! {
-	pub const SessionLength: u32 = 300;
+	pub const SessionLength: u32 = 100;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1_000_000_000_000;
