@@ -12,29 +12,28 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-use asset_handler::pallet::TheaAssets;
-use frame_support::{assert_noop, assert_ok, ensure};
-use parity_scale_codec::{Decode, Encode};
-use sp_core::{crypto::AccountId32, H160, U256};
-use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
-use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
+
+use frame_support::{assert_noop, assert_ok};
+use parity_scale_codec::{Encode};
+use sp_core::{crypto::AccountId32};
+use sp_keystore::{testing::KeyStore, SyncCryptoStore};
+use sp_runtime::{BoundedVec};
 
 use crate::{
-	mock,
 	mock::{new_test_ext, Test, *},
 	pallet::*,
 };
 use blst::min_sig::*;
 use frame_support::traits::fungibles::Mutate;
 use sp_runtime::traits::ConstU32;
-use sp_std::default::Default;
+
 use thea_primitives::{
 	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
-	ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
+	ApprovedWithdraw, BLSPublicKey, TokenType,
 };
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
-	prelude::{Xcm, X1},
+	prelude::{X1},
 };
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
@@ -515,23 +514,23 @@ pub type PublicKeys = Vec<BLSPublicKey>;
 
 fn get_bls_keys() -> (PrivateKeys, PublicKeys) {
 	let mut private_keys: PrivateKeys = vec![];
-	let mut public_keys: PublicKeys = vec![];
-	let mut ikm = [0 as u8; 32];
+	let _public_keys: PublicKeys = vec![];
+	let ikm = [0 as u8; 32];
 	let sk_1 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_1 = sk_1.sk_to_pk();
 	private_keys.push(sk_1.clone());
-	let mut ikm = [1 as u8; 32];
+	let ikm = [1 as u8; 32];
 	let sk_2 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_2 = sk_2.sk_to_pk();
 	private_keys.push(sk_2.clone());
-	let mut ikm = [2 as u8; 32];
+	let ikm = [2 as u8; 32];
 	let sk_3 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_3 = sk_3.sk_to_pk();
 	private_keys.push(sk_3.clone());
 	let bls_public_key_1 = BLSPublicKey(pk_1.serialize().into());
 	let bls_public_key_2 = BLSPublicKey(pk_2.serialize().into());
 	let bls_public_key_3 = BLSPublicKey(pk_3.serialize().into());
-	let mut public_keys: PublicKeys = vec![bls_public_key_1, bls_public_key_2, bls_public_key_3];
+	let public_keys: PublicKeys = vec![bls_public_key_1, bls_public_key_2, bls_public_key_3];
 	(private_keys, public_keys)
 }
 

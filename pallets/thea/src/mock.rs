@@ -13,9 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
-	OnFinalize, OnInitialize,
-};
+
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -26,9 +24,9 @@ use sp_runtime::{
 
 use crate::pallet as thea;
 
-use asset_handler::pallet::WithdrawalLimit;
+
 use frame_support::PalletId;
-use sp_runtime::traits::AccountIdConversion;
+
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -173,6 +171,6 @@ impl thea::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	t.into()
 }
