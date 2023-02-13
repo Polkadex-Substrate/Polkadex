@@ -93,10 +93,7 @@ fn test_register_main_account_main_account_already_exists() {
 		));
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone()), true);
 		assert_noop!(
-			OCEX::register_main_account(
-				Origin::signed(account_id.clone()),
-				account_id.clone()
-			),
+			OCEX::register_main_account(Origin::signed(account_id.clone()), account_id.clone()),
 			Error::<Test>::MainAccountAlreadyRegistered
 		);
 	});
@@ -107,14 +104,8 @@ fn test_register_main_account_bad_origin() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			OCEX::register_main_account(Origin::root(), account_id.clone()),
-			BadOrigin
-		);
-		assert_noop!(
-			OCEX::register_main_account(Origin::none(), account_id.clone()),
-			BadOrigin
-		);
+		assert_noop!(OCEX::register_main_account(Origin::root(), account_id.clone()), BadOrigin);
+		assert_noop!(OCEX::register_main_account(Origin::none(), account_id.clone()), BadOrigin);
 	});
 }
 
@@ -152,19 +143,10 @@ fn test_add_proxy_account_proxy_limit_exceeded() {
 			Origin::signed(account_id.clone()),
 			account_id.clone()
 		));
-		assert_ok!(OCEX::add_proxy_account(
-			Origin::signed(account_id.clone()),
-			account_id.clone()
-		));
-		assert_ok!(OCEX::add_proxy_account(
-			Origin::signed(account_id.clone()),
-			account_id.clone()
-		));
+		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone()), account_id.clone()));
+		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone()), account_id.clone()));
 		assert_noop!(
-			OCEX::add_proxy_account(
-				Origin::signed(account_id.clone()),
-				proxy_account.clone()
-			),
+			OCEX::add_proxy_account(Origin::signed(account_id.clone()), proxy_account.clone()),
 			Error::<Test>::ProxyLimitExceeded
 		);
 	})
@@ -190,10 +172,7 @@ fn test_add_proxy_account() {
 			Origin::signed(account_id.clone()),
 			account_id.clone()
 		));
-		assert_ok!(OCEX::add_proxy_account(
-			Origin::signed(account_id.clone()),
-			account_id.clone()
-		));
+		assert_ok!(OCEX::add_proxy_account(Origin::signed(account_id.clone()), account_id.clone()));
 		assert_last_event::<Test>(
 			crate::Event::MainAccountRegistered {
 				main: account_id.clone(),
@@ -863,11 +842,7 @@ fn test_deposit_exchange_not_operational() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::deposit(
-				Origin::signed(account_id.clone()),
-				AssetId::asset(10),
-				100_u128
-			),
+			OCEX::deposit(Origin::signed(account_id.clone()), AssetId::asset(10), 100_u128),
 			Error::<Test>::ExchangeNotOperational
 		);
 	});
@@ -896,11 +871,7 @@ fn test_deposit_account_not_registered() {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
 		allowlist_token(AssetId::asset(10));
 		assert_noop!(
-			OCEX::deposit(
-				Origin::signed(account_id.clone()),
-				AssetId::asset(10),
-				100_u128
-			),
+			OCEX::deposit(Origin::signed(account_id.clone()), AssetId::asset(10), 100_u128),
 			Error::<Test>::AccountNotRegistered
 		);
 	});
@@ -924,11 +895,7 @@ fn test_deposit_abc() {
 			Origin::signed(account_id.clone()),
 			account_id.clone()
 		));
-		assert_ok!(OCEX::deposit(
-			Origin::signed(account_id.clone()),
-			AssetId::polkadex,
-			100_u128
-		));
+		assert_ok!(OCEX::deposit(Origin::signed(account_id.clone()), AssetId::polkadex, 100_u128));
 		// Balances after deposit
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -1010,11 +977,7 @@ fn test_deposit_assets_overflow() {
 		);
 
 		assert_noop!(
-			OCEX::deposit(
-				Origin::signed(account_id.clone()),
-				AssetId::polkadex,
-				10_u128.pow(20)
-			),
+			OCEX::deposit(Origin::signed(account_id.clone()), AssetId::polkadex, 10_u128.pow(20)),
 			Error::<Test>::AmountOverflow
 		);
 	});
@@ -1653,11 +1616,7 @@ fn test_withdrawal() {
 			signature.into()
 		),);
 
-		assert_ok!(OCEX::claim_withdraw(
-			Origin::signed(account_id.clone()),
-			1,
-			account_id.clone()
-		));
+		assert_ok!(OCEX::claim_withdraw(Origin::signed(account_id.clone()), 1, account_id.clone()));
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -1952,12 +1911,7 @@ fn mint_into_account_large(account_id: AccountId32) {
 
 #[allow(dead_code)]
 fn create_asset_and_credit(asset_id: u128, account_id: AccountId32) {
-	assert_ok!(Assets::create(
-		Origin::signed(account_id.clone()),
-		asset_id,
-		account_id,
-		100_u128
-	));
+	assert_ok!(Assets::create(Origin::signed(account_id.clone()), asset_id, account_id, 100_u128));
 }
 
 fn create_account_id() -> AccountId32 {
@@ -2012,14 +1966,9 @@ fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let keystore = KeyStore::new();
-	
 
-	SyncCryptoStore::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{PHRASE}/hunter1")),
-	)
-	.expect("Unable to create sr25519 key pair")
+	SyncCryptoStore::sr25519_generate_new(&keystore, KEY_TYPE, Some(&format!("{PHRASE}/hunter1")))
+		.expect("Unable to create sr25519 key pair")
 }
 
 pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {

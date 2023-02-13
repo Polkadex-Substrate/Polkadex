@@ -14,10 +14,10 @@
 // GNU General Public License for more details.
 
 use frame_support::{assert_noop, assert_ok};
-use parity_scale_codec::{Encode};
-use sp_core::{crypto::AccountId32};
+use parity_scale_codec::Encode;
+use sp_core::crypto::AccountId32;
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
-use sp_runtime::{BoundedVec};
+use sp_runtime::BoundedVec;
 
 use crate::{
 	mock::{new_test_ext, Test, *},
@@ -33,7 +33,7 @@ use thea_primitives::{
 };
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
-	prelude::{X1},
+	prelude::X1,
 };
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");

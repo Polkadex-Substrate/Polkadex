@@ -142,12 +142,7 @@ fn asset_transfer_success() {
 		assert_ok!(Bridge::set_threshold(Origin::root(), TEST_THRESHOLD,));
 
 		assert_ok!(Bridge::allowlist_chain(Origin::root(), dest_id));
-		assert_ok!(Bridge::transfer_fungible(
-			dest_id,
-			resource_id,
-			to.clone(),
-			amount.into()
-		));
+		assert_ok!(Bridge::transfer_fungible(dest_id, resource_id, to.clone(), amount.into()));
 		assert_events(vec![
 			Event::Bridge(PalletEvent::ChainAllowlisted(dest_id)),
 			Event::Bridge(PalletEvent::FungibleTransfer(
@@ -175,11 +170,7 @@ fn asset_transfer_success() {
 			metadata.clone(),
 		))]);
 
-		assert_ok!(Bridge::transfer_generic(
-			dest_id,
-			resource_id,
-			metadata.clone()
-		));
+		assert_ok!(Bridge::transfer_generic(dest_id, resource_id, metadata.clone()));
 		assert_events(vec![Event::Bridge(PalletEvent::GenericTransfer(
 			dest_id,
 			3,

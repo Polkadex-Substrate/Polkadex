@@ -13,7 +13,6 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -24,9 +23,7 @@ use sp_runtime::{
 
 use crate::pallet as thea;
 
-
 use frame_support::PalletId;
-
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
