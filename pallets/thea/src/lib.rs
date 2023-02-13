@@ -272,7 +272,7 @@ pub mod pallet {
 		/// Deposit claimed event ( recipient, number of deposits claimed )
 		DepositClaimed(T::AccountId, u128, u128, sp_core::H256),
 		/// Withdrawal Queued ( beneficiary, assetId, amount, index )
-		WithdrawalQueued(T::AccountId, Vec<u8>, u128, u128, u32, u32),
+		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, u32, u32),
 		/// Withdrawal Ready (Network id, Nonce )
 		WithdrawalReady(Network, u32),
 		/// Withdrawal Executed (Nonce, network, Tx hash )
@@ -747,6 +747,7 @@ pub mod pallet {
 				pending_withdrawals = BoundedVec::default();
 			} else {
 				Self::deposit_event(Event::<T>::WithdrawalQueued(
+					network,
 					user,
 					beneficiary,
 					asset_id,
@@ -851,7 +852,7 @@ pub mod pallet {
 			}
 			<DepositNonce<T>>::insert(
 				approved_deposit.network_id.saturated_into::<Network>(),
-				approved_deposit.deposit_nonce + 1,
+				approved_deposit.deposit_nonce,
 			);
 			Self::deposit_event(Event::<T>::DepositApproved(
 				approved_deposit.network_id,
