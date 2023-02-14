@@ -56,6 +56,7 @@ pub mod pallet {
 		prelude::{Fungible, X1},
 	};
 
+	use core::default::Default;
 	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
@@ -666,6 +667,24 @@ pub mod pallet {
 
 			// Add the new one to queued_queued
 			Ok(())
+		}
+
+		#[pallet::weight(1000)]
+		pub fn thea_relayers_reset_rotation(
+			origin: OriginFor<T>,
+			network: Network,
+		) -> DispatchResult {
+			let _root = ensure_root(origin)?;
+			<AuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(network, Default::default());
+			<RelayersBLSKeyVector<T>>::insert::<u8, Vec<BLSPublicKey>>(network, Default::default());
+			<QueuedAuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(network, Default::default());
+			<QueuedRelayersBLSKeyVector<T>>::insert::<u8, Vec<BLSPublicKey>>(network, Default::default());
+			<TheaPublicKey<T>>::take(network);
+			<QueuedTheaPublicKey<T>>::take(network);
+			<QueuedQueuedTheaPublicKey<T>>::take(network);
+			<TheaSessionId<T>>::insert(network, 0);
+			Ok(())
+
 		}
 	}
 
