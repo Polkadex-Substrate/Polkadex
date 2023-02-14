@@ -91,6 +91,7 @@ pub struct ApprovedWithdraw {
 	pub network: u8,
 	pub beneficiary: Vec<u8>,
 	pub payload: Vec<u8>,
+	pub index: u32
 }
 
 impl ApprovedWithdraw {
