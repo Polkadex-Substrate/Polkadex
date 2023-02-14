@@ -115,6 +115,17 @@ pub mod pallet {
 
 	/// Active Relayers BLS Keys for a given Network
 	#[pallet::storage]
+	#[pallet::getter(fn get_key_rotation_status)]
+	pub(super) type TheaKeyRotation<T: Config> = StorageMap<
+		_,
+		frame_support::Blake2_128Concat,
+		u8,
+		bool,
+		ValueQuery,
+	>;
+
+	/// Active Relayers BLS Keys for a given Network
+	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
 	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
 		_,
@@ -323,6 +334,8 @@ pub mod pallet {
 		BoundedVectorOverflow,
 		/// Bounded Vector Not Present
 		BoundedVectorNotPresent,
+		/// Thea Key Rotation is taking place
+		TheaKeyRotationInPlace
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -609,6 +622,7 @@ pub mod pallet {
 			// Incrementing Current Round Index
 			let current_round_index = <TheaSessionId<T>>::get(network);
 			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
+			<TheaKeyRotation<T>>::insert(network, false);
 			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
 			Ok(())
 		}
@@ -659,6 +673,7 @@ pub mod pallet {
 				<IngressMessages<T>>::mutate(|messages| {
 					messages.push(TheaPalletMessages::SignQdPublicKey)
 				});
+				<TheaKeyRotation<T>>::insert(network, true);
 			} else {
 				// If there is no QQPublicKey already then we should set the one we received
 				// as the new QQPublicKey rather than returning an Error
@@ -705,6 +720,7 @@ pub mod pallet {
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
+			ensure!(Self::get_key_rotation_status(network) != true, Error::<T>::TheaKeyRotationInPlace);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 
