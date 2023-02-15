@@ -563,6 +563,8 @@ pub mod pallet {
 				messages.push(TheaPalletMessages::TheaKeyRotationComplete)
 			});
 
+			<TheaKeyRotation<T>>::insert(network, false);
+
 			Ok(())
 		}
 
