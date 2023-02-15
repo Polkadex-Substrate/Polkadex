@@ -365,11 +365,11 @@ pub mod pallet {
 		// 	remaining_weight
 		// }
 		//
-		// fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-		// 	<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
-		// 	// TODO: Benchmarking for Thea Pallet
-		// 	1000 as Weight
-		// }
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
+			// TODO: Benchmarking for Thea Pallet
+			1000 as Weight
+		}
 	}
 
 	// Extrinsic for Thea Pallet are defined here
