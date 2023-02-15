@@ -667,6 +667,12 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Asset Handler for Withdraw Extrinsic
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id.
+		/// * `who`: Asset Holder.
+		/// * `amount`: Amount to be burned/locked.
 		pub fn handle_asset(
 			asset_id: u128,
 			who: T::AccountId,
@@ -680,6 +686,11 @@ pub mod pallet {
 			}
 		}
 
+		/// Asset Locker
+		/// # Parameters
+		///
+		/// * `amount`: Amount to be locked.
+		/// * `who`: Asset Holder.
 		pub fn lock_pdex_asset(amount: u128, who: T::AccountId) -> DispatchResult {
 			let polkadex_holder_account = T::PDEXHolderAccount::get();
 			T::Currency::transfer(
