@@ -28,7 +28,7 @@ Once you choose your cloud service provider and set-up your new server, the firs
 
 ```
 sudo apt-get install curl unzip
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.3/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v4.0.0/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
 
 ```
 
