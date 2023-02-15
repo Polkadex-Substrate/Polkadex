@@ -504,10 +504,11 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			let (mut network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
-			if asset_id == T::PolkadexAssetId::get() {
-				network = 1;
+			let network = if asset_id == T::PolkadexAssetId::get() {
+				1
+			} else {
+				let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
+				network
 			};
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
