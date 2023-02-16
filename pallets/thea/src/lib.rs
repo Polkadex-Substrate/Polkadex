@@ -43,12 +43,10 @@ pub mod pallet {
 	};
 
 	use thea_primitives::{
-		thea_types::OnSessionChange,
-		BLSPublicKey, TheaPalletMessages,
 		normal_deposit::Deposit,
 		parachain_primitives::{ParachainAsset, ParachainDeposit, ParachainWithdraw},
-		AssetIdConverter, TokenType,
-		ApprovedWithdraw
+		thea_types::OnSessionChange,
+		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaPalletMessages, TokenType,
 	};
 	use thea_staking::SessionChanged;
 	use xcm::{
@@ -56,6 +54,7 @@ pub mod pallet {
 		prelude::{Fungible, X1},
 	};
 
+	use core::default::Default;
 	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
@@ -114,25 +113,21 @@ pub mod pallet {
 
 	/// Active Relayers BLS Keys for a given Network
 	#[pallet::storage]
+	#[pallet::getter(fn get_key_rotation_status)]
+	pub(super) type TheaKeyRotation<T: Config> =
+		StorageMap<_, frame_support::Blake2_128Concat, u8, bool, ValueQuery>;
+
+	/// Active Relayers BLS Keys for a given Network
+	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
-	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
-		_,
-		frame_support::Blake2_128Concat,
-		u8,
-		Vec<BLSPublicKey>,
-		ValueQuery,
-	>;
+	pub(super) type RelayersBLSKeyVector<T: Config> =
+		StorageMap<_, frame_support::Blake2_128Concat, u8, Vec<BLSPublicKey>, ValueQuery>;
 
 	/// Active Relayers ECDSA Keys for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_auth_list)]
-	pub(super) type AuthorityListVector<T: Config> = StorageMap<
-		_,
-		frame_support::Blake2_128Concat,
-		u8,
-		Vec<T::AccountId>,
-		ValueQuery,
-	>;
+	pub(super) type AuthorityListVector<T: Config> =
+		StorageMap<_, frame_support::Blake2_128Concat, u8, Vec<T::AccountId>, ValueQuery>;
 
 	/// Queued Relayers BLS Keys for a given Network ( these are relayers who are waiting for
 	/// public key update ack from foreign chain to become active )
@@ -260,7 +255,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_ingress_messages)]
 	pub(super) type IngressMessages<T: Config> =
-	StorageValue<_, Vec<TheaPalletMessages>, ValueQuery>;
+		StorageValue<_, Vec<TheaPalletMessages>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -271,7 +266,7 @@ pub mod pallet {
 		DepositApproved(u8, T::AccountId, u128, u128, sp_core::H256),
 		/// Deposit claimed event ( recipient, number of deposits claimed )
 		DepositClaimed(T::AccountId, u128, u128, sp_core::H256),
-		/// Withdrawal Queued ( beneficiary, assetId, amount, index )
+		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount, nonce, index )
 		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, u32, u32),
 		/// Withdrawal Ready (Network id, Nonce )
 		WithdrawalReady(Network, u32),
@@ -322,52 +317,54 @@ pub mod pallet {
 		BoundedVectorOverflow,
 		/// Bounded Vector Not Present
 		BoundedVectorNotPresent,
+		/// Thea Key Rotation is taking place
+		TheaKeyRotationInPlace,
 	}
 
 	// Hooks for Thea Pallet are defined here
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
-			// TODO: Calculate proper weight for single claim call on on_idle
-			let single_claim_weight: Weight = 100_000_000;
-
-			if remaining_weight < single_claim_weight {
-				// We need enough weight for at least one claim process if not it's a no-op
-				return remaining_weight
-			}
-
-			let mut accounts = <AccountWithPendingDeposits<T>>::get();
-			if accounts.is_empty() {
-				return remaining_weight
-			}
-
-			while let Some(account) = accounts.pop_first() {
-				if let Some(mut pending_deposits) = <ApprovedDeposits<T>>::get(&account) {
-					// FIXME: This leads to an infinite loop if execute_deposit fails
-					while let Some(deposit) = pending_deposits.pop() {
-						if let Err(err) = Self::execute_deposit(deposit.clone(), &account) {
-							// Force push is fine as it was part of the bounded vec
-							pending_deposits.force_push(deposit.clone());
-							// We can't do much here other than to log an error.
-							log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user: {:?}, Err: {:?}",account,err);
-						}
-						// reduce the remaining_weight
-						remaining_weight = remaining_weight.saturating_sub(single_claim_weight);
-						if remaining_weight.is_zero() {
-							break
-						}
-					}
-
-					if !pending_deposits.is_empty() {
-						<ApprovedDeposits<T>>::insert(&account, pending_deposits);
-						accounts.insert(account);
-					}
-				}
-			}
-			<AccountWithPendingDeposits<T>>::put(accounts);
-			remaining_weight
-		}
-
+		// fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
+		// 	// TODO: Calculate proper weight for single claim call on on_idle
+		// 	let single_claim_weight: Weight = 100_000_000;
+		//
+		// 	if remaining_weight < single_claim_weight {
+		// 		// We need enough weight for at least one claim process if not it's a no-op
+		// 		return remaining_weight
+		// 	}
+		//
+		// 	let mut accounts = <AccountWithPendingDeposits<T>>::get();
+		// 	if accounts.is_empty() {
+		// 		return remaining_weight
+		// 	}
+		//
+		// 	while let Some(account) = accounts.pop_first() {
+		// 		if let Some(mut pending_deposits) = <ApprovedDeposits<T>>::get(&account) {
+		// 			// FIXME: This leads to an infinite loop if execute_deposit fails
+		// 			while let Some(deposit) = pending_deposits.pop() {
+		// 				if let Err(err) = Self::execute_deposit(deposit.clone(), &account) {
+		// 					// Force push is fine as it was part of the bounded vec
+		// 					pending_deposits.force_push(deposit.clone());
+		// 					// We can't do much here other than to log an error.
+		// 					log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user: {:?}, Err: {:?}",account,err);
+		// 				}
+		// 				// reduce the remaining_weight
+		// 				remaining_weight = remaining_weight.saturating_sub(single_claim_weight);
+		// 				if remaining_weight.is_zero() {
+		// 					break
+		// 				}
+		// 			}
+		//
+		// 			if !pending_deposits.is_empty() {
+		// 				<ApprovedDeposits<T>>::insert(&account, pending_deposits);
+		// 				accounts.insert(account);
+		// 			}
+		// 		}
+		// 	}
+		// 	<AccountWithPendingDeposits<T>>::put(accounts);
+		// 	remaining_weight
+		// }
+		//
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
 			// TODO: Benchmarking for Thea Pallet
@@ -375,7 +372,7 @@ pub mod pallet {
 		}
 	}
 
-	// Extrinsics for Thea Pallet are defined here
+	// Extrinsic for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		///Approve Deposit
@@ -566,6 +563,8 @@ pub mod pallet {
 				messages.push(TheaPalletMessages::TheaKeyRotationComplete)
 			});
 
+			<TheaKeyRotation<T>>::insert(network, false);
+
 			Ok(())
 		}
 
@@ -585,7 +584,7 @@ pub mod pallet {
 			network: Network,
 			public_key: [u8; 64],
 			bit_map: u128,
-			bls_signature: [u8; 96]
+			bls_signature: [u8; 96],
 		) -> DispatchResult {
 			let _relayer = ensure_signed(origin)?;
 			// Verify BLS Signature
@@ -608,6 +607,7 @@ pub mod pallet {
 			// Incrementing Current Round Index
 			let current_round_index = <TheaSessionId<T>>::get(network);
 			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
+			<TheaKeyRotation<T>>::insert(network, false);
 			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
 			Ok(())
 		}
@@ -633,7 +633,8 @@ pub mod pallet {
 			let _relayer = ensure_signed(origin)?;
 			// Fetch current active relayer set BLS Keys
 
-			let current_public_key = <QueuedQueuedTheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
+			let current_public_key =
+				<QueuedQueuedTheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
 			ensure!(public_key != current_public_key, Error::<T>::QueuedTheaPublicKeyNotFound);
 
 			let queued_queued_relayers =
@@ -658,6 +659,7 @@ pub mod pallet {
 				<IngressMessages<T>>::mutate(|messages| {
 					messages.push(TheaPalletMessages::SignQdPublicKey)
 				});
+				<TheaKeyRotation<T>>::insert(network, true);
 			} else {
 				// If there is no QQPublicKey already then we should set the one we received
 				// as the new QQPublicKey rather than returning an Error
@@ -665,6 +667,29 @@ pub mod pallet {
 			}
 
 			// Add the new one to queued_queued
+			Ok(())
+		}
+
+		#[pallet::weight(1000)]
+		pub fn thea_relayers_reset_rotation(
+			origin: OriginFor<T>,
+			network: Network,
+		) -> DispatchResult {
+			let _root = ensure_root(origin)?;
+			<AuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(network, Default::default());
+			<RelayersBLSKeyVector<T>>::insert::<u8, Vec<BLSPublicKey>>(network, Default::default());
+			<QueuedAuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(
+				network,
+				Default::default(),
+			);
+			<QueuedRelayersBLSKeyVector<T>>::insert::<u8, Vec<BLSPublicKey>>(
+				network,
+				Default::default(),
+			);
+			<TheaPublicKey<T>>::take(network);
+			<QueuedTheaPublicKey<T>>::take(network);
+			<QueuedQueuedTheaPublicKey<T>>::take(network);
+			<TheaSessionId<T>>::insert(network, 0);
 			Ok(())
 		}
 	}
@@ -686,6 +711,10 @@ pub mod pallet {
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
+			ensure!(
+				Self::get_key_rotation_status(network) != true,
+				Error::<T>::TheaKeyRotationInPlace
+			);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 
@@ -727,13 +756,21 @@ pub mod pallet {
 				network: network.saturated_into(),
 				beneficiary: beneficiary.clone(),
 				payload,
-				index: pending_withdrawals.len() as u32
+				index: pending_withdrawals.len() as u32,
 			};
 
 			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
 				// This should not fail because of is_full check above
 			}
-
+			Self::deposit_event(Event::<T>::WithdrawalQueued(
+				network,
+				user,
+				beneficiary,
+				asset_id,
+				amount,
+				withdrawal_nonce,
+				(pending_withdrawals.len() - 1) as u32,
+			));
 			if pending_withdrawals.is_full() | pay_for_remaining {
 				// If it is full then we move it to ready queue and update withdrawal nonce
 				let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
@@ -745,16 +782,6 @@ pub mod pallet {
 				<WithdrawalNonces<T>>::insert(network, withdrawal_nonce.saturating_add(1));
 				Self::deposit_event(Event::<T>::WithdrawalReady(network, withdrawal_nonce));
 				pending_withdrawals = BoundedVec::default();
-			} else {
-				Self::deposit_event(Event::<T>::WithdrawalQueued(
-					network,
-					user,
-					beneficiary,
-					asset_id,
-					amount,
-					withdrawal_nonce,
-					(pending_withdrawals.len() - 1) as u32
-				));
 			}
 			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
 			Ok(())
