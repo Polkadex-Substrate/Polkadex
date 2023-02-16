@@ -675,7 +675,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			network: Network,
 		) -> DispatchResult {
-			let _root = ensure_root(origin)?;
+			ensure_root(origin)?;
 			<AuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(network, Default::default());
 			<RelayersBLSKeyVector<T>>::insert::<u8, Vec<BLSPublicKey>>(network, Default::default());
 			<QueuedAuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(
@@ -712,7 +712,7 @@ pub mod pallet {
 			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
 			ensure!(
-				Self::get_key_rotation_status(network) != true,
+				!Self::get_key_rotation_status(network),
 				Error::<T>::TheaKeyRotationInPlace
 			);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
