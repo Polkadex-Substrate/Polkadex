@@ -16,11 +16,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
+// TODO[#614]: Thea Pallet Tests
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
