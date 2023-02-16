@@ -346,8 +346,8 @@ pub mod pallet {
 		// 					// Force push is fine as it was part of the bounded vec
 		// 					pending_deposits.force_push(deposit.clone());
 		// 					// We can't do much here other than to log an error.
-		// 					log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user: {:?}, Err: {:?}",account,err);
-		// 				}
+		// 					log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user:
+		// {:?}, Err: {:?}",account,err); 				}
 		// 				// reduce the remaining_weight
 		// 				remaining_weight = remaining_weight.saturating_sub(single_claim_weight);
 		// 				if remaining_weight.is_zero() {
