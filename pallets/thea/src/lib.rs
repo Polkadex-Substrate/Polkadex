@@ -711,10 +711,7 @@ pub mod pallet {
 			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
 			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
-			ensure!(
-				!Self::get_key_rotation_status(network),
-				Error::<T>::TheaKeyRotationInPlace
-			);
+			ensure!(!Self::get_key_rotation_status(network), Error::<T>::TheaKeyRotationInPlace);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 
