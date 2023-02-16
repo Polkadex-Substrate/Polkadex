@@ -32,7 +32,6 @@ pub mod pallet {
 
 	use frame_support::{
 		dispatch::fmt::Debug,
-		log,
 		pallet_prelude::*,
 		traits::{Currency, ExistenceRequirement, ReservableCurrency},
 		PalletId,
