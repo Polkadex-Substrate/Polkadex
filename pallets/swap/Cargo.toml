@@ -49,6 +49,7 @@ std     = [
     "sp-runtime/std",
     "polkadex-primitives/std",
     "support/std",
+    "pallet-assets/std"
 ]
 
 try-runtime        = ['frame-support/try-runtime']
