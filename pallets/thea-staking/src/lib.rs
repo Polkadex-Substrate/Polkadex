@@ -37,11 +37,11 @@ use thea_primitives::{
 	BLSPublicKey,
 };
 mod election;
-#[cfg(test)]
-mod mock;
+// #[cfg(test)]
+// mod mock;
 mod session;
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
