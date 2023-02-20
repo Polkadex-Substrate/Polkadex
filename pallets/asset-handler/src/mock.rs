@@ -145,6 +145,11 @@ impl chainbridge::Config for Test {
 	//type PalletId = ChainbridgePalletId;
 }
 
+parameter_types! {
+	pub const PolkadexAssetId: u128 = 1000;
+	pub const PDEXHolderAccount: u64 = 10u64;
+}
+
 impl asset_handler::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
@@ -153,6 +158,8 @@ impl asset_handler::Config for Test {
 	type TreasuryPalletId = ChainbridgePalletId;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 	type ParachainNetworkId = ParachainNetworkId;
+	type PolkadexAssetId = PolkadexAssetId;
+	type PDEXHolderAccount = PDEXHolderAccount;
 }
 
 // Build genesis storage according to the mock runtime.

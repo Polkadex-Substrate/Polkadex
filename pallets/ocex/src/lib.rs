@@ -757,7 +757,7 @@ pub mod pallet {
 				SnapshotAccLimit,
 			>,
 			signature: T::Signature,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin)?;
 			ensure!(
 				<RegisteredEnclaves<T>>::contains_key(&snapshot.enclave_id),
@@ -807,7 +807,7 @@ pub mod pallet {
 			snapshot.fees = Default::default();
 			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
 			<SnapshotNonce<T>>::put(current_snapshot_nonce);
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		// FIXME Only for testing will be removed before mainnet launch
