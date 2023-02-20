@@ -447,7 +447,6 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			// Put a soft limit of size of beneficiary vector to avoid spam
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
 			Ok(())
 		}
