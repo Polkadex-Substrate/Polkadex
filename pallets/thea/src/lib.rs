@@ -670,6 +670,12 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Extrinsic to reset Thea Key Rotation
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
 		#[pallet::weight(1000)]
 		pub fn thea_relayers_reset_rotation(
 			origin: OriginFor<T>,
