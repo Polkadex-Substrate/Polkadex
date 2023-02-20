@@ -117,7 +117,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 281,
+	spec_version: 282,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -252,6 +252,7 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 use scale_info::TypeInfo;
+use sp_core::crypto::AccountId32;
 use sp_npos_elections::ExtendedBalance;
 
 /// The type used to represent the kinds of proxying allowed.
@@ -1288,6 +1289,12 @@ impl chainbridge::Config for Runtime {
 	type ProposalLifetime = ProposalLifetime;
 }
 
+parameter_types! {
+	pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
+	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
+	pub const ParaId: u32 = 2040;
+}
+
 impl asset_handler::pallet::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -1296,6 +1303,8 @@ impl asset_handler::pallet::Config for Runtime {
 	type TreasuryPalletId = TreasuryPalletId;
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
 	type ParachainNetworkId = ParachainNetworkId;
+	type PolkadexAssetId = PolkadexAssetId;
+	type PDEXHolderAccount = PDEXHolderAccount;
 }
 
 impl thea::pallet::Config for Runtime {
@@ -1304,6 +1313,7 @@ impl thea::pallet::Config for Runtime {
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
+	type ParaId = ParaId;
 }
 
 //Install Staking Pallet
