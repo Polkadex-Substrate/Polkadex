@@ -130,6 +130,13 @@ pub mod pallet {
 		/// Parachain Network Id
 		#[pallet::constant]
 		type ParachainNetworkId: Get<u8>;
+
+		/// Polkadex Asset
+		#[pallet::constant]
+		type PolkadexAssetId: Get<u128>;
+
+		/// PDEX Token Holder Account
+		type PDEXHolderAccount: Get<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -657,6 +664,40 @@ pub mod pallet {
 
 			T::AssetManager::mint_into(asset_id, &recipient, amount)?;
 			Ok(())
+		}
+
+		/// Asset Handler for Withdraw Extrinsic
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id.
+		/// * `who`: Asset Holder.
+		/// * `amount`: Amount to be burned/locked.
+		pub fn handle_asset(
+			asset_id: u128,
+			who: T::AccountId,
+			amount: u128,
+		) -> Result<(), DispatchError> {
+			let polkadex_asset_id = T::PolkadexAssetId::get();
+			if polkadex_asset_id == asset_id {
+				Self::lock_pdex_asset(amount, who)
+			} else {
+				Self::burn_thea_asset(asset_id, who, amount)
+			}
+		}
+
+		/// Asset Locker
+		/// # Parameters
+		///
+		/// * `amount`: Amount to be locked.
+		/// * `who`: Asset Holder.
+		pub fn lock_pdex_asset(amount: u128, who: T::AccountId) -> DispatchResult {
+			let polkadex_holder_account = T::PDEXHolderAccount::get();
+			T::Currency::transfer(
+				&who,
+				&polkadex_holder_account,
+				amount.saturated_into(),
+				ExistenceRequirement::AllowDeath,
+			)
 		}
 
 		pub fn burn_thea_asset(
