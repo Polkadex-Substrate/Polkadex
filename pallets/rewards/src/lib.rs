@@ -217,15 +217,11 @@ pub mod pallet {
 						};
 
 						//transfer funds from pallet account to users account
-						ensure!(
-							Self::transfer_pdex_rewards(
-								&Self::get_pallet_account(),
-								&user,
-								reward_info.total_reward_amount
-							)
-							.is_ok(),
-							Error::<T>::TransferFailed
-						);
+						Self::transfer_pdex_rewards(
+							&Self::get_pallet_account(),
+							&user,
+							reward_info.total_reward_amount,
+						)?;
 
 						//lock users funds in his account
 						T::NativeCurrency::set_lock(
