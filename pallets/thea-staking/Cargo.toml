@@ -32,14 +32,18 @@ chainbridge = { path = "../chainbridge", default-features = false }
 
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
-pallet-session = { workspace = true, default-features = false }
-pallet-offences = { workspace = true, default-features = false }
-pallet-babe= { workspace = true, default-features = false }
-pallet-timestamp = { workspace = true, default-features = false }
-pallet-staking = { workspace = true, default-features = false }
-pallet-staking-reward-curve = { workspace = true, default-features = false }
-pallet-election-provider-multi-phase = { default-features = false, workspace = true }
 thea = { path = "../thea", default-features = false }
+pallet-staking-reward-curve = { default-features = false, workspace = true }
+pallet-babe = { default-features = false, workspace = true }
+pallet-staking = { default-features = false, workspace = true }
+pallet-timestamp = { default-features = false, workspace = true }
+pallet-session = { default-features = false, workspace = true }
+pallet-offences = { default-features = false, workspace = true }
+pallet-collective = { default-features = false, workspace = true }
+pallet-transaction-payment = { default-features = false, workspace = true }
+pallet-election-provider-multi-phase = { default-features = false, workspace = true }
+frame-election-provider-support = { default-features = false, workspace = true }
+smallvec = { default-features = false, workspace = true }
 
 [features]
 default = ["std"]
