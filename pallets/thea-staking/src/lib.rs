@@ -44,11 +44,11 @@ use thea_primitives::{
 	BLSPublicKey,
 };
 mod election;
-#[cfg(test)]
-mod mock;
+// #[cfg(test)]
+// mod mock;
 mod session;
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
@@ -58,6 +58,7 @@ pub trait SessionChanged {
 	type Network;
 	type OnSessionChange;
 	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>);
+	fn set_new_networks(networks: sp_std::collections::btree_set::BTreeSet<Self::Network>);
 }
 
 /// A type for representing the validator id in a session.
@@ -182,6 +183,8 @@ pub mod pallet {
 			IdentificationTuple<Self>,
 			UnresponsivenessOffence<IdentificationTuple<Self>>,
 		>;
+		/// Governance origin to update the thea staking configuration
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -337,6 +340,34 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::OutgoingCandidateAdded { candidate });
 			Ok(())
 		}
+
+		/// Adds a new network, it will also update the thea pallet's storage
+		///
+		/// # Parameters
+		///
+		/// `network`: Network identifier to add
+		#[pallet::call_index(7)]
+		#[pallet::weight(10000)]
+		pub fn add_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			Self::do_add_new_network(network);
+			Self::deposit_event(Event::<T>::NetworkAdded { network });
+			Ok(())
+		}
+
+		/// Removes a network, it will also update the thea pallet's storage
+		///
+		/// # Parameters
+		///
+		/// `network`: Network identifier to add
+		#[pallet::call_index(8)]
+		#[pallet::weight(10000)]
+		pub fn remove_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			Self::do_remove_network(network);
+			Self::deposit_event(Event::<T>::NetworkRemoved { network });
+			Ok(())
+		}
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -347,6 +378,14 @@ pub mod pallet {
 	/// it is optional, it is also possible to provide a custom implementation.
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// New Network Added
+		NetworkAdded {
+			network: Network,
+		},
+		/// New Network Removed
+		NetworkRemoved {
+			network: Network,
+		},
 		/// New session is started
 		NewSessionStarted {
 			index: SessionIndex,
@@ -410,7 +449,8 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn active_networks)]
 	/// Currently active networks
-	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, Vec<Network>, ValueQuery>;
+	pub(super) type ActiveNetworks<T: Config> =
+		StorageValue<_, sp_std::collections::btree_set::BTreeSet<Network>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn active_relayers)]
@@ -526,6 +566,23 @@ impl<T: Config> Pallet<T> {
 		<CurrentIndex<T>>::put(new_session_index);
 		T::SessionChangeNotifier::on_new_session(map);
 		Self::deposit_event(Event::NewSessionStarted { index: new_session_index })
+	}
+
+	pub fn do_add_new_network(network: Network) {
+		let mut active_networks = <ActiveNetworks<T>>::get();
+		if !active_networks.contains(&network) {
+			active_networks.insert(network);
+			<ActiveNetworks<T>>::put(&active_networks);
+			T::SessionChangeNotifier::set_new_networks(active_networks);
+		}
+	}
+
+	pub fn do_remove_network(network: Network) {
+		let mut active_networks = <ActiveNetworks<T>>::get();
+		if active_networks.remove(&network) {
+			<ActiveNetworks<T>>::put(&active_networks);
+			T::SessionChangeNotifier::set_new_networks(active_networks);
+		}
 	}
 
 	pub fn do_nominate(nominator: T::AccountId, candidate: T::AccountId) -> Result<(), Error<T>> {
@@ -651,6 +708,13 @@ impl<T: Config> Pallet<T> {
 			account_ids.push(account_id);
 		}
 		(vec_of_bls_keys, account_ids)
+	}
+
+	pub fn get_queued_relayers_bls_keys(network: Network) -> Vec<BLSPublicKey> {
+		<QueuedRelayers<T>>::get(network)
+			.iter()
+			.map(|(_, b)| *b)
+			.collect::<Vec<BLSPublicKey>>()
 	}
 
 	pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {

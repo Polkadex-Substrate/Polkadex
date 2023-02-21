@@ -1318,7 +1318,7 @@ impl thea::pallet::Config for Runtime {
 
 //Install Staking Pallet
 parameter_types! {
-	pub const SessionLength: u32 = 10;
+	pub const SessionLength: u32 = 50;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1_000_000_000_000;
@@ -1337,6 +1337,7 @@ impl thea_staking::Config for Runtime {
 	type SessionChangeNotifier = Thea;
 	type ValidatorSet = Historical;
 	type ReportMisbehavior = Offences;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 }
 
 //Install Nomination Pool
