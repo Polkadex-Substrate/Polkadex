@@ -34,6 +34,7 @@ chainbridge = { path = "../chainbridge", default-features = false }
 sp-core = { default-features = false, workspace = true }
 thea = { path = "../thea", default-features = false }
 pallet-staking-reward-curve = { default-features = false, workspace = true }
+pallet-authorship = { default-features = false, workspace = true }
 pallet-babe = { default-features = false, workspace = true }
 pallet-staking = { default-features = false, workspace = true }
 pallet-timestamp = { default-features = false, workspace = true }
@@ -44,6 +45,7 @@ pallet-transaction-payment = { default-features = false, workspace = true }
 pallet-election-provider-multi-phase = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 smallvec = { default-features = false, workspace = true }
+sp-consensus-babe = { default-features = false, workspace = true }
 
 [features]
 default = ["std"]

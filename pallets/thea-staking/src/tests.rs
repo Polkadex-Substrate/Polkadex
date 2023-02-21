@@ -1,15 +1,10 @@
-use crate as thea_staking;
 use crate::{
 	mock::*,
 	session::{StakingLimits, UnlockChunk},
-	ActiveNetworks, CurrentIndex, Error, Event, Exposure, IndividualExposure, StakingData,
-	Stakinglimits,
+	ActiveNetworks, CurrentIndex, Error, Exposure, IndividualExposure, Stakinglimits,
 };
-use frame_support::{
-	assert_noop, assert_ok,
-	traits::{fungible::Mutate, TheseExcept},
-};
-use std::collections::{BTreeSet, HashSet};
+use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
+use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;
 
 #[test]
@@ -34,7 +29,8 @@ fn test_add_candidate_with_valid_inputs_returns_ok() {
 }
 
 #[test]
-fn test_add_candidate_with_already_registered_candidate_returns_CandidateAlreadyRegistered_error() {
+fn test_add_candidate_with_already_registered_candidate_returns_candidate_already_registered_error()
+{
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let network_id: u8 = 0;

@@ -1,9 +1,10 @@
-use crate::pallet as thea_staking;
+use crate::{pallet as thea_staking, ConstU32, DispatchClass, Perbill, TransactionPriority};
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
+	pallet_prelude::Weight,
 	parameter_types,
 	traits::{
-		ConstU16, ConstU64, Currency, EitherOfDiverse, KeyOwnerProofSystem, OnUnbalanced,
+		ConstU16, ConstU64, Currency, Imbalance, KeyOwnerProofSystem, OnUnbalanced,
 		U128CurrencyToVote,
 	},
 	weights::{
@@ -19,8 +20,9 @@ use frame_system::{
 };
 use pallet_session::historical as pallet_session_historical;
 use pallet_transaction_payment::*;
-use polkadex_primitives::{AccountId, Moment};
+use polkadex_primitives::Moment;
 use smallvec::smallvec;
+use sp_consensus_babe::AuthorityId;
 use sp_core::{crypto::KeyTypeId, H256};
 use sp_runtime::{
 	curve::PiecewiseLinear,
@@ -29,12 +31,12 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, OpaqueKeys},
 	Perquintill,
 };
+use sp_std::collections::btree_map::BTreeMap;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub(crate) type Balance = u128;
-use crate::*;
 
 const PDEX: Balance = 1_000_000_000_000;
 const UNITS: Balance = PDEX;
@@ -54,12 +56,13 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
 		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
 		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
 		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
+		Session: pallet_session::{Pallet, Call, Storage, Config<T>, Event},
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>},
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
 		Historical: pallet_session_historical::{Pallet},
@@ -69,6 +72,8 @@ frame_support::construct_runtime!(
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>},
 	}
 );
+
+pub(crate) type AccountId = u64;
 
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
@@ -81,7 +86,7 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = Self::AccountId;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -91,10 +96,17 @@ impl system::Config for Test {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
+	type SystemWeightInfo = frame_system::weights::SubstrateWeight<Test>;
 	type SS58Prefix = ConstU16<42>;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+}
+
+impl pallet_authorship::Config for Test {
+	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
+	type UncleGenerations = ConstU64<0>;
+	type FilterUncle = ();
+	type EventHandler = ();
 }
 
 parameter_types! {
@@ -111,7 +123,7 @@ impl pallet_balances::Config for Test {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = ();
+	type WeightInfo = pallet_balances::weights::SubstrateWeight<Test>;
 }
 
 parameter_types! {
@@ -175,10 +187,10 @@ impl thea::pallet::Config for Test {
 }
 
 //defined trait for Session Change
-impl<Test> SessionChanged for thea::pallet::Pallet<Test> {
-	type Network = Network;
-	type OnSessionChange = OnSessionChange<u64>;
-	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {}
+impl<Test> super::SessionChanged for thea::pallet::Pallet<Test> {
+	type Network = super::Network;
+	type OnSessionChange = super::OnSessionChange<u64>;
+	fn on_new_session(_map: BTreeMap<Self::Network, Self::OnSessionChange>) {}
 }
 
 parameter_types! {
@@ -203,7 +215,7 @@ impl pallet_assets::Config for Test {
 	type StringLimit = StringLimit;
 	type Freezer = ();
 	type Extra = ();
-	type WeightInfo = ();
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Test>;
 }
 
 impl pallet_session::Config for Test {
@@ -269,7 +281,7 @@ impl pallet_election_provider_multi_phase::MinerConfig for Test {
 	}
 }
 
-struct OnChainSeqPhragmen;
+pub struct OnChainSeqPhragmen;
 
 impl onchain::Config for OnChainSeqPhragmen {
 	type System = Test;
@@ -286,9 +298,7 @@ impl onchain::BoundedConfig for OnChainSeqPhragmen {
 	type TargetsBound = ConstU32<2_000>;
 }
 
-type CouncilCollective = pallet_collective::Instance1;
-
-struct StakingBenchmarkingConfig;
+pub struct StakingBenchmarkingConfig;
 
 impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
 	type MaxValidators = ConstU32<1000>;
@@ -311,10 +321,7 @@ impl pallet_staking::Config for Test {
 	type BondingDuration = BondingDuration;
 	type SlashDeferDuration = SlashDeferDuration;
 	/// A super-majority of the council can cancel the slash.
-	type SlashCancelOrigin = EitherOfDiverse<
-		EnsureRoot<Self::AccountId>,
-		pallet_collective::EnsureProportionAtLeast<Self::AccountId, CouncilCollective, 3, 4>,
-	>;
+	type SlashCancelOrigin = EnsureRoot<Self::AccountId>;
 	type SessionInterface = Self;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type NextNewSession = Session;
@@ -355,14 +362,12 @@ impl pallet_babe::Config for Test {
 
 	type KeyOwnerProofSystem = Historical;
 
-	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		pallet_babe::AuthorityId,
-	)>>::Proof;
+	type KeyOwnerProof =
+		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::Proof;
 
 	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
-		pallet_babe::AuthorityId,
+		AuthorityId,
 	)>>::IdentificationTuple;
 
 	type HandleEquivocation =
@@ -442,11 +447,11 @@ parameter_types! {
 	pub const MinerMaxIterations: u32 = 10;
 	pub OffchainRepeat: polkadex_primitives::BlockNumber = 5;
 	pub MaxElectingVoters: u32 = 10_000;
-	const OperationalFeeMultiplier: u8 = 5;
-	const TransactionByteFee: Balance = 10 * MILLICENTS;
-	const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	const AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
-	const MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
+	pub const OperationalFeeMultiplier: u8 = 5;
+	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	pub const AdjustmentVariable: Multiplier = Multiplier::from_rational(3, 100_000);
+	pub const MinimumMultiplier: Multiplier = Multiplier::from_rational(1, 1_000_000_000u128);
 }
 
 pub struct ElectionProviderBenchmarkConfig;
@@ -499,19 +504,16 @@ impl pallet_election_provider_multi_phase::Config for Test {
 		AccountId,
 		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
 	>;
-	type ForceOrigin = EitherOfDiverse<
-		EnsureRoot<AccountId>,
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
-	>;
+	type ForceOrigin = EnsureRoot<AccountId>;
 	type BenchmarkingConfig = ElectionProviderBenchmarkConfig;
 	type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Test>;
 }
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
-struct DealWithFees;
+pub struct DealWithFees;
 
-struct WeightToFeeMock;
+pub struct WeightToFeeMock;
 
 impl WeightToFeePolynomial for WeightToFeeMock {
 	type Balance = Balance;
