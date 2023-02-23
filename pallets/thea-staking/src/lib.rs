@@ -31,12 +31,13 @@ use crate::{
 	session::{Exposure, IndividualExposure},
 };
 pub use pallet::*;
+use pallet_staking::EraPayout;
 use sp_std::vec::Vec;
 use thea_primitives::{
+	return_set_bits,
 	thea_types::{Network, OnSessionChange, SessionIndex},
 	BLSPublicKey, TheaExtrinsicSubmitted,
 };
-use pallet_staking::EraPayout;
 mod election;
 // #[cfg(test)]
 // mod mock;
@@ -469,6 +470,11 @@ pub mod pallet {
 	#[pallet::storage]
 	pub(super) type EraRewardPoints<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn era_reward_payout)]
+	pub(super) type EraRewardPayout<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, u32, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -480,11 +486,28 @@ impl<T: Config> Pallet<T> {
 	// Rewards author of extrinsic
 	// # Parameters
 	// * author: Author of the extrinsic
-	pub fn reward_by_id(author: T::AccountId) {
+	pub fn reward_by_id(author: T::AccountId, bit_map: u128, active_set: Vec<T::AccountId>) {
 		// Awarding the author of the extrinsic 50 points
 		<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), author, |current_points| {
 			*current_points += 50;
-		})
+		});
+
+		// Time complexity: O(Number of set bits)
+		for x in return_set_bits(bit_map).iter() {
+			let account = &active_set[*x as usize];
+			<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), account, |current_points| {
+				*current_points += 1;
+			})
+		}
+	}
+
+	pub fn end_of_era() {
+		// Fetch current Session
+		let _era = <CurrentIndex<T>>::get();
+		// Fetch Total Issuance for PDEX
+		// Fetch Total Staked Value for PDEX in Thea Staking
+		// Insert the Era Payout into a Storage Item
+		// Deposit an Event for the above
 	}
 
 	// Add public immutables and private mutables.
@@ -682,8 +705,12 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> TheaExtrinsicSubmitted<T::AccountId> for Pallet<T> {
-	fn thea_extrinsic_submitted(author: T::AccountId) {
-		Self::reward_by_id(author);
+	fn thea_extrinsic_submitted(
+		author: T::AccountId,
+		bit_map: u128,
+		active_set: Vec<T::AccountId>,
+	) {
+		Self::reward_by_id(author, bit_map, active_set);
 	}
 }
 
