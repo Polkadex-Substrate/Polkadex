@@ -524,6 +524,18 @@ pallet_staking_reward_curve::build! {
 	);
 }
 
+pallet_staking_reward_curve::build! {
+	const THEA_REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+		min_inflation: 0_025_000,
+		max_inflation: 0_100_000,
+		// Before, we launch the products we want 50% of supply to be staked
+		ideal_stake: 0_500_000,
+		falloff: 0_050_000,
+		max_piece_count: 40,
+		test_precision: 0_005_000,
+	);
+}
+
 parameter_types! {
 	// Six session in a an era (24 hrs)
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
@@ -1314,16 +1326,19 @@ impl thea::pallet::Config for Runtime {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type ExtrinsicSubmittedNotifier = TheaStaking;
 }
 
 //Install Staking Pallet
 parameter_types! {
-	pub const SessionLength: u32 = 50;
+	pub const SessionLength: u32 = 25;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &THEA_REWARD_CURVE;
+
 }
 
 impl thea_staking::Config for Runtime {
@@ -1336,6 +1351,7 @@ impl thea_staking::Config for Runtime {
 	type StakingDataPruneDelay = StakingDataPruneDelay;
 	type SessionChangeNotifier = Thea;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 }
 
 //Install Nomination Pool

@@ -34,8 +34,9 @@ pub use pallet::*;
 use sp_std::vec::Vec;
 use thea_primitives::{
 	thea_types::{Network, OnSessionChange, SessionIndex},
-	BLSPublicKey,
+	BLSPublicKey, TheaExtrinsicSubmitted,
 };
+use pallet_staking::EraPayout;
 mod election;
 // #[cfg(test)]
 // mod mock;
@@ -105,6 +106,9 @@ pub mod pallet {
 
 		/// Governance origin to update the thea staking configuration
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+
+		// Era Payout for set of Relayers
+		type EraPayout: EraPayout<BalanceOf<Self>>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -459,6 +463,12 @@ pub mod pallet {
 	#[pallet::getter(fn current_index)]
 	/// Active Session Index
 	pub(super) type CurrentIndex<T: Config> = StorageValue<_, SessionIndex, ValueQuery>;
+
+	// Reward Points for Relayers that submit extrinsic
+	// (era, account_id) = Reward points
+	#[pallet::storage]
+	pub(super) type EraRewardPoints<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -467,6 +477,16 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config> Pallet<T> {
+	// Rewards author of extrinsic
+	// # Parameters
+	// * author: Author of the extrinsic
+	pub fn reward_by_id(author: T::AccountId) {
+		// Awarding the author of the extrinsic 50 points
+		<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), author, |current_points| {
+			*current_points += 50;
+		})
+	}
+
 	// Add public immutables and private mutables.
 	pub fn rotate_session() {
 		let session_index = <CurrentIndex<T>>::get();
@@ -658,6 +678,12 @@ impl<T: Config> Pallet<T> {
 			session_in_consideration.saturating_sub(T::StakingDataPruneDelay::get());
 		<StakingData<T>>::remove(session_to_delete, network);
 		log::trace!(target: "runtime::thea::staking", "removing staking data of session {:?} and network {:?}", session_to_delete,network);
+	}
+}
+
+impl<T: Config> TheaExtrinsicSubmitted<T::AccountId> for Pallet<T> {
+	fn thea_extrinsic_submitted(author: T::AccountId) {
+		Self::reward_by_id(author);
 	}
 }
 
