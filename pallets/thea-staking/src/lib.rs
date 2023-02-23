@@ -17,7 +17,11 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{ensure, pallet_prelude::*, traits::NamedReservableCurrency};
+use frame_support::{
+	ensure,
+	pallet_prelude::*,
+	traits::{Currency, NamedReservableCurrency},
+};
 use sp_runtime::{
 	traits::{Get, Saturating},
 	DispatchError,
@@ -32,6 +36,7 @@ use crate::{
 };
 pub use pallet::*;
 use pallet_staking::EraPayout;
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 use thea_primitives::{
 	return_set_bits,
@@ -59,7 +64,10 @@ pub trait SessionChanged {
 // `construct_runtime`.
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{pallet_prelude::*, traits::NamedReservableCurrency};
+	use frame_support::{
+		pallet_prelude::*,
+		traits::{Currency, NamedReservableCurrency, ReservableCurrency},
+	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::Zero;
 
@@ -110,6 +118,9 @@ pub mod pallet {
 
 		// Era Payout for set of Relayers
 		type EraPayout: EraPayout<BalanceOf<Self>>;
+
+		/// Native Currency handler
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -474,7 +485,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn era_reward_payout)]
 	pub(super) type EraRewardPayout<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, u32, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -502,12 +513,31 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn end_of_era() {
-		// Fetch current Session
-		let _era = <CurrentIndex<T>>::get();
-		// Fetch Total Issuance for PDEX
-		// Fetch Total Staked Value for PDEX in Thea Staking
-		// Insert the Era Payout into a Storage Item
-		// Deposit an Event for the above
+		// FIXME: Need to remove hardcoded value
+		let era = <CurrentIndex<T>>::get();
+		let total_issuance: u32 = T::Currency::total_issuance().unique_saturated_into();
+		let eras_total_stake = Self::eras_total_stake();
+		let (era_payout, rest) =
+			T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 25);
+		<EraRewardPayout<T>>::insert(era, era_payout);
+	}
+
+	pub fn eras_total_stake() -> BalanceOf<T> {
+		// FIXME: This should be active relayers for a given an era
+		let _active_relayers = <ActiveRelayers<T>>::get(1);
+		let staking_data = <StakingData<T>>::get(<CurrentIndex<T>>::get(), 1);
+		let mut total_stake: BalanceOf<T> = 0_u32.into();
+		for (_, exposure) in staking_data {
+			let stake = exposure.total;
+			total_stake += stake
+		}
+		total_stake
+	}
+
+	pub fn do_stakers_payout(stash_account: T::AccountId, era: SessionIndex) {
+		let tota_payout = <EraRewardPayout<T>>::get(era);
+		// FIXME: Need to do how Parity is doing here, This will be fucked up or else
+		let total_rewards = <EraRewardPoints<T>>::get(era, stash_account);
 	}
 
 	// Add public immutables and private mutables.
