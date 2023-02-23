@@ -46,7 +46,8 @@ pub mod pallet {
 		normal_deposit::Deposit,
 		parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
 		thea_types::OnSessionChange,
-		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaPalletMessages, TokenType,
+		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaExtrinsicSubmitted,
+		TheaPalletMessages, TokenType,
 	};
 	use thea_staking::SessionChanged;
 	use xcm::{
@@ -107,6 +108,8 @@ pub mod pallet {
 		type WithdrawalSize: Get<u32>;
 		/// Para Id
 		type ParaId: Get<u32>;
+		/// Extrinsic Notifier for rewards
+		type ExtrinsicSubmittedNotifier: TheaExtrinsicSubmitted<Self::AccountId>;
 	}
 
 	#[pallet::pallet]

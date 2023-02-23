@@ -29,6 +29,7 @@ pallet-assets = { workspace = true, default-features = false }
 thea-primitives = { path = "../../thea-primitives", default-features = false }
 asset-handler = { path = "../asset-handler", default-features = false }
 chainbridge = { path = "../chainbridge", default-features = false }
+pallet-staking = { default-features = false, workspace = true }
 
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
