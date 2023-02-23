@@ -57,7 +57,6 @@ const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
-#[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
@@ -70,7 +69,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
-	use sp_std::{cmp::min, convert::TryInto};
+	use sp_std::cmp::min;
 
 	pub trait RewardsWeightInfo {
 		fn create_reward_cycle(_b: u32, _i: u32, _r: u32) -> Weight;
