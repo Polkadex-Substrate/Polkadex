@@ -5,11 +5,14 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
+use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::{
+	curve::PiecewiseLinear,
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+use std::collections::BTreeSet;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -29,7 +32,6 @@ frame_support::construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
 		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
-		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>},
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -66,6 +68,22 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 
+pallet_staking_reward_curve::build! {
+	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+		min_inflation: 0_025_000,
+		max_inflation: 0_100_000,
+		// Before, we launch the products we want 50% of supply to be staked
+		ideal_stake: 0_100_000,
+		falloff: 0_050_000,
+		max_piece_count: 40,
+		test_precision: 0_005_000,
+	);
+}
+
+parameter_types! {
+	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+}
+
 impl pallet_balances::Config for Test {
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = MaxReserves;
@@ -95,7 +113,23 @@ impl thea_staking::Config for Test {
 	type CandidateBond = CandidateBond;
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
-	type SessionChangeNotifier = Thea;
+	type SessionChangeNotifier = MockPallet;
+	type GovernanceOrigin = EnsureRoot<u64>;
+	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
+	type Currency = Balances;
+}
+
+pub struct MockPallet(PhantomData<u32>);
+
+impl SessionChanged for MockPallet {
+	type Network = Network;
+	type OnSessionChange = OnSessionChange<u64>;
+	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+		// Do nothing lol
+	}
+	fn set_new_networks(networks: BTreeSet<Self::Network>) {
+		// Do nothing lol
+	}
 }
 
 parameter_types! {
@@ -136,21 +170,21 @@ parameter_types! {
 	pub const ParaId: u32 = 2040;
 }
 
-impl thea::pallet::Config for Test {
-	type Event = Event;
-	type Currency = Balances;
-	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
-	type TheaPalletId = TheaPalletId;
-	type WithdrawalSize = WithdrawalSize;
-	type ParaId = ParaId;
-}
+// impl thea::pallet::Config for Test {
+// 	type Event = Event;
+// 	type Currency = Balances;
+// 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+// 	type TheaPalletId = TheaPalletId;
+// 	type WithdrawalSize = WithdrawalSize;
+// 	type ParaId = ParaId;
+// }
 
 //defined trait for Session Change
-impl<Test> SessionChanged for thea::pallet::Pallet<Test> {
-	type Network = Network;
-	type OnSessionChange = OnSessionChange<u64>;
-	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {}
-}
+// impl<Test> SessionChanged for thea::pallet::Pallet<Test> {
+// 	type Network = Network;
+// 	type OnSessionChange = OnSessionChange<u64>;
+// 	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {}
+// }
 
 parameter_types! {
 	pub const AssetDeposit: Balance = 100;

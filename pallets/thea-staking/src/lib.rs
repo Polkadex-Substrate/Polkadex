@@ -44,11 +44,11 @@ use thea_primitives::{
 	BLSPublicKey, TheaExtrinsicSubmitted,
 };
 mod election;
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 mod session;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
@@ -140,6 +140,7 @@ pub mod pallet {
 		fn on_initialize(current_block_num: T::BlockNumber) -> Weight {
 			if Self::should_end_session(current_block_num) {
 				Self::rotate_session();
+				Self::end_of_era();
 				T::BlockWeights::get().max_block
 			} else {
 				// NOTE: the non-database part of the weight for `should_end_session(n)` is
@@ -171,7 +172,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Adds the sender as a candidate for election and to the waitlist for selection.
+		/// Adds the sender as a candidate for election and to the   for selection.
 		///
 		/// # Parameters
 		///
@@ -302,6 +303,18 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			Self::do_remove_network(network);
 			Self::deposit_event(Event::<T>::NetworkRemoved { network });
+			Ok(())
+		}
+
+		#[pallet::call_index(9)]
+		#[pallet::weight(10000)]
+		pub fn stakers_payout(
+			origin: OriginFor<T>,
+			network: Network,
+			session: SessionIndex,
+		) -> DispatchResult {
+			let staker = ensure_signed(origin)?;
+			Self::do_stakers_payout(staker, session);
 			Ok(())
 		}
 	}
@@ -518,18 +531,18 @@ impl<T: Config> Pallet<T> {
 		let total_issuance: u32 = T::Currency::total_issuance().unique_saturated_into();
 		let eras_total_stake = Self::eras_total_stake();
 		let (era_payout, rest) =
-			T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 25);
+			T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 1400);
 		<EraRewardPayout<T>>::insert(era, era_payout);
 	}
 
 	pub fn eras_total_stake() -> BalanceOf<T> {
 		// FIXME: This should be active relayers for a given an era
 		let _active_relayers = <ActiveRelayers<T>>::get(1);
-		let staking_data = <StakingData<T>>::get(<CurrentIndex<T>>::get(), 1);
+		let staking_data = <StakingData<T>>::get(<CurrentIndex<T>>::get(), 0);
 		let mut total_stake: BalanceOf<T> = 0_u32.into();
 		for (_, exposure) in staking_data {
 			let stake = exposure.total;
-			total_stake += stake
+			total_stake += stake;
 		}
 		total_stake
 	}
@@ -538,6 +551,9 @@ impl<T: Config> Pallet<T> {
 		let tota_payout = <EraRewardPayout<T>>::get(era);
 		// FIXME: Need to do how Parity is doing here, This will be fucked up or else
 		let total_rewards = <EraRewardPoints<T>>::get(era, stash_account);
+		// Calculate total rewards, for now this is 100%
+		let validator_payout = tota_payout.saturating_mul(1_u32.into());
+		// TODO: Calculate rewards with clarity
 	}
 
 	// Add public immutables and private mutables.
@@ -550,8 +566,10 @@ impl<T: Config> Pallet<T> {
 		for network in active_networks {
 			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
 			// 1. Move queued_relayers to active_relayers
+			// Fine this looks fine
 			let active = Self::move_queued_to_active(network);
 			map.insert(network, active);
+			// Wtf is this
 			Self::compute_next_session(network, session_index);
 		}
 		// Increment SessionIndex
@@ -711,6 +729,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {
+		// Wait wtf, why is this 2? Fuck
+		// This affects genesis session, fine
 		let session_in_consideration = expiring_session_index.saturating_add(2);
 		log::trace!(target: "runtime::thea::staking", "computing relayers of session {:?}", session_in_consideration);
 		// Get new queued_relayers and store them

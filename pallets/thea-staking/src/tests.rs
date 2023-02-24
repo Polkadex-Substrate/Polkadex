@@ -2,8 +2,8 @@ use crate as thea_staking;
 use crate::{
 	mock::*,
 	session::{StakingLimits, UnlockChunk},
-	ActiveNetworks, CurrentIndex, Error, Event, Exposure, IndividualExposure, StakingData,
-	Stakinglimits,
+	ActiveNetworks, CurrentIndex, EraRewardPayout, EraRewardPoints, Error, Event, Exposure, Hooks,
+	IndividualExposure, StakingData, Stakinglimits,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -433,7 +433,9 @@ fn test_rotate_session() {
 fn rotate_session_init() {
 	let current_session = 1;
 	<CurrentIndex<Test>>::put(current_session);
-	<ActiveNetworks<Test>>::put(vec![0]);
+	let mut set = BTreeSet::new();
+	set.insert(0);
+	<ActiveNetworks<Test>>::put(set);
 	register_candidate();
 	register_new_candidate(2, 0, BLSPublicKey([2; 192]));
 	insert_staking_limit();
@@ -459,6 +461,7 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		register_candidate();
 		insert_staking_limit();
 		register_nominator();
+		assert_eq!(Balances::total_issuance(), 0);
 		let nominator = 2u64;
 		let candidate = 1u64;
 		let network_id = 0;
@@ -476,6 +479,31 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 			unlocking: vec![UnlockChunk { value: 1000000000000, era: 10 }],
 		};
 		assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
+	})
+}
+
+use thea_primitives::TheaExtrinsicSubmitted;
+const SESSION_LENGTH: u32 = 10;
+#[test]
+fn test_reward_payout() {
+	new_test_ext().execute_with(|| {
+		register_candidate();
+		insert_staking_limit();
+		let mut active_set = BTreeSet::new();
+		active_set.insert(0);
+		ActiveNetworks::<Test>::put(active_set);
+		// Get Current SessionId
+		assert_eq!(CurrentIndex::<Test>::get(), 0);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		assert_eq!(CurrentIndex::<Test>::get(), 1);
+		// assert_eq!(EraRewardPayout::<Test>::get(0), 0);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		// assert_eq!(EraRewardPayout::<Test>::get(1), 0);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::thea_extrinsic_submitted(1, 0, vec![]);
+		// assert_eq!(EraRewardPayout::<Test>::get(2), 0);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(1), 3, 1));
 	})
 }
 
