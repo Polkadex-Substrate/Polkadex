@@ -24,6 +24,7 @@
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
 	construct_runtime,
+	instances::Instance1,
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{
@@ -524,17 +525,17 @@ pallet_staking_reward_curve::build! {
 	);
 }
 
-pallet_staking_reward_curve::build! {
-	const THEA_REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		// Before, we launch the products we want 50% of supply to be staked
-		ideal_stake: 0_500_000,
-		falloff: 0_050_000,
-		max_piece_count: 40,
-		test_precision: 0_005_000,
-	);
-}
+// pallet_staking_reward_curve::build! {
+// 	const THEA_REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+// 		min_inflation: 0_025_000,
+// 		max_inflation: 0_100_000,
+// 		// Before, we launch the products we want 50% of supply to be staked
+// 		ideal_stake: 0_500_000,
+// 		falloff: 0_050_000,
+// 		max_piece_count: 40,
+// 		test_precision: 0_005_000,
+// 	);
+// }
 
 parameter_types! {
 	// Six session in a an era (24 hrs)
@@ -1337,7 +1338,7 @@ parameter_types! {
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
-	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &THEA_REWARD_CURVE;
+	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 
 }
 

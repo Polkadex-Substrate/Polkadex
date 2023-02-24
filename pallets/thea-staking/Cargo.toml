@@ -34,6 +34,8 @@ pallet-staking = { default-features = false, workspace = true }
 [dev-dependencies]
 sp-core = { default-features = false, workspace = true }
 thea = { path = "../thea", default-features = false }
+pallet-staking-reward-curve = { workspace = true }
+pallet-staking = { default-features = false, workspace = true }
 
 [features]
 default = ["std"]
