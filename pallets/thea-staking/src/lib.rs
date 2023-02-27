@@ -57,11 +57,12 @@ pub trait SessionChanged {
 // `construct_runtime`.
 #[frame_support::pallet]
 pub mod pallet {
+	use crate::session::{Exposure, IndividualExposure, StakingLimits};
 	use frame_support::{pallet_prelude::*, traits::NamedReservableCurrency};
 	use frame_system::pallet_prelude::*;
+	use polkadex_primitives::misbehavior::TheaMisbehavior;
+	use scale_info::prelude::string::String;
 	use sp_runtime::traits::Zero;
-
-	use crate::session::{Exposure, IndividualExposure, StakingLimits};
 	// Import various types used to declare pallet in scope.
 	use super::*;
 
@@ -94,6 +95,23 @@ pub mod pallet {
 		/// StakingReserveIdentifier
 		#[pallet::constant]
 		type StakingReserveIdentifier: Get<<Self as pallet_balances::Config>::ReserveIdentifier>;
+
+		/// Coeficient for moderate misbehavior slashing.
+		/// Represents 1 to 100 percent of stake.
+		/// Should remain within those bounds.
+		#[pallet::constant]
+		type ModerateSlashingCoeficient: Get<u8>;
+
+		/// Coeficient for severe misbehavior slashing.
+		/// Represents 1 to 100 percent of stake.
+		/// Should remain within those bounds.
+		#[pallet::constant]
+		type SevereSlashingCoeficient: Get<u8>;
+
+		/// Threshold of reported relayers required for slashing to happen.
+		/// Represents percentage of active vs reported relayers.
+		#[pallet::constant]
+		type SlashingThreshold: Get<u8>;
 
 		/// Delay to prune oldest staking data
 		type StakingDataPruneDelay: Get<SessionIndex>;
@@ -288,6 +306,52 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::NetworkRemoved { network });
 			Ok(())
 		}
+
+		/// Allows active relayers report one another for free of any predefined misbehavior
+		/// If number of reporters is >= of given coeficient - slashing for pre-set coeficient
+		/// happens If reporter is part of active set - this call's fee is not apply
+		/// Full weight is payed on error
+		#[pallet::call_index(9)]
+		#[pallet::weight(1_000_000)]
+		pub fn report_offence(
+			origin: OriginFor<T>,
+			network_id: u8,
+			offender: T::AccountId,
+			offence: TheaMisbehavior,
+		) -> DispatchResultWithPostInfo {
+			let reporter = ensure_signed(origin)?;
+			// make sure it's active relayer reporting
+			ensure!(
+				<ActiveRelayers<T>>::get(network_id).iter().any(|(r, _)| r.eq(&reporter)),
+				"".into()
+			);
+			// check for re-submit
+			//FIXME: should we charge for sequential report of same offence by same reporter?
+			ensure!(
+				<ReportedOffenders<T>>::get(offender, offence)
+					.some(|reports| !reports.contains(&reporter)),
+				"Repeated report of same offence".into()
+			);
+			// check if coeficient treshold reached and act
+			let threshold = Self::threshold_slashing_coeficient();
+			let active_relayers = <ActiveRelayers<T>>::get(network_id).len();
+			if let Some(reported) = <ReportedOffenders<T>>::get(offender, offence) {
+				if reported.len() + 1 + (threshold as usize) >= active_relayers {
+					// slash
+					// <CommitedSlashing<T>> -> store commitment to slash so it can be applyed on
+					// era end FIXME: make sure total slash <= offender's stake + reward?
+				} else {
+					// extend storage
+				}
+			} else {
+				// register first one
+				<ReportedOffenders<T>>::insert(offender, offence, [reporter].to_vec());
+				Self::deposit_event(Event::<T>::OffenceReported { offender, reporter, offence });
+			}
+
+			// if not reached and offence is not yet scheduled - store report
+			Ok(Pays::No.into())
+		}
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -338,6 +402,16 @@ pub mod pallet {
 		BondsWithdrawn {
 			nominator: T::AccountId,
 			amount: BalanceOf<T>,
+		},
+
+		/// Misconfigured Coeficient
+		MisconfiguredCoeficient(String),
+
+		/// Active relayer reported misbehavior
+		OffenceReported {
+			offender: T::AccountId,
+			reporter: T::AccountId,
+			offence: TheaMisbehavior,
 		},
 	}
 
@@ -459,6 +533,22 @@ pub mod pallet {
 	#[pallet::getter(fn current_index)]
 	/// Active Session Index
 	pub(super) type CurrentIndex<T: Config> = StorageValue<_, SessionIndex, ValueQuery>;
+
+	/// Reported offenders in current era
+	#[pallet::storage]
+	#[pallet::getter(fn reported_offenders)]
+	pub(super) type ReportedOffenders<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		// Offender ID
+		T::AccountId,
+		Blake2_128Concat,
+		// Commited misbehavior
+		TheaMisbehavior,
+		// Reporters
+		Vec<T::AccountId>,
+		OptionQuery,
+	>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -658,6 +748,39 @@ impl<T: Config> Pallet<T> {
 			session_in_consideration.saturating_sub(T::StakingDataPruneDelay::get());
 		<StakingData<T>>::remove(session_to_delete, network);
 		log::trace!(target: "runtime::thea::staking", "removing staking data of session {:?} and network {:?}", session_to_delete,network);
+	}
+
+	// making sure we're not exceeding 100% and not below 1%
+	fn moderate_slashing_coeficient() -> u8 {
+		let set = T::ModerateSlashingCoeficient::get();
+		if set > 100 || set < 1 {
+			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Moderate".into()));
+			5
+		} else {
+			set
+		}
+	}
+
+	// making sure we're not exceeding 100% and not below 1%
+	fn severe_slashing_coeficient() -> u8 {
+		let set = T::SevereSlashingCoeficient::get();
+		if set > 100 || set < 1 {
+			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Severe".into()));
+			20
+		} else {
+			set
+		}
+	}
+
+	// making sure we're not exceeding 100% and not below 1%
+	fn threshold_slashing_coeficient() -> u8 {
+		let set = T::SlashingThreshold::get();
+		if set > 100 || set < 1 {
+			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Threshold".into()));
+			60
+		} else {
+			set
+		}
 	}
 }
 
