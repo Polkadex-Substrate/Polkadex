@@ -22,10 +22,13 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{Currency, NamedReservableCurrency},
 };
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Get, Saturating},
-	DispatchError,
+	DispatchError, Perbill, SaturatedConversion,
 };
+use sp_std::borrow::ToOwned;
 use sp_staking::{EraIndex, StakingInterface};
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -49,6 +52,12 @@ mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
+pub struct EraRewardPointTracker<Account> {
+	pub total_points: u32,
+	pub individual: BTreeMap<Account, u32>,
+}
 
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
@@ -493,12 +502,33 @@ pub mod pallet {
 	// (era, account_id) = Reward points
 	#[pallet::storage]
 	pub(super) type EraRewardPoints<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u32, EraRewardPointTracker<T::AccountId>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn era_reward_payout)]
 	pub(super) type EraRewardPayout<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
+
+	#[pallet::storage]
+	/// Stores the economic conditions of all candidates who are disabled for misbehaviour
+	pub(super) type TotalSessionStake<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		u32,
+		BalanceOf<T>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	/// Stores the economic conditions of all candidates who are disabled for misbehaviour
+	pub(super) type TotalElectedRelayers<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		u32,
+		Vec<(T::AccountId, Exposure<T>)>,
+		ValueQuery,
+	>;
+
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -511,26 +541,31 @@ impl<T: Config> Pallet<T> {
 	// # Parameters
 	// * author: Author of the extrinsic
 	pub fn reward_by_id(author: T::AccountId, bit_map: u128, active_set: Vec<T::AccountId>) {
-		// Awarding the author of the extrinsic 50 points
-		<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), author, |current_points| {
-			*current_points += 50;
+		<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), |tracker| {
+			if let Some(tracker) = tracker {
+				tracker.total_points += 50;
+				if let Some(existing_points) = tracker.individual.get_mut(&author) {
+					*existing_points += 50;
+				} else {
+					tracker.individual.insert(author, 50);
+				}
+			} else {
+				let mut btree_map: BTreeMap<T::AccountId, u32> = BTreeMap::new();
+				btree_map.insert(author, 50);
+				let points_tracker: EraRewardPointTracker<T::AccountId> =
+					EraRewardPointTracker { total_points: 50, individual: btree_map };
+				*tracker = Some(points_tracker);
+			}
 		});
-
-		// Time complexity: O(Number of set bits)
-		for x in return_set_bits(bit_map).iter() {
-			let account = &active_set[*x as usize];
-			<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), account, |current_points| {
-				*current_points += 1;
-			})
-		}
 	}
 
 	pub fn end_of_era() {
 		// FIXME: Need to remove hardcoded value
 		let era = <CurrentIndex<T>>::get();
 		let total_issuance: u32 = T::Currency::total_issuance().unique_saturated_into();
-		let eras_total_stake = Self::eras_total_stake();
-		let (era_payout, rest) =
+		let eras_total_stake = <TotalSessionStake<T>>::get(era);
+		// FIXME: This hardcoded value needs to be updated
+		let (era_payout, _rest) =
 			T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 1400);
 		<EraRewardPayout<T>>::insert(era, era_payout);
 	}
@@ -548,12 +583,46 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_stakers_payout(stash_account: T::AccountId, era: SessionIndex) {
-		let tota_payout = <EraRewardPayout<T>>::get(era);
+		let total_payout = <EraRewardPayout<T>>::get(era);
+		let mut relayer_part: Perbill = Perbill::default();
 		// FIXME: Need to do how Parity is doing here, This will be fucked up or else
-		let total_rewards = <EraRewardPoints<T>>::get(era, stash_account);
-		// Calculate total rewards, for now this is 100%
-		let validator_payout = tota_payout.saturating_mul(1_u32.into());
-		// TODO: Calculate rewards with clarity
+		if let Some(rewards) = <EraRewardPoints<T>>::get(era) {
+			relayer_part = Perbill::from_rational(
+				rewards.total_points,
+				*rewards.individual.get(&stash_account).unwrap(),
+			);
+		}
+		let relayer_payout = relayer_part * total_payout;
+		// 1. Calculate Nominators Payout
+		// Get Exposure for the given relayer
+		let total_elected_relayers = <TotalElectedRelayers<T>>::get(era);
+		let exposure = total_elected_relayers
+			.iter()
+			.filter(|(account_id, exposure)| *account_id == stash_account)
+			.fold(Exposure::new(BLSPublicKey([0_u8; 192])), |_, i| {
+				i.1.to_owned()
+			});
+		let total_stake = exposure.total;
+		let individual_part = Perbill::from_rational(exposure.individual, total_stake);
+		let individual_payout = individual_part * relayer_payout;
+		// Mint it to the Relayer
+		let individual_payout: u32 = individual_payout.unique_saturated_into();
+		T::Currency::deposit_into_existing(&stash_account, individual_payout.into());
+
+
+		for nominator in exposure.stakers{
+			// Get Exposure of Stakers
+			if let Some(nominator_exposure) = <Stakers<T>>::get(&nominator) {
+				let nominator_stake = nominator_exposure.value;
+				let nominator_part = Perbill::from_rational(nominator_stake, total_stake);
+				// TODO: Check if backing is the same
+				let nominator_payout = nominator_part * relayer_payout;
+				let nominator_payout: u32 = nominator_payout.unique_saturated_into();
+				// Mint Rewards for Nominators
+				T::Currency::deposit_into_existing(&nominator, nominator_payout.into());
+
+			}
+		}
 	}
 
 	// Add public immutables and private mutables.
@@ -743,6 +812,20 @@ impl<T: Config> Pallet<T> {
 			.iter()
 			.map(|(relayer, exp)| (relayer.clone(), exp.bls_pub_key))
 			.collect::<Vec<(T::AccountId, BLSPublicKey)>>();
+
+		// Calculate the total stake for these relayers
+		let total_stake = elected_relayers
+			.iter()
+			.map(|(relayer, exp)| exp.total)
+			.fold(0_u32.into(), |sum: BalanceOf<T>, i| {
+				sum.saturating_add(i)
+			});
+		<TotalSessionStake<T>>::mutate(session_in_consideration, |existing_stake| {
+			existing_stake.saturating_add(total_stake);
+		});
+		<TotalElectedRelayers<T>>::mutate(session_in_consideration, |list_of_relayers|{
+			list_of_relayers.extend(elected_relayers.clone());
+		});
 		<StakingData<T>>::insert(session_in_consideration, network, elected_relayers);
 		<QueuedRelayers<T>>::insert(network, relayers);
 		log::trace!(target: "runtime::thea::staking", "relayers of network {:?} queued for session {:?} ", network,session_in_consideration);
