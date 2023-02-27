@@ -1,13 +1,17 @@
 use crate::{
 	mock,
 	mock::{new_test_ext, Test, *},
-	pallet::*,
-	AssetIdOf,
-	ChargeAssetTransactionPayment
+	pallet::AllowedAssets,
+	AssetIdOf, ChargeAssetTransactionPayment,
 };
-use frame_support::{assert_noop, assert_ok, weights::{DispatchInfo,Weight} };
+use frame_support::{
+	assert_noop, assert_ok,
+	pallet_prelude::Pays,
+	weights::{DispatchInfo, PostDispatchInfo, Weight},
+};
+use pallet_balances::Call as BalancesCall;
 use polkadex_primitives::{AccountId, AssetId, UNIT_BALANCE};
-use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::{traits::SignedExtension, DispatchError::BadOrigin, SaturatedConversion};
 
 pub const ALICE_ACCOUNT_RAW_ID: [u8; 32] = [0; 32];
 
@@ -42,10 +46,10 @@ fn block_token_for_fees_when_token_not_allowlisted() {
 	new_test_ext().execute_with(|| {
 		let asset = 1_u128;
 		//ToDo: Remove comment after fix
-		// assert_noop!(AssetsTransactionPayment::block_token_for_fees(Origin::root(), Error::<Test>::TokenNotAllowlisted));
+		// assert_noop!(AssetsTransactionPayment::block_token_for_fees(Origin::root(),
+		// Error::<Test>::TokenNotAllowlisted));
 	});
 }
-
 
 #[test]
 fn block_token_for_fees() {
@@ -58,32 +62,68 @@ fn block_token_for_fees() {
 	});
 }
 
-
 pub fn info_from_weight(w: Weight) -> DispatchInfo {
 	// pays_fee: Pays::Yes -- class: DispatchClass::Normal
 	DispatchInfo { weight: w, ..Default::default() }
 }
-// const CALL: &<Test as frame_system::Config>::Call =
-// 	&Call::Balances(BalancesCall::transfer { dest: 2, value: 69 });
 
+fn post_info_from_weight(w: Weight) -> PostDispatchInfo {
+	PostDispatchInfo { actual_weight: Some(w), pays_fee: Default::default() }
+}
+
+fn info_from_pays(p: Pays) -> DispatchInfo {
+	DispatchInfo { pays_fee: p, ..Default::default() }
+}
+
+fn post_info_from_pays(p: Pays) -> PostDispatchInfo {
+	PostDispatchInfo { actual_weight: None, pays_fee: p }
+}
+
+fn default_post_info() -> PostDispatchInfo {
+	PostDispatchInfo { actual_weight: None, pays_fee: Default::default() }
+}
 
 #[test]
-fn withdraw_fee() {
+fn transaction_payment_in_native_possible() {
 	new_test_ext().execute_with(|| {
-		let asset_id = 1_u128;
-		let tip = 0;
-		let signature_scheme = 0;
 		let weight = 5;
-		let account = get_alice_account();
-		let len = 0_usize;
-		let charge_asset_transaction = ChargeAssetTransactionPayment::<Test> {
-			asset_id,
-			tip,
-			signature_scheme
-		};
+		let len = 10;
+		let asset_id = 0_u128;
+		let min_balance = 2;
+		let balance = 100 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
 
-		charge_asset_transaction.withdraw_fee(&account, AssetsTransactionPayment::Call, &info_from_weight(weight), len);
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
 
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 69.saturated_into(),
+		});
 
-	});
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip: 0 };
+
+		let pre_dispatch_result = charge_asset_transaction_payment.pre_dispatch(
+			&get_alice_account(),
+			call,
+			&info_from_weight(weight),
+			len,
+		);
+		assert!(pre_dispatch_result.is_ok());
+
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+
+		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+			Some(pre_dispatch_result.unwrap()),
+			&info_from_weight(weight),
+			&post_info_from_weight(weight),
+			len,
+			&Ok(())
+		));
+
+		//ToDo: Assert balances
+		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+	})
 }

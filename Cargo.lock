@@ -207,6 +207,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-assets",
+ "pallet-authorship",
  "pallet-balances",
  "pallet-bounties",
  "pallet-child-bounties",

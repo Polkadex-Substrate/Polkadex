@@ -1,12 +1,13 @@
 use crate::{
+	pallet as xyz_transaction_payment,
 	payment::{HandleSwap, NegativeImbalanceOf},
 	*,
 };
 use frame_support::{
 	parameter_types,
 	traits::{
-		fungibles::CreditOf, ConstU128, ConstU64, Currency, EitherOfDiverse, OnTimestampSet,
-		OnUnbalanced,
+		fungibles::CreditOf, ConstU128, ConstU32, ConstU64, Currency, EitherOfDiverse,
+		OnTimestampSet, OnUnbalanced,
 	},
 	weights::{
 		constants::ExtrinsicBaseWeight, ConstantMultiplier, WeightToFeeCoefficient,
@@ -26,8 +27,6 @@ use sp_runtime::{
 	FixedPointNumber, Perbill, Percent, Permill, Perquintill, SaturatedConversion,
 };
 use sp_std::cell::RefCell;
-
-use crate::pallet as xyz_transaction_payment;
 
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
 
@@ -60,10 +59,7 @@ frame_support::construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>},
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
 		AssetsTransactionPayment: xyz_transaction_payment::{Pallet, Call, Storage, Event<T>},
-		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
-		ChildBounties: pallet_child_bounties,
 	}
 );
 
@@ -100,12 +96,12 @@ impl frame_system::Config for Test {
 
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
-	type MaxReserves = ();
+	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = [u8; 8];
 	type Balance = u128;
 	type DustRemoval = ();
 	type Event = Event;
-	type ExistentialDeposit = ConstU128<1>;
+	type ExistentialDeposit = ConstU128<10>;
 	type AccountStore = System;
 	type WeightInfo = ();
 }
@@ -117,17 +113,18 @@ impl WeightToFeePolynomial for WeightToFee {
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		let p: Balance = 1_000_000_000_000;
 		let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
-		smallvec![WeightToFeeCoefficient {
+		let result = smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
 			coeff_frac: Perbill::from_rational(p % q, q),
 			coeff_integer: p / q,
-		}]
+		}];
+		result
 	}
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10;
+	pub const TransactionByteFee: Balance = 1;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
@@ -136,12 +133,11 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Test {
 	type Event = Event;
-	type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
+	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-	type FeeMultiplierUpdate =
-		TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+	type FeeMultiplierUpdate = ();
 }
 use polkadex_primitives::AccountId;
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
@@ -152,11 +148,11 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub const AssetDeposit: u128 = 100;
-	pub const ApprovalDeposit: u128 = 1;
-	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: u128 = 10;
-	pub const MetadataDepositPerByte: u128 = 1;
+	pub const AssetDeposit: u128 = 2;
+	pub const ApprovalDeposit: u128 = 0;
+	pub const StringLimit: u32 = 20;
+	pub const MetadataDepositBase: u128 = 0;
+	pub const MetadataDepositPerByte: u128 = 0;
 }
 
 impl pallet_assets::Config for Test {
@@ -191,71 +187,6 @@ impl pallet_timestamp::Config for Test {
 	type Moment = Moment;
 	type OnTimestampSet = MockOnTimestampSet;
 	type MinimumPeriod = ConstU64<5>;
-	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 100;
-	pub const SpendPeriod: BlockNumber = 24;
-	pub const Burn: Permill = Permill::from_percent(0);
-	pub const TipCountdown: BlockNumber = 10;
-	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = 100;
-	pub const DataDepositPerByte: Balance = 100;
-	pub const BountyDepositBase: Balance = 100;
-	pub const BountyDepositPayoutDelay: BlockNumber = 8;
-	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const BountyUpdatePeriod: BlockNumber = 90;
-	pub const MaximumReasonLength: u32 = 16384;
-	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-	pub const BountyValueMinimum: Balance = 10;
-	pub const MaxApprovals: u32 = 100;
-	pub const MaxActiveChildBountyCount: u32 = 5;
-	pub const ChildBountyValueMinimum: Balance = 100;
-	pub const CuratorDepositMax: Balance = 100;
-	pub const CuratorDepositMin: Balance = 10;
-	pub const ChildBountyCuratorDepositBase: Permill = Permill::from_percent(10);
-}
-
-impl pallet_treasury::Config for Test {
-	type PalletId = TreasuryPalletId;
-	type Currency = Balances;
-	type ApproveOrigin = EnsureRoot<sp_runtime::AccountId32>;
-	type RejectOrigin = EnsureRoot<sp_runtime::AccountId32>;
-	type Event = Event;
-	type OnSlash = ();
-	type ProposalBond = ProposalBond;
-	type ProposalBondMinimum = ProposalBondMinimum;
-	type SpendPeriod = SpendPeriod;
-	type Burn = Burn;
-	type BurnDestination = ();
-	type SpendFunds = Bounties;
-	type WeightInfo = ();
-	type MaxApprovals = MaxApprovals;
-	type ProposalBondMaximum = ();
-	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
-}
-
-impl pallet_bounties::Config for Test {
-	type Event = Event;
-	type BountyDepositBase = BountyDepositBase;
-	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
-	type BountyUpdatePeriod = BountyUpdatePeriod;
-	type BountyValueMinimum = BountyValueMinimum;
-	type DataDepositPerByte = DataDepositPerByte;
-	type MaximumReasonLength = MaximumReasonLength;
-	type WeightInfo = ();
-	type ChildBountyManager = ChildBounties;
-	type CuratorDepositMultiplier = BountyCuratorDeposit;
-	type CuratorDepositMax = CuratorDepositMax;
-	type CuratorDepositMin = CuratorDepositMin;
-}
-
-impl pallet_child_bounties::Config for Test {
-	type MaxActiveChildBountyCount = MaxActiveChildBountyCount;
-	type ChildBountyValueMinimum = ChildBountyValueMinimum;
-	type Event = Event;
 	type WeightInfo = ();
 }
 
