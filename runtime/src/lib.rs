@@ -1324,6 +1324,8 @@ parameter_types! {
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const ModerateSK: u8 = 5; // 5% of stake to slash
+	pub const SevereSK: u8 = 20; // 20% of stake to slash
 }
 
 impl thea_staking::Config for Runtime {
@@ -1334,6 +1336,8 @@ impl thea_staking::Config for Runtime {
 	type CandidateBond = CandidateBond;
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
+	type ModerateSlashingCoeficient = ModerateSK;
+	type SevereSlashingCoeficient = SevereSK;
 	type SessionChangeNotifier = Thea;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 }
