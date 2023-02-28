@@ -340,9 +340,28 @@ pub mod pallet {
 				if reported.len() + 1 + (threshold as usize) >= active_relayers {
 					// slash
 					// <CommitedSlashing<T>> -> store commitment to slash so it can be applyed on
+					let coeficient = match offence {
+						// Severe
+						TheaMisbehavior::UnattendedKeygen | TheaMisbehavior::UnattendedOffline =>
+							Self::severe_slashing_coeficient(),
+						// Moderate
+						_ => Self::moderate_slashing_coeficient(),
+					};
+					// at most 100% will be slashed
 					// era end FIXME: make sure total slash <= offender's stake + reward?
+					<CommitedSlashing<T>>::mutate(&offender, |current_slashing| {
+						let new_percentage = *current_slashing + coeficient;
+						let actual_percentage =
+							if new_percentage >= 100 { 100 } else { new_percentage };
+						*current_slashing = actual_percentage;
+					});
 				} else {
 					// extend storage
+					<ReportedOffenders<T>>::mutate(offender.clone(), offence, |offences| {
+						if let Some(offences) = offences {
+							offences.push(reporter.clone());
+						}
+					});
 				}
 			} else {
 				// register first one
@@ -351,8 +370,8 @@ pub mod pallet {
 					offence,
 					[reporter.clone()].to_vec(),
 				);
-				Self::deposit_event(Event::<T>::OffenceReported { offender, reporter, offence });
 			}
+			Self::deposit_event(Event::<T>::OffenceReported { offender, reporter, offence });
 
 			// if not reached and offence is not yet scheduled - store report
 			Ok(Pays::No.into())
@@ -558,6 +577,14 @@ pub mod pallet {
 		Vec<T::AccountId>,
 		OptionQuery,
 	>;
+
+	/// Summ of commited slashing for each relayer in current era
+	/// Calculated based on reports from <ReportedOffenders<T>> storage
+	/// Represents how many percent will be slashed from given receiver's stake on era end
+	#[pallet::storage]
+	#[pallet::getter(fn commited_slashing)]
+	pub(super) type CommitedSlashing<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, u8, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
