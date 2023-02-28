@@ -78,6 +78,7 @@ pub mod pallet {
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
+	use polkadex_primitives::withdrawal::SnapshotSummary;
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
@@ -746,6 +747,76 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// New Submit Snapshot
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		pub fn new_submit_snapshot(origin: OriginFor<T>, snapshot_summary: SnapshotSummary, signature: T::Signature, ias_report: Vec<u8>) -> DispatchResult {
+			let _ = ensure_signed(origin)?;
+			// Verify Report
+			let cv: u64 = <CertificateValidity<T>>::get();
+			let report = verify_ias_report(&ias_report, cv)
+				.map_err(|_| Error::<T>::RemoteAttestationVerificationFailed)?;
+
+			ensure!(
+				(report.status == SgxStatus::Ok) |
+					(report.status == SgxStatus::ConfigurationNeeded),
+				<Error<T>>::InvalidSgxReportStatus
+			);
+
+			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
+				.map_err(|_| Error::<T>::SenderIsNotAttestedEnclave)?;
+
+			ensure!(
+				enclave_signer != T::AccountId::decode(&mut [0u8; 32].as_slice()).unwrap(),
+				<Error<T>>::SenderIsNotAttestedEnclave
+			);
+			ensure!(
+				<AllowlistedEnclaves<T>>::get(&enclave_signer),
+				<Error<T>>::EnclaveNotAllowlisted
+			);
+			ensure!(
+				signature.verify(snapshot_summary.encode().as_slice(), &enclave_signer),
+				Error::<T>::EnclaveSignatureVerificationFailed
+			);
+			// Verify snapshot Id
+			let last_snapshot_serial_number =
+				if let Some(last_snapshot_number) = <NewSnapshotNonce<T>>::get() {
+					last_snapshot_number
+				} else {
+					0
+				};
+			ensure!(
+				snapshot_summary.snapshot_number.eq(&(last_snapshot_serial_number + 1)),
+				Error::<T>::SnapshotNonceError
+			);
+			let current_snapshot_nonce = snapshot_summary.snapshot_number;
+			if snapshot_summary.withdrawals_processed.withdrawals.len() > 0 {
+				ensure!(
+					<OnChainEvents<T>>::try_mutate(|onchain_events| {
+						onchain_events.try_push(
+							polkadex_primitives::ocex::OnChainEvents::GetStorage(
+								polkadex_primitives::ocex::Pallet::OCEX,
+								polkadex_primitives::ocex::StorageItem::Withdrawal,
+								snapshot_summary.snapshot_number as u32, //TODO: u64 expected
+							),
+						)?;
+						Ok::<(), ()>(())
+					})
+					.is_ok(),
+					Error::<T>::OnchainEventsBoundedVecOverflow
+				);
+			}
+			//FIXME: Old withdrawal storages are meant to collect HashMap not Vec. How to hnadle this?
+
+			// <Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
+			// <FeesCollected<T>>::insert(current_snapshot_nonce, snapshot.fees.clone());
+			// snapshot.withdrawals = Default::default();
+			// snapshot.fees = Default::default();
+			//TODO: I created new storages for now. So that it doesnt break old code. Later replace old with new.
+			<NewSnapshots<T>>::insert(current_snapshot_nonce as u32, snapshot_summary.clone());
+			<NewSnapshotNonce<T>>::put(current_snapshot_nonce);
+			Ok(())
+		}
+
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
@@ -1228,10 +1299,20 @@ pub mod pallet {
 	pub(super) type Snapshots<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, EnclaveSnapshotType<T>, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn new_snapshots)]
+	pub(super) type NewSnapshots<T: Config> =
+	StorageMap<_, Blake2_128Concat, u32, SnapshotSummary, OptionQuery>;
+
 	// Snapshots Nonce
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_nonce)]
 	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u32, OptionQuery>;
+
+	// New Snapshots Nonce
+	#[pallet::storage]
+	#[pallet::getter(fn new_snapshot_nonce)]
+	pub(super) type NewSnapshotNonce<T: Config> = StorageValue<_, u64, OptionQuery>;
 
 	// Exchange Operation State
 	#[pallet::storage]
