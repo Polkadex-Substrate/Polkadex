@@ -21,11 +21,10 @@ use frame_support::{
 	traits::{
 		fungibles::{Balanced, CreditOf, Inspect},
 		tokens::{BalanceConversion, WithdrawConsequence},
-		Currency, OnUnbalanced,
+		Currency, Imbalance, OnUnbalanced,
 	},
 	unsigned::TransactionValidityError,
 };
-use frame_support::traits::Imbalance;
 use parity_scale_codec::FullCodec;
 use scale_info::TypeInfo;
 use sp_runtime::{

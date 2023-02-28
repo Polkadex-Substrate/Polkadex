@@ -6,25 +6,22 @@ use crate::{
 use frame_support::{
 	parameter_types,
 	traits::{
-		fungibles::CreditOf, ConstU128, ConstU32, ConstU64, Currency, EitherOfDiverse,
-		OnTimestampSet, OnUnbalanced,
+		fungibles::CreditOf, ConstU128, ConstU32, ConstU64, Currency, OnTimestampSet, OnUnbalanced,
 	},
 	weights::{
-		constants::ExtrinsicBaseWeight, ConstantMultiplier, WeightToFeeCoefficient,
-		WeightToFeeCoefficients, WeightToFeePolynomial,
+		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
-	PalletId,
 };
 use frame_system::EnsureRoot;
-use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier};
 use polkadex_extrinsic;
-use polkadex_primitives::{AccountIndex, Balance, BlockNumber, Index, Moment, Signature};
+use polkadex_primitives::{AccountIndex, Balance, Moment};
 use smallvec::smallvec;
 use sp_application_crypto::sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, ConvertInto, IdentityLookup},
-	FixedPointNumber, Perbill, Percent, Permill, Perquintill, SaturatedConversion,
+	FixedPointNumber, Perbill, Perquintill, SaturatedConversion,
 };
 use sp_std::cell::RefCell;
 
@@ -112,9 +109,6 @@ impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		println!("polynomial");
-
-		let p: Balance = 1_000_000_000_000;
-		let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
 		let result = smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
@@ -195,7 +189,7 @@ impl pallet_timestamp::Config for Test {
 
 pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
+	fn on_unbalanceds<B>(mut _fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
 		//empty method
 		println!("on_unbalanceds");
 	}
@@ -204,7 +198,7 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 pub struct AlternateTokenSwapper;
 impl HandleSwap<Test> for AlternateTokenSwapper {
 	fn swap(credit: CreditOf<AccountId, Assets>) -> NegativeImbalanceOf<Test> {
-		println!("Swap: {:?}",credit.peek().saturated_into::<u128>().saturated_into::<u128>());
+		println!("Swap: {:?}", credit.peek().saturated_into::<u128>().saturated_into::<u128>());
 		NegativeImbalanceOf::new(credit.peek().saturated_into::<u128>().saturated_into())
 	}
 }
@@ -220,6 +214,6 @@ impl xyz_transaction_payment::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	t.into()
 }
