@@ -780,7 +780,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "log",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
@@ -4795,12 +4794,10 @@ dependencies = [
 name = "pallet-ocex-lmp"
 version = "4.0.0"
 dependencies = [
- "anyhow",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "ias-verify",
- "log",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
@@ -8818,21 +8815,13 @@ name = "thea"
 version = "1.0.0"
 dependencies = [
  "asset-handler",
- "blst",
  "chainbridge",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-sudo",
  "parity-scale-codec",
- "polkadex-primitives",
  "scale-info",
- "sp-application-crypto",
  "sp-core",
- "sp-io",
- "sp-keystore",
  "sp-runtime",
  "sp-std",
  "thea-primitives",
@@ -8844,10 +8833,8 @@ dependencies = [
 name = "thea-cross-chain-governance"
 version = "0.1.0"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
- "log",
  "pallet-balances",
  "pallet-identity",
  "parity-scale-codec",
@@ -8856,7 +8843,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-staking",
  "sp-std",
 ]
 
@@ -8881,23 +8867,16 @@ dependencies = [
 name = "thea-staking"
 version = "4.0.0-dev"
 dependencies = [
- "asset-handler",
- "chainbridge",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
- "pallet-assets",
  "pallet-balances",
  "parity-scale-codec",
- "polkadex-primitives",
  "scale-info",
- "sp-core",
- "sp-io",
  "sp-runtime",
  "sp-staking",
  "sp-std",
- "thea",
  "thea-primitives",
 ]
 
