@@ -73,7 +73,7 @@ pallet_staking_reward_curve::build! {
 		min_inflation: 0_025_000,
 		max_inflation: 0_100_000,
 		// Before, we launch the products we want 50% of supply to be staked
-		ideal_stake: 0_100_000,
+		ideal_stake: 0_500_000,
 		falloff: 0_050_000,
 		max_piece_count: 40,
 		test_precision: 0_005_000,
