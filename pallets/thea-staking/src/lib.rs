@@ -20,7 +20,7 @@
 use frame_support::{ensure, pallet_prelude::*, traits::NamedReservableCurrency};
 use sp_runtime::{
 	traits::{Get, Saturating},
-	DispatchError,
+	DispatchError, SaturatedConversion,
 };
 use sp_staking::{EraIndex, StakingInterface};
 use sp_std::collections::btree_map::BTreeMap;
@@ -437,6 +437,9 @@ pub mod pallet {
 			reporter: T::AccountId,
 			offence: TheaMisbehavior,
 		},
+
+		/// Cleaned up slashes
+		SlashesCleaned(u32),
 	}
 
 	#[pallet::error]
@@ -598,6 +601,17 @@ impl<T: Config> Pallet<T> {
 		let session_index = <CurrentIndex<T>>::get();
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
+		// reset of slashed store and reports
+		// max active validators count
+		let max_ops: u32 = active_networks
+			.iter()
+			.fold(0, |acc, network| acc + <ActiveRelayers<T>>::get(&network).len())
+			.saturated_into();
+		let sp_io::MultiRemovalResults { unique, .. } = <CommitedSlashing<T>>::clear(max_ops, None);
+		let unique_reports = unique;
+		let sp_io::MultiRemovalResults { unique, .. } =
+			<ReportedOffenders<T>>::clear(max_ops, None);
+		Self::deposit_event(Event::SlashesCleaned((unique + unique_reports).saturated_into()));
 		// map to collect all active relayers to send to session change notifier
 		let mut map: BTreeMap<Network, OnSessionChange<T::AccountId>> = BTreeMap::new();
 		for network in active_networks {
@@ -611,6 +625,7 @@ impl<T: Config> Pallet<T> {
 		let new_session_index = session_index.saturating_add(1);
 		<CurrentIndex<T>>::put(new_session_index);
 		T::SessionChangeNotifier::on_new_session(map);
+		// TODO: implement slashing
 		Self::deposit_event(Event::NewSessionStarted { index: new_session_index })
 	}
 
