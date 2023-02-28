@@ -24,7 +24,6 @@
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
 	construct_runtime,
-	instances::Instance1,
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{
