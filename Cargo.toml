@@ -135,8 +135,9 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-nomination-pools = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, package="sp-finality-grandpa" }
-polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.10", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", default-features = false }
+polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.17", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.28" }
+#primitives = { path = "../orderbook/v2/primitives", default-features = false}
 #node-executor = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, features = ["wasmtime"] }

@@ -52,7 +52,7 @@ std = [
     "polkadex-primitives/std",
     "ias-verify/std",
     "rust_decimal/std",
-    "pallet-timestamp/std",
+    "pallet-timestamp/std"
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
