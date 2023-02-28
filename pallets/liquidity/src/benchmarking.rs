@@ -49,7 +49,7 @@ benchmarks! {
 	}
 
 	deposit_to_orderbook {
-		let a in 1..255;
+		let a in 1..u32::MAX;
 		let i in 0..u32::MAX;
 		let z in 10..u32::MAX;
 
@@ -85,7 +85,7 @@ benchmarks! {
 
 
 	withdraw_from_orderbook {
-		let a in 1..255;
+		let a in 1..u32::MAX;
 		let i in 0..u32::MAX;
 		let z in 10..u32::MAX;
 
