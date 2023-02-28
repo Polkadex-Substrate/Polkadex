@@ -1326,6 +1326,7 @@ parameter_types! {
 	pub const StakingDataPruneDelay: u32 = 6;
 	pub const ModerateSK: u8 = 5; // 5% of stake to slash
 	pub const SevereSK: u8 = 20; // 20% of stake to slash
+	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 }
 
 impl thea_staking::Config for Runtime {
@@ -1338,6 +1339,7 @@ impl thea_staking::Config for Runtime {
 	type StakingDataPruneDelay = StakingDataPruneDelay;
 	type ModerateSlashingCoeficient = ModerateSK;
 	type SevereSlashingCoeficient = SevereSK;
+	type SlashingThreshold = SlashingTh;
 	type SessionChangeNotifier = Thea;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 }

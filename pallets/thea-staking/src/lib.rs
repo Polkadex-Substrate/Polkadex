@@ -323,19 +323,20 @@ pub mod pallet {
 			// make sure it's active relayer reporting
 			ensure!(
 				<ActiveRelayers<T>>::get(network_id).iter().any(|(r, _)| r.eq(&reporter)),
-				"".into()
+				Error::<T>::NotAnActiveRelayer
 			);
 			// check for re-submit
 			//FIXME: should we charge for sequential report of same offence by same reporter?
 			ensure!(
-				<ReportedOffenders<T>>::get(offender, offence)
-					.some(|reports| !reports.contains(&reporter)),
-				"Repeated report of same offence".into()
+				<ReportedOffenders<T>>::get(offender.clone(), offence)
+					.unwrap_or_default()
+					.contains(&reporter),
+				Error::<T>::RepeatedReport
 			);
 			// check if coeficient treshold reached and act
 			let threshold = Self::threshold_slashing_coeficient();
 			let active_relayers = <ActiveRelayers<T>>::get(network_id).len();
-			if let Some(reported) = <ReportedOffenders<T>>::get(offender, offence) {
+			if let Some(reported) = <ReportedOffenders<T>>::get(offender.clone(), offence) {
 				if reported.len() + 1 + (threshold as usize) >= active_relayers {
 					// slash
 					// <CommitedSlashing<T>> -> store commitment to slash so it can be applyed on
@@ -345,7 +346,11 @@ pub mod pallet {
 				}
 			} else {
 				// register first one
-				<ReportedOffenders<T>>::insert(offender, offence, [reporter].to_vec());
+				<ReportedOffenders<T>>::insert(
+					offender.clone(),
+					offence,
+					[reporter.clone()].to_vec(),
+				);
 				Self::deposit_event(Event::<T>::OffenceReported { offender, reporter, offence });
 			}
 
@@ -430,6 +435,10 @@ pub mod pallet {
 		OnlyOneRelayerCanBeNominated,
 		StashAndControllerMustBeSame,
 		AmountIsGreaterThanBondedAmount,
+		/// Repeating report of same offence is prohibited
+		RepeatedReport,
+		/// Not a member of active relayers
+		NotAnActiveRelayer,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
