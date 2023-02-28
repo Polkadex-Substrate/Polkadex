@@ -197,7 +197,6 @@ where
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
 		} else if self.asset_id != Zero::zero() {
-			println!("in 1");
 
 			// If not native asset call our withdraw_fee method
 			T::OnChargeAssetTransaction::withdraw_fee(
@@ -210,7 +209,6 @@ where
 			)
 			.map(|i| (fee, InitialPayment::Asset(i.into())))
 		} else {
-			println!("in 2");
 			// If the asset id is zero, then we treat that case as payment in PDEX,
 			<OnChargeTransactionOf<T> as OnChargeTransaction<T>>::withdraw_fee(
 				who, call, info, fee, self.tip,
@@ -284,9 +282,7 @@ where
 		info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
-		println!("started");
 		let (_fee, initial_payment) = self.withdraw_fee(who, call, info, len)?;
-		println!("came back");
 		// Check if the given asset is valid
 		if let InitialPayment::Asset(asset) = &initial_payment {
 			let allowed_assets = <AllowedAssets<T>>::get();
@@ -307,7 +303,6 @@ where
 		if let Some((tip, who, initial_payment)) = pre {
 			match initial_payment {
 				InitialPayment::Native(already_withdrawn) => {
-					println!("In native");
 					pallet_transaction_payment::ChargeTransactionPayment::<T>::post_dispatch(
 						Some((tip, who, already_withdrawn)),
 						info,
@@ -317,7 +312,6 @@ where
 					)?;
 				},
 				InitialPayment::Asset(already_withdrawn) => {
-					println!("In asset");
 					let actual_fee = pallet_transaction_payment::Pallet::<T>::compute_actual_fee(
 						len as u32, info, post_info, tip,
 					);
@@ -330,7 +324,6 @@ where
 						tip.into(),
 						already_withdrawn.into(),
 					)?;
-					println!("Emmitted Event");
 					Pallet::<T>::deposit_event(Event::<T>::AssetTxFeePaid {
 						who,
 						actual_fee,
@@ -339,7 +332,6 @@ where
 					});
 				},
 				InitialPayment::Nothing => {
-					println!("In nothing");
 
 					// `actual_fee` should be zero here for any signed extrinsic. It would be
 					// non-zero here in case of unsigned extrinsics as they don't pay fees but
