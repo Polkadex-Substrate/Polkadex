@@ -1,5 +1,10 @@
 use crate as thea_staking;
-use crate::{mock::*, session::{StakingLimits, UnlockChunk}, ActiveNetworks, CurrentIndex, EraRewardPayout, EraRewardPoints, Error, Event, Exposure, Hooks, IndividualExposure, StakingData, Stakinglimits, Stakers, Candidates, Perbill};
+use crate::{
+	mock::*,
+	session::{StakingLimits, UnlockChunk},
+	ActiveNetworks, Candidates, CurrentIndex, EraRewardPayout, EraRewardPoints, Error, Event,
+	Exposure, Hooks, IndividualExposure, Perbill, Stakers, StakingData, Stakinglimits,
+};
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::{fungible::Mutate, TheseExcept},
@@ -496,7 +501,7 @@ fn test_reward_payout() {
 		TheaStaking::thea_extrinsic_submitted(1, 0, vec![]);
 		TheaStaking::on_initialize(SESSION_LENGTH.into());
 		assert_ok!(TheaStaking::stakers_payout(Origin::signed(1), 1, 3));
-		assert_eq!(Balances::free_balance(1), initial_balance+24);
+		assert_eq!(Balances::free_balance(1), initial_balance + 24);
 	})
 }
 
@@ -532,8 +537,8 @@ fn test_reward_with_nominators() {
 		TheaStaking::on_initialize(SESSION_LENGTH.into());
 		assert_eq!(CurrentIndex::<Test>::get(), 3);
 
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(11),1, 2));
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(21),1, 2));
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(11), 1, 2));
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(21), 1, 2));
 		let alice_balances = Balances::free_balance(11);
 		let nominator_balances = Balances::free_balance(101);
 		let bob_balances = Balances::free_balance(21);

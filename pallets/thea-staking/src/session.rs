@@ -70,7 +70,13 @@ pub struct Exposure<T: Config> {
 
 impl<T: Config> Exposure<T> {
 	pub fn new(bls_pub_key: BLSPublicKey) -> Self {
-		Self { score: 1000, total: Default::default(), individual: Default::default(), bls_pub_key, stakers: Default::default() }
+		Self {
+			score: 1000,
+			total: Default::default(),
+			individual: Default::default(),
+			bls_pub_key,
+			stakers: Default::default(),
+		}
 	}
 	/// Adds the given stake to own and update the total
 	pub fn add_own_stake(&mut self, stake: BalanceOf<T>) {

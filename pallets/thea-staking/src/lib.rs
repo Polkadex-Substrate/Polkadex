@@ -26,11 +26,10 @@ use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Get, Saturating},
-	DispatchError, Perbill, SaturatedConversion,
+	DispatchError, Perbill,
 };
-use sp_std::borrow::ToOwned;
 use sp_staking::{EraIndex, StakingInterface};
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{borrow::ToOwned, collections::btree_map::BTreeMap};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use crate::{
@@ -42,7 +41,6 @@ use pallet_staking::EraPayout;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 use thea_primitives::{
-	return_set_bits,
 	thea_types::{Network, OnSessionChange, SessionIndex},
 	BLSPublicKey, TheaExtrinsicSubmitted,
 };
@@ -317,13 +315,9 @@ pub mod pallet {
 
 		#[pallet::call_index(9)]
 		#[pallet::weight(10000)]
-		pub fn stakers_payout(
-			origin: OriginFor<T>,
-			network: Network,
-			session: SessionIndex,
-		) -> DispatchResult {
+		pub fn stakers_payout(origin: OriginFor<T>, session: SessionIndex) -> DispatchResult {
 			let staker = ensure_signed(origin)?;
-			Self::do_stakers_payout(staker, session);
+			Self::do_stakers_payout(staker, session)?;
 			Ok(())
 		}
 	}
@@ -511,24 +505,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Stores the economic conditions of all candidates who are disabled for misbehaviour
-	pub(super) type TotalSessionStake<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u32,
-		BalanceOf<T>,
-		ValueQuery,
-	>;
+	pub(super) type TotalSessionStake<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	/// Stores the economic conditions of all candidates who are disabled for misbehaviour
-	pub(super) type TotalElectedRelayers<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u32,
-		Vec<(T::AccountId, Exposure<T>)>,
-		ValueQuery,
-	>;
-
+	pub(super) type TotalElectedRelayers<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, Vec<(T::AccountId, Exposure<T>)>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -540,7 +523,7 @@ impl<T: Config> Pallet<T> {
 	// Rewards author of extrinsic
 	// # Parameters
 	// * author: Author of the extrinsic
-	pub fn reward_by_id(author: T::AccountId, bit_map: u128, active_set: Vec<T::AccountId>) {
+	pub fn reward_by_id(author: T::AccountId, _bit_map: u128, _active_set: Vec<T::AccountId>) {
 		<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), |tracker| {
 			if let Some(tracker) = tracker {
 				tracker.total_points += 50;
@@ -582,7 +565,7 @@ impl<T: Config> Pallet<T> {
 		total_stake
 	}
 
-	pub fn do_stakers_payout(stash_account: T::AccountId, era: SessionIndex) {
+	pub fn do_stakers_payout(stash_account: T::AccountId, era: SessionIndex) -> DispatchResult {
 		let total_payout = <EraRewardPayout<T>>::get(era);
 		let mut relayer_part: Perbill = Perbill::default();
 		if let Some(rewards) = <EraRewardPoints<T>>::get(era) {
@@ -597,20 +580,17 @@ impl<T: Config> Pallet<T> {
 		let total_elected_relayers = <TotalElectedRelayers<T>>::get(era);
 		let exposure = total_elected_relayers
 			.iter()
-			.filter(|(account_id, exposure)| *account_id == stash_account)
-			.fold(Exposure::new(BLSPublicKey([0_u8; 192])), |_, i| {
-				i.1.to_owned()
-			});
+			.filter(|(account_id, _)| *account_id == stash_account)
+			.fold(Exposure::new(BLSPublicKey([0_u8; 192])), |_, i| i.1.to_owned());
 		let total_stake = exposure.total;
 		let individual_part = Perbill::from_rational(exposure.individual, total_stake);
 		let individual_payout = individual_part * relayer_payout;
 		// panic!("Alice individual payout: {:?}", total_payout);
 		// Mint it to the Relayer
 		let individual_payout: u32 = individual_payout.unique_saturated_into();
-		T::Currency::deposit_into_existing(&stash_account, individual_payout.into());
+		T::Currency::deposit_into_existing(&stash_account, individual_payout.into())?;
 
-
-		for nominator in exposure.stakers{
+		for nominator in exposure.stakers {
 			// Get Exposure of Stakers
 			if let Some(nominator_exposure) = <Stakers<T>>::get(&nominator) {
 				let nominator_stake = nominator_exposure.value;
@@ -619,10 +599,10 @@ impl<T: Config> Pallet<T> {
 				let nominator_payout = nominator_part * relayer_payout;
 				let nominator_payout: u32 = nominator_payout.unique_saturated_into();
 				// Mint Rewards for Nominators
-				T::Currency::deposit_into_existing(&nominator, nominator_payout.into());
-
+				T::Currency::deposit_into_existing(&nominator, nominator_payout.into())?;
 			}
 		}
+		Ok(())
 	}
 
 	// Add public immutables and private mutables.
@@ -814,14 +794,12 @@ impl<T: Config> Pallet<T> {
 		// Calculate the total stake for these relayers
 		let total_stake = elected_relayers
 			.iter()
-			.map(|(relayer, exp)| exp.total)
-			.fold(0_u32.into(), |sum: BalanceOf<T>, i| {
-				sum.saturating_add(i)
-			});
+			.map(|(_, exp)| exp.total)
+			.fold(0_u32.into(), |sum: BalanceOf<T>, i| sum.saturating_add(i));
 		<TotalSessionStake<T>>::mutate(session_in_consideration, |existing_stake| {
 			existing_stake.saturating_add(total_stake);
 		});
-		<TotalElectedRelayers<T>>::mutate(session_in_consideration, |list_of_relayers|{
+		<TotalElectedRelayers<T>>::mutate(session_in_consideration, |list_of_relayers| {
 			list_of_relayers.extend(elected_relayers.clone());
 		});
 		<StakingData<T>>::insert(session_in_consideration, network, elected_relayers);
