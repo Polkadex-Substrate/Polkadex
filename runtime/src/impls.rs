@@ -21,8 +21,6 @@ use frame_support::traits::{Currency, OnUnbalanced};
 
 use crate::{Authorship, Balances, NegativeImbalance};
 
-use sp_io;
-
 pub struct Author;
 
 impl OnUnbalanced<NegativeImbalance> for Author {

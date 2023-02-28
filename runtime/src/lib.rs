@@ -92,8 +92,6 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-use polkadex_extrinsic::ethereum;
-use polkadex_extrinsic::signature;
 use polkadex_extrinsic::signedpayload;
 use polkadex_extrinsic::unchecked_extrinsic;
 mod weights;

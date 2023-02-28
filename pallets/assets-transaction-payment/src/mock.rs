@@ -108,7 +108,6 @@ pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		println!("polynomial");
 		let result = smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
@@ -191,14 +190,12 @@ pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	fn on_unbalanceds<B>(mut _fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
 		//empty method
-		println!("on_unbalanceds");
 	}
 }
 
 pub struct AlternateTokenSwapper;
 impl HandleSwap<Test> for AlternateTokenSwapper {
 	fn swap(credit: CreditOf<AccountId, Assets>) -> NegativeImbalanceOf<Test> {
-		println!("Swap: {:?}", credit.peek().saturated_into::<u128>().saturated_into::<u128>());
 		NegativeImbalanceOf::new(credit.peek().saturated_into::<u128>().saturated_into())
 	}
 }

@@ -21,7 +21,7 @@ use frame_support::{
 	traits::{
 		fungibles::{Balanced, CreditOf, Inspect},
 		tokens::{BalanceConversion, WithdrawConsequence},
-		Currency, Imbalance, OnUnbalanced,
+		Currency, OnUnbalanced,
 	},
 	unsigned::TransactionValidityError,
 };
@@ -133,24 +133,18 @@ where
 		// We don't know the precision of the underlying asset. Because the converted fee could be
 		// less than one (e.g. 0.5) but gets rounded down by integer division we introduce a minimum
 		// fee.
-		println!("WithDraw Fee: {:?}", fee);
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
 		let converted_fee = CON::to_asset_balance(fee, asset_id)
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?
 			.max(min_converted_fee);
-		println!("WithDraw Fee 1");
 		let can_withdraw =
 			<T::Fungibles as Inspect<T::AccountId>>::can_withdraw(asset_id, who, converted_fee);
 
-		println!("WithDraw Fee 2");
 		if !matches!(can_withdraw, WithdrawConsequence::Success) {
-			println!("WithDraw Fee 3");
 			return Err(InvalidTransaction::Payment.into())
 		}
-		println!("WithDraw Fee 4");
 		<T::Fungibles as Balanced<T::AccountId>>::withdraw(asset_id, who, converted_fee).map_err(
-			|e| {
-				println!("------ error : {:?} -------", e);
+			|_err| {
 				TransactionValidityError::from(InvalidTransaction::Payment)
 			},
 		)
@@ -180,7 +174,6 @@ where
 		let _ = <T::Fungibles as Balanced<T::AccountId>>::resolve(who, refund);
 		// Swap token for alternate currency
 		let fee_in_pdex = HC::swap(final_fee);
-		println!("fee_in_pdex: {:?}", fee_in_pdex.peek());
 		// Handle the final fee, e.g. by transferring to the block author or burning.
 		OU::on_unbalanced(fee_in_pdex);
 		Ok(())
