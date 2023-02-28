@@ -38,7 +38,7 @@ impl<T: frame_system::Config> LiquidityWeightInfo for WeightInfo<T> {
     // Storage: OCEX IngressMessages (r:1 w:1)
     /// The range of component `a` is `[0, 4294967295]`.
     fn register_account(_a: u32) -> Weight {
-        (13_971_000 as Weight)
+        (13_801_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(4 as Weight))
             .saturating_add(T::DbWeight::get().writes(3 as Weight))
     }
@@ -55,7 +55,7 @@ impl<T: frame_system::Config> LiquidityWeightInfo for WeightInfo<T> {
     /// The range of component `i` is `[0, 4294967295]`.
     /// The range of component `z` is `[10, 4294967295]`.
     fn deposit_to_orderbook(_a: u32, _i: u32, _z: u32) -> Weight {
-        (35_238_000 as Weight)
+        (35_571_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(10 as Weight))
             .saturating_add(T::DbWeight::get().writes(6 as Weight))
     }
@@ -68,7 +68,7 @@ impl<T: frame_system::Config> LiquidityWeightInfo for WeightInfo<T> {
     /// The range of component `i` is `[0, 4294967295]`.
     /// The range of component `z` is `[10, 4294967295]`.
     fn withdraw_from_orderbook(_a: u32, _i: u32, _z: u32) -> Weight {
-        (16_088_000 as Weight)
+        (15_977_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(5 as Weight))
             .saturating_add(T::DbWeight::get().writes(1 as Weight))
     }
