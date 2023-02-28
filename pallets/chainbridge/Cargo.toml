@@ -13,7 +13,6 @@ repository = "https://github.com/ChainSafe/chainbridge-substrate"
 [dependencies]
 parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
 frame-support = { workspace = true, default-features = false }
-frame-benchmarking = { workspace = true, default-features = false,  optional = true }
 frame-system = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 sp-core = { workspace = true, default-features = false}
@@ -24,6 +23,7 @@ blake2-rfc = { workspace = true, default-features = false }
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
 sp-io = { workspace = true }
+frame-benchmarking = { workspace = true }
 
 [features]
 default = ["std"]
