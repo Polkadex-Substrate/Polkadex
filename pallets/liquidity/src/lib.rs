@@ -80,8 +80,8 @@ pub mod pallet {
 
 	pub trait LiquidityWeightInfo {
 		fn register_account(_a: u32) -> Weight;
-		fn deposit_to_orderbook(_a: u32, _i: u32) -> Weight;
-		fn withdraw_from_orderbook(a: u32, _i: u32) -> Weight;
+		fn deposit_to_orderbook(_a: u32, _i: u32, _z: u32) -> Weight;
+		fn withdraw_from_orderbook(a: u32, _i: u32, _z: u32) -> Weight;
 	}
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
@@ -196,7 +196,7 @@ pub mod pallet {
 		/// * `amount`: amount to deposit
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
 		///   account
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2))]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2,3))]
 		pub fn deposit_to_orderbook(
 			origin: OriginFor<T>,
 			asset: AssetId,
@@ -229,7 +229,7 @@ pub mod pallet {
 		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
 		///  account given amount will be withdrawn
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2))]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2,3))]
 		pub fn withdraw_from_orderbook(
 			origin: OriginFor<T>,
 			asset: AssetId,
