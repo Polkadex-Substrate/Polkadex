@@ -566,7 +566,7 @@ impl<T: Config> Pallet<T> {
 		let eras_total_stake = <TotalSessionStake<T>>::get(era);
 		// FIXME: This hardcoded value needs to be updated
 		let (era_payout, _rest) =
-			T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 1400);
+			T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 7200);
 		<EraRewardPayout<T>>::insert(era, era_payout);
 	}
 
@@ -585,11 +585,10 @@ impl<T: Config> Pallet<T> {
 	pub fn do_stakers_payout(stash_account: T::AccountId, era: SessionIndex) {
 		let total_payout = <EraRewardPayout<T>>::get(era);
 		let mut relayer_part: Perbill = Perbill::default();
-		// FIXME: Need to do how Parity is doing here, This will be fucked up or else
 		if let Some(rewards) = <EraRewardPoints<T>>::get(era) {
 			relayer_part = Perbill::from_rational(
-				rewards.total_points,
 				*rewards.individual.get(&stash_account).unwrap(),
+				rewards.total_points,
 			);
 		}
 		let relayer_payout = relayer_part * total_payout;
@@ -605,6 +604,7 @@ impl<T: Config> Pallet<T> {
 		let total_stake = exposure.total;
 		let individual_part = Perbill::from_rational(exposure.individual, total_stake);
 		let individual_payout = individual_part * relayer_payout;
+		// panic!("Alice individual payout: {:?}", total_payout);
 		// Mint it to the Relayer
 		let individual_payout: u32 = individual_payout.unique_saturated_into();
 		T::Currency::deposit_into_existing(&stash_account, individual_payout.into());
@@ -634,11 +634,8 @@ impl<T: Config> Pallet<T> {
 		let mut map: BTreeMap<Network, OnSessionChange<T::AccountId>> = BTreeMap::new();
 		for network in active_networks {
 			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
-			// 1. Move queued_relayers to active_relayers
-			// Fine this looks fine
 			let active = Self::move_queued_to_active(network);
 			map.insert(network, active);
-			// Wtf is this
 			Self::compute_next_session(network, session_index);
 		}
 		// Increment SessionIndex
@@ -664,7 +661,8 @@ impl<T: Config> Pallet<T> {
 			T::SessionChangeNotifier::set_new_networks(active_networks);
 		}
 	}
-
+	// FIXME: The current implementation allows Nominators to nominate only one relayer
+	// with the entire stake that has been bonded
 	pub fn do_nominate(nominator: T::AccountId, candidate: T::AccountId) -> Result<(), Error<T>> {
 		let mut nominator_exposure =
 			<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
