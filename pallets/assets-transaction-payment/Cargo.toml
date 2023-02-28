@@ -19,22 +19,17 @@ frame-system = { workspace = true, default-features = false }
 pallet-balances = { workspace = true, default-features = false }
 pallet-assets = { workspace = true, default-features = false }
 pallet-transaction-payment = { workspace = true, default-features = false }
-polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
-test-utils = { workspace = true, default-features = false, optional = true }
 polkadex-extrinsic = { path = "../../polkadex-extrinsic", default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 smallvec = { workspace = true }
-pallet-treasury = { default-features = false, workspace = true }
-pallet-collective = { default-features = false, workspace = true }
-pallet-bounties = { default-features = false, workspace = true }
-pallet-child-bounties = { default-features = false, workspace = true }
 
 [dev-dependencies]
 sp-application-crypto = { workspace = true }
+polkadex-primitives = { workspace = true }
 
 [features]
 default = ["std"]
@@ -50,12 +45,6 @@ std = [
 	"pallet-balances/std",
 	"pallet-assets/std",
 	"pallet-transaction-payment/std",
-	"polkadex-primitives/std",
 	"pallet-timestamp/std",
-	"test-utils/std",
 	"polkadex-extrinsic/std",
-	"pallet-treasury/std",
-	"pallet-collective/std",
-	"pallet-bounties/std",
-	"pallet-child-bounties/std",
 ]
