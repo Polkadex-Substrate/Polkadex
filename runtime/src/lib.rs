@@ -92,8 +92,7 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-use polkadex_extrinsic::signedpayload;
-use polkadex_extrinsic::unchecked_extrinsic;
+use polkadex_extrinsic::{signedpayload, unchecked_extrinsic};
 mod weights;
 
 // Make the WASM binary available.
@@ -432,7 +431,6 @@ impl pallet_balances::Config for Runtime {
 	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
-
 
 parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MILLICENTS;

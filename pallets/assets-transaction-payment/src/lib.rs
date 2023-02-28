@@ -197,7 +197,6 @@ where
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
 		} else if self.asset_id != Zero::zero() {
-
 			// If not native asset call our withdraw_fee method
 			T::OnChargeAssetTransaction::withdraw_fee(
 				who,
@@ -332,7 +331,6 @@ where
 					});
 				},
 				InitialPayment::Nothing => {
-
 					// `actual_fee` should be zero here for any signed extrinsic. It would be
 					// non-zero here in case of unsigned extrinsics as they don't pay fees but
 					// `compute_actual_fee` is not aware of them. In both cases it's fine to just
