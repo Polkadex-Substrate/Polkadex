@@ -25,6 +25,7 @@ use frame_support::{
 	},
 	unsigned::TransactionValidityError,
 };
+use frame_support::traits::Imbalance;
 use parity_scale_codec::FullCodec;
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -133,17 +134,27 @@ where
 		// We don't know the precision of the underlying asset. Because the converted fee could be
 		// less than one (e.g. 0.5) but gets rounded down by integer division we introduce a minimum
 		// fee.
+		println!("WithDraw Fee: {:?}", fee);
 		let min_converted_fee = if fee.is_zero() { Zero::zero() } else { One::one() };
 		let converted_fee = CON::to_asset_balance(fee, asset_id)
 			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))?
 			.max(min_converted_fee);
+		println!("WithDraw Fee 1");
 		let can_withdraw =
 			<T::Fungibles as Inspect<T::AccountId>>::can_withdraw(asset_id, who, converted_fee);
+
+		println!("WithDraw Fee 2");
 		if !matches!(can_withdraw, WithdrawConsequence::Success) {
+			println!("WithDraw Fee 3");
 			return Err(InvalidTransaction::Payment.into())
 		}
-		<T::Fungibles as Balanced<T::AccountId>>::withdraw(asset_id, who, converted_fee)
-			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))
+		println!("WithDraw Fee 4");
+		<T::Fungibles as Balanced<T::AccountId>>::withdraw(asset_id, who, converted_fee).map_err(
+			|e| {
+				println!("------ error : {:?} -------", e);
+				TransactionValidityError::from(InvalidTransaction::Payment)
+			},
+		)
 	}
 
 	/// Hand the fee and the tip over to the `[HandleCredit]` implementation.
@@ -170,6 +181,7 @@ where
 		let _ = <T::Fungibles as Balanced<T::AccountId>>::resolve(who, refund);
 		// Swap token for alternate currency
 		let fee_in_pdex = HC::swap(final_fee);
+		println!("fee_in_pdex: {:?}", fee_in_pdex.peek());
 		// Handle the final fee, e.g. by transferring to the block author or burning.
 		OU::on_unbalanced(fee_in_pdex);
 		Ok(())

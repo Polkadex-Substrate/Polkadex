@@ -9,14 +9,30 @@ use frame_support::{
 	pallet_prelude::Pays,
 	weights::{DispatchInfo, PostDispatchInfo, Weight},
 };
+use frame_support::pallet_prelude::Get;
+
 use pallet_balances::Call as BalancesCall;
 use polkadex_primitives::{AccountId, AssetId, UNIT_BALANCE};
 use sp_runtime::{traits::SignedExtension, DispatchError::BadOrigin, SaturatedConversion};
+use frame_system::{EventRecord,Config};
 
 pub const ALICE_ACCOUNT_RAW_ID: [u8; 32] = [0; 32];
+pub const BOB_ACCOUNT_RAW_ID: [u8; 32] = [1; 32];
 
 fn get_alice_account() -> AccountId {
 	AccountId::new(ALICE_ACCOUNT_RAW_ID)
+}
+fn get_bob_account() -> AccountId {
+	AccountId::new(BOB_ACCOUNT_RAW_ID)
+}
+
+
+fn assert_last_event<T: Config>() {
+	let events = frame_system::Pallet::<T>::events();
+	// compare to the last event record
+	println!("length: {}",events.len());
+	let EventRecord { event, .. } = &events[events.len() - 1];
+	println!("event: {:?}", event);
 }
 
 #[test]
@@ -61,7 +77,6 @@ fn block_token_for_fees() {
 		assert_eq!(<AllowedAssets<Test>>::get(), vec);
 	});
 }
-
 pub fn info_from_weight(w: Weight) -> DispatchInfo {
 	// pays_fee: Pays::Yes -- class: DispatchClass::Normal
 	DispatchInfo { weight: w, ..Default::default() }
@@ -114,16 +129,487 @@ fn transaction_payment_in_native_possible() {
 		//ToDo: Assert
 		// let initial_balance = 10 * balance;
 		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
 
 		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
 			Some(pre_dispatch_result.unwrap()),
-			&info_from_weight(weight),
-			&post_info_from_weight(weight),
+			&info_from_weight(100),
+			&post_info_from_weight(50),
 			len,
 			&Ok(())
 		));
 
 		//ToDo: Assert balances
 		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+
 	})
+}
+
+#[test]
+fn transaction_payment_in_asset_possible() {
+	new_test_ext().execute_with(|| {
+		let weight = 5;
+		let len = 10;
+		let asset_id = 1_u128;
+		let min_balance = 2;
+		let balance = 10000 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
+
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset_id));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_bob_account(), balance, 0));
+		//create asset
+		assert_ok!(Assets::force_create(
+			Origin::root(),
+			asset_id.into(),
+			get_alice_account(), /* owner */
+			true,                /* is_sufficient */
+			min_balance
+		));
+
+		assert_ok!(Assets::mint(
+			Origin::signed(get_alice_account().clone().into()),
+			asset_id.into(),
+			get_alice_account(),
+			balance
+		));
+
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 1.saturated_into(),
+		});
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip: 0 };
+
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_weight(weight), len)
+			.unwrap();
+
+		// println!("pre_dispatch_result: {:?}", pre_dispatch_result.unwrap());
+		// assert!(pre_dispatch_result.is_ok());
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+
+
+		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+			Some(pre_dispatch_result),
+			&info_from_weight(weight),
+			&post_info_from_weight(weight),
+			len,
+			&Ok(())
+		));
+		// assert_last_event::<Test>();
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+
+		//ToDo: Assert balances
+		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+
+	});
+}
+
+
+#[test]
+fn transaction_payment_without_fee() {
+	new_test_ext().execute_with(|| {
+		let weight = 5;
+		let len = 10;
+		let asset_id = 1_u128;
+		let min_balance = 2;
+		let balance = 10000 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
+
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset_id));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_bob_account(), balance, 0));
+		//create asset
+		assert_ok!(Assets::force_create(
+			Origin::root(),
+			asset_id.into(),
+			get_alice_account(), /* owner */
+			true,                /* is_sufficient */
+			min_balance
+		));
+
+		assert_ok!(Assets::mint(
+			Origin::signed(get_alice_account().clone().into()),
+			asset_id.into(),
+			get_alice_account(),
+			balance
+		));
+
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 1.saturated_into(),
+		});
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip: 0 };
+
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_weight(weight), len)
+			.unwrap();
+
+		// println!("pre_dispatch_result: {:?}", pre_dispatch_result.unwrap());
+		// assert!(pre_dispatch_result.is_ok());
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+
+		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+			Some(pre_dispatch_result),
+			&info_from_weight(weight),
+			&post_info_from_pays(Pays::No),
+			len,
+			&Ok(())
+		));
+
+		//ToDo: Assert balances
+		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+	});
+}
+
+
+#[test]
+fn asset_transaction_payment_with_tip_and_refund() {
+	new_test_ext().execute_with(|| {
+		let weight = 100;
+		let tip = 5;
+		let len = 10;
+		let asset_id = 1_u128;
+		let min_balance = 2;
+		let balance = 10000 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
+
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset_id));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_bob_account(), balance, 0));
+		//create asset
+		assert_ok!(Assets::force_create(
+			Origin::root(),
+			asset_id.into(),
+			get_alice_account(), /* owner */
+			true,                /* is_sufficient */
+			min_balance
+		));
+
+		assert_ok!(Assets::mint(
+			Origin::signed(get_alice_account().clone().into()),
+			asset_id.into(),
+			get_alice_account(),
+			balance
+		));
+
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 1.saturated_into(),
+		});
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip };
+
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_weight(weight), len)
+			.unwrap();
+
+		// println!("pre_dispatch_result: {:?}", pre_dispatch_result.unwrap());
+		// assert!(pre_dispatch_result.is_ok());
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+
+		let final_weight = 50;
+		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+			Some(pre_dispatch_result),
+			&info_from_weight(weight),
+			&post_info_from_weight(final_weight),
+			len,
+			&Ok(())
+		));
+
+		//ToDo: Assert balances
+		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+	});
+}
+
+#[test]
+fn payment_from_account_with_only_assets() {
+	new_test_ext().execute_with(|| {
+		let weight = 5;
+		let tip = 0;
+		let len = 10;
+		let asset_id = 1_u128;
+		let min_balance = 2;
+		let balance = 10000 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
+
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset_id));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_bob_account(), balance, 0));
+		//create asset
+		assert_ok!(Assets::force_create(
+			Origin::root(),
+			asset_id.into(),
+			get_alice_account(), /* owner */
+			true,                /* is_sufficient */
+			min_balance
+		));
+
+		assert_ok!(Assets::mint(
+			Origin::signed(get_alice_account().clone().into()),
+			asset_id.into(),
+			get_alice_account(),
+			balance
+		));
+
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 1.saturated_into(),
+		});
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip };
+
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_weight(weight), len)
+			.unwrap();
+
+		// println!("pre_dispatch_result: {:?}", pre_dispatch_result.unwrap());
+		// assert!(pre_dispatch_result.is_ok());
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+
+		let final_weight = 50;
+		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+			Some(pre_dispatch_result),
+			&info_from_weight(weight),
+			&default_post_info(),
+			len,
+			&Ok(())
+		));
+
+		//ToDo: Assert balances
+		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+	});
+}
+
+#[test]
+fn payment_only_with_existing_sufficient_asset() {
+	new_test_ext().execute_with(|| {
+		let weight = 5;
+		let tip = 0;
+		let len = 10;
+		let asset_id = 1_u128;
+		let min_balance = 2;
+		let balance = 10000 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip };
+
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 1.saturated_into(),
+		});
+
+		//non existent asset
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_weight(weight), len);
+		println!("pre_dispatch_result: {:?}", pre_dispatch_result.is_err());
+
+
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset_id));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_bob_account(), balance, 0));
+		//create asset
+		assert_ok!(Assets::force_create(
+			Origin::root(),
+			asset_id.into(),
+			get_alice_account(), /* owner */
+			true,                /* is_sufficient */
+			min_balance
+		));
+
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip };
+		// pre_dispatch fails for non-sufficient asset
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_weight(weight), len);
+		println!("pre_dispatch_result: {:?}", pre_dispatch_result.is_err());
+
+		// println!("pre_dispatch_result: {:?}", pre_dispatch_result.unwrap());
+		// assert!(pre_dispatch_result.is_ok());
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+	});
+}
+
+
+#[test]
+fn converted_fee_is_never_zero_if_input_fee_is_not() {
+	new_test_ext().execute_with(|| {
+		let weight = 5;
+		let tip = 0;
+		let len = 10;
+		let asset_id = 1_u128;
+		let min_balance = 2;
+		let balance = 10000 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
+
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset_id));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_bob_account(), balance, 0));
+		//create asset
+		assert_ok!(Assets::force_create(
+			Origin::root(),
+			asset_id.into(),
+			get_alice_account(), /* owner */
+			true,                /* is_sufficient */
+			min_balance
+		));
+
+		assert_ok!(Assets::mint(
+			Origin::signed(get_alice_account().clone().into()),
+			asset_id.into(),
+			get_alice_account(),
+			balance
+		));
+
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 1.saturated_into(),
+		});
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip };
+
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_pays(Pays::No), len)
+			.unwrap();
+
+		// println!("pre_dispatch_result: {:?}", pre_dispatch_result.unwrap());
+		// assert!(pre_dispatch_result.is_ok());
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+
+		let final_weight = 50;
+		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+			Some(pre_dispatch_result),
+			&info_from_pays(Pays::No),
+			&post_info_from_pays(Pays::No),
+			len,
+			&Ok(())
+		));
+
+		//ToDo: Assert balances
+		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+	});
+}
+
+#[test]
+fn post_dispatch_fee_is_zero_if_pre_dispatch_fee_is_zero() {
+	new_test_ext().execute_with(|| {
+		let weight = 5;
+		let tip = 0;
+		let len = 10;
+		let asset_id = 1_u128;
+		let min_balance = 2;
+		let balance = 10000 * UNIT_BALANCE;
+		let balance_call = 1 * UNIT_BALANCE;
+
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset_id));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_alice_account(), balance, 0));
+
+		assert_ok!(Balances::set_balance(Origin::root(), get_bob_account(), balance, 0));
+		//create asset
+		assert_ok!(Assets::force_create(
+			Origin::root(),
+			asset_id.into(),
+			get_alice_account(), /* owner */
+			true,                /* is_sufficient */
+			min_balance
+		));
+
+		assert_ok!(Assets::mint(
+			Origin::signed(get_alice_account().clone().into()),
+			asset_id.into(),
+			get_alice_account(),
+			balance
+		));
+
+		let call: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer {
+			dest: get_alice_account(),
+			value: 1.saturated_into(),
+		});
+
+		let charge_asset_transaction_payment =
+			ChargeAssetTransactionPayment::<Test> { signature_scheme: 0, asset_id, tip };
+
+		let pre_dispatch_result = charge_asset_transaction_payment
+			.pre_dispatch(&get_alice_account(), call, &info_from_pays(Pays::No), len)
+			.unwrap();
+
+		// println!("pre_dispatch_result: {:?}", pre_dispatch_result.unwrap());
+		// assert!(pre_dispatch_result.is_ok());
+		//ToDo: Assert
+		// let initial_balance = 10 * balance;
+		// assert_eq!(Balances::free_balance(get_alice_account()), initial_balance - 5 - 5 - 10);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+
+		let final_weight = 50;
+		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+			Some(pre_dispatch_result),
+			&info_from_pays(Pays::No),
+			&post_info_from_pays(Pays::Yes),
+			len,
+			&Ok(())
+		));
+
+		//ToDo: Assert balances
+		// assert_eq!(Balances::free_balance(2), initial_balance_for_2 - 5 - 10 - 50 - 5);
+		println!("Balances: {:?}",Balances::free_balance(get_alice_account()));
+		println!("Asset Balance: {:?}", Assets::balance(asset_id.into(), get_alice_account()));
+	});
 }
