@@ -1,3 +1,4 @@
+#![deny(unused_crate_dependencies)]
 //! Substrate Node Template CLI library.
 #![warn(missing_docs)]
 
@@ -7,6 +8,7 @@ mod service;
 mod cli;
 mod command;
 mod rpc;
+mod benchmarking;
 
 fn main() -> sc_cli::Result<()> {
 	command::run()
