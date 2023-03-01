@@ -16,7 +16,6 @@ parity-scale-codec = { workspace = true, default-features = false, features = ["
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 frame-support = { workspace = true, default-features = false }
-frame-benchmarking = { workspace = true, default-features = false, optional = true }
 frame-system = { workspace = true, default-features = false }
 
 
@@ -30,6 +29,9 @@ thea-primitives = { path = "../../thea-primitives", default-features = false }
 thea-staking = { path = "../thea-staking", default-features = false }
 
 xcm = { workspace = true, default-features = false }
+
+[dev-dependencies]
+frame-benchmarking = { workspace = true }
 
 [features]
 default = ["std"]
