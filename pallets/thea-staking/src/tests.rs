@@ -500,7 +500,7 @@ fn test_reward_payout() {
 		TheaStaking::on_initialize(SESSION_LENGTH.into());
 		TheaStaking::thea_extrinsic_submitted(1, 0, vec![]);
 		TheaStaking::on_initialize(SESSION_LENGTH.into());
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(1), 1, 3));
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(1), 3));
 		assert_eq!(Balances::free_balance(1), initial_balance + 24);
 	})
 }
@@ -537,8 +537,8 @@ fn test_reward_with_nominators() {
 		TheaStaking::on_initialize(SESSION_LENGTH.into());
 		assert_eq!(CurrentIndex::<Test>::get(), 3);
 
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(11), 1, 2));
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(21), 1, 2));
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(11), 2));
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(21), 2));
 		let alice_balances = Balances::free_balance(11);
 		let nominator_balances = Balances::free_balance(101);
 		let bob_balances = Balances::free_balance(21);
