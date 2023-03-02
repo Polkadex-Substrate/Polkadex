@@ -621,8 +621,6 @@ impl<T: Config> Pallet<T> {
 		let session_index = <CurrentIndex<T>>::get();
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
-		// TODO: actually slash here
-		// Q: what to slash? Exposure from <Candidates<T>>
 		for (offender, percent) in <CommitedSlashing<T>>::iter() {
 			if let Some(net) =
 				active_networks.iter().find(|n| <Candidates<T>>::contains_key(n, &offender))
@@ -631,12 +629,14 @@ impl<T: Config> Pallet<T> {
 					let actual_percent = Percent::from_percent(percent);
 					let amount: BalanceOf<T> = actual_percent * to_slash.total;
 					// TODO: where to transfer? % > Treasury && % > to reporters
-					if let Ok(_) = <pallet_balances::Pallet<T> as Currency<_>>::transfer(
+					if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
 						&offender,
 						&T::TreasuryPalletId::get().into_account_truncating(),
 						amount,
 						ExistenceRequirement::KeepAlive,
-					) {
+					)
+					.is_ok()
+					{
 						Self::deposit_event(Event::Slashed { offender, amount });
 					}
 				} else {
@@ -848,7 +848,7 @@ impl<T: Config> Pallet<T> {
 	// making sure we're not exceeding 100% and not below 1%
 	fn moderate_slashing_coeficient() -> u8 {
 		let set = T::ModerateSlashingCoeficient::get();
-		if set > 100 || set < 1 {
+		if !(1..=100).contains(&set) {
 			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Moderate".into()));
 			5
 		} else {
@@ -859,7 +859,7 @@ impl<T: Config> Pallet<T> {
 	// making sure we're not exceeding 100% and not below 1%
 	fn severe_slashing_coeficient() -> u8 {
 		let set = T::SevereSlashingCoeficient::get();
-		if set > 100 || set < 1 {
+		if !(1..=100).contains(&set) {
 			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Severe".into()));
 			20
 		} else {
@@ -870,7 +870,7 @@ impl<T: Config> Pallet<T> {
 	// making sure we're not exceeding 100% and not below 1%
 	fn threshold_slashing_coeficient() -> u8 {
 		let set = T::SlashingThreshold::get();
-		if set > 100 || set < 1 {
+		if !(1..=100).contains(&set) {
 			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Threshold".into()));
 			60
 		} else {
