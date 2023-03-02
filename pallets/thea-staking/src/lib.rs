@@ -17,10 +17,15 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{ensure, pallet_prelude::*, traits::NamedReservableCurrency};
+use frame_support::{
+	ensure,
+	pallet_prelude::*,
+	traits::{Currency, ExistenceRequirement, NamedReservableCurrency, ReservableCurrency},
+	PalletId,
+};
 use sp_runtime::{
-	traits::{Get, Saturating},
-	DispatchError, SaturatedConversion,
+	traits::{AccountIdConversion, Get, Saturating},
+	DispatchError, Percent, SaturatedConversion,
 };
 use sp_staking::{EraIndex, StakingInterface};
 use sp_std::collections::btree_map::BTreeMap;
@@ -112,6 +117,13 @@ pub mod pallet {
 		/// Represents percentage of active vs reported relayers.
 		#[pallet::constant]
 		type SlashingThreshold: Get<u8>;
+
+		/// Treasury PalletId
+		#[pallet::constant]
+		type TreasuryPalletId: Get<PalletId>;
+
+		/// Balances Pallet
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 		/// Delay to prune oldest staking data
 		type StakingDataPruneDelay: Get<SessionIndex>;
@@ -440,6 +452,17 @@ pub mod pallet {
 
 		/// Cleaned up slashes
 		SlashesCleaned(u32),
+
+		/// Slashed offender for percend based on commited offence
+		Slashed {
+			offender: T::AccountId,
+			amount: BalanceOf<T>,
+		},
+
+		/// Failed to transfer slashed amount from offender's account
+		SlashingFailed {
+			offender: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
@@ -601,6 +624,30 @@ impl<T: Config> Pallet<T> {
 		let session_index = <CurrentIndex<T>>::get();
 		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 		let active_networks = <ActiveNetworks<T>>::get();
+		// TODO: actually slash here
+		// Q: what to slash? Exposure from <Candidates<T>>
+		for (offender, percent) in <CommitedSlashing<T>>::iter() {
+			if let Some(net) =
+				active_networks.iter().find(|n| <Candidates<T>>::contains_key(n, &offender))
+			{
+				if let Some(to_slash) = <Candidates<T>>::get(net, &offender) {
+					let actual_percent = Percent::from_percent(percent);
+					let amount: BalanceOf<T> = actual_percent * to_slash.total;
+					if let Ok(_) = T::Currency::transfer(
+						&offender,
+						&T::TreasuryPalletId::get().into_account_truncating(),
+						amount,
+						ExistenceRequirement::KeepAlive,
+					) {
+						Self::deposit_event(Event::Slashed { offender, amount });
+					}
+				} else {
+					Self::deposit_event(Event::SlashingFailed { offender });
+				}
+			}
+		}
+		// Q: where to transfer? % > Treasury && % > to reporters
+
 		// reset of slashed store and reports
 		// max active validators count
 		let max_ops: u32 = active_networks
