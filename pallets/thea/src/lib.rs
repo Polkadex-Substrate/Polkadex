@@ -396,7 +396,7 @@ pub mod pallet {
 			token_type: TokenType,
 			payload: Vec<u8>,
 		) -> DispatchResult {
-			ensure_signed(origin)?;
+			let _relayer = ensure_signed(origin)?;
 			Self::do_deposit(token_type, payload, bit_map, bls_signature)?;
 			Ok(())
 		}
@@ -538,7 +538,7 @@ pub mod pallet {
 			bit_map: u128,
 			bls_signature: [u8; 96],
 		) -> DispatchResult {
-			let _relayer = ensure_signed(origin)?;
+			let relayer = ensure_signed(origin)?;
 
 			// Check if tx_hash is already included
 			ensure!(
@@ -548,6 +548,7 @@ pub mod pallet {
 
 			// Fetch current active relayer set BLS Keys
 			let current_relayer_set = Self::get_relayers_key_vector(network);
+			let current_relayer_set_accounts = <AuthorityListVector<T>>::get(network);
 
 			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
 			ensure!(
@@ -569,6 +570,11 @@ pub mod pallet {
 			});
 
 			<TheaKeyRotation<T>>::insert(network, false);
+			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
+				relayer,
+				bit_map,
+				current_relayer_set_accounts,
+			);
 
 			Ok(())
 		}
@@ -591,12 +597,13 @@ pub mod pallet {
 			bit_map: u128,
 			bls_signature: [u8; 96],
 		) -> DispatchResult {
-			let _relayer = ensure_signed(origin)?;
+			let relayer = ensure_signed(origin)?;
 			// Verify BLS Signature
 			// Fetch Current BLS Keys
 			let current_thea_key = <TheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
 			ensure!(public_key != current_thea_key, Error::<T>::QueuedTheaPublicKeyNotFound);
 			let bls_keys = Self::get_relayers_key_vector(network);
+			let authority_set = <AuthorityListVector<T>>::get(network);
 			// Call Host Function
 			ensure!(
 				thea_primitives::thea_ext::bls_verify(
@@ -614,6 +621,11 @@ pub mod pallet {
 			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
 			<TheaKeyRotation<T>>::insert(network, false);
 			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
+			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
+				relayer,
+				bit_map,
+				authority_set,
+			);
 			Ok(())
 		}
 
@@ -670,7 +682,6 @@ pub mod pallet {
 				// as the new QQPublicKey rather than returning an Error
 				<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
 			}
-
 			// Add the new one to queued_queued
 			Ok(())
 		}
