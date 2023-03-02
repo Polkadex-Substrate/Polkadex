@@ -20,7 +20,7 @@
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
-	traits::{Currency, ExistenceRequirement, NamedReservableCurrency, ReservableCurrency},
+	traits::{Currency, ExistenceRequirement, NamedReservableCurrency},
 	PalletId,
 };
 use sp_runtime::{
@@ -121,9 +121,6 @@ pub mod pallet {
 		/// Treasury PalletId
 		#[pallet::constant]
 		type TreasuryPalletId: Get<PalletId>;
-
-		/// Balances Pallet
-		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 		/// Delay to prune oldest staking data
 		type StakingDataPruneDelay: Get<SessionIndex>;
@@ -633,7 +630,8 @@ impl<T: Config> Pallet<T> {
 				if let Some(to_slash) = <Candidates<T>>::get(net, &offender) {
 					let actual_percent = Percent::from_percent(percent);
 					let amount: BalanceOf<T> = actual_percent * to_slash.total;
-					if let Ok(_) = T::Currency::transfer(
+					// TODO: where to transfer? % > Treasury && % > to reporters
+					if let Ok(_) = <pallet_balances::Pallet<T> as Currency<_>>::transfer(
 						&offender,
 						&T::TreasuryPalletId::get().into_account_truncating(),
 						amount,
@@ -646,7 +644,6 @@ impl<T: Config> Pallet<T> {
 				}
 			}
 		}
-		// Q: where to transfer? % > Treasury && % > to reporters
 
 		// reset of slashed store and reports
 		// max active validators count

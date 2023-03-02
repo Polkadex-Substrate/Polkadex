@@ -1341,6 +1341,7 @@ impl thea_staking::Config for Runtime {
 	type SevereSlashingCoeficient = SevereSK;
 	type SlashingThreshold = SlashingTh;
 	type SessionChangeNotifier = Thea;
+	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 }
 
