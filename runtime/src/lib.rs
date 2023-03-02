@@ -1273,6 +1273,21 @@ impl pallet_ocex_lmp::Config for Runtime {
 }
 
 parameter_types! {
+	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQU/IDI");
+}
+
+impl liquidity::Config for Runtime {
+	type Event = Event;
+	type PalletId = LiquidityPalletId;
+	type NativeCurrency = Balances;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type CallOcex = OCEX;
+	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub const ChainId: u8 = 1;
 	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
@@ -1443,7 +1458,8 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
-		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 42
+		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 42,
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 43,
 	}
 );
 /// Digest item type.
@@ -1699,6 +1715,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
+			list_benchmark!(list, extra, liquidity, Liquidity);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1730,6 +1747,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+			add_benchmark!(params, batches, liquidity, Liquidity);
+
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
