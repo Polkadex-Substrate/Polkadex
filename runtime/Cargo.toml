@@ -109,6 +109,9 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 thea = {path = "../pallets/thea", default-features = false }
 thea-primitives = { path = "../thea-primitives", default-features = false  }
 
+# Liquidity Pallet
+liquidity = { path = "../pallets/liquidity", default-features = false }
+
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
@@ -191,7 +194,8 @@ std = [
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
-    "thea-cross-chain-governance/std"
+    "thea-cross-chain-governance/std",
+    "liquidity/std",
 ]
 runtime-benchmarks = [
     #theirs
@@ -205,6 +209,7 @@ runtime-benchmarks = [
     "pallet-ocex-lmp/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks",
+    "liquidity/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
@@ -237,4 +242,5 @@ try-runtime = [
     "pallet-utility/try-runtime",
     "orml-vesting/try-runtime",
     "pdex-migration/try-runtime",
+    "liquidity/try-runtime",
 ]
