@@ -649,7 +649,7 @@ impl<T: Config> Pallet<T> {
 		// max active validators count
 		let max_ops: u32 = active_networks
 			.iter()
-			.fold(0, |acc, network| acc + <ActiveRelayers<T>>::get(&network).len())
+			.fold(0, |acc, network| acc + <ActiveRelayers<T>>::get(network).len())
 			.saturated_into();
 		let sp_io::MultiRemovalResults { unique, .. } = <CommitedSlashing<T>>::clear(max_ops, None);
 		let unique_reports = unique;
