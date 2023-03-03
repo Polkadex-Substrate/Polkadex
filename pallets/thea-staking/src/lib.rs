@@ -320,6 +320,10 @@ pub mod pallet {
 		/// If number of reporters is >= of given coeficient - slashing for pre-set coeficient
 		/// happens If reporter is part of active set - this call's fee is not apply
 		/// Full weight is payed on error
+		/// # Params
+		/// * network_id - identifier of network where ofence was registered
+		/// * offender - ID of relayer commited ofence
+		/// * offence - type of registere ofence
 		#[pallet::call_index(9)]
 		#[pallet::weight(1_000_000)]
 		pub fn report_offence(
@@ -382,7 +386,6 @@ pub mod pallet {
 			}
 			Self::deposit_event(Event::<T>::OffenceReported { offender, reporter, offence });
 
-			// if not reached and offence is not yet scheduled - store report
 			Ok(Pays::No.into())
 		}
 	}
@@ -847,10 +850,11 @@ impl<T: Config> Pallet<T> {
 
 	// making sure we're not exceeding 100% and not below 1%
 	fn moderate_slashing_coeficient() -> u8 {
+		const FIXED_MODERATE: u8 = 5;
 		let set = T::ModerateSlashingCoeficient::get();
 		if !(1..=100).contains(&set) {
 			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Moderate".into()));
-			5
+			FIXED_MODERATE
 		} else {
 			set
 		}
@@ -858,10 +862,11 @@ impl<T: Config> Pallet<T> {
 
 	// making sure we're not exceeding 100% and not below 1%
 	fn severe_slashing_coeficient() -> u8 {
+		const FIXED_SEVERE: u8 = 20;
 		let set = T::SevereSlashingCoeficient::get();
 		if !(1..=100).contains(&set) {
 			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Severe".into()));
-			20
+			FIXED_SEVERE
 		} else {
 			set
 		}
@@ -869,10 +874,11 @@ impl<T: Config> Pallet<T> {
 
 	// making sure we're not exceeding 100% and not below 1%
 	fn threshold_slashing_coeficient() -> u8 {
+		const FIXED_THRESHOLD: u8 = 60;
 		let set = T::SlashingThreshold::get();
 		if !(1..=100).contains(&set) {
 			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Threshold".into()));
-			60
+			FIXED_THRESHOLD
 		} else {
 			set
 		}
