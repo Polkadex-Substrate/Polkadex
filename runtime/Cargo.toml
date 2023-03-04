@@ -100,7 +100,8 @@ polkadex-primitives = { workspace = true, default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false }
 chainbridge = { path ="../pallets/chainbridge", default-features = false }
-assets-transaction-payment = {path="../pallets/assets-transaction-payment", default-features = false}
+thea-cross-chain-governance = { path = "../pallets/thea-cross-chain-governance", default-features = false }
+assets-transaction-payment = { path= "../pallets/assets-transaction-payment", default-features = false }
 
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
@@ -110,6 +111,9 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 thea = {path = "../pallets/thea", default-features = false }
 thea-primitives = { path = "../thea-primitives", default-features = false  }
 polkadex-extrinsic = { path = "../polkadex-extrinsic", default-features = false  }
+
+# Liquidity Pallet
+liquidity = { path = "../pallets/liquidity", default-features = false }
 
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
@@ -194,7 +198,9 @@ std = [
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
-    "polkadex-extrinsic/std"
+    "thea-cross-chain-governance/std",
+    "liquidity/std",
+    "polkadex-extrinsic/std",
 ]
 runtime-benchmarks = [
     #theirs
@@ -208,6 +214,7 @@ runtime-benchmarks = [
     "pallet-ocex-lmp/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks",
+    "liquidity/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
@@ -240,4 +247,5 @@ try-runtime = [
     "pallet-utility/try-runtime",
     "orml-vesting/try-runtime",
     "pdex-migration/try-runtime",
+    "liquidity/try-runtime",
 ]
