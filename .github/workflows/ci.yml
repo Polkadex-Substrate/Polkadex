@@ -73,8 +73,6 @@ jobs:
           rustup -V
           cargo fmt -- --version
           cargo clippy -V
-      - name: Check Clippy
-        run: cargo clippy -- -D warnings
       - name: Build Project
         run: |
           cargo clean
@@ -82,6 +80,8 @@ jobs:
           RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
+      - name: Check Clippy
+        run: cargo clippy -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
