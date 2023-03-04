@@ -29,7 +29,6 @@ pub struct Cli {
 	pub run: RunCmd,
 }
 
-#[allow(clippy::almost_swapped)]
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
 	// /// The custom inspect subcommmand for decoding blocks and extrinsics.
