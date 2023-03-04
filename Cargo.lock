@@ -197,6 +197,8 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "thea-primitives",
+ "xcm",
 ]
 
 [[package]]
@@ -1624,6 +1626,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6919815d73839e7ad218de758883aae3a257ba6759ce7a9992501efbb53d705c"
 dependencies = [
  "const-oid",
+]
+
+[[package]]
+name = "derivative"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -4478,6 +4491,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f051f77a7c8e6957c0696eac88f26b0117e54f52d3fc682ab19397a8812846a4"
 
 [[package]]
+name = "liquidity"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-ocex-lmp",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4929,6 +4964,7 @@ dependencies = [
  "frame-try-runtime",
  "hex",
  "hex-literal",
+ "liquidity",
  "log",
  "orml-vesting",
  "pallet-asset-handler-runtime-api",
@@ -4973,7 +5009,7 @@ dependencies = [
  "parity-scale-codec",
  "parity-util-mem",
  "pdex-migration",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
  "serde",
  "serde_json",
@@ -4998,6 +5034,7 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "thea",
+ "thea-cross-chain-governance",
  "thea-primitives",
  "thea-staking",
 ]
@@ -5199,7 +5236,7 @@ dependencies = [
  "jsonrpsee",
  "pallet-asset-handler-runtime-api",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "serde",
  "sp-api",
  "sp-blockchain",
@@ -5212,7 +5249,7 @@ name = "pallet-asset-handler-runtime-api"
 version = "0.1.0"
 dependencies = [
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "sp-api",
  "sp-core",
  "sp-runtime",
@@ -5656,12 +5693,13 @@ dependencies = [
  "frame-support",
  "frame-system",
  "ias-verify",
+ "liquidity",
  "log",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "rust_decimal 1.26.1",
  "scale-info",
  "sp-application-crypto",
@@ -6444,7 +6482,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "platforms 3.0.2",
  "polkadex-client",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.10)",
  "rand 0.8.5",
  "regex",
  "sc-authority-discovery",
@@ -6505,6 +6543,23 @@ name = "polkadex-primitives"
 version = "0.9.19"
 source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.10#a25653d0e3a0b0997ef0ca72ac86b253e2930f51"
 dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "rust_decimal 1.26.1",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polkadex-primitives"
+version = "0.9.19"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11#d9b3093dc63254cedd13d7fd8d3f57d23681e8d8"
+dependencies = [
+ "anyhow",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -10112,7 +10167,7 @@ dependencies = [
  "pallet-balances",
  "pallet-sudo",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
  "sp-application-crypto",
  "sp-core",
@@ -10122,6 +10177,27 @@ dependencies = [
  "sp-std",
  "thea-primitives",
  "thea-staking",
+ "xcm",
+]
+
+[[package]]
+name = "thea-cross-chain-governance"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-identity",
+ "parity-scale-codec",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
 ]
 
 [[package]]
@@ -10131,11 +10207,14 @@ dependencies = [
  "blst",
  "frame-system",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
  "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-runtime-interface",
  "sp-std",
+ "xcm",
 ]
 
 [[package]]
@@ -10151,7 +10230,7 @@ dependencies = [
  "pallet-assets",
  "pallet-balances",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -11324,6 +11403,31 @@ dependencies = [
  "curve25519-dalek 3.2.0",
  "rand_core 0.5.1",
  "zeroize",
+]
+
+[[package]]
+name = "xcm"
+version = "0.9.28"
+source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.28#314298c32ac6df996ea8f3fe23fa5d3768340066"
+dependencies = [
+ "derivative",
+ "impl-trait-for-tuples",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "xcm-procedural",
+]
+
+[[package]]
+name = "xcm-procedural"
+version = "0.9.28"
+source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.28#314298c32ac6df996ea8f3fe23fa5d3768340066"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
