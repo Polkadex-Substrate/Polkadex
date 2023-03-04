@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-#![allow(clippy::all)]
+
 use sc_cli::RunCmd;
 
 /// An overarching CLI command definition.
@@ -29,6 +29,7 @@ pub struct Cli {
 	pub run: RunCmd,
 }
 
+#[allow(clippy::all)]
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
 	// /// The custom inspect subcommmand for decoding blocks and extrinsics.
