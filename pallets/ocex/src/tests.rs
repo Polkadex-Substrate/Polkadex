@@ -36,7 +36,7 @@ use sp_application_crypto::RuntimePublic;
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{
 	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
-	DispatchError::BadOrigin, MultiSignature, TokenError,
+	DispatchError::BadOrigin, MultiSignature, SaturatedConversion, TokenError,
 };
 use std::sync::Arc;
 
@@ -51,6 +51,14 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	// compare to the last event record
 	let EventRecord { event, .. } = &events[events.len() - 1];
 	assert_eq!(event, &system_event);
+}
+
+//Alice Account
+pub const ALICE_MAIN_ACCOUNT_RAW_ID: [u8; 32] = [6u8; 32];
+pub const ALICE_PROXY_ACCOUNT_RAW_ID: [u8; 32] = [7u8; 32];
+
+fn get_alice_accounts() -> (AccountId32, AccountId32) {
+	(AccountId::new(ALICE_MAIN_ACCOUNT_RAW_ID), AccountId::new(ALICE_PROXY_ACCOUNT_RAW_ID))
 }
 
 #[test]
@@ -1330,6 +1338,129 @@ fn test_collect_fees_bad_origin() {
 		assert_noop!(
 			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.into()),
 			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn withdrawal_when_exchange_not_operational() {
+	let (alice_account_id, proxy_account_id) = get_alice_accounts();
+
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			OCEX::withdrawal_from_orderbook(
+				alice_account_id.clone(),
+				proxy_account_id,
+				AssetId::polkadex,
+				100_u128.saturated_into(),
+				true
+			),
+			Error::<Test>::ExchangeNotOperational
+		);
+	});
+}
+
+#[test]
+fn withdrawal_when_token_not_allowlisted() {
+	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_noop!(
+			OCEX::withdrawal_from_orderbook(
+				alice_main_account.clone(),
+				alice_proxy_account,
+				AssetId::polkadex,
+				100_u128.saturated_into(),
+				true
+			),
+			Error::<Test>::TokenNotAllowlisted
+		);
+	});
+}
+
+#[test]
+fn withdrawal_when_account_not_register() {
+	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		allowlist_token(AssetId::polkadex);
+		assert_noop!(
+			OCEX::withdrawal_from_orderbook(
+				alice_main_account.clone(),
+				alice_proxy_account,
+				AssetId::polkadex,
+				100_u128.saturated_into(),
+				true
+			),
+			Error::<Test>::AccountNotRegistered
+		);
+	});
+}
+
+#[test]
+fn withdrawal_with_overflow_amount() {
+	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		allowlist_token(AssetId::polkadex);
+
+		assert_ok!(OCEX::register_main_account(
+			Origin::signed(alice_main_account.clone().into()),
+			alice_proxy_account.clone().into()
+		));
+
+		assert_noop!(
+			OCEX::withdrawal_from_orderbook(
+				alice_main_account.clone(),
+				alice_proxy_account,
+				AssetId::polkadex,
+				(WITHDRAWAL_MAX + 1).saturated_into(),
+				true
+			),
+			Error::<Test>::AmountOverflow
+		);
+	});
+}
+
+#[test]
+fn withdrawal() {
+	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		allowlist_token(AssetId::polkadex);
+
+		assert_ok!(OCEX::register_main_account(
+			Origin::signed(alice_main_account.clone().into()),
+			alice_proxy_account.clone().into()
+		));
+
+		assert_ok!(OCEX::withdrawal_from_orderbook(
+			alice_main_account.clone(),
+			alice_proxy_account.clone(),
+			AssetId::polkadex,
+			100_u128.saturated_into(),
+			true
+		));
+
+		//assert ingress message
+		assert_eq!(
+			OCEX::ingress_messages()[2],
+			IngressMessages::DirectWithdrawal(
+				alice_proxy_account,
+				AssetId::polkadex,
+				Decimal::new(100, 12),
+				true
+			)
+		);
+
+		//assert event
+		assert_last_event::<Test>(
+			crate::Event::WithdrawFromOrderbook(alice_main_account, AssetId::polkadex, 100_u128)
+				.into(),
 		);
 	});
 }
