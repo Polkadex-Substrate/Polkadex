@@ -313,6 +313,11 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Pays the stakers of a Relayer for a given Session
+		///
+		/// # Parameters
+		///
+		/// `session`: SessionIndex of the Session to be paid out for
 		#[pallet::call_index(9)]
 		#[pallet::weight(10000)]
 		pub fn stakers_payout(origin: OriginFor<T>, session: SessionIndex) -> DispatchResult {
@@ -500,16 +505,17 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn era_reward_payout)]
+	// Stores the Total Reward Payout for a Session
 	pub(super) type EraRewardPayout<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
-	/// Stores the economic conditions of all candidates who are disabled for misbehaviour
+	/// Stores the Total Active Stake for a given Session
 	pub(super) type TotalSessionStake<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
-	/// Stores the economic conditions of all candidates who are disabled for misbehaviour
+	/// Stores the Total Elected Relayers for a given Session
 	pub(super) type TotalElectedRelayers<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, Vec<(T::AccountId, Exposure<T>)>, ValueQuery>;
 }
