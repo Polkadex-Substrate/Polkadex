@@ -284,7 +284,7 @@ fn test_remove_candidate_with_right_arguments_returns_ok() {
 		assert_ok!(TheaStaking::remove_candidate(Origin::signed(candidate), network));
 	})
 }
-//
+
 #[test]
 fn test_remove_candidate_with_wrong_netowork_id_returns_error() {
 	new_test_ext().execute_with(|| {
