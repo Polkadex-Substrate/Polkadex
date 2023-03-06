@@ -814,6 +814,7 @@ pub mod pallet {
 			//TODO: I created new storages for now. So that it doesnt break old code. Later replace old with new.
 			<NewSnapshots<T>>::insert(current_snapshot_nonce as u32, snapshot_summary.clone());
 			<NewSnapshotNonce<T>>::put(current_snapshot_nonce);
+			<LatestSnapshot<T>>::put(snapshot_summary);
 			Ok(())
 		}
 
@@ -1302,7 +1303,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn new_snapshots)]
 	pub(super) type NewSnapshots<T: Config> =
-	StorageMap<_, Blake2_128Concat, u32, SnapshotSummary, OptionQuery>;
+	StorageMap<_, Blake2_128Concat, u32, SnapshotSummary, ValueQuery>;
+
+	// Latest Snapshot
+	#[pallet::storage]
+	#[pallet::getter(fn latest_snapshot)]
+	pub(super) type LatestSnapshot<T: Config> = StorageValue<_, SnapshotSummary, ValueQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
