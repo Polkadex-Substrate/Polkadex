@@ -157,6 +157,7 @@ impl asset_handler::pallet::Config for Test {
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type NativeCurrencyId = ();
 	type TreasuryPalletId = ChainbridgePalletId;
 	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 	type ParachainNetworkId = ParachainNetworkId;
