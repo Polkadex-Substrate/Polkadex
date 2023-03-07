@@ -75,10 +75,9 @@ pub mod pallet {
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
 		snapshot::{EnclaveSnapshot, Fees},
-		withdrawal::Withdrawal,
+		withdrawal::{SnapshotSummary, Withdrawal},
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
-	use polkadex_primitives::withdrawal::SnapshotSummary;
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
@@ -747,9 +746,22 @@ pub mod pallet {
 			Ok(())
 		}
 
+		//FIXME
+		// I created new storages for now. So that it doesnt break old code. Later replace old with
+		// new. Things to be Impl:-
+		// 1) Check if SnapshotSummary::initialization_header was part of blockchain.
+		// 2) Update withdrawal storage.
+		// 3) Remove old snapshot ext and submit report ext as we dont need that anymore.
+		// 4) Document rest of ext(s).
+		// 5) Write test cases for this.
 		/// New Submit Snapshot
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
-		pub fn new_submit_snapshot(origin: OriginFor<T>, snapshot_summary: SnapshotSummary, signature: T::Signature, ias_report: Vec<u8>) -> DispatchResult {
+		pub fn new_submit_snapshot(
+			origin: OriginFor<T>,
+			snapshot_summary: SnapshotSummary,
+			signature: T::Signature,
+			ias_report: Vec<u8>,
+		) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 			// Verify Report
 			let cv: u64 = <CertificateValidity<T>>::get();
@@ -805,13 +817,15 @@ pub mod pallet {
 					Error::<T>::OnchainEventsBoundedVecOverflow
 				);
 			}
-			//FIXME: Old withdrawal storages are meant to collect HashMap not Vec. How to hnadle this?
+			//FIXME: Old withdrawal storages are meant to collect HashMap not Vec. How to hnadle
+			// this?
 
 			// <Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
 			// <FeesCollected<T>>::insert(current_snapshot_nonce, snapshot.fees.clone());
 			// snapshot.withdrawals = Default::default();
 			// snapshot.fees = Default::default();
-			//TODO: I created new storages for now. So that it doesnt break old code. Later replace old with new.
+			//TODO: I created new storages for now. So that it doesnt break old code. Later replace
+			// old with new.
 			<NewSnapshots<T>>::insert(current_snapshot_nonce as u32, snapshot_summary.clone());
 			<NewSnapshotNonce<T>>::put(current_snapshot_nonce);
 			<LatestSnapshot<T>>::put(snapshot_summary);
@@ -1303,7 +1317,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn new_snapshots)]
 	pub(super) type NewSnapshots<T: Config> =
-	StorageMap<_, Blake2_128Concat, u32, SnapshotSummary, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u32, SnapshotSummary, ValueQuery>;
 
 	// Latest Snapshot
 	#[pallet::storage]
