@@ -28,6 +28,7 @@ use crate::pallet as thea;
 
 use asset_handler::pallet::WithdrawalLimit;
 use frame_support::PalletId;
+use sp_core::crypto::AccountId32;
 use sp_runtime::traits::AccountIdConversion;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -148,6 +149,11 @@ impl chainbridge::Config for Test {
 	//type PalletId = ChainbridgePalletId;
 }
 
+parameter_types! {
+	pub const PolkadexAssetId: u128 = 1000;
+	pub const PDEXHolderAccount: u64 = 10u64;
+}
+
 impl asset_handler::pallet::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
@@ -156,11 +162,14 @@ impl asset_handler::pallet::Config for Test {
 	type TreasuryPalletId = ChainbridgePalletId;
 	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 	type ParachainNetworkId = ParachainNetworkId;
+	type PolkadexAssetId = PolkadexAssetId;
+	type PDEXHolderAccount = PDEXHolderAccount;
 }
 
 parameter_types! {
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
 	pub const WithdrawalSize: u32 = 10;
+	pub const ParaId: u32 = 2040;
 }
 
 impl thea::Config for Test {
@@ -169,6 +178,7 @@ impl thea::Config for Test {
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
+	type ParaId = ParaId;
 }
 
 // Build genesis storage according to the mock runtime.

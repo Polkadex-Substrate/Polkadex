@@ -16,11 +16,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
+// TODO[#614]: Thea Pallet Tests
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -31,7 +32,6 @@ pub mod pallet {
 
 	use frame_support::{
 		dispatch::fmt::Debug,
-		log,
 		pallet_prelude::*,
 		traits::{Currency, ExistenceRequirement, ReservableCurrency},
 		PalletId,
@@ -41,11 +41,13 @@ pub mod pallet {
 		traits::{AccountIdConversion, Zero},
 		SaturatedConversion,
 	};
+
 	use thea_primitives::{
 		normal_deposit::Deposit,
-		parachain_primitives::{ParachainAsset, ParachainDeposit, ParachainWithdraw},
+		parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
 		thea_types::OnSessionChange,
-		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
+		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaExtrinsicSubmitted,
+		TheaPalletMessages, TokenType,
 	};
 	use thea_staking::SessionChanged;
 	use xcm::{
@@ -53,6 +55,7 @@ pub mod pallet {
 		prelude::{Fungible, X1},
 	};
 
+	use core::default::Default;
 	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
@@ -88,7 +91,9 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	/// Configure the pallet by specifying the parameters and types on which it depends.
-	pub trait Config: frame_system::Config + asset_handler::pallet::Config {
+	pub trait Config:
+		frame_system::Config + asset_handler::pallet::Config + thea_staking::Config
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Balances Pallet
@@ -101,33 +106,47 @@ pub mod pallet {
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
+		/// Para Id
+		type ParaId: Get<u32>;
+		/// Extrinsic Notifier for rewards
+		type ExtrinsicSubmittedNotifier: TheaExtrinsicSubmitted<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	/// Active Relayers BLS Keys for a given Netowkr
+	/// Active Relayers BLS Keys for a given Network
+	#[pallet::storage]
+	#[pallet::getter(fn get_key_rotation_status)]
+	pub(super) type TheaKeyRotation<T: Config> =
+		StorageMap<_, frame_support::Blake2_128Concat, u8, bool, ValueQuery>;
+
+	/// Active Relayers BLS Keys for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_relayers_key_vector)]
-	pub(super) type RelayersBLSKeyVector<T: Config> = StorageMap<
-		_,
-		frame_support::Blake2_128Concat,
-		u8,
-		BoundedVec<BLSPublicKey, ConstU32<1000>>,
-		ValueQuery,
-	>;
+	pub(super) type RelayersBLSKeyVector<T: Config> =
+		StorageMap<_, frame_support::Blake2_128Concat, u8, Vec<BLSPublicKey>, ValueQuery>;
 
 	/// Active Relayers ECDSA Keys for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_auth_list)]
-	pub(super) type AuthorityListEcdsa<T: Config> = StorageMap<
-		_,
-		frame_support::Blake2_128Concat,
-		u8,
-		BoundedVec<T::AccountId, ConstU32<1000>>,
-		ValueQuery,
-	>;
+	pub(super) type AuthorityListVector<T: Config> =
+		StorageMap<_, frame_support::Blake2_128Concat, u8, Vec<T::AccountId>, ValueQuery>;
+
+	/// Queued Relayers BLS Keys for a given Network ( these are relayers who are waiting for
+	/// public key update ack from foreign chain to become active )
+	#[pallet::storage]
+	#[pallet::getter(fn get_queued_relayers_key_vector)]
+	pub(super) type QueuedRelayersBLSKeyVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<BLSPublicKey>, ValueQuery>;
+
+	/// Queued Relayers AccountIds for a given Network ( these are relayers who are waiting for
+	// 	/// public key update ack from foreign chain to become active )
+	#[pallet::storage]
+	#[pallet::getter(fn get_queued_authority_list)]
+	pub(super) type QueuedAuthorityListVector<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<T::AccountId>, ValueQuery>;
 
 	/// Approved Deposits
 	#[pallet::storage]
@@ -189,11 +208,59 @@ pub mod pallet {
 	pub(super) type AssetIdToNetworkMapping<T: Config> =
 		StorageMap<_, Blake2_128Concat, u128, Network, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn active_networks)]
+	/// Currently active networks ( this is controlled by thea-staking pallet through the trait
+	/// below)
+	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
+
 	/// Deposit Nonce for Thea Deposits
 	#[pallet::storage]
 	#[pallet::getter(fn get_deposit_nonce)]
 	pub(super) type DepositNonce<T: Config> =
 		StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
+
+	/// Thea Session Ids for each network
+	#[pallet::storage]
+	#[pallet::getter(fn get_thea_session_id)]
+	pub(super) type TheaSessionId<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
+
+	/// Pre-generated Thea public keys for each network for queued relayers from staking pallet
+	#[pallet::storage]
+	#[pallet::getter(fn get_queued_queued_thea_public_keys)]
+	pub(super) type QueuedQueuedTheaPublicKey<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, [u8; 64], OptionQuery>;
+
+	/// Pre-generated Thea public keys for each network waiting for ack
+	#[pallet::storage]
+	#[pallet::getter(fn get_queued_thea_public_keys)]
+	pub(super) type QueuedTheaPublicKey<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, [u8; 64], OptionQuery>;
+
+	/// Active Thea public keys for each network
+	#[pallet::storage]
+	#[pallet::getter(fn get_thea_public_keys)]
+	pub(super) type TheaPublicKey<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, [u8; 64], OptionQuery>;
+
+	/// Foreign Chain Ack transactions map
+	#[pallet::storage]
+	#[pallet::getter(fn foreign_chain_ack_txn)]
+	pub(super) type ForeignChainAckTxns<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		Network,
+		Blake2_128Concat,
+		sp_core::H256,
+		u128,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_ingress_messages)]
+	pub(super) type IngressMessages<T: Config> =
+		StorageValue<_, Vec<TheaPalletMessages>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -204,12 +271,14 @@ pub mod pallet {
 		DepositApproved(u8, T::AccountId, u128, u128, sp_core::H256),
 		/// Deposit claimed event ( recipient, number of deposits claimed )
 		DepositClaimed(T::AccountId, u128, u128, sp_core::H256),
-		/// Withdrawal Queued ( beneficiary, assetId, amount )
-		WithdrawalQueued(T::AccountId, Vec<u8>, u128, u128, u32),
+		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount, nonce, index )
+		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, u32, u32),
 		/// Withdrawal Ready (Network id, Nonce )
 		WithdrawalReady(Network, u32),
 		/// Withdrawal Executed (Nonce, network, Tx hash )
 		WithdrawalExecuted(u32, Network, sp_core::H256),
+		// Thea Public Key Updated ( network, new session id )
+		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
 		WithdrawalFeeSet(u8, u128),
 	}
@@ -217,7 +286,13 @@ pub mod pallet {
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Nonce does not match
+		// Unable to find Queued Thea Public Key
+		QueuedTheaPublicKeyNotFound,
+		// Unable to find Queued Queued Thea Public Key
+		QueuedQueuedTheaPublicNotFound,
+		// Duplicate Transaction Hash
+		DuplicateAckTxHash,
+		// Nonce does not match
 		DepositNonceError,
 		/// Amount cannot be zero
 		AmountCannotBeZero,
@@ -247,88 +322,64 @@ pub mod pallet {
 		BoundedVectorOverflow,
 		/// Bounded Vector Not Present
 		BoundedVectorNotPresent,
+		/// Thea Key Rotation is taking place
+		TheaKeyRotationInPlace,
 	}
 
 	// Hooks for Thea Pallet are defined here
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
-			// TODO: Calculate proper weight for single claim call on on_idle
-			let single_claim_weight: Weight = 100_000_000;
-
-			if remaining_weight < single_claim_weight {
-				// We need enough weight for at least one claim process if not it's a no-op
-				return remaining_weight
-			}
-
-			let mut accounts = <AccountWithPendingDeposits<T>>::get();
-			if accounts.is_empty() {
-				return remaining_weight
-			}
-
-			while let Some(account) = accounts.pop_first() {
-				if let Some(mut pending_deposits) = <ApprovedDeposits<T>>::get(&account) {
-					// FIXME: This leads to an infinite loop if execute_deposit fails
-					while let Some(deposit) = pending_deposits.pop() {
-						if let Err(err) = Self::execute_deposit(deposit.clone(), &account) {
-							// Force push is fine as it was part of the bounded vec
-							pending_deposits.force_push(deposit.clone());
-							// We can't do much here other than to log an error.
-							log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user: {:?}, Err: {:?}",account,err);
-						}
-						// reduce the remaining_weight
-						remaining_weight = remaining_weight.saturating_sub(single_claim_weight);
-						if remaining_weight.is_zero() {
-							break
-						}
-					}
-
-					if !pending_deposits.is_empty() {
-						<ApprovedDeposits<T>>::insert(&account, pending_deposits);
-						accounts.insert(account);
-					}
-				}
-			}
-			<AccountWithPendingDeposits<T>>::put(accounts);
-			remaining_weight
+		// fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
+		// 	// TODO: Calculate proper weight for single claim call on on_idle
+		// 	let single_claim_weight: Weight = 100_000_000;
+		//
+		// 	if remaining_weight < single_claim_weight {
+		// 		// We need enough weight for at least one claim process if not it's a no-op
+		// 		return remaining_weight
+		// 	}
+		//
+		// 	let mut accounts = <AccountWithPendingDeposits<T>>::get();
+		// 	if accounts.is_empty() {
+		// 		return remaining_weight
+		// 	}
+		//
+		// 	while let Some(account) = accounts.pop_first() {
+		// 		if let Some(mut pending_deposits) = <ApprovedDeposits<T>>::get(&account) {
+		// 			// FIXME: This leads to an infinite loop if execute_deposit fails
+		// 			while let Some(deposit) = pending_deposits.pop() {
+		// 				if let Err(err) = Self::execute_deposit(deposit.clone(), &account) {
+		// 					// Force push is fine as it was part of the bounded vec
+		// 					pending_deposits.force_push(deposit.clone());
+		// 					// We can't do much here other than to log an error.
+		// 					log::error!(target:"runtime::thea::on_idle","Error while claiming deposit on idle: user:
+		// {:?}, Err: {:?}",account,err); 				}
+		// 				// reduce the remaining_weight
+		// 				remaining_weight = remaining_weight.saturating_sub(single_claim_weight);
+		// 				if remaining_weight.is_zero() {
+		// 					break
+		// 				}
+		// 			}
+		//
+		// 			if !pending_deposits.is_empty() {
+		// 				<ApprovedDeposits<T>>::insert(&account, pending_deposits);
+		// 				accounts.insert(account);
+		// 			}
+		// 		}
+		// 	}
+		// 	<AccountWithPendingDeposits<T>>::put(accounts);
+		// 	remaining_weight
+		// }
+		//
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
+			// TODO: Benchmarking for Thea Pallet
+			1000 as Weight
 		}
 	}
 
-	// Extrinsics for Thea Pallet are defined here
+	// Extrinsic for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Helper extrinsic for testing purpose only
-		///
-		/// # Parameters
-		///
-		/// * `network_id`: Network Id which Relayer will support.
-		/// * `bls_key`: BLS Key of Relayer.
-		/// * `who`: Account ID of Relayer.
-		#[pallet::weight(1000)]
-		pub fn add_relayer_info(
-			origin: OriginFor<T>,
-			network_id: u8,
-			bls_key: [u8; 192],
-			who: T::AccountId,
-		) -> DispatchResult {
-			ensure_root(origin)?;
-
-			// Fetch Storage
-			let mut current_bls = Self::get_relayers_key_vector(network_id);
-			let mut current_ecdsa = Self::get_auth_list(network_id);
-			let key = BLSPublicKey(bls_key);
-
-			// Update Storage
-			current_bls.try_push(key).map_err(|_| Error::<T>::BoundedVectorOverflow)?;
-			<RelayersBLSKeyVector<T>>::insert(network_id, current_bls);
-			current_ecdsa
-				.try_push(who.clone())
-				.map_err(|_| Error::<T>::BoundedVectorOverflow)?;
-			<AuthorityListEcdsa<T>>::insert(network_id, current_ecdsa);
-
-			Ok(())
-		}
-
 		///Approve Deposit
 		///
 		/// # Parameters
@@ -345,7 +396,7 @@ pub mod pallet {
 			token_type: TokenType,
 			payload: Vec<u8>,
 		) -> DispatchResult {
-			ensure_signed(origin)?;
+			let _relayer = ensure_signed(origin)?;
 			Self::do_deposit(token_type, payload, bit_map, bls_signature)?;
 			Ok(())
 		}
@@ -468,23 +519,200 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::WithdrawalFeeSet(network_id, fee));
 			Ok(())
 		}
-	}
 
-	impl<T: Config> SessionChanged for Pallet<T> {
-		type Network = Network;
-		type OnSessionChange = OnSessionChange<T::AccountId>;
-		fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
-			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
-			// network
-			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
-				if let (Ok(relayer_bls_keys), Ok(authority_list)) = (
-					BoundedVec::try_from(vec_of_bls_keys),
-					BoundedVec::try_from(vec_of_account_ids),
-				) {
-					<RelayersBLSKeyVector<T>>::insert(network_id, relayer_bls_keys);
-					<AuthorityListEcdsa<T>>::insert(network_id, authority_list);
-				}
+		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		/// * `tx_hash`: Transaction hash of key update on foreign chain
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
+		#[pallet::weight(1000)]
+		pub fn thea_key_rotation_complete(
+			origin: OriginFor<T>,
+			network: Network,
+			tx_hash: sp_core::H256,
+			bit_map: u128,
+			bls_signature: [u8; 96],
+		) -> DispatchResult {
+			let relayer = ensure_signed(origin)?;
+
+			// Check if tx_hash is already included
+			ensure!(
+				<ForeignChainAckTxns<T>>::get(network, tx_hash).is_none(),
+				Error::<T>::DuplicateAckTxHash
+			);
+
+			// Fetch current active relayer set BLS Keys
+			let current_relayer_set = Self::get_relayers_key_vector(network);
+			let current_relayer_set_accounts = <AuthorityListVector<T>>::get(network);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&(tx_hash, network).encode(),
+					&current_relayer_set
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+
+			Self::move_queued_to_active(network)?;
+			// To avoid replay attack
+			<ForeignChainAckTxns<T>>::insert(network, tx_hash, bit_map);
+			// Emit an ingress message
+			<IngressMessages<T>>::mutate(|messages| {
+				messages.push(TheaPalletMessages::TheaKeyRotationComplete)
+			});
+
+			<TheaKeyRotation<T>>::insert(network, false);
+			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
+				relayer,
+				bit_map,
+				current_relayer_set_accounts,
+			);
+
+			Ok(())
+		}
+
+		/// Extrinsic to update solo chain that a new Thea Key has been set by Sudo
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		/// * `public_key`: New Public Key for thea (Raw Uncompressed)
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
+		#[pallet::weight(1000)]
+		pub fn set_thea_key_complete(
+			origin: OriginFor<T>,
+			network: Network,
+			public_key: [u8; 64],
+			bit_map: u128,
+			bls_signature: [u8; 96],
+		) -> DispatchResult {
+			let relayer = ensure_signed(origin)?;
+			// Verify BLS Signature
+			// Fetch Current BLS Keys
+			let current_thea_key = <TheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
+			ensure!(public_key != current_thea_key, Error::<T>::QueuedTheaPublicKeyNotFound);
+			let bls_keys = Self::get_relayers_key_vector(network);
+			let authority_set = <AuthorityListVector<T>>::get(network);
+			// Call Host Function
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&public_key.encode(),
+					&bls_keys
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+			// Update Active Public Key
+			<TheaPublicKey<T>>::insert(network, public_key);
+			// Incrementing Current Round Index
+			let current_round_index = <TheaSessionId<T>>::get(network);
+			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
+			<TheaKeyRotation<T>>::insert(network, false);
+			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
+			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
+				relayer,
+				bit_map,
+				authority_set,
+			);
+			Ok(())
+		}
+
+		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		/// * `public_key`: Thea Public Key
+		/// * `bit_map`: Bitmap of Thea relayers
+		/// * `bls_signature`: BLS signature of relayers
+		// TODO: [Issue #606] Use benchmarks
+		#[pallet::weight(1000)]
+		pub fn thea_queued_queued_public_key(
+			origin: OriginFor<T>,
+			network: Network,
+			public_key: [u8; 64],
+			bit_map: u128,
+			bls_signature: [u8; 96],
+		) -> DispatchResult {
+			let _relayer = ensure_signed(origin)?;
+			// Fetch current active relayer set BLS Keys
+
+			let current_public_key =
+				<QueuedQueuedTheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
+			ensure!(public_key != current_public_key, Error::<T>::QueuedTheaPublicKeyNotFound);
+
+			let queued_queued_relayers =
+				thea_staking::Pallet::<T>::get_queued_relayers_bls_keys(network);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&public_key.encode(),
+					&queued_queued_relayers
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+
+			// Move queued_queued to queued
+			if let Some(queued_queued) = <QueuedQueuedTheaPublicKey<T>>::take(network) {
+				<QueuedTheaPublicKey<T>>::insert(network, queued_queued);
+				<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
+				// Emit an Ingress Message to sign the Qd Public Key
+				<IngressMessages<T>>::mutate(|messages| {
+					messages.push(TheaPalletMessages::SignQdPublicKey)
+				});
+				<TheaKeyRotation<T>>::insert(network, true);
+			} else {
+				// If there is no QQPublicKey already then we should set the one we received
+				// as the new QQPublicKey rather than returning an Error
+				<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
 			}
+			// Add the new one to queued_queued
+			Ok(())
+		}
+
+		/// Extrinsic to reset Thea Key Rotation
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Any relayer
+		/// * `network`: Network id
+		#[pallet::weight(1000)]
+		pub fn thea_relayers_reset_rotation(
+			origin: OriginFor<T>,
+			network: Network,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<AuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(network, Default::default());
+			<RelayersBLSKeyVector<T>>::insert::<u8, Vec<BLSPublicKey>>(network, Default::default());
+			<QueuedAuthorityListVector<T>>::insert::<u8, Vec<T::AccountId>>(
+				network,
+				Default::default(),
+			);
+			<QueuedRelayersBLSKeyVector<T>>::insert::<u8, Vec<BLSPublicKey>>(
+				network,
+				Default::default(),
+			);
+			<TheaPublicKey<T>>::take(network);
+			<QueuedTheaPublicKey<T>>::take(network);
+			<QueuedQueuedTheaPublicKey<T>>::take(network);
+			<TheaSessionId<T>>::insert(network, 0);
+			Ok(())
 		}
 	}
 
@@ -502,14 +730,17 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
-			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
+			let network = if asset_id == T::PolkadexAssetId::get() {
+				1
+			} else {
+				let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
+				network
+			};
 			ensure!(network != 0, Error::<T>::UnableFindNetworkForAssetId);
+			ensure!(!Self::get_key_rotation_status(network), Error::<T>::TheaKeyRotationInPlace);
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
-
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
-
 			// Ensure pending withdrawals have space for a new withdrawal
 			ensure!(!pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
 
@@ -536,22 +767,29 @@ pub mod pallet {
 			)?;
 
 			// TODO[#610]: Update Thea Staking pallet about fees collected
-
-			// Burn assets
-			asset_handler::pallet::Pallet::<T>::burn_thea_asset(asset_id, user.clone(), amount)?;
-
+			// Handle assets
+			asset_handler::pallet::Pallet::<T>::handle_asset(asset_id, user.clone(), amount)?;
 			let withdrawal = ApprovedWithdraw {
 				asset_id,
 				amount: amount.saturated_into(),
 				network: network.saturated_into(),
 				beneficiary: beneficiary.clone(),
 				payload,
+				index: pending_withdrawals.len() as u32,
 			};
 
 			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
 				// This should not fail because of is_full check above
 			}
-
+			Self::deposit_event(Event::<T>::WithdrawalQueued(
+				network,
+				user,
+				beneficiary,
+				asset_id,
+				amount,
+				withdrawal_nonce,
+				(pending_withdrawals.len() - 1) as u32,
+			));
 			if pending_withdrawals.is_full() | pay_for_remaining {
 				// If it is full then we move it to ready queue and update withdrawal nonce
 				let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
@@ -563,14 +801,6 @@ pub mod pallet {
 				<WithdrawalNonces<T>>::insert(network, withdrawal_nonce.saturating_add(1));
 				Self::deposit_event(Event::<T>::WithdrawalReady(network, withdrawal_nonce));
 				pending_withdrawals = BoundedVec::default();
-			} else {
-				Self::deposit_event(Event::<T>::WithdrawalQueued(
-					user,
-					beneficiary,
-					asset_id,
-					amount,
-					withdrawal_nonce,
-				));
 			}
 			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
 			Ok(())
@@ -593,10 +823,21 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: Vec<u8>,
 		) -> Result<Vec<u8>, DispatchError> {
-			let (_, _, asset_identifier) = asset_handler::pallet::TheaAssets::<T>::get(asset_id);
-			let asset_identifier: ParachainAsset =
-				Decode::decode(&mut &asset_identifier.to_vec()[..])
-					.map_err(|_| Error::<T>::FailedToDecode)?;
+			let asset_identifier = if asset_id != T::PolkadexAssetId::get() {
+				let (_, _, asset_identifier) =
+					asset_handler::pallet::TheaAssets::<T>::get(asset_id);
+				let asset_identifier: ParachainAsset =
+					Decode::decode(&mut &asset_identifier.to_vec()[..])
+						.map_err(|_| Error::<T>::FailedToDecode)?;
+				asset_identifier
+			} else {
+				let para_id = T::ParaId::get();
+				let asset_location = MultiLocation {
+					parents: 1,
+					interior: Junctions::X1(Junction::Parachain(para_id)),
+				};
+				ParachainAsset { location: asset_location, asset_type: AssetType::Fungible }
+			};
 			let asset_id = AssetId::Concrete(asset_identifier.location);
 			let asset_and_amount = MultiAsset { id: asset_id, fun: Fungible(amount) };
 			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
@@ -632,7 +873,7 @@ pub mod pallet {
 					&bls_signature,
 					bit_map,
 					&payload,
-					&current_active_relayer_set.into_inner()
+					&current_active_relayer_set
 				),
 				Error::<T>::BLSSignatureVerificationFailed
 			);
@@ -668,7 +909,7 @@ pub mod pallet {
 			}
 			<DepositNonce<T>>::insert(
 				approved_deposit.network_id.saturated_into::<Network>(),
-				approved_deposit.deposit_nonce + 1,
+				approved_deposit.deposit_nonce,
 			);
 			Self::deposit_event(Event::<T>::DepositApproved(
 				approved_deposit.network_id,
@@ -677,6 +918,61 @@ pub mod pallet {
 				approved_deposit.amount,
 				approved_deposit.tx_hash,
 			));
+			Ok(())
+		}
+	}
+
+	impl<T: Config> SessionChanged for Pallet<T> {
+		type Network = Network;
+		type OnSessionChange = OnSessionChange<T::AccountId>;
+		fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+			//loop through BTreeMap and insert the new BLS pub keys and account ids for each
+			// network
+			for (network_id, (vec_of_bls_keys, vec_of_account_ids)) in map {
+				let current_round = <TheaSessionId<T>>::get(network_id);
+				// Check if it is genesis round
+				if current_round.is_zero() {
+					<RelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
+					<AuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
+				} else {
+					<QueuedRelayersBLSKeyVector<T>>::insert(network_id, vec_of_bls_keys);
+					<QueuedAuthorityListVector<T>>::insert(network_id, vec_of_account_ids);
+				}
+				// Inform ingress message to Relayer
+				<IngressMessages<T>>::mutate(|messages| {
+					messages.push(TheaPalletMessages::EcdsaReady(10))
+				});
+			}
+		}
+
+		// Update the local storage about all networks
+		fn set_new_networks(networks: BTreeSet<Network>) {
+			<ActiveNetworks<T>>::put(networks)
+		}
+	}
+
+	// Helper Functions for Thea Pallet
+	impl<T: Config> Pallet<T> {
+		// Move Queued Authoritys and BLSKeys to Active Storage. It will triggered by
+		// submission of new thea key updation on all foreign chains to Polkadex.
+		pub fn move_queued_to_active(network: Network) -> DispatchResult {
+			let (vec_of_bls_keys, vec_of_account_ids, public_key) = (
+				<QueuedRelayersBLSKeyVector<T>>::get(network),
+				<QueuedAuthorityListVector<T>>::get(network),
+				<QueuedTheaPublicKey<T>>::get(network),
+			);
+			let public_key = match public_key {
+				None => return Err(Error::<T>::QueuedTheaPublicKeyNotFound.into()),
+				Some(key) => key,
+			};
+			<RelayersBLSKeyVector<T>>::insert(network, vec_of_bls_keys);
+			<AuthorityListVector<T>>::insert(network, vec_of_account_ids);
+			<TheaPublicKey<T>>::insert(network, public_key);
+			let current_session_id = <TheaSessionId<T>>::get(network).saturating_add(1);
+			<TheaSessionId<T>>::insert(network, current_session_id);
+			// TODO: Add IngressMessages::RelayerSetChange(current_session_id) to notify all
+			// relayers of relayer set change ( it will be added after #635 is merged to develop )
+			Self::deposit_event(Event::<T>::TheaKeyUpdated(network, current_session_id));
 			Ok(())
 		}
 

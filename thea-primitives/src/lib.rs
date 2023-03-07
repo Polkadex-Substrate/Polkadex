@@ -74,6 +74,16 @@ pub trait TheaExt {
 )]
 pub struct BLSPublicKey(pub [u8; 192]);
 
+#[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum TheaPalletMessages {
+	// Begin Distributed key generation and the amount of offline stages
+	EcdsaReady(u16),
+	// Sign Q Public Key
+	SignQdPublicKey,
+	// Thea Key Rotation Complete
+	TheaKeyRotationComplete,
+}
+
 #[derive(Encode, Decode, Clone, Debug, TypeInfo, Eq, PartialEq)]
 pub struct ApprovedWithdraw {
 	pub asset_id: u128,
@@ -81,6 +91,7 @@ pub struct ApprovedWithdraw {
 	pub network: u8,
 	pub beneficiary: Vec<u8>,
 	pub payload: Vec<u8>,
+	pub index: u32,
 }
 
 impl ApprovedWithdraw {
@@ -122,6 +133,10 @@ pub fn return_set_bits(bit_map: u128) -> Vec<u8> {
 		}
 	}
 	set_bits
+}
+
+pub trait TheaExtrinsicSubmitted<Author> {
+	fn thea_extrinsic_submitted(author: Author, bit_map: u128, active_set: Vec<Author>);
 }
 
 #[test]
