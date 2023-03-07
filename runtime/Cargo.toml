@@ -103,10 +103,13 @@ chainbridge = { path ="../pallets/chainbridge", default-features = false }
 thea-cross-chain-governance = { path = "../pallets/thea-cross-chain-governance", default-features = false }
 
 # Orderbook 
-pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
+pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
+
+# Parachain Rewards
+pallet-rewards = { path = "../pallets/rewards", default-features = false }
 
 # Thea
-thea = {path = "../pallets/thea", default-features = false }
+thea = { path = "../pallets/thea", default-features = false }
 thea-primitives = { path = "../thea-primitives", default-features = false  }
 
 # Liquidity Pallet
@@ -189,6 +192,7 @@ std = [
     "asset-handler/std",
     "chainbridge/std",
     "pallet-ocex-lmp/std",
+    "pallet-rewards/std",
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
@@ -210,6 +214,7 @@ runtime-benchmarks = [
     "pallet-ocex-lmp/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks",
+    "pallet-rewards/runtime-benchmarks",
     "liquidity/runtime-benchmarks",
 ]
 try-runtime = [
@@ -243,5 +248,6 @@ try-runtime = [
     "pallet-utility/try-runtime",
     "orml-vesting/try-runtime",
     "pdex-migration/try-runtime",
+    "pallet-rewards/try-runtime",
     "liquidity/try-runtime",
 ]
