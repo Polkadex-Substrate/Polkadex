@@ -11,6 +11,8 @@ members = [
     "pallets/asset-handler",
     "pallets/pdex-migration",
     "pallets/ocex",
+    "pallets/thea-staking",
+    "pallets/rewards",
     "pallets/thea",
     "thea-primitives",
     "pallets/thea-staking",
