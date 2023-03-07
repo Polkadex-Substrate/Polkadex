@@ -19,15 +19,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
-// mod benchmarking;
-//
-// #[cfg(test)]
-// mod mock;
-// #[cfg(test)]
-// mod tests;
-
-// pub mod weights;
-// pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
