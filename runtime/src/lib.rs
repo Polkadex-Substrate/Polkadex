@@ -117,7 +117,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 280,
+	spec_version: 282,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -252,6 +252,7 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 use scale_info::TypeInfo;
+use sp_core::crypto::AccountId32;
 use sp_npos_elections::ExtendedBalance;
 
 /// The type used to represent the kinds of proxying allowed.
@@ -1272,11 +1273,28 @@ impl pallet_ocex_lmp::Config for Runtime {
 }
 
 parameter_types! {
+	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQU/IDI");
+}
+
+impl liquidity::Config for Runtime {
+	type Event = Event;
+	type PalletId = LiquidityPalletId;
+	type NativeCurrency = Balances;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type CallOcex = OCEX;
+	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub const ChainId: u8 = 1;
+	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
 	pub const NativeCurrencyId: u128 = 0;
+	pub const WithdrawalSize: u32 = 10;
 }
 
 impl chainbridge::Config for Runtime {
@@ -1287,14 +1305,23 @@ impl chainbridge::Config for Runtime {
 	type ProposalLifetime = ProposalLifetime;
 }
 
+parameter_types! {
+	pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
+	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
+	pub const ParaId: u32 = 2040;
+}
+
 impl asset_handler::pallet::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type NativeCurrencyId = NativeCurrencyId;
 	type TreasuryPalletId = TreasuryPalletId;
 	type WeightInfo = asset_handler::WeightInfo<Runtime>;
-	type NativeCurrencyId = NativeCurrencyId;
+	type ParachainNetworkId = ParachainNetworkId;
+	type PolkadexAssetId = PolkadexAssetId;
+	type PDEXHolderAccount = PDEXHolderAccount;
 }
 
 impl thea::pallet::Config for Runtime {
@@ -1302,16 +1329,21 @@ impl thea::pallet::Config for Runtime {
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
+	type ParaId = ParaId;
+	type ExtrinsicSubmittedNotifier = TheaStaking;
 }
 
 //Install Staking Pallet
 parameter_types! {
-	pub const SessionLength: u32 = 10;
+	pub const SessionLength: u32 = 25;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+
 }
 
 impl thea_staking::Config for Runtime {
@@ -1323,6 +1355,9 @@ impl thea_staking::Config for Runtime {
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
 	type SessionChangeNotifier = Thea;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
+	type Currency = Balances;
 }
 
 //Install Nomination Pool
@@ -1355,13 +1390,12 @@ impl pallet_amm::Config for Runtime {
 	type GetNativeCurrencyId = NativeCurrencyId;
 }
 
-
 //Install Router pallet
 parameter_types! {
 	pub const RouterPalletId: PalletId = PalletId(*b"rw/accnt");
 }
 
-impl router::Config for Runtime{
+impl router::Config for Runtime {
 	type Event = Event;
 	type PalletId = RouterPalletId;
 	type AMM = Swap;
@@ -1398,6 +1432,19 @@ impl pallet_nomination_pools::Config for Runtime {
 	type MaxUnbonding = ConstU32<8>;
 	type PalletId = NominationPoolsPalletId;
 	type MaxPointsToBalance = MaxPointsToBalance;
+}
+
+parameter_types! {
+	pub const StakingAmount: u128 = 1_000_000_000_000_000u128;
+	pub const StakingReserveIdentifierForTheaGov: [u8; 8] = [2u8;8];
+
+}
+
+impl thea_cross_chain_governance::Config for Runtime {
+	type Event = Event;
+	type StakingAmount = StakingAmount;
+	type StakingReserveIdentifier = StakingReserveIdentifierForTheaGov;
+	type CouncilHandlerOrigin = EnsureRootOrHalfCouncil;
 }
 
 construct_runtime!(
@@ -1448,8 +1495,10 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
-		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 42,
-		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 43,
+		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 42,
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 43,
+		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 44,
+		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 45,
 	}
 );
 /// Digest item type.
@@ -1705,6 +1754,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
+			list_benchmark!(list, extra, liquidity, Liquidity);
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1736,6 +1786,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+			add_benchmark!(params, batches, liquidity, Liquidity);
+
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

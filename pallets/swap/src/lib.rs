@@ -49,7 +49,7 @@ use support::{ConvertToBigUint, Pool};
 pub use pallet::*;
 // pub use weights::WeightInfo;
 
-use num_traits::{cast::ToPrimitive,CheckedMul, CheckedDiv};
+use num_traits::{cast::ToPrimitive, CheckedDiv, CheckedMul};
 
 pub type Ratio = Permill;
 pub type CurrencyId = u128;
