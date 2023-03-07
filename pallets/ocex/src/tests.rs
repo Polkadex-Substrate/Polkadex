@@ -1942,7 +1942,7 @@ fn test_unregister_timed_out_enclaves() {
 #[test]
 pub fn test_allowlist_and_blacklist_token() {
 	new_test_ext().execute_with(|| {
-		let account_id = create_account_id();
+		let _account_id = create_account_id();
 		let new_token = AssetId::asset(1);
 		assert_ok!(OCEX::allowlist_token(Origin::root(), new_token));
 		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
@@ -1956,7 +1956,7 @@ pub fn test_allowlist_and_blacklist_token() {
 #[test]
 pub fn test_allowlist_with_limit_reaching_returns_error() {
 	new_test_ext().execute_with(|| {
-		let account_id = create_account_id();
+		let _account_id = create_account_id();
 		let mut allowlisted_assets: BoundedBTreeSet<AssetId, AllowlistedTokenLimit> =
 			BoundedBTreeSet::new();
 		for ele in 0..50 {
@@ -1978,7 +1978,7 @@ use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 fn test_set_balances_with_bad_origin() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
-		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
+		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
@@ -1990,7 +1990,7 @@ fn test_set_balances_with_bad_origin() {
 pub fn test_set_balances_when_exchange_is_not_pause() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
-		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
+		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
@@ -2030,7 +2030,7 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		for i in 0..1001 {
+		for _i in 0..1001 {
 			vec_of_balances.push(HandleBalance {
 				main_account: account_id.clone(),
 				asset_id: AssetId::polkadex,
@@ -2052,7 +2052,7 @@ pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		for i in 0..1000 {
+		for _i in 0..1000 {
 			vec_of_balances.push(HandleBalance {
 				main_account: account_id.clone(),
 				asset_id: AssetId::polkadex,
