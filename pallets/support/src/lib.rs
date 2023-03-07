@@ -2,23 +2,23 @@
 
 use frame_support::{dispatch::DispatchError, traits::tokens::Balance as BalanceT};
 use num_bigint::{BigUint, ToBigUint};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use parity_scale_codec::{Encode,Decode, MaxEncodedLen};
 use sp_runtime::{traits::Zero, RuntimeDebug};
 use sp_std::prelude::*;
 
 #[derive(
-Encode,
-Decode,
-Eq,
-PartialEq,
-Copy,
-Clone,
-RuntimeDebug,
-PartialOrd,
-Ord,
-TypeInfo,
-MaxEncodedLen,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pool<CurrencyId, Balance, BlockNumber> {
@@ -86,11 +86,7 @@ pub trait AMM<AccountId, CurrencyId, Balance, BlockNumber> {
 	///  Returns pool by lp_asset
 	fn get_pool_by_lp_asset(
 		asset_id: CurrencyId,
-	) -> Option<(
-		CurrencyId,
-		CurrencyId,
-		Pool<CurrencyId, Balance, BlockNumber>,
-	)>;
+	) -> Option<(CurrencyId, CurrencyId, Pool<CurrencyId, Balance, BlockNumber>)>;
 
 	/// Returns pool by asset pair
 	fn get_pool_by_asset_pair(
@@ -107,4 +103,3 @@ impl ConvertToBigUint for u128 {
 		self.to_biguint().unwrap()
 	}
 }
-

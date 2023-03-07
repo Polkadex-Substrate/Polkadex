@@ -19,7 +19,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
-
 // mod benchmarking;
 //
 // #[cfg(test)]
@@ -43,10 +42,10 @@ pub mod pallet {
 		transactional, BoundedVec, PalletId,
 	};
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-	use support::AMM;
-	use polkadex_primitives::{Balance, AssetId};
+	use polkadex_primitives::{AssetId, Balance};
 	use sp_runtime::{traits::Zero, DispatchError};
 	use sp_std::{cmp::Reverse, collections::btree_map::BTreeMap, vec::Vec};
+	use support::AMM;
 
 	pub type Route<T, I> = BoundedVec<
 		(
@@ -60,15 +59,13 @@ pub mod pallet {
 
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub(crate) type AssetIdOf<T, I = ()> =
-	<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
+		<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 	pub(crate) type BalanceOf<T, I = ()> =
-	<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+		<<T as Config<I>>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
-
-		type Event: From<Event<Self, I>>
-		+ IsType<<Self as frame_system::Config>::Event>;
+		type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Router pallet id
 		#[pallet::constant]
@@ -91,8 +88,8 @@ pub mod pallet {
 		/// Currency type for deposit/withdraw assets to/from amm route
 		/// module
 		type Assets: Transfer<Self::AccountId, AssetId = u128, Balance = Balance>
-		+ Inspect<Self::AccountId, AssetId = u128, Balance = Balance>
-		+ Mutate<Self::AccountId, AssetId = u128, Balance = Balance>;
+			+ Inspect<Self::AccountId, AssetId = u128, Balance = Balance>
+			+ Mutate<Self::AccountId, AssetId = u128, Balance = Balance>;
 	}
 
 	#[pallet::pallet]
@@ -125,12 +122,7 @@ pub mod pallet {
 	pub enum Event<T: Config<I>, I: 'static = ()> {
 		/// Event emitted when swap is successful
 		/// [sender, amount_in, route, amount_out]
-		Traded(
-			T::AccountId,
-			BalanceOf<T, I>,
-			Vec<AssetIdOf<T, I>>,
-			BalanceOf<T, I>,
-		),
+		Traded(T::AccountId, BalanceOf<T, I>, Vec<AssetIdOf<T, I>>, BalanceOf<T, I>),
 	}
 
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
@@ -142,9 +134,9 @@ pub mod pallet {
 
 			// Ensure user do not input too many routes.
 			ensure!(
-                route.len() <= T::MaxLengthRoute::get() as usize,
-                Error::<T, I>::ExceedMaxLengthRoute
-            );
+				route.len() <= T::MaxLengthRoute::get() as usize,
+				Error::<T, I>::ExceedMaxLengthRoute
+			);
 
 			// check for duplicates with O(n^2) complexity
 			// only good for short routes and we have a cap checked above
@@ -185,10 +177,7 @@ pub mod pallet {
 			let mut queue: Vec<(u128, u128, Vec<u128>)> = Vec::from([(start, end, path)]);
 
 			// check that both tokens exist in graph
-			ensure!(
-                graph.contains_key(&start),
-                Error::<T, I>::TokenDoesNotExists
-            );
+			ensure!(graph.contains_key(&start), Error::<T, I>::TokenDoesNotExists);
 			ensure!(graph.contains_key(&end), Error::<T, I>::TokenDoesNotExists);
 
 			// iterate until we build all routes
@@ -210,10 +199,8 @@ pub mod pallet {
 				let adjacents = graph.get(&start).unwrap();
 
 				// items that are adjacent but not already in path
-				let difference: Vec<_> = adjacents
-					.iter()
-					.filter(|item| !path.contains(item))
-					.collect();
+				let difference: Vec<_> =
+					adjacents.iter().filter(|item| !path.contains(item)).collect();
 
 				for node in difference {
 					queue.push((*node, end, path.clone()));
@@ -245,14 +232,14 @@ pub mod pallet {
 			};
 
 			log::trace!(
-                target: "router::get_best_route",
-                "amount: {:?}, token_in: {:?}, token_out: {:?}, reversed: {:?}, best_route: {:?}",
-                amount,
-                token_in,
-                token_out,
-                reversed,
-                best_route
-            );
+				target: "router::get_best_route",
+				"amount: {:?}, token_in: {:?}, token_out: {:?}, reversed: {:?}, best_route: {:?}",
+				amount,
+				token_in,
+				token_out,
+				reversed,
+				best_route
+			);
 
 			Ok(best_route)
 		}
@@ -308,28 +295,28 @@ pub mod pallet {
 
 			// Ensure balances user input is bigger than zero.
 			ensure!(
-                amount_in > Zero::zero() && min_amount_out >= Zero::zero(),
-                Error::<T, I>::ZeroBalance
-            );
+				amount_in > Zero::zero() && min_amount_out >= Zero::zero(),
+				Error::<T, I>::ZeroBalance
+			);
 
 			// Ensure the trader has enough tokens for transaction.
 			let from_currency_id = route[0];
 			ensure!(
-                T::Assets::reducible_balance(
-                    from_currency_id,
-                    &trader,
-                    from_currency_id == T::GetNativeCurrencyId::get()
-                ) >= amount_in,
-                Error::<T, I>::InsufficientBalance
-            );
+				T::Assets::reducible_balance(
+					from_currency_id,
+					&trader,
+					from_currency_id == T::GetNativeCurrencyId::get()
+				) >= amount_in,
+				Error::<T, I>::InsufficientBalance
+			);
 
 			let amounts = T::AMM::get_amounts_out(amount_in, route.clone())?;
 
 			// make sure the required amount in does not violate our input
 			ensure!(
-                amounts[amounts.len() - 1] >= min_amount_out,
-                Error::<T, I>::MinimumAmountOutViolated
-            );
+				amounts[amounts.len() - 1] >= min_amount_out,
+				Error::<T, I>::MinimumAmountOutViolated
+			);
 
 			for i in 0..(route.len() - 1) {
 				let next_index = i + 1;
@@ -367,9 +354,9 @@ pub mod pallet {
 
 			// Ensure balances user input is bigger than zero.
 			ensure!(
-                amount_out > Zero::zero() && max_amount_in >= Zero::zero(),
-                Error::<T, I>::ZeroBalance
-            );
+				amount_out > Zero::zero() && max_amount_in >= Zero::zero(),
+				Error::<T, I>::ZeroBalance
+			);
 
 			// calculate trading amounts
 			let amounts = T::AMM::get_amounts_in(amount_out, route.clone())?;
@@ -378,19 +365,16 @@ pub mod pallet {
 			// Ensure the trader has enough tokens for transaction.
 			let from_currency_id = route[0];
 			ensure!(
-                T::Assets::reducible_balance(
-                    from_currency_id,
-                    &trader,
-                    from_currency_id == T::GetNativeCurrencyId::get()
-                ) > amounts[0],
-                Error::<T, I>::InsufficientBalance
-            );
+				T::Assets::reducible_balance(
+					from_currency_id,
+					&trader,
+					from_currency_id == T::GetNativeCurrencyId::get()
+				) > amounts[0],
+				Error::<T, I>::InsufficientBalance
+			);
 
 			// make sure the required amount in does not violate our input
-			ensure!(
-                max_amount_in >= amounts[0],
-                Error::<T, I>::MaximumAmountInViolated
-            );
+			ensure!(max_amount_in >= amounts[0], Error::<T, I>::MaximumAmountInViolated);
 
 			for i in 0..(route.len() - 1) {
 				let next_index = i + 1;

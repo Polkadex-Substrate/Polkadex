@@ -8,9 +8,12 @@ use sp_runtime_interface::runtime_interface;
 
 use sp_std::{vec, vec::Vec};
 
+use crate::parachain_primitives::ParachainWithdraw;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
+pub mod normal_deposit;
+pub mod parachain_primitives;
 pub mod thea_types;
 
 #[runtime_interface]
@@ -21,7 +24,10 @@ pub trait TheaExt {
 		payload: &[u8],
 		bls_public_keys: &[BLSPublicKey],
 	) -> bool {
-		let recon_sig = Signature::from_bytes(agg_sig).unwrap();
+		let recon_sig = match Signature::from_bytes(agg_sig) {
+			Ok(sig) => sig,
+			Err(_e) => return false,
+		};
 		let bit_map_vec = return_set_bits(bit_map);
 		let mut agg_pk: Option<AggregatePublicKey> = None;
 		for x in bit_map_vec {
@@ -35,31 +41,89 @@ pub trait TheaExt {
 					Ok(agg_pk) => Some(agg_pk),
 					Err(_err) => return false,
 				};
+			} else if let Some(mut new_agg_pk) = agg_pk {
+				if new_agg_pk.add_public_key(&bls_key, false).is_ok() {
+					agg_pk = Some(new_agg_pk);
+				} else {
+					return false
+				}
 			} else {
-				let mut new_agg_pk = agg_pk.unwrap();
-				new_agg_pk.add_public_key(&bls_key, false).unwrap();
-				agg_pk = Some(new_agg_pk);
+				return false
 			}
 		}
 		// Generate Aggregate Signature
 		let mut _agg_sig = AggregateSignature::from_signature(&recon_sig);
 		let dst = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
-		let err = recon_sig.fast_aggregate_verify_pre_aggregated(
-			false,
-			payload,
-			dst,
-			&agg_pk.unwrap().to_public_key(),
-		);
-		if err == BLST_ERROR::BLST_SUCCESS {
-			return true
+		if let Some(agg_pk) = agg_pk {
+			let err = recon_sig.fast_aggregate_verify_pre_aggregated(
+				false,
+				payload,
+				dst,
+				&agg_pk.to_public_key(),
+			);
+			if err == BLST_ERROR::BLST_SUCCESS {
+				return true
+			}
 		}
 		false
 	}
 }
+
 #[derive(
 	Clone, Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, PartialOrd, Ord, Eq, Copy,
 )]
 pub struct BLSPublicKey(pub [u8; 192]);
+
+#[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum TheaPalletMessages {
+	// Begin Distributed key generation and the amount of offline stages
+	EcdsaReady(u16),
+	// Sign Q Public Key
+	SignQdPublicKey,
+	// Thea Key Rotation Complete
+	TheaKeyRotationComplete,
+}
+
+#[derive(Encode, Decode, Clone, Debug, TypeInfo, Eq, PartialEq)]
+pub struct ApprovedWithdraw {
+	pub asset_id: u128,
+	pub amount: u128,
+	pub network: u8,
+	pub beneficiary: Vec<u8>,
+	pub payload: Vec<u8>,
+	pub index: u32,
+}
+
+impl ApprovedWithdraw {
+	pub fn decode_payload(&self) -> Option<ParachainWithdraw> {
+		ParachainWithdraw::decode(&mut &self.payload[..]).ok()
+	}
+}
+
+pub trait AssetIdConverter {
+	/// Get Asset Id
+	fn get_asset_id(&self) -> Option<u128>;
+
+	/// To Asset Id
+	fn to_asset_id(&self) -> Self;
+}
+
+#[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum TokenType {
+	Fungible(u8),
+	NonFungible(u8),
+	Generic(u8),
+}
+
+impl TokenType {
+	pub fn get_network_id(&self) -> u8 {
+		match self {
+			TokenType::Fungible(network_id) => *network_id,
+			TokenType::NonFungible(network_id) => *network_id,
+			TokenType::Generic(network_id) => *network_id,
+		}
+	}
+}
 
 pub fn return_set_bits(bit_map: u128) -> Vec<u8> {
 	let mut set_bits: Vec<u8> = vec![];
@@ -69,6 +133,10 @@ pub fn return_set_bits(bit_map: u128) -> Vec<u8> {
 		}
 	}
 	set_bits
+}
+
+pub trait TheaExtrinsicSubmitted<Author> {
+	fn thea_extrinsic_submitted(author: Author, bit_map: u128, active_set: Vec<Author>);
 }
 
 #[test]
