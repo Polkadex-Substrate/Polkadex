@@ -2,8 +2,8 @@ use crate as thea_staking;
 use crate::{
 	mock::*,
 	session::{StakingLimits, UnlockChunk},
-	ActiveNetworks, CurrentIndex, Error, Event, Exposure, IndividualExposure, StakingData,
-	Stakinglimits,
+	ActiveNetworks, Candidates, CurrentIndex, EraRewardPayout, EraRewardPoints, Error, Event,
+	Exposure, Hooks, IndividualExposure, Perbill, Stakers, StakingData, Stakinglimits,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -25,6 +25,7 @@ fn test_add_candidate_with_valid_inputs_returns_ok() {
 		let exposure = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000,
+			individual: 1_000_000_000_000,
 			bls_pub_key: bls_key,
 			stakers: Default::default(),
 		};
@@ -118,8 +119,13 @@ fn test_nominate_with_valid_arguments_returns_ok() {
 		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
 		stakers.insert(nominator);
-		let exposure =
-			Exposure { score: 1000, total: 2_000_000_000_000, bls_pub_key: bls_key, stakers };
+		let exposure = Exposure {
+			score: 1000,
+			total: 2_000_000_000_000,
+			individual: 1_000_000_000_000,
+			bls_pub_key: bls_key,
+			stakers,
+		};
 		assert_eq!(TheaStaking::candidates(network_id, candidate), Some(exposure));
 		let nominator_exposure = IndividualExposure {
 			who: nominator,
@@ -204,8 +210,13 @@ fn test_unbond_with_valid_arguments_returns_ok() {
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
 		stakers.insert(nominator);
-		let relayer_exposure =
-			Exposure { score: 1000, total: 1_900_000_000_000u128, bls_pub_key: bls_key, stakers };
+		let relayer_exposure = Exposure {
+			score: 1000,
+			total: 1_900_000_000_000u128,
+			individual: 1_000_000_000_000_u128,
+			bls_pub_key: bls_key,
+			stakers,
+		};
 		assert_eq!(TheaStaking::candidates(network, candidate), Some(relayer_exposure));
 	})
 }
@@ -307,6 +318,7 @@ fn test_elect_relayers_with_candidates_less_than_max_candidates_allowed_returns_
 		let exposure_for_candidate_one = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
+			individual: 1_000_000_000_000u128,
 			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
@@ -314,6 +326,7 @@ fn test_elect_relayers_with_candidates_less_than_max_candidates_allowed_returns_
 		let exposure_for_candidate_two = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
+			individual: 1_000_000_000_000u128,
 			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
@@ -338,6 +351,7 @@ fn test_elect_relayers_with_candidates_more_than_max_candidates_allowed_returns_
 		let exposure_for_candidate_one = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
+			individual: 1_000_000_000_000u128,
 			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
@@ -345,6 +359,7 @@ fn test_elect_relayers_with_candidates_more_than_max_candidates_allowed_returns_
 		let exposure_for_candidate_two = Exposure {
 			score: 1000,
 			total: 2_000_000_000_000u128,
+			individual: 2_000_000_000_000u128,
 			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
@@ -352,6 +367,7 @@ fn test_elect_relayers_with_candidates_more_than_max_candidates_allowed_returns_
 		let exposure_for_candidate_three = Exposure {
 			score: 1000,
 			total: 3_000_000_000_000u128,
+			individual: 3_000_000_000_000u128,
 			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
@@ -378,12 +394,14 @@ fn test_compute_next_session_with_valid_arguments() {
 		let candidate_one_exposure = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
+			individual: 1_000_000_000_000u128,
 			bls_pub_key: BLSPublicKey([1u8; 192]),
 			stakers: Default::default(),
 		};
 		let candidate_two_exposure = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000u128,
+			individual: 1_000_000_000_000u128,
 			bls_pub_key: BLSPublicKey([2u8; 192]),
 			stakers: Default::default(),
 		};
@@ -433,7 +451,9 @@ fn test_rotate_session() {
 fn rotate_session_init() {
 	let current_session = 1;
 	<CurrentIndex<Test>>::put(current_session);
-	<ActiveNetworks<Test>>::put(vec![0]);
+	let mut set = BTreeSet::new();
+	set.insert(0);
+	<ActiveNetworks<Test>>::put(set);
 	register_candidate();
 	register_new_candidate(2, 0, BLSPublicKey([2; 192]));
 	insert_staking_limit();
@@ -466,8 +486,13 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000u128));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
-		let exposure =
-			Exposure { score: 1000, total: 1_000_000_000_000, bls_pub_key: bls_key, stakers };
+		let exposure = Exposure {
+			score: 1000,
+			total: 1_000_000_000_000,
+			individual: 1_000_000_000_000,
+			bls_pub_key: bls_key,
+			stakers,
+		};
 		assert_eq!(TheaStaking::candidates(network_id, candidate), Some(exposure));
 		let nominator_exposure = IndividualExposure {
 			who: nominator,
@@ -476,6 +501,72 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 			unlocking: vec![UnlockChunk { value: 1000000000000, era: 10 }],
 		};
 		assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
+	})
+}
+
+use thea_primitives::TheaExtrinsicSubmitted;
+const SESSION_LENGTH: u32 = 10;
+#[test]
+fn test_reward_payout() {
+	new_test_ext().execute_with(|| {
+		register_candidate();
+		insert_staking_limit();
+		let initial_balance = Balances::free_balance(1);
+		let mut active_set = BTreeSet::new();
+		active_set.insert(0);
+		ActiveNetworks::<Test>::put(active_set);
+		assert_eq!(CurrentIndex::<Test>::get(), 0);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		assert_eq!(CurrentIndex::<Test>::get(), 1);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::thea_extrinsic_submitted(1, 0, vec![]);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(1), 3));
+		assert_eq!(Balances::free_balance(1), initial_balance + 24);
+	})
+}
+
+const PDEX: u128 = 1_000_000_000_000;
+
+#[test]
+fn test_reward_with_nominators() {
+	new_test_ext().execute_with(|| {
+		let mut active_networks = BTreeSet::new();
+		active_networks.insert(1_u8);
+		ActiveNetworks::<Test>::set(active_networks);
+		Balances::mint_into(&11, 2 * PDEX);
+		assert_ok!(Balances::mint_into(&10, 1000000 * PDEX));
+		assert_ok!(TheaStaking::add_candidate(Origin::signed(11), 1, BLSPublicKey([0_u8; 192])));
+		let alice_balances = Balances::free_balance(11);
+		Balances::mint_into(&21, 3 * PDEX);
+		assert_ok!(TheaStaking::add_candidate(Origin::signed(21), 1, BLSPublicKey([0_u8; 192])));
+		let bob_balances = Balances::free_balance(21);
+		Balances::mint_into(&101, 10000 * PDEX);
+		assert_ok!(TheaStaking::bond(Origin::signed(101), 10000 * PDEX));
+		let nominator_balances = Balances::free_balance(101);
+		assert_ok!(TheaStaking::nominate(Origin::signed(101), 11));
+		let nominator_exposure = Stakers::<Test>::get(101).unwrap();
+		let alice_exposure = Candidates::<Test>::get(1, 11).unwrap();
+		let alice_part = Perbill::from_rational(alice_exposure.individual, alice_exposure.total);
+		// FIXME: Current implementation does not support one nominator
+		// nominating multiple relayers
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::thea_extrinsic_submitted(11, 0, vec![]);
+		TheaStaking::thea_extrinsic_submitted(11, 0, vec![]);
+		TheaStaking::thea_extrinsic_submitted(21, 0, vec![]);
+		TheaStaking::on_initialize(SESSION_LENGTH.into());
+		assert_eq!(CurrentIndex::<Test>::get(), 3);
+
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(11), 2));
+		assert_ok!(TheaStaking::stakers_payout(Origin::signed(21), 2));
+		let alice_balances = Balances::free_balance(11);
+		let nominator_balances = Balances::free_balance(101);
+		let bob_balances = Balances::free_balance(21);
+
+		assert_eq!(nominator_balances, 16);
+		assert_eq!(bob_balances, 2_000_000_000_008);
 	})
 }
 

@@ -103,16 +103,23 @@ chainbridge = { path ="../pallets/chainbridge", default-features = false }
 thea-cross-chain-governance = { path = "../pallets/thea-cross-chain-governance", default-features = false }
 
 # Orderbook 
-pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
+pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
+
+# Parachain Rewards
+pallet-rewards = { path = "../pallets/rewards", default-features = false }
 
 # Thea
-thea = {path = "../pallets/thea", default-features = false }
+thea = { path = "../pallets/thea", default-features = false }
 thea-primitives = { path = "../thea-primitives", default-features = false  }
+
+# Liquidity Pallet
+liquidity = { path = "../pallets/liquidity", default-features = false }
 
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
 pallet-asset-handler-runtime-api = { path = "../pallets/asset-handler/rpc/runtime-api", default-features = false }
+
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -185,13 +192,15 @@ std = [
     "asset-handler/std",
     "chainbridge/std",
     "pallet-ocex-lmp/std",
+    "pallet-rewards/std",
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
-    "thea-cross-chain-governance/std"
+    "thea-cross-chain-governance/std",
+    "liquidity/std",
 ]
 runtime-benchmarks = [
     #theirs
@@ -205,6 +214,8 @@ runtime-benchmarks = [
     "pallet-ocex-lmp/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
     "pdex-migration/runtime-benchmarks",
+    "pallet-rewards/runtime-benchmarks",
+    "liquidity/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
@@ -237,4 +248,6 @@ try-runtime = [
     "pallet-utility/try-runtime",
     "orml-vesting/try-runtime",
     "pdex-migration/try-runtime",
+    "pallet-rewards/try-runtime",
+    "liquidity/try-runtime",
 ]

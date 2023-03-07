@@ -1272,6 +1272,36 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type MsPerDay = MsPerDay;
 }
 
+//Install rewards Pallet
+parameter_types! {
+	pub const RewardsPalletId: PalletId = PalletId(*b"REWARDSQ");
+}
+
+impl pallet_rewards::Config for Runtime {
+	type Event = Event;
+	type PalletId = RewardsPalletId;
+	type NativeCurrency = Balances;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type WeightInfo = pallet_rewards::weights::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQU/IDI");
+}
+
+impl liquidity::Config for Runtime {
+	type Event = Event;
+	type PalletId = LiquidityPalletId;
+	type NativeCurrency = Balances;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type CallOcex = OCEX;
+	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
+}
+
 parameter_types! {
 	pub const ChainId: u8 = 1;
 	pub const ParachainNetworkId: u8 = 1;
@@ -1314,16 +1344,19 @@ impl thea::pallet::Config for Runtime {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type ExtrinsicSubmittedNotifier = TheaStaking;
 }
 
 //Install Staking Pallet
 parameter_types! {
-	pub const SessionLength: u32 = 50;
+	pub const SessionLength: u32 = 25;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+
 }
 
 impl thea_staking::Config for Runtime {
@@ -1336,6 +1369,8 @@ impl thea_staking::Config for Runtime {
 	type StakingDataPruneDelay = StakingDataPruneDelay;
 	type SessionChangeNotifier = Thea;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
+	type Currency = Balances;
 }
 
 //Install Nomination Pool
@@ -1436,7 +1471,9 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
-		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 42
+		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
+		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 43,
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44
 	}
 );
 /// Digest item type.
@@ -1692,6 +1729,9 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
+			list_benchmark!(list, extra, pallet_rewards, Rewards);
+			list_benchmark!(list, extra, liquidity, Liquidity);
+
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			return (list, storage_info)
@@ -1723,6 +1763,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
+			add_benchmark!(params, batches, pallet_rewards, Rewards);
+			add_benchmark!(params, batches, liquidity, Liquidity);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
