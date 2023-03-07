@@ -27,8 +27,6 @@ mod benchmarking;
 
 pub mod weights;
 
-use frame_support::traits::fungibles::Transfer;
-use sp_runtime::DispatchError;
 pub use weights::*;
 
 #[frame_support::pallet]
@@ -44,7 +42,7 @@ pub mod pallet {
 				fungibles::{Create, Inspect, Mutate},
 				DepositConsequence, WithdrawConsequence,
 			},
-			Currency, ExistenceRequirement, ReservableCurrency, WithdrawReasons,
+			Currency, ExistenceRequirement, ReservableCurrency,
 		},
 		PalletId,
 	};
@@ -791,7 +789,7 @@ pub mod pallet {
 
 		fn total_issuance(asset: Self::AssetId) -> Self::Balance {
 			// when asset is not polkadex
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::total_issuance(asset.saturated_into()).saturated_into()
 			} else {
 				T::Currency::total_issuance().saturated_into()
@@ -799,7 +797,7 @@ pub mod pallet {
 		}
 
 		fn minimum_balance(asset: Self::AssetId) -> Self::Balance {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::minimum_balance(asset.saturated_into()).saturated_into()
 			} else {
 				T::Currency::minimum_balance().saturated_into()
@@ -807,7 +805,7 @@ pub mod pallet {
 		}
 
 		fn balance(asset: Self::AssetId, who: &T::AccountId) -> Self::Balance {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::balance(asset.saturated_into(), who).saturated_into()
 			} else {
 				T::Currency::total_balance(who).saturated_into()
@@ -819,7 +817,7 @@ pub mod pallet {
 			who: &T::AccountId,
 			keep_alive: bool,
 		) -> Self::Balance {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::reducible_balance(asset.saturated_into(), who, keep_alive)
 					.saturated_into()
 			} else {
@@ -833,7 +831,7 @@ pub mod pallet {
 			amount: Self::Balance,
 			mint: bool,
 		) -> DepositConsequence {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::can_deposit(asset, who, amount.saturated_into(), mint)
 			} else {
 				// balance of native asset can always be increased
@@ -846,13 +844,8 @@ pub mod pallet {
 			who: &T::AccountId,
 			amount: Self::Balance,
 		) -> WithdrawConsequence<Self::Balance> {
-			return if asset != T::NativeCurrencyId::get() {
-				let consequences = T::AssetManager::can_withdraw(
-					asset.saturated_into(),
-					who,
-					amount.saturated_into(),
-				);
-				return consequences.into()
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::can_withdraw(asset.saturated_into(), who, amount.saturated_into())
 			} else {
 				todo!()
 			}
@@ -867,7 +860,7 @@ pub mod pallet {
 			amount: Self::Balance,
 			keep_alive: bool,
 		) -> Result<Self::Balance, DispatchError> {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::transfer(asset, source, dest, amount.saturated_into(), keep_alive)
 					.map(|x| x.saturated_into())
 			} else {
@@ -893,7 +886,7 @@ pub mod pallet {
 			who: &T::AccountId,
 			amount: Self::Balance,
 		) -> DispatchResult {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::mint_into(asset, who, amount.saturated_into())
 					.map(|x| x.saturated_into())
 			} else {
@@ -906,7 +899,7 @@ pub mod pallet {
 			who: &T::AccountId,
 			amount: Self::Balance,
 		) -> Result<Self::Balance, DispatchError> {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::burn_from(asset, who, amount.saturated_into())
 					.map(|x| x.saturated_into())
 			} else {
@@ -919,7 +912,7 @@ pub mod pallet {
 			who: &T::AccountId,
 			amount: Self::Balance,
 		) -> Result<Self::Balance, DispatchError> {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::slash(asset, who, amount.saturated_into())
 					.map(|x| x.saturated_into())
 			} else {
@@ -934,7 +927,7 @@ pub mod pallet {
 			dest: &T::AccountId,
 			amount: Self::Balance,
 		) -> Result<Self::Balance, DispatchError> {
-			return if asset != T::NativeCurrencyId::get() {
+			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::teleport(asset, source, dest, amount.saturated_into())
 					.map(|x| x.saturated_into())
 			} else {

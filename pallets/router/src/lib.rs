@@ -33,7 +33,7 @@ pub mod pallet {
 		transactional, BoundedVec, PalletId,
 	};
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-	use polkadex_primitives::{AssetId, Balance};
+	use polkadex_primitives::Balance;
 	use sp_runtime::{traits::Zero, DispatchError};
 	use sp_std::{cmp::Reverse, collections::btree_map::BTreeMap, vec::Vec};
 	use support::AMM;
@@ -141,6 +141,7 @@ pub mod pallet {
 
 		/// Returns a sorted list of all routes and their output amounts from a
 		/// start token to end token by traversing a graph.
+		#[allow(clippy::all)]
 		pub fn get_all_routes(
 			amount: BalanceOf<T, I>,
 			token_in: AssetIdOf<T, I>,
@@ -208,6 +209,7 @@ pub mod pallet {
 		}
 
 		/// Returns the route that results in the largest amount out for amount in
+		#[allow(clippy::all)]
 		pub fn get_best_route(
 			amount: BalanceOf<T, I>,
 			token_in: AssetIdOf<T, I>,
@@ -236,6 +238,7 @@ pub mod pallet {
 		}
 
 		///  Returns output routes for given amount from all available routes
+		#[allow(clippy::all)]
 		pub fn get_output_routes(
 			amount: BalanceOf<T, I>,
 			routes: Vec<Vec<AssetIdOf<T, I>>>,

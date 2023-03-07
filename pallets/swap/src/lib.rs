@@ -30,7 +30,6 @@ use frame_support::{
 	transactional, Blake2_128Concat, PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use polkadex_primitives::Balance;
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Saturating, Zero},
 	ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, SaturatedConversion,
@@ -367,7 +366,7 @@ pub mod pallet {
 
 			let (is_inverted, base_asset, quote_asset) = Self::sort_assets(pair)?;
 			ensure!(
-				!Pools::<T, I>::contains_key(&base_asset, &quote_asset),
+				!Pools::<T, I>::contains_key(base_asset, quote_asset),
 				Error::<T, I>::PoolAlreadyExists
 			);
 
@@ -400,7 +399,7 @@ pub mod pallet {
 				(base_asset, quote_asset),
 			)?;
 
-			Pools::<T, I>::insert(&base_asset, &quote_asset, pool);
+			Pools::<T, I>::insert(base_asset, quote_asset, pool);
 
 			log::trace!(
 				target: "amm::create_pool",
@@ -488,6 +487,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			.ok_or(ArithmeticError::Overflow)?)
 	}
 
+	#[allow(clippy::all)]
 	fn sort_assets(
 		(curr_a, curr_b): (AssetIdOf<T, I>, AssetIdOf<T, I>),
 	) -> Result<(bool, AssetIdOf<T, I>, AssetIdOf<T, I>), DispatchError> {
@@ -510,6 +510,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 	// given a pool, calculate the ideal liquidity amounts as a function of the current
 	// pool reserves ratio
+	#[allow(clippy::all)]
 	fn get_ideal_amounts(
 		pool: &Pool<AssetIdOf<T, I>, BalanceOf<T, I>, T::BlockNumber>,
 		(base_amount, quote_amount): (BalanceOf<T, I>, BalanceOf<T, I>),
@@ -581,6 +582,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	}
 
 	// extract the reserves from a pool after sorting assets
+	#[allow(clippy::all)]
 	fn get_reserves(
 		asset_in: AssetIdOf<T, I>,
 		asset_out: AssetIdOf<T, I>,
@@ -845,6 +847,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		Ok(())
 	}
 
+	#[allow(clippy::all)]
 	fn calculate_reserves_to_remove(
 		pool: &mut Pool<AssetIdOf<T, I>, BalanceOf<T, I>, T::BlockNumber>,
 		liquidity: BalanceOf<T, I>,
@@ -867,7 +870,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 		Ok((base_amount, quote_amount))
 	}
-
+	#[allow(clippy::all)]
 	#[require_transactional]
 	fn do_remove_liquidity(
 		who: &T::AccountId,
@@ -1010,8 +1013,8 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		let (is_inverted, base_asset, quote_asset) = Self::sort_assets((asset_in, asset_out))?;
 
 		Pools::<T, I>::try_mutate(
-			&base_asset,
-			&quote_asset,
+			base_asset,
+			quote_asset,
 			|pool| -> Result<BalanceOf<T, I>, DispatchError> {
 				let pool = pool.as_mut().ok_or(Error::<T, I>::PoolDoesNotExist)?;
 
