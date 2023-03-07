@@ -1,15 +1,14 @@
-use crate as thea_staking;
 use crate::{
 	mock::*,
 	session::{StakingLimits, UnlockChunk},
-	ActiveNetworks, Candidates, CurrentIndex, EraRewardPayout, EraRewardPoints, Error, Event,
-	Exposure, Hooks, IndividualExposure, Perbill, Stakers, StakingData, Stakinglimits,
+	ActiveNetworks, Candidates, CurrentIndex, Error,
+	Exposure, Hooks, IndividualExposure, Perbill, Stakers, Stakinglimits,
 };
 use frame_support::{
 	assert_noop, assert_ok,
-	traits::{fungible::Mutate, TheseExcept},
+	traits::fungible::Mutate,
 };
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;
 
 #[test]
