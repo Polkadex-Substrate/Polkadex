@@ -32,7 +32,7 @@ use crate::election::elect_relayers;
 pub use pallet::*;
 use pallet_staking::EraPayout;
 use sp_runtime::traits::UniqueSaturatedInto;
-use sp_std::vec::Vec;
+use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 use thea_primitives::{
 	thea_types::{Network, OnSessionChange, SessionIndex},
 	BLSPublicKey, TheaExtrinsicSubmitted,
@@ -114,6 +114,12 @@ pub mod pallet {
 		/// Should remain within those bounds.
 		#[pallet::constant]
 		type SevereSlashingCoeficient: Get<u8>;
+
+		/// Coeficient of slashed amount distibuted to each reporter
+		/// Represents 1 to 100 percent of slashed amount.
+		/// Should remain within those bounds.
+		#[pallet::constant]
+		type ReportersRewardCoeficient: Get<u8>;
 
 		/// Threshold of reported relayers required for slashing to happen.
 		/// Represents percentage of active vs reported relayers.
@@ -372,10 +378,11 @@ pub mod pallet {
 					// at most 100% will be slashed
 					// era end FIXME: make sure total slash <= offender's stake + reward?
 					<CommitedSlashing<T>>::mutate(&offender, |current_slashing| {
-						let new_percentage = *current_slashing + coeficient;
+						let new_percentage = current_slashing.0 + coeficient;
 						let actual_percentage =
 							if new_percentage >= 100 { 100 } else { new_percentage };
-						*current_slashing = actual_percentage;
+						current_slashing.0 = actual_percentage;
+						current_slashing.1.insert(reporter.clone());
 					});
 				} else {
 					// extend storage
@@ -478,6 +485,12 @@ pub mod pallet {
 		/// Slashed offender for percend based on commited offence
 		Slashed {
 			offender: T::AccountId,
+			amount: BalanceOf<T>,
+		},
+
+		/// Reward distibuted to reporter relayer for correct offence report
+		ReportRewarded {
+			reporter: T::AccountId,
 			amount: BalanceOf<T>,
 		},
 
@@ -629,10 +642,11 @@ pub mod pallet {
 	/// Summ of commited slashing for each relayer in current era
 	/// Calculated based on reports from <ReportedOffenders<T>> storage
 	/// Represents how many percent will be slashed from given receiver's stake on era end
+	/// BTreeSet are reporters to be rewarded for reporting misbehavior
 	#[pallet::storage]
 	#[pallet::getter(fn commited_slashing)]
 	pub(super) type CommitedSlashing<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, u8, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, (u8, BTreeSet<T::AccountId>), ValueQuery>;
 
 	// Reward Points for Relayers that submit extrinsic
 	// (era, account_id) = Reward points
@@ -752,11 +766,14 @@ pub mod pallet {
 			let session_index = <CurrentIndex<T>>::get();
 			log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 			let active_networks = <ActiveNetworks<T>>::get();
-			for (offender, percent) in <CommitedSlashing<T>>::iter() {
+			for (offender, (percent, reporters)) in <CommitedSlashing<T>>::iter() {
 				if let Some(net) =
 					active_networks.iter().find(|n| <Candidates<T>>::contains_key(n, &offender))
 				{
 					if let Some(to_slash) = <Candidates<T>>::get(net, &offender) {
+						// total amount transfered to treasury - used for reporters award
+						// calculations
+						let mut total_slashed = BalanceOf::<T>::zero();
 						let actual_percent = Percent::from_percent(percent);
 						// slashing relayer's individual stake
 						let amount: BalanceOf<T> = actual_percent * to_slash.individual;
@@ -769,8 +786,10 @@ pub mod pallet {
 						)
 						.is_ok()
 						{
+							total_slashed = total_slashed.saturating_add(amount);
 							Self::deposit_event(Event::Slashed { offender, amount });
 						}
+						// slash stakers / nominators
 						let nominators_count = to_slash.stakers.len();
 						if nominators_count != 0 {
 							let nominator_stake_avg = Percent::from_rational(1, nominators_count);
@@ -789,11 +808,32 @@ pub mod pallet {
 								)
 								.is_ok()
 								{
+									total_slashed =
+										total_slashed.saturating_add(nominator_amount_individual);
 									Self::deposit_event(Event::Slashed {
 										offender: nominator.to_owned(),
-										amount,
+										amount: nominator_amount_individual,
 									});
 								}
+							}
+						}
+						// distribute to reporters
+						let reporter_percent =
+							Percent::from_percent(T::ReportersRewardCoeficient::get());
+						let reporter_award: BalanceOf<T> = reporter_percent * total_slashed;
+						for reporter in reporters.into_iter() {
+							if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
+								&T::TreasuryPalletId::get().into_account_truncating(),
+								&reporter,
+								reporter_award,
+								ExistenceRequirement::KeepAlive,
+							)
+							.is_ok()
+							{
+								Self::deposit_event(Event::ReportRewarded {
+									reporter,
+									amount: reporter_award,
+								});
 							}
 						}
 					} else {
