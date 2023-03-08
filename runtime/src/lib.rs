@@ -1342,6 +1342,7 @@ parameter_types! {
 	pub const StakingDataPruneDelay: u32 = 6;
 	pub const ModerateSK: u8 = 5; // 5% of stake to slash
 	pub const SevereSK: u8 = 20; // 20% of stake to slash
+	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
@@ -1356,6 +1357,7 @@ impl thea_staking::Config for Runtime {
 	type StakingDataPruneDelay = StakingDataPruneDelay;
 	type ModerateSlashingCoeficient = ModerateSK;
 	type SevereSlashingCoeficient = SevereSK;
+	type ReportersRewardCoeficient = ReporterRewardKF;
 	type SlashingThreshold = SlashingTh;
 	type SessionChangeNotifier = Thea;
 	type TreasuryPalletId = TreasuryPalletId;
