@@ -1,15 +1,10 @@
-use crate as thea_staking;
 use crate::{
 	mock::*,
-	session::{StakingLimits, UnlockChunk},
-	ActiveNetworks, Candidates, CurrentIndex, EraRewardPayout, EraRewardPoints, Error, Event,
-	Exposure, Hooks, IndividualExposure, Perbill, Stakers, StakingData, Stakinglimits,
+	session::{Exposure, IndividualExposure, StakingLimits, UnlockChunk},
+	ActiveNetworks, Candidates, CurrentIndex, Error, Hooks, Perbill, Stakers, Stakinglimits,
 };
-use frame_support::{
-	assert_noop, assert_ok,
-	traits::{fungible::Mutate, TheseExcept},
-};
-use std::collections::{BTreeSet, HashSet};
+use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
+use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;
 
 #[test]
@@ -18,7 +13,7 @@ fn test_add_candidate_with_valid_inputs_returns_ok() {
 		let candidate = 1;
 		let network_id: u8 = 0;
 		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
-		Balances::mint_into(&candidate, 10_000_000_000_000u128);
+		Balances::mint_into(&candidate, 10_000_000_000_000u128).unwrap();
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
 		assert_eq!(Balances::free_balance(&candidate), 9_000_000_000_000);
 		assert_eq!(Balances::reserved_balance(&candidate), 1_000_000_000_000);
@@ -35,12 +30,13 @@ fn test_add_candidate_with_valid_inputs_returns_ok() {
 }
 
 #[test]
-fn test_add_candidate_with_already_registered_candidate_returns_CandidateAlreadyRegistered_error() {
+fn test_add_candidate_with_already_registered_candidate_returns_candidate_already_registered_error()
+{
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let network_id: u8 = 0;
 		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
-		Balances::mint_into(&candidate, 10_000_000_000_000u128);
+		Balances::mint_into(&candidate, 10_000_000_000_000u128).unwrap();
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
 		assert_noop!(
 			TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key),
@@ -55,7 +51,7 @@ fn test_add_candidate_with_low_free_balance_returns_low_balance_error() {
 		let candidate = 1;
 		let network_id: u8 = 0;
 		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
-		Balances::mint_into(&candidate, 10_000_000_000u128);
+		Balances::mint_into(&candidate, 10_000_000_000u128).unwrap();
 		assert_noop!(
 			TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key),
 			pallet_balances::Error::<Test>::InsufficientBalance
@@ -70,7 +66,7 @@ fn test_bound_with_valid_arguments_first_time_returns_ok() {
 		insert_staking_limit();
 		// Give some Balance to Nominator
 		let nominator = 2;
-		Balances::mint_into(&nominator, 10_000_000_000_000u128);
+		Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
 		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
 		let individual_exposure = IndividualExposure {
 			who: nominator,
@@ -83,7 +79,7 @@ fn test_bound_with_valid_arguments_first_time_returns_ok() {
 }
 
 #[test]
-fn test_bound_with_low_nominators_balance_returns_StakingLimitsError() {
+fn test_bound_with_low_nominators_balance_returns_staking_limits_error() {
 	new_test_ext().execute_with(|| {
 		register_candidate();
 		insert_staking_limit();
@@ -96,7 +92,7 @@ fn test_bound_with_low_nominators_balance_returns_StakingLimitsError() {
 }
 
 #[test]
-fn test_bound_with_low_nominators_balance_return_InsufficientBalance() {
+fn test_bound_with_low_nominators_balance_return_insufficient_balance() {
 	new_test_ext().execute_with(|| {
 		register_candidate();
 		insert_staking_limit();
@@ -137,7 +133,7 @@ fn test_nominate_with_valid_arguments_returns_ok() {
 	});
 }
 #[test]
-fn test_nominate_with_invalid_nominator_returns_StakerNotFound() {
+fn test_nominate_with_invalid_nominator_returns_staker_not_found() {
 	new_test_ext().execute_with(|| {
 		let nominator = 2;
 		let candidate = 1;
@@ -149,7 +145,7 @@ fn test_nominate_with_invalid_nominator_returns_StakerNotFound() {
 }
 
 #[test]
-fn test_nominate_with_already_staked_relayer_returns_StakerAlreadyNominating() {
+fn test_nominate_with_already_staked_relayer_returns_staker_already_nominating() {
 	new_test_ext().execute_with(|| {
 		register_candidate();
 		insert_staking_limit();
@@ -165,7 +161,7 @@ fn test_nominate_with_already_staked_relayer_returns_StakerAlreadyNominating() {
 }
 
 #[test]
-fn test_nominate_with_wrong_candidate_returns_CandidateNotFound() {
+fn test_nominate_with_wrong_candidate_returns_candidate_not_found() {
 	new_test_ext().execute_with(|| {
 		insert_staking_limit();
 		register_nominator();
@@ -185,7 +181,7 @@ fn test_bound_with_valid_arguments_second_time_returns_ok() {
 		insert_staking_limit();
 		// Give some Balance to Nominator
 		let nominator = 2;
-		Balances::mint_into(&nominator, 10_000_000_000_000u128);
+		Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
 		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
 		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
 		let individual_exposure = IndividualExposure {
@@ -222,7 +218,7 @@ fn test_unbond_with_valid_arguments_returns_ok() {
 }
 
 #[test]
-fn test_unbond_with_unregistered_nominator_returns_StakerNotFound_error() {
+fn test_unbond_with_unregistered_nominator_returns_staker_not_found_error() {
 	new_test_ext().execute_with(|| {
 		register_candidate();
 		insert_staking_limit();
@@ -485,7 +481,7 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		let bls_key = BLSPublicKey([1; 192]);
 		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000u128));
-		let mut stakers: BTreeSet<u64> = BTreeSet::new();
+		let stakers: BTreeSet<u64> = BTreeSet::new();
 		let exposure = Exposure {
 			score: 1000,
 			total: 1_000_000_000_000,
@@ -535,20 +531,20 @@ fn test_reward_with_nominators() {
 		let mut active_networks = BTreeSet::new();
 		active_networks.insert(1_u8);
 		ActiveNetworks::<Test>::set(active_networks);
-		Balances::mint_into(&11, 2 * PDEX);
+		Balances::mint_into(&11, 2 * PDEX).unwrap();
 		assert_ok!(Balances::mint_into(&10, 1000000 * PDEX));
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(11), 1, BLSPublicKey([0_u8; 192])));
-		let alice_balances = Balances::free_balance(11);
-		Balances::mint_into(&21, 3 * PDEX);
+		let _alice_balances = Balances::free_balance(11);
+		Balances::mint_into(&21, 3 * PDEX).unwrap();
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(21), 1, BLSPublicKey([0_u8; 192])));
-		let bob_balances = Balances::free_balance(21);
-		Balances::mint_into(&101, 10000 * PDEX);
+		let _bob_balances = Balances::free_balance(21);
+		Balances::mint_into(&101, 10000 * PDEX).unwrap();
 		assert_ok!(TheaStaking::bond(Origin::signed(101), 10000 * PDEX));
-		let nominator_balances = Balances::free_balance(101);
+		let _nominator_balances = Balances::free_balance(101);
 		assert_ok!(TheaStaking::nominate(Origin::signed(101), 11));
-		let nominator_exposure = Stakers::<Test>::get(101).unwrap();
+		let _nominator_exposure = Stakers::<Test>::get(101).unwrap();
 		let alice_exposure = Candidates::<Test>::get(1, 11).unwrap();
-		let alice_part = Perbill::from_rational(alice_exposure.individual, alice_exposure.total);
+		let _alice_part = Perbill::from_rational(alice_exposure.individual, alice_exposure.total);
 		// FIXME: Current implementation does not support one nominator
 		// nominating multiple relayers
 		TheaStaking::on_initialize(SESSION_LENGTH.into());
@@ -561,7 +557,7 @@ fn test_reward_with_nominators() {
 
 		assert_ok!(TheaStaking::stakers_payout(Origin::signed(11), 2));
 		assert_ok!(TheaStaking::stakers_payout(Origin::signed(21), 2));
-		let alice_balances = Balances::free_balance(11);
+		let _alice_balances = Balances::free_balance(11);
 		let nominator_balances = Balances::free_balance(101);
 		let bob_balances = Balances::free_balance(21);
 
@@ -577,18 +573,18 @@ fn unbonding() {
 
 fn register_nominator() {
 	let nominator = 2;
-	Balances::mint_into(&nominator, 10_000_000_000_000u128);
+	Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
 	assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
 }
 
 fn register_candidate() {
 	let (candidate, network_id, bls_key) = get_candidate();
-	Balances::mint_into(&candidate, 10_000_000_000_000u128);
+	Balances::mint_into(&candidate, 10_000_000_000_000u128).unwrap();
 	assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
 }
 
 fn register_new_candidate(candidate_id: u64, network_id: u8, bls_key: BLSPublicKey) {
-	Balances::mint_into(&candidate_id, 10_000_000_000_000u128);
+	Balances::mint_into(&candidate_id, 10_000_000_000_000u128).unwrap();
 	assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate_id), network_id, bls_key));
 }
 
