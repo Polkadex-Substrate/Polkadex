@@ -117,6 +117,7 @@ frame-try-runtime = { workspace = true, optional = true, default-features = fals
 
 pallet-asset-handler-runtime-api = { path = "../pallets/asset-handler/rpc/runtime-api", default-features = false }
 
+
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
 

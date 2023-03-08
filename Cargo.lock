@@ -9082,6 +9082,8 @@ dependencies = [
  "log",
  "pallet-assets",
  "pallet-balances",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
  "parity-scale-codec",
  "polkadex-primitives 0.9.28",
  "scale-info",

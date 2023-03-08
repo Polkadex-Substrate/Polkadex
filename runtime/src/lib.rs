@@ -1329,11 +1329,12 @@ impl thea::pallet::Config for Runtime {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type ExtrinsicSubmittedNotifier = TheaStaking;
 }
 
 //Install Staking Pallet
 parameter_types! {
-	pub const SessionLength: u32 = 50;
+	pub const SessionLength: u32 = 25;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1_000_000_000_000;
@@ -1342,6 +1343,7 @@ parameter_types! {
 	pub const ModerateSK: u8 = 5; // 5% of stake to slash
 	pub const SevereSK: u8 = 20; // 20% of stake to slash
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
+	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
 impl thea_staking::Config for Runtime {
@@ -1358,6 +1360,8 @@ impl thea_staking::Config for Runtime {
 	type SessionChangeNotifier = Thea;
 	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
+	type Currency = Balances;
 }
 
 //Install Nomination Pool
