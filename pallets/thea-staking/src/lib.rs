@@ -17,36 +17,38 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	ensure,
-	pallet_prelude::*,
-	traits::{Currency, ExistenceRequirement, NamedReservableCurrency},
-	PalletId,
-};
+use frame_support::{pallet_prelude::*, traits::ExistenceRequirement, PalletId};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, Get, Saturating},
-	DispatchError, Percent, SaturatedConversion,
+	traits::{AccountIdConversion, Saturating},
+	Perbill, Percent, SaturatedConversion,
 };
 use sp_staking::{EraIndex, StakingInterface};
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{borrow::ToOwned, collections::btree_map::BTreeMap};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-use crate::{
-	election::elect_relayers,
-	session::{Exposure, IndividualExposure},
-};
+use crate::election::elect_relayers;
 pub use pallet::*;
+use pallet_staking::EraPayout;
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 use thea_primitives::{
 	thea_types::{Network, OnSessionChange, SessionIndex},
-	BLSPublicKey,
+	BLSPublicKey, TheaExtrinsicSubmitted,
 };
 mod election;
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 mod session;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
+
+#[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
+pub struct EraRewardPointTracker<Account> {
+	pub total_points: u32,
+	pub individual: BTreeMap<Account, u32>,
+}
 
 /// A type alias for the balance type from this pallet's point of view.
 pub type BalanceOf<T> = <T as pallet_balances::Config>::Balance;
@@ -63,7 +65,7 @@ pub trait SessionChanged {
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::session::{Exposure, IndividualExposure, StakingLimits};
-	use frame_support::{pallet_prelude::*, traits::NamedReservableCurrency};
+	use frame_support::traits::{Currency, NamedReservableCurrency, ReservableCurrency};
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::misbehavior::TheaMisbehavior;
 	use scale_info::prelude::string::String;
@@ -132,6 +134,12 @@ pub mod pallet {
 
 		/// Governance origin to update the thea staking configuration
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+
+		// Era Payout for set of Relayers
+		type EraPayout: EraPayout<BalanceOf<Self>>;
+
+		/// Native Currency handler
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -151,6 +159,7 @@ pub mod pallet {
 		fn on_initialize(current_block_num: T::BlockNumber) -> Weight {
 			if Self::should_end_session(current_block_num) {
 				Self::rotate_session();
+				Self::end_of_era();
 				T::BlockWeights::get().max_block
 			} else {
 				// NOTE: the non-database part of the weight for `should_end_session(n)` is
@@ -182,7 +191,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Adds the sender as a candidate for election and to the waitlist for selection.
+		/// Adds the sender as a candidate for election and to the   for selection.
 		///
 		/// # Parameters
 		///
@@ -387,6 +396,19 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::OffenceReported { offender, reporter, offence });
 
 			Ok(Pays::No.into())
+		}
+
+		/// Pays the stakers of a Relayer for a given Session
+		///
+		/// # Parameters
+		///
+		/// `session`: SessionIndex of the Session to be paid out for
+		#[pallet::call_index(10)]
+		#[pallet::weight(10000)]
+		pub fn stakers_payout(origin: OriginFor<T>, session: SessionIndex) -> DispatchResult {
+			let staker = ensure_signed(origin)?;
+			Self::do_stakers_payout(staker, session)?;
+			Ok(())
 		}
 	}
 
@@ -611,355 +633,496 @@ pub mod pallet {
 	#[pallet::getter(fn commited_slashing)]
 	pub(super) type CommitedSlashing<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, u8, ValueQuery>;
-}
 
-// The main implementation block for the pallet. Functions here fall into three broad
-// categories:
-// - Public interface. These are functions that are `pub` and generally fall into inspector
-// functions that do not write to storage and operation functions that do.
-// - Private functions. These are your usual private utilities unavailable to other pallets.
-impl<T: Config> Pallet<T> {
-	// Add public immutables and private mutables.
-	pub fn rotate_session() {
-		let session_index = <CurrentIndex<T>>::get();
-		log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
-		let active_networks = <ActiveNetworks<T>>::get();
-		for (offender, percent) in <CommitedSlashing<T>>::iter() {
-			if let Some(net) =
-				active_networks.iter().find(|n| <Candidates<T>>::contains_key(n, &offender))
-			{
-				if let Some(to_slash) = <Candidates<T>>::get(net, &offender) {
-					let actual_percent = Percent::from_percent(percent);
-					let amount: BalanceOf<T> = actual_percent * to_slash.total;
-					// TODO: where to transfer? % > Treasury && % > to reporters
-					if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
-						&offender,
-						&T::TreasuryPalletId::get().into_account_truncating(),
-						amount,
-						ExistenceRequirement::KeepAlive,
-					)
-					.is_ok()
-					{
-						Self::deposit_event(Event::Slashed { offender, amount });
+	// Reward Points for Relayers that submit extrinsic
+	// (era, account_id) = Reward points
+	#[pallet::storage]
+	pub(super) type EraRewardPoints<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, EraRewardPointTracker<T::AccountId>, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn era_reward_payout)]
+	// Stores the Total Reward Payout for a Session
+	pub(super) type EraRewardPayout<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
+
+	#[pallet::storage]
+	/// Stores the Total Active Stake for a given Session
+	pub(super) type TotalSessionStake<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
+
+	#[pallet::storage]
+	/// Stores the Total Elected Relayers for a given Session
+	pub(super) type TotalElectedRelayers<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, Vec<(T::AccountId, Exposure<T>)>, ValueQuery>;
+
+	// The main implementation block for the pallet. Functions here fall into three broad
+	// categories:
+	// - Public interface. These are functions that are `pub` and generally fall into inspector
+	// functions that do not write to storage and operation functions that do.
+	// - Private functions. These are your usual private utilities unavailable to other pallets.
+	impl<T: Config> Pallet<T> {
+		// Rewards author of extrinsic
+		// # Parameters
+		// * author: Author of the extrinsic
+		pub fn reward_by_id(author: T::AccountId, _bit_map: u128, _active_set: Vec<T::AccountId>) {
+			<EraRewardPoints<T>>::mutate(<CurrentIndex<T>>::get(), |tracker| {
+				if let Some(tracker) = tracker {
+					tracker.total_points += 50;
+					if let Some(existing_points) = tracker.individual.get_mut(&author) {
+						*existing_points += 50;
+					} else {
+						tracker.individual.insert(author, 50);
 					}
 				} else {
-					Self::deposit_event(Event::SlashingFailed { offender });
+					let mut btree_map: BTreeMap<T::AccountId, u32> = BTreeMap::new();
+					btree_map.insert(author, 50);
+					let points_tracker: EraRewardPointTracker<T::AccountId> =
+						EraRewardPointTracker { total_points: 50, individual: btree_map };
+					*tracker = Some(points_tracker);
 				}
+			});
+		}
+
+		pub fn end_of_era() {
+			// FIXME: Need to remove hardcoded value
+			let era = <CurrentIndex<T>>::get();
+			let total_issuance: u32 = T::Currency::total_issuance().unique_saturated_into();
+			let eras_total_stake = <TotalSessionStake<T>>::get(era);
+			// FIXME: This hardcoded value needs to be updated
+			let (era_payout, _rest) =
+				T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 7200);
+			<EraRewardPayout<T>>::insert(era, era_payout);
+		}
+
+		pub fn eras_total_stake() -> BalanceOf<T> {
+			// FIXME: This should be active relayers for a given an era
+			let _active_relayers = <ActiveRelayers<T>>::get(1);
+			let staking_data = <StakingData<T>>::get(<CurrentIndex<T>>::get(), 0);
+			let mut total_stake: BalanceOf<T> = 0_u32.into();
+			for (_, exposure) in staking_data {
+				let stake = exposure.total;
+				total_stake += stake;
+			}
+			total_stake
+		}
+
+		pub fn do_stakers_payout(stash_account: T::AccountId, era: SessionIndex) -> DispatchResult {
+			let total_payout = <EraRewardPayout<T>>::get(era);
+			let mut relayer_part: Perbill = Perbill::default();
+			if let Some(rewards) = <EraRewardPoints<T>>::get(era) {
+				relayer_part = Perbill::from_rational(
+					*rewards.individual.get(&stash_account).unwrap(),
+					rewards.total_points,
+				);
+			}
+			let relayer_payout = relayer_part * total_payout;
+			// 1. Calculate Nominators Payout
+			// Get Exposure for the given relayer
+			let total_elected_relayers = <TotalElectedRelayers<T>>::get(era);
+			let exposure = total_elected_relayers
+				.iter()
+				.filter(|(account_id, _)| *account_id == stash_account)
+				.fold(Exposure::new(BLSPublicKey([0_u8; 192])), |_, i| i.1.to_owned());
+			let total_stake = exposure.total;
+			let individual_part = Perbill::from_rational(exposure.individual, total_stake);
+			let individual_payout = individual_part * relayer_payout;
+			// panic!("Alice individual payout: {:?}", total_payout);
+			// Mint it to the Relayer
+			let individual_payout: u32 = individual_payout.unique_saturated_into();
+			T::Currency::deposit_into_existing(&stash_account, individual_payout.into())?;
+
+			for nominator in exposure.stakers {
+				// Get Exposure of Stakers
+				if let Some(nominator_exposure) = <Stakers<T>>::get(&nominator) {
+					let nominator_stake = nominator_exposure.value;
+					let nominator_part = Perbill::from_rational(nominator_stake, total_stake);
+					// TODO: Check if backing is the same
+					let nominator_payout = nominator_part * relayer_payout;
+					let nominator_payout: u32 = nominator_payout.unique_saturated_into();
+					// Mint Rewards for Nominators
+					T::Currency::deposit_into_existing(&nominator, nominator_payout.into())?;
+				}
+			}
+			Ok(())
+		}
+
+		// Add public immutables and private mutables.
+		pub fn rotate_session() {
+			let session_index = <CurrentIndex<T>>::get();
+			log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
+			let active_networks = <ActiveNetworks<T>>::get();
+			for (offender, percent) in <CommitedSlashing<T>>::iter() {
+				if let Some(net) =
+					active_networks.iter().find(|n| <Candidates<T>>::contains_key(n, &offender))
+				{
+					if let Some(to_slash) = <Candidates<T>>::get(net, &offender) {
+						let actual_percent = Percent::from_percent(percent);
+						let amount: BalanceOf<T> = actual_percent * to_slash.total;
+						// TODO: where to transfer? % > Treasury && % > to reporters
+						if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
+							&offender,
+							&T::TreasuryPalletId::get().into_account_truncating(),
+							amount,
+							ExistenceRequirement::KeepAlive,
+						)
+						.is_ok()
+						{
+							Self::deposit_event(Event::Slashed { offender, amount });
+						}
+					} else {
+						Self::deposit_event(Event::SlashingFailed { offender });
+					}
+				}
+			}
+
+			// reset of slashed store and reports
+			// max active validators count
+			let max_ops: u32 = active_networks
+				.iter()
+				.fold(0, |acc, network| acc + <ActiveRelayers<T>>::get(network).len())
+				.saturated_into();
+			let sp_io::MultiRemovalResults { unique, .. } =
+				<CommitedSlashing<T>>::clear(max_ops, None);
+			let unique_reports = unique;
+			let sp_io::MultiRemovalResults { unique, .. } =
+				<ReportedOffenders<T>>::clear(max_ops, None);
+			Self::deposit_event(Event::SlashesCleaned((unique + unique_reports).saturated_into()));
+			// map to collect all active relayers to send to session change notifier
+			let mut map: BTreeMap<Network, OnSessionChange<T::AccountId>> = BTreeMap::new();
+			for network in active_networks {
+				log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
+				let active = Self::move_queued_to_active(network);
+				map.insert(network, active);
+				Self::compute_next_session(network, session_index);
+			}
+			// Increment SessionIndex
+			let new_session_index = session_index.saturating_add(1);
+			<CurrentIndex<T>>::put(new_session_index);
+			T::SessionChangeNotifier::on_new_session(map);
+			// TODO: implement slashing
+			Self::deposit_event(Event::NewSessionStarted { index: new_session_index })
+		}
+
+		pub fn do_add_new_network(network: Network) {
+			let mut active_networks = <ActiveNetworks<T>>::get();
+			if !active_networks.contains(&network) {
+				active_networks.insert(network);
+				<ActiveNetworks<T>>::put(&active_networks);
+				T::SessionChangeNotifier::set_new_networks(active_networks);
 			}
 		}
 
-		// reset of slashed store and reports
-		// max active validators count
-		let max_ops: u32 = active_networks
-			.iter()
-			.fold(0, |acc, network| acc + <ActiveRelayers<T>>::get(network).len())
-			.saturated_into();
-		let sp_io::MultiRemovalResults { unique, .. } = <CommitedSlashing<T>>::clear(max_ops, None);
-		let unique_reports = unique;
-		let sp_io::MultiRemovalResults { unique, .. } =
-			<ReportedOffenders<T>>::clear(max_ops, None);
-		Self::deposit_event(Event::SlashesCleaned((unique + unique_reports).saturated_into()));
-		// map to collect all active relayers to send to session change notifier
-		let mut map: BTreeMap<Network, OnSessionChange<T::AccountId>> = BTreeMap::new();
-		for network in active_networks {
-			log::trace!(target: "runtime::thea::staking", "rotating for relayers of network {:?}", network);
-			// 1. Move queued_relayers to active_relayers
-			let active = Self::move_queued_to_active(network);
-			map.insert(network, active);
-			Self::compute_next_session(network, session_index);
+		pub fn do_remove_network(network: Network) {
+			let mut active_networks = <ActiveNetworks<T>>::get();
+			if active_networks.remove(&network) {
+				<ActiveNetworks<T>>::put(&active_networks);
+				T::SessionChangeNotifier::set_new_networks(active_networks);
+			}
 		}
-		// Increment SessionIndex
-		let new_session_index = session_index.saturating_add(1);
-		<CurrentIndex<T>>::put(new_session_index);
-		T::SessionChangeNotifier::on_new_session(map);
-		// TODO: implement slashing
-		Self::deposit_event(Event::NewSessionStarted { index: new_session_index })
-	}
+		// FIXME: The current implementation allows Nominators to nominate only one relayer
+		// with the entire stake that has been bonded
+		pub fn do_nominate(
+			nominator: T::AccountId,
+			candidate: T::AccountId,
+		) -> Result<(), Error<T>> {
+			let mut nominator_exposure =
+				<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
+			ensure!(nominator_exposure.backing.is_none(), Error::<T>::StakerAlreadyNominating);
+			let network = <CandidateToNetworkMapping<T>>::get(&candidate)
+				.ok_or(Error::<T>::CandidateNotFound)?;
+			let mut exposure =
+				<Candidates<T>>::get(network, &candidate).ok_or(Error::<T>::CandidateNotFound)?;
 
-	pub fn do_add_new_network(network: Network) {
-		let mut active_networks = <ActiveNetworks<T>>::get();
-		if !active_networks.contains(&network) {
-			active_networks.insert(network);
-			<ActiveNetworks<T>>::put(&active_networks);
-			T::SessionChangeNotifier::set_new_networks(active_networks);
+			ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
+			exposure.stakers.insert(nominator.clone());
+			exposure.total = exposure.total.saturating_add(nominator_exposure.value);
+			nominator_exposure.backing = Some((network, candidate.clone()));
+			<Stakers<T>>::insert(&nominator, nominator_exposure);
+			<Candidates<T>>::insert(network, &candidate, exposure);
+			Self::deposit_event(Event::<T>::Nominated { candidate, nominator });
+			Ok(())
 		}
-	}
 
-	pub fn do_remove_network(network: Network) {
-		let mut active_networks = <ActiveNetworks<T>>::get();
-		if active_networks.remove(&network) {
-			<ActiveNetworks<T>>::put(&active_networks);
-			T::SessionChangeNotifier::set_new_networks(active_networks);
-		}
-	}
-
-	pub fn do_nominate(nominator: T::AccountId, candidate: T::AccountId) -> Result<(), Error<T>> {
-		let mut nominator_exposure =
-			<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
-		ensure!(nominator_exposure.backing.is_none(), Error::<T>::StakerAlreadyNominating);
-		let network =
-			<CandidateToNetworkMapping<T>>::get(&candidate).ok_or(Error::<T>::CandidateNotFound)?;
-		let mut exposure =
-			<Candidates<T>>::get(network, &candidate).ok_or(Error::<T>::CandidateNotFound)?;
-
-		ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
-		exposure.stakers.insert(nominator.clone());
-		exposure.total = exposure.total.saturating_add(nominator_exposure.value);
-		nominator_exposure.backing = Some((network, candidate.clone()));
-		<Stakers<T>>::insert(&nominator, nominator_exposure);
-		<Candidates<T>>::insert(network, &candidate, exposure);
-		Self::deposit_event(Event::<T>::Nominated { candidate, nominator });
-		Ok(())
-	}
-
-	pub fn do_withdraw_unbonded(nominator: T::AccountId) -> Result<(), Error<T>> {
-		if let Some(mut exposure) = <Stakers<T>>::get(&nominator) {
-			let amount: BalanceOf<T> = exposure.withdraw_unbonded(Self::current_index());
-			let _ = pallet_balances::Pallet::<T>::unreserve_named(
-				&T::StakingReserveIdentifier::get(),
-				&nominator,
-				amount,
-			);
-			<Stakers<T>>::insert(&nominator, exposure);
-			Self::deposit_event(Event::<T>::BondsWithdrawn { nominator, amount });
-		} else {
-			return Err(Error::<T>::CandidateNotFound)
-		}
-		Ok(())
-	}
-
-	pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
-		let mut individual_exposure =
-			<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
-		ensure!(individual_exposure.value >= amount, Error::<T>::AmountIsGreaterThanBondedAmount);
-		if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
-			if let Some(mut exposure) = <Candidates<T>>::get(network, candidate) {
-				exposure.total = exposure.total.saturating_sub(amount);
-				if individual_exposure.value == amount {
-					exposure.stakers.remove(&nominator);
-				}
-				<Candidates<T>>::insert(network, candidate, exposure);
-				Self::deposit_event(Event::<T>::Unbonded {
-					candidate: Some(candidate.clone()),
-					nominator: nominator.clone(),
+		pub fn do_withdraw_unbonded(nominator: T::AccountId) -> Result<(), Error<T>> {
+			if let Some(mut exposure) = <Stakers<T>>::get(&nominator) {
+				let amount: BalanceOf<T> = exposure.withdraw_unbonded(Self::current_index());
+				let _ = pallet_balances::Pallet::<T>::unreserve_named(
+					&T::StakingReserveIdentifier::get(),
+					&nominator,
 					amount,
-				});
+				);
+				<Stakers<T>>::insert(&nominator, exposure);
+				Self::deposit_event(Event::<T>::BondsWithdrawn { nominator, amount });
+			} else {
+				return Err(Error::<T>::CandidateNotFound)
 			}
+			Ok(())
 		}
-		if individual_exposure.value == amount {
-			individual_exposure.backing = None;
+
+		pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
+			let mut individual_exposure =
+				<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
+			ensure!(
+				individual_exposure.value >= amount,
+				Error::<T>::AmountIsGreaterThanBondedAmount
+			);
+			if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
+				if let Some(mut exposure) = <Candidates<T>>::get(network, candidate) {
+					exposure.total = exposure.total.saturating_sub(amount);
+					if individual_exposure.value == amount {
+						exposure.stakers.remove(&nominator);
+					}
+					<Candidates<T>>::insert(network, candidate, exposure);
+					Self::deposit_event(Event::<T>::Unbonded {
+						candidate: Some(candidate.clone()),
+						nominator: nominator.clone(),
+						amount,
+					});
+				}
+			}
+			if individual_exposure.value == amount {
+				individual_exposure.backing = None;
+			}
+			individual_exposure
+				.unbond(amount, Self::current_index().saturating_add(T::UnbondingDelay::get()));
+
+			<Stakers<T>>::insert(&nominator, individual_exposure);
+			Self::deposit_event(Event::<T>::Unbonded { candidate: None, nominator, amount });
+			Ok(())
 		}
-		individual_exposure
-			.unbond(amount, Self::current_index().saturating_add(T::UnbondingDelay::get()));
 
-		<Stakers<T>>::insert(&nominator, individual_exposure);
-		Self::deposit_event(Event::<T>::Unbonded { candidate: None, nominator, amount });
-		Ok(())
-	}
-
-	pub fn do_bond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
-		let limits = <Stakinglimits<T>>::get();
-		//FIXME: minimum_nominator_stake should be only checked once
-		ensure!(amount >= limits.minimum_nominator_stake, Error::<T>::StakingLimitsError);
-		if let Some(mut individual_exposure) = <Stakers<T>>::get(&nominator) {
-			if let Some((network, candidate)) = individual_exposure.backing {
-				if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
-					exposure.total = exposure.total.saturating_add(amount);
-					exposure.stakers.insert(nominator.clone());
-					// reserve stake
+		pub fn do_bond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
+			let limits = <Stakinglimits<T>>::get();
+			//FIXME: minimum_nominator_stake should be only checked once
+			ensure!(amount >= limits.minimum_nominator_stake, Error::<T>::StakingLimitsError);
+			if let Some(mut individual_exposure) = <Stakers<T>>::get(&nominator) {
+				if let Some((network, candidate)) = individual_exposure.backing {
+					if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
+						exposure.total = exposure.total.saturating_add(amount);
+						exposure.stakers.insert(nominator.clone());
+						// reserve stake
+						pallet_balances::Pallet::<T>::reserve_named(
+							&T::StakingReserveIdentifier::get(),
+							&nominator,
+							amount,
+						)?;
+						<Candidates<T>>::insert(network, &candidate, exposure);
+						Self::deposit_event(Event::<T>::Bonded { candidate, nominator, amount });
+					} else {
+						return Err(Error::<T>::CandidateNotFound.into())
+					}
+				} else {
 					pallet_balances::Pallet::<T>::reserve_named(
 						&T::StakingReserveIdentifier::get(),
 						&nominator,
 						amount,
 					)?;
-					<Candidates<T>>::insert(network, &candidate, exposure);
-					Self::deposit_event(Event::<T>::Bonded { candidate, nominator, amount });
-				} else {
-					return Err(Error::<T>::CandidateNotFound.into())
+					individual_exposure.value += amount;
+					<Stakers<T>>::insert(&nominator, individual_exposure);
 				}
 			} else {
+				// reserve stake
 				pallet_balances::Pallet::<T>::reserve_named(
 					&T::StakingReserveIdentifier::get(),
 					&nominator,
 					amount,
 				)?;
-				individual_exposure.value += amount;
-				<Stakers<T>>::insert(&nominator, individual_exposure);
+				<Stakers<T>>::insert(
+					&nominator,
+					IndividualExposure {
+						who: nominator.clone(),
+						value: amount,
+						backing: None,
+						unlocking: Vec::new(),
+					},
+				)
 			}
-		} else {
-			// reserve stake
-			pallet_balances::Pallet::<T>::reserve_named(
-				&T::StakingReserveIdentifier::get(),
-				&nominator,
-				amount,
-			)?;
-			<Stakers<T>>::insert(
-				&nominator,
-				IndividualExposure {
-					who: nominator.clone(),
-					value: amount,
-					backing: None,
-					unlocking: Vec::new(),
-				},
-			)
+			Ok(())
 		}
-		Ok(())
-	}
 
-	pub fn move_queued_to_active(network: Network) -> OnSessionChange<T::AccountId> {
-		let queued = <QueuedRelayers<T>>::take(network);
-		<ActiveRelayers<T>>::insert(network, queued.clone());
-		let mut vec_of_bls_keys: Vec<BLSPublicKey> = Vec::new();
-		let mut account_ids: Vec<T::AccountId> = Vec::new();
-		for (account_id, bls_key) in queued {
-			vec_of_bls_keys.push(bls_key);
-			account_ids.push(account_id);
-		}
-		(vec_of_bls_keys, account_ids)
-	}
-
-	pub fn get_queued_relayers_bls_keys(network: Network) -> Vec<BLSPublicKey> {
-		<QueuedRelayers<T>>::get(network)
-			.iter()
-			.map(|(_, b)| *b)
-			.collect::<Vec<BLSPublicKey>>()
-	}
-
-	pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {
-		let session_in_consideration = expiring_session_index.saturating_add(2);
-		log::trace!(target: "runtime::thea::staking", "computing relayers of session {:?}", session_in_consideration);
-		// Get new queued_relayers and store them
-		let candidates =
-			<Candidates<T>>::iter_prefix(network).collect::<Vec<(T::AccountId, Exposure<T>)>>();
-		let elected_relayers = elect_relayers::<T>(candidates);
-		log::trace!(target: "runtime::thea::staking", "elected relayers of session {:?}", session_in_consideration);
-		// Store their economic weights
-		let relayers = elected_relayers
-			.iter()
-			.map(|(relayer, exp)| (relayer.clone(), exp.bls_pub_key))
-			.collect::<Vec<(T::AccountId, BLSPublicKey)>>();
-		<StakingData<T>>::insert(session_in_consideration, network, elected_relayers);
-		<QueuedRelayers<T>>::insert(network, relayers);
-		log::trace!(target: "runtime::thea::staking", "relayers of network {:?} queued for session {:?} ", network,session_in_consideration);
-		// Delete oldest session's economic data from state
-		let session_to_delete =
-			session_in_consideration.saturating_sub(T::StakingDataPruneDelay::get());
-		<StakingData<T>>::remove(session_to_delete, network);
-		log::trace!(target: "runtime::thea::staking", "removing staking data of session {:?} and network {:?}", session_to_delete,network);
-	}
-
-	// making sure we're not exceeding 100% and not below 1%
-	fn moderate_slashing_coeficient() -> u8 {
-		const FIXED_MODERATE: u8 = 5;
-		let set = T::ModerateSlashingCoeficient::get();
-		if !(1..=100).contains(&set) {
-			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Moderate".into()));
-			FIXED_MODERATE
-		} else {
-			set
-		}
-	}
-
-	// making sure we're not exceeding 100% and not below 1%
-	fn severe_slashing_coeficient() -> u8 {
-		const FIXED_SEVERE: u8 = 20;
-		let set = T::SevereSlashingCoeficient::get();
-		if !(1..=100).contains(&set) {
-			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Severe".into()));
-			FIXED_SEVERE
-		} else {
-			set
-		}
-	}
-
-	// making sure we're not exceeding 100% and not below 1%
-	fn threshold_slashing_coeficient() -> u8 {
-		const FIXED_THRESHOLD: u8 = 60;
-		let set = T::SlashingThreshold::get();
-		if !(1..=100).contains(&set) {
-			Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Threshold".into()));
-			FIXED_THRESHOLD
-		} else {
-			set
-		}
-	}
-}
-
-/// Staking Interface is required to Nomination Pools pallet to work
-impl<T: Config> StakingInterface for Pallet<T> {
-	type Balance = T::Balance;
-	type AccountId = T::AccountId;
-
-	fn minimum_bond() -> Self::Balance {
-		T::CandidateBond::get()
-	}
-
-	fn bonding_duration() -> EraIndex {
-		T::UnbondingDelay::get()
-	}
-
-	fn current_era() -> EraIndex {
-		<CurrentIndex<T>>::get()
-	}
-
-	fn active_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
-		if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
-			return Some(individual_exposure.value)
-		}
-		None
-	}
-
-	fn total_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
-		if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
-			let mut total: BalanceOf<T> = individual_exposure.value;
-			for chunk in individual_exposure.unlocking {
-				total = total.saturating_add(chunk.value)
+		pub fn move_queued_to_active(network: Network) -> OnSessionChange<T::AccountId> {
+			let queued = <QueuedRelayers<T>>::take(network);
+			<ActiveRelayers<T>>::insert(network, queued.clone());
+			let mut vec_of_bls_keys: Vec<BLSPublicKey> = Vec::new();
+			let mut account_ids: Vec<T::AccountId> = Vec::new();
+			for (account_id, bls_key) in queued {
+				vec_of_bls_keys.push(bls_key);
+				account_ids.push(account_id);
 			}
-			return Some(total)
+			(vec_of_bls_keys, account_ids)
 		}
-		None
+
+		pub fn get_queued_relayers_bls_keys(network: Network) -> Vec<BLSPublicKey> {
+			<QueuedRelayers<T>>::get(network)
+				.iter()
+				.map(|(_, b)| *b)
+				.collect::<Vec<BLSPublicKey>>()
+		}
+
+		pub fn compute_next_session(network: Network, expiring_session_index: SessionIndex) {
+			// Wait wtf, why is this 2? Fuck
+			// This affects genesis session, fine
+			let session_in_consideration = expiring_session_index.saturating_add(2);
+			log::trace!(target: "runtime::thea::staking", "computing relayers of session {:?}", session_in_consideration);
+			// Get new queued_relayers and store them
+			let candidates =
+				<Candidates<T>>::iter_prefix(network).collect::<Vec<(T::AccountId, Exposure<T>)>>();
+			let elected_relayers = elect_relayers::<T>(candidates);
+			log::trace!(target: "runtime::thea::staking", "elected relayers of session {:?}", session_in_consideration);
+			// Store their economic weights
+			let relayers = elected_relayers
+				.iter()
+				.map(|(relayer, exp)| (relayer.clone(), exp.bls_pub_key))
+				.collect::<Vec<(T::AccountId, BLSPublicKey)>>();
+
+			// Calculate the total stake for these relayers
+			let total_stake = elected_relayers
+				.iter()
+				.map(|(_, exp)| exp.total)
+				.fold(0_u32.into(), |sum: BalanceOf<T>, i| sum.saturating_add(i));
+			<TotalSessionStake<T>>::mutate(session_in_consideration, |existing_stake| {
+				existing_stake.saturating_add(total_stake);
+			});
+			<TotalElectedRelayers<T>>::mutate(session_in_consideration, |list_of_relayers| {
+				list_of_relayers.extend(elected_relayers.clone());
+			});
+			<StakingData<T>>::insert(session_in_consideration, network, elected_relayers);
+			<QueuedRelayers<T>>::insert(network, relayers);
+			log::trace!(target: "runtime::thea::staking", "relayers of network {:?} queued for session {:?} ", network,session_in_consideration);
+			// Delete oldest session's economic data from state
+			let session_to_delete =
+				session_in_consideration.saturating_sub(T::StakingDataPruneDelay::get());
+			<StakingData<T>>::remove(session_to_delete, network);
+			log::trace!(target: "runtime::thea::staking", "removing staking data of session {:?} and network {:?}", session_to_delete,network);
+		}
+
+		// making sure we're not exceeding 100% and not below 1%
+		fn moderate_slashing_coeficient() -> u8 {
+			const FIXED_MODERATE: u8 = 5;
+			let set = T::ModerateSlashingCoeficient::get();
+			if !(1..=100).contains(&set) {
+				Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Moderate".into()));
+				FIXED_MODERATE
+			} else {
+				set
+			}
+		}
+
+		// making sure we're not exceeding 100% and not below 1%
+		fn severe_slashing_coeficient() -> u8 {
+			const FIXED_SEVERE: u8 = 20;
+			let set = T::SevereSlashingCoeficient::get();
+			if !(1..=100).contains(&set) {
+				Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Severe".into()));
+				FIXED_SEVERE
+			} else {
+				set
+			}
+		}
+
+		// making sure we're not exceeding 100% and not below 1%
+		fn threshold_slashing_coeficient() -> u8 {
+			const FIXED_THRESHOLD: u8 = 60;
+			let set = T::SlashingThreshold::get();
+			if !(1..=100).contains(&set) {
+				Self::deposit_event(Event::<T>::MisconfiguredCoeficient("Threshold".into()));
+				FIXED_THRESHOLD
+			} else {
+				set
+			}
+		}
 	}
 
-	fn bond(
-		stash: Self::AccountId,
-		controller: Self::AccountId,
-		value: Self::Balance,
-		_payee: Self::AccountId,
-	) -> DispatchResult {
-		ensure!(stash == controller, Error::<T>::StashAndControllerMustBeSame);
-		Pallet::<T>::do_bond(stash, value)?;
-		Ok(())
+	impl<T: Config> TheaExtrinsicSubmitted<T::AccountId> for Pallet<T> {
+		fn thea_extrinsic_submitted(
+			author: T::AccountId,
+			bit_map: u128,
+			active_set: Vec<T::AccountId>,
+		) {
+			Self::reward_by_id(author, bit_map, active_set);
+		}
 	}
 
-	/// NOTE: Thea staking doesnt have the concept of controller-stash pair.
-	/// So controller and stash should be same.
-	fn nominate(controller: Self::AccountId, validators: Vec<Self::AccountId>) -> DispatchResult {
-		ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
-		Pallet::<T>::do_nominate(controller, validators[0].clone())?;
-		Ok(())
-	}
+	/// Staking Interface is required to Nomination Pools pallet to work
+	impl<T: Config> StakingInterface for Pallet<T> {
+		type Balance = T::Balance;
+		type AccountId = T::AccountId;
 
-	fn chill(_controller: Self::AccountId) -> DispatchResult {
-		// There is no concept of chill in Thea Staking.
-		Ok(())
-	}
+		fn minimum_bond() -> Self::Balance {
+			T::CandidateBond::get()
+		}
 
-	fn bond_extra(stash: Self::AccountId, extra: Self::Balance) -> DispatchResult {
-		Pallet::<T>::do_bond(stash, extra)?;
-		Ok(())
-	}
+		fn bonding_duration() -> EraIndex {
+			T::UnbondingDelay::get()
+		}
 
-	fn unbond(stash: Self::AccountId, value: Self::Balance) -> DispatchResult {
-		Pallet::<T>::do_unbond(stash, value)?;
-		Ok(())
-	}
+		fn current_era() -> EraIndex {
+			<CurrentIndex<T>>::get()
+		}
 
-	fn withdraw_unbonded(
-		stash: Self::AccountId,
-		_num_slashing_spans: u32,
-	) -> Result<bool, DispatchError> {
-		// TODO: Figure out whether it is right to return false.
-		Pallet::<T>::do_withdraw_unbonded(stash)?;
-		Ok(false)
+		fn active_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
+			if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
+				return Some(individual_exposure.value)
+			}
+			None
+		}
+
+		fn total_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
+			if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
+				let mut total: BalanceOf<T> = individual_exposure.value;
+				for chunk in individual_exposure.unlocking {
+					total = total.saturating_add(chunk.value)
+				}
+				return Some(total)
+			}
+			None
+		}
+
+		fn bond(
+			stash: Self::AccountId,
+			controller: Self::AccountId,
+			value: Self::Balance,
+			_payee: Self::AccountId,
+		) -> DispatchResult {
+			ensure!(stash == controller, Error::<T>::StashAndControllerMustBeSame);
+			Pallet::<T>::do_bond(stash, value)?;
+			Ok(())
+		}
+
+		/// NOTE: Thea staking doesnt have the concept of controller-stash pair.
+		/// So controller and stash should be same.
+		fn nominate(
+			controller: Self::AccountId,
+			validators: Vec<Self::AccountId>,
+		) -> DispatchResult {
+			ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
+			Pallet::<T>::do_nominate(controller, validators[0].clone())?;
+			Ok(())
+		}
+
+		fn chill(_controller: Self::AccountId) -> DispatchResult {
+			// There is no concept of chill in Thea Staking.
+			Ok(())
+		}
+
+		fn bond_extra(stash: Self::AccountId, extra: Self::Balance) -> DispatchResult {
+			Pallet::<T>::do_bond(stash, extra)?;
+			Ok(())
+		}
+
+		fn unbond(stash: Self::AccountId, value: Self::Balance) -> DispatchResult {
+			Pallet::<T>::do_unbond(stash, value)?;
+			Ok(())
+		}
+
+		fn withdraw_unbonded(
+			stash: Self::AccountId,
+			_num_slashing_spans: u32,
+		) -> Result<bool, DispatchError> {
+			// TODO: Figure out whether it is right to return false.
+			Pallet::<T>::do_withdraw_unbonded(stash)?;
+			Ok(false)
+		}
 	}
 }

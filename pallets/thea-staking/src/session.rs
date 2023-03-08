@@ -60,6 +60,8 @@ pub struct Exposure<T: Config> {
 	/// The total active balance backing this relayer.
 	#[codec(compact)]
 	pub total: BalanceOf<T>,
+	// Individual Stake
+	pub individual: BalanceOf<T>,
 	/// BLS public key
 	pub bls_pub_key: BLSPublicKey,
 	/// The portions of nominators stashes that are exposed.
@@ -68,10 +70,17 @@ pub struct Exposure<T: Config> {
 
 impl<T: Config> Exposure<T> {
 	pub fn new(bls_pub_key: BLSPublicKey) -> Self {
-		Self { score: 1000, total: Default::default(), bls_pub_key, stakers: Default::default() }
+		Self {
+			score: 1000,
+			total: Default::default(),
+			individual: Default::default(),
+			bls_pub_key,
+			stakers: Default::default(),
+		}
 	}
 	/// Adds the given stake to own and update the total
 	pub fn add_own_stake(&mut self, stake: BalanceOf<T>) {
+		self.individual = self.individual.saturating_add(stake);
 		self.total = self.total.saturating_add(stake);
 	}
 }
