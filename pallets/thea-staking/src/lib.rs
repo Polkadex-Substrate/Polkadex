@@ -801,7 +801,7 @@ pub mod pallet {
 								actual_percent * nominator_amount_total;
 							for nominator in to_slash.stakers.iter() {
 								if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
-									&nominator,
+									nominator,
 									&T::TreasuryPalletId::get().into_account_truncating(),
 									nominator_amount_individual,
 									ExistenceRequirement::KeepAlive,
