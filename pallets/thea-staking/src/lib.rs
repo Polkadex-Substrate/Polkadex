@@ -758,7 +758,8 @@ pub mod pallet {
 				{
 					if let Some(to_slash) = <Candidates<T>>::get(net, &offender) {
 						let actual_percent = Percent::from_percent(percent);
-						let amount: BalanceOf<T> = actual_percent * to_slash.total;
+						// slashing relayer's individual stake
+						let amount: BalanceOf<T> = actual_percent * to_slash.individual;
 						// TODO: where to transfer? % > Treasury && % > to reporters
 						if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
 							&offender,
@@ -769,6 +770,31 @@ pub mod pallet {
 						.is_ok()
 						{
 							Self::deposit_event(Event::Slashed { offender, amount });
+						}
+						let nominators_count = to_slash.stakers.len();
+						if nominators_count != 0 {
+							let nominator_stake_avg = Percent::from_rational(1, nominators_count);
+							let nominators_portion =
+								to_slash.total.saturating_sub(to_slash.individual);
+							let nominator_amount_total: BalanceOf<T> =
+								nominator_stake_avg * nominators_portion;
+							let nominator_amount_individual: BalanceOf<T> =
+								actual_percent * nominator_amount_total;
+							for nominator in to_slash.stakers.iter() {
+								if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
+									&nominator,
+									&T::TreasuryPalletId::get().into_account_truncating(),
+									nominator_amount_individual,
+									ExistenceRequirement::KeepAlive,
+								)
+								.is_ok()
+								{
+									Self::deposit_event(Event::Slashed {
+										offender: nominator.to_owned(),
+										amount,
+									});
+								}
+							}
 						}
 					} else {
 						Self::deposit_event(Event::SlashingFailed { offender });
