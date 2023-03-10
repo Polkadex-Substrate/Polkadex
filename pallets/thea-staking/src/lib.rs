@@ -790,16 +790,10 @@ pub mod pallet {
 							Self::deposit_event(Event::Slashed { offender, amount });
 						}
 						// slash stakers / nominators
-						let nominators_count = to_slash.stakers.len();
-						if nominators_count != 0 {
-							let nominator_stake_avg = Percent::from_rational(1, nominators_count);
-							let nominators_portion =
-								to_slash.total.saturating_sub(to_slash.individual);
-							let nominator_amount_total: BalanceOf<T> =
-								nominator_stake_avg * nominators_portion;
-							let nominator_amount_individual: BalanceOf<T> =
-								actual_percent * nominator_amount_total;
-							for nominator in to_slash.stakers.iter() {
+						for nominator in to_slash.stakers.iter() {
+							if let Some(individual_nominator) = <Stakers<T>>::get(nominator) {
+								let nominator_amount_individual: BalanceOf<T> =
+									actual_percent * individual_nominator.value;
 								if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
 									nominator,
 									&T::TreasuryPalletId::get().into_account_truncating(),
@@ -815,6 +809,8 @@ pub mod pallet {
 										amount: nominator_amount_individual,
 									});
 								}
+							} else {
+								// TODO: deposit failed to slash
 							}
 						}
 						// distribute to reporters
