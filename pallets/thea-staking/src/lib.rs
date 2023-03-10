@@ -22,7 +22,7 @@ use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{AccountIdConversion, Saturating},
-	Perbill, Percent, SaturatedConversion,
+	Perbill, Percent, Permill, SaturatedConversion,
 };
 use sp_staking::{EraIndex, StakingInterface};
 use sp_std::{borrow::ToOwned, collections::btree_map::BTreeMap};
@@ -817,18 +817,22 @@ pub mod pallet {
 						let reporter_percent =
 							Percent::from_percent(T::ReportersRewardCoeficient::get());
 						let reporter_award: BalanceOf<T> = reporter_percent * total_slashed;
+						let reporter_individual_part =
+							Permill::from_rational(1, reporters.len() as u32);
+						let reporter_individual_award: BalanceOf<T> =
+							reporter_individual_part * reporter_award;
 						for reporter in reporters.into_iter() {
 							if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
 								&T::TreasuryPalletId::get().into_account_truncating(),
 								&reporter,
-								reporter_award,
+								reporter_individual_award,
 								ExistenceRequirement::KeepAlive,
 							)
 							.is_ok()
 							{
 								Self::deposit_event(Event::ReportRewarded {
 									reporter,
-									amount: reporter_award,
+									amount: reporter_individual_award,
 								});
 							}
 						}
