@@ -810,7 +810,10 @@ pub mod pallet {
 									});
 								}
 							} else {
-								// TODO: deposit failed to slash
+								// we signal issue with staker slashing via Event
+								Self::deposit_event(Event::SlashingFailed {
+									offender: nominator.to_owned(),
+								});
 							}
 						}
 						// distribute to reporters
