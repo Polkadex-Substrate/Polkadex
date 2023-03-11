@@ -591,9 +591,9 @@ dependencies = [
 
 [[package]]
 name = "block-buffer"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69cce20737498f97b993470a6e536b8523f0af7892a4f928cceb1ac5e52ebe7e"
+checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array 0.14.6",
 ]
@@ -704,9 +704,9 @@ dependencies = [
 
 [[package]]
 name = "camino"
-version = "1.1.3"
+version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6031a462f977dd38968b6f23378356512feeace69cef817e1a4475108093cec3"
+checksum = "c530edf18f37068ac2d977409ed5cd50d53d73bc653c7647b48eb78976ac9ae2"
 dependencies = [
  "serde",
 ]
@@ -839,9 +839,9 @@ dependencies = [
 
 [[package]]
 name = "cipher"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1873270f8f7942c191139cb8a40fd228da6c3fd2fc376d7e92d47aa14aeb59e"
+checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
  "crypto-common",
  "inout",
@@ -1409,7 +1409,7 @@ version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8168378f4e5023e7218c89c891c0fd8ecdb5e5e4f18cb78f38cf245dd021e76f"
 dependencies = [
- "block-buffer 0.10.3",
+ "block-buffer 0.10.4",
  "crypto-common",
  "subtle",
 ]
@@ -1711,9 +1711,9 @@ dependencies = [
 
 [[package]]
 name = "fiat-crypto"
-version = "0.1.18"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54b2f3c51e4dd999930845da5d10a48775b8fe4ca9f4f9ec1f9161f334da5dfe"
+checksum = "93ace6ec7cc19c8ed33a32eaa9ea692d7faea05006b5356b9e2b668ec4bc3955"
 
 [[package]]
 name = "file-per-thread-logger"
@@ -2551,9 +2551,9 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
-version = "0.14.24"
+version = "0.14.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e011372fa0b68db8350aa7a248930ecc7839bf46d8485577d69f117a75f164c"
+checksum = "cc5e554ff619822309ffd57d8734d77cd5ce6238bc956f037ea06c58238c9899"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -2615,7 +2615,7 @@ dependencies = [
 [[package]]
 name = "ias-verify"
 version = "0.1.5"
-source = "git+https://github.com/Polkadex-Substrate/pallets.git?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
+source = "git+https://github.com/Polkadex-Substrate/pallets?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
 dependencies = [
  "base64 0.13.1",
  "chrono",
@@ -3078,9 +3078,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "libc"
-version = "0.2.139"
+version = "0.2.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
+checksum = "99227334921fae1a979cf0bfdfcc6b3e5ce376ef57e16fb6fb3ea2ed6095f80c"
 
 [[package]]
 name = "libloading"
@@ -4204,6 +4204,7 @@ dependencies = [
  "hex-literal",
  "liquidity",
  "log",
+ "orderbook-primitives",
  "orml-vesting",
  "pallet-asset-handler-runtime-api",
  "pallet-assets",
@@ -4434,6 +4435,48 @@ name = "openssl-probe"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
+
+[[package]]
+name = "orderbook"
+version = "0.1.0"
+dependencies = [
+ "futures 0.3.26",
+ "hex",
+ "log",
+ "orderbook-primitives",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "rust_decimal",
+ "sc-chain-spec",
+ "sc-client-api",
+ "sc-keystore",
+ "sc-network",
+ "sc-network-common",
+ "sc-network-gossip",
+ "sc-network-sync",
+ "sc-utils",
+ "serde",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-arithmetic",
+ "sp-blockchain",
+ "sp-core",
+ "sp-keystore",
+ "sp-runtime",
+ "substrate-prometheus-endpoint",
+ "thiserror",
+]
+
+[[package]]
+name = "orderbook-primitives"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-std",
+]
 
 [[package]]
 name = "orml-vesting"
@@ -5604,6 +5647,7 @@ dependencies = [
  "log",
  "nix 0.25.1",
  "node-polkadex-runtime",
+ "orderbook",
  "pallet-asset-handler-rpc",
  "pallet-asset-tx-payment",
  "pallet-contracts",
@@ -5708,16 +5752,18 @@ dependencies = [
 
 [[package]]
 name = "polling"
-version = "2.5.2"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22122d5ec4f9fe1b3916419b76be1e80bcb93f618d071d2edf841b137b2a2bd6"
+checksum = "7e1f879b2998099c2d69ab9605d145d5b661195627eccc680002c4918a7fb6fa"
 dependencies = [
  "autocfg",
+ "bitflags",
  "cfg-if",
+ "concurrent-queue",
  "libc",
  "log",
- "wepoll-ffi",
- "windows-sys 0.42.0",
+ "pin-project-lite 0.2.9",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
@@ -6506,7 +6552,7 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97a22f5af31f73a954c10289c93e8a50cc23d971e80ee446f1f6f7137a088213"
 dependencies = [
- "cipher 0.4.3",
+ "cipher 0.4.4",
 ]
 
 [[package]]
@@ -7719,18 +7765,18 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.152"
+version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb7d1f0d3021d347a83e556fc4683dea2ea09d87bccdf88ff5c12545d89d5efb"
+checksum = "8cdd151213925e7f1ab45a9bbfb129316bd00799784b174b7cc7bcd16961c49e"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.152"
+version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af487d118eecd09402d70a5d72551860e788df87b464af30e5ea6a38c75c541e"
+checksum = "4fc80d722935453bcafdc2c9a73cd6fac4dc1938f0346035d84bf99fa9e33217"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8966,7 +9012,7 @@ checksum = "8ae9980cab1db3fceee2f6c6f643d5d8de2997c58ee8d25fb0cc8a9e9e7348e5"
 [[package]]
 name = "teerex-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/pallets.git?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
+source = "git+https://github.com/Polkadex-Substrate/pallets?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
 dependencies = [
  "ias-verify",
  "parity-scale-codec",
@@ -9008,7 +9054,7 @@ checksum = "95059e91184749cb66be6dc994f67f182b6d897cb3df74a5bf66b5e709295fd8"
 [[package]]
 name = "test-utils"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/pallets.git?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
+source = "git+https://github.com/Polkadex-Substrate/pallets?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
 dependencies = [
  "hex-literal",
  "log",
@@ -9540,9 +9586,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-bidi"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d54675592c1dbefd78cbd98db9bacd89886e1ca50692a0692baefffdeb92dd58"
+checksum = "524b68aca1d05e03fdf03fcdce2c6c94b6daf6d16861ddaa7e4f2b6638a9052c"
 
 [[package]]
 name = "unicode-ident"
@@ -10053,15 +10099,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wepoll-ffi"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d743fdedc5c64377b5fc2bc036b01c7fd642205a0d96356034ae3404d49eb7fb"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "which"
 version = "4.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10289,18 +10326,18 @@ dependencies = [
 
 [[package]]
 name = "xous"
-version = "0.9.33"
+version = "0.9.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0de272671e4f004314aaf0eba1102c750c3e099fda3edb3d039aa0dc601f830d"
+checksum = "82b8e8406574f40ee7504b5aef1ef19d3c0ec10dec6603ea5c1a68544b75314a"
 dependencies = [
  "lazy_static",
 ]
 
 [[package]]
 name = "xous-api-log"
-version = "0.1.28"
+version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4662c4ebdaab3e3ad7aa7c3e82205bc7e61e83f113f21013c817cd78ea83046"
+checksum = "c7632707c6e59888a5511bc671b65e493693ee18db915a5f450e6445a2988824"
 dependencies = [
  "log",
  "num-derive",
@@ -10311,9 +10348,9 @@ dependencies = [
 
 [[package]]
 name = "xous-api-names"
-version = "0.9.30"
+version = "0.9.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89b21767d4c87abd0579be003976f37eac962fc00f7c25d519f8ed074b4c8865"
+checksum = "7b27015581bfcac09a5e555e66aefddaafddef54c8162a1aa5a6523ebe213259"
 dependencies = [
  "log",
  "num-derive",
@@ -10326,9 +10363,9 @@ dependencies = [
 
 [[package]]
 name = "xous-ipc"
-version = "0.9.33"
+version = "0.9.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fb00e7954d27684f671bf3583d3f6901dbc36a62de82b622da4b546a76c84f7"
+checksum = "b0cbe69c936de1ad128023d001ac7fb9f84423dd0bec3ff1c2f34153e72cb61e"
 dependencies = [
  "bitflags",
  "rkyv",

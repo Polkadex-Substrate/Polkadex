@@ -1556,6 +1556,12 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl orderbook_primitives::ObApi for Runtime {
+		fn validator_set() -> Option<orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>>{
+			None
+		}
+	}
+
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
 		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
 			AssetHandler::account_balances(assets, account_id)

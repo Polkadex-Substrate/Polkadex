@@ -15,6 +15,7 @@ members = [
     "pallets/thea-staking",
     "pallets/rewards",
     "pallets/thea",
+    "primitives/orderbook",
     "thea-primitives",
     "pallets/thea-staking",
     "pallets/liquidity",
