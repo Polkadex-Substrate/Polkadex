@@ -1,6 +1,7 @@
 use futures::channel::mpsc::UnboundedReceiver;
 use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
+use parking_lot::RwLock;
 use prometheus::Registry;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sp_api::ProvideRuntimeApi;
@@ -130,13 +131,6 @@ where
 	} = ob_params;
 
 	let sync_oracle = network.clone();
-	let gossip_validator = Arc::new(gossip::GossipValidator::new());
-	let gossip_engine = sc_network_gossip::GossipEngine::new(
-		network,
-		protocol_name,
-		gossip_validator.clone(),
-		None,
-	);
 
 	let metrics =
 		prometheus_registry.as_ref().map(metrics::Metrics::register).and_then(
@@ -157,13 +151,14 @@ where
 		backend,
 		sync_oracle,
 		// key_store: key_store.into(),
-		gossip_engine,
-		gossip_validator,
+		network,
+		protocol_name,
 		message_sender_link,
 		metrics,
+		_marker: Default::default(),
 	};
 
-	let worker = worker::ObWorker::<_, _, _, _>::new(worker_params);
+	let worker = worker::ObWorker::<_, _, _, _, _>::new(worker_params);
 
 	worker.run().await
 }
