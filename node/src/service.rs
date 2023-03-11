@@ -20,7 +20,10 @@
 
 //! Service implementation. Specialized wrapper over substrate service.
 use crate::rpc as node_rpc;
-use futures::prelude::*;
+use futures::{
+	channel::mpsc::{unbounded, UnboundedReceiver},
+	prelude::*,
+};
 use node_polkadex_runtime::RuntimeApi;
 use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
@@ -118,6 +121,7 @@ pub fn create_extrinsic(
 		extra,
 	)
 }
+use orderbook_primitives::types::ObMessage;
 use sc_network_common::service::NetworkEventStream;
 
 #[allow(clippy::type_complexity)]
@@ -142,6 +146,7 @@ pub fn new_partial(
 			),
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
+			UnboundedReceiver<ObMessage>,
 		),
 	>,
 	ServiceError,
@@ -230,6 +235,8 @@ pub fn new_partial(
 
 	let import_setup = (block_import, grandpa_link, babe_link);
 
+	let (ob_messge_sink, ob_message_stream) = unbounded::<ObMessage>();
+
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, babe_link) = &import_setup;
 
@@ -271,6 +278,7 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
+				orderbook: ob_messge_sink.clone(),
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)
@@ -287,7 +295,13 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (Box::new(rpc_extensions_builder), import_setup, rpc_setup, telemetry),
+		other: (
+			Box::new(rpc_extensions_builder),
+			import_setup,
+			rpc_setup,
+			telemetry,
+			ob_message_stream,
+		),
 	})
 }
 
@@ -314,7 +328,7 @@ pub fn new_full_base(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry, orderbook_stream),
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
@@ -503,7 +517,7 @@ pub fn new_full_base(
 		observer_enabled: false,
 		keystore,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		local_role: role,
+		local_role: role.clone(),
 		protocol_name: grandpa_protocol_name,
 	};
 
@@ -533,22 +547,22 @@ pub fn new_full_base(
 		);
 	}
 
-	let config = orderbook::ObParams{
+	let config = orderbook::ObParams {
 		client: client.clone(),
 		backend,
-		runtime,
 		key_store: None,
 		network: network.clone(),
 		prometheus_registry,
 		protocol_name: orderbook_protocol_name,
 		marker: Default::default(),
-		is_validator: role.is_authority()
+		is_validator: role.is_authority(),
+		message_sender_link: orderbook_stream,
 	};
 
 	task_manager.spawn_handle().spawn_blocking(
 		"orderbook",
 		None,
-		orderbook::start_orderbook_gadget(config)
+		orderbook::start_orderbook_gadget(config),
 	);
 
 	network_starter.start_network();

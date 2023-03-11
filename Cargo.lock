@@ -4471,11 +4471,37 @@ dependencies = [
 name = "orderbook-primitives"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "parity-scale-codec",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
+ "rust_decimal",
  "scale-info",
+ "serde",
+ "serde_json",
  "sp-api",
  "sp-application-crypto",
+ "sp-core",
+ "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "orderbook-rpc"
+version = "0.1.0"
+dependencies = [
+ "futures 0.3.26",
+ "jsonrpsee",
+ "log",
+ "orderbook",
+ "orderbook-primitives",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "sc-rpc",
+ "sc-utils",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "thiserror",
 ]
 
 [[package]]
@@ -5648,6 +5674,8 @@ dependencies = [
  "nix 0.25.1",
  "node-polkadex-runtime",
  "orderbook",
+ "orderbook-primitives",
+ "orderbook-rpc",
  "pallet-asset-handler-rpc",
  "pallet-asset-tx-payment",
  "pallet-contracts",

@@ -1556,7 +1556,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl orderbook_primitives::ObApi for Runtime {
+	impl orderbook_primitives::ObApi<Block> for Runtime {
 		fn validator_set() -> Option<orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>>{
 			None
 		}

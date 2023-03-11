@@ -1,3 +1,4 @@
+use futures::channel::mpsc::UnboundedReceiver;
 use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 use prometheus::Registry;
@@ -72,24 +73,22 @@ where
 	// empty
 }
 
+use orderbook_primitives::types::ObMessage;
 use sc_network_gossip::Network as GossipNetwork;
 
 /// Orderbook gadget initialization parameters.
-pub struct ObParams<B, BE, C, N, R>
+pub struct ObParams<B, BE, C, N>
 where
 	B: Block,
 	BE: Backend<B>,
-	C: Client<B, BE>,
-	R: ProvideRuntimeApi<B>,
-	R::Api: ObApi<B>,
+	C: Client<B, BE> + ProvideRuntimeApi<B>,
+	C::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
 	/// Orderbook client
 	pub client: Arc<C>,
 	/// Client Backend
 	pub backend: Arc<BE>,
-	/// Runtime Api Provider
-	pub runtime: Arc<R>,
 	/// Local key store
 	pub key_store: Option<SyncCryptoStorePtr>,
 	/// Gossip network
@@ -100,6 +99,8 @@ where
 	pub protocol_name: std::borrow::Cow<'static, str>,
 	/// Boolean indicating if this node is a validator
 	pub is_validator: bool,
+	/// Submit message link
+	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	// Links between the block importer, the background voter and the RPC layer.
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
@@ -108,24 +109,24 @@ where
 /// Start the Orderbook gadget.
 ///
 /// This is a thin shim around running and awaiting a Orderbook worker.
-pub async fn start_orderbook_gadget<B, BE, C, N, R>(ob_params: ObParams<B, BE, C, N, R>)
+pub async fn start_orderbook_gadget<B, BE, C, N>(ob_params: ObParams<B, BE, C, N>)
 where
 	B: Block,
 	BE: Backend<B>,
-	C: Client<B, BE>,
-	R: ProvideRuntimeApi<B>,
-	R::Api: ObApi<B>,
+	C: Client<B, BE> + ProvideRuntimeApi<B>,
+	C::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
 	let ObParams {
 		client,
 		backend,
-		runtime,
 		key_store: _,
 		network,
 		prometheus_registry,
 		protocol_name,
-		marker,
+		is_validator: _,
+		message_sender_link,
+		marker: _,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -154,15 +155,15 @@ where
 	let worker_params = worker::WorkerParams {
 		client,
 		backend,
-		runtime,
 		sync_oracle,
 		// key_store: key_store.into(),
 		gossip_engine,
 		gossip_validator,
+		message_sender_link,
 		metrics,
 	};
 
-	let worker = worker::ObWorker::<_, _, _, _, _>::new(worker_params);
+	let worker = worker::ObWorker::<_, _, _, _>::new(worker_params);
 
 	worker.run().await
 }

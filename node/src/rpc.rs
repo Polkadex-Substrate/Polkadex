@@ -30,9 +30,14 @@
 
 #![warn(missing_docs)]
 
+use futures::channel::mpsc::UnboundedSender;
 use std::sync::Arc;
 
 use jsonrpsee::RpcModule;
+use orderbook_primitives::types::ObMessage;
+use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
+use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
+use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_epochs::SharedEpochChanges;
@@ -48,9 +53,6 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
-
-use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
-use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -92,6 +94,8 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
+	/// Channel for sending ob messages to worker
+	pub orderbook: UnboundedSender<ObMessage>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -126,7 +130,8 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa } = deps;
+	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, orderbook } =
+		deps;
 
 	let BabeDeps { keystore, babe_config, shared_epoch_changes } = babe;
 	let GrandpaDeps {
@@ -152,7 +157,7 @@ where
 	)?;
 	io.merge(
 		Grandpa::new(
-			subscription_executor,
+			subscription_executor.clone(),
 			shared_authority_set.clone(),
 			shared_voter_state,
 			justification_stream,
@@ -169,6 +174,7 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
+	io.merge(OrderbookRpc::new(subscription_executor, orderbook).into_rpc())?;
 
 	Ok(io)
 }

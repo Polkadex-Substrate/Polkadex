@@ -1,6 +1,6 @@
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId, Signature};
-use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
+use rust_decimal::{Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_std::cmp::Ordering;
 
@@ -9,8 +9,8 @@ pub type OrderId = H256;
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObMessage {
-	stid: u64,
-	action: UserActions,
+	pub stid: u64,
+	pub action: UserActions,
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -113,7 +113,7 @@ impl Into<String> for OrderStatus {
 		}
 	}
 }
-#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, Copy)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	base: AssetId,
@@ -265,4 +265,16 @@ impl Order {
 
 pub fn rounding_off(a: Decimal) -> Decimal {
 	a.round_dp_with_strategy(8, RoundingStrategy::ToZero)
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::types::{ObMessage, UserActions};
+
+	#[test]
+	pub fn test_ob_message() {
+		let msg = ObMessage { stid: 0, action: UserActions::BlockImport(1) };
+
+		println!("OBMessage: {:?}", serde_json::to_string(&msg).unwrap());
+	}
 }
