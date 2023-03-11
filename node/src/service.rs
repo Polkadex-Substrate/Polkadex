@@ -319,6 +319,7 @@ pub fn new_full_base(
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
+
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
@@ -328,6 +329,16 @@ pub fn new_full_base(
 		.network
 		.extra_sets
 		.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
+
+	let orderbook_protocol_name = orderbook::protocol_standard_name(
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		&config.chain_spec,
+	);
+
+	config
+		.network
+		.extra_sets
+		.push(orderbook::orderbook_peers_set_config(orderbook_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
@@ -375,7 +386,7 @@ pub fn new_full_base(
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend,
+		backend: backend.clone(),
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		network: network.clone(),
@@ -509,7 +520,7 @@ pub fn new_full_base(
 			network: network.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry,
+			prometheus_registry: prometheus_registry.clone(),
 			shared_voter_state,
 		};
 
@@ -521,6 +532,24 @@ pub fn new_full_base(
 			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
+
+	let config = orderbook::ObParams{
+		client: client.clone(),
+		backend,
+		runtime,
+		key_store: None,
+		network: network.clone(),
+		prometheus_registry,
+		protocol_name: orderbook_protocol_name,
+		marker: Default::default(),
+		is_validator: role.is_authority()
+	};
+
+	task_manager.spawn_handle().spawn_blocking(
+		"orderbook",
+		None,
+		orderbook::start_orderbook_gadget(config)
+	);
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })

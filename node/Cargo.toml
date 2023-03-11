@@ -33,6 +33,7 @@ jsonrpsee = { version = "0.15.1", features = ["server"] }
 node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
 pallet-asset-handler-rpc = {path = "../pallets/asset-handler/rpc"}
 polkadex-client = { path = "../client"}
+orderbook = {path = "../clients/orderbook"}
 
 # Substrate dependencies
 thea-primitives = {path = "../thea-primitives"}
