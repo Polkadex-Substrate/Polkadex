@@ -4,7 +4,7 @@ use crate::{
 	metrics::Metrics,
 	Client,
 };
-use futures::StreamExt;
+use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace};
 use orderbook_primitives::{types::ObMessage, ObApi};
 use parity_scale_codec::{Codec, Decode};
@@ -14,24 +14,23 @@ use sp_api::ProvideRuntimeApi;
 use sp_runtime::{generic::BlockId, traits::Block};
 use std::sync::Arc;
 
-pub(crate) struct WorkerParams<B: Block, BE, C, R, SO> {
+pub(crate) struct WorkerParams<B: Block, BE, C, SO> {
 	pub client: Arc<C>,
 	pub backend: Arc<BE>,
-	pub runtime: Arc<R>,
 	pub sync_oracle: SO,
 	// pub key_store: BeefyKeystore,
 	pub gossip_engine: GossipEngine<B>,
 	pub gossip_validator: Arc<GossipValidator<B>>,
 	// pub links: BeefyVoterLinks<B>,
 	pub metrics: Option<Metrics>,
+	pub message_sender_link: UnboundedReceiver<ObMessage>,
 }
 
 /// A Orderbook worker plays the Orderbook protocol
-pub(crate) struct ObWorker<B: Block, BE, C, R, SO> {
+pub(crate) struct ObWorker<B: Block, BE, C, SO> {
 	// utilities
 	client: Arc<C>,
 	backend: Arc<BE>,
-	runtime: Arc<R>,
 	sync_oracle: SO,
 	// key_store: BeefyKeystore,
 	gossip_engine: GossipEngine<B>,
@@ -43,15 +42,15 @@ pub(crate) struct ObWorker<B: Block, BE, C, R, SO> {
 	// voter state
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
+	message_sender_link: UnboundedReceiver<ObMessage>,
 }
 
-impl<B, BE, C, R, SO> ObWorker<B, BE, C, R, SO>
+impl<B, BE, C, SO> ObWorker<B, BE, C, SO>
 where
 	B: Block + Codec,
 	BE: Backend<B>,
-	C: Client<B, BE>,
-	R: ProvideRuntimeApi<B>,
-	R::Api: ObApi<B>,
+	C: Client<B, BE> + ProvideRuntimeApi<B>,
+	C::Api: ObApi<B>,
 	SO: Send + Sync + Clone + 'static,
 {
 	/// Return a new BEEFY worker instance.
@@ -60,41 +59,42 @@ where
 	/// BEEFY pallet has been deployed on-chain.
 	///
 	/// The BEEFY pallet is needed in order to keep track of the BEEFY authority set.
-	pub(crate) fn new(worker_params: WorkerParams<B, BE, C, R, SO>) -> Self {
+	pub(crate) fn new(worker_params: WorkerParams<B, BE, C, SO>) -> Self {
 		let WorkerParams {
 			client,
 			backend,
-			runtime,
 			// key_store,
 			sync_oracle,
 			gossip_engine,
 			gossip_validator,
 			// links,
 			metrics,
+			message_sender_link,
 		} = worker_params;
 
-		let last_finalized_header = client
+		let _last_finalized_header = client
 			.expect_header(BlockId::number(client.info().finalized_number))
 			.expect("latest block always has header available; qed.");
 
 		ObWorker {
 			client: client.clone(),
 			backend,
-			runtime,
 			sync_oracle,
 			// key_store,
 			gossip_engine,
 			gossip_validator,
 			// links,
 			// last_processed_state_change_id,
+			message_sender_link,
 			metrics,
 		}
 	}
 
-	pub fn handle_gossip_message(
-		&mut self,
-		message: orderbook_primitives::types::ObMessage,
-	) -> Result<(), Error> {
+	pub fn handle_gossip_message(&mut self, _message: &ObMessage) -> Result<(), Error> {
+		todo!()
+	}
+
+	pub fn handle_ob_message(&mut self, _message: &ObMessage) -> Result<(), Error> {
 		todo!()
 	}
 
@@ -122,10 +122,19 @@ where
 				gossip = gossip_messages.next() => {
 					if let Some(message) = gossip {
 						// Gossip messages have already been verified to be valid by the gossip validator.
-						if let Err(err) = self.handle_gossip_message(message) {
+						if let Err(err) = self.handle_gossip_message(&message) {
 							debug!(target: "orderbook", "🥩 {}", err);
 						}
 					} else {
+						return;
+					}
+				},
+				message = self.message_sender_link.next() => {
+					if let Some(message) = message {
+						if let Err(err) = self.handle_ob_message(&message) {
+							debug!(target: "orderbook", "🥩 {}", err);
+						}
+					}else{
 						return;
 					}
 				},

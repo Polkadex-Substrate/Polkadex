@@ -1,0 +1,21 @@
+[package]
+name = "orderbook-rpc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"] }
+futures = "0.3.21"
+jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
+log = "0.4"
+parking_lot = "0.12.0"
+serde = { version = "1.0.136", features = ["derive"] }
+thiserror = "1.0"
+orderbook = { path = "../." }
+orderbook-primitives = {path = "../../../primitives/orderbook" }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
