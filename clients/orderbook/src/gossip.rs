@@ -1,9 +1,11 @@
 use log::trace;
 use orderbook_primitives::types::ObMessage;
 use parity_scale_codec::Decode;
+use parking_lot::RwLock;
 use sc_network::PeerId;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
+use std::{collections::BTreeMap, sync::Arc};
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -29,14 +31,25 @@ where
 	B: Block,
 {
 	topic: B::Hash,
+	last_stid: Arc<RwLock<u64>>,
 }
 
 impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new() -> GossipValidator<B> {
-		GossipValidator { topic: topic::<B>() }
+	pub fn new(last_stid: Arc<RwLock<u64>>) -> GossipValidator<B> {
+		GossipValidator { topic: topic::<B>(), last_stid }
+	}
+
+	pub fn validate_message(&self, message: &ObMessage) -> bool {
+		let last_stid = self.last_stid.read();
+		message.stid >= *last_stid
+	}
+
+	pub fn rebroadcast_check(&self, message: &ObMessage) -> bool {
+		// TODO: When should we rebroadcast a message
+		true
 	}
 }
 
@@ -52,9 +65,11 @@ where
 	) -> ValidationResult<B::Hash> {
 		// Decode
 		if let Ok(ob_message) = ObMessage::decode(&mut data) {
-			todo!()
-			// Check if stid is processed then discard
-			// if not processed process and keep
+			// Check if we processed this message
+			if self.validate_message(&ob_message) {
+				return ValidationResult::ProcessAndKeep(topic::<B>())
+			}
+			// TODO: When should be stop broadcasting this message
 		}
 		ValidationResult::Discard
 	}
@@ -63,11 +78,11 @@ where
 		Box::new(move |_topic, mut data| {
 			// Decode
 			let msg = match ObMessage::decode(&mut data) {
-				Ok(vote) => vote,
+				Ok(msg) => msg,
 				Err(_) => return true,
 			};
 			// If old stid then expire
-			todo!();
+			!self.validate_message(&msg)
 		})
 	}
 
@@ -75,13 +90,13 @@ where
 		&'a self,
 	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, intent, _topic, mut data| {
+			// Decode
 			let msg = match ObMessage::decode(&mut data) {
 				Ok(vote) => vote,
 				Err(_) => return false,
 			};
-
-			todo!()
 			// Logic for rebroadcasting.
+			self.rebroadcast_check(&msg)
 		})
 	}
 }
