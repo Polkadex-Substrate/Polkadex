@@ -6,6 +6,7 @@ members = [
     "client",
     "node",
     "runtime",
+    "clients/orderbook",
     "pallets/pdex-migration",
     "pallets/chainbridge",
     "pallets/asset-handler",
