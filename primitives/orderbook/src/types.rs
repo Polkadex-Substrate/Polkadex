@@ -8,6 +8,42 @@ pub type OrderId = H256;
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct OrderState {
+	filled_qty: Decimal,
+	required_qty: Decimal,
+}
+
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct AccountInfo {
+	proxies: Vec<AccountId>,
+}
+
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct AccountAsset {
+	main: AccountId,
+	asset: AssetId,
+}
+
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct AccountBalance {
+	free_balance: Decimal,
+	reserved_balance: Decimal,
+}
+
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct Trade {
+	maker: Order,
+	taker: Order,
+	price: Decimal,
+	amt: Decimal,
+}
+
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
@@ -16,8 +52,7 @@ pub struct ObMessage {
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserActions {
-	PlaceOrder(Order),
-	CancelOrder(OrderId),
+	Trade(Trade),
 	Withdraw(WithdrawalRequest),
 	BlockImport(u32),
 }
@@ -45,6 +80,7 @@ pub enum OrderSide {
 	Ask,
 	Bid,
 }
+
 impl OrderSide {
 	pub fn get_opposite(&self) -> Self {
 		match self {
