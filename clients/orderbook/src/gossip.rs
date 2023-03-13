@@ -1,15 +1,11 @@
-
-use orderbook_primitives::{
-	types::{GossipMessage},
-	SnapshotSummary,
-};
+use orderbook_primitives::{types::GossipMessage, SnapshotSummary};
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
 use sc_network_common::protocol::event::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
-use std::{sync::Arc};
+use std::sync::Arc;
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash

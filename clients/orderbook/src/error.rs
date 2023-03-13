@@ -29,6 +29,14 @@ pub enum Error {
 	TrieError(String),
 	#[error("Scale codec error")]
 	CodecError(parity_scale_codec::Error),
+	#[error("Signature check failed for withdraw")]
+	WithdrawSignatureCheckFailed,
+	#[error("Decimal library error")]
+	DecimalError(rust_decimal::Error),
+	#[error("Unable to find main account in trie")]
+	MainAccountNotFound,
+	#[error("Proxy not associated with main")]
+	ProxyNotAssociatedWithMain,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
@@ -40,5 +48,11 @@ impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
 impl From<parity_scale_codec::Error> for Error {
 	fn from(value: parity_scale_codec::Error) -> Self {
 		Self::CodecError(value)
+	}
+}
+
+impl From<rust_decimal::Error> for Error {
+	fn from(value: rust_decimal::Error) -> Self {
+		Self::DecimalError(value)
 	}
 }
