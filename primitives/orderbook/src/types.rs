@@ -5,6 +5,7 @@ use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId, Signature
 use rust_decimal::{Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_std::cmp::Ordering;
+use crate::SnapshotSummary;
 
 pub type OrderId = H256;
 
@@ -54,16 +55,16 @@ pub struct Trade {
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub enum GossipMessage {
-	UserAction(ObMessage),
-	StIdRequest(u64)
+pub struct ObMessage {
+	pub stid: u64,
+	pub action: UserActions,
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct ObMessage {
-	pub stid: u64,
-	pub action: UserActions,
+pub enum GossipMessage {
+	ObMessage(ObMessage),
+	Snapshot(SnapshotSummary)
 }
 
 #[derive(Clone, Debug, Encode, Decode)]

@@ -1,5 +1,8 @@
 use log::trace;
-use orderbook_primitives::types::ObMessage;
+use orderbook_primitives::{
+	types::{GossipMessage, ObMessage},
+	SnapshotSummary,
+};
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
@@ -32,7 +35,7 @@ where
 	B: Block,
 {
 	topic: B::Hash,
-	last_stid: Arc<RwLock<u64>>,
+	last_snapshot: Arc<RwLock<SnapshotSummary>>,
 	pub(crate) peers: Vec<PeerId>,
 }
 
@@ -40,16 +43,17 @@ impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new(last_stid: Arc<RwLock<u64>>) -> GossipValidator<B> {
-		GossipValidator { topic: topic::<B>(), last_stid, peers: vec![] }
+	pub fn new(last_snapshot: Arc<RwLock<SnapshotSummary>>) -> GossipValidator<B> {
+		GossipValidator { topic: topic::<B>(), last_snapshot, peers: vec![] }
 	}
 
-	pub fn validate_message(&self, message: &ObMessage) -> bool {
-		let last_stid = self.last_stid.read();
-		message.stid >= *last_stid
+	pub fn validate_message(&self, message: &GossipMessage) -> bool {
+		todo!()
+		// let last_snapshot = self.last_snapshot.read();
+		// message.stid >= *last_snapshot.state_change_id
 	}
 
-	pub fn rebroadcast_check(&self, message: &ObMessage) -> bool {
+	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
 		// TODO: When should we rebroadcast a message
 		true
 	}
@@ -72,7 +76,7 @@ where
 		mut data: &[u8],
 	) -> ValidationResult<B::Hash> {
 		// Decode
-		if let Ok(ob_message) = ObMessage::decode(&mut data) {
+		if let Ok(ob_message) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
 			if self.validate_message(&ob_message) {
 				return ValidationResult::ProcessAndKeep(topic::<B>())
@@ -85,7 +89,7 @@ where
 	fn message_expired<'a>(&'a self) -> Box<dyn FnMut(B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_topic, mut data| {
 			// Decode
-			let msg = match ObMessage::decode(&mut data) {
+			let msg = match GossipMessage::decode(&mut data) {
 				Ok(msg) => msg,
 				Err(_) => return true,
 			};
@@ -99,7 +103,7 @@ where
 	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, intent, _topic, mut data| {
 			// Decode
-			let msg = match ObMessage::decode(&mut data) {
+			let msg = match GossipMessage::decode(&mut data) {
 				Ok(vote) => vote,
 				Err(_) => return false,
 			};
