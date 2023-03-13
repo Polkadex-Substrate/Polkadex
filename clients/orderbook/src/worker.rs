@@ -1,36 +1,41 @@
+use std::{
+	borrow::Cow,
+	collections::{BTreeMap, HashMap},
+	marker::PhantomData,
+	sync::Arc,
+};
+
+use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
+use log::{debug, error, info, trace, warn};
+use memory_db::{HashKey, MemoryDB};
+use parity_scale_codec::{Codec, Decode, Encode};
+use parking_lot::RwLock;
+use polkadex_primitives::{withdrawal::Withdrawal, AccountId, BlockNumber};
+use reference_trie::RefHasher;
+use sc_client_api::Backend;
+use sc_network::PeerId;
+use sc_network_common::{protocol::event::Event, service::NotificationSender};
+use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
+use sp_api::ProvideRuntimeApi;
+use sp_arithmetic::traits::Saturating;
+use sp_consensus::SyncOracle;
+use sp_core::{offchain::OffchainStorage, H256};
+use sp_runtime::{generic::BlockId, traits::Block};
+use trie_db::{TrieDBMutBuilder, TrieMut};
+
+use orderbook_primitives::{
+	types::{
+		AccountInfo, GossipMessage, ObMessage, OrderState, Trade, UserActions, WithdrawalRequest,
+	},
+	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
+};
+
 use crate::{
 	error::Error,
 	gossip::{topic, GossipValidator},
 	metrics::Metrics,
 	utils::*,
 	Client,
-};
-use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
-use log::{debug, error, info, trace, warn};
-use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::{
-	types::ObMessage, ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
-};
-use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::RwLock;
-use polkadex_primitives::BlockNumber;
-use reference_trie::{RefHasher};
-
-use sc_client_api::Backend;
-use sc_network::PeerId;
-use sc_network_common::{
-	protocol::event::Event,
-	service::{NotificationSender},
-};
-use sc_network_gossip::GossipEngine;
-use sp_api::ProvideRuntimeApi;
-use sp_consensus::SyncOracle;
-use sp_runtime::{generic::BlockId, traits::Block};
-use std::{
-	borrow::Cow,
-	collections::{BTreeMap, HashMap},
-	marker::PhantomData,
-	sync::Arc,
 };
 
 pub const STID_IMPORT_REQUEST: &str = "stid_request";
@@ -69,7 +74,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	known_messages: BTreeMap<u64, ObMessage>,
 	// Links between the block importer, the background voter and the RPC layer.
 	// links: BeefyVoterLinks<B>,
-
+	pending_withdrawals: Vec<Withdrawal<AccountId>>,
 	// voter state
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
@@ -78,13 +83,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	// In memory store
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 }
-use orderbook_primitives::types::{
-	GossipMessage, OrderState, Trade, UserActions, WithdrawalRequest,
-};
-use sc_network_gossip::Network as GossipNetwork;
-use sp_arithmetic::traits::Saturating;
-use sp_core::{offchain::OffchainStorage, H256};
-use trie_db::{TrieDBMutBuilder, TrieMut};
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
 where
@@ -136,6 +134,7 @@ where
 			_marker: Default::default(),
 			known_messages: Default::default(),
 			working_state_root: Default::default(),
+			pending_withdrawals: vec![],
 		}
 	}
 
@@ -180,14 +179,39 @@ where
 		let (taker_asset, taker_debit) = trade.debit(false);
 		sub_balance(&mut trie, taker_asset, taker_debit)?;
 		// Commit the state changes in trie
-		trie.root();
+		trie.commit();
 		Ok(())
 	}
 
-	pub fn process_withdraw(&mut self, _withdraw: WithdrawalRequest) -> Result<(), Error> {
-		todo!()
+	pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
+		let mut trie =
+			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
+				.build();
+
+		// Get main account
+		let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
+
+		let mut account_info = AccountInfo::decode(&mut &proxies[..])?;
+		// Check proxy registration
+		if !account_info.proxies.contains(&withdraw.proxy) {
+			return Err(Error::ProxyNotAssociatedWithMain)
+		}
+		// Verify signature
+		if !withdraw.verify() {
+			return Err(Error::WithdrawSignatureCheckFailed)
+		}
+		// Deduct balance
+		sub_balance(&mut trie, withdraw.account_asset(), withdraw.amount()?)?;
+		// Queue withdrawal
+		self.pending_withdrawals.push(withdraw.try_into()?);
+		// Commit the trie
+		trie.commit();
+		Ok(())
 	}
 	pub fn handle_blk_import(&mut self, _num: BlockNumber) -> Result<(), Error> {
+		// 1. Check last processed block with num
+		// 2. Get the ingress messsages for this block
+		// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
 		todo!()
 	}
 

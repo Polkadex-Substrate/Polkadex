@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::ops::Mul;
 use std::borrow::Borrow;
+use std::str::FromStr;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{AccountId, AssetId, ocex::TradingPairConfig, Signature};
+use polkadex_primitives::withdrawal::Withdrawal;
 use rust_decimal::{Decimal, RoundingStrategy};
 use rust_decimal::prelude::Zero;
 use sp_core::H256;
@@ -46,7 +48,7 @@ impl OrderState {
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountInfo {
-    proxies: Vec<AccountId>,
+    pub proxies: Vec<AccountId>,
 }
 
 #[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq)]
@@ -122,6 +124,34 @@ pub struct WithdrawalRequest {
     pub payload: WithdrawPayloadCallByUser,
     pub main: AccountId,
     pub proxy: AccountId,
+}
+
+impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest{
+    type Error = rust_decimal::Error;
+
+    fn try_into(self) -> Result<Withdrawal<AccountId>,rust_decimal::Error> {
+        Ok(Withdrawal{
+            main_account: self.main.clone(),
+            amount: self.amount()?,
+            asset: self.payload.asset_id,
+            event_id: 0, // TODO: We don't use this
+            fees: Default::default(), // TODO: We don't use this
+        })
+    }
+}
+
+impl WithdrawalRequest {
+    pub fn verify(&self) -> bool {
+        todo!()
+    }
+
+    pub fn account_asset(&self) -> AccountAsset {
+        AccountAsset{ main: self.main.clone(), asset: self.payload.asset_id }
+    }
+
+    pub fn amount(&self) -> Result<Decimal,rust_decimal::Error> {
+        Decimal::from_str(&self.payload.amount)
+    }
 }
 
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
