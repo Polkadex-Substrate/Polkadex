@@ -11,6 +11,7 @@ use super::{
 	pallet::Event as PalletEvent,
 	*,
 };
+use frame_benchmarking as _;
 use frame_support::{assert_noop, assert_ok};
 use frame_system as system;
 

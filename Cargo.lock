@@ -158,7 +158,6 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
- "pallet-sudo",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -8607,8 +8606,6 @@ name = "thea"
 version = "1.0.0"
 dependencies = [
  "asset-handler",
- "chainbridge",
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -8659,15 +8656,20 @@ dependencies = [
 name = "thea-staking"
 version = "4.0.0-dev"
 dependencies = [
+ "asset-handler",
+ "chainbridge",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "pallet-assets",
  "pallet-balances",
  "pallet-staking",
+ "pallet-staking-reward-curve",
  "parity-scale-codec",
  "polkadex-primitives 0.9.28",
  "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-staking",
