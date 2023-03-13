@@ -3616,6 +3616,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4d2456c373231a208ad294c33dc5bff30051eafd954cd4caae83a712b12854d"
 
 [[package]]
+name = "liquidity"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-ocex-lmp",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives 0.9.28",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4017,6 +4039,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
+ "liquidity",
  "log",
  "orml-vesting",
  "pallet-asset-handler-runtime-api",
@@ -4044,6 +4067,7 @@ dependencies = [
  "pallet-proxy",
  "pallet-randomness-collective-flip",
  "pallet-recovery",
+ "pallet-rewards",
  "pallet-scheduler",
  "pallet-session",
  "pallet-society",
@@ -4057,7 +4081,7 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec",
  "pdex-migration",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.28",
  "scale-info",
  "smallvec",
  "sp-api",
@@ -4065,6 +4089,7 @@ dependencies = [
  "sp-block-builder",
  "sp-consensus-babe",
  "sp-core",
+ "sp-finality-grandpa",
  "sp-inherents",
  "sp-io",
  "sp-npos-elections",
@@ -4210,9 +4235,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.15.0"
+version = "1.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e82dad04139b71a90c080c8463fe0dc7902db5192d939bd0950f074d014339e1"
+checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
 name = "opaque-debug"
@@ -4269,7 +4294,7 @@ dependencies = [
  "jsonrpsee",
  "pallet-asset-handler-runtime-api",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.28",
  "serde",
  "sp-api",
  "sp-blockchain",
@@ -4282,7 +4307,7 @@ name = "pallet-asset-handler-runtime-api"
 version = "0.1.0"
 dependencies = [
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.28",
  "sp-api",
  "sp-core",
  "sp-runtime",
@@ -4611,11 +4636,12 @@ dependencies = [
  "frame-support",
  "frame-system",
  "ias-verify",
+ "liquidity",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.28",
  "rust_decimal",
  "scale-info",
  "sp-application-crypto",
@@ -4701,6 +4727,30 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-rewards"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "once_cell",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives 0.9.28",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -5225,7 +5275,7 @@ dependencies = [
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "polkadex-client",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.19",
  "sc-authority-discovery",
  "sc-basic-authorship",
  "sc-chain-spec",
@@ -5279,6 +5329,23 @@ name = "polkadex-primitives"
 version = "0.9.19"
 source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.10#a25653d0e3a0b0997ef0ca72ac86b253e2930f51"
 dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "rust_decimal",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polkadex-primitives"
+version = "0.9.28"
+source = "git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.14#bb614cce44c6781a7e09dd296b01b5b30db67017"
+dependencies = [
+ "anyhow",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -8563,7 +8630,7 @@ dependencies = [
  "pallet-balances",
  "pallet-identity",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.28",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -8578,7 +8645,7 @@ dependencies = [
  "blst",
  "frame-system",
  "parity-scale-codec",
- "polkadex-primitives",
+ "polkadex-primitives 0.9.28",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -8597,8 +8664,11 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
+ "pallet-staking",
  "parity-scale-codec",
+ "polkadex-primitives 0.9.28",
  "scale-info",
+ "sp-io",
  "sp-runtime",
  "sp-staking",
  "sp-std",

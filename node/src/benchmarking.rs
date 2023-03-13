@@ -19,7 +19,7 @@
 //! Setup code for [`super::command`] which would otherwise bloat that module.
 //!
 //! Should only be used for benchmarking as it may break in other contexts.
-#[allow(dead_code, warnings)]
+#![allow(dead_code, warnings)]
 use crate::service::{create_extrinsic, FullClient};
 
 use node_polkadex_runtime::{BalancesCall, SystemCall};
