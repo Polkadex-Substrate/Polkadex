@@ -60,6 +60,7 @@ const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
+	use sp_std::default::Default;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use frame_support::{
@@ -126,6 +127,7 @@ pub mod pallet {
 	>;
 
 	pub struct AllowlistedTokenLimit;
+
 	impl Get<u32> for AllowlistedTokenLimit {
 		fn get() -> u32 {
 			50 // TODO: Arbitrary value
@@ -190,7 +192,7 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -294,7 +296,9 @@ pub mod pallet {
 					polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 				>::new());
 			}
-
+			if <LatestSnapshot<T>>::get() == SnapshotSummary::default() {
+				<LatestSnapshot<T>>::put(SnapshotSummary::default())
+			}
 			<OnChainEvents<T>>::put(BoundedVec::<
 				polkadex_primitives::ocex::OnChainEvents<T::AccountId>,
 				OnChainEventsLimit,
@@ -309,7 +313,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Registers a new account in orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::register_main_account(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::register_main_account(1))]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			Self::register_user(main_account, proxy)?;
@@ -317,7 +321,7 @@ pub mod pallet {
 		}
 
 		/// Adds a proxy account to a pre-registered main acocunt
-		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::add_proxy_account(1))]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -341,7 +345,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(<T as Config>::WeightInfo::close_trading_pair(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::close_trading_pair(1))]
 		pub fn close_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -370,7 +374,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(<T as Config>::WeightInfo::open_trading_pair(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::open_trading_pair(1))]
 		pub fn open_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -400,7 +404,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
-		#[pallet::weight(<T as Config>::WeightInfo::register_trading_pair(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::register_trading_pair(1))]
 		pub fn register_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -531,7 +535,7 @@ pub mod pallet {
 		}
 
 		/// Updates the trading pair config
-		#[pallet::weight(<T as Config>::WeightInfo::update_trading_pair(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::update_trading_pair(1))]
 		pub fn update_trading_pair(
 			origin: OriginFor<T>,
 			base: AssetId,
@@ -628,18 +632,20 @@ pub mod pallet {
 					Some(qty_step_size),
 				) => {
 					let trading_pair_info = TradingPairConfig {
-						base_asset: base,
-						quote_asset: quote,
-						min_price,
-						max_price,
-						price_tick_size,
-						min_qty,
-						max_qty,
-						qty_step_size,
-						operational_status: true,
-						base_asset_precision: price_tick_size.scale() as u8, /* scale() can never be                                                    * greater u8::MAX */
-						quote_asset_precision: qty_step_size.scale() as u8, /* scale() can never be                                                    * greater than u8::MAX */
-					};
+                        base_asset: base,
+                        quote_asset: quote,
+                        min_price,
+                        max_price,
+                        price_tick_size,
+                        min_qty,
+                        max_qty,
+                        qty_step_size,
+                        operational_status: true,
+                        base_asset_precision: price_tick_size.scale() as u8,
+                        /* scale() can never be                                                    * greater u8::MAX */
+                        quote_asset_precision: qty_step_size.scale() as u8,
+                        /* scale() can never be                                                    * greater than u8::MAX */
+                    };
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 					<IngressMessages<T>>::mutate(|ingress_messages| {
@@ -658,7 +664,7 @@ pub mod pallet {
 		}
 
 		/// Deposit Assets to Orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::deposit(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::deposit(1))]
 		pub fn deposit(
 			origin: OriginFor<T>,
 			asset: AssetId,
@@ -670,7 +676,7 @@ pub mod pallet {
 		}
 
 		/// Removes a proxy account from pre-registered main account
-		#[pallet::weight(<T as Config>::WeightInfo::remove_proxy_account(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::remove_proxy_account(1))]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -699,7 +705,7 @@ pub mod pallet {
 		}
 
 		//TODO: Benchmark set_snapshot
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
 		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u32) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<SnapshotNonce<T>>::put(new_snapshot_id);
@@ -715,7 +721,7 @@ pub mod pallet {
 		// 4) Document rest of ext(s).
 		// 5) Write test cases for this.
 		/// New Submit Snapshot
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
 		pub fn new_submit_snapshot(
 			origin: OriginFor<T>,
 			snapshot_summary: SnapshotSummary,
@@ -793,7 +799,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			mut snapshot: EnclaveSnapshot<
@@ -859,7 +865,7 @@ pub mod pallet {
 		// FIXME Only for testing will be removed before mainnet launch
 		/// Insert Enclave
 		#[doc(hidden)]
-		#[pallet::weight(<T as Config>::WeightInfo::insert_enclave(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::insert_enclave(1))]
 		pub fn insert_enclave(origin: OriginFor<T>, enclave: T::AccountId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let timestamp = <timestamp::Pallet<T>>::get();
@@ -870,7 +876,7 @@ pub mod pallet {
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
-		#[pallet::weight(<T as Config>::WeightInfo::collect_fees(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::collect_fees(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -917,7 +923,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::shutdown())]
+		#[pallet::weight(< T as Config >::WeightInfo::shutdown())]
 		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(false);
@@ -930,7 +936,7 @@ pub mod pallet {
 		///This extrinsic will pause/resume the exchange according to flag
 		/// If flag is set to false it will stop the exchange
 		/// If flag is set to true it will resume the exchange
-		#[pallet::weight(<T as Config>::WeightInfo::set_exchange_state(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
@@ -946,7 +952,7 @@ pub mod pallet {
 		}
 
 		/// Sends the changes required in balances for list of users with a particular asset
-		#[pallet::weight(<T as Config>::WeightInfo::set_balances(change_in_balances.len().saturated_into()))]
+		#[pallet::weight(< T as Config >::WeightInfo::set_balances(change_in_balances.len().saturated_into()))]
 		pub fn set_balances(
 			origin: OriginFor<T>,
 			change_in_balances: BoundedVec<
@@ -975,7 +981,7 @@ pub mod pallet {
 		///
 		/// params: snapshot_number: u32
 		/// account: AccountId
-		#[pallet::weight(<T as Config>::WeightInfo::claim_withdraw(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::claim_withdraw(1))]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
 			snapshot_id: u32,
@@ -1070,7 +1076,7 @@ pub mod pallet {
 		}
 
 		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::register_enclave(1))]
 		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
 
@@ -1102,7 +1108,7 @@ pub mod pallet {
 		}
 
 		/// Allowlist Token
-		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
@@ -1115,7 +1121,7 @@ pub mod pallet {
 		}
 
 		/// Remove Allowlisted Token
-		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
@@ -1127,7 +1133,7 @@ pub mod pallet {
 
 		/// In order to register itself - enclave account id must be allowlisted and called by
 		/// Governance
-		#[pallet::weight(<T as Config>::WeightInfo::allowlist_enclave(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::allowlist_enclave(1))]
 		pub fn allowlist_enclave(
 			origin: OriginFor<T>,
 			enclave_account_id: T::AccountId,
@@ -1140,7 +1146,7 @@ pub mod pallet {
 		}
 
 		/// Extrinsic to update ExchangeState
-		#[pallet::weight(<T as Config>::WeightInfo::update_certificate(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::update_certificate(1))]
 		pub fn update_certificate(
 			origin: OriginFor<T>,
 			certificate_valid_until: u64,
@@ -1324,7 +1330,7 @@ pub mod pallet {
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		FeesClaims {
 			beneficiary: T::AccountId,
