@@ -1,10 +1,20 @@
-use parity_scale_codec::{Decode, Encode};
+use std::collections::HashMap;
+use sp_std::collections::{btree_map::BTreeMap};
+use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId, Signature};
 use rust_decimal::{Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_std::cmp::Ordering;
 
 pub type OrderId = H256;
+
+/// Concrete implementation of Hasher using Blake2b 256-bit hashes
+
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct Snapshot {
+	map: HashMap<H256,(Vec<u8>,i32)>
+}
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -19,7 +29,7 @@ pub struct AccountInfo {
 	proxies: Vec<AccountId>,
 }
 
-#[derive(Clone, Debug, Encode, Decode)]
+#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountAsset {
 	main: AccountId,

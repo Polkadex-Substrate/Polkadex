@@ -7,6 +7,7 @@ use crate::{
 };
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace};
+use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{types::ObMessage, ObApi};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
@@ -14,7 +15,11 @@ use sc_client_api::Backend;
 use sc_network_gossip::GossipEngine;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::{generic::BlockId, traits::Block};
-use std::{collections::BTreeMap, marker::PhantomData, sync::Arc};
+use std::{
+	collections::{BTreeMap, HashMap},
+	marker::PhantomData,
+	sync::Arc,
+};
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
 	pub client: Arc<C>,
@@ -52,9 +57,15 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	metrics: Option<Metrics>,
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
+	// In memory store
+	memory_db: MemoryDB<CustomBlake2Hasher, HashKey<CustomBlake2Hasher>, Vec<u8>>,
 }
+use crate::hasher::CustomBlake2Hasher;
 use orderbook_primitives::types::UserActions;
 use sc_network_gossip::Network as GossipNetwork;
+use sp_core::{offchain::OffchainStorage, H256};
+use sp_trie::{LayoutV1, TrieDBMut};
+use trie_db::{FatDBIterator, FatDBMut, TrieDBIterator, TrieMut};
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
 where
@@ -105,6 +116,7 @@ where
 			// key_store,
 			gossip_engine,
 			gossip_validator,
+			memory_db: MemoryDB::default(),
 			// links,
 			// last_processed_state_change_id,
 			message_sender_link,
@@ -147,6 +159,39 @@ where
 			return Ok(())
 		}
 		self.process_message(message)
+	}
+
+	pub fn store_snapshot(&mut self, snapshot_id: u64) -> Result<(), Error> {
+		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
+			match serde_json::to_vec(self.memory_db.data()) {
+				Ok(data) => offchain_storage.set(
+					b"OrderbookSnapshotState",
+					&snapshot_id.to_le_bytes(),
+					&data,
+				),
+				Err(err) =>
+					return Err(Error::Backend(format!("Error serializing the data: {:?}", err))),
+			}
+		}
+		return Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
+	}
+
+	pub fn load_snapshot(&mut self, snapshot_id: u64) -> Result<(), Error> {
+		if let Some(offchain_storage) = self.backend.offchain_storage() {
+			if let Some(mut data) =
+				offchain_storage.get(b"OrderbookSnapshotState", &snapshot_id.to_le_bytes())
+			{
+				match serde_json::from_slice::<HashMap<H256, (Vec<u8>, i32)>>(&data) {
+					Ok(data) => self.memory_db.load_from(data),
+					Err(err) =>
+						return Err(Error::Backend(format!(
+							"Error decoding snapshot data: {:?}",
+							err
+						))),
+				}
+			}
+		}
+		Ok(())
 	}
 
 	/// Main loop for Orderbook worker.
