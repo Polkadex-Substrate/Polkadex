@@ -23,7 +23,6 @@ sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 
-chainbridge = {path = "../chainbridge", default-features = false, optional = true}
 asset-handler = {path = "../asset-handler", default-features = false}
 thea-primitives = { path = "../../thea-primitives", default-features = false }
 thea-staking = { path = "../thea-staking", default-features = false }
@@ -32,6 +31,7 @@ xcm = { workspace = true, default-features = false }
 
 [dev-dependencies]
 frame-benchmarking = { workspace = true }
+chainbridge = {path = "../chainbridge", default-features = false}
 
 [features]
 default = ["std"]
