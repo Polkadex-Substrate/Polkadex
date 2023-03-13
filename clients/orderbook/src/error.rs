@@ -15,5 +15,5 @@ pub enum Error {
 	#[error("Session uninitialized")]
 	UninitSession,
 	#[error("State hash mismatch")]
-	StateHashMisMatch
+	StateHashMisMatch,
 }

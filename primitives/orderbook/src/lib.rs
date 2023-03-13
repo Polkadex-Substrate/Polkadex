@@ -84,6 +84,12 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 pub type AuthorityIndex = u32;
 
 
+#[derive(Copy, Clone,Encode,Decode)]
+pub struct StidImportRequest {
+	pub from: u64,
+	pub to: u64
+}
+
 #[derive(Copy, Clone,Encode,Decode, Default)]
 pub struct SnapshotSummary {
 	pub state_root: H256,

@@ -8,19 +8,22 @@ use crate::{
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::{types::ObMessage, ObApi};
+use orderbook_primitives::{types::ObMessage, ObApi, StidImportRequest};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use sc_client_api::Backend;
+use sc_network_common::service::{NotificationSender, NotificationSenderError};
 use sc_network_gossip::GossipEngine;
-use sp_consensus::SyncOracle;
 use sp_api::ProvideRuntimeApi;
+use sp_consensus::SyncOracle;
 use sp_runtime::{generic::BlockId, traits::Block};
 use std::{
+	borrow::Cow,
 	collections::{BTreeMap, HashMap},
 	marker::PhantomData,
 	sync::Arc,
 };
+use sc_network_common::protocol::event::Event;
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
 	pub client: Arc<C>,
@@ -43,6 +46,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	client: Arc<C>,
 	backend: Arc<BE>,
 	sync_oracle: SO,
+	network: N,
 	// key_store: BeefyKeystore,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
@@ -98,18 +102,15 @@ where
 
 		let last_processed_stid = Arc::new(RwLock::new(0));
 		let gossip_validator = Arc::new(GossipValidator::new(last_processed_stid.clone()));
-		let gossip_engine = sc_network_gossip::GossipEngine::new(
-			network,
-			protocol_name,
-			gossip_validator.clone(),
-			None,
-		);
+		let gossip_engine =
+			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
 		ObWorker {
 			client: client.clone(),
 			backend,
 			sync_oracle,
 			// key_store,
+			network,
 			gossip_engine,
 			gossip_validator,
 			memory_db: MemoryDB::default(),
@@ -129,47 +130,89 @@ where
 	}
 
 	// Checks if we need to sync the orderbook state before processing the messages.
-	pub fn check_state_sync(&mut self) -> Result<(), Error> {
+	pub async fn check_state_sync(&mut self) -> Result<(), Error> {
 		// Read latest snapshot from finalizized state
-		let summary = self.client.runtime_api().get_latest_snapshot(
-			&BlockId::number(self.client.info().finalized_number))
+		let summary = self
+			.client
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::number(self.client.info().finalized_number))
 			.expect("Something went wrong with the get_latest_snapshot runtime api; qed.");
 
-		// Try to load it from our local DB if not download it from Orderbook operator
-		if let Err(err) = self.load_snapshot(summary.state_change_id, summary.state_hash){
-			info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
-			self.download_snapshot_from_operator(summary.state_change_id, summary.state_hash)?;
-		}
-		// X->Y sync
-		// Ask peers to send the missed stid
+		// We need to sync only if we are need to update state
+		if *self.last_processed_stid.read() < summary.state_change_id {
+			// Try to load it from our local DB if not download it from Orderbook operator
+			if let Err(err) = self.load_snapshot(summary.state_change_id, summary.state_hash) {
+				info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
+				self.download_snapshot_from_operator(summary.state_change_id, summary.state_hash)?;
+			}
+			// X->Y sync: Ask peers to send the missed stid
+			if !self.known_messages.is_empty() {
+				// Collect all known stids
+				let mut known_stids = self.known_messages.keys().collect::<Vec<&u64>>();
+				known_stids.sort_unstable(); // unstable is fine since we know stids are unique
+							 // if the next best known stid is not available then ask others
+				if *known_stids[0] != (*self.last_processed_stid.read()).saturating_add(1) {
+					// Ask other peers to send us the requests stids.
+					let import_request = StidImportRequest {
+						from: *self.last_processed_stid.read(),
+						to: *known_stids[0],
+					};
 
+					for peer in &self.gossip_validator.peers {
+						match self.network.notification_sender(*peer, Cow::from("stid_request")) {
+							Ok(sender) => {
+								if let Ok(mut s) = sender.ready().await {
+									// Send the request and exit and wait for peers to send back the
+									// information
+									if let Err(err) = s.send(import_request.encode()) {
+										error!(target: "orderbook", "📒 error while sending notif to {:?} for missing stid: {:?}",peer,err)
+									}
+								}
+							},
+							Err(err) =>
+								error!(target: "orderbook", "📒 error while requesting {:?} for missing stid: {:?}",peer,err),
+						}
+					}
+				} else {
+					info!(target: "orderbook", "📒 sync request not required, we know the next stid");
+				}
+			} else {
+				info!(target: "orderbook", "📒 No new messages known after stid: {:?}",*self.last_processed_stid.read());
+			}
+		} else {
+			info!(target: "orderbook", "📒 Sync is not required latest stid: {:?}, last_snapshot_stid: {:?}",*self.last_processed_stid.read(), summary.state_change_id);
+		}
 		Ok(())
 	}
 
-	pub fn download_snapshot_from_operator(&mut self, stid: u64, expected_state_hash: H256) -> Result<(), Error> {
+	pub fn download_snapshot_from_operator(
+		&mut self,
+		stid: u64,
+		expected_state_hash: H256,
+	) -> Result<(), Error> {
 		todo!();
 
 		// let computed_hash = sp_core::blake2_256(&data);
 		// if computed_hash != expected_state_hash {
-		// 	warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,expected_state_hash);
-		// 	return Err(Error::StateHashMisMatch)
+		// 	warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected:
+		// {:?}",computed_hash,expected_state_hash); 	return Err(Error::StateHashMisMatch)
 		// }
 		//
 		// *self.last_processed_stid.write() = stid;
 		Ok(())
 	}
 
-	pub fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(),Error>{
+	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		// Cache the message
-		self.known_messages.insert(action.stid,action.clone());
-		if self.sync_oracle.is_major_syncing(){
+		self.known_messages.insert(action.stid, action.clone());
+		if self.sync_oracle.is_major_syncing() {
 			info!(target: "orderbook", "📒 Ob message cached for sync to complete: stid: {:?}",action.stid);
 			return Ok(())
 		}
-		self.check_state_sync()?;
+		self.check_state_sync().await?;
 		let mut last_processed_stid = (*self.last_processed_stid.read()).saturating_add(1);
 
-		while let Some(action) = self.known_messages.remove(&last_processed_stid){
+		while let Some(action) = self.known_messages.remove(&last_processed_stid) {
 			self.handle_action(action)?;
 			last_processed_stid = last_processed_stid.saturating_add(1);
 		}
@@ -199,7 +242,11 @@ where
 		return Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
 	}
 
-	pub fn load_snapshot(&mut self, snapshot_id: u64, expected_state_hash: H256) -> Result<(), Error> {
+	pub fn load_snapshot(
+		&mut self,
+		snapshot_id: u64,
+		expected_state_hash: H256,
+	) -> Result<(), Error> {
 		if let Some(offchain_storage) = self.backend.offchain_storage() {
 			if let Some(mut data) =
 				offchain_storage.get(b"OrderbookSnapshotState", &snapshot_id.to_le_bytes())
@@ -226,6 +273,10 @@ where
 		Ok(())
 	}
 
+	pub async fn handle_network_event(&self, event: &Event) -> Result<(), Error> {
+		todo!()
+	}
+
 	/// Main loop for Orderbook worker.
 	///
 	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
@@ -244,6 +295,8 @@ where
 				.fuse(),
 		);
 
+		let mut notification_events_stream = self.network.event_stream("orderbook").fuse();
+
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
@@ -259,11 +312,22 @@ where
 				},
 				message = self.message_sender_link.next() => {
 					if let Some(message) = message {
-						if let Err(err) = self.process_new_user_action(&message) {
+						if let Err(err) = self.process_new_user_action(&message).await {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					}else{
 						return;
+					}
+				},
+				notification = notification_events_stream.next() => {
+
+					if let Some(notification) = notification {
+					if let Err(err) = self.handle_network_event(&notification).await {
+							debug!(target: "orderbook", "📒 {}", err);
+					}
+					}else {
+						error!(target:"orderbook","None notification recvd");
+						return
 					}
 				},
 				_ = gossip_engine => {
