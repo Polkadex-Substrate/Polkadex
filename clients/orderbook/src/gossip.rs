@@ -1,6 +1,6 @@
-use log::trace;
+
 use orderbook_primitives::{
-	types::{GossipMessage, ObMessage},
+	types::{GossipMessage},
 	SnapshotSummary,
 };
 use parity_scale_codec::Decode;
@@ -9,7 +9,7 @@ use sc_network::PeerId;
 use sc_network_common::protocol::event::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
-use std::{collections::BTreeMap, sync::Arc};
+use std::{sync::Arc};
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -47,13 +47,13 @@ where
 		GossipValidator { topic: topic::<B>(), last_snapshot, peers: vec![] }
 	}
 
-	pub fn validate_message(&self, message: &GossipMessage) -> bool {
+	pub fn validate_message(&self, _message: &GossipMessage) -> bool {
 		todo!()
 		// let last_snapshot = self.last_snapshot.read();
 		// message.stid >= *last_snapshot.state_change_id
 	}
 
-	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
+	pub fn rebroadcast_check(&self, _message: &GossipMessage) -> bool {
 		// TODO: When should we rebroadcast a message
 		true
 	}
@@ -101,7 +101,7 @@ where
 	fn message_allowed<'a>(
 		&'a self,
 	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
-		Box::new(move |_who, intent, _topic, mut data| {
+		Box::new(move |_who, _intent, _topic, mut data| {
 			// Decode
 			let msg = match GossipMessage::decode(&mut data) {
 				Ok(vote) => vote,
