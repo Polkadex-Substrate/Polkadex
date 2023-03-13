@@ -6,6 +6,7 @@ use sc_network::PeerId;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
 use std::{collections::BTreeMap, sync::Arc};
+use sc_network_common::protocol::event::ObservedRole;
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -57,6 +58,13 @@ impl<B> Validator<B> for GossipValidator<B>
 where
 	B: Block,
 {
+	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, _who: &PeerId, _role: ObservedRole) {
+
+		todo!()
+	}
+	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, _who: &PeerId) {
+		todo!()
+	}
 	fn validate(
 		&self,
 		_context: &mut dyn ValidatorContext<B>,

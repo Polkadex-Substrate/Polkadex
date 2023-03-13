@@ -54,6 +54,13 @@ pub struct Trade {
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub enum GossipMessage {
+	UserAction(ObMessage),
+	StIdRequest(u64)
+}
+
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,

@@ -14,4 +14,6 @@ pub enum Error {
 	Signature(String),
 	#[error("Session uninitialized")]
 	UninitSession,
+	#[error("State hash mismatch")]
+	StateHashMisMatch
 }
