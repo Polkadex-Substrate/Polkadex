@@ -1,3 +1,5 @@
+extern crate core;
+
 use futures::channel::mpsc::UnboundedReceiver;
 use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
@@ -12,6 +14,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
+mod hasher;
 mod metrics;
 mod worker;
 
