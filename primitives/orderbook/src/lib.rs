@@ -5,6 +5,7 @@ pub mod types;
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
+use sp_core::H256;
 use sp_std::vec::Vec;
 
 /// Key type for BEEFY module.
@@ -82,11 +83,21 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 /// The index of an authority.
 pub type AuthorityIndex = u32;
 
+
+#[derive(Copy, Clone,Encode,Decode, Default)]
+pub struct SnapshotSummary {
+	pub state_root: H256,
+	pub state_change_id: u64,
+	pub state_hash: H256
+}
+
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Orderbook.
 	pub trait ObApi
 	{
 		/// Return the current active Orderbook validator set
 		fn validator_set() -> Option<ValidatorSet<crypto::AuthorityId>>;
+
+		fn get_latest_snapshot() -> SnapshotSummary;
 	}
 }

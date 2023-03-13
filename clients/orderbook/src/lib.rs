@@ -11,6 +11,7 @@ use sp_blockchain::HeaderBackend;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
 use std::{marker::PhantomData, sync::Arc};
+use sp_consensus::SyncOracle;
 
 mod error;
 mod gossip;
@@ -119,7 +120,7 @@ where
 	BE: Backend<B>,
 	C: Client<B, BE> + ProvideRuntimeApi<B>,
 	C::Api: ObApi<B>,
-	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
 {
 	let ObParams {
 		client,

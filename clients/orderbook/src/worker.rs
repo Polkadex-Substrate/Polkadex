@@ -6,13 +6,14 @@ use crate::{
 	Client,
 };
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
-use log::{debug, error, info, trace};
+use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{types::ObMessage, ObApi};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use sc_client_api::Backend;
 use sc_network_gossip::GossipEngine;
+use sp_consensus::SyncOracle;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::{generic::BlockId, traits::Block};
 use std::{
@@ -63,9 +64,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 use crate::hasher::CustomBlake2Hasher;
 use orderbook_primitives::types::UserActions;
 use sc_network_gossip::Network as GossipNetwork;
+use sp_arithmetic::traits::Saturating;
 use sp_core::{offchain::OffchainStorage, H256};
-use sp_trie::{LayoutV1, TrieDBMut};
-use trie_db::{FatDBIterator, FatDBMut, TrieDBIterator, TrieMut};
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
 where
@@ -73,7 +73,7 @@ where
 	BE: Backend<B>,
 	C: Client<B, BE> + ProvideRuntimeApi<B>,
 	C::Api: ObApi<B>,
-	SO: Send + Sync + Clone + 'static,
+	SO: Send + Sync + Clone + 'static + SyncOracle,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
 	/// Return a new BEEFY worker instance.
@@ -105,10 +105,6 @@ where
 			None,
 		);
 
-		let _last_finalized_header = client
-			.expect_header(BlockId::number(client.info().finalized_number))
-			.expect("latest block always has header available; qed.");
-
 		ObWorker {
 			client: client.clone(),
 			backend,
@@ -127,38 +123,65 @@ where
 		}
 	}
 
-	pub fn handle_action(&mut self, action: UserActions) -> Result<(), Error> {
+	pub fn handle_action(&mut self, action: ObMessage) -> Result<(), Error> {
 		// TODO: All user logic goes here
 		todo!()
 	}
 
-	pub fn process_message(&mut self, message: &ObMessage) -> Result<(), Error> {
-		if !self.known_messages.contains_key(&message.stid) {
-			self.handle_action(message.action.clone())?;
-			// We gossip this message to others
-			self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
-			let mut next_to_process = message.stid.saturating_add(1);
-			// Check if any other available messages can be processed.
-			while let Some(message) = self.known_messages.get(&next_to_process) {
-				self.handle_action(message.action.clone())?;
-				next_to_process = next_to_process.saturating_add(1);
-			}
+	// Checks if we need to sync the orderbook state before processing the messages.
+	pub fn check_state_sync(&mut self) -> Result<(), Error> {
+		// Read latest snapshot from finalizized state
+		let summary = self.client.runtime_api().get_latest_snapshot(
+			&BlockId::number(self.client.info().finalized_number))
+			.expect("Something went wrong with the get_latest_snapshot runtime api; qed.");
+
+		// Try to load it from our local DB if not download it from Orderbook operator
+		if let Err(err) = self.load_snapshot(summary.state_change_id, summary.state_hash){
+			info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
+			self.download_snapshot_from_operator(summary.state_change_id, summary.state_hash)?;
 		}
+		// X->Y sync
+		// Ask peers to send the missed stid
+
+		Ok(())
+	}
+
+	pub fn download_snapshot_from_operator(&mut self, stid: u64, expected_state_hash: H256) -> Result<(), Error> {
+		todo!();
+
+		// let computed_hash = sp_core::blake2_256(&data);
+		// if computed_hash != expected_state_hash {
+		// 	warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,expected_state_hash);
+		// 	return Err(Error::StateHashMisMatch)
+		// }
+		//
+		// *self.last_processed_stid.write() = stid;
+		Ok(())
+	}
+
+	pub fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(),Error>{
+		// Cache the message
+		self.known_messages.insert(action.stid,action.clone());
+		if self.sync_oracle.is_major_syncing(){
+			info!(target: "orderbook", "📒 Ob message cached for sync to complete: stid: {:?}",action.stid);
+			return Ok(())
+		}
+		self.check_state_sync()?;
+		let mut last_processed_stid = (*self.last_processed_stid.read()).saturating_add(1);
+
+		while let Some(action) = self.known_messages.remove(&last_processed_stid){
+			self.handle_action(action)?;
+			last_processed_stid = last_processed_stid.saturating_add(1);
+		}
+		// We need to sub 1 since that last processed is one stid less than the not available
+		// when while loop is broken
+		*self.last_processed_stid.write() = last_processed_stid.saturating_sub(1);
+
 		Ok(())
 	}
 
 	pub fn handle_gossip_message(&mut self, message: &ObMessage) -> Result<(), Error> {
-		if self.known_messages.contains_key(&message.stid) {
-			return Ok(())
-		}
-		self.process_message(message)
-	}
-
-	pub fn handle_ob_message(&mut self, message: &ObMessage) -> Result<(), Error> {
-		if self.known_messages.contains_key(&message.stid) {
-			return Ok(())
-		}
-		self.process_message(message)
+		todo!()
 	}
 
 	pub fn store_snapshot(&mut self, snapshot_id: u64) -> Result<(), Error> {
@@ -176,13 +199,22 @@ where
 		return Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
 	}
 
-	pub fn load_snapshot(&mut self, snapshot_id: u64) -> Result<(), Error> {
+	pub fn load_snapshot(&mut self, snapshot_id: u64, expected_state_hash: H256) -> Result<(), Error> {
 		if let Some(offchain_storage) = self.backend.offchain_storage() {
 			if let Some(mut data) =
 				offchain_storage.get(b"OrderbookSnapshotState", &snapshot_id.to_le_bytes())
 			{
+				let computed_hash = H256::from(sp_core::blake2_256(&data));
+				if computed_hash != expected_state_hash {
+					warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,expected_state_hash);
+					return Err(Error::StateHashMisMatch)
+				}
+
 				match serde_json::from_slice::<HashMap<H256, (Vec<u8>, i32)>>(&data) {
-					Ok(data) => self.memory_db.load_from(data),
+					Ok(data) => {
+						self.memory_db.load_from(data);
+						*self.last_processed_stid.write() = snapshot_id;
+					},
 					Err(err) =>
 						return Err(Error::Backend(format!(
 							"Error decoding snapshot data: {:?}",
@@ -200,7 +232,7 @@ where
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "orderbook", "📒 Orderbook worker started");
-		// self.wait_for_runtime_pallet().await;
+
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
 				.messages_for(topic::<B>())
@@ -227,7 +259,7 @@ where
 				},
 				message = self.message_sender_link.next() => {
 					if let Some(message) = message {
-						if let Err(err) = self.handle_ob_message(&message) {
+						if let Err(err) = self.process_new_user_action(&message) {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					}else{
