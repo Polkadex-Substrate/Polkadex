@@ -19,9 +19,12 @@ scale-info =  { workspace = true, default-features = false, features = ["derive"
 frame-support = { default-features = false, workspace = true }
 frame-system ={ default-features = false, workspace = true }
 pallet-balances = { default-features = false, workspace = true }
+polkadex-primitives = { workspace = true, default-features = false }
+pallet-staking = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
+sp-io = { default-features = false, workspace = true }
 thea-primitives = { path = "../../thea-primitives", default-features = false }
 
 [dev-dependencies]
@@ -39,7 +42,9 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"sp-staking/std",
+	"sp-io/std",
 	"thea-primitives/std",
+	"polkadex-primitives/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
