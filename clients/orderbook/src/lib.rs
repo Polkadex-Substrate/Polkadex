@@ -15,8 +15,8 @@ use std::{marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
-mod hasher;
 mod metrics;
+mod utils;
 mod worker;
 
 pub(crate) mod orderbook_protocol_name {
