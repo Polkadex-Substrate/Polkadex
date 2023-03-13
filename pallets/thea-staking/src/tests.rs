@@ -3,6 +3,7 @@ use crate::{
 	session::{Exposure, IndividualExposure, StakingLimits, UnlockChunk},
 	ActiveNetworks, Candidates, CurrentIndex, Error, Hooks, Perbill, Stakers, Stakinglimits,
 };
+use frame_benchmarking as _;
 use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
 use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;

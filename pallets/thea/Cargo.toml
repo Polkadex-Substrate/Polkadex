@@ -29,10 +29,6 @@ thea-staking = { path = "../thea-staking", default-features = false }
 
 xcm = { workspace = true, default-features = false }
 
-[dev-dependencies]
-frame-benchmarking = { workspace = true }
-chainbridge = {path = "../chainbridge", default-features = false}
-
 [features]
 default = ["std"]
 std = [
@@ -48,11 +44,10 @@ std = [
     "xcm/std",
     "thea-staking/std"
 ]
+
 runtime-benchmarks = [
-    "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
-    "chainbridge/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
 ]

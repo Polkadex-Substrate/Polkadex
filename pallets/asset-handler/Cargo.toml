@@ -32,7 +32,6 @@ thea-primitives = { path = "../../thea-primitives", default-features = false }
 [dev-dependencies]
 pallet-assets = { workspace = true }
 pallet-balances = { workspace = true }
-pallet-sudo = { workspace = true }
 
 
 [features]
