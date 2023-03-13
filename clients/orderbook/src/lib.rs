@@ -3,7 +3,7 @@ extern crate core;
 use futures::channel::mpsc::UnboundedReceiver;
 use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
-use parking_lot::RwLock;
+
 use prometheus::Registry;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sp_api::ProvideRuntimeApi;

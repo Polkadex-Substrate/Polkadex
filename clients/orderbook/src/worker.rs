@@ -1,6 +1,5 @@
 use crate::{
 	error::Error,
-	gossip,
 	gossip::{topic, GossipValidator},
 	metrics::Metrics,
 	utils::*,
@@ -15,13 +14,13 @@ use orderbook_primitives::{
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::BlockNumber;
-use reference_trie::{ExtensionLayout, RefHasher};
-use rust_decimal::Decimal;
+use reference_trie::{RefHasher};
+
 use sc_client_api::Backend;
 use sc_network::PeerId;
 use sc_network_common::{
 	protocol::event::Event,
-	service::{NotificationSender, NotificationSenderError},
+	service::{NotificationSender},
 };
 use sc_network_gossip::GossipEngine;
 use sp_api::ProvideRuntimeApi;
@@ -80,12 +79,12 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 }
 use orderbook_primitives::types::{
-	AccountAsset, GossipMessage, OrderState, Trade, UserActions, WithdrawalRequest,
+	GossipMessage, OrderState, Trade, UserActions, WithdrawalRequest,
 };
 use sc_network_gossip::Network as GossipNetwork;
 use sp_arithmetic::traits::Saturating;
 use sp_core::{offchain::OffchainStorage, H256};
-use trie_db::{DBValue, TrieDBMut, TrieDBMutBuilder, TrieMut};
+use trie_db::{TrieDBMutBuilder, TrieMut};
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
 where
@@ -185,10 +184,10 @@ where
 		Ok(())
 	}
 
-	pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
+	pub fn process_withdraw(&mut self, _withdraw: WithdrawalRequest) -> Result<(), Error> {
 		todo!()
 	}
-	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
+	pub fn handle_blk_import(&mut self, _num: BlockNumber) -> Result<(), Error> {
 		todo!()
 	}
 
@@ -215,7 +214,7 @@ where
 		// We need to sync only if we are need to update state
 		if self.last_snapshot.read().state_change_id < summary.state_change_id {
 			// Try to load it from our local DB if not download it from Orderbook operator
-			if let Err(err) = self.load_snapshot(summary.state_change_id, summary.state_hash) {
+			if let Err(_err) = self.load_snapshot(summary.state_change_id, summary.state_hash) {
 				info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
 				self.download_snapshot_from_operator(summary.state_change_id, summary.state_hash)?;
 			}
@@ -270,8 +269,8 @@ where
 
 	pub fn download_snapshot_from_operator(
 		&mut self,
-		stid: u64,
-		expected_state_hash: H256,
+		_stid: u64,
+		_expected_state_hash: H256,
 	) -> Result<(), Error> {
 		// TODO: 1. sign the stid with this validators key, the validator is expected to either in
 		// active set 	or the upcoming set.
@@ -308,7 +307,7 @@ where
 				self.check_state_sync().await?;
 				self.check_stid_gap_fill().await
 			},
-			GossipMessage::Snapshot(summary) => {
+			GossipMessage::Snapshot(_summary) => {
 				todo!()
 			},
 		}
@@ -335,7 +334,7 @@ where
 		expected_state_hash: H256,
 	) -> Result<(), Error> {
 		if let Some(offchain_storage) = self.backend.offchain_storage() {
-			if let Some(mut data) =
+			if let Some(data) =
 				offchain_storage.get(b"OrderbookSnapshotState", &snapshot_id.to_le_bytes())
 			{
 				let computed_hash = H256::from(sp_core::blake2_256(&data));
