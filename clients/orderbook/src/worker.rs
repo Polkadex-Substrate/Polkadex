@@ -3,6 +3,7 @@ use crate::{
 	gossip,
 	gossip::{topic, GossipValidator},
 	metrics::Metrics,
+	utils::*,
 	Client,
 };
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
@@ -13,6 +14,9 @@ use orderbook_primitives::{
 };
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
+use polkadex_primitives::BlockNumber;
+use reference_trie::{ExtensionLayout, RefHasher};
+use rust_decimal::Decimal;
 use sc_client_api::Backend;
 use sc_network::PeerId;
 use sc_network_common::{
@@ -60,6 +64,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
 	last_snapshot: Arc<RwLock<SnapshotSummary>>,
+	// Working state root,
+	working_state_root: [u8; 32],
 	// Known state ids
 	known_messages: BTreeMap<u64, ObMessage>,
 	// Links between the block importer, the background voter and the RPC layer.
@@ -71,13 +77,15 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
 	// In memory store
-	memory_db: MemoryDB<CustomBlake2Hasher, HashKey<CustomBlake2Hasher>, Vec<u8>>,
+	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 }
-use crate::hasher::CustomBlake2Hasher;
-use orderbook_primitives::types::{GossipMessage, UserActions};
+use orderbook_primitives::types::{
+	AccountAsset, GossipMessage, OrderState, Trade, UserActions, WithdrawalRequest,
+};
 use sc_network_gossip::Network as GossipNetwork;
 use sp_arithmetic::traits::Saturating;
 use sp_core::{offchain::OffchainStorage, H256};
+use trie_db::{DBValue, TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
 where
@@ -128,12 +136,69 @@ where
 			last_snapshot,
 			_marker: Default::default(),
 			known_messages: Default::default(),
+			working_state_root: Default::default(),
 		}
 	}
 
-	pub fn handle_action(&mut self, action: ObMessage) -> Result<(), Error> {
-		// TODO: All user logic goes here
+	pub fn process_trade(&mut self, trade: Trade) -> Result<(), Error> {
+		let Trade { maker, taker, price, amount } = trade.clone();
+		let mut trie =
+			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
+				.build();
+		// Check order states
+		let maker_order_state = match trie.get(maker.id.as_ref())? {
+			None => OrderState::from(&maker),
+			Some(data) => {
+				let mut state = OrderState::decode(&mut &data[..])?;
+				if !state.update(&maker, price, amount) {
+					return Err(Error::OrderStateCheckFailed)
+				}
+				state
+			},
+		};
+
+		let taker_order_state = match trie.get(taker.id.as_ref())? {
+			None => OrderState::from(&taker),
+			Some(data) => {
+				let mut state = OrderState::decode(&mut &data[..])?;
+				if !state.update(&taker, price, amount) {
+					return Err(Error::OrderStateCheckFailed)
+				}
+				state
+			},
+		};
+
+		trie.insert(maker.id.as_ref(), &maker_order_state.encode())?;
+		trie.insert(taker.id.as_ref(), &taker_order_state.encode())?;
+
+		// Update balances
+		let (maker_asset, maker_credit) = trade.credit(true);
+		add_balance(&mut trie, maker_asset, maker_credit)?;
+		let (maker_asset, maker_debit) = trade.debit(true);
+		sub_balance(&mut trie, maker_asset, maker_debit)?;
+		let (taker_asset, taker_credit) = trade.credit(false);
+		add_balance(&mut trie, taker_asset, taker_credit)?;
+		let (taker_asset, taker_debit) = trade.debit(false);
+		sub_balance(&mut trie, taker_asset, taker_debit)?;
+		// Commit the state changes in trie
+		trie.root();
+		Ok(())
+	}
+
+	pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
 		todo!()
+	}
+	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
+		todo!()
+	}
+
+	pub fn handle_action(&mut self, action: ObMessage) -> Result<(), Error> {
+		match action.action {
+			UserActions::Trade(trade) => self.process_trade(trade)?,
+			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw)?,
+			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
+		}
+		Ok(())
 	}
 
 	// Checks if we need to sync the orderbook state before processing the messages.
@@ -144,6 +209,8 @@ where
 			.runtime_api()
 			.get_latest_snapshot(&BlockId::number(self.client.info().finalized_number))
 			.expect("Something went wrong with the get_latest_snapshot runtime api; qed.");
+
+		self.working_state_root = summary.state_root.as_fixed_bytes().clone();
 
 		// We need to sync only if we are need to update state
 		if self.last_snapshot.read().state_change_id < summary.state_change_id {
@@ -206,6 +273,9 @@ where
 		stid: u64,
 		expected_state_hash: H256,
 	) -> Result<(), Error> {
+		// TODO: 1. sign the stid with this validators key, the validator is expected to either in
+		// active set 	or the upcoming set.
+		// 2. include the signature in a GET request's header to https://snapshots.polkadex.trade
 		todo!();
 
 		// let computed_hash = sp_core::blake2_256(&data);
@@ -274,7 +344,7 @@ where
 					return Err(Error::StateHashMisMatch)
 				}
 
-				match serde_json::from_slice::<HashMap<H256, (Vec<u8>, i32)>>(&data) {
+				match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(&data) {
 					Ok(data) => {
 						self.memory_db.load_from(data);
 						self.last_snapshot.write().state_change_id = snapshot_id;

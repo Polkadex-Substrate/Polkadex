@@ -19,8 +19,11 @@ serde_json = "1.0.94"
 hash-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch ="master" }
 memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch ="master"  }
 trie-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch ="master"  }
+trie-root = { git = "https://github.com/Polkadex-Substrate/trie.git", branch ="master"  }
+reference-trie ={ git = "https://github.com/Polkadex-Substrate/trie.git", branch ="master"  }
 
 orderbook-primitives = { path = "../../primitives/orderbook" }
+polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.11", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git"}
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
@@ -34,12 +37,15 @@ sc-network-gossip = { git = "https://github.com/paritytech/substrate", branch = 
 sc-network-sync = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+
+
+
 
 

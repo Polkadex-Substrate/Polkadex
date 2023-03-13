@@ -2409,6 +2409,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash256-std-hasher"
+version = "0.15.2"
+source = "git+https://github.com/Polkadex-Substrate/trie.git?branch=master#3d3c306d92a37e9a3773ba5f2762f270607c5962"
+dependencies = [
+ "crunchy",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3039,6 +3047,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3afef3b6eff9ce9d8ff9b3601125eec7f0c8cbac7abd14f355d053fa56c98768"
 dependencies = [
  "cpufeatures",
+]
+
+[[package]]
+name = "keccak-hasher"
+version = "0.15.3"
+source = "git+https://github.com/Polkadex-Substrate/trie.git?branch=master#3d3c306d92a37e9a3773ba5f2762f270607c5962"
+dependencies = [
+ "hash-db 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
+ "hash256-std-hasher 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
+ "tiny-keccak",
 ]
 
 [[package]]
@@ -4475,13 +4493,15 @@ version = "0.1.0"
 dependencies = [
  "futures 0.3.27",
  "hash-db 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
- "hash256-std-hasher",
+ "hash256-std-hasher 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex",
  "log",
  "memory-db 0.31.0",
  "orderbook-primitives",
  "parity-scale-codec",
  "parking_lot 0.12.1",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
+ "reference-trie",
  "rust_decimal",
  "sc-chain-spec",
  "sc-client-api",
@@ -4501,10 +4521,11 @@ dependencies = [
  "sp-core",
  "sp-keystore",
  "sp-runtime",
- "sp-trie",
+ "sp-std",
  "substrate-prometheus-endpoint",
  "thiserror",
  "trie-db 0.26.0",
+ "trie-root 0.17.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
 ]
 
 [[package]]
@@ -6278,6 +6299,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "reference-trie"
+version = "0.28.0"
+source = "git+https://github.com/Polkadex-Substrate/trie.git?branch=master#3d3c306d92a37e9a3773ba5f2762f270607c5962"
+dependencies = [
+ "hash-db 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
+ "hashbrown 0.13.2",
+ "keccak-hasher",
+ "parity-scale-codec",
+ "trie-db 0.26.0",
+ "trie-root 0.17.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
 ]
 
 [[package]]
@@ -8268,7 +8302,7 @@ dependencies = [
  "ed25519-dalek",
  "futures 0.3.27",
  "hash-db 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash256-std-hasher",
+ "hash256-std-hasher 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex",
  "impl-serde",
  "lazy_static",
@@ -8501,7 +8535,7 @@ version = "6.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
 dependencies = [
  "either",
- "hash256-std-hasher",
+ "hash256-std-hasher 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
@@ -8605,7 +8639,7 @@ dependencies = [
  "sp-trie",
  "thiserror",
  "tracing",
- "trie-root",
+ "trie-root 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -8705,7 +8739,7 @@ dependencies = [
  "sp-std",
  "thiserror",
  "trie-db 0.23.1",
- "trie-root",
+ "trie-root 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -9321,6 +9355,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
+]
+
+[[package]]
 name = "tinyvec"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9537,6 +9580,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a36c5ca3911ed3c9a5416ee6c679042064b93fc637ded67e25f92e68d783891"
 dependencies = [
  "hash-db 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "trie-root"
+version = "0.17.0"
+source = "git+https://github.com/Polkadex-Substrate/trie.git?branch=master#3d3c306d92a37e9a3773ba5f2762f270607c5962"
+dependencies = [
+ "hash-db 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
 ]
 
 [[package]]
