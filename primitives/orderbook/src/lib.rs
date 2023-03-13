@@ -7,6 +7,7 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_std::vec::Vec;
+use crate::types::ObMessage;
 
 /// Key type for BEEFY module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"obky");
@@ -90,11 +91,27 @@ pub struct StidImportRequest {
 	pub to: u64
 }
 
-#[derive(Copy, Clone,Encode,Decode, Default)]
+#[derive(Clone,Encode,Decode, Default)]
+pub struct StidImportResponse {
+	pub messages: Vec<ObMessage>
+}
+
+#[derive(Clone,Encode,Decode, Default, Debug)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct SnapshotSummary {
 	pub state_root: H256,
 	pub state_change_id: u64,
-	pub state_hash: H256
+	pub state_hash: H256,
+	pub bitflags: Vec<u128>,
+	pub aggregate_signature: Vec<u8>
+}
+
+impl SnapshotSummary {
+	pub fn verify(&self, public_keys: Vec<Vec<u8>>) -> bool{
+		// TODO: change the required data types and implement
+		// bls aggregate signature verification here
+		true
+	}
 }
 
 sp_api::decl_runtime_apis! {

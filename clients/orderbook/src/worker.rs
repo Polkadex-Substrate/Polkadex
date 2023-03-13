@@ -8,11 +8,17 @@ use crate::{
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::{types::ObMessage, ObApi, StidImportRequest};
+use orderbook_primitives::{
+	types::ObMessage, ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
+};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use sc_client_api::Backend;
-use sc_network_common::service::{NotificationSender, NotificationSenderError};
+use sc_network::PeerId;
+use sc_network_common::{
+	protocol::event::Event,
+	service::{NotificationSender, NotificationSenderError},
+};
 use sc_network_gossip::GossipEngine;
 use sp_api::ProvideRuntimeApi;
 use sp_consensus::SyncOracle;
@@ -23,7 +29,9 @@ use std::{
 	marker::PhantomData,
 	sync::Arc,
 };
-use sc_network_common::protocol::event::Event;
+
+pub const STID_IMPORT_REQUEST: &str = "stid_request";
+pub const STID_IMPORT_RESPONSE: &str = "stid_request";
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
 	pub client: Arc<C>,
@@ -51,7 +59,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
-	last_processed_stid: Arc<RwLock<u64>>,
+	last_snapshot: Arc<RwLock<SnapshotSummary>>,
 	// Known state ids
 	known_messages: BTreeMap<u64, ObMessage>,
 	// Links between the block importer, the background voter and the RPC layer.
@@ -66,7 +74,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	memory_db: MemoryDB<CustomBlake2Hasher, HashKey<CustomBlake2Hasher>, Vec<u8>>,
 }
 use crate::hasher::CustomBlake2Hasher;
-use orderbook_primitives::types::UserActions;
+use orderbook_primitives::types::{GossipMessage, UserActions};
 use sc_network_gossip::Network as GossipNetwork;
 use sp_arithmetic::traits::Saturating;
 use sp_core::{offchain::OffchainStorage, H256};
@@ -100,8 +108,8 @@ where
 			_marker,
 		} = worker_params;
 
-		let last_processed_stid = Arc::new(RwLock::new(0));
-		let gossip_validator = Arc::new(GossipValidator::new(last_processed_stid.clone()));
+		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
+		let gossip_validator = Arc::new(GossipValidator::new(last_snapshot.clone()));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
@@ -115,10 +123,9 @@ where
 			gossip_validator,
 			memory_db: MemoryDB::default(),
 			// links,
-			// last_processed_state_change_id,
 			message_sender_link,
 			metrics,
-			last_processed_stid,
+			last_snapshot,
 			_marker: Default::default(),
 			known_messages: Default::default(),
 		}
@@ -139,7 +146,7 @@ where
 			.expect("Something went wrong with the get_latest_snapshot runtime api; qed.");
 
 		// We need to sync only if we are need to update state
-		if *self.last_processed_stid.read() < summary.state_change_id {
+		if self.last_snapshot.read().state_change_id < summary.state_change_id {
 			// Try to load it from our local DB if not download it from Orderbook operator
 			if let Err(err) = self.load_snapshot(summary.state_change_id, summary.state_hash) {
 				info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
@@ -151,38 +158,47 @@ where
 				let mut known_stids = self.known_messages.keys().collect::<Vec<&u64>>();
 				known_stids.sort_unstable(); // unstable is fine since we know stids are unique
 							 // if the next best known stid is not available then ask others
-				if *known_stids[0] != (*self.last_processed_stid.read()).saturating_add(1) {
+				if *known_stids[0] != self.last_snapshot.read().state_change_id.saturating_add(1) {
 					// Ask other peers to send us the requests stids.
 					let import_request = StidImportRequest {
-						from: *self.last_processed_stid.read(),
+						from: self.last_snapshot.read().state_change_id,
 						to: *known_stids[0],
 					};
-
+					let data = import_request.encode();
 					for peer in &self.gossip_validator.peers {
-						match self.network.notification_sender(*peer, Cow::from("stid_request")) {
-							Ok(sender) => {
-								if let Ok(mut s) = sender.ready().await {
-									// Send the request and exit and wait for peers to send back the
-									// information
-									if let Err(err) = s.send(import_request.encode()) {
-										error!(target: "orderbook", "📒 error while sending notif to {:?} for missing stid: {:?}",peer,err)
-									}
-								}
-							},
-							Err(err) =>
-								error!(target: "orderbook", "📒 error while requesting {:?} for missing stid: {:?}",peer,err),
-						}
+						self.send_request_to_peer(
+							peer,
+							STID_IMPORT_REQUEST.to_string(),
+							data.clone(),
+						)
+						.await;
 					}
 				} else {
 					info!(target: "orderbook", "📒 sync request not required, we know the next stid");
 				}
 			} else {
-				info!(target: "orderbook", "📒 No new messages known after stid: {:?}",*self.last_processed_stid.read());
+				info!(target: "orderbook", "📒 No new messages known after stid: {:?}",self.last_snapshot.read().state_change_id);
 			}
 		} else {
-			info!(target: "orderbook", "📒 Sync is not required latest stid: {:?}, last_snapshot_stid: {:?}",*self.last_processed_stid.read(), summary.state_change_id);
+			info!(target: "orderbook", "📒 Sync is not required latest stid: {:?}, last_snapshot_stid: {:?}",self.last_snapshot.read().state_change_id, summary.state_change_id);
 		}
 		Ok(())
+	}
+
+	pub async fn send_request_to_peer(&self, peer: &PeerId, protocol: String, data: Vec<u8>) {
+		match self.network.notification_sender(*peer, Cow::from(protocol.clone())) {
+			Ok(sender) => {
+				if let Ok(mut s) = sender.ready().await {
+					// Send the request and exit and wait for peers to send back the
+					// information
+					if let Err(err) = s.send(data) {
+						error!(target: "orderbook", "📒 error while sending notif to {:?} for protocol: {:?}: {:?}",peer,protocol,err)
+					}
+				}
+			},
+			Err(err) =>
+				error!(target: "orderbook", "📒 error while requesting {:?} for protocol: {:?}: {:?}",peer,protocol,err),
+		}
 	}
 
 	pub fn download_snapshot_from_operator(
@@ -198,7 +214,7 @@ where
 		// {:?}",computed_hash,expected_state_hash); 	return Err(Error::StateHashMisMatch)
 		// }
 		//
-		// *self.last_processed_stid.write() = stid;
+		// *self.last_snapshot.write().state_change_id = stid;
 		Ok(())
 	}
 
@@ -210,21 +226,22 @@ where
 			return Ok(())
 		}
 		self.check_state_sync().await?;
-		let mut last_processed_stid = (*self.last_processed_stid.read()).saturating_add(1);
-
-		while let Some(action) = self.known_messages.remove(&last_processed_stid) {
-			self.handle_action(action)?;
-			last_processed_stid = last_processed_stid.saturating_add(1);
-		}
-		// We need to sub 1 since that last processed is one stid less than the not available
-		// when while loop is broken
-		*self.last_processed_stid.write() = last_processed_stid.saturating_sub(1);
-
+		self.check_stid_gap_fill().await?;
 		Ok(())
 	}
 
-	pub fn handle_gossip_message(&mut self, message: &ObMessage) -> Result<(), Error> {
-		todo!()
+	// Adds the newly recvd gossip message to cache and then see if we can process it.
+	pub async fn handle_gossip_message(&mut self, message: &GossipMessage) -> Result<(), Error> {
+		match message {
+			GossipMessage::ObMessage(message) => {
+				self.known_messages.entry(message.stid).or_insert(message.clone());
+				self.check_state_sync().await?;
+				self.check_stid_gap_fill().await
+			},
+			GossipMessage::Snapshot(summary) => {
+				todo!()
+			},
+		}
 	}
 
 	pub fn store_snapshot(&mut self, snapshot_id: u64) -> Result<(), Error> {
@@ -260,7 +277,7 @@ where
 				match serde_json::from_slice::<HashMap<H256, (Vec<u8>, i32)>>(&data) {
 					Ok(data) => {
 						self.memory_db.load_from(data);
-						*self.last_processed_stid.write() = snapshot_id;
+						self.last_snapshot.write().state_change_id = snapshot_id;
 					},
 					Err(err) =>
 						return Err(Error::Backend(format!(
@@ -273,8 +290,73 @@ where
 		Ok(())
 	}
 
-	pub async fn handle_network_event(&self, event: &Event) -> Result<(), Error> {
-		todo!()
+	// Checks if we have all stids to drive the state and then drive it.
+	pub async fn check_stid_gap_fill(&mut self) -> Result<(), Error> {
+		let mut last_snapshot = self.last_snapshot.read().state_change_id.saturating_add(1);
+
+		while let Some(action) = self.known_messages.remove(&last_snapshot) {
+			self.handle_action(action)?;
+			last_snapshot = last_snapshot.saturating_add(1);
+		}
+		// We need to sub 1 since that last processed is one stid less than the not available
+		// when while loop is broken
+		self.last_snapshot.write().state_change_id = last_snapshot.saturating_sub(1);
+		Ok(())
+	}
+
+	pub async fn handle_network_event(&mut self, event: &Event) -> Result<(), Error> {
+		match event {
+			Event::NotificationsReceived { remote, messages } => {
+				for (protocol, data) in messages {
+					if protocol == STID_IMPORT_REQUEST {
+						match StidImportRequest::decode(&mut &data[..]) {
+							Ok(request) => {
+								let mut response = StidImportResponse::default();
+								for stid in request.from..=request.to {
+									if let Some(msg) = self.known_messages.get(&stid) {
+										response.messages.push(msg.clone());
+									}
+								}
+								if !response.messages.is_empty() {
+									self.send_request_to_peer(
+										remote,
+										STID_IMPORT_RESPONSE.to_string(),
+										response.encode(),
+									)
+									.await;
+								}
+							},
+							Err(err) => {
+								// TODO: reduce reputation for this peer and eventually
+								// disconnect if this peer goes below threshold
+								error!(target:"orderbook","stid import request cannot be decoded: {:?}",err)
+							},
+						}
+					} else if protocol == STID_IMPORT_RESPONSE {
+						match StidImportResponse::decode(&mut &data[..]) {
+							Ok(response) => {
+								for message in response.messages {
+									// TODO: DO signature checks here and handle reputation
+									self.known_messages.entry(message.stid).or_insert(message);
+								}
+
+								self.check_stid_gap_fill().await?
+							},
+							Err(err) => {
+								// TODO: reduce reputation for this peer and eventually
+								// disconnect if this peer goes below threshold
+								error!(target:"orderbook","stid import request cannot be decoded: {:?}",err)
+							},
+						}
+					} else {
+						warn!(target:"orderbook","Ignoring network event for protocol: {:?}",protocol)
+					}
+				}
+			},
+			_ => {},
+		}
+
+		Ok(())
 	}
 
 	/// Main loop for Orderbook worker.
@@ -290,7 +372,7 @@ where
 				.filter_map(|notification| async move {
 					trace!(target: "orderbook", "📒 Got gossip message: {:?}", notification);
 
-					ObMessage::decode(&mut &notification.message[..]).ok()
+					GossipMessage::decode(&mut &notification.message[..]).ok()
 				})
 				.fuse(),
 		);
@@ -303,7 +385,7 @@ where
 				gossip = gossip_messages.next() => {
 					if let Some(message) = gossip {
 						// Gossip messages have already been verified to be valid by the gossip validator.
-						if let Err(err) = self.handle_gossip_message(&message) {
+						if let Err(err) = self.handle_gossip_message(&message).await {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					} else {
