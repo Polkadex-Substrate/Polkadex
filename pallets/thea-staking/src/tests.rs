@@ -4,6 +4,7 @@ use crate::{
 	ActiveNetworks, Candidates, CurrentIndex, Error, Hooks, Perbill, Stakers, Stakinglimits,
 };
 use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
+use polkadex_primitives::misbehavior::TheaMisbehavior;
 use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;
 
@@ -564,6 +565,93 @@ fn test_reward_with_nominators() {
 		assert_eq!(nominator_balances, 16);
 		assert_eq!(bob_balances, 2_000_000_000_008);
 	})
+}
+
+// Start balance of all candidates for misbehavior testing
+const START_BALANCE: u128 = 100 * PDEX;
+// Offence
+const OFFENCE: TheaMisbehavior = TheaMisbehavior::FaultyDataProvided;
+// Severe Offence
+const SEVERE_OFFENCE: TheaMisbehavior = TheaMisbehavior::UnattendedKeygen;
+
+fn misbehavior_setup_three_candidates() {
+	let mut active_networks = BTreeSet::new();
+	active_networks.insert(1_u8);
+	ActiveNetworks::<Test>::set(active_networks);
+	// A start balance
+	Balances::mint_into(&1, START_BALANCE).unwrap();
+	// B start balance
+	Balances::mint_into(&2, START_BALANCE).unwrap();
+	// C start balance
+	Balances::mint_into(&3, START_BALANCE).unwrap();
+	// A candidate
+	TheaStaking::add_candidate(Origin::signed(1), 1, BLSPublicKey([0_u8; 192])).unwrap();
+	// B candidate
+	TheaStaking::add_candidate(Origin::signed(2), 1, BLSPublicKey([2_u8; 192])).unwrap();
+	// C candidate
+	TheaStaking::add_candidate(Origin::signed(3), 1, BLSPublicKey([3_u8; 192])).unwrap();
+}
+
+#[test]
+fn test_reporting_misbehavior_works() {
+	new_test_ext().execute_with(|| {
+		misbehavior_setup_three_candidates();
+		// We fail as those are not in active set yet
+		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).is_err());
+
+		//TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::rotate_session();
+		// Now shold be ok
+		TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).unwrap();
+	});
+}
+
+#[test]
+fn test_slashing_misbehavior_works() {
+	new_test_ext().execute_with(|| {
+		misbehavior_setup_three_candidates();
+		// We fail as those are not in active set yet
+		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).is_err());
+
+		//TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::rotate_session();
+		// Now shold be ok
+		TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).unwrap();
+		TheaStaking::report_offence(Origin::signed(2), 1, 3, OFFENCE).unwrap();
+		// Rotate for slashing to take place
+		TheaStaking::rotate_session();
+		// Check balance of slashed offender
+		let offender_balances = Balances::free_balance(3);
+		assert!(offender_balances < START_BALANCE);
+		// Reportes get rewarded ok
+		assert!(Balances::free_balance(1) > START_BALANCE);
+		assert!(Balances::free_balance(2) > START_BALANCE);
+		// TODO: verify math works
+	});
+}
+
+#[test]
+fn test_slashing_severe_misbehavior_works() {
+	new_test_ext().execute_with(|| {
+		misbehavior_setup_three_candidates();
+		// We fail as those are not in active set yet
+		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).is_err());
+
+		//TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::rotate_session();
+		// Now shold be ok
+		TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).unwrap();
+		TheaStaking::report_offence(Origin::signed(2), 1, 3, SEVERE_OFFENCE).unwrap();
+		// Rotate for slashing to take place
+		TheaStaking::rotate_session();
+		// Check balance of slashed offender
+		let offender_balances = Balances::free_balance(3);
+		assert!(offender_balances < START_BALANCE);
+		// Reportes get rewarded ok
+		assert!(Balances::free_balance(1) > START_BALANCE);
+		assert!(Balances::free_balance(2) > START_BALANCE);
+		// TODO: verify math works for severe offence
+	});
 }
 
 fn unbonding() {
