@@ -17,13 +17,14 @@ polkadex-primitives = { workspace = true }
 serde = { version = "1.0.152", optional = true, default-features = false}
 anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"], default-features = false }
-
+bls-primitives = {path="../bls-primitives", default-features = false}
 [dev-dependencies]
 serde_json = "1.0.94"
 
 [features]
 default = ["std"]
 std = [
+    "bls-primitives/std",
     "serde",
     "anyhow/std",
     "rust_decimal/std",

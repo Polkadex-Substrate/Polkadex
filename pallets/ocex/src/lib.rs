@@ -19,7 +19,7 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::Get,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
+	traits::{fungibles::Mutate, Currency, ExistenceRequirement, OneSessionHandler},
 	BoundedVec,
 };
 use frame_system::ensure_signed;
@@ -1427,5 +1427,31 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
+	}
+}
+
+impl<T: Config> sp_application_crypto::BoundToRuntimeAppPublic for Pallet<T> {
+	type Public = orderbook_primitives::crypto::AuthorityId;
+}
+
+impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
+	type Key = orderbook_primitives::crypto::AuthorityId;
+
+	fn on_genesis_session<'a, I: 'a>(authorities: I)
+	where
+		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+	{
+		todo!()
+	}
+
+	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
+	where
+		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+	{
+		todo!()
+	}
+
+	fn on_disabled(_i: u32) {
+		todo!()
 	}
 }

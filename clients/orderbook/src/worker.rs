@@ -276,19 +276,19 @@ where
 	}
 
 	pub async fn send_request_to_peer(&self, peer: &PeerId, protocol: String, data: Vec<u8>) {
-		match self.network.notification_sender(*peer, Cow::from(protocol.clone())) {
-			Ok(sender) => {
-				if let Ok(mut s) = sender.ready().await {
-					// Send the request and exit and wait for peers to send back the
-					// information
-					if let Err(err) = s.send(data) {
-						error!(target: "orderbook", "📒 error while sending notif to {:?} for protocol: {:?}: {:?}",peer,protocol,err)
-					}
-				}
-			},
-			Err(err) =>
-				error!(target: "orderbook", "📒 error while requesting {:?} for protocol: {:?}: {:?}",peer,protocol,err),
-		}
+		// match self.network.notification_sender(*peer, Cow::from(protocol.clone())) {
+		// 	Ok(sender) => {
+		// 		if let Ok(mut s) = sender.ready().await {
+		// 			// Send the request and exit and wait for peers to send back the
+		// 			// information
+		// 			if let Err(err) = s.send(data) {
+		// 				error!(target: "orderbook", "📒 error while sending notif to {:?} for protocol: {:?}:
+		// {:?}",peer,protocol,err) 			}
+		// 		}
+		// 	},
+		// 	Err(err) =>
+		// 		error!(target: "orderbook", "📒 error while requesting {:?} for protocol: {:?}:
+		// {:?}",peer,protocol,err), }
 	}
 
 	pub fn download_snapshot_from_operator(
@@ -470,7 +470,7 @@ where
 				.fuse(),
 		);
 
-		let mut notification_events_stream = self.network.event_stream("orderbook").fuse();
+		// let mut notification_events_stream = self.network.event_stream("orderbook").fuse();
 
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
@@ -494,17 +494,17 @@ where
 						return;
 					}
 				},
-				notification = notification_events_stream.next() => {
-
-					if let Some(notification) = notification {
-					if let Err(err) = self.handle_network_event(&notification).await {
-							debug!(target: "orderbook", "📒 {}", err);
-					}
-					}else {
-						error!(target:"orderbook","None notification recvd");
-						return
-					}
-				},
+				// notification = notification_events_stream.next() => {
+				//
+				// 	if let Some(notification) = notification {
+				// 	if let Err(err) = self.handle_network_event(&notification).await {
+				// 			debug!(target: "orderbook", "📒 {}", err);
+				// 	}
+				// 	}else {
+				// 		error!(target:"orderbook","None notification recvd");
+				// 		return
+				// 	}
+				// },
 				_ = gossip_engine => {
 					error!(target: "orderbook", "📒 Gossip engine has terminated.");
 					return;

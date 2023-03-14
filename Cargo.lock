@@ -633,6 +633,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bls-primitives"
+version = "0.1.0"
+dependencies = [
+ "blst",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-runtime-interface",
+ "sp-std",
+ "substrate-bip39",
+ "tiny-bip39",
+]
+
+[[package]]
 name = "blst"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4533,6 +4548,7 @@ name = "orderbook-primitives"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bls-primitives",
  "parity-scale-codec",
  "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "rust_decimal",
@@ -5071,6 +5087,7 @@ dependencies = [
  "ias-verify",
  "liquidity",
  "log",
+ "orderbook-primitives",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
