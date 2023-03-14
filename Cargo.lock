@@ -3630,7 +3630,6 @@ dependencies = [
  "scale-info",
  "sp-application-crypto",
  "sp-io",
- "sp-keystore",
  "sp-runtime",
  "sp-std",
 ]
@@ -4729,7 +4728,6 @@ dependencies = [
 name = "pallet-rewards"
 version = "1.0.0"
 dependencies = [
- "anyhow",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -4740,9 +4738,8 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives 0.9.28",
  "scale-info",
- "sp-application-crypto",
+ "sp-core",
  "sp-io",
- "sp-keystore",
  "sp-runtime",
  "sp-std",
  "test-utils",
