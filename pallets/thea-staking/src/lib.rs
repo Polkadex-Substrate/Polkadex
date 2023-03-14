@@ -37,6 +37,8 @@ use thea_primitives::{
 	thea_types::{Network, OnSessionChange, SessionIndex},
 	BLSPublicKey, TheaExtrinsicSubmitted,
 };
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 mod election;
 #[cfg(test)]
 mod mock;
