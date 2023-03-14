@@ -34,8 +34,7 @@ use sp_runtime::traits::AccountIdConversion;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
-use chainbridge as _;
-use frame_benchmarking as _;
+
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where

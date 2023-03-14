@@ -28,7 +28,6 @@ sp-io = { default-features = false, workspace = true }
 thea-primitives = { path = "../../thea-primitives", default-features = false }
 
 [dev-dependencies]
-frame-benchmarking = { workspace = true }
 sp-core = { default-features = false, workspace = true }
 pallet-staking-reward-curve = { workspace = true }
 pallet-staking = { default-features = false, workspace = true }
@@ -53,6 +52,5 @@ std = [
 	"polkadex-primitives/std",
 ]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

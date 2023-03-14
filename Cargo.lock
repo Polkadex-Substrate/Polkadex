@@ -3629,7 +3629,6 @@ dependencies = [
  "polkadex-primitives 0.9.28",
  "scale-info",
  "sp-application-crypto",
- "sp-core",
  "sp-io",
  "sp-keystore",
  "sp-runtime",
@@ -4069,7 +4068,6 @@ dependencies = [
  "pallet-rewards",
  "pallet-scheduler",
  "pallet-session",
- "pallet-society",
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
@@ -4088,7 +4086,6 @@ dependencies = [
  "sp-block-builder",
  "sp-consensus-babe",
  "sp-core",
- "sp-finality-grandpa",
  "sp-inherents",
  "sp-io",
  "sp-npos-elections",
@@ -4744,7 +4741,6 @@ dependencies = [
  "polkadex-primitives 0.9.28",
  "scale-info",
  "sp-application-crypto",
- "sp-core",
  "sp-io",
  "sp-keystore",
  "sp-runtime",
@@ -4787,20 +4783,6 @@ dependencies = [
  "sp-staking",
  "sp-std",
  "sp-trie",
-]
-
-[[package]]
-name = "pallet-society"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "rand_chacha 0.2.2",
- "scale-info",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -8658,7 +8640,6 @@ version = "4.0.0-dev"
 dependencies = [
  "asset-handler",
  "chainbridge",
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
