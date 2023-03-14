@@ -50,7 +50,6 @@ std = [
     "rust_decimal/std",
     "pallet-timestamp/std",
     "liquidity/std",
-
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
@@ -59,6 +58,5 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "test-utils",
     "liquidity/runtime-benchmarks",
-
 ]
 try-runtime = ["frame-support/try-runtime"]

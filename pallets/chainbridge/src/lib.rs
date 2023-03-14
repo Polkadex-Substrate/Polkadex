@@ -4,6 +4,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
