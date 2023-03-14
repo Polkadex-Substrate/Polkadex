@@ -22,9 +22,7 @@
 use super::*;
 use crate::{session::StakingLimits, Pallet as TheaStaking};
 use frame_benchmarking::{account, benchmarks};
-use frame_support::{
-	dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedBTreeMap, BoundedVec,
-};
+use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use polkadex_primitives::{misbehavior::TheaMisbehavior, UNIT_BALANCE};
@@ -42,7 +40,6 @@ fn convert_to_balance<T: Config>(dec: u32) -> BalanceOf<T> {
 
 fn stake_nominator_candidate<T: Config>(
 	k: u32,
-	m: u32,
 	nominator: T::AccountId,
 	candidate: T::AccountId,
 	balance: BalanceOf<T>,
@@ -57,14 +54,14 @@ fn stake_nominator_candidate<T: Config>(
 		stakers: Default::default(),
 	};
 	let nominator_exposure = IndividualExposure {
-		who: nominator,
+		who: nominator.clone(),
 		value: balance,
-		backing: Some((1, candidate)),
+		backing: Some((1, candidate.clone())),
 		unlocking: vec![],
 	};
 	drop(<pallet_balances::Pallet<T> as Currency<_>>::deposit_creating(&nominator, balance));
 	<Stakers<T>>::insert(nominator.clone(), nominator_exposure);
-	<Candidates<T>>::insert(1, candidate.clone(), exposure);
+	<Candidates<T>>::insert(1, candidate, exposure);
 }
 
 benchmarks! {
@@ -99,7 +96,7 @@ benchmarks! {
 		let candidate = account::<T::AccountId>("candidate", x, 0);
 		let nominator = account::<T::AccountId>("nominator", k, 0);
 		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
-		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), balance);
+		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), balance);
 		let call = Call::<T>::nominate { candidate: candidate.clone() };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
@@ -113,7 +110,7 @@ benchmarks! {
 		let nominator = account::<T::AccountId>("nominator", k, 0);
 		let candidate = account::<T::AccountId>("candidate", x, 0);
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
-		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), amount);
+		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
 		let call = Call::<T>::bond { amount };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
@@ -128,7 +125,7 @@ benchmarks! {
 		let candidate = account::<T::AccountId>("candidate", x, 0);
 		let nominator = account::<T::AccountId>("nominator", k, 0);
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
-		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), amount);
+		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
 		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount).unwrap();
 		let call = Call::<T>::unbond { amount };
@@ -144,7 +141,7 @@ benchmarks! {
 		let nominator = account::<T::AccountId>("nominator", k, 0);
 		let candidate = account::<T::AccountId>("candidate", x, 0);
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
-		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), amount);
+		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
 		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
 		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
@@ -203,12 +200,12 @@ benchmarks! {
 		let b = account::<T::AccountId>("b", n + 2, 0);
 		let c = account::<T::AccountId>("c", n + 3, 0);
 		let offence = TheaMisbehavior::UnattendedKeygen;
-		<ActiveRelayers<T>>::insert(network, vec!((a, BLSPublicKey([n as u8; 192])), (b, BLSPublicKey([n as u8; 192])), (c, BLSPublicKey([n as u8; 192]))));
+		<ActiveRelayers<T>>::insert(network, vec!((a.clone(), BLSPublicKey([n as u8; 192])), (b.clone(), BLSPublicKey([n as u8; 192])), (c.clone(), BLSPublicKey([n as u8; 192]))));
 		<ReportedOffenders<T>>::insert(&c, &offence, vec!(b));
 		let call = Call::<T>::report_offence{ network_id: network, offender: c.clone(), offence };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(a).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(a.clone()).into())? }
 	verify {
-		assert_last_event::<T>(Event::OffenceReported{ offender: c, reporter: a, offence }.into());
+		assert_last_event::<T>(Event::OffenceReported{ offender: c.clone(), reporter: a.clone(), offence }.into());
 		assert!(<CommitedSlashing<T>>::get(&c).1.contains(&a));
 	}
 
@@ -219,7 +216,7 @@ benchmarks! {
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
 		let candidate = account::<T::AccountId>("candidate", x, 0);
 		let nominator = account::<T::AccountId>("nominator", k, 0);
-		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), amount);
+		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
 		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
 		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
