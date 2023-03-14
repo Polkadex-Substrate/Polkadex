@@ -21,7 +21,7 @@
 
 use super::*;
 use crate::{session::StakingLimits, Pallet as TheaStaking};
-use frame_benchmarking::{account, benchmarks, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::{
 	dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedBTreeMap, BoundedVec,
 };
@@ -78,14 +78,16 @@ benchmarks! {
 			maximum_nominator_per_relayer: 10,
 			max_relayers: a,
 		};
-	}: _(RawOrigin::Root, staking_limits)
+		let call = Call::<T>::set_staking_limits{ staking_limits };
+	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
 
 	add_candidate {
 		let a in 0 .. 255;
 		let b in 0 .. 255;
-		let candidate = account::<T::AccountId>("candidate", b, 0);
+		let candidate: T::AccountId = account::<T::AccountId>("candidate", b, 0);
 		let bls_key = BLSPublicKey([b.try_into().unwrap(); 192]);
-	}: _(RawOrigin::Signed(candidate.clone()), a as u8, bls_key)
+		let call = Call::<T>::add_candidate{ network: a as u8, bls_key };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(candidate.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::CandidateRegistered{candidate, stake: T::CandidateBond::get()}.into());
 	}
@@ -98,7 +100,8 @@ benchmarks! {
 		let nominator = account::<T::AccountId>("nominator", k, 0);
 		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
 		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), balance);
-	}: _(RawOrigin::Signed(nominator.clone()), candidate.clone())
+		let call = Call::<T>::nominate { candidate: candidate.clone() };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::Nominated { candidate, nominator }.into());
 	}
@@ -112,7 +115,8 @@ benchmarks! {
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
 		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
-	}: _(RawOrigin::Signed(nominator.clone()), amount)
+		let call = Call::<T>::bond { amount };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify{
 		assert_last_event::<T>(Event::Bonded{ candidate, nominator, amount }.into());
 	}
@@ -127,7 +131,8 @@ benchmarks! {
 		stake_nominator_candidate::<T>(k, m, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
 		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount).unwrap();
-	}: _(RawOrigin::Signed(nominator.clone()), amount)
+		let call = Call::<T>::unbond { amount };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::Unbonded{ candidate: Some(candidate), nominator, amount }.into());
 	}
@@ -143,7 +148,8 @@ benchmarks! {
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
 		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
 		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
-	}: _(RawOrigin::Signed(nominator.clone()))
+		let call = Call::<T>::withdraw_unbonded{};
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::BondsWithdrawn{ nominator, amount }.into());
 	}
@@ -163,7 +169,8 @@ benchmarks! {
 			stakers: Default::default(),
 		};
 		<Candidates<T>>::insert(1, candidate.clone(), exposure);
-	}: _(RawOrigin::Signed(candidate.clone()), 1)
+		let call = Call::<T>::remove_candidate{ network: 1 };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(candidate.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::OutgoingCandidateAdded{ candidate }.into());
 	}
@@ -172,7 +179,8 @@ benchmarks! {
 		let n in 1 .. 255;
 		let network: u8 = n as u8;
 		let go = T::GovernanceOrigin::successful_origin();
-	}: _(RawOrigin::Signed(go), network)
+		let call = Call::<T>::add_network{ network };
+	}: { call.dispatch_bypass_filter(go)? }
 	verify {
 		assert_last_event::<T>(Event::NetworkAdded{ network }.into());
 	}
@@ -182,7 +190,8 @@ benchmarks! {
 		let network: u8 = n as u8;
 		let go = T::GovernanceOrigin::successful_origin();
 		TheaStaking::<T>::add_network(go.clone(), network).unwrap();
-	}: _(RawOrigin::Signed(go), network)
+		let call = Call::<T>::remove_network { network };
+	}: { call.dispatch_bypass_filter(go)? }
 	verify {
 		assert_last_event::<T>(Event::NetworkRemoved{ network }.into());
 	}
@@ -196,7 +205,8 @@ benchmarks! {
 		let offence = TheaMisbehavior::UnattendedKeygen;
 		<ActiveRelayers<T>>::insert(network, vec!((a, BLSPublicKey([n as u8; 192])), (b, BLSPublicKey([n as u8; 192])), (c, BLSPublicKey([n as u8; 192]))));
 		<ReportedOffenders<T>>::insert(&c, &offence, vec!(b));
-	}: _(RawOrigin::Signed(a), network, c.clone(), offence)
+		let call = Call::<T>::report_offence{ network_id: network, offender: c.clone(), offence };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(a).into())? }
 	verify {
 		assert_last_event::<T>(Event::OffenceReported{ offender: c, reporter: a, offence }.into());
 		assert!(<CommitedSlashing<T>>::get(&c).1.contains(&a));
@@ -213,7 +223,8 @@ benchmarks! {
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
 		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
 		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
-	}: _(RawOrigin::Signed(nominator.clone()), 1)
+		let call = Call::<T>::stakers_payout{ session: 1 };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
 		// TODO: how to verify this?
 	}
