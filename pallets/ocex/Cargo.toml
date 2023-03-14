@@ -28,6 +28,8 @@ frame-benchmarking = { workspace = true, default-features = false, optional = tr
 test-utils = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
 liquidity = { path = "../liquidity", default-features = false }
+orderbook-primitives = {path="../../primitives/orderbook", default-features = false}
+sp-application-crypto = { workspace = true }
 
 [dev-dependencies]
 test-utils = { workspace = true }
@@ -42,6 +44,8 @@ sp-io = { workspace = true }
 [features]
 default = ["std"]
 std = [
+    "sp-application-crypto/std",
+    "orderbook-primitives/std",
     "parity-scale-codec/std",
     "log/std",
     "scale-info/std",

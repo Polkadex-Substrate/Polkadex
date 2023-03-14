@@ -492,6 +492,7 @@ impl_opaque_keys! {
 		pub babe: Babe,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
+		pub orderbook: OCEX,
 	}
 }
 
@@ -1558,7 +1559,11 @@ impl_runtime_apis! {
 
 	impl orderbook_primitives::ObApi<Block> for Runtime {
 		fn validator_set() -> Option<orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>>{
-			None
+			todo!()
+		}
+
+		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary{
+			todo!()
 		}
 	}
 
