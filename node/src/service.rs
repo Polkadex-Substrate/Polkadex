@@ -547,23 +547,23 @@ pub fn new_full_base(
 		);
 	}
 
-	let config = orderbook::ObParams {
-		client: client.clone(),
-		backend,
-		key_store: None,
-		network: network.clone(),
-		prometheus_registry,
-		protocol_name: orderbook_protocol_name,
-		marker: Default::default(),
-		is_validator: role.is_authority(),
-		message_sender_link: orderbook_stream,
-	};
-
-	task_manager.spawn_handle().spawn_blocking(
-		"orderbook",
-		None,
-		orderbook::start_orderbook_gadget(config),
-	);
+	// let config = orderbook::ObParams {
+	// 	client: client.clone(),
+	// 	backend,
+	// 	key_store: None,
+	// 	network: network.clone(),
+	// 	prometheus_registry,
+	// 	protocol_name: orderbook_protocol_name,
+	// 	marker: Default::default(),
+	// 	is_validator: role.is_authority(),
+	// 	message_sender_link: orderbook_stream,
+	// };
+	//
+	// task_manager.spawn_handle().spawn_blocking(
+	// 	"orderbook",
+	// 	None,
+	// 	orderbook::start_orderbook_gadget(config),
+	// );
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })
