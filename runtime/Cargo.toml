@@ -204,11 +204,11 @@ std = [
 ]
 runtime-benchmarks = [
     #theirs
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
     "frame-system-benchmarking",
-	"sp-runtime/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
     "hex-literal",
     #our
     "pallet-ocex-lmp/runtime-benchmarks",
@@ -216,6 +216,7 @@ runtime-benchmarks = [
     "pdex-migration/runtime-benchmarks",
     "pallet-rewards/runtime-benchmarks",
     "liquidity/runtime-benchmarks",
+    "thea-staking/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",

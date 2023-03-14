@@ -193,10 +193,10 @@ pub mod pallet {
 		pub fn set_staking_limits(
 			origin: OriginFor<T>,
 			staking_limits: StakingLimits<BalanceOf<T>>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			<Stakinglimits<T>>::put(staking_limits);
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Adds the sender as a candidate for election and to the   for selection.
@@ -358,7 +358,7 @@ pub mod pallet {
 			// check for re-submit
 			//FIXME: should we charge for sequential report of same offence by same reporter?
 			ensure!(
-				<ReportedOffenders<T>>::get(offender.clone(), offence)
+				!<ReportedOffenders<T>>::get(offender.clone(), offence)
 					.unwrap_or_default()
 					.contains(&reporter),
 				Error::<T>::RepeatedReport
