@@ -73,7 +73,6 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use ias_verify::{verify_ias_report, SgxStatus};
 	use liquidity::LiquidityModifier;
 	use polkadex_primitives::{
 		assets::AssetId,
@@ -88,6 +87,8 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
+	use orderbook_primitives::crypto::AuthorityId;
+	use orderbook_primitives::SnapshotSummary;
 
 	pub trait OcexWeightInfo {
 		fn register_main_account(_b: u32) -> Weight;
@@ -129,6 +130,45 @@ pub mod pallet {
 	impl Get<u32> for AllowlistedTokenLimit {
 		fn get() -> u32 {
 			50 // TODO: Arbitrary value
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> frame_support::unsigned::ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			let valid_tx = |provide, rng: u64| {
+				ValidTransaction::with_tag_prefix("thea-proc")
+					.priority(rng)
+					.and_provides([&(&provide, rng.to_be())])
+					.longevity(3)
+					.propagate(true)
+					.build()
+			};
+
+			let validate_snapshot = |snapshot_summary: &SnapshotSummary, sig: &T::Signature, rng: u64| -> TransactionValidity {
+			    // Verify Nonce/state_change_id
+				let last_snapshot_serial_number =
+					if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
+						last_snapshot_number
+					} else {
+						0
+					};
+				if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
+					return InvalidTransaction::Custom(10).into();
+				}
+				//TODO: Check if signer belongs to AuthoritySet or not and verify Signature
+				valid_tx(snapshot_summary.clone(), rng)
+			};
+			match call {
+				Call::send_snapshot_summary{snapshot_summary,
+					signature,
+					rng} => {
+					validate_snapshot(snapshot_summary, signature, *rng)
+				},
+				_ => InvalidTransaction::Call.into()
+			}
 		}
 	}
 
@@ -280,8 +320,8 @@ pub mod pallet {
 						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 					>::from([
 						polkadex_primitives::ingress::IngressMessages::LastestSnapshot(
-							snapshot.snapshot_hash,
-							snapshot.snapshot_number,
+							snapshot.state_hash,
+							snapshot.state_change_id as u32,
 						),
 					]));
 				} else {
@@ -700,84 +740,9 @@ pub mod pallet {
 
 		//TODO: Benchmark set_snapshot
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
-		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u32) -> DispatchResult {
+		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u64) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<SnapshotNonce<T>>::put(new_snapshot_id);
-			Ok(())
-		}
-
-		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
-		pub fn submit_snapshot(
-			origin: OriginFor<T>,
-			mut snapshot: EnclaveSnapshot<
-				T::AccountId,
-				WithdrawalLimit,
-				AssetsLimit,
-				SnapshotAccLimit,
-			>,
-			signature: T::Signature,
-		) -> DispatchResultWithPostInfo {
-			let _ = ensure_signed(origin)?;
-			ensure!(
-				<RegisteredEnclaves<T>>::contains_key(&snapshot.enclave_id),
-				Error::<T>::SenderIsNotAttestedEnclave
-			);
-			ensure!(
-				<AllowlistedEnclaves<T>>::get(&snapshot.enclave_id),
-				<Error<T>>::EnclaveNotAllowlisted
-			);
-
-			let last_snapshot_serial_number =
-				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
-					last_snapshot_number
-				} else {
-					0
-				};
-			ensure!(
-				snapshot.snapshot_number.eq(&(last_snapshot_serial_number + 1)),
-				Error::<T>::SnapshotNonceError
-			);
-			let bytes = snapshot.encode();
-
-			ensure!(
-				signature.verify(bytes.as_slice(), &snapshot.enclave_id),
-				Error::<T>::EnclaveSignatureVerificationFailed
-			);
-			let current_snapshot_nonce = snapshot.snapshot_number;
-			if snapshot.withdrawals.keys().len() > 0 {
-				ensure!(
-					<OnChainEvents<T>>::try_mutate(|onchain_events| {
-						onchain_events.try_push(
-							polkadex_primitives::ocex::OnChainEvents::GetStorage(
-								polkadex_primitives::ocex::Pallet::OCEX,
-								polkadex_primitives::ocex::StorageItem::Withdrawal,
-								snapshot.snapshot_number,
-							),
-						)?;
-						Ok::<(), ()>(())
-					})
-					.is_ok(),
-					Error::<T>::OnchainEventsBoundedVecOverflow
-				);
-			}
-			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
-			<FeesCollected<T>>::insert(current_snapshot_nonce, snapshot.fees.clone());
-			snapshot.withdrawals = Default::default();
-			snapshot.fees = Default::default();
-			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
-			<SnapshotNonce<T>>::put(current_snapshot_nonce);
-			Ok(Pays::No.into())
-		}
-
-		// FIXME Only for testing will be removed before mainnet launch
-		/// Insert Enclave
-		#[doc(hidden)]
-		#[pallet::weight(<T as Config>::WeightInfo::insert_enclave(1))]
-		pub fn insert_enclave(origin: OriginFor<T>, enclave: T::AccountId) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			let timestamp = <timestamp::Pallet<T>>::get();
-			<RegisteredEnclaves<T>>::insert(enclave, timestamp);
 			Ok(())
 		}
 
@@ -983,38 +948,6 @@ pub mod pallet {
 			}
 		}
 
-		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave(1))]
-		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-
-			// this step is required for runtime-benchmarks
-			let cv: u64 = <CertificateValidity<T>>::get();
-			let report = verify_ias_report(&ias_report, cv)
-				.map_err(|_| Error::<T>::RemoteAttestationVerificationFailed)?;
-
-			ensure!(
-				(report.status == SgxStatus::Ok) |
-					(report.status == SgxStatus::ConfigurationNeeded),
-				<Error<T>>::InvalidSgxReportStatus
-			);
-
-			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-				.map_err(|_| Error::<T>::SenderIsNotAttestedEnclave)?;
-
-			ensure!(
-				enclave_signer != T::AccountId::decode(&mut [0u8; 32].as_slice()).unwrap(),
-				<Error<T>>::SenderIsNotAttestedEnclave
-			);
-
-			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = T::Moment::saturated_from(report.timestamp);
-			});
-			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
-			debug!("registered enclave at time =>{:?}", report.timestamp);
-			Ok(())
-		}
-
 		/// Allowlist Token
 		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
@@ -1061,6 +994,31 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<CertificateValidity<T>>::put(certificate_valid_until);
+			Ok(())
+		}
+
+		/// Submit Snapshot Summary
+		#[pallet::weight(<T as Config>::WeightInfo::update_certificate(1))]
+		pub fn send_snapshot_summary(
+			origin: OriginFor<T>,
+			snapshot_summary: SnapshotSummary,
+			_signature: T::Signature,
+			_rng: u64
+		) -> DispatchResult {
+			ensure_none(origin)?;
+			let last_snapshot_serial_number =
+				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
+					last_snapshot_number
+				} else {
+					0
+				};
+			ensure!(
+				snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)),
+				Error::<T>::SnapshotNonceError
+			);
+			let current_snapshot_nonce = snapshot_summary.state_change_id;
+			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot_summary.clone());
+			<SnapshotNonce<T>>::put(current_snapshot_nonce);
 			Ok(())
 		}
 	}
@@ -1334,12 +1292,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
 	pub(super) type Snapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, EnclaveSnapshotType<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary, OptionQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_nonce)]
-	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u32, OptionQuery>;
+	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u64, OptionQuery>;
 
 	// Exchange Operation State
 	#[pallet::storage]
@@ -1393,6 +1351,22 @@ pub mod pallet {
 	#[pallet::getter(fn get_registered_enclaves)]
 	pub(super) type RegisteredEnclaves<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_authorities)]
+	pub(super) type Authorities<T: Config> = StorageValue<
+		_,
+		BoundedVec<AuthorityId, OnChainEventsLimit>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_next_authorities)]
+	pub(super) type NextAuthorities<T: Config> = StorageValue<
+		_,
+		BoundedVec<AuthorityId, OnChainEventsLimit>,
+		ValueQuery,
+	>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -1441,14 +1415,26 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 	where
 		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
 	{
-		todo!()
+		let authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
+		if let Ok(bounded_authorities) = BoundedVec::try_from(authorities) {
+		   <Authorities<T>>::put(bounded_authorities);
+		};
 	}
 
-	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
+	fn on_new_session<'a, I: 'a>(changed: bool, authorities: I, queued_authorities: I)
 	where
 		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
 	{
-		todo!()
+		let next_authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
+		let next_queued_authorities = queued_authorities.map(|(_, k)| k).collect::<Vec<_>>();
+		if let (Ok(next_bounded_authorities), Ok(next_bounded_queued_authorities)) = (BoundedVec::try_from(next_authorities), BoundedVec::try_from(next_queued_authorities)) {
+			if next_bounded_authorities != next_bounded_queued_authorities {
+				<NextAuthorities<T>>::put(next_bounded_queued_authorities);
+			}
+			if changed {
+				<Authorities<T>>::put(next_bounded_authorities);
+			}
+		}
 	}
 
 	fn on_disabled(_i: u32) {
