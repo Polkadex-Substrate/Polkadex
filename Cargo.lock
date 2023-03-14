@@ -637,8 +637,10 @@ name = "bls-primitives"
 version = "0.1.0"
 dependencies = [
  "blst",
+ "hex",
  "parity-scale-codec",
  "scale-info",
+ "serde_json",
  "sp-application-crypto",
  "sp-core",
  "sp-runtime-interface",
@@ -4539,7 +4541,6 @@ dependencies = [
  "sp-std",
  "substrate-prometheus-endpoint",
  "thiserror",
- "tokio",
  "trie-db 0.26.0",
  "trie-root 0.17.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
 ]
