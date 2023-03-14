@@ -209,6 +209,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			network: Network,
 			bls_key: BLSPublicKey,
+			peer_id: [u8; 38]
 		) -> DispatchResult {
 			let candidate = ensure_signed(origin)?;
 			ensure!(
@@ -226,6 +227,7 @@ pub mod pallet {
 			)?;
 			<Candidates<T>>::insert(network, &candidate, exposure);
 			<CandidateToNetworkMapping<T>>::insert(&candidate, network);
+			<PeerIdMapping<T>>::insert(peer_id, candidate.clone());
 			Self::deposit_event(Event::<T>::CandidateRegistered {
 				candidate,
 				stake: T::CandidateBond::get(),
@@ -669,6 +671,11 @@ pub mod pallet {
 	/// Stores the Total Elected Relayers for a given Session
 	pub(super) type TotalElectedRelayers<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, Vec<(T::AccountId, Exposure<T>)>, ValueQuery>;
+
+	#[pallet::storage]
+	/// AccountId to PeerId Mapping
+	pub(super) type PeerIdMapping<T: Config> =
+	StorageMap<_, Blake2_128Concat, [u8;38], T::AccountId, OptionQuery>;
 
 	// The main implementation block for the pallet. Functions here fall into three broad
 	// categories:
