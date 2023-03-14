@@ -56,12 +56,13 @@ fn stake_nominator_candidate<T: Config>(
 	let nominator_exposure = IndividualExposure {
 		who: nominator.clone(),
 		value: balance,
-		backing: Some((1, candidate.clone())),
+		backing: None,
 		unlocking: vec![],
 	};
 	drop(<pallet_balances::Pallet<T> as Currency<_>>::deposit_creating(&nominator, balance));
 	<Stakers<T>>::insert(nominator.clone(), nominator_exposure);
-	<Candidates<T>>::insert(1, candidate, exposure);
+	<Candidates<T>>::insert(1, candidate.clone(), exposure);
+	<CandidateToNetworkMapping<T>>::insert(candidate, 1);
 }
 
 benchmarks! {
@@ -81,7 +82,10 @@ benchmarks! {
 	add_candidate {
 		let a in 0 .. 255;
 		let b in 0 .. 255;
+		let m in 100 .. u32::MAX;
 		let candidate: T::AccountId = account::<T::AccountId>("candidate", b, 0);
+		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
+		drop(<pallet_balances::Pallet<T> as Currency<_>>::deposit_creating(&candidate, balance));
 		let bls_key = BLSPublicKey([b.try_into().unwrap(); 192]);
 		let call = Call::<T>::add_candidate{ network: a as u8, bls_key };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(candidate.clone()).into())? }
@@ -131,7 +135,8 @@ benchmarks! {
 		let call = Call::<T>::unbond { amount };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
-		assert_last_event::<T>(Event::Unbonded{ candidate: Some(candidate), nominator, amount }.into());
+		// None - as two events emmited, and only first one can have Some(candidate)
+		assert_last_event::<T>(Event::Unbonded{ candidate: None, nominator, amount }.into());
 	}
 
 	withdraw_unbonded {
