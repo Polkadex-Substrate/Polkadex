@@ -5,6 +5,7 @@ use crate::{
 };
 use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
 use polkadex_primitives::misbehavior::TheaMisbehavior;
+use sp_runtime::traits::AccountIdConversion;
 use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;
 
@@ -601,6 +602,7 @@ fn test_reporting_misbehavior_works() {
 
 		//TheaStaking::on_initialize(SESSION_LENGTH.into());
 		TheaStaking::rotate_session();
+		TheaStaking::rotate_session();
 		// Now shold be ok
 		TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).unwrap();
 	});
@@ -612,8 +614,12 @@ fn test_slashing_misbehavior_works() {
 		misbehavior_setup_three_candidates();
 		// We fail as those are not in active set yet
 		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).is_err());
+		// make sure treasury is empty
+		let ta = TreasuryPalletId::get().into_account_truncating();
+		let treasury = Balances::free_balance(&ta);
+		assert_eq!(treasury, 0);
 
-		//TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::rotate_session();
 		TheaStaking::rotate_session();
 		// Now shold be ok
 		TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).unwrap();
@@ -621,12 +627,17 @@ fn test_slashing_misbehavior_works() {
 		// Rotate for slashing to take place
 		TheaStaking::rotate_session();
 		// Check balance of slashed offender
-		let offender_balances = Balances::free_balance(3);
-		assert!(offender_balances < START_BALANCE);
+		let offender_balance = Balances::free_balance(3);
+		assert_eq!(offender_balance, 98950000000000);
 		// Reportes get rewarded ok
-		assert!(Balances::free_balance(1) > START_BALANCE);
-		assert!(Balances::free_balance(2) > START_BALANCE);
-		// TODO: verify math works
+		let one = Balances::free_balance(1);
+		let two = Balances::free_balance(2);
+		let ta = TreasuryPalletId::get().into_account_truncating();
+		let treasury = Balances::free_balance(&ta);
+		// verify math works for severe offence
+		assert_eq!(one, 99000250000000);
+		assert_eq!(two, 99000250000000);
+		assert_eq!(treasury, 49500000000);
 	});
 }
 
@@ -636,8 +647,12 @@ fn test_slashing_severe_misbehavior_works() {
 		misbehavior_setup_three_candidates();
 		// We fail as those are not in active set yet
 		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).is_err());
+		// make sure treasury is empty
+		let ta = TreasuryPalletId::get().into_account_truncating();
+		let treasury = Balances::free_balance(&ta);
+		assert_eq!(treasury, 0);
 
-		//TheaStaking::on_initialize(SESSION_LENGTH.into());
+		TheaStaking::rotate_session();
 		TheaStaking::rotate_session();
 		// Now shold be ok
 		TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).unwrap();
@@ -645,12 +660,17 @@ fn test_slashing_severe_misbehavior_works() {
 		// Rotate for slashing to take place
 		TheaStaking::rotate_session();
 		// Check balance of slashed offender
-		let offender_balances = Balances::free_balance(3);
-		assert!(offender_balances < START_BALANCE);
+		let offender_balance = Balances::free_balance(3);
+		assert_eq!(offender_balance, 98800000000000);
 		// Reportes get rewarded ok
-		assert!(Balances::free_balance(1) > START_BALANCE);
-		assert!(Balances::free_balance(2) > START_BALANCE);
-		// TODO: verify math works for severe offence
+		let one = Balances::free_balance(1);
+		let two = Balances::free_balance(2);
+		let ta = TreasuryPalletId::get().into_account_truncating();
+		let treasury = Balances::free_balance(&ta);
+		// verify math works for severe offence
+		assert_eq!(one, 99001000000000);
+		assert_eq!(two, 99001000000000);
+		assert_eq!(treasury, 198000000000);
 	});
 }
 

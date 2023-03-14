@@ -363,6 +363,10 @@ pub mod pallet {
 					.contains(&reporter),
 				Error::<T>::RepeatedReport
 			);
+			ensure!(
+				!<CommitedSlashing<T>>::contains_key(&offender),
+				Error::<T>::SlashingInProgress
+			);
 			// check if coeficient treshold reached and act
 			let threshold = Self::threshold_slashing_coeficient();
 			let active_relayers = <ActiveRelayers<T>>::get(network_id).len();
@@ -385,6 +389,9 @@ pub mod pallet {
 							if new_percentage >= 100 { 100 } else { new_percentage };
 						current_slashing.0 = actual_percentage;
 						current_slashing.1.insert(reporter.clone());
+						for previous_reporter in reported {
+							current_slashing.1.insert(previous_reporter);
+						}
 					});
 				} else {
 					// extend storage
@@ -521,6 +528,8 @@ pub mod pallet {
 		RepeatedReport,
 		/// Not a member of active relayers
 		NotAnActiveRelayer,
+		/// Offender already scheduled for slashing
+		SlashingInProgress,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
