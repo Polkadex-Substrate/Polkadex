@@ -31,10 +31,10 @@ use orderbook_primitives::{
     },
 };
 
-use crate::{Client, error::Error, gossip::{GossipValidator, topic}, metrics::Metrics, test_await, utils::*};
+use crate::{Client, error::Error, gossip::{GossipValidator, topic}, metrics::Metrics, utils::*};
 
 pub const STID_IMPORT_REQUEST: &str = "stid_request";
-pub const STID_IMPORT_RESPONSE: &str = "stid_request";
+pub const STID_IMPORT_RESPONSE: &str = "stid_response";
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
     pub client: Arc<C>,

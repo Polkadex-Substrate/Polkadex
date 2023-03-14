@@ -1441,17 +1441,14 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 	where
 		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
 	{
-		todo!()
 	}
 
 	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
 	where
 		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
 	{
-		todo!()
 	}
 
 	fn on_disabled(_i: u32) {
-		todo!()
 	}
 }
