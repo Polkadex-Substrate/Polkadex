@@ -17,7 +17,10 @@ pub const BLS_KEYSTORE_PATH: &str = "/polkadex/.keystore/";
 pub trait BlsExt {
     fn all() -> Vec<Public>{
         // Load all available bls public keys from filesystem
-        get_all_public_keys()
+        match get_all_public_keys() {
+            Ok(keys) => keys,
+            Err(_) => Vec::new()
+        }
     }
 
     fn generate_pair(seed: Option<Vec<u8>>) -> Public {
@@ -28,7 +31,7 @@ pub trait BlsExt {
                 let seed = Seed::try_from(seed)
                     .expect("Expected to BLS seed to be 32 bytes");
 
-                BLSPair::from_seed(&seed)
+                (BLSPair::from_seed(&seed),seed)
             }
         };
         pair.public
@@ -106,7 +109,7 @@ fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 }
 
 #[cfg(feature = "std")]
-fn get_all_public_keys() -> Vec<Public>{
+fn get_all_public_keys() -> Result<Vec<Public>,Error>{
     let mut public_keys = vec![];
     for entry in std::fs::read_dir(&BLS_KEYSTORE_PATH)? {
         let entry = entry?;
@@ -117,7 +120,7 @@ fn get_all_public_keys() -> Vec<Public>{
             match hex::decode(name) {
                 Ok(ref hex) if hex.len() > 4 => {
                     let public = hex.to_vec();
-                    match Public::try_from(&public){
+                    match Public::try_from(public.as_ref()){
                         Ok(public) => public_keys.push(public),
                         Err(_) => continue
                     }
@@ -126,20 +129,15 @@ fn get_all_public_keys() -> Vec<Public>{
             }
         }
     }
-    public_keys
+    Ok(public_keys)
 }
 
 /// Write the given `data` to `file`.
 #[cfg(feature = "std")]
 fn write_to_file(file: PathBuf, data: &[u8]) -> Result<(), Error> {
     let mut file = File::create(file)?;
-
-    #[cfg(target_family = "unix")]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        file.set_permissions(fs::Permissions::from_mode(0o600))?;
-    }
-
+    use std::os::unix::fs::PermissionsExt;
+    file.metadata()?.permissions().set_mode(0o600);
     serde_json::to_writer(&file, data)?;
     file.flush()?;
     Ok(())
@@ -167,6 +165,6 @@ fn key_phrase_by_type(public: &[u8]) -> Result<Option<String>, Error> {
 
         serde_json::from_reader(&file).map_err(Into::into).map(Some)
     } else {
-        None
+        Ok(None)
     }
 }
