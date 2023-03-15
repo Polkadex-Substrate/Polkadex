@@ -4,7 +4,9 @@ pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 	type ExtendHostFunctions =
-		(frame_benchmarking::benchmarking::HostFunctions, thea_primitives::thea_ext::HostFunctions);
+		(frame_benchmarking::benchmarking::HostFunctions,
+		 thea_primitives::thea_ext::HostFunctions,
+		 bls_primitives::crypto::bls_ext::HostFunctions );
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
 		node_polkadex_runtime::api::dispatch(method, data)

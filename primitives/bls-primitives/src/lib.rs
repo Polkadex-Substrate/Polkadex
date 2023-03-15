@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod application_crypto;
-mod crypto;
+pub mod crypto;
 
 #[cfg(test)]
 mod tests;
@@ -56,7 +56,7 @@ pub struct Public(pub [u8; 96]);
 )]
 pub struct Signature(pub [u8; 48]);
 
-#[cfg(feature = "std")]
+
 type Seed = [u8; 32];
 
 /// An error when deriving a key.

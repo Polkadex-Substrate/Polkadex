@@ -6,10 +6,12 @@ use blst::BLST_ERROR;
 use sp_application_crypto::serde::Serialize;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime_interface::runtime_interface;
-use crate::{DST, Pair as BLSPair, Error, Public, Signature, Seed};
+use crate::{DST, Public, Signature, Seed};
+#[cfg(feature = "std")]
+use crate::{Pair as BLSPair,Error};
+#[cfg(feature = "std")]
 use sp_core::Pair;
-
-use crate::application_crypto::BLSSignature;
+use sp_std::vec::Vec;
 
 pub const BLS_KEYSTORE_PATH: &str = "/polkadex/.keystore/";
 
@@ -48,7 +50,7 @@ pub trait BlsExt {
             Err(_) => return false
         };
 
-        let signature = match BLSSignature::from_bytes(signature.0.as_ref()) {
+        let signature = match crate::BLSSignature::from_bytes(signature.0.as_ref()) {
             Ok(sig) => sig,
             Err(_) => return false
         };
@@ -68,7 +70,7 @@ pub trait BlsExt {
             Err(_) => return false
         };
 
-        let agg_signature = match BLSSignature::from_bytes(signature.0.as_ref()) {
+        let agg_signature = match crate::BLSSignature::from_bytes(signature.0.as_ref()) {
             Ok(sig) => sig,
             Err(_) => return false
         };
