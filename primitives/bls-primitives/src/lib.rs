@@ -10,22 +10,20 @@ mod tests;
 use bip39::{Language, Mnemonic, MnemonicType};
 #[cfg(feature = "std")]
 use blst::min_sig::{
-	AggregatePublicKey, AggregateSignature, PublicKey, SecretKey, Signature as BLSSignature,
+	PublicKey, SecretKey, Signature as BLSSignature,
 };
 #[cfg(feature = "std")]
 use blst::BLST_ERROR;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_application_crypto::RuntimePublic;
 use sp_core::crypto::{
-	ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive, KeyTypeId,
+	ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive,
 };
 
 #[cfg(feature = "std")]
 use sp_core::{crypto::SecretStringError, DeriveJunction};
 use sp_runtime_interface::pass_by::PassByInner;
-#[cfg(feature = "std")]
-use substrate_bip39::mini_secret_from_entropy;
+
 
 /// An identifier used to match public keys against bls keys
 pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");

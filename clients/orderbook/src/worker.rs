@@ -20,7 +20,7 @@ use sc_network_common::{
 };
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
-use sp_arithmetic::traits::{SaturatedConversion, Saturating};
+use sp_arithmetic::traits::{SaturatedConversion};
 use sp_consensus::SyncOracle;
 use sp_core::{offchain::OffchainStorage, H256};
 use sp_runtime::{
