@@ -11,8 +11,11 @@ use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
-use polkadex_primitives::{withdrawal::Withdrawal, AccountId, BlockNumber};
-use reference_trie::RefHasher;
+use polkadex_primitives::{
+	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
+};
+use reference_trie::{ExtensionLayout, RefHasher};
+use rust_decimal::Decimal;
 use sc_client_api::{Backend, FinalityNotification};
 use sc_network::PeerId;
 use sc_network_common::{
@@ -23,16 +26,17 @@ use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::{SaturatedConversion, Saturating};
 use sp_consensus::SyncOracle;
-use sp_core::{offchain::OffchainStorage, H256};
+use sp_core::{crypto::AccountId32, offchain::OffchainStorage, H256};
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header},
 };
-use trie_db::{TrieDBMutBuilder, TrieMut};
+use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 use orderbook_primitives::{
 	types::{
-		AccountInfo, GossipMessage, ObMessage, OrderState, Trade, UserActions, WithdrawalRequest,
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, OrderState, Trade, UserActions,
+		WithdrawalRequest,
 	},
 	utils::set_bit_field,
 	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
@@ -220,9 +224,45 @@ where
 		trie.commit();
 		Ok(())
 	}
-	pub fn handle_blk_import(&mut self, _num: BlockNumber) -> Result<(), Error> {
-		// 1. Check last processed block with num
-		// 2. Get the ingress messsages for this block
+
+	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
+		// Get the ingress messsages for this block
+		let messages = self
+			.client
+			.runtime_api()
+			.ingress_messages(&BlockId::number(num.saturated_into()))
+			.expect("Expecting ingress messages api to be available");
+
+		let mut trie =
+			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
+				.build();
+
+		for message in messages {
+			match message {
+				IngressMessages::RegisterUser(main, proxy) =>
+					register_main(&mut trie, main, proxy)?,
+				IngressMessages::Deposit(main, asset, amt) => deposit(&mut trie, main, asset, amt)?,
+				IngressMessages::AddProxy(main, proxy) => add_proxy(&mut trie, main, proxy)?,
+				IngressMessages::RemoveProxy(main, proxy) => remove_proxy(&mut trie, main, proxy)?,
+				IngressMessages::LatestSnapshot(
+					snapshot_id,
+					state_root,
+					state_change_id,
+					state_hash,
+				) =>
+					*self.last_snapshot.write() = SnapshotSummary {
+						snapshot_id,
+						state_root,
+						state_change_id,
+						state_hash,
+						bitflags: vec![],
+						withdrawals: vec![],
+						aggregate_signature: None,
+					},
+				_ => {},
+			}
+		}
+
 		// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
 		todo!()
 	}
@@ -262,10 +302,15 @@ where
 		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
 		set_bit_field(&mut summary.bitflags, bit_index as u16);
 		// send it to runtime
-		self.client
+		if let Err(_) = self
+			.client
 			.runtime_api()
 			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
-			.expect("Something went wrong with the submit_snapshot runtime api; qed.");
+			.expect("Something went wrong with the submit_snapshot runtime api; qed.")
+		{
+			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
+			return Err(Error::FailedToSubmitSnapshotToRuntime)
+		}
 		Ok(())
 	}
 
@@ -606,4 +651,83 @@ where
 			}
 		}
 	}
+}
+
+pub fn register_main(
+	trie: &mut TrieDBMut<ExtensionLayout>,
+	main: AccountId,
+	proxy: AccountId,
+) -> Result<(), Error> {
+	if trie.contains(&main.encode())? {
+		return Err(Error::MainAlreadyRegistered)
+	}
+	let account_info = AccountInfo { proxies: vec![proxy] };
+	trie.insert(&main.encode(), &account_info.encode())?;
+	Ok(())
+}
+
+pub fn add_proxy(
+	trie: &mut TrieDBMut<ExtensionLayout>,
+	main: AccountId,
+	proxy: AccountId,
+) -> Result<(), Error> {
+	match trie.get(&main.encode())? {
+		Some(data) => {
+			let mut account_info = AccountInfo::decode(&mut &data[..])?;
+			if account_info.proxies.contains(&proxy) {
+				return Err(Error::ProxyAlreadyRegistered)
+			}
+			account_info.proxies.push(proxy);
+			trie.insert(&main.encode(), &account_info.encode())?;
+		},
+		None => return Err(Error::MainAccountNotFound),
+	}
+	Ok(())
+}
+
+pub fn remove_proxy(
+	trie: &mut TrieDBMut<ExtensionLayout>,
+	main: AccountId,
+	proxy: AccountId,
+) -> Result<(), Error> {
+	match trie.get(&main.encode())? {
+		Some(data) => {
+			let mut account_info = AccountInfo::decode(&mut &data[..])?;
+			if account_info.proxies.contains(&proxy) {
+				account_info
+					.proxies
+					.iter()
+					.position(|x| *x == proxy)
+					.map(|i| account_info.proxies.remove(i));
+				trie.insert(&main.encode(), &account_info.encode())?;
+			} else {
+				// its a no-op if proxy not found
+			}
+		},
+		None => return Err(Error::MainAccountNotFound),
+	}
+	Ok(())
+}
+
+pub fn deposit(
+	trie: &mut TrieDBMut<ExtensionLayout>,
+	main: AccountId,
+	asset: AssetId,
+	amount: Decimal,
+) -> Result<(), Error> {
+	if !trie.contains(&main.encode())? {
+		return Err(Error::MainAccountNotFound)
+	}
+	let account_asset = AccountAsset { main, asset };
+	match trie.get(&account_asset.encode())? {
+		Some(data) => {
+			let mut balance = Decimal::decode(&mut &data[..])?;
+			balance = balance.saturating_add(amount);
+			trie.insert(&account_asset.encode(), &balance.encode())?;
+		},
+		None => {
+			trie.insert(&account_asset.encode(), &amount.encode())?;
+		},
+	}
+	Ok(())
 }

@@ -46,8 +46,8 @@ pub struct AccountInfo {
 #[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountAsset {
-	main: AccountId,
-	asset: AssetId,
+	pub main: AccountId,
+	pub asset: AssetId,
 }
 
 #[derive(Clone, Debug, Encode, Decode)]

@@ -22,7 +22,7 @@ use frame_support::{
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement, OneSessionHandler},
 	BoundedVec,
 };
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed, offchain::SubmitTransaction};
 use polkadex_primitives::{assets::AssetId, AccountId, OnChainEventsLimit};
 
 use pallet_timestamp::{self as timestamp};
@@ -74,7 +74,7 @@ pub mod pallet {
 		},
 		PalletId,
 	};
-	use frame_system::pallet_prelude::*;
+	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
 	use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary};
 	use polkadex_primitives::{
@@ -139,19 +139,15 @@ pub mod pallet {
 		type Call = Call<T>;
 
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			let valid_tx = |provide, rng: u64| {
+			let valid_tx = |provide| {
 				ValidTransaction::with_tag_prefix("orderbook")
-					.priority(rng)
-					.and_provides([&(&provide, rng.to_be())])
+					.and_provides([&provide])
 					.longevity(3)
 					.propagate(true)
 					.build()
 			};
 
-			let validate_snapshot = |snapshot_summary: &SnapshotSummary,
-			                         sig: &T::Signature,
-			                         rng: u64|
-			 -> TransactionValidity {
+			let validate_snapshot = |snapshot_summary: &SnapshotSummary| -> TransactionValidity {
 				// Verify Nonce/state_change_id
 				let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 				if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
@@ -184,11 +180,10 @@ pub mod pallet {
 						}
 					},
 				}
-				valid_tx(snapshot_summary.clone(), rng)
+				valid_tx(snapshot_summary.clone())
 			};
 			match call {
-				Call::send_snapshot_summary { snapshot_summary, signature, rng } =>
-					validate_snapshot(snapshot_summary, signature, *rng),
+				Call::submit_snapshot { summary } => validate_snapshot(summary),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -200,7 +195,9 @@ pub mod pallet {
 	///
 	/// `frame_system::Config` should always be included.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + timestamp::Config {
+	pub trait Config:
+		frame_system::Config + timestamp::Config + SendTransactionTypes<Call<Self>>
+	{
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -1001,21 +998,16 @@ pub mod pallet {
 		}
 
 		/// Submit Snapshot Summary
-		#[pallet::weight(<T as Config>::WeightInfo::update_certificate(1))]
-		pub fn send_snapshot_summary(
-			origin: OriginFor<T>,
-			snapshot_summary: SnapshotSummary,
-			_signature: T::Signature,
-			_rng: u64,
-		) -> DispatchResult {
+		#[pallet::weight(10000)]
+		pub fn submit_snapshot(origin: OriginFor<T>, summary: SnapshotSummary) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 			ensure!(
-				snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)),
+				summary.state_change_id.eq(&(last_snapshot_serial_number + 1)),
 				Error::<T>::SnapshotNonceError
 			);
-			let current_snapshot_nonce = snapshot_summary.state_change_id;
-			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot_summary.clone());
+			let current_snapshot_nonce = summary.state_change_id;
+			<Snapshots<T>>::insert(current_snapshot_nonce, summary.clone());
 			<SnapshotNonce<T>>::put(current_snapshot_nonce);
 			Ok(())
 		}
@@ -1083,27 +1075,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		// clean-up function - should be called on each block
-		#[allow(dead_code)]
-		fn unregister_timed_out_enclaves() {
-			use sp_runtime::traits::CheckedSub;
-			let mut enclaves_to_remove = sp_std::vec![];
-			let iter = <RegisteredEnclaves<T>>::iter();
-			iter.for_each(|(enclave, attested_ts)| {
-				let current_timestamp = <timestamp::Pallet<T>>::get();
-				// enclave will be removed even if something happens with substraction
-				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
-					T::MsPerDay::get()
-				{
-					enclaves_to_remove.push(enclave);
-				}
-			});
-			for enclave in &enclaves_to_remove {
-				<RegisteredEnclaves<T>>::remove(enclave);
-			}
-			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
-		}
-
 		pub fn do_deposit(
 			user: T::AccountId,
 			asset: AssetId,
@@ -1366,7 +1337,7 @@ pub mod pallet {
 // - Public interface. These are functions that are `pub` and generally fall into inspector
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
-impl<T: Config> Pallet<T> {
+impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
 	pub fn validator_set() -> ValidatorSet<AuthorityId> {
 		ValidatorSet { validators: <Authorities<T>>::get().into_inner() }
 	}
@@ -1376,8 +1347,9 @@ impl<T: Config> Pallet<T> {
 		<IngressMessages<T>>::get()
 	}
 
-	pub fn submit_snapshot(summary: SnapshotSummary) {
-		todo!()
+	pub fn submit_snapshot_api(summary: SnapshotSummary) -> Result<(), ()> {
+		let call = Call::<T>::submit_snapshot { summary };
+		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
 	}
 
 	pub fn get_latest_snapshot() -> SnapshotSummary {

@@ -1570,8 +1570,8 @@ impl_runtime_apis! {
 			OCEX::get_ingress_messages()
 		}
 
-		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary) {
-			OCEX::submit_snapshot(summary)
+		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary) -> Result<(),()> {
+			OCEX::submit_snapshot_api(summary)
 		}
 	}
 

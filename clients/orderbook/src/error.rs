@@ -40,6 +40,12 @@ pub enum Error {
 	ProxyNotAssociatedWithMain,
 	#[error("Error while snapshot signing")]
 	SnapshotSigningFailed,
+	#[error("Failed to submit snapshot to runtime")]
+	FailedToSubmitSnapshotToRuntime,
+	#[error("Main account already registered")]
+	MainAlreadyRegistered,
+	#[error("Proxy account already registered")]
+	ProxyAlreadyRegistered,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
