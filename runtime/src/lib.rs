@@ -1558,12 +1558,20 @@ impl_runtime_apis! {
 	}
 
 	impl orderbook_primitives::ObApi<Block> for Runtime {
-		fn validator_set() -> Option<orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>>{
-			todo!()
+		fn validator_set() -> orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>{
+			OCEX::validator_set()
 		}
 
 		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary{
-			todo!()
+			OCEX::get_latest_snapshot()
+		}
+
+		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>{
+			OCEX::get_ingress_messages()
+		}
+
+		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary) {
+			OCEX::submit_snapshot(summary)
 		}
 	}
 

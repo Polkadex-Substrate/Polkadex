@@ -4,6 +4,7 @@
 
 use hash_db::MaybeDebug;
 use orderbook_primitives::types::AccountAsset;
+use sp_api::ApiError;
 use std::fmt::Debug;
 use trie_db::TrieError;
 
@@ -37,6 +38,8 @@ pub enum Error {
 	MainAccountNotFound,
 	#[error("Proxy not associated with main")]
 	ProxyNotAssociatedWithMain,
+	#[error("Error while snapshot signing")]
+	SnapshotSigningFailed,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
@@ -54,5 +57,11 @@ impl From<parity_scale_codec::Error> for Error {
 impl From<rust_decimal::Error> for Error {
 	fn from(value: rust_decimal::Error) -> Self {
 		Self::DecimalError(value)
+	}
+}
+
+impl From<ApiError> for Error {
+	fn from(value: ApiError) -> Self {
+		Self::Backend(value.to_string())
 	}
 }

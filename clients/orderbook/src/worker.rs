@@ -5,6 +5,7 @@ use std::{
 	sync::Arc,
 };
 
+use bls_primitives::Public;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
@@ -12,7 +13,7 @@ use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::{withdrawal::Withdrawal, AccountId, BlockNumber};
 use reference_trie::RefHasher;
-use sc_client_api::Backend;
+use sc_client_api::{Backend, FinalityNotification};
 use sc_network::PeerId;
 use sc_network_common::{
 	protocol::event::Event,
@@ -20,16 +21,20 @@ use sc_network_common::{
 };
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
-use sp_arithmetic::traits::Saturating;
+use sp_arithmetic::traits::{SaturatedConversion, Saturating};
 use sp_consensus::SyncOracle;
 use sp_core::{offchain::OffchainStorage, H256};
-use sp_runtime::{generic::BlockId, traits::Block};
+use sp_runtime::{
+	generic::BlockId,
+	traits::{Block, Header},
+};
 use trie_db::{TrieDBMutBuilder, TrieMut};
 
 use orderbook_primitives::{
 	types::{
 		AccountInfo, GossipMessage, ObMessage, OrderState, Trade, UserActions, WithdrawalRequest,
 	},
+	utils::set_bit_field,
 	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
 };
 
@@ -85,6 +90,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	_marker: PhantomData<N>,
 	// In memory store
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
+	// Last finalized block
+	last_finalized_block: BlockNumber,
 }
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
@@ -139,6 +146,7 @@ where
 			known_messages: Default::default(),
 			working_state_root: Default::default(),
 			pending_withdrawals: vec![],
+			last_finalized_block: 0,
 		}
 	}
 
@@ -219,11 +227,54 @@ where
 		todo!()
 	}
 
+	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
+		let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
+		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
+		let available_bls_keys: Vec<Public> = bls_primitives::crypto::bls_ext::all();
+		let active_set = self
+			.client
+			.runtime_api()
+			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+			.validators;
+		// Get the first available key in the validator set.
+		let mut validator_key = None;
+		for key in available_bls_keys {
+			if active_set.contains(&key.into()) {
+				validator_key = Some(key);
+				break
+			}
+		}
+		if validator_key.is_none() {
+			info!(target:"orderbook","📒 No validator key found for snapshotting. Skipping snapshot signing.");
+			return Ok(())
+		}
+		let signing_key = validator_key.unwrap();
+		let signature =
+			match bls_primitives::crypto::bls_ext::sign(&signing_key, &summary.sign_data()) {
+				Some(sig) => sig,
+				None => {
+					error!(target:"orderbook","📒 Failed to sign snapshot, not able to sign with validator key.");
+					return Err(Error::SnapshotSigningFailed)
+				},
+			};
+
+		summary.aggregate_signature = Some(signature);
+		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
+		set_bit_field(&mut summary.bitflags, bit_index as u16);
+		// send it to runtime
+		self.client
+			.runtime_api()
+			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
+			.expect("Something went wrong with the submit_snapshot runtime api; qed.");
+		Ok(())
+	}
+
 	pub fn handle_action(&mut self, action: ObMessage) -> Result<(), Error> {
 		match action.action {
 			UserActions::Trade(trade) => self.process_trade(trade)?,
 			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
+			UserActions::Snapshot => self.snapshot(action.stid)?,
 		}
 		Ok(())
 	}
@@ -328,16 +379,33 @@ where
 		}
 	}
 
-	pub fn store_snapshot(&mut self, snapshot_id: u64) -> Result<(), Error> {
+	pub fn store_snapshot(
+		&mut self,
+		state_change_id: u64,
+		snapshot_id: u64,
+	) -> Result<SnapshotSummary, Error> {
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			match serde_json::to_vec(self.memory_db.data()) {
-				Ok(data) => offchain_storage.set(
-					b"OrderbookSnapshotState",
-					&snapshot_id.to_le_bytes(),
-					&data,
-				),
-				Err(err) =>
-					return Err(Error::Backend(format!("Error serializing the data: {:?}", err))),
+			return match serde_json::to_vec(self.memory_db.data()) {
+				Ok(data) => {
+					offchain_storage.set(
+						b"OrderbookSnapshotState",
+						&snapshot_id.to_le_bytes(),
+						&data,
+					);
+					let state_hash = H256::from(sp_core::blake2_256(&data));
+					let withdrawals = self.pending_withdrawals.clone();
+					self.pending_withdrawals.clear();
+					Ok(SnapshotSummary {
+						snapshot_id,
+						state_root: self.working_state_root.into(),
+						state_change_id,
+						state_hash,
+						bitflags: vec![],
+						withdrawals,
+						aggregate_signature: None,
+					})
+				},
+				Err(err) => Err(Error::Backend(format!("Error serializing the data: {:?}", err))),
 			}
 		}
 		return Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
@@ -442,13 +510,38 @@ where
 		Ok(())
 	}
 
+	async fn handle_finality_notification(
+		&mut self,
+		notification: &FinalityNotification<B>,
+	) -> Result<(), Error> {
+		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
+		let header = &notification.header;
+		self.last_finalized_block = (*header.number()).saturated_into();
+		// TODO: Detect if our snapshot was accepted if not then change our state
+		// to the accepted snapshot
+		Ok(())
+	}
+
+	/// Wait for Orderbook runtime pallet to be available.
+	async fn wait_for_runtime_pallet(&mut self) {
+		let mut finality_stream = self.client.finality_notification_stream().fuse();
+		while let Some(notif) = finality_stream.next().await {
+			let at = BlockId::hash(notif.header.hash());
+			if self.client.runtime_api().validator_set(&at).ok().is_some() {
+				break
+			} else {
+				debug!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
+			}
+		}
+	}
+
 	/// Main loop for Orderbook worker.
 	///
 	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "orderbook", "📒 Orderbook worker started");
-
+		self.wait_for_runtime_pallet().await;
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
 				.messages_for(topic::<B>())
@@ -459,9 +552,10 @@ where
 				})
 				.fuse(),
 		);
-
+		// network events stream
 		let mut notification_events_stream = self.network.event_stream("orderbook").fuse();
-
+		// finality events stream
+		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
@@ -492,6 +586,16 @@ where
 					}
 					}else {
 						error!(target:"orderbook","None notification recvd");
+						return
+					}
+				},
+				finality = finality_stream.next() => {
+					if let Some(finality) = finality {
+						if let Err(err) = self.handle_finality_notification(&finality).await {
+							error!(target: "orderbook", "📒 Error during finalized block import{}", err);
+						}
+					}else {
+						error!(target:"orderbook","None finality recvd");
 						return
 					}
 				},
