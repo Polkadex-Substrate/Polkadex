@@ -423,7 +423,8 @@ pub mod pallet {
 		#[pallet::weight(10000)]
 		pub fn stakers_payout(origin: OriginFor<T>, session: SessionIndex) -> DispatchResult {
 			let staker = ensure_signed(origin)?;
-			Self::do_stakers_payout(staker, session)?;
+			Self::do_stakers_payout(staker.clone(), session)?;
+			Self::deposit_event(Event::<T>::StakerPayedOut { staker, session }.into());
 			Ok(())
 		}
 	}
@@ -506,6 +507,12 @@ pub mod pallet {
 		/// Failed to transfer slashed amount from offender's account
 		SlashingFailed {
 			offender: T::AccountId,
+		},
+
+		/// Staker got payed out for session ID
+		StakerPayedOut {
+			staker: T::AccountId,
+			session: SessionIndex,
 		},
 	}
 

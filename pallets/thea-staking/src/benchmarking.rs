@@ -228,7 +228,7 @@ benchmarks! {
 		let call = Call::<T>::stakers_payout{ session: 1 };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
-		// TODO: how to verify this?
+		assert_last_event::<T>(Event::StakerPayedOut{ staker: nominator, session: 1 }.into());
 	}
 }
 
