@@ -85,6 +85,7 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
+	use sp_core::H256;
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
@@ -323,6 +324,12 @@ pub mod pallet {
 		/// Can not write into withdrawal bounded structure
 		/// limit reached
 		WithdrawalBoundOverflow,
+		/// Unable to aggregrate the signature
+		InvalidSignatureAggregation,
+		/// Unable to get signer index
+		SignerIndexNotFound,
+		/// Snapshot in invalid state
+		InvalidSnapshotState,
 	}
 
 	#[pallet::hooks]
@@ -972,31 +979,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// In order to register itself - enclave account id must be allowlisted and called by
-		/// Governance
-		#[pallet::weight(<T as Config>::WeightInfo::allowlist_enclave(1))]
-		pub fn allowlist_enclave(
-			origin: OriginFor<T>,
-			enclave_account_id: T::AccountId,
-		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			// It will just overwrite if account_id is already allowlisted
-			<AllowlistedEnclaves<T>>::insert(&enclave_account_id, true);
-			Self::deposit_event(Event::EnclaveAllowlisted(enclave_account_id));
-			Ok(())
-		}
-
-		/// Extrinsic to update ExchangeState
-		#[pallet::weight(<T as Config>::WeightInfo::update_certificate(1))]
-		pub fn update_certificate(
-			origin: OriginFor<T>,
-			certificate_valid_until: u64,
-		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<CertificateValidity<T>>::put(certificate_valid_until);
-			Ok(())
-		}
-
 		/// Submit Snapshot Summary
 		#[pallet::weight(10000)]
 		pub fn submit_snapshot(origin: OriginFor<T>, summary: SnapshotSummary) -> DispatchResult {
@@ -1006,9 +988,51 @@ pub mod pallet {
 				summary.state_change_id.eq(&(last_snapshot_serial_number + 1)),
 				Error::<T>::SnapshotNonceError
 			);
-			let current_snapshot_nonce = summary.state_change_id;
-			<Snapshots<T>>::insert(current_snapshot_nonce, summary.clone());
-			<SnapshotNonce<T>>::put(current_snapshot_nonce);
+			let summary_hash = H256::from_slice(&summary.sign_data());
+			let working_summary =
+				match <UnprocessedSnapshots<T>>::get(summary.snapshot_id, summary_hash) {
+					None => summary,
+					Some(mut stored_summary) => {
+						if let Some(signature) = summary.aggregate_signature {
+							// Aggregrate the signature
+							if let Err(_) = stored_summary.add_signature(signature) {
+								return Err(Error::<T>::InvalidSignatureAggregation.into())
+							}
+							// update the bitfield
+							let auth_index = match summary.signed_auth_indexes().get(0) {
+								Some(index) => *index,
+								None => return Err(Error::<T>::SignerIndexNotFound.into()),
+							};
+							stored_summary.add_auth_index(auth_index);
+							stored_summary
+						} else {
+							return Err(Error::<T>::InvalidSnapshotState.into())
+						}
+					},
+				};
+			// Check if we have enough signatures
+			let total_validators = <Authorities<T>>::get().len();
+			if working_summary.signed_auth_indexes().len() >=
+				total_validators.saturating_mul(2).saturating_div(3)
+			{
+				// TODO: Do we need to verify aggregrate signature once more???
+				// Remove all the unprocessed snapshots with prefix snapshot_id
+				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
+					working_summary.snapshot_id,
+					total_validators as u32,
+					None,
+				);
+				while result.maybe_cursor.is_some() {
+					result = <UnprocessedSnapshots<T>>::clear_prefix(
+						working_summary.snapshot_id,
+						total_validators as u32,
+						Some(result.maybe_cursor.unwrap().as_ref()),
+					);
+				}
+				// Update the snapshot nonce and move the summary to snapshots storage
+				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
+				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
+			}
 			Ok(())
 		}
 	}
@@ -1228,11 +1252,6 @@ pub mod pallet {
 	pub(super) type AllowlistedToken<T: Config> =
 		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
 
-	///CertificateValidity
-	#[pallet::storage]
-	#[pallet::getter(fn get_certificate_validation_time)]
-	pub(super) type CertificateValidity<T: Config> = StorageValue<_, u64, ValueQuery>;
-
 	// A map that has enumerable entries.
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
@@ -1256,6 +1275,12 @@ pub mod pallet {
 		TradingPairConfig,
 		OptionQuery,
 	>;
+
+	// Unprocessed Snapshots storage ( snapshot id, summary_hash ) => SnapshotSummary
+	#[pallet::storage]
+	#[pallet::getter(fn unprocessed_snapshots)]
+	pub(super) type UnprocessedSnapshots<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, u64, Identity, H256, SnapshotSummary, OptionQuery>;
 
 	// Snapshots Storage
 	#[pallet::storage]
@@ -1285,12 +1310,6 @@ pub mod pallet {
 	pub(super) type Withdrawals<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
 
-	// Allowlisted enclaves
-	#[pallet::storage]
-	#[pallet::getter(fn allowlisted_enclaves)]
-	pub(super) type AllowlistedEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, bool, ValueQuery>;
-
 	// Queue for enclave ingress messages
 	#[pallet::storage]
 	#[pallet::getter(fn ingress_messages)]
@@ -1314,12 +1333,6 @@ pub mod pallet {
 	#[pallet::getter(fn total_assets)]
 	pub(super) type TotalAssets<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
-
-	// Vector of registered enclaves
-	#[pallet::storage]
-	#[pallet::getter(fn get_registered_enclaves)]
-	pub(super) type RegisteredEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_authorities)]
