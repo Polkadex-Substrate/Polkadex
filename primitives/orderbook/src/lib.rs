@@ -118,7 +118,7 @@ pub struct StidImportResponse {
 	pub messages: Vec<ObMessage>,
 }
 
-#[derive(Clone, Encode, Decode, Default, Debug)]
+#[derive(Clone, Encode, Decode, Default, Debug, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct SnapshotSummary {
 	pub state_root: H256,
