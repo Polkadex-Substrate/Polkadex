@@ -784,7 +784,11 @@ pub mod pallet {
 			let session_index = <CurrentIndex<T>>::get();
 			log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 			let active_networks = <ActiveNetworks<T>>::get();
-			for (offender, (percent, reporters)) in <CommitedSlashing<T>>::iter() {
+			// making sure no not-reported slashing happens
+			for (offender, (percent, reporters)) in <CommitedSlashing<T>>::iter()
+				.filter(|(_, (_, reporters))| !reporters.is_empty())
+				.collect::<Vec<(T::AccountId, (u8, BTreeSet<T::AccountId>))>>()
+			{
 				if let Some(net) =
 					active_networks.iter().find(|n| <Candidates<T>>::contains_key(n, &offender))
 				{
@@ -795,7 +799,6 @@ pub mod pallet {
 						let actual_percent = Percent::from_percent(percent);
 						// slashing relayer's individual stake
 						let amount: BalanceOf<T> = actual_percent * to_slash.individual;
-						// TODO: where to transfer? % > Treasury && % > to reporters
 						if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
 							&offender,
 							&T::TreasuryPalletId::get().into_account_truncating(),
