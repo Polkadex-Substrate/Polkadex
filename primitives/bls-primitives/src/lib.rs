@@ -32,6 +32,13 @@ pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");
 
 pub const DST: &str = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
+pub const BLS_DEV_PHRASE: &str =
+	"forget flee list will tissue myself viable sleep cover lake summer \
+flat artefact hurry bronze salt fiber fog emotion loyal broken coach arch plastic";
+
+pub const DEV_PHRASE: &str =
+	"bottom drive obey lake curtain smoke basket hold race lonely fit walk";
+
 /// BLS Public Key
 #[cfg_attr(feature = "std", derive(Hash))]
 #[derive(
@@ -56,11 +63,11 @@ pub struct Public(pub [u8; 96]);
 )]
 pub struct Signature(pub [u8; 48]);
 
-
 type Seed = [u8; 32];
 
 /// An error when deriving a key.
 #[cfg(feature = "std")]
+#[derive(Debug)]
 pub enum Error {
 	/// Invalid Public key
 	InvalidPublicKey,
@@ -71,7 +78,6 @@ pub enum Error {
 	SerdeError(serde_json::Error),
 	#[cfg(feature = "std")]
 	IOError(std::io::Error),
-
 }
 
 #[cfg(feature = "std")]
@@ -141,11 +147,9 @@ impl CryptoType for Pair {
 	type Pair = Pair;
 }
 
-
 impl From<CryptoTypePublicPair> for Public {
 	fn from(value: CryptoTypePublicPair) -> Self {
-		Public::try_from(value.1.as_ref())
-			.expect("Expected the public key to be 96 bytes")
+		Public::try_from(value.1.as_ref()).expect("Expected the public key to be 96 bytes")
 	}
 }
 impl ByteArray for Public {
@@ -213,15 +217,14 @@ impl sp_core::crypto::Pair for Pair {
 		mut phrase: &str,
 		_password: Option<&str>,
 	) -> Result<(Pair, Seed), SecretStringError> {
-		pub const DEV_PHRASE: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 		if phrase == DEV_PHRASE {
-			phrase = "forget flee list will tissue myself viable sleep cover lake summer flat artefact hurry bronze salt fiber fog emotion loyal broken coach arch plastic";
+			phrase = BLS_DEV_PHRASE
 		}
 		Ok(Mnemonic::from_phrase(phrase, Language::English)
 			.map_err(|_| SecretStringError::InvalidPhrase)
 			.map(|m| {
 				let seed = m.entropy();
-				assert!(seed.len()>=32);
+				assert!(seed.len() >= 32);
 				let secret = SecretKey::key_gen(&seed, &[]).unwrap();
 				let pair = Pair { public: secret.sk_to_pk().to_bytes().into(), secret };
 				(pair, seed.try_into().expect("BLS Seed is expected to be 32 bytes"))
@@ -237,20 +240,22 @@ impl sp_core::crypto::Pair for Pair {
 		if seed.is_none() {
 			return Err(Error::InvalidSeed)
 		}
-		let mut master_key = SecretKey::key_gen(&seed.unwrap(),&[])?;
+		let mut master_key = SecretKey::key_gen(&seed.unwrap(), &[])?;
 		for junction in path {
 			let index_bytes = [
 				junction.inner()[0],
 				junction.inner()[1],
 				junction.inner()[2],
-				junction.inner()[3]];
+				junction.inner()[3],
+			];
 			master_key = master_key.derive_child_eip2333(u32::from_be_bytes(index_bytes))
 		}
-		Ok((Pair{ public: master_key.sk_to_pk().to_bytes().into(), secret: master_key }, seed))
+		Ok((Pair { public: master_key.sk_to_pk().to_bytes().into(), secret: master_key }, seed))
 	}
 
 	fn from_seed(seed: &Self::Seed) -> Self {
-		let secret = SecretKey::from_bytes(seed).expect("BLS seed is expected to be at least 32 bytes");
+		let secret =
+			SecretKey::from_bytes(seed).expect("BLS seed is expected to be at least 32 bytes");
 
 		Pair { public: secret.sk_to_pk().to_bytes().into(), secret }
 	}
