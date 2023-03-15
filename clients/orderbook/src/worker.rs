@@ -33,8 +33,7 @@ use bls_primitives::{Public, Signature};
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, OrderState, Trade, UserActions,
-		WithdrawalRequest,
+		AccountAsset, AccountInfo, ObMessage, OrderState, Trade, UserActions, WithdrawalRequest,
 	},
 	utils::set_bit_field,
 	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
@@ -460,20 +459,6 @@ where
 		Ok(())
 	}
 
-	// Adds the newly recvd gossip message to cache and then see if we can process it.
-	pub async fn handle_gossip_message(&mut self, message: &GossipMessage) -> Result<(), Error> {
-		match message {
-			GossipMessage::ObMessage(message) => {
-				self.known_messages.entry(message.stid).or_insert(message.clone());
-				self.check_state_sync().await?;
-				self.check_stid_gap_fill().await
-			},
-			GossipMessage::Snapshot(_summary) => {
-				todo!()
-			},
-		}
-	}
-
 	pub fn store_snapshot(
 		&mut self,
 		state_change_id: u64,
@@ -628,7 +613,7 @@ where
 				.filter_map(|notification| async move {
 					trace!(target: "orderbook", "📒 Got gossip message: {:?}", notification);
 
-					GossipMessage::decode(&mut &notification.message[..]).ok()
+					ObMessage::decode(&mut &notification.message[..]).ok()
 				})
 				.fuse(),
 		);
@@ -642,7 +627,7 @@ where
 				gossip = gossip_messages.next() => {
 					if let Some(message) = gossip {
 						// Gossip messages have already been verified to be valid by the gossip validator.
-						if let Err(err) = self.handle_gossip_message(&message).await {
+						if let Err(err) = self.process_new_user_action(&message).await {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					} else {

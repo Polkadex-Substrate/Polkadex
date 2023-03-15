@@ -11,13 +11,6 @@ use crate::SnapshotSummary;
 
 pub type OrderId = H256;
 
-/// Concrete implementation of Hasher using Blake2b 256-bit hashes
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct Snapshot {
-	map: HashMap<H256, (Vec<u8>, i32)>,
-}
-
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct OrderState {
@@ -92,12 +85,6 @@ impl Trade {
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
-}
-
-#[derive(Clone, Debug, Encode, Decode)]
-pub enum GossipMessage {
-	ObMessage(ObMessage),
-	Snapshot(SnapshotSummary),
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
