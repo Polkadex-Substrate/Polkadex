@@ -1,17 +1,19 @@
 extern crate core;
 
 use futures::channel::mpsc::UnboundedReceiver;
-use orderbook_primitives::ObApi;
+use orderbook_primitives::{ObApi, SnapshotSummary};
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 
 use prometheus::Registry;
-use sc_client_api::{Backend, BlockchainEvents, Finalizer};
+use sc_client_api::{Backend, BlockchainEvents, FinalityNotification, Finalizer};
+use sc_network::PeerId;
+use sc_network_common::protocol::event::Event;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
-use std::{marker::PhantomData, sync::Arc};
+use std::{future::Future, marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
@@ -78,8 +80,8 @@ where
 	// empty
 }
 
-
-use orderbook_primitives::types::ObMessage;
+use crate::error::Error;
+use orderbook_primitives::types::{ObMessage, UserActions};
 use sc_network_gossip::Network as GossipNetwork;
 
 /// Orderbook gadget initialization parameters.
@@ -163,7 +165,7 @@ where
 		_marker: Default::default(),
 	};
 
-	let worker = worker::ObWorker::<_, _, _, _, _>::new(worker_params);
+	let mut worker = worker::ObWorker::<_, _, _, _, _>::new(worker_params);
 
 	worker.run().await
 }
