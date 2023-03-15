@@ -66,7 +66,26 @@ pub enum Error {
 	InvalidPublicKey,
 	BLSError(BLST_ERROR),
 	InvalidSeed,
-	InvalidJunctionForDerivation
+	InvalidJunctionForDerivation,
+	#[cfg(feature = "std")]
+	SerdeError(serde_json::Error),
+	#[cfg(feature = "std")]
+	IOError(std::io::Error),
+
+}
+
+#[cfg(feature = "std")]
+impl From<std::io::Error> for Error {
+	fn from(value: std::io::Error) -> Self {
+		Self::IOError(value)
+	}
+}
+
+#[cfg(feature = "std")]
+impl From<serde_json::Error> for Error {
+	fn from(value: serde_json::Error) -> Self {
+		Self::SerdeError(value)
+	}
 }
 
 #[cfg(feature = "std")]
