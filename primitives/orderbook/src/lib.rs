@@ -13,7 +13,10 @@ use bls_primitives::{Public, Signature};
 
 #[cfg(feature = "std")]
 use crate::types::ObMessage;
-use crate::{crypto::AuthorityId, utils::return_set_bits};
+use crate::{
+	crypto::AuthorityId,
+	utils::{return_set_bits, set_bit_field},
+};
 
 mod bls;
 #[cfg(feature = "std")]
@@ -135,6 +138,24 @@ pub struct SnapshotSummary {
 }
 
 impl SnapshotSummary {
+	// Add a new signature to the snapshot summary
+	pub fn add_signature(&mut self, signature: Signature) -> Result<(), ()> {
+		match bls_primitives::crypto::bls_ext::add_signature(
+			&self.aggregate_signature.ok_or(())?,
+			&signature,
+		) {
+			Ok(signature) => {
+				self.aggregate_signature = Some(signature);
+				Ok(())
+			},
+			Err(_) => return Err(()),
+		}
+	}
+
+	pub fn add_auth_index(&mut self, index: u16) {
+		set_bit_field(&mut self.bitflags, index);
+	}
+
 	// Get set indexes
 	pub fn signed_auth_indexes(&self) -> Vec<u16> {
 		return_set_bits(&self.bitflags)
@@ -151,7 +172,7 @@ impl SnapshotSummary {
 	}
 
 	// Returns the data used for signing the snapshot summary
-	pub fn sign_data(&self) -> Vec<u8> {
+	pub fn sign_data(&self) -> [u8; 32] {
 		let data = (
 			self.snapshot_id,
 			self.state_root,
@@ -160,7 +181,7 @@ impl SnapshotSummary {
 			self.withdrawals.clone(),
 		);
 
-		data.encode()
+		sp_io::hashing::blake2_256(&data.encode())
 	}
 }
 

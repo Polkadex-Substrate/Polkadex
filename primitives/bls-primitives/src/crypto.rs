@@ -20,6 +20,22 @@ pub const BLS_KEYSTORE_PATH: &str = "/polkadex/.keystore/";
 
 #[runtime_interface]
 pub trait BlsExt {
+	fn add_signature(agg_signature: &Signature, new: &Signature) -> Result<Signature, ()> {
+		let agg_signature = match crate::BLSSignature::from_bytes(agg_signature.0.as_ref()) {
+			Ok(sig) => sig,
+			Err(_) => return Err(()),
+		};
+		let new = match crate::BLSSignature::from_bytes(new.0.as_ref()) {
+			Ok(sig) => sig,
+			Err(_) => return Err(()),
+		};
+		let mut agg_signature = AggregateSignature::from_signature(&agg_signature);
+		if let Err(_) = agg_signature.add_signature(&new, true) {
+			return Err(())
+		}
+		Ok(Signature::from(crate::BLSSignature::from_aggregate(&agg_signature)))
+	}
+
 	fn all() -> Vec<Public> {
 		// Load all available bls public keys from filesystem
 		match get_all_public_keys() {
