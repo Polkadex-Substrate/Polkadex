@@ -4508,6 +4508,7 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 name = "orderbook"
 version = "0.1.0"
 dependencies = [
+ "bls-primitives",
  "futures 0.3.27",
  "hash-db 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
  "hash256-std-hasher 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5083,6 +5084,7 @@ name = "pallet-ocex-lmp"
 version = "4.0.0"
 dependencies = [
  "anyhow",
+ "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

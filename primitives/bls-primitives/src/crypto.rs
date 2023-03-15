@@ -72,23 +72,23 @@ pub trait BlsExt {
 		return if err == BLST_ERROR::BLST_SUCCESS { true } else { false }
 	}
 
-	fn verify_aggregate(pubkey: &Public, msg: &[u8], signature: &Signature) -> bool {
-		let agg_pubkey = match PublicKey::from_bytes(pubkey.0.as_ref()) {
-			Ok(pubkey) => pubkey,
-			Err(_) => return false,
-		};
+	fn verify_aggregate(pubkey: &Vec<Public>, msg: &[u8], signature: &Signature) -> bool {
+		let mut pubkeys = vec![];
+		for key in pubkey {
+			let agg_pubkey = match PublicKey::from_bytes(key.0.as_ref()) {
+				Ok(pubkey) => pubkey,
+				Err(_) => return false,
+			};
+			pubkeys.push(agg_pubkey);
+		}
+		let pubkeys_ref = pubkeys.iter().collect::<Vec<&PublicKey>>();
 
 		let agg_signature = match crate::BLSSignature::from_bytes(signature.0.as_ref()) {
 			Ok(sig) => sig,
 			Err(_) => return false,
 		};
 		// verify the signature
-		let err = agg_signature.fast_aggregate_verify_pre_aggregated(
-			true,
-			msg,
-			DST.as_ref(),
-			&agg_pubkey,
-		);
+		let err = agg_signature.fast_aggregate_verify(true, msg, DST.as_ref(), &pubkeys_ref);
 		return if err == BLST_ERROR::BLST_SUCCESS { true } else { false }
 	}
 }

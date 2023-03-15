@@ -23,7 +23,7 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::ensure_signed;
-use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
+use polkadex_primitives::{assets::AssetId, AccountId, OnChainEventsLimit};
 
 use pallet_timestamp::{self as timestamp};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
@@ -37,6 +37,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 
@@ -62,6 +63,7 @@ pub mod pallet {
 	use core::fmt::Debug;
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use bls_primitives::Signature;
 	use frame_support::{
 		pallet_prelude::*,
 		sp_tracing::debug,
@@ -138,7 +140,7 @@ pub mod pallet {
 
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			let valid_tx = |provide, rng: u64| {
-				ValidTransaction::with_tag_prefix("thea-proc")
+				ValidTransaction::with_tag_prefix("orderbook")
 					.priority(rng)
 					.and_provides([&(&provide, rng.to_be())])
 					.longevity(3)
@@ -151,16 +153,37 @@ pub mod pallet {
 			                         rng: u64|
 			 -> TransactionValidity {
 				// Verify Nonce/state_change_id
-				let last_snapshot_serial_number =
-					if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
-						last_snapshot_number
-					} else {
-						0
-					};
+				let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 				if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
 					return InvalidTransaction::Custom(10).into()
 				}
-				//TODO: Check if signer belongs to AuthoritySet or not and verify Signature
+
+				// Get authority from active set
+				// index is zero because we are signing only with one authority
+				// when submitting snapshot
+				let auth_idx = match snapshot_summary.signed_auth_indexes().get(0) {
+					Some(idx) => *idx,
+					None => return InvalidTransaction::BadSigner.into(),
+				};
+				let authority = match <Authorities<T>>::get().get(auth_idx as usize) {
+					Some(auth) => auth,
+					None => return InvalidTransaction::Custom(11).into(),
+				}
+				.clone();
+
+				// Verify Signature
+				match snapshot_summary.aggregate_signature {
+					None => return InvalidTransaction::Custom(12).into(),
+					Some(signature) => {
+						if !bls_primitives::crypto::bls_ext::verify(
+							&authority.into(),
+							&snapshot_summary.sign_data(),
+							&signature,
+						) {
+							return InvalidTransaction::Custom(12).into()
+						}
+					},
+				}
 				valid_tx(snapshot_summary.clone(), rng)
 			};
 			match call {
@@ -311,28 +334,9 @@ pub mod pallet {
 		///
 		/// Clean IngressMessages
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
-			// When block's been initialized - clean up expired registrations of enclaves
-			//Self::unregister_timed_out_enclaves();
-			if let Some(snapshot_nonce) = <SnapshotNonce<T>>::get() {
-				if let Some(snapshot) = <Snapshots<T>>::get(snapshot_nonce.saturating_sub(1)) {
-					<IngressMessages<T>>::put(Vec::<
-						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
-					>::from([
-						polkadex_primitives::ingress::IngressMessages::LastestSnapshot(
-							snapshot.state_hash,
-							snapshot.state_change_id as u32,
-						),
-					]));
-				} else {
-					<IngressMessages<T>>::put(Vec::<
-						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
-					>::new());
-				}
-			} else {
-				<IngressMessages<T>>::put(Vec::<
-					polkadex_primitives::ingress::IngressMessages<T::AccountId>,
-				>::new());
-			}
+			<IngressMessages<T>>::put(Vec::<
+				polkadex_primitives::ingress::IngressMessages<T::AccountId>,
+			>::new());
 
 			<OnChainEvents<T>>::put(BoundedVec::<
 				polkadex_primitives::ocex::OnChainEvents<T::AccountId>,
@@ -1005,12 +1009,7 @@ pub mod pallet {
 			_rng: u64,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			let last_snapshot_serial_number =
-				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
-					last_snapshot_number
-				} else {
-					0
-				};
+			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 			ensure!(
 				snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)),
 				Error::<T>::SnapshotNonceError
@@ -1291,12 +1290,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
 	pub(super) type Snapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary, ValueQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_nonce)]
-	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u64, OptionQuery>;
+	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// Exchange Operation State
 	#[pallet::storage]
@@ -1368,6 +1367,24 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config> Pallet<T> {
+	pub fn validator_set() -> ValidatorSet<AuthorityId> {
+		ValidatorSet { validators: <Authorities<T>>::get().into_inner() }
+	}
+
+	pub fn get_ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>
+	{
+		<IngressMessages<T>>::get()
+	}
+
+	pub fn submit_snapshot(summary: SnapshotSummary) {
+		todo!()
+	}
+
+	pub fn get_latest_snapshot() -> SnapshotSummary {
+		let last_nonce = <SnapshotNonce<T>>::get();
+		<Snapshots<T>>::get(last_nonce)
+	}
+
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_pallet_account() -> T::AccountId {

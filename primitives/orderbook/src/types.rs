@@ -95,7 +95,6 @@ pub struct ObMessage {
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum GossipMessage {
 	ObMessage(ObMessage),
 	Snapshot(SnapshotSummary),
@@ -107,6 +106,7 @@ pub enum UserActions {
 	Trade(Trade),
 	Withdraw(WithdrawalRequest),
 	BlockImport(u32),
+	Snapshot,
 }
 
 #[derive(Clone, Debug, Decode, Encode)]

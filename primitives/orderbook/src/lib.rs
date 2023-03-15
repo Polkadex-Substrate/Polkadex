@@ -1,13 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod bls;
-#[cfg(feature = "std")]
-pub mod types;
-
-use crate::crypto::AuthorityId;
-#[cfg(feature = "std")]
-use crate::types::ObMessage;
 use parity_scale_codec::{Decode, Encode};
+use polkadex_primitives::{withdrawal::Withdrawal, AccountId};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
@@ -15,10 +9,21 @@ use sp_core::H256;
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
 
+use bls_primitives::{Public, Signature};
+
+#[cfg(feature = "std")]
+use crate::types::ObMessage;
+use crate::{crypto::AuthorityId, utils::return_set_bits};
+
+mod bls;
+#[cfg(feature = "std")]
+pub mod types;
+pub mod utils;
+
 /// Key type for BEEFY module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
 
-/// BEEFY cryptographic types
+/// Orderbook cryptographic types
 ///
 /// This module basically introduces three crypto types:
 /// - `crypto::Pair`
@@ -28,17 +33,19 @@ pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::Ke
 /// Your code should use the above types as concrete types for all crypto related
 /// functionality.
 ///
-/// The current underlying crypto scheme used is ECDSA. This can be changed,
+/// The current underlying crypto scheme used is BLS. This can be changed,
 /// without affecting code restricted against the above listed crypto types.
 pub mod crypto {
-	use bls_primitives as BLS;
 	use sp_application_crypto::app_crypto;
+
+	use bls_primitives as BLS;
+
 	app_crypto!(BLS, crate::KEY_TYPE);
 
-	/// Identity of a BEEFY authority using ECDSA as its crypto.
+	/// Identity of a Orderbook authority using BLS as its crypto.
 	pub type AuthorityId = Public;
 
-	/// Signature for a BEEFY authority using ECDSA as its crypto.
+	/// Signature for a Orderbook authority using BLS as its crypto.
 	pub type AuthoritySignature = Signature;
 }
 
@@ -67,9 +74,7 @@ pub type ValidatorSetId = u64;
 #[derive(Decode, Encode, Debug, PartialEq, Clone, TypeInfo)]
 pub struct ValidatorSet<AuthorityId> {
 	/// Public keys of the validator set elements
-	validators: Vec<AuthorityId>,
-	/// Identifier of the validator set
-	id: ValidatorSetId,
+	pub validators: Vec<AuthorityId>,
 }
 
 impl<AuthorityId> ValidatorSet<AuthorityId> {
@@ -83,7 +88,7 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 			// No validators; the set would be empty.
 			None
 		} else {
-			Some(Self { validators, id })
+			Some(Self { validators })
 		}
 	}
 
@@ -92,10 +97,10 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 		&self.validators
 	}
 
-	/// Return the validator set id.
-	pub fn id(&self) -> ValidatorSetId {
-		self.id
-	}
+	// /// Return the validator set id.
+	// pub fn id(&self) -> ValidatorSetId {
+	//     self.id
+	// }
 
 	/// Return the number of validators in the set.
 	pub fn len(&self) -> usize {
@@ -119,20 +124,43 @@ pub struct StidImportResponse {
 }
 
 #[derive(Clone, Encode, Decode, Default, Debug, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct SnapshotSummary {
+	pub snapshot_id: u64,
 	pub state_root: H256,
 	pub state_change_id: u64,
 	pub state_hash: H256,
 	pub bitflags: Vec<u128>,
-	pub aggregate_signature: Vec<u8>,
+	pub withdrawals: Vec<Withdrawal<AccountId>>,
+	pub aggregate_signature: Option<bls_primitives::Signature>,
 }
 
 impl SnapshotSummary {
-	pub fn verify(&self, public_keys: Vec<Vec<u8>>) -> bool {
-		// TODO: change the required data types and implement
-		// bls aggregate signature verification here
-		true
+	// Get set indexes
+	pub fn signed_auth_indexes(&self) -> Vec<u16> {
+		return_set_bits(&self.bitflags)
+	}
+
+	// Verifies the aggregate signature of the snapshot summary
+	pub fn verify(&self, public_keys: Vec<Public>) -> bool {
+		let msg = self.sign_data();
+		match self.aggregate_signature {
+			None => return false,
+			Some(sig) =>
+				bls_primitives::crypto::bls_ext::verify_aggregate(&public_keys, &msg, &sig),
+		}
+	}
+
+	// Returns the data used for signing the snapshot summary
+	pub fn sign_data(&self) -> Vec<u8> {
+		let data = (
+			self.snapshot_id,
+			self.state_root,
+			self.state_change_id,
+			self.state_hash,
+			self.withdrawals.clone(),
+		);
+
+		data.encode()
 	}
 }
 
@@ -141,8 +169,14 @@ sp_api::decl_runtime_apis! {
 	pub trait ObApi
 	{
 		/// Return the current active Orderbook validator set
-		fn validator_set() -> Option<ValidatorSet<crypto::AuthorityId>>;
+		fn validator_set() -> ValidatorSet<crypto::AuthorityId>;
 
 		fn get_latest_snapshot() -> SnapshotSummary;
+
+		/// Return the ingress messages at the given block
+		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
+
+		/// Submits the snapshot to runtime
+		fn submit_snapshot(summary: SnapshotSummary);
 	}
 }
