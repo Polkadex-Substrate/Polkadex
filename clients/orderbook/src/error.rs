@@ -46,6 +46,10 @@ pub enum Error {
 	MainAlreadyRegistered,
 	#[error("Proxy account already registered")]
 	ProxyAlreadyRegistered,
+	#[error("Full node tried to download snapshot from operator")]
+	Fullnode,
+	#[error("BLS signing failed")]
+	BLSSigningFailed,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
@@ -68,6 +72,12 @@ impl From<rust_decimal::Error> for Error {
 
 impl From<ApiError> for Error {
 	fn from(value: ApiError) -> Self {
+		Self::Backend(value.to_string())
+	}
+}
+
+impl From<reqwest::Error> for Error {
+	fn from(value: reqwest::Error) -> Self {
 		Self::Backend(value.to_string())
 	}
 }

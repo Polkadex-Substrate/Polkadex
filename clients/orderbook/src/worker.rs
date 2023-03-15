@@ -5,15 +5,11 @@ use std::{
 	sync::Arc,
 };
 
-use bls_primitives::Public;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
-use polkadex_primitives::{
-	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
-};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sc_client_api::{Backend, FinalityNotification};
@@ -33,13 +29,18 @@ use sp_runtime::{
 };
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
+use bls_primitives::{Public, Signature};
 use orderbook_primitives::{
+	crypto::AuthorityId,
 	types::{
 		AccountAsset, AccountInfo, GossipMessage, ObMessage, OrderState, Trade, UserActions,
 		WithdrawalRequest,
 	},
 	utils::set_bit_field,
 	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
+};
+use polkadex_primitives::{
+	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
 };
 
 use crate::{
@@ -267,15 +268,8 @@ where
 		todo!()
 	}
 
-	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
-		let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
-		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
+	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
 		let available_bls_keys: Vec<Public> = bls_primitives::crypto::bls_ext::all();
-		let active_set = self
-			.client
-			.runtime_api()
-			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
-			.validators;
 		// Get the first available key in the validator set.
 		let mut validator_key = None;
 		for key in available_bls_keys {
@@ -286,9 +280,22 @@ where
 		}
 		if validator_key.is_none() {
 			info!(target:"orderbook","📒 No validator key found for snapshotting. Skipping snapshot signing.");
-			return Ok(())
+			return Err(Error::Keystore(
+				"No validator key found for snapshotting. Skipping snapshot signing.".into(),
+			))
 		}
-		let signing_key = validator_key.unwrap();
+		Ok(validator_key.unwrap())
+	}
+
+	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
+		let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
+		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
+		let active_set = self
+			.client
+			.runtime_api()
+			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+			.validators;
+		let signing_key = self.get_validator_key(&active_set)?;
 		let signature =
 			match bls_primitives::crypto::bls_ext::sign(&signing_key, &summary.sign_data()) {
 				Some(sig) => sig,
@@ -338,9 +345,9 @@ where
 		// We need to sync only if we are need to update state
 		if self.last_snapshot.read().state_change_id < summary.state_change_id {
 			// Try to load it from our local DB if not download it from Orderbook operator
-			if let Err(_err) = self.load_snapshot(summary.state_change_id, summary.state_hash) {
+			if let Err(_err) = self.load_snapshot(&summary) {
 				info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
-				self.download_snapshot_from_operator(summary.state_change_id, summary.state_hash)?;
+				self.download_snapshot_from_operator(&summary).await?;
 			}
 			// X->Y sync: Ask peers to send the missed stid
 			if !self.known_messages.is_empty() {
@@ -378,23 +385,66 @@ where
 		self.network.write_notification(*peer, Cow::from(protocol.clone()), data);
 	}
 
-	pub fn download_snapshot_from_operator(
+	pub async fn download_snapshot_from_operator(
 		&mut self,
-		_stid: u64,
-		_expected_state_hash: H256,
+		summary: &SnapshotSummary,
 	) -> Result<(), Error> {
-		// TODO: 1. sign the stid with this validators key, the validator is expected to either in
-		// active set 	or the upcoming set.
-		// 2. include the signature in a GET request's header to https://snapshots.polkadex.trade
-		todo!();
+		let active_set = self
+			.client
+			.runtime_api()
+			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+			.validators;
+		match self.get_validator_key(&active_set) {
+			Err(_) => return Err(Error::Fullnode),
+			Ok(signing_key) => {
+				let signature: Signature = match bls_primitives::crypto::bls_ext::sign(
+					&signing_key,
+					&summary.state_change_id.encode(),
+				) {
+					Some(sig) => sig,
+					None => return Err(Error::BLSSigningFailed),
+				};
+				// Request for presigned url with signature and stid
+				let client = reqwest::Client::new();
+				let request = client
+					.get(format!("https://snapshots.polkadex.trade/{}", summary.state_change_id))
+					.header("Signature", hex::encode(signature.0))
+					.build()?;
+				info!(target:"orderbook","📒 Requesting presigned url for stid: {:?} from operator",summary.state_change_id);
+				let presigned_url = client.execute(request).await?.text().await?;
+				info!(target:"orderbook","📒 Downloading snapshot for stid: {:?} from operator",summary.state_change_id);
+				// Download data using the presigned url
+				let request = client.get(presigned_url).build()?;
 
-		// let computed_hash = sp_core::blake2_256(&data);
-		// if computed_hash != expected_state_hash {
-		// 	warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected:
-		// {:?}",computed_hash,expected_state_hash); 	return Err(Error::StateHashMisMatch)
-		// }
-		//
-		// *self.last_snapshot.write().state_change_id = stid;
+				let data = client.execute(request).await?.bytes().await?.to_vec();
+				info!(target:"orderbook","📒 Checking hash of downloaded snapshot for stid: {:?}",summary.state_change_id);
+				let computed_hash = H256::from(sp_core::blake2_256(&data));
+				if computed_hash != summary.state_hash {
+					warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected:
+                {:?}",computed_hash,summary.state_hash);
+					return Err(Error::StateHashMisMatch)
+				}
+				self.load_state_from_data(&data, summary)?;
+			},
+		}
+
+		Ok(())
+	}
+
+	pub fn load_state_from_data(
+		&mut self,
+		data: &Vec<u8>,
+		summary: &SnapshotSummary,
+	) -> Result<(), Error> {
+		match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(data) {
+			Ok(data) => {
+				self.memory_db.load_from(data);
+				let mut summary_clone = summary.clone();
+				*self.last_snapshot.write() = summary_clone;
+			},
+			Err(err) =>
+				return Err(Error::Backend(format!("Error decoding snapshot data: {:?}", err))),
+		}
 		Ok(())
 	}
 
@@ -456,32 +506,17 @@ where
 		return Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
 	}
 
-	pub fn load_snapshot(
-		&mut self,
-		snapshot_id: u64,
-		expected_state_hash: H256,
-	) -> Result<(), Error> {
+	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
 		if let Some(offchain_storage) = self.backend.offchain_storage() {
 			if let Some(data) =
-				offchain_storage.get(b"OrderbookSnapshotState", &snapshot_id.to_le_bytes())
+				offchain_storage.get(b"OrderbookSnapshotState", &summary.snapshot_id.to_le_bytes())
 			{
 				let computed_hash = H256::from(sp_core::blake2_256(&data));
-				if computed_hash != expected_state_hash {
-					warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,expected_state_hash);
+				if computed_hash != summary.state_hash {
+					warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,summary.state_hash);
 					return Err(Error::StateHashMisMatch)
 				}
-
-				match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(&data) {
-					Ok(data) => {
-						self.memory_db.load_from(data);
-						self.last_snapshot.write().state_change_id = snapshot_id;
-					},
-					Err(err) =>
-						return Err(Error::Backend(format!(
-							"Error decoding snapshot data: {:?}",
-							err
-						))),
-				}
+				self.load_state_from_data(&data, summary)?;
 			}
 		}
 		Ok(())
