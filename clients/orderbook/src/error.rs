@@ -14,10 +14,6 @@ pub enum Error {
 	Backend(String),
 	#[error("Keystore error: {0}")]
 	Keystore(String),
-	#[error("Signature error: {0}")]
-	Signature(String),
-	#[error("Session uninitialized")]
-	UninitSession,
 	#[error("State hash mismatch")]
 	StateHashMisMatch,
 	#[error("OrderStateCheckFailed")]

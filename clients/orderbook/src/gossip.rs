@@ -15,9 +15,6 @@ where
 	<<B::Header as Header>::Hashing as Hash>::hash(b"orderbook")
 }
 
-/// A type that represents hash of the message.
-pub type MessageHash = [u8; 8];
-
 /// Orderbook gossip validator
 ///
 /// Validate Orderbook gossip messages and limit the number of broadcast rounds.

@@ -1,13 +1,12 @@
 #[cfg(feature = "std")]
 use crate::{Error, Pair as BLSPair};
-use crate::{Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
+use crate::{Public, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
 #[cfg(feature = "std")]
 use blst::min_sig::*;
 #[cfg(feature = "std")]
 use blst::BLST_ERROR;
-#[cfg(feature = "std")]
-use sp_application_crypto::serde::Serialize;
-use sp_core::crypto::KeyTypeId;
+
+
 #[cfg(feature = "std")]
 use sp_core::crypto::{ExposeSecret, SecretUri};
 #[cfg(feature = "std")]
@@ -109,22 +108,20 @@ pub trait BlsExt {
 	}
 }
 
-#[cfg(feature = "std")]
-use bip39::{Language, Mnemonic};
-#[cfg(feature = "std")]
-use sp_core::DeriveJunction;
+
+
 #[cfg(feature = "std")]
 use std::fs::File;
 #[cfg(feature = "std")]
 use std::io::Write;
-#[cfg(feature = "std")]
-use std::os::unix::fs;
+
 #[cfg(feature = "std")]
 use std::path::PathBuf;
 #[cfg(feature = "std")]
 use std::str::FromStr;
 
 #[cfg(feature = "std")]
+#[allow(dead_code)]
 fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 	let path = key_file_path(pubkey.as_ref());
 	match std::fs::read(&path) {
@@ -137,6 +134,7 @@ fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 }
 
 #[cfg(feature = "std")]
+#[allow(dead_code)]
 fn get_all_public_keys() -> Result<Vec<Public>, Error> {
 	let mut public_keys = vec![];
 	for entry in std::fs::read_dir(&BLS_KEYSTORE_PATH)? {
@@ -162,6 +160,7 @@ fn get_all_public_keys() -> Result<Vec<Public>, Error> {
 
 /// Write the given `data` to `file`.
 #[cfg(feature = "std")]
+#[allow(dead_code)]
 fn write_to_file(file: PathBuf, data: &[u8]) -> Result<(), Error> {
 	let mut file = File::create(file)?;
 	use std::os::unix::fs::PermissionsExt;
@@ -175,6 +174,7 @@ fn write_to_file(file: PathBuf, data: &[u8]) -> Result<(), Error> {
 ///
 /// Returns `None` if the keystore only exists in-memory and there isn't any path to provide.
 #[cfg(feature = "std")]
+#[allow(dead_code)]
 fn key_file_path(public: &[u8]) -> PathBuf {
 	let mut buf = PathBuf::from(BLS_KEYSTORE_PATH);
 	let key = hex::encode(public);
@@ -184,6 +184,7 @@ fn key_file_path(public: &[u8]) -> PathBuf {
 
 /// Get the key phrase for a given public key and key type.
 #[cfg(feature = "std")]
+#[allow(dead_code)]
 fn key_phrase_by_type(public: &[u8]) -> Result<Option<String>, Error> {
 	let path = key_file_path(public);
 
