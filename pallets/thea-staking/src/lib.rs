@@ -425,7 +425,7 @@ pub mod pallet {
 		pub fn stakers_payout(origin: OriginFor<T>, session: SessionIndex) -> DispatchResult {
 			let staker = ensure_signed(origin)?;
 			Self::do_stakers_payout(staker.clone(), session)?;
-			Self::deposit_event(Event::<T>::StakerPayedOut { staker, session }.into());
+			Self::deposit_event(Event::<T>::StakerPayedOut { staker, session });
 			Ok(())
 		}
 	}
