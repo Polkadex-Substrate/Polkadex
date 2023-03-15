@@ -30,11 +30,11 @@ impl RuntimePublic for Public {
 	}
 
 	fn sign<M: AsRef<[u8]>>(&self, _: KeyTypeId, msg: &M) -> Option<Self::Signature> {
-		crypto::bls_ext::sign(self,msg.as_ref())
+		crypto::bls_ext::sign(self, msg.as_ref())
 	}
 
 	fn verify<M: AsRef<[u8]>>(&self, msg: &M, signature: &Self::Signature) -> bool {
-		crypto::bls_ext::verify(self,msg.as_ref(),signature)
+		crypto::bls_ext::verify(self, msg.as_ref(), signature)
 	}
 
 	fn to_raw_vec(&self) -> Vec<u8> {

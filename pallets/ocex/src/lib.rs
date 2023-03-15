@@ -74,6 +74,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use liquidity::LiquidityModifier;
+	use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -87,8 +88,6 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-	use orderbook_primitives::crypto::AuthorityId;
-	use orderbook_primitives::SnapshotSummary;
 
 	pub trait OcexWeightInfo {
 		fn register_main_account(_b: u32) -> Weight;
@@ -147,8 +146,11 @@ pub mod pallet {
 					.build()
 			};
 
-			let validate_snapshot = |snapshot_summary: &SnapshotSummary, sig: &T::Signature, rng: u64| -> TransactionValidity {
-			    // Verify Nonce/state_change_id
+			let validate_snapshot = |snapshot_summary: &SnapshotSummary,
+			                         sig: &T::Signature,
+			                         rng: u64|
+			 -> TransactionValidity {
+				// Verify Nonce/state_change_id
 				let last_snapshot_serial_number =
 					if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
 						last_snapshot_number
@@ -156,18 +158,15 @@ pub mod pallet {
 						0
 					};
 				if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
-					return InvalidTransaction::Custom(10).into();
+					return InvalidTransaction::Custom(10).into()
 				}
 				//TODO: Check if signer belongs to AuthoritySet or not and verify Signature
 				valid_tx(snapshot_summary.clone(), rng)
 			};
 			match call {
-				Call::send_snapshot_summary{snapshot_summary,
-					signature,
-					rng} => {
-					validate_snapshot(snapshot_summary, signature, *rng)
-				},
-				_ => InvalidTransaction::Call.into()
+				Call::send_snapshot_summary { snapshot_summary, signature, rng } =>
+					validate_snapshot(snapshot_summary, signature, *rng),
+				_ => InvalidTransaction::Call.into(),
 			}
 		}
 	}
@@ -1003,7 +1002,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			snapshot_summary: SnapshotSummary,
 			_signature: T::Signature,
-			_rng: u64
+			_rng: u64,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number =
@@ -1354,19 +1353,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_authorities)]
-	pub(super) type Authorities<T: Config> = StorageValue<
-		_,
-		BoundedVec<AuthorityId, OnChainEventsLimit>,
-		ValueQuery,
-	>;
+	pub(super) type Authorities<T: Config> =
+		StorageValue<_, BoundedVec<AuthorityId, OnChainEventsLimit>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_next_authorities)]
-	pub(super) type NextAuthorities<T: Config> = StorageValue<
-		_,
-		BoundedVec<AuthorityId, OnChainEventsLimit>,
-		ValueQuery,
-	>;
+	pub(super) type NextAuthorities<T: Config> =
+		StorageValue<_, BoundedVec<AuthorityId, OnChainEventsLimit>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -1417,7 +1410,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 	{
 		let authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
 		if let Ok(bounded_authorities) = BoundedVec::try_from(authorities) {
-		   <Authorities<T>>::put(bounded_authorities);
+			<Authorities<T>>::put(bounded_authorities);
 		};
 	}
 
@@ -1427,7 +1420,9 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 	{
 		let next_authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
 		let next_queued_authorities = queued_authorities.map(|(_, k)| k).collect::<Vec<_>>();
-		if let (Ok(next_bounded_authorities), Ok(next_bounded_queued_authorities)) = (BoundedVec::try_from(next_authorities), BoundedVec::try_from(next_queued_authorities)) {
+		if let (Ok(next_bounded_authorities), Ok(next_bounded_queued_authorities)) =
+			(BoundedVec::try_from(next_authorities), BoundedVec::try_from(next_queued_authorities))
+		{
 			if next_bounded_authorities != next_bounded_queued_authorities {
 				<NextAuthorities<T>>::put(next_bounded_queued_authorities);
 			}
@@ -1437,6 +1432,5 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		}
 	}
 
-	fn on_disabled(_i: u32) {
-	}
+	fn on_disabled(_i: u32) {}
 }
