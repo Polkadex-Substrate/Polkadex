@@ -1,4 +1,5 @@
 #![feature(drain_filter)]
+#![deny(unused_crate_dependencies)]
 // This file is part of Polkadex.
 
 // Copyright (C) 2020-2022 Polkadex oü.
