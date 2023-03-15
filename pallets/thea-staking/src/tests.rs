@@ -575,7 +575,7 @@ const OFFENCE: TheaMisbehavior = TheaMisbehavior::FaultyDataProvided;
 // Severe Offence
 const SEVERE_OFFENCE: TheaMisbehavior = TheaMisbehavior::UnattendedKeygen;
 
-fn misbehavior_setup_three_candidates() {
+fn misbehavior_setup_three_candidates_two_nominators() {
 	let mut active_networks = BTreeSet::new();
 	active_networks.insert(1_u8);
 	ActiveNetworks::<Test>::set(active_networks);
@@ -591,12 +591,17 @@ fn misbehavior_setup_three_candidates() {
 	TheaStaking::add_candidate(Origin::signed(2), 1, BLSPublicKey([2_u8; 192])).unwrap();
 	// C candidate
 	TheaStaking::add_candidate(Origin::signed(3), 1, BLSPublicKey([3_u8; 192])).unwrap();
+	for id in 10..=11 {
+		Balances::mint_into(&id, 10000 * id as u128 * PDEX).unwrap();
+		assert_ok!(TheaStaking::bond(Origin::signed(id), 10000 * id as u128 * PDEX));
+		assert_ok!(TheaStaking::nominate(Origin::signed(id), 3));
+	}
 }
 
 #[test]
 fn test_reporting_misbehavior_works() {
 	new_test_ext().execute_with(|| {
-		misbehavior_setup_three_candidates();
+		misbehavior_setup_three_candidates_two_nominators();
 		// We fail as those are not in active set yet
 		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).is_err());
 
@@ -611,7 +616,7 @@ fn test_reporting_misbehavior_works() {
 #[test]
 fn test_slashing_misbehavior_works() {
 	new_test_ext().execute_with(|| {
-		misbehavior_setup_three_candidates();
+		misbehavior_setup_three_candidates_two_nominators();
 		// We fail as those are not in active set yet
 		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).is_err());
 		// make sure treasury is empty
@@ -626,17 +631,25 @@ fn test_slashing_misbehavior_works() {
 		TheaStaking::report_offence(Origin::signed(2), 1, 3, OFFENCE).unwrap();
 		// Rotate for slashing to take place
 		TheaStaking::rotate_session();
+		// Make sure storage is cleaned up
+		assert!(TheaStaking::commited_slashing(3).1.is_empty());
 		// Check balance of slashed offender
 		let offender_balance = Balances::free_balance(3);
 		assert_eq!(offender_balance, 98950000000000);
 		// Reportes get rewarded ok
 		let one = Balances::free_balance(1);
 		let two = Balances::free_balance(2);
+		let nominator_ten = Balances::free_balance(10);
+		let nominator_eleven = Balances::free_balance(11);
 		let ta = TreasuryPalletId::get().into_account_truncating();
 		let treasury = Balances::free_balance(&ta);
 		// verify math works for severe offence
 		assert_eq!(one, 99000250000000);
 		assert_eq!(two, 99000250000000);
+		// nominators slashed
+		assert_eq!(nominator_ten, 99000250000000);
+		assert_eq!(nominator_eleven, 99000250000000);
+		// treasury in profit
 		assert_eq!(treasury, 49500000000);
 	});
 }
@@ -644,7 +657,7 @@ fn test_slashing_misbehavior_works() {
 #[test]
 fn test_slashing_severe_misbehavior_works() {
 	new_test_ext().execute_with(|| {
-		misbehavior_setup_three_candidates();
+		misbehavior_setup_three_candidates_two_nominators();
 		// We fail as those are not in active set yet
 		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).is_err());
 		// make sure treasury is empty
@@ -659,18 +672,44 @@ fn test_slashing_severe_misbehavior_works() {
 		TheaStaking::report_offence(Origin::signed(2), 1, 3, SEVERE_OFFENCE).unwrap();
 		// Rotate for slashing to take place
 		TheaStaking::rotate_session();
+		// Make sure storage is cleaned up
+		assert!(TheaStaking::commited_slashing(3).1.is_empty());
 		// Check balance of slashed offender
 		let offender_balance = Balances::free_balance(3);
 		assert_eq!(offender_balance, 98800000000000);
 		// Reportes get rewarded ok
 		let one = Balances::free_balance(1);
 		let two = Balances::free_balance(2);
+		let nominator_ten = Balances::free_balance(10);
+		let nominator_eleven = Balances::free_balance(11);
 		let ta = TreasuryPalletId::get().into_account_truncating();
 		let treasury = Balances::free_balance(&ta);
 		// verify math works for severe offence
 		assert_eq!(one, 99001000000000);
 		assert_eq!(two, 99001000000000);
+		// nominators slashed
+		assert_eq!(nominator_ten, 99000250000000);
+		assert_eq!(nominator_eleven, 99000250000000);
+		// treasury in profit
 		assert_eq!(treasury, 198000000000);
+	});
+}
+
+#[test]
+fn test_reports_under_threashold_no_slashing() {
+	new_test_ext().execute_with(|| {
+		misbehavior_setup_three_candidates_two_nominators();
+		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).is_err());
+		// make sure treasury is empty
+		let ta = TreasuryPalletId::get().into_account_truncating();
+		let treasury = Balances::free_balance(&ta);
+		assert_eq!(treasury, 0);
+		TheaStaking::rotate_session();
+		// make sure storage cleaned up
+		assert!(TheaStaking::reported_offenders(&1, SEVERE_OFFENCE).is_none());
+		TheaStaking::rotate_session();
+		// Now shold be ok
+		TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).unwrap();
 	});
 }
 
