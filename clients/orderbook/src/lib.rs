@@ -11,7 +11,7 @@ use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
-use std::{future::Future, marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
@@ -78,7 +78,7 @@ where
 	// empty
 }
 
-use crate::error::Error;
+
 use orderbook_primitives::types::ObMessage;
 use sc_network_gossip::Network as GossipNetwork;
 

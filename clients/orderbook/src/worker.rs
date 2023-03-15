@@ -16,13 +16,13 @@ use sc_client_api::{Backend, FinalityNotification};
 use sc_network::PeerId;
 use sc_network_common::{
 	protocol::event::Event,
-	service::{NetworkNotification, NotificationSender},
+	service::{NetworkNotification},
 };
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::{SaturatedConversion, Saturating};
 use sp_consensus::SyncOracle;
-use sp_core::{crypto::AccountId32, offchain::OffchainStorage, H256};
+use sp_core::{offchain::OffchainStorage, H256};
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header},
@@ -207,7 +207,7 @@ where
 		// Get main account
 		let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
 
-		let mut account_info = AccountInfo::decode(&mut &proxies[..])?;
+		let account_info = AccountInfo::decode(&mut &proxies[..])?;
 		// Check proxy registration
 		if !account_info.proxies.contains(&withdraw.proxy) {
 			return Err(Error::ProxyNotAssociatedWithMain)
@@ -236,7 +236,7 @@ where
 		let mut trie =
 			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
 				.build();
-
+		// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
 		for message in messages {
 			match message {
 				IngressMessages::RegisterUser(main, proxy) =>
@@ -262,9 +262,8 @@ where
 				_ => {},
 			}
 		}
-
-		// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
-		todo!()
+		trie.commit();
+		Ok(())
 	}
 
 	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
@@ -438,7 +437,7 @@ where
 		match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(data) {
 			Ok(data) => {
 				self.memory_db.load_from(data);
-				let mut summary_clone = summary.clone();
+				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 			},
 			Err(err) =>
