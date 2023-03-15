@@ -1519,6 +1519,12 @@ pub type Executive = frame_executive::Executive<
 >;
 
 impl_runtime_apis! {
+
+	impl orderbook_primitives::traits::OrderbookApi<Block> for Runtime{
+        fn submit_snapshot(snapshot: orderbook_primitives::SnapshotSummary) -> Result<(),orderbook_primitives::traits::SigningError> {
+			todo!();
+		}
+	}
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
 			VERSION

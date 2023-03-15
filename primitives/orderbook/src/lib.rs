@@ -3,6 +3,7 @@
 mod bls;
 #[cfg(feature = "std")]
 pub mod types;
+pub mod traits;
 
 use crate::crypto::AuthorityId;
 #[cfg(feature = "std")]

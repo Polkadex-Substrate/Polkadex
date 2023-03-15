@@ -23,6 +23,7 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::ensure_signed;
+use frame_system::offchain::SubmitTransaction;
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
 
 use pallet_timestamp::{self as timestamp};
@@ -39,6 +40,8 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
+use orderbook_primitives::SnapshotSummary;
+use orderbook_primitives::traits::SigningError;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -89,6 +92,7 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 	use orderbook_primitives::crypto::AuthorityId;
 	use orderbook_primitives::SnapshotSummary;
+	use frame_system::offchain::{CreateSignedTransaction};
 
 	pub trait OcexWeightInfo {
 		fn register_main_account(_b: u32) -> Weight;
@@ -147,7 +151,7 @@ pub mod pallet {
 					.build()
 			};
 
-			let validate_snapshot = |snapshot_summary: &SnapshotSummary, sig: &T::Signature, rng: u64| -> TransactionValidity {
+			let validate_snapshot = |snapshot_summary: &SnapshotSummary, sig: &<T as pallet::Config>::Signature, rng: u64| -> TransactionValidity {
 			    // Verify Nonce/state_change_id
 				let last_snapshot_serial_number =
 					if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
@@ -178,7 +182,7 @@ pub mod pallet {
 	///
 	/// `frame_system::Config` should always be included.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + timestamp::Config {
+	pub trait Config: frame_system::Config + timestamp::Config + CreateSignedTransaction<Call<Self>>{
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -208,7 +212,7 @@ pub mod pallet {
 			+ scale_info::TypeInfo;
 
 		/// A matching `Signature` type.
-		type Signature: Verify<Signer = Self::Public>
+		type Signature: Verify<Signer = <Self as pallet::Config>::Public>
 			+ Clone
 			+ PartialEq
 			+ Debug
@@ -1002,7 +1006,7 @@ pub mod pallet {
 		pub fn send_snapshot_summary(
 			origin: OriginFor<T>,
 			snapshot_summary: SnapshotSummary,
-			_signature: T::Signature,
+			_signature: <T as pallet::Config>::Signature,
 			_rng: u64
 		) -> DispatchResult {
 			ensure_none(origin)?;
@@ -1401,6 +1405,12 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
+	}
+
+	pub fn send_snapshot_api(snapshot_summary: SnapshotSummary, signature: <T as pallet::Config>::Signature, rng: u64) -> Result<(), SigningError> {
+		let call = Call::send_snapshot_summary {snapshot_summary, signature, rng};
+		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+			.map_err(|_| SigningError::OffchainUnsignedTxError)
 	}
 }
 
