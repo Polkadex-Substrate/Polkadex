@@ -6,6 +6,7 @@ use hash_db::MaybeDebug;
 use orderbook_primitives::types::AccountAsset;
 use sp_api::ApiError;
 use std::fmt::Debug;
+use tokio::task::JoinError;
 use trie_db::TrieError;
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -74,6 +75,12 @@ impl From<ApiError> for Error {
 
 impl From<reqwest::Error> for Error {
 	fn from(value: reqwest::Error) -> Self {
+		Self::Backend(value.to_string())
+	}
+}
+
+impl From<JoinError> for Error {
+	fn from(value: JoinError) -> Self {
 		Self::Backend(value.to_string())
 	}
 }

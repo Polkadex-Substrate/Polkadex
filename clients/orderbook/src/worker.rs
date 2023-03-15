@@ -9,18 +9,15 @@ use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
 use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sc_client_api::{Backend, FinalityNotification};
 use sc_network::PeerId;
-use sc_network_common::{
-	protocol::event::Event,
-	service::{NetworkNotification},
-};
+use sc_network_common::{protocol::event::Event, service::NetworkNotification};
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
-use sp_arithmetic::traits::{SaturatedConversion};
+use sp_arithmetic::traits::SaturatedConversion;
 use sp_consensus::SyncOracle;
 use sp_core::{offchain::OffchainStorage, H256};
 use sp_runtime::{
@@ -97,6 +94,10 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	// Last finalized block
 	last_finalized_block: BlockNumber,
 }
+
+// TODO: Check if implementing Send and Sync are safe.
+unsafe impl<B: Block, BE, C, SO, N> Send for ObWorker<B, BE, C, SO, N> {}
+unsafe impl<B: Block, BE, C, SO, N> Sync for ObWorker<B, BE, C, SO, N> {}
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
 where
@@ -574,7 +575,7 @@ where
 		Ok(())
 	}
 
-	async fn handle_finality_notification(
+	pub(crate) async fn handle_finality_notification(
 		&mut self,
 		notification: &FinalityNotification<B>,
 	) -> Result<(), Error> {
@@ -587,7 +588,7 @@ where
 	}
 
 	/// Wait for Orderbook runtime pallet to be available.
-	async fn wait_for_runtime_pallet(&mut self) {
+	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		while let Some(notif) = finality_stream.next().await {
 			let at = BlockId::hash(notif.header.hash());

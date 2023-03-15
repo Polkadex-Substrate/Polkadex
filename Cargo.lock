@@ -4649,6 +4649,7 @@ dependencies = [
  "sp-std",
  "substrate-prometheus-endpoint",
  "thiserror",
+ "tokio",
  "trie-db 0.26.0",
  "trie-root 0.17.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
 ]
