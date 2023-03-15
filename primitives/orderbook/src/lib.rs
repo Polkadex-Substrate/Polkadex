@@ -177,6 +177,6 @@ sp_api::decl_runtime_apis! {
 		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
 
 		/// Submits the snapshot to runtime
-		fn submit_snapshot(summary: SnapshotSummary);
+		fn submit_snapshot(summary: SnapshotSummary) -> Result<(), ()>;
 	}
 }

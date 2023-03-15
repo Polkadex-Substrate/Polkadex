@@ -23,7 +23,7 @@ reference-trie ={ git = "https://github.com/Polkadex-Substrate/trie.git", branch
 
 orderbook-primitives = { path = "../../primitives/orderbook" }
 bls-primitives = { path = "../../primitives/bls-primitives" }
-polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.11", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git"}
+polkadex-primitives = { path = "../../primitives/polkadex" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
