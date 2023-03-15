@@ -12,6 +12,7 @@ use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
 use std::{marker::PhantomData, sync::Arc};
+use std::future::Future;
 
 mod error;
 mod gossip;
@@ -80,6 +81,7 @@ where
 
 use orderbook_primitives::types::ObMessage;
 use sc_network_gossip::Network as GossipNetwork;
+use crate::error::Error;
 
 /// Orderbook gadget initialization parameters.
 pub struct ObParams<B, BE, C, N>
@@ -165,4 +167,5 @@ where
 	let worker = worker::ObWorker::<_, _, _, _, _>::new(worker_params);
 
 	worker.run().await
+
 }
