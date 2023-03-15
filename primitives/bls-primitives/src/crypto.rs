@@ -6,7 +6,6 @@ use blst::min_sig::*;
 #[cfg(feature = "std")]
 use blst::BLST_ERROR;
 
-
 #[cfg(feature = "std")]
 use sp_core::crypto::{ExposeSecret, SecretUri};
 #[cfg(feature = "std")]
@@ -107,8 +106,6 @@ pub trait BlsExt {
 		return if err == BLST_ERROR::BLST_SUCCESS { true } else { false }
 	}
 }
-
-
 
 #[cfg(feature = "std")]
 use std::fs::File;

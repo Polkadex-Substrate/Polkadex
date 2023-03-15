@@ -3,6 +3,7 @@ use std::{
 	collections::{BTreeMap, HashMap},
 	marker::PhantomData,
 	sync::Arc,
+	time::Duration,
 };
 
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
@@ -49,6 +50,8 @@ use crate::{
 
 pub const STID_IMPORT_REQUEST: &str = "stid_request";
 pub const STID_IMPORT_RESPONSE: &str = "stid_response";
+pub const ORDERBOOK_STATE_SYNC_REQUEST: &str = "orderbook_state_sync_request";
+pub const ORDERBOOK_STATE_SYNC_RESPONSE: &str = "orderbook_state_sync_response";
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
 	pub client: Arc<C>,
@@ -57,6 +60,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
 	// pub key_store: BeefyKeystore,
 	// pub links: BeefyVoterLinks<B>,
 	pub metrics: Option<Metrics>,
+	pub is_validator: bool,
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	/// Gossip network
 	pub network: N,
@@ -71,6 +75,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	client: Arc<C>,
 	backend: Arc<BE>,
 	sync_oracle: SO,
+	is_validator: bool,
 	network: Arc<N>,
 	// key_store: BeefyKeystore,
 	gossip_engine: GossipEngine<B>,
@@ -93,10 +98,12 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 	// Last finalized block
 	last_finalized_block: BlockNumber,
+	state_is_syncing: bool,
 }
 
 // TODO: Check if implementing Send and Sync are safe.
 unsafe impl<B: Block, BE, C, SO, N> Send for ObWorker<B, BE, C, SO, N> {}
+
 unsafe impl<B: Block, BE, C, SO, N> Sync for ObWorker<B, BE, C, SO, N> {}
 
 impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
@@ -122,6 +129,7 @@ where
 			sync_oracle,
 			// links,
 			metrics,
+			is_validator,
 			message_sender_link,
 			network,
 			protocol_name,
@@ -139,12 +147,14 @@ where
 			backend,
 			sync_oracle,
 			// key_store,
+			is_validator,
 			network,
 			gossip_engine,
 			gossip_validator,
 			memory_db: MemoryDB::default(),
 			// links,
 			message_sender_link,
+			state_is_syncing: false,
 			metrics,
 			last_snapshot,
 			_marker: Default::default(),
@@ -289,6 +299,10 @@ where
 	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
 		let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
 		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
+		if !self.is_validator {
+			// We are done if we are not a validator
+			return Ok(())
+		}
 		let active_set = self
 			.client
 			.runtime_api()
@@ -346,7 +360,13 @@ where
 			// Try to load it from our local DB if not download it from Orderbook operator
 			if let Err(_err) = self.load_snapshot(&summary) {
 				info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
-				self.download_snapshot_from_operator(&summary).await?;
+				if self.is_validator {
+					// Only validators can download from operator
+					self.download_snapshot_from_operator(&summary).await?;
+				} else {
+					// We can't do anything about full nodes here,
+					// it is expected to be synced on start
+				}
 			}
 			// X->Y sync: Ask peers to send the missed stid
 			if !self.known_messages.is_empty() {
@@ -361,7 +381,8 @@ where
 						to: *known_stids[0],
 					};
 					let data = import_request.encode();
-					for peer in &self.gossip_validator.peers {
+					let peers = self.gossip_validator.peers.read().clone();
+					for peer in &peers {
 						self.send_request_to_peer(
 							peer,
 							STID_IMPORT_REQUEST.to_string(),
@@ -432,7 +453,7 @@ where
 
 	pub fn load_state_from_data(
 		&mut self,
-		data: &Vec<u8>,
+		data: &[u8],
 		summary: &SnapshotSummary,
 	) -> Result<(), Error> {
 		match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(data) {
@@ -450,7 +471,7 @@ where
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		// Cache the message
 		self.known_messages.insert(action.stid, action.clone());
-		if self.sync_oracle.is_major_syncing() {
+		if self.sync_oracle.is_major_syncing() | self.state_is_syncing {
 			info!(target: "orderbook", "📒 Ob message cached for sync to complete: stid: {:?}",action.stid);
 			return Ok(())
 		}
@@ -521,6 +542,47 @@ where
 		Ok(())
 	}
 
+	pub async fn response_to_state_sync_request(
+		&self,
+		remote: &PeerId,
+		request: &[u8],
+	) -> Result<(), Error> {
+		if self.is_validator {
+			// Only full nodes respond to state sync request
+			return Ok(())
+		}
+		if let Ok(summary) = SnapshotSummary::decode(&mut &request[..]) {
+			if let Some(offchain_storage) = self.backend.offchain_storage() {
+				if let Some(data) = offchain_storage
+					.get(b"OrderbookSnapshotState", &summary.snapshot_id.to_le_bytes())
+				{
+					self.network.write_notification(*remote, Cow::from(STID_IMPORT_RESPONSE), data);
+				}
+			}
+		}
+		Ok(())
+	}
+
+	pub async fn response_to_state_sync_response(
+		&mut self,
+		remote: &PeerId,
+		data: &[u8],
+	) -> Result<(), Error> {
+		if self.is_validator {
+			// Only full nodes recieve state sync response
+			return Ok(())
+		}
+		let latest_summary = self.last_snapshot.read().clone();
+		if H256::from(sp_core::blake2_256(data)) != latest_summary.state_hash {
+			error!(target:"orderbook","Received invalid state data for stid: {:?} from remote:{:?}",latest_summary.state_change_id,remote);
+			return Ok(()) // TODO: Is it okay or error in this case???
+		}
+
+		self.load_state_from_data(data, &latest_summary)?;
+		self.state_is_syncing = false;
+		Ok(())
+	}
+
 	pub async fn handle_network_event(&mut self, event: &Event) -> Result<(), Error> {
 		match event {
 			Event::NotificationsReceived { remote, messages } => {
@@ -564,6 +626,10 @@ where
 								error!(target:"orderbook","stid import request cannot be decoded: {:?}",err)
 							},
 						}
+					} else if protocol == ORDERBOOK_STATE_SYNC_REQUEST {
+						self.response_to_state_sync_request(remote, data.as_ref()).await?;
+					} else if protocol == ORDERBOOK_STATE_SYNC_RESPONSE {
+						self.response_to_state_sync_response(remote, data.as_ref()).await?;
 					} else {
 						warn!(target:"orderbook","Ignoring network event for protocol: {:?}",protocol)
 					}
@@ -582,8 +648,13 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
-		// TODO: Detect if our snapshot was accepted if not then change our state
-		// to the accepted snapshot
+
+		let latest_summary = self
+			.client
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::Number(self.last_finalized_block.saturated_into()))?;
+		// Update the latest snapshot summary.
+		*self.last_snapshot.write() = latest_summary;
 		Ok(())
 	}
 
@@ -607,6 +678,41 @@ where
 	pub(crate) async fn run(mut self) {
 		info!(target: "orderbook", "📒 Orderbook worker started");
 		self.wait_for_runtime_pallet().await;
+
+		// Wait for blockchain sync to complete
+		while self.sync_oracle.is_major_syncing() {
+			info!(target: "orderbook", "📒 orderbook is not started waiting for blockhchain to sync completely");
+			tokio::time::sleep(Duration::from_secs(12)).await;
+		}
+
+		// Get the latest summary from the runtime
+		let latest_summary = match self
+			.client
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::Number(self.client.info().finalized_number))
+		{
+			Ok(summary) => summary,
+			Err(err) => {
+				error!(target:"orderbook","📒 Cannot get latest snapshot: {:?}",err);
+				return
+			},
+		};
+		info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.state_change_id);
+		// Try to load the snapshot from the database
+		if let Err(err) = self.load_snapshot(&latest_summary) {
+			warn!(target:"orderbook","📒 Cannot load snapshot from database: {:?}",err);
+			info!(target:"orderbook","📒 Trying to sync snapshot from other peers");
+			let fullnodes = self.gossip_validator.fullnodes.read().clone();
+			for peer in fullnodes {
+				self.network.write_notification(
+					peer,
+					Cow::from(ORDERBOOK_STATE_SYNC_REQUEST),
+					latest_summary.encode(),
+				);
+			}
+			self.state_is_syncing = true;
+		}
+		info!(target:"orderbook","📒 Starting event streams...");
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
 				.messages_for(topic::<B>())

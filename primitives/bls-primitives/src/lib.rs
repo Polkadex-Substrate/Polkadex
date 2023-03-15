@@ -9,21 +9,16 @@ mod tests;
 #[cfg(feature = "std")]
 use bip39::{Language, Mnemonic, MnemonicType};
 #[cfg(feature = "std")]
-use blst::min_sig::{
-	PublicKey, SecretKey, Signature as BLSSignature,
-};
+use blst::min_sig::{PublicKey, SecretKey, Signature as BLSSignature};
 #[cfg(feature = "std")]
 use blst::BLST_ERROR;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_core::crypto::{
-	ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive,
-};
+use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive};
 
 #[cfg(feature = "std")]
 use sp_core::{crypto::SecretStringError, DeriveJunction};
 use sp_runtime_interface::pass_by::PassByInner;
-
 
 /// An identifier used to match public keys against bls keys
 pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");

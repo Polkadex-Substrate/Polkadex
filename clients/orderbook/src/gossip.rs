@@ -5,7 +5,7 @@ use sc_network::PeerId;
 use sc_network_common::protocol::event::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
-use std::sync::Arc;
+use std::{collections::BTreeSet, sync::Arc};
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -29,7 +29,8 @@ where
 {
 	topic: B::Hash,
 	last_snapshot: Arc<RwLock<SnapshotSummary>>,
-	pub(crate) peers: Vec<PeerId>,
+	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
+	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 }
 
 impl<B> GossipValidator<B>
@@ -37,7 +38,12 @@ where
 	B: Block,
 {
 	pub fn new(last_snapshot: Arc<RwLock<SnapshotSummary>>) -> GossipValidator<B> {
-		GossipValidator { topic: topic::<B>(), last_snapshot, peers: vec![] }
+		GossipValidator {
+			topic: topic::<B>(),
+			last_snapshot,
+			peers: Arc::new(RwLock::new(BTreeSet::new())),
+			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
+		}
 	}
 
 	pub fn validate_message(&self, message: &ObMessage) -> bool {
@@ -55,11 +61,20 @@ impl<B> Validator<B> for GossipValidator<B>
 where
 	B: Block,
 {
-	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, _who: &PeerId, _role: ObservedRole) {
-		todo!()
+	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
+		match role {
+			ObservedRole::Authority => {
+				self.peers.write().insert(who.clone());
+			},
+			ObservedRole::Full => {
+				self.fullnodes.write().insert(who.clone());
+			},
+			_ => {},
+		};
 	}
-	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, _who: &PeerId) {
-		todo!()
+	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
+		self.peers.write().remove(who);
+		self.fullnodes.write().remove(who);
 	}
 	fn validate(
 		&self,

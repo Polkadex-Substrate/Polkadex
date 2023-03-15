@@ -132,7 +132,7 @@ where
 		network,
 		prometheus_registry,
 		protocol_name,
-		is_validator: _,
+		is_validator,
 		message_sender_link,
 		marker: _,
 	} = ob_params;
@@ -157,7 +157,7 @@ where
 		client,
 		backend,
 		sync_oracle,
-		// key_store: key_store.into(),
+		is_validator,
 		network,
 		protocol_name,
 		message_sender_link,
