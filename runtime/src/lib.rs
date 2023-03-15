@@ -1521,8 +1521,8 @@ pub type Executive = frame_executive::Executive<
 impl_runtime_apis! {
 
 	impl orderbook_primitives::traits::OrderbookApi<Block> for Runtime{
-        fn submit_snapshot(snapshot: orderbook_primitives::SnapshotSummary) -> Result<(),orderbook_primitives::traits::SigningError> {
-			todo!();
+        fn submit_snapshot(snapshot_summary: orderbook_primitives::SnapshotSummary, signature: Signature, rng: u64) -> Result<(),orderbook_primitives::traits::SigningError> {
+			OCEX::send_snapshot_api(snapshot_summary, signature, rng)
 		}
 	}
 	impl sp_api::Core<Block> for Runtime {

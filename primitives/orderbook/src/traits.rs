@@ -1,10 +1,11 @@
 use crate::SnapshotSummary;
 use parity_scale_codec::{Encode, Decode};
 use scale_info::TypeInfo;
+use polkadex_primitives::Signature;
 
 sp_api::decl_runtime_apis! {
     pub trait OrderbookApi {
-        fn submit_snapshot(snapshot: SnapshotSummary) -> Result<(),SigningError>;
+        fn submit_snapshot(snapshot: SnapshotSummary, signature: Signature, rng: u64) -> Result<(),SigningError>;
     }
 }
 
