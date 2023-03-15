@@ -2665,7 +2665,7 @@ dependencies = [
 [[package]]
 name = "ias-verify"
 version = "0.1.5"
-source = "git+https://github.com/Polkadex-Substrate/pallets?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
+source = "git+https://github.com/Polkadex-Substrate/pallets.git?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
 dependencies = [
  "base64 0.13.1",
  "chrono",
@@ -5086,7 +5086,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "ias-verify",
  "liquidity",
  "log",
  "orderbook-primitives",
@@ -9134,7 +9133,7 @@ checksum = "8ae9980cab1db3fceee2f6c6f643d5d8de2997c58ee8d25fb0cc8a9e9e7348e5"
 [[package]]
 name = "teerex-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/pallets?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
+source = "git+https://github.com/Polkadex-Substrate/pallets.git?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
 dependencies = [
  "ias-verify",
  "parity-scale-codec",
@@ -9176,7 +9175,7 @@ checksum = "95059e91184749cb66be6dc994f67f182b6d897cb3df74a5bf66b5e709295fd8"
 [[package]]
 name = "test-utils"
 version = "0.1.0"
-source = "git+https://github.com/Polkadex-Substrate/pallets?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
+source = "git+https://github.com/Polkadex-Substrate/pallets.git?branch=polkadot-v0.9.28#5f8efeb049a2fb72c70ea52717d7ca02b8de7740"
 dependencies = [
  "hex-literal",
  "log",
