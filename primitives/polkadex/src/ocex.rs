@@ -49,13 +49,13 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 	}
 }
 
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct OCEXConfig<AccountId> {
 	pub enclave_id: AccountId,
 }
 
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TradingPairConfig {
 	pub base_asset: AssetId,
