@@ -2,6 +2,7 @@ use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
+use crate::constants::*;
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -337,7 +338,7 @@ impl Display for TradingPair {
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Order {
-	pub event_id: H256,
+	pub stid: u64,
 	pub client_order_id: H256,
 	pub avg_filled_price: Decimal,
 	pub fee: Decimal,
@@ -472,11 +473,12 @@ impl Order {
 		}
 	}
 	// TODO: how to gate this only for testing
+	#[cfg(feature = "std")]
 	pub fn random_order_for_testing(pair: TradingPair, side: OrderSide, order_type: OrderType) -> Self {
 		use rand::Rng;
 		let mut rng = rand::thread_rng();
 		Self {
-			event_id: 0,
+			stid: Default::default(),
 			client_order_id: H256([1u8; 32]),
 			avg_filled_price: Decimal::zero(),
 			fee: Decimal::zero(),

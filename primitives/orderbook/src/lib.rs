@@ -22,6 +22,7 @@ mod bls;
 #[cfg(feature = "std")]
 pub mod types;
 pub mod utils;
+pub mod constants;
 
 /// Key type for BEEFY module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
