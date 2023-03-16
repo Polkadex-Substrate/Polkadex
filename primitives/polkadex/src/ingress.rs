@@ -44,7 +44,7 @@ pub enum IngressMessages<AccountId> {
 	DirectWithdrawal(AccountId, AssetId, Decimal, bool),
 }
 
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HandleBalance<AccountId> {
 	pub main_account: AccountId,
@@ -53,7 +53,7 @@ pub struct HandleBalance<AccountId> {
 	pub reserve: u128,
 }
 
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HandleBalanceLimit;
 
