@@ -165,51 +165,6 @@ where
 		}
 	}
 
-	pub fn process_trade(&mut self, trade: Trade) -> Result<(), Error> {
-		let Trade { maker, taker, price, amount } = trade.clone();
-		let mut trie =
-			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
-				.build();
-		// Check order states
-		let maker_order_state = match trie.get(maker.id.as_ref())? {
-			None => OrderState::from(&maker),
-			Some(data) => {
-				let mut state = OrderState::decode(&mut &data[..])?;
-				if !state.update(&maker, price, amount) {
-					return Err(Error::OrderStateCheckFailed)
-				}
-				state
-			},
-		};
-
-		let taker_order_state = match trie.get(taker.id.as_ref())? {
-			None => OrderState::from(&taker),
-			Some(data) => {
-				let mut state = OrderState::decode(&mut &data[..])?;
-				if !state.update(&taker, price, amount) {
-					return Err(Error::OrderStateCheckFailed)
-				}
-				state
-			},
-		};
-
-		trie.insert(maker.id.as_ref(), &maker_order_state.encode())?;
-		trie.insert(taker.id.as_ref(), &taker_order_state.encode())?;
-
-		// Update balances
-		let (maker_asset, maker_credit) = trade.credit(true);
-		add_balance(&mut trie, maker_asset, maker_credit)?;
-		let (maker_asset, maker_debit) = trade.debit(true);
-		sub_balance(&mut trie, maker_asset, maker_debit)?;
-		let (taker_asset, taker_credit) = trade.credit(false);
-		add_balance(&mut trie, taker_asset, taker_credit)?;
-		let (taker_asset, taker_debit) = trade.debit(false);
-		sub_balance(&mut trie, taker_asset, taker_debit)?;
-		// Commit the state changes in trie
-		trie.commit();
-		Ok(())
-	}
-
 	pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
 		let mut trie =
 			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
@@ -336,7 +291,16 @@ where
 
 	pub fn handle_action(&mut self, action: ObMessage) -> Result<(), Error> {
 		match action.action {
-			UserActions::Trade(trade) => self.process_trade(trade)?,
+			UserActions::Trade(trades) => {
+				let mut trie =
+					TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
+						.build();
+				for trade in trades {
+					process_trade(&mut trie, trade)?
+				}
+				// Commit the state changes in trie
+				trie.commit();
+			},
 			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 			UserActions::Snapshot => self.snapshot(action.stid)?,
@@ -855,5 +819,47 @@ pub fn deposit(
 			trie.insert(&account_asset.encode(), &amount.encode())?;
 		},
 	}
+	Ok(())
+}
+
+
+pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Result<(), Error> {
+	let Trade { maker, taker, price, amount } = trade.clone();
+
+	// Check order states
+	let maker_order_state = match trie.get(maker.id.as_ref())? {
+		None => OrderState::from(&maker),
+		Some(data) => {
+			let mut state = OrderState::decode(&mut &data[..])?;
+			if !state.update(&maker, price, amount) {
+				return Err(Error::OrderStateCheckFailed)
+			}
+			state
+		},
+	};
+
+	let taker_order_state = match trie.get(taker.id.as_ref())? {
+		None => OrderState::from(&taker),
+		Some(data) => {
+			let mut state = OrderState::decode(&mut &data[..])?;
+			if !state.update(&taker, price, amount) {
+				return Err(Error::OrderStateCheckFailed)
+			}
+			state
+		},
+	};
+
+	trie.insert(maker.id.as_ref(), &maker_order_state.encode())?;
+	trie.insert(taker.id.as_ref(), &taker_order_state.encode())?;
+
+	// Update balances
+	let (maker_asset, maker_credit) = trade.credit(true);
+	add_balance(trie, maker_asset, maker_credit)?;
+	let (maker_asset, maker_debit) = trade.debit(true);
+	sub_balance(trie, maker_asset, maker_debit)?;
+	let (taker_asset, taker_credit) = trade.credit(false);
+	add_balance(trie, taker_asset, taker_credit)?;
+	let (taker_asset, taker_debit) = trade.debit(false);
+	sub_balance(trie, taker_asset, taker_debit)?;
 	Ok(())
 }
