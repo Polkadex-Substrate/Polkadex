@@ -44,7 +44,7 @@ pub struct AccountAsset {
 	pub asset: AssetId,
 }
 
-#[derive(Clone, Debug, Encode, Decode)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Trade {
 	pub maker: Order,
