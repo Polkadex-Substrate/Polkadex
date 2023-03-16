@@ -19,6 +19,7 @@ use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair,
 #[cfg(feature = "std")]
 use sp_core::{crypto::SecretStringError, DeriveJunction};
 use sp_runtime_interface::pass_by::PassByInner;
+use substrate_bip39::seed_from_entropy;
 
 /// An identifier used to match public keys against bls keys
 pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");
@@ -207,21 +208,21 @@ impl sp_core::crypto::Pair for Pair {
 	}
 
 	fn from_phrase(
-		mut phrase: &str,
-		_password: Option<&str>,
+		phrase: &str,
+		password: Option<&str>,
 	) -> Result<(Pair, Seed), SecretStringError> {
-		if phrase == DEV_PHRASE {
-			phrase = BLS_DEV_PHRASE
-		}
-		Ok(Mnemonic::from_phrase(phrase, Language::English)
-			.map_err(|_| SecretStringError::InvalidPhrase)
-			.map(|m| {
-				let seed = m.entropy();
-				assert!(seed.len() >= 32);
-				let secret = SecretKey::key_gen(&seed, &[]).unwrap();
-				let pair = Pair { public: secret.sk_to_pk().to_bytes().into(), secret };
-				(pair, seed.try_into().expect("BLS Seed is expected to be 32 bytes"))
-			})?)
+		let big_seed = seed_from_entropy(
+			Mnemonic::from_phrase(phrase, Language::English)
+				.map_err(|_| SecretStringError::InvalidPhrase)?
+				.entropy(),
+			password.unwrap_or(""),
+		)
+			.map_err(|_| SecretStringError::InvalidSeed)?;
+		let mut seed = Seed::default();
+		seed.copy_from_slice(&big_seed[0..32]);
+		let secret = SecretKey::key_gen(&seed, &[]).unwrap();
+		let pair = Pair { public: secret.sk_to_pk().to_bytes().into(), secret };
+		Ok((pair, seed))
 	}
 
 	#[cfg(feature = "std")]
