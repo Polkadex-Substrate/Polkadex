@@ -226,8 +226,8 @@ Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq
 )]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
-	base: AssetId,
-	quote: AssetId,
+	pub base: AssetId,
+	pub quote: AssetId,
 }
 
 #[cfg(feature = "std")]
