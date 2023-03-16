@@ -231,6 +231,16 @@ pub struct TradingPair {
 }
 
 #[cfg(feature = "std")]
+impl Display for OrderSide {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			OrderSide::Ask => write!(f, "Ask"),
+			OrderSide::Bid => write!(f, "Bid"),
+		}
+	}
+}
+
+#[cfg(feature = "std")]
 impl Display for TradingPair {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{:}-{:}", self.base, self.quote)
