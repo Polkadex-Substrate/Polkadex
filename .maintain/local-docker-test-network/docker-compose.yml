@@ -27,7 +27,6 @@
 
 version: "3.7"
 services:
-
   validator-a:
     ports:
       - "9944:9944"
