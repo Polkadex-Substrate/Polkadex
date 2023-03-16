@@ -11,7 +11,7 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use sp_core::H256;
 
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum IngressMessages<AccountId> {
 	// Start Enclave
