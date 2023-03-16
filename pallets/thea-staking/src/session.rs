@@ -42,7 +42,7 @@ impl<T: Config, AccountId: Encode + TypeInfo> IndividualExposure<T, AccountId> {
 			.unlocking
 			.drain_filter(|chunk| chunk.era <= current_session)
 			.collect::<Vec<UnlockChunk<T>>>();
-		let mut amount_available_to_withdraw: BalanceOf<T> = Default::default();
+		let mut amount_available_to_withdraw: BalanceOf<T> = Zero::zero();
 
 		for chunk in available_chunks {
 			amount_available_to_withdraw = amount_available_to_withdraw.saturating_add(chunk.value)
