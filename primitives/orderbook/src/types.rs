@@ -471,6 +471,30 @@ impl Order {
 			rounding_off(self.qty.saturating_sub(self.filled_quantity).saturating_mul(self.price))
 		}
 	}
+	// TODO: how to gate this only for testing
+	pub fn random_order_for_testing(pair: TradingPair, side: OrderSide, order_type: OrderType) -> Self {
+		use rand::Rng;
+		let mut rng = rand::thread_rng();
+		Self {
+			event_id: 0,
+			client_order_id: H256([1u8; 32]),
+			avg_filled_price: Decimal::zero(),
+			fee: Decimal::zero(),
+			filled_quantity: Decimal::zero(),
+			status: OrderStatus::OPEN,
+			id: H256([2u8; 32]),
+			user: AccountId::new(rng.gen()),
+			main_account: AccountId::new([0u8; 32]),
+			pair,
+			side,
+			order_type,
+			qty: Decimal::from(rng.gen_range(MIN_QTY..MAX_QTY)),
+			price: Decimal::from(rng.gen_range(MIN_PRICE..MAX_PRICE)),
+			quote_order_qty: Decimal::zero(),
+			timestamp: 1,
+			overall_unreserved_volume: Decimal::zero(),
+		}
+	}
 }
 
 pub fn rounding_off(a: Decimal) -> Decimal {
