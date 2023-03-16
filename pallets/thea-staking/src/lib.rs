@@ -767,8 +767,8 @@ pub mod pallet {
 		}
 
 		/// Slash the specified offender account by the amount provided. The amount will be
-		/// slashed from free balance, if sufficient amount is not there in free balance slash
-		/// reserve balance # Arguments
+		/// slashed from reserve balance.
+		/// # Arguments
 		///
 		/// * `offender` - The account to be slashed.
 		/// * `amount` - The amount to be slashed from the account.
@@ -778,45 +778,18 @@ pub mod pallet {
 		///
 		/// * `BalanceOf<T>` - The total amount that has been slashed from the `offender` account.
 		pub fn do_slash(offender: T::AccountId, amount: BalanceOf<T>) -> BalanceOf<T> {
-			let mut total_slashed = BalanceOf::<T>::zero();
-			let offender_free_balance: BalanceOf<T> =
-				<pallet_balances::Pallet<T> as Currency<_>>::free_balance(&offender);
-			#[allow(unused_assignments)]
-			let mut slash_offender_free_balance = BalanceOf::<T>::zero();
-
-			//slash from free balance
-			if offender_free_balance > amount {
-				slash_offender_free_balance = amount;
-			} else {
-				slash_offender_free_balance = offender_free_balance;
-			}
-
-			if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
+			if let Ok(unable_to_slash) = pallet_balances::Pallet::<T>::repatriate_reserved_named(
+				&T::StakingReserveIdentifier::get(),
 				&offender,
 				&T::TreasuryPalletId::get().into_account_truncating(),
-				slash_offender_free_balance,
-				ExistenceRequirement::KeepAlive,
-			)
-			.is_ok()
-			{
-				total_slashed = total_slashed.saturating_add(slash_offender_free_balance);
-			};
-
-			//slash from reserve balance
-			if total_slashed < amount {
-				let reserve_amount_to_slash = amount.saturating_sub(total_slashed);
-				if let Ok(unable_to_slash) = pallet_balances::Pallet::<T>::repatriate_reserved_named(
-					&T::StakingReserveIdentifier::get(),
-					&offender,
-					&T::TreasuryPalletId::get().into_account_truncating(),
-					reserve_amount_to_slash,
-					BalanceStatus::Free,
-				) {
-					total_slashed = total_slashed
-						.saturating_add(reserve_amount_to_slash.saturating_sub(unable_to_slash));
-				}
+				amount,
+				BalanceStatus::Free,
+			) {
+				return amount.saturating_sub(unable_to_slash)
 			}
-			total_slashed
+			// this condition should not be triggered as Relayer or Nominator should have locked
+			// balance
+			BalanceOf::<T>::zero()
 		}
 
 		// Add public immutables and private mutables.
