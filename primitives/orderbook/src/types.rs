@@ -90,7 +90,7 @@ pub struct ObMessage {
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserActions {
-	Trade(Trade),
+	Trade(Vec<Trade>),
 	Withdraw(WithdrawalRequest),
 	BlockImport(u32),
 	Snapshot,
