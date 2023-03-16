@@ -43,6 +43,7 @@ use polkadex_primitives::{
 use crate::{
 	error::Error,
 	gossip::{topic, GossipValidator},
+	metric_inc, metric_set,
 	metrics::Metrics,
 	utils::*,
 	Client,
@@ -292,9 +293,11 @@ where
 	pub fn handle_action(&mut self, action: ObMessage) -> Result<(), Error> {
 		match action.action {
 			UserActions::Trade(trades) => {
-				let mut trie =
-					TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
-						.build();
+				let mut trie = TrieDBMutBuilder::from_existing(
+					&mut self.memory_db,
+					&mut self.working_state_root,
+				)
+				.build();
 				for trade in trades {
 					process_trade(&mut trie, trade)?
 				}
@@ -366,6 +369,7 @@ where
 	}
 
 	pub fn send_request_to_peer(&self, peer: &PeerId, protocol: String, data: Vec<u8>) {
+		metric_inc!(self, ob_messages_sent);
 		self.network.write_notification(*peer, Cow::from(protocol.clone()), data);
 	}
 
@@ -498,6 +502,7 @@ where
 
 		while let Some(action) = self.known_messages.remove(&last_snapshot) {
 			self.handle_action(action)?;
+			metric_set!(self, ob_state_id, last_snapshot);
 			last_snapshot = last_snapshot.saturating_add(1);
 		}
 		// We need to sub 1 since that last processed is one stid less than the not available
@@ -552,6 +557,8 @@ where
 			Event::NotificationsReceived { remote, messages } => {
 				for (protocol, data) in messages {
 					if protocol == STID_IMPORT_REQUEST {
+						metric_inc!(self, ob_messages_recv);
+						metric_inc!(self, ob_messages_sent);
 						match StidImportRequest::decode(&mut &data[..]) {
 							Ok(request) => {
 								let mut response = StidImportResponse::default();
@@ -575,6 +582,7 @@ where
 							},
 						}
 					} else if protocol == STID_IMPORT_RESPONSE {
+						metric_inc!(self, ob_messages_recv);
 						match StidImportResponse::decode(&mut &data[..]) {
 							Ok(response) => {
 								for message in response.messages {
@@ -591,8 +599,11 @@ where
 							},
 						}
 					} else if protocol == ORDERBOOK_STATE_SYNC_REQUEST {
+						metric_inc!(self, ob_messages_recv);
+						metric_inc!(self, ob_messages_sent);
 						self.response_to_state_sync_request(remote, data.as_ref()).await?;
 					} else if protocol == ORDERBOOK_STATE_SYNC_RESPONSE {
+						metric_inc!(self, ob_messages_recv);
 						self.response_to_state_sync_response(remote, data.as_ref()).await?;
 					} else {
 						warn!(target:"orderbook","Ignoring network event for protocol: {:?}",protocol)
@@ -821,7 +832,6 @@ pub fn deposit(
 	}
 	Ok(())
 }
-
 
 pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Result<(), Error> {
 	let Trade { maker, taker, price, amount } = trade.clone();
