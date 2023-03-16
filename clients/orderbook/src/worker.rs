@@ -290,8 +290,8 @@ where
 		Ok(())
 	}
 
-	pub fn handle_action(&mut self, action: ObMessage) -> Result<(), Error> {
-		match action.action {
+	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
+		match action.action.clone() {
 			UserActions::Trade(trades) => {
 				let mut trie = TrieDBMutBuilder::from_existing(
 					&mut self.memory_db,
@@ -501,7 +501,15 @@ where
 		let mut last_snapshot = self.last_snapshot.read().state_change_id.saturating_add(1);
 
 		while let Some(action) = self.known_messages.remove(&last_snapshot) {
-			self.handle_action(action)?;
+			if let Err(err) = self.handle_action(&action) {
+				error!(target:"orderbook","📒 Error processing action: {:?}",err);
+				// The node found an error during processing of the action. This means we need to
+				// snapshot and drop everything else
+				self.snapshot(action.stid)?;
+				// We forget about everything else from cache.
+				self.known_messages.clear();
+				break
+			}
 			metric_set!(self, ob_state_id, last_snapshot);
 			last_snapshot = last_snapshot.saturating_add(1);
 		}
