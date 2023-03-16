@@ -91,9 +91,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			None,
 		)
 		.unwrap();
-
 		let ob = orderbook_primitives::crypto::Pair::from_string(
-			&(seed.to_owned() + idx.to_string().as_str() + "//grandpa"),
+			&(BLS_DEV_PHRASE.to_owned() +"//"+ idx.to_string().as_str()),
 			None,
 		)
 		.unwrap();
