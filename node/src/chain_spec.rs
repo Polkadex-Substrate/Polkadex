@@ -92,7 +92,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		)
 		.unwrap();
 		let ob = orderbook_primitives::crypto::Pair::from_string(
-			&(seed.to_owned() +"//"+ idx.to_string().as_str() + "//orderbook"),
+			&(seed.to_owned() + idx.to_string().as_str() + "//orderbook"),
 			None,
 		)
 		.unwrap();
