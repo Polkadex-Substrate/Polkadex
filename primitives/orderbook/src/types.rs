@@ -82,7 +82,8 @@ impl Trade {
 		}
 	}
 }
-
+#[cfg(feature = "std")]
+use chrono::Utc;
 impl Trade {
 	// Creates a Trade with zero event_tag
 	#[cfg(feature = "std")]
@@ -92,7 +93,7 @@ impl Trade {
 			taker,
 			price,
 			amount,
-			time: chrono::Utc::now().timestamp_millis(),
+			time: Utc::now().timestamp_millis(),
 		}
 	}
 
