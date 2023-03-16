@@ -18,7 +18,11 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{pallet_prelude::*, traits::ExistenceRequirement, PalletId};
+use frame_support::{
+	pallet_prelude::*,
+	traits::{tokens::BalanceStatus, ExistenceRequirement},
+	PalletId,
+};
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -762,6 +766,59 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Slash the specified offender account by the amount provided. The amount will be
+		/// slashed from free balance, if sufficient amount is not there in free balance slash
+		/// reserve balance # Arguments
+		///
+		/// * `offender` - The account to be slashed.
+		/// * `amount` - The amount to be slashed from the account.
+		///
+		///
+		/// # Returns
+		///
+		/// * `BalanceOf<T>` - The total amount that has been slashed from the `offender` account.
+		pub fn do_slash(offender: T::AccountId, amount: BalanceOf<T>) -> BalanceOf<T> {
+			let mut total_slashed = BalanceOf::<T>::zero();
+			let offender_free_balance: BalanceOf<T> =
+				<pallet_balances::Pallet<T> as Currency<_>>::free_balance(&offender);
+			#[allow(unused_assignments)]
+			let mut slash_offender_free_balance = BalanceOf::<T>::zero();
+
+			//slash from free balance
+			if offender_free_balance > amount {
+				slash_offender_free_balance = amount;
+			} else {
+				slash_offender_free_balance = offender_free_balance;
+			}
+
+			if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
+				&offender,
+				&T::TreasuryPalletId::get().into_account_truncating(),
+				slash_offender_free_balance,
+				ExistenceRequirement::KeepAlive,
+			)
+			.is_ok()
+			{
+				total_slashed = total_slashed.saturating_add(slash_offender_free_balance);
+			};
+
+			//slash from reserve balance
+			if total_slashed < amount {
+				let reserve_amount_to_slash = amount.saturating_sub(total_slashed);
+				if let Ok(unable_to_slash) = pallet_balances::Pallet::<T>::repatriate_reserved_named(
+					&T::StakingReserveIdentifier::get(),
+					&offender,
+					&T::TreasuryPalletId::get().into_account_truncating(),
+					reserve_amount_to_slash,
+					BalanceStatus::Free,
+				) {
+					total_slashed = total_slashed
+						.saturating_add(reserve_amount_to_slash.saturating_sub(unable_to_slash));
+				}
+			}
+			total_slashed
+		}
+
 		// Add public immutables and private mutables.
 		pub fn rotate_session() {
 			let session_index = <CurrentIndex<T>>::get();
@@ -778,38 +835,28 @@ pub mod pallet {
 						let actual_percent = Percent::from_percent(percent);
 						// slashing relayer's individual stake
 						let amount: BalanceOf<T> = actual_percent * to_slash.individual;
-						// TODO: where to transfer? % > Treasury && % > to reporters
-						if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
-							&offender,
-							&T::TreasuryPalletId::get().into_account_truncating(),
-							amount,
-							ExistenceRequirement::KeepAlive,
-						)
-						.is_ok()
-						{
-							total_slashed = total_slashed.saturating_add(amount);
-							Self::deposit_event(Event::Slashed { offender, amount });
-						}
+
+						let relayer_slashed_amount = Self::do_slash(offender.clone(), amount);
+						total_slashed = total_slashed.saturating_add(relayer_slashed_amount);
+						Self::deposit_event(Event::Slashed {
+							offender,
+							amount: relayer_slashed_amount,
+						});
+
 						// slash stakers / nominators
 						for nominator in to_slash.stakers.iter() {
 							if let Some(individual_nominator) = <Stakers<T>>::get(nominator) {
 								let nominator_amount_individual: BalanceOf<T> =
 									actual_percent * individual_nominator.value;
-								if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
-									nominator,
-									&T::TreasuryPalletId::get().into_account_truncating(),
-									nominator_amount_individual,
-									ExistenceRequirement::KeepAlive,
-								)
-								.is_ok()
-								{
-									total_slashed =
-										total_slashed.saturating_add(nominator_amount_individual);
-									Self::deposit_event(Event::Slashed {
-										offender: nominator.to_owned(),
-										amount: nominator_amount_individual,
-									});
-								}
+
+								let nominator_slashed_amount =
+									Self::do_slash(nominator.clone(), nominator_amount_individual);
+								total_slashed =
+									total_slashed.saturating_add(nominator_slashed_amount);
+								Self::deposit_event(Event::Slashed {
+									offender: nominator.to_owned(),
+									amount: nominator_slashed_amount,
+								});
 							} else {
 								// we signal issue with staker slashing via Event
 								Self::deposit_event(Event::SlashingFailed {
