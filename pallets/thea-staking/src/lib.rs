@@ -525,7 +525,7 @@ pub mod pallet {
 		/// Not a member of active relayers
 		NotAnActiveRelayer,
 		/// Amount to stash is greater than bonded amount
-		StashAmountIsGreaterThanBondedAmount,
+		AmountToStashGreaterThanBondedAmount,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -791,7 +791,7 @@ pub mod pallet {
 			}
 			// this condition should not be triggered as Relayer or Nominator should have locked
 			// balance
-			Err(Error::<T>::StashAmountIsGreaterThanBondedAmount.into())
+			Err(Error::<T>::AmountToStashGreaterThanBondedAmount.into())
 		}
 
 		// Add public immutables and private mutables.
@@ -811,8 +811,7 @@ pub mod pallet {
 						// slashing relayer's individual stake
 						let amount: BalanceOf<T> = actual_percent * to_slash.individual;
 
-						if let Ok(relayer_slashed_amount) =
-							Self::do_slash(offender.clone(), amount)
+						if let Ok(relayer_slashed_amount) = Self::do_slash(offender.clone(), amount)
 						{
 							total_slashed = total_slashed.saturating_add(relayer_slashed_amount);
 							Self::deposit_event(Event::Slashed {
