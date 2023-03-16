@@ -4,53 +4,29 @@ use prometheus::{register, Counter, Gauge, PrometheusError, Registry, U64};
 
 /// Orderbook metrics exposed through Prometheus
 pub struct Metrics {
-	/// Current active validator set id
-	pub ob_validator_set_id: Gauge<U64>,
-	/// Total number of votes sent by this node
-	pub ob_votes_sent: Counter<U64>,
-	/// Most recent concluded voting round
-	pub ob_round_concluded: Gauge<U64>,
-	/// Best block finalized by Orderbook
-	pub ob_best_block: Gauge<U64>,
-	/// Next block Orderbook should vote on
-	pub ob_should_vote_on: Gauge<U64>,
-	/// Number of sessions with lagging signed commitment on mandatory block
-	pub ob_lagging_sessions: Counter<U64>,
+	/// Last processed state id
+	pub ob_state_id: Gauge<U64>,
+	/// Total number of ob messages sent by this node
+	pub ob_messages_sent: Counter<U64>,
+	/// Total number of ob messages recvd by this node
+	pub ob_messages_recv: Counter<U64>,
 }
 
 impl Metrics {
 	pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
-			ob_validator_set_id: register(
-				Gauge::new(
-					"substrate_ob_validator_set_id",
-					"Current Orderbook active validator set id.",
-				)?,
+			ob_state_id: register(
+				Gauge::new("polkadex_ob_state_id", "Last processed state id by Orderbook")?,
 				registry,
 			)?,
-			ob_votes_sent: register(
-				Counter::new("substrate_ob_votes_sent", "Number of votes sent by this node")?,
+			ob_messages_sent: register(
+				Counter::new("polkadex_ob_messages_sent", "Number of messages sent by this node")?,
 				registry,
 			)?,
-			ob_round_concluded: register(
-				Gauge::new(
-					"substrate_ob_round_concluded",
-					"Voting round, that has been concluded",
-				)?,
-				registry,
-			)?,
-			ob_best_block: register(
-				Gauge::new("substrate_ob_best_block", "Best block finalized by Orderbook")?,
-				registry,
-			)?,
-			ob_should_vote_on: register(
-				Gauge::new("substrate_ob_should_vote_on", "Next block, Orderbook should vote on")?,
-				registry,
-			)?,
-			ob_lagging_sessions: register(
+			ob_messages_recv: register(
 				Counter::new(
-					"substrate_ob_lagging_sessions",
-					"Number of sessions with lagging signed commitment on mandatory block",
+					"polkadex_ob_messages_recv",
+					"Number of messages received by this node",
 				)?,
 				registry,
 			)?,
