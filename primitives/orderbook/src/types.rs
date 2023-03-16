@@ -231,6 +231,69 @@ pub struct TradingPair {
 }
 
 #[cfg(feature = "std")]
+impl TryFrom<String> for TradingPair {
+	type Error = anyhow::Error;
+	fn try_from(value: String) -> Result<Self, Self::Error> {
+		let assets: Vec<&str> = value.split('-').collect();
+		if assets.len() != 2 {
+			return Err(anyhow::Error::msg("Invalid String"));
+		}
+
+		let base_asset = if assets[0] == String::from("PDEX").as_str() {
+			AssetId::polkadex
+		} else {
+			let id = assets[0].parse::<u128>()?;
+			AssetId::asset(id)
+		};
+
+		let quote_asset = if assets[1] == String::from("PDEX").as_str() {
+			AssetId::polkadex
+		} else {
+			let id = assets[1].parse::<u128>()?;
+			AssetId::asset(id)
+		};
+
+		Ok(TradingPair::from(quote_asset, base_asset))
+	}
+}
+
+impl TradingPair {
+	pub fn from(quote: AssetId, base: AssetId) -> Self {
+		TradingPair {
+			base,
+			quote,
+		}
+	}
+
+	pub fn is_quote_asset(&self, asset_id: AssetId) -> bool {
+		self.quote == asset_id
+	}
+	pub fn is_base_asset(&self, asset_id: AssetId) -> bool {
+		self.base == asset_id
+	}
+
+	pub fn is_part_of(&self, asset_id: AssetId) -> bool {
+		(self.base == asset_id) | (self.quote == asset_id)
+	}
+	pub fn base_asset_str(&self) -> String {
+		match self.base {
+			AssetId::polkadex => "PDEX".into(),
+			AssetId::asset(id) => id.to_string(),
+		}
+	}
+	pub fn quote_asset_str(&self) -> String {
+		match self.quote {
+			AssetId::polkadex => "PDEX".into(),
+			AssetId::asset(id) => id.to_string(),
+		}
+	}
+	pub fn market_id(&self) -> String {
+		format!("{}/{}", self.base_asset_str(), self.quote_asset_str())
+	}
+}
+
+
+#[cfg(feature = "std")]
 impl Display for OrderSide {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
