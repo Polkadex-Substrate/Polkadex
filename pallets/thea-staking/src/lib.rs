@@ -524,6 +524,8 @@ pub mod pallet {
 		RepeatedReport,
 		/// Not a member of active relayers
 		NotAnActiveRelayer,
+		/// Amount to stash is greater than bonded amount
+		StashAmountIsGreaterThanBondedAmount,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -769,15 +771,15 @@ pub mod pallet {
 		/// Slash the specified offender account by the amount provided. The amount will be
 		/// slashed from reserve balance.
 		/// # Arguments
-		///
 		/// * `offender` - The account to be slashed.
 		/// * `amount` - The amount to be slashed from the account.
 		///
-		///
 		/// # Returns
-		///
 		/// * `BalanceOf<T>` - The total amount that has been slashed from the `offender` account.
-		pub fn do_slash(offender: T::AccountId, amount: BalanceOf<T>) -> BalanceOf<T> {
+		pub fn do_slash(
+			offender: T::AccountId,
+			amount: BalanceOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			if let Ok(unable_to_slash) = pallet_balances::Pallet::<T>::repatriate_reserved_named(
 				&T::StakingReserveIdentifier::get(),
 				&offender,
@@ -785,11 +787,11 @@ pub mod pallet {
 				amount,
 				BalanceStatus::Free,
 			) {
-				return amount.saturating_sub(unable_to_slash)
+				return Ok(amount.saturating_sub(unable_to_slash))
 			}
 			// this condition should not be triggered as Relayer or Nominator should have locked
 			// balance
-			BalanceOf::<T>::zero()
+			Err(Error::<T>::StashAmountIsGreaterThanBondedAmount.into())
 		}
 
 		// Add public immutables and private mutables.
@@ -809,12 +811,15 @@ pub mod pallet {
 						// slashing relayer's individual stake
 						let amount: BalanceOf<T> = actual_percent * to_slash.individual;
 
-						let relayer_slashed_amount = Self::do_slash(offender.clone(), amount);
-						total_slashed = total_slashed.saturating_add(relayer_slashed_amount);
-						Self::deposit_event(Event::Slashed {
-							offender,
-							amount: relayer_slashed_amount,
-						});
+						if let Ok(relayer_slashed_amount) =
+							Self::do_slash(offender.clone(), amount)
+						{
+							total_slashed = total_slashed.saturating_add(relayer_slashed_amount);
+							Self::deposit_event(Event::Slashed {
+								offender,
+								amount: relayer_slashed_amount,
+							});
+						}
 
 						// slash stakers / nominators
 						for nominator in to_slash.stakers.iter() {
@@ -822,14 +827,16 @@ pub mod pallet {
 								let nominator_amount_individual: BalanceOf<T> =
 									actual_percent * individual_nominator.value;
 
-								let nominator_slashed_amount =
-									Self::do_slash(nominator.clone(), nominator_amount_individual);
-								total_slashed =
-									total_slashed.saturating_add(nominator_slashed_amount);
-								Self::deposit_event(Event::Slashed {
-									offender: nominator.to_owned(),
-									amount: nominator_slashed_amount,
-								});
+								if let Ok(nominator_slashed_amount) =
+									Self::do_slash(nominator.clone(), nominator_amount_individual)
+								{
+									total_slashed =
+										total_slashed.saturating_add(nominator_slashed_amount);
+									Self::deposit_event(Event::Slashed {
+										offender: nominator.to_owned(),
+										amount: nominator_slashed_amount,
+									});
+								}
 							} else {
 								// we signal issue with staker slashing via Event
 								Self::deposit_event(Event::SlashingFailed {
