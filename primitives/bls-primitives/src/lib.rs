@@ -19,6 +19,7 @@ use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair,
 #[cfg(feature = "std")]
 use sp_core::{crypto::SecretStringError, DeriveJunction};
 use sp_runtime_interface::pass_by::PassByInner;
+#[cfg(feature = "std")]
 use substrate_bip39::seed_from_entropy;
 
 /// An identifier used to match public keys against bls keys
