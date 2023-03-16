@@ -248,10 +248,7 @@ impl sp_core::crypto::Pair for Pair {
 	}
 
 	fn from_seed(seed: &Self::Seed) -> Self {
-		let secret =
-			SecretKey::from_bytes(seed).expect("BLS seed is expected to be at least 32 bytes");
-
-		Pair { public: secret.sk_to_pk().to_bytes().into(), secret }
+		Self::from_seed_slice(&seed[..]).expect("seed has valid length; qed")
 	}
 
 	fn from_seed_slice(seed: &[u8]) -> Result<Self, SecretStringError> {
