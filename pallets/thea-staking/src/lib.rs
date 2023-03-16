@@ -538,6 +538,8 @@ pub mod pallet {
 		NotAnActiveRelayer,
 		/// Offender already scheduled for slashing
 		SlashingInProgress,
+		/// Attempt to withdrow when there are no funds unbounded in or prior given era
+		NoUnboundedAmountToWithdraw,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -938,6 +940,9 @@ pub mod pallet {
 		pub fn do_withdraw_unbonded(nominator: T::AccountId) -> Result<(), Error<T>> {
 			if let Some(mut exposure) = <Stakers<T>>::get(&nominator) {
 				let amount: BalanceOf<T> = exposure.withdraw_unbonded(Self::current_index());
+				if amount.is_zero() {
+					return Err(Error::<T>::NoUnboundedAmountToWithdraw)
+				}
 				let _ = pallet_balances::Pallet::<T>::unreserve_named(
 					&T::StakingReserveIdentifier::get(),
 					&nominator,
