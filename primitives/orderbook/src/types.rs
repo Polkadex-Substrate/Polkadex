@@ -7,6 +7,7 @@ use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
 use std::{borrow::Borrow, collections::HashMap, ops::Mul, str::FromStr};
+use std::fmt::{Display, Formatter};
 
 use crate::SnapshotSummary;
 
@@ -227,6 +228,13 @@ Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq
 pub struct TradingPair {
 	base: AssetId,
 	quote: AssetId,
+}
+
+#[cfg(feature = "std")]
+impl Display for TradingPair {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{:}-{:}", self.base, self.quote)
+	}
 }
 
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
