@@ -52,6 +52,7 @@ pub struct Trade {
 	pub taker: Order,
 	pub price: Decimal,
 	pub amount: Decimal,
+	pub time: i64
 }
 
 impl Trade {
@@ -79,6 +80,28 @@ impl Trade {
 				self.price.mul(&self.amount),
 			),
 		}
+	}
+}
+
+impl Trade {
+	// Creates a Trade with zero event_tag
+	#[cfg(feature = "std")]
+	pub fn new(maker: Order, taker: Order, price: Decimal, amount: Decimal) -> Trade {
+		Self {
+			maker,
+			taker,
+			price,
+			amount,
+			time: chrono::Utc::now().timestamp_millis(),
+		}
+	}
+
+	// Verifies the contents of a trade
+	pub fn verify(&self) -> bool {
+		// TODO: Verify the signatures of both orders
+		//  Validity of both orders
+		//
+		todo!()
 	}
 }
 
