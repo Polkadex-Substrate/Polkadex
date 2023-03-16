@@ -220,7 +220,9 @@ impl Into<String> for OrderStatus {
 	}
 }
 
-#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, Copy)]
+#[derive(
+Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq
+)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	base: AssetId,
@@ -258,32 +260,30 @@ impl Order {
 impl PartialOrd for Order {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		if self.side != other.side {
-			return None
+			return None;
 		}
 		if self.side == OrderSide::Bid {
 			// Buy side
 			match self.price.cmp(&other.price) {
+				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
 				Ordering::Less => Some(Ordering::Greater),
-				Ordering::Equal =>
-					if self.timestamp < other.timestamp {
-						Some(Ordering::Less)
-					} else {
-						Some(Ordering::Greater)
-					},
+				// A.price == B.price =>  Order based on timestamp - lowest timestamp first
+				Ordering::Equal => {
+					Some(self.timestamp.cmp(&other.timestamp))
+				}
+				// A.price > B.price => [A, B]
 				Ordering::Greater => Some(Ordering::Less),
 			}
 		} else {
 			// Sell side
 			match self.price.cmp(&other.price) {
+				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
 				Ordering::Less => Some(Ordering::Less),
+				// A.price == B.price => Order based on timestamp - lowest timestamp first
 				Ordering::Equal => {
-					// If price is equal, we follow the FIFO priority
-					if self.timestamp < other.timestamp {
-						Some(Ordering::Less)
-					} else {
-						Some(Ordering::Greater)
-					}
-				},
+					Some(self.timestamp.cmp(&other.timestamp))
+				}
+				// A.price > B.price => [B, A]
 				Ordering::Greater => Some(Ordering::Greater),
 			}
 		}
@@ -296,28 +296,26 @@ impl Ord for Order {
 		if self.side == OrderSide::Bid {
 			// Buy side
 			match self.price.cmp(&other.price) {
-				Ordering::Less => Ordering::Less,
-				Ordering::Equal =>
-					if self.timestamp < other.timestamp {
-						Ordering::Greater
-					} else {
-						Ordering::Less
-					},
-				Ordering::Greater => Ordering::Greater,
+				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
+				Ordering::Less => Ordering::Greater,
+				// A.price == B.price => Order based on timestamp
+				Ordering::Equal => {
+					other.timestamp.cmp(&self.timestamp)
+				}
+				// A.price > B.price => [A, B]
+				Ordering::Greater => Ordering::Less,
 			}
 		} else {
 			// Sell side
 			match self.price.cmp(&other.price) {
-				Ordering::Less => Ordering::Greater,
+				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
+				Ordering::Less => Ordering::Less,
+				// A.price == B.price => Order based on timestamp
 				Ordering::Equal => {
-					// If price is equal, we follow the FIFO priority
-					if self.timestamp < other.timestamp {
-						Ordering::Greater
-					} else {
-						Ordering::Less
-					}
-				},
-				Ordering::Greater => Ordering::Less,
+					other.timestamp.cmp(&self.timestamp)
+				}
+				// A.price > B.price => [B, A]
+				Ordering::Greater => Ordering::Greater,
 			}
 		}
 	}
