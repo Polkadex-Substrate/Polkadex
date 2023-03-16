@@ -4,6 +4,7 @@ use polkadex_primitives::{
 };
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
+use sp_runtime::traits::Verify;
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
 use std::{borrow::Borrow, collections::HashMap, ops::Mul, str::FromStr};
 
@@ -121,7 +122,7 @@ impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
 
 impl WithdrawalRequest {
 	pub fn verify(&self) -> bool {
-		todo!()
+		self.signature.verify(self.payload.encode().as_ref(), &self.proxy)
 	}
 
 	pub fn account_asset(&self) -> AccountAsset {
