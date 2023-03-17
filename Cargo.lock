@@ -213,7 +213,6 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "parity-scale-codec",
- "polkadex-extrinsic",
  "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
  "smallvec",
@@ -222,6 +221,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "wallet-connector",
 ]
 
 [[package]]
@@ -5008,7 +5008,6 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec",
  "pdex-migration",
- "polkadex-extrinsic",
  "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
  "smallvec",
@@ -5034,6 +5033,7 @@ dependencies = [
  "thea-cross-chain-governance",
  "thea-primitives",
  "thea-staking",
+ "wallet-connector",
 ]
 
 [[package]]
@@ -6441,32 +6441,9 @@ version = "0.1.0"
 dependencies = [
  "frame-benchmarking",
  "node-polkadex-runtime",
- "polkadex-extrinsic",
  "sc-executor",
  "thea-primitives",
-]
-
-[[package]]
-name = "polkadex-extrinsic"
-version = "0.1.0"
-dependencies = [
- "ethers",
- "ethers-contract",
- "ethers-core",
- "ethers-derive-eip712",
- "frame-support",
- "hex",
- "parity-scale-codec",
- "parity-util-mem",
- "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
- "scale-info",
- "serde",
- "serde_json",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-runtime-interface",
- "sp-std",
+ "wallet-connector",
 ]
 
 [[package]]
@@ -10840,6 +10817,29 @@ dependencies = [
  "same-file",
  "winapi",
  "winapi-util",
+]
+
+[[package]]
+name = "wallet-connector"
+version = "0.1.0"
+dependencies = [
+ "ethers",
+ "ethers-contract",
+ "ethers-core",
+ "ethers-derive-eip712",
+ "frame-support",
+ "hex",
+ "parity-scale-codec",
+ "parity-util-mem",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-runtime-interface",
+ "sp-std",
 ]
 
 [[package]]

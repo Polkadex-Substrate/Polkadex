@@ -14,7 +14,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier};
-use polkadex_extrinsic;
+use wallet_connector;
 use polkadex_primitives::{AccountIndex, Balance, Moment};
 use smallvec::smallvec;
 use sp_application_crypto::sp_core::H256;
@@ -38,7 +38,7 @@ pub type SignedExtra = (
 );
 
 pub type MockUncheckedExtrinsic =
-	polkadex_extrinsic::unchecked_extrinsic::UncheckedExtrinsic<Address, Call, SignedExtra>;
+	wallet_connector::unchecked_extrinsic::UncheckedExtrinsic<Address, Call, SignedExtra>;
 pub type MockBlock = sp_runtime::generic::Block<Header, MockUncheckedExtrinsic>;
 
 type Block = MockBlock;

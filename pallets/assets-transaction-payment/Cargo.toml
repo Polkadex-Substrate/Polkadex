@@ -20,7 +20,7 @@ pallet-balances = { workspace = true, default-features = false }
 pallet-assets = { workspace = true, default-features = false }
 pallet-transaction-payment = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
-polkadex-extrinsic = { path = "../../polkadex-extrinsic", default-features = false }
+wallet-connector = { path = "../../wallet-connector", default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
@@ -46,5 +46,5 @@ std = [
 	"pallet-assets/std",
 	"pallet-transaction-payment/std",
 	"pallet-timestamp/std",
-	"polkadex-extrinsic/std",
+	"wallet-connector/std",
 ]
