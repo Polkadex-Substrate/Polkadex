@@ -104,7 +104,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			BabeId::from(babe.public().into_account()),
 			ImOnlineId::from(imon.public().into_account()),
 			AuthorityDiscoveryId::from(audi.public().into_account()),
-			orderbook_primitives::crypto::AuthorityId::from(ob.public().into_account().into()),
+			orderbook_primitives::crypto::AuthorityId::from(ob.public().into_account()),
 		));
 	}
 

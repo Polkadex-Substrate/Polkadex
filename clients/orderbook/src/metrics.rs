@@ -10,6 +10,10 @@ pub struct Metrics {
 	pub ob_messages_sent: Counter<U64>,
 	/// Total number of ob messages recvd by this node
 	pub ob_messages_recv: Counter<U64>,
+	/// Total data sent out by ob worker
+	pub ob_data_sent: Gauge<U64>,
+	/// Total data recv by ob worker
+	pub ob_data_recv: Gauge<U64>,
 }
 
 impl Metrics {
@@ -27,6 +31,20 @@ impl Metrics {
 				Counter::new(
 					"polkadex_ob_messages_recv",
 					"Number of messages received by this node",
+				)?,
+				registry,
+			)?,
+			ob_data_sent: register(
+				Gauge::new(
+					"polkadex_ob_data_sent",
+					"Total Data sent by orderbook worker",
+				)?,
+				registry,
+			)?,
+			ob_data_recv: register(
+				Gauge::new(
+					"polkadex_ob_data_recv",
+					"Total Data received by orderbook worker",
 				)?,
 				registry,
 			)?,
@@ -61,5 +79,16 @@ macro_rules! metric_inc {
 macro_rules! metric_get {
 	($self:ident, $m:ident) => {{
 		$self.metrics.as_ref().map(|metrics| metrics.$m.clone())
+	}};
+}
+
+#[macro_export]
+macro_rules! metric_add {
+	($self:ident, $m:ident, $v:expr) => {{
+		let val: u64 = format!("{}", $v).parse().unwrap();
+
+		if let Some(metrics) = $self.metrics.as_ref() {
+			metrics.$m.add(val);
+		}
 	}};
 }
