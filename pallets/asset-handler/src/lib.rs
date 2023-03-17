@@ -49,6 +49,8 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::{vec, vec::Vec};
+	use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
+	use xcm::latest::AssetId;
 
 	pub trait AssetHandlerWeightInfo {
 		fn create_asset(b: u32) -> Weight;
@@ -124,6 +126,17 @@ pub mod pallet {
 		type TreasuryPalletId: Get<PalletId>;
 
 		type WeightInfo: AssetHandlerWeightInfo;
+
+		/// Parachain Network Id
+		#[pallet::constant]
+		type ParachainNetworkId: Get<u8>;
+
+		/// Polkadex Asset
+		#[pallet::constant]
+		type PolkadexAssetId: Get<u128>;
+
+		/// PDEX Token Holder Account
+		type PDEXHolderAccount: Get<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -237,6 +250,10 @@ pub mod pallet {
 		AssetNotRegistered,
 		// Identifier length provided is wrong
 		IdentifierLengthMismatch,
+		/// ReservedParachainNetworkId
+		ReservedParachainNetworkId,
+		/// AssetId Abstract Not Handled
+		AssetIdAbstractNotHandled,
 	}
 
 	#[pallet::hooks]
@@ -333,6 +350,10 @@ pub mod pallet {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			// Check for index error
 			ensure!(
+				T::ParachainNetworkId::get() != network_id,
+				Error::<T>::ReservedParachainNetworkId
+			);
+			ensure!(
 				asset_identifier.len() >= identifier_length as usize,
 				Error::<T>::IdentifierLengthMismatch
 			);
@@ -341,16 +362,32 @@ pub mod pallet {
 			derived_asset_id.push(network_id);
 			derived_asset_id.push(identifier_length);
 			derived_asset_id.extend(&asset_identifier[0..identifier_length as usize]);
+			let asset_id = Self::get_asset_id(derived_asset_id);
+			T::AssetManager::create(
+				asset_id,
+				chainbridge::Pallet::<T>::account_id(),
+				false,
+				BalanceOf::<T>::one().unique_saturated_into(),
+			)?;
+			<TheaAssets<T>>::insert(asset_id, (network_id, identifier_length, asset_identifier));
+			Self::deposit_event(Event::<T>::TheaAssetCreated(asset_id));
+			Ok(())
+		}
 
-			// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16
-			// bytes
-			let derived_asset_id_hash = &keccak_256(derived_asset_id.as_ref())[0..16];
-
-			// Derive u128 from resulting bytes
-			let mut temp = [0u8; 16];
-			temp.copy_from_slice(derived_asset_id_hash);
-			let asset_id = u128::from_le_bytes(temp);
-
+		/// Create Parachain Asset
+		///
+		/// # Parameters
+		///
+		/// * `asset`: Parachain Asset
+		#[pallet::weight(T::WeightInfo::create_asset(1))]
+		pub fn create_parachain_asset(
+			origin: OriginFor<T>,
+			asset: sp_std::boxed::Box<AssetId>,
+		) -> DispatchResult {
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
+			let (network_id, asset_identifier, identifier_length) =
+				Self::get_asset_info(*asset.clone())?;
+			let asset_id = Self::generate_asset_id_for_parachain(*asset)?;
 			// Call Assets Pallet
 			T::AssetManager::create(
 				asset_id,
@@ -358,9 +395,10 @@ pub mod pallet {
 				false,
 				BalanceOf::<T>::one().unique_saturated_into(),
 			)?;
-			// Update storage item
-			<TheaAssets<T>>::insert(asset_id, (network_id, identifier_length, asset_identifier));
-			// Emit Event
+			<TheaAssets<T>>::insert(
+				asset_id,
+				(network_id, identifier_length as u8, asset_identifier),
+			);
 			Self::deposit_event(Event::<T>::TheaAssetCreated(asset_id));
 			Ok(())
 		}
@@ -629,6 +667,40 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Asset Handler for Withdraw Extrinsic
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id.
+		/// * `who`: Asset Holder.
+		/// * `amount`: Amount to be burned/locked.
+		pub fn handle_asset(
+			asset_id: u128,
+			who: T::AccountId,
+			amount: u128,
+		) -> Result<(), DispatchError> {
+			let polkadex_asset_id = T::PolkadexAssetId::get();
+			if polkadex_asset_id == asset_id {
+				Self::lock_pdex_asset(amount, who)
+			} else {
+				Self::burn_thea_asset(asset_id, who, amount)
+			}
+		}
+
+		/// Asset Locker
+		/// # Parameters
+		///
+		/// * `amount`: Amount to be locked.
+		/// * `who`: Asset Holder.
+		pub fn lock_pdex_asset(amount: u128, who: T::AccountId) -> DispatchResult {
+			let polkadex_holder_account = T::PDEXHolderAccount::get();
+			T::Currency::transfer(
+				&who,
+				&polkadex_holder_account,
+				amount.saturated_into(),
+				ExistenceRequirement::AllowDeath,
+			)
+		}
+
 		pub fn burn_thea_asset(
 			asset_id: u128,
 			who: T::AccountId,
@@ -638,6 +710,43 @@ pub mod pallet {
 			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
 			T::AssetManager::burn_from(asset_id, &who, amount)?;
 			Ok(())
+		}
+
+		pub fn get_asset_id(derived_asset_id: Vec<u8>) -> u128 {
+			let derived_asset_id_hash = &keccak_256(derived_asset_id.as_ref())[0..16];
+			let mut temp = [0u8; 16];
+			temp.copy_from_slice(derived_asset_id_hash);
+			u128::from_le_bytes(temp)
+		}
+
+		pub fn get_asset_info(
+			asset: AssetId,
+		) -> Result<(u8, BoundedVec<u8, ConstU32<1000>>, usize), DispatchError> {
+			let network_id = T::ParachainNetworkId::get();
+			if let AssetId::Concrete(asset_location) = asset {
+				let asset_identifier =
+					ParachainAsset { location: asset_location, asset_type: AssetType::Fungible };
+				let asset_identifier = BoundedVec::try_from(asset_identifier.encode())
+					.map_err(|_| Error::<T>::IdentifierLengthMismatch)?;
+				let identifier_length = asset_identifier.len();
+				Ok((network_id, asset_identifier, identifier_length))
+			} else {
+				Err(Error::<T>::AssetIdAbstractNotHandled.into())
+			}
+		}
+
+		pub fn generate_asset_id_for_parachain(asset: AssetId) -> Result<u128, DispatchError> {
+			let (network_id, asset_identifier, identifier_length) = Self::get_asset_info(asset)?;
+			let mut derived_asset_id: Vec<u8> = vec![];
+			derived_asset_id.push(network_id);
+			derived_asset_id.push(identifier_length as u8);
+			derived_asset_id.extend(&asset_identifier);
+			let asset_id = Self::get_asset_id(derived_asset_id);
+			Ok(asset_id)
+		}
+
+		pub fn get_parachain_network_id() -> u8 {
+			T::ParachainNetworkId::get()
 		}
 
 		#[cfg(feature = "runtime-benchmarks")]
