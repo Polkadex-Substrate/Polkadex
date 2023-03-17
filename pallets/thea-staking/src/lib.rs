@@ -67,12 +67,13 @@ pub trait SessionChanged {
 // `construct_runtime`.
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::session::{Exposure, IndividualExposure, StakingLimits};
+	use crate::session::{Exposure, IndividualExposure, StakingLimits, UnlockChunk};
 	use frame_support::traits::{Currency, NamedReservableCurrency, ReservableCurrency};
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::misbehavior::TheaMisbehavior;
 	use scale_info::prelude::string::String;
 	use sp_runtime::traits::Zero;
+	use sp_std::vec;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 
@@ -236,6 +237,11 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Register individual exposure for specified candidate
+		/// Called by Nominator to create stake exposure
+		/// # Parameters
+		/// * `candidate`: Candidate to be
+
 		/// Nominates candidate for Active Relayer Set for provided network.
 		/// Can be called by Nominator who already staked.
 		///
@@ -257,8 +263,24 @@ pub mod pallet {
 		/// `amount`: Amount to be locked.
 		#[pallet::call_index(3)]
 		#[pallet::weight(10000)]
-		pub fn bond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
+		pub fn bond(
+			origin: OriginFor<T>,
+			amount: BalanceOf<T>,
+			candidate: T::AccountId,
+		) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
+			ensure!(
+				<CandidateToNetworkMapping<T>>::contains_key(&candidate),
+				Error::<T>::CandidateNotFound
+			);
+			let unlocking: Vec<UnlockChunk<T>> = vec![];
+			let individual_exposure = IndividualExposure {
+				who: nominator.clone(),
+				value: amount,
+				backing: candidate,
+				unlocking,
+			};
+			<Stakers<T>>::insert(nominator.clone(), individual_exposure);
 			Self::do_bond(nominator, amount)?;
 			Ok(())
 		}
@@ -466,7 +488,7 @@ pub mod pallet {
 			nominator: T::AccountId,
 		},
 		Unbonded {
-			candidate: Option<T::AccountId>,
+			candidate: T::AccountId,
 			nominator: T::AccountId,
 			amount: BalanceOf<T>,
 		},
@@ -523,6 +545,10 @@ pub mod pallet {
 		StakingLimitsError,
 		CandidateAlreadyRegistered,
 		CandidateNotFound,
+		/// Provided candidate mismatched backed one
+		CandidateMismatchExposed,
+		/// Each nominator must register individual exposure before bounding
+		IndividualExposureNotFoundForNominator,
 		NominatorNotFound,
 		UnbondChunkLimitReached,
 		CandidateNotReadyToBeUnbonded,
@@ -917,20 +943,19 @@ pub mod pallet {
 		// with the entire stake that has been bonded
 		pub fn do_nominate(
 			nominator: T::AccountId,
-			candidate: T::AccountId,
+			given_candidate: T::AccountId,
 		) -> Result<(), Error<T>> {
-			let mut nominator_exposure =
+			let nominator_exposure =
 				<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
-			ensure!(nominator_exposure.backing.is_none(), Error::<T>::StakerAlreadyNominating);
+			let candidate = nominator_exposure.backing.clone();
+			ensure!(given_candidate == candidate, Error::<T>::StakerAlreadyNominating);
 			let network = <CandidateToNetworkMapping<T>>::get(&candidate)
 				.ok_or(Error::<T>::CandidateNotFound)?;
 			let mut exposure =
 				<Candidates<T>>::get(network, &candidate).ok_or(Error::<T>::CandidateNotFound)?;
-
 			ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
 			exposure.stakers.insert(nominator.clone());
 			exposure.total = exposure.total.saturating_add(nominator_exposure.value);
-			nominator_exposure.backing = Some((network, candidate.clone()));
 			<Stakers<T>>::insert(&nominator, nominator_exposure);
 			<Candidates<T>>::insert(network, &candidate, exposure);
 			Self::deposit_event(Event::<T>::Nominated { candidate, nominator });
@@ -957,84 +982,69 @@ pub mod pallet {
 		}
 
 		pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
-			let mut individual_exposure =
-				<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
-			ensure!(
-				individual_exposure.value >= amount,
-				Error::<T>::AmountIsGreaterThanBondedAmount
-			);
-			if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
-				if let Some(mut exposure) = <Candidates<T>>::get(network, candidate) {
-					exposure.total = exposure.total.saturating_sub(amount);
-					if individual_exposure.value == amount {
-						exposure.stakers.remove(&nominator);
+			<Stakers<T>>::mutate(&nominator, |individual_exposure| {
+				if let Some(individual_exposure) = individual_exposure {
+					if individual_exposure.value >= amount {
+						return Err(Error::<T>::AmountIsGreaterThanBondedAmount)
 					}
-					<Candidates<T>>::insert(network, candidate, exposure);
-					Self::deposit_event(Event::<T>::Unbonded {
-						candidate: Some(candidate.clone()),
-						nominator: nominator.clone(),
-						amount,
-					});
-				}
-			}
-			if individual_exposure.value == amount {
-				individual_exposure.backing = None;
-			}
-			individual_exposure
-				.unbond(amount, Self::current_index().saturating_add(T::UnbondingDelay::get()));
+					let candidate = individual_exposure.backing.clone();
+					if let Some(network) = <CandidateToNetworkMapping<T>>::get(&candidate) {
+						if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
+							exposure.total = exposure.total.saturating_sub(amount);
+							if individual_exposure.value == amount {
+								exposure.stakers.remove(&nominator);
+							}
+							<Candidates<T>>::insert(network, candidate.clone(), exposure);
+							individual_exposure.unbond(
+								amount,
+								Self::current_index().saturating_add(T::UnbondingDelay::get()),
+							);
 
-			<Stakers<T>>::insert(&nominator, individual_exposure);
-			Self::deposit_event(Event::<T>::Unbonded { candidate: None, nominator, amount });
-			Ok(())
+							Self::deposit_event(Event::<T>::Unbonded {
+								candidate,
+								nominator: nominator.clone(),
+								amount,
+							});
+							Ok(())
+						} else {
+							return Err(Error::<T>::CandidateNotFound)
+						}
+					} else {
+						return Err(Error::<T>::CandidateNotFound)
+					}
+				} else {
+					return Err(Error::<T>::StakerNotFound)
+				}
+			})
 		}
 
 		pub fn do_bond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
 			let limits = <Stakinglimits<T>>::get();
 			//FIXME: minimum_nominator_stake should be only checked once
 			ensure!(amount >= limits.minimum_nominator_stake, Error::<T>::StakingLimitsError);
-			if let Some(mut individual_exposure) = <Stakers<T>>::get(&nominator) {
-				if let Some((network, candidate)) = individual_exposure.backing {
-					if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
-						exposure.total = exposure.total.saturating_add(amount);
-						exposure.stakers.insert(nominator.clone());
-						// reserve stake
-						pallet_balances::Pallet::<T>::reserve_named(
-							&T::StakingReserveIdentifier::get(),
-							&nominator,
-							amount,
-						)?;
-						<Candidates<T>>::insert(network, &candidate, exposure);
-						Self::deposit_event(Event::<T>::Bonded { candidate, nominator, amount });
-					} else {
-						return Err(Error::<T>::CandidateNotFound.into())
-					}
-				} else {
+			if let Some(individual_exposure) = <Stakers<T>>::get(&nominator) {
+				let candidate = individual_exposure.backing;
+				if let Some(network) = <CandidateToNetworkMapping<T>>::get(&candidate) {
+					<Candidates<T>>::mutate(network, &candidate, |exposure| {
+						if let Some(exposure) = exposure {
+							exposure.total = exposure.total.saturating_add(amount);
+							exposure.stakers.insert(nominator.clone());
+						}
+					});
+					// reserve stake
 					pallet_balances::Pallet::<T>::reserve_named(
 						&T::StakingReserveIdentifier::get(),
 						&nominator,
 						amount,
 					)?;
-					individual_exposure.value += amount;
-					<Stakers<T>>::insert(&nominator, individual_exposure);
+					Self::deposit_event(Event::<T>::Bonded { candidate, nominator, amount });
+					Ok(())
+				} else {
+					Err(Error::<T>::CandidateNotFound.into())
 				}
 			} else {
-				// reserve stake
-				pallet_balances::Pallet::<T>::reserve_named(
-					&T::StakingReserveIdentifier::get(),
-					&nominator,
-					amount,
-				)?;
-				<Stakers<T>>::insert(
-					&nominator,
-					IndividualExposure {
-						who: nominator.clone(),
-						value: amount,
-						backing: None,
-						unlocking: Vec::new(),
-					},
-				)
+				Err(Error::<T>::IndividualExposureNotFoundForNominator.into())
 			}
-			Ok(())
 		}
 
 		pub fn move_queued_to_active(network: Network) -> OnSessionChange<T::AccountId> {
@@ -1179,6 +1189,7 @@ pub mod pallet {
 			stash: Self::AccountId,
 			controller: Self::AccountId,
 			value: Self::Balance,
+
 			_payee: Self::AccountId,
 		) -> DispatchResult {
 			ensure!(stash == controller, Error::<T>::StashAndControllerMustBeSame);
