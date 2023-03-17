@@ -57,7 +57,7 @@ fn stake_nominator_candidate<T: Config>(
 	let nominator_exposure = IndividualExposure {
 		who: nominator.clone(),
 		value: balance,
-		backing: None,
+		backing: candidate.clone(),
 		unlocking: vec![],
 	};
 	drop(<pallet_balances::Pallet<T> as Currency<_>>::deposit_creating(&nominator, balance));
@@ -117,7 +117,7 @@ benchmarks! {
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
 		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
-		let call = Call::<T>::bond { amount };
+		let call = Call::<T>::bond { amount, candidate: candidate.clone() };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify{
 		assert_last_event::<T>(Event::Bonded{ candidate, nominator, amount }.into());
@@ -132,12 +132,12 @@ benchmarks! {
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
 		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
-		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount).unwrap();
+		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount, candidate.clone()).unwrap();
 		let call = Call::<T>::unbond { amount };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
 		// None - as two events emmited, and only first one can have Some(candidate)
-		assert_last_event::<T>(Event::Unbonded{ candidate: None, nominator, amount }.into());
+		assert_last_event::<T>(Event::Unbonded{ candidate, nominator, amount }.into());
 	}
 
 	withdraw_unbonded {
@@ -149,18 +149,19 @@ benchmarks! {
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
 		let bound_amount: BalanceOf<T> = convert_to_balance::<T>(m - 10);
 		assert_ne!(amount, Zero::zero());
-		assert_ne!(bound_amount, Zero::zero());
 		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
-		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), bound_amount)?;
+		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount, candidate.clone())?;
 		// elect exposure
-		let exposure = <Candidates<T>>::get(1, &nominator).unwrap();
+		let exposure = <Candidates<T>>::get(1, &candidate).unwrap();
 		<TotalElectedRelayers<T>>::insert(1, vec!((nominator.clone(), exposure)));
-		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), bound_amount)?;
+		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
+		let prev_index = TheaStaking::<T>::current_index();
+		<CurrentIndex<T>>::put(prev_index + 1);
 		let call = Call::<T>::withdraw_unbonded{};
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
-		assert_last_event::<T>(Event::BondsWithdrawn{ nominator, amount: bound_amount }.into());
+		assert_last_event::<T>(Event::BondsWithdrawn{ nominator, amount }.into());
 	}
 
 	remove_candidate {
@@ -230,7 +231,7 @@ benchmarks! {
 		let nominator = account::<T::AccountId>("nominator", k, 0);
 		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
-		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
+		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount, candidate.clone())?;
 		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
 		let call = Call::<T>::stakers_payout{ session: 1 };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }

@@ -69,11 +69,11 @@ fn test_bound_with_valid_arguments_first_time_returns_ok() {
 		// Give some Balance to Nominator
 		let nominator = 2;
 		Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
+		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
 		let individual_exposure = IndividualExposure {
 			who: nominator,
 			value: 1_000_000_000_000u128,
-			backing: None,
+			backing: 1,
 			unlocking: vec![],
 		};
 		assert_eq!(TheaStaking::stakers(nominator), Some(individual_exposure));
@@ -87,7 +87,7 @@ fn test_bound_with_low_nominators_balance_returns_staking_limits_error() {
 		insert_staking_limit();
 		let nominator = 2;
 		assert_noop!(
-			TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_00u128),
+			TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_00u128, 1),
 			Error::<Test>::StakingLimitsError
 		);
 	});
@@ -100,7 +100,7 @@ fn test_bound_with_low_nominators_balance_return_insufficient_balance() {
 		insert_staking_limit();
 		let nominator = 2;
 		assert_noop!(
-			TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128),
+			TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1),
 			pallet_balances::Error::<Test>::InsufficientBalance
 		);
 	});
@@ -128,7 +128,7 @@ fn test_nominate_with_valid_arguments_returns_ok() {
 		let nominator_exposure = IndividualExposure {
 			who: nominator,
 			value: 1_000_000_000_000u128,
-			backing: Some((network_id, candidate)),
+			backing: candidate,
 			unlocking: vec![],
 		};
 		assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
@@ -184,12 +184,12 @@ fn test_bound_with_valid_arguments_second_time_returns_ok() {
 		// Give some Balance to Nominator
 		let nominator = 2;
 		Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
-		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
+		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
+		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
 		let individual_exposure = IndividualExposure {
 			who: nominator,
 			value: 2_000_000_000_000u128,
-			backing: None,
+			backing: 1,
 			unlocking: vec![],
 		};
 		assert_eq!(TheaStaking::stakers(nominator), Some(individual_exposure));
@@ -244,7 +244,7 @@ fn test_unbond_with_zero_nomination_returns_ok() {
 		let nominator_exposure = IndividualExposure {
 			who: nominator,
 			value: 1_000_000_000_000,
-			backing: None,
+			backing: 1,
 			unlocking: vec![unlocking_chunk],
 		};
 		assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
@@ -495,7 +495,7 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		let nominator_exposure = IndividualExposure {
 			who: nominator,
 			value: 1_000_000_000_000u128,
-			backing: None,
+			backing: 1,
 			unlocking: vec![UnlockChunk { value: 1000000000000, era: 10 }],
 		};
 		assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
@@ -541,7 +541,7 @@ fn test_reward_with_nominators() {
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(21), 1, BLSPublicKey([0_u8; 192])));
 		let _bob_balances = Balances::free_balance(21);
 		Balances::mint_into(&101, 10000 * PDEX).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(101), 10000 * PDEX));
+		assert_ok!(TheaStaking::bond(Origin::signed(101), 10000 * PDEX, 1));
 		let _nominator_balances = Balances::free_balance(101);
 		assert_ok!(TheaStaking::nominate(Origin::signed(101), 11));
 		let _nominator_exposure = Stakers::<Test>::get(101).unwrap();
@@ -593,7 +593,7 @@ fn misbehavior_setup_three_candidates_two_nominators() {
 	TheaStaking::add_candidate(Origin::signed(3), 1, BLSPublicKey([3_u8; 192])).unwrap();
 	for id in 10..=11 {
 		Balances::mint_into(&id, 10000 * id as u128 * PDEX).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(id), 10000 * id as u128 * PDEX));
+		assert_ok!(TheaStaking::bond(Origin::signed(id), 10000 * id as u128 * PDEX, 1));
 		assert_ok!(TheaStaking::nominate(Origin::signed(id), 3));
 	}
 }
@@ -721,7 +721,7 @@ fn unbonding() {
 fn register_nominator() {
 	let nominator = 2;
 	Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
-	assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128));
+	assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
 }
 
 fn register_candidate() {
