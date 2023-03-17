@@ -4,7 +4,7 @@ use scale_info::TypeInfo;
 use sp_runtime::traits::{Get, Saturating, Zero};
 use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
-use crate::{BLSPublicKey, BalanceOf, Config, Network, Pallet, SessionIndex};
+use crate::{BLSPublicKey, BalanceOf, Config, Pallet, SessionIndex};
 
 /// The amount of exposure (to slashing) than an individual nominator has.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
@@ -16,7 +16,7 @@ pub struct IndividualExposure<T: Config, AccountId: Encode + TypeInfo> {
 	#[codec(compact)]
 	pub value: BalanceOf<T>,
 	/// Backing candidate
-	pub backing: Option<(Network, T::AccountId)>,
+	pub backing: T::AccountId,
 	/// Any balance that is becoming free, which may eventually be transferred out of the stash
 	/// (assuming it doesn't get slashed first). It is assumed that this will be treated as a first
 	/// in, first out queue where the new (higher value) eras get pushed on the back.
