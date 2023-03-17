@@ -406,7 +406,7 @@ impl Ord for Order {
 				Ordering::Less => Ordering::Greater,
 				// A.price == B.price => Order based on timestamp
 				Ordering::Equal => {
-					other.timestamp.cmp(&self.timestamp)
+					self.timestamp.cmp(&other.timestamp)
 				}
 				// A.price > B.price => [A, B]
 				Ordering::Greater => Ordering::Less,
@@ -418,7 +418,7 @@ impl Ord for Order {
 				Ordering::Less => Ordering::Less,
 				// A.price == B.price => Order based on timestamp
 				Ordering::Equal => {
-					other.timestamp.cmp(&self.timestamp)
+					self.timestamp.cmp(&other.timestamp)
 				}
 				// A.price > B.price => [B, A]
 				Ordering::Greater => Ordering::Greater,
