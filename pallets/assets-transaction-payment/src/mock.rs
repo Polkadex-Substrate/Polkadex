@@ -14,7 +14,6 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier};
-use wallet_connector;
 use polkadex_primitives::{AccountIndex, Balance, Moment};
 use smallvec::smallvec;
 use sp_application_crypto::sp_core::H256;
@@ -24,6 +23,7 @@ use sp_runtime::{
 	FixedPointNumber, Perbill, Perquintill, SaturatedConversion,
 };
 use sp_std::cell::RefCell;
+use wallet_connector;
 
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
 
