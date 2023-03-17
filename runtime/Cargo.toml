@@ -110,7 +110,7 @@ pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
 # Thea
 thea = {path = "../pallets/thea", default-features = false }
 thea-primitives = { path = "../thea-primitives", default-features = false  }
-polkadex-extrinsic = { path = "../polkadex-extrinsic", default-features = false  }
+wallet-connector = { path = "../wallet-connector", default-features = false  }
 
 # Liquidity Pallet
 liquidity = { path = "../pallets/liquidity", default-features = false }
@@ -200,7 +200,7 @@ std = [
     "thea/std",
     "thea-cross-chain-governance/std",
     "liquidity/std",
-    "polkadex-extrinsic/std",
+    "wallet-connector/std",
 ]
 runtime-benchmarks = [
     #theirs
