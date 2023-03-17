@@ -525,7 +525,7 @@ pub mod pallet {
 		/// Not a member of active relayers
 		NotAnActiveRelayer,
 		/// Amount to stash is greater than bonded amount
-		AmountToStashGreaterThanBondedAmount,
+		AmountToStashIsGreaterThanBondedAmount,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -791,7 +791,7 @@ pub mod pallet {
 			}
 			// this condition should not be triggered as Relayer or Nominator should have locked
 			// balance
-			Err(Error::<T>::AmountToStashGreaterThanBondedAmount.into())
+			Err(Error::<T>::AmountToStashIsGreaterThanBondedAmount.into())
 		}
 
 		// Add public immutables and private mutables.
