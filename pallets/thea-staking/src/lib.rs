@@ -237,11 +237,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Register individual exposure for specified candidate
-		/// Called by Nominator to create stake exposure
-		/// # Parameters
-		/// * `candidate`: Candidate to be
-
 		/// Nominates candidate for Active Relayer Set for provided network.
 		/// Can be called by Nominator who already staked.
 		///
@@ -261,6 +256,7 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// `amount`: Amount to be locked.
+		/// `candidate`: Relayer account backed up by this nominator
 		#[pallet::call_index(3)]
 		#[pallet::weight(10000)]
 		pub fn bond(
@@ -984,31 +980,32 @@ pub mod pallet {
 		pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
 			<Stakers<T>>::mutate(&nominator, |individual_exposure| {
 				if let Some(individual_exposure) = individual_exposure {
-					if individual_exposure.value >= amount {
+					if individual_exposure.value > amount {
 						return Err(Error::<T>::AmountIsGreaterThanBondedAmount)
 					}
 					let candidate = individual_exposure.backing.clone();
 					if let Some(network) = <CandidateToNetworkMapping<T>>::get(&candidate) {
-						if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
-							exposure.total = exposure.total.saturating_sub(amount);
-							if individual_exposure.value == amount {
-								exposure.stakers.remove(&nominator);
-							}
-							<Candidates<T>>::insert(network, candidate.clone(), exposure);
-							individual_exposure.unbond(
-								amount,
-								Self::current_index().saturating_add(T::UnbondingDelay::get()),
-							);
+						<Candidates<T>>::mutate(network, candidate.clone(), |exposure| {
+							if let Some(exposure) = exposure {
+								exposure.total = exposure.total.saturating_sub(amount);
+								if individual_exposure.value == amount {
+									exposure.stakers.remove(&nominator);
+								}
+								individual_exposure.unbond(
+									amount,
+									Self::current_index().saturating_add(T::UnbondingDelay::get()),
+								);
 
-							Self::deposit_event(Event::<T>::Unbonded {
-								candidate,
-								nominator: nominator.clone(),
-								amount,
-							});
-							Ok(())
-						} else {
-							return Err(Error::<T>::CandidateNotFound)
-						}
+								Self::deposit_event(Event::<T>::Unbonded {
+									candidate,
+									nominator: nominator.clone(),
+									amount,
+								});
+								Ok(())
+							} else {
+								return Err(Error::<T>::CandidateNotFound)
+							}
+						})
 					} else {
 						return Err(Error::<T>::CandidateNotFound)
 					}
