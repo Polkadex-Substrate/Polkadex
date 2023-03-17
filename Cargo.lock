@@ -210,13 +210,18 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
+ "pallet-timestamp",
  "pallet-transaction-payment",
  "parity-scale-codec",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
+ "smallvec",
+ "sp-application-crypto",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "wallet-connector",
 ]
 
 [[package]]
@@ -4950,10 +4955,6 @@ dependencies = [
  "asset-handler",
  "assets-transaction-payment",
  "chainbridge",
- "ethers",
- "ethers-contract",
- "ethers-core",
- "ethers-derive-eip712",
  "frame-benchmarking",
  "frame-election-provider-support",
  "frame-executive",
@@ -4962,7 +4963,6 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex",
  "hex-literal",
  "liquidity",
  "log",
@@ -5007,12 +5007,9 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
- "parity-util-mem",
  "pdex-migration",
  "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
  "scale-info",
- "serde",
- "serde_json",
  "smallvec",
  "sp-api",
  "sp-authority-discovery",
@@ -5025,7 +5022,6 @@ dependencies = [
  "sp-npos-elections",
  "sp-offchain",
  "sp-runtime",
- "sp-runtime-interface",
  "sp-session",
  "sp-staking",
  "sp-std",
@@ -5037,6 +5033,7 @@ dependencies = [
  "thea-cross-chain-governance",
  "thea-primitives",
  "thea-staking",
+ "wallet-connector",
 ]
 
 [[package]]
@@ -6446,6 +6443,7 @@ dependencies = [
  "node-polkadex-runtime",
  "sc-executor",
  "thea-primitives",
+ "wallet-connector",
 ]
 
 [[package]]
@@ -10819,6 +10817,29 @@ dependencies = [
  "same-file",
  "winapi",
  "winapi-util",
+]
+
+[[package]]
+name = "wallet-connector"
+version = "0.1.0"
+dependencies = [
+ "ethers",
+ "ethers-contract",
+ "ethers-core",
+ "ethers-derive-eip712",
+ "frame-support",
+ "hex",
+ "parity-scale-codec",
+ "parity-util-mem",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-runtime-interface",
+ "sp-std",
 ]
 
 [[package]]

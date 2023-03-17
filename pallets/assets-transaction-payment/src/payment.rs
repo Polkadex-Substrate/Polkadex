@@ -139,11 +139,12 @@ where
 			.max(min_converted_fee);
 		let can_withdraw =
 			<T::Fungibles as Inspect<T::AccountId>>::can_withdraw(asset_id, who, converted_fee);
+
 		if !matches!(can_withdraw, WithdrawConsequence::Success) {
 			return Err(InvalidTransaction::Payment.into())
 		}
 		<T::Fungibles as Balanced<T::AccountId>>::withdraw(asset_id, who, converted_fee)
-			.map_err(|_| TransactionValidityError::from(InvalidTransaction::Payment))
+			.map_err(|_err| TransactionValidityError::from(InvalidTransaction::Payment))
 	}
 
 	/// Hand the fee and the tip over to the `[HandleCredit]` implementation.
