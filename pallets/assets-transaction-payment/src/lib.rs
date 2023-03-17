@@ -26,6 +26,12 @@ use sp_runtime::{
 	DispatchResult, FixedPointOperand,
 };
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod test;
+
 // Type aliases used for interaction with `OnChargeTransaction`.
 pub(crate) type OnChargeTransactionOf<T> =
 	<T as pallet_transaction_payment::Config>::OnChargeTransaction;
@@ -50,7 +56,7 @@ pub(crate) type ChargeAssetBalanceOf<T> =
 // Asset id type alias.
 pub(crate) type ChargeAssetIdOf<T> =
 	<<T as Config>::OnChargeAssetTransaction as OnChargeAssetTransaction<T>>::AssetId;
-// Liquity info type alias.
+// Liquidity info type alias.
 pub(crate) type ChargeAssetLiquidityOf<T> =
 	<<T as Config>::OnChargeAssetTransaction as OnChargeAssetTransaction<T>>::LiquidityInfo;
 
@@ -116,6 +122,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Migration is not operational yet
 		NotOperational,
+		/// Token not allowlisted
+		TokenNotAllowlisted,
 	}
 
 	#[pallet::hooks]
@@ -189,7 +197,6 @@ where
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
 		} else if self.asset_id != Zero::zero() {
-			// If the asset id is zero, then we treat that case as payment in PDEX,
 			T::OnChargeAssetTransaction::withdraw_fee(
 				who,
 				call,
@@ -200,6 +207,7 @@ where
 			)
 			.map(|i| (fee, InitialPayment::Asset(i.into())))
 		} else {
+			// If the asset id is zero, then we treat that case as payment in PDEX,
 			<OnChargeTransactionOf<T> as OnChargeTransaction<T>>::withdraw_fee(
 				who, call, info, fee, self.tip,
 			)

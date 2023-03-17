@@ -92,10 +92,7 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-pub mod ethereum;
-mod signature;
-pub mod signedpayload;
-mod unchecked_extrinsic;
+use wallet_connector::{signedpayload, unchecked_extrinsic};
 mod weights;
 
 // Make the WASM binary available.
