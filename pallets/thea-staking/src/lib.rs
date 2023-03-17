@@ -524,8 +524,8 @@ pub mod pallet {
 		RepeatedReport,
 		/// Not a member of active relayers
 		NotAnActiveRelayer,
-		/// Amount to stash is greater than bonded amount
-		AmountToStashIsGreaterThanBondedAmount,
+		/// Amount to Slash is greater than bonded amount
+		AmountToSlashIsGreaterThanBondedAmount,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -588,7 +588,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		Network,
 		Blake2_128Concat,
-		T::AccountId,
+		T::AccountId, //relsyers account id
 		Exposure<T>,
 		OptionQuery,
 	>;
@@ -791,84 +791,119 @@ pub mod pallet {
 			}
 			// this condition should not be triggered as Relayer or Nominator should have locked
 			// balance
-			Err(Error::<T>::AmountToStashIsGreaterThanBondedAmount.into())
+			Err(Error::<T>::AmountToSlashIsGreaterThanBondedAmount.into())
 		}
 
-		// Add public immutables and private mutables.
+		/// Rotates the session by slashing the candidates and stakers who committed slashing.
+		/// It retrieves the active networks from the storage.After that, it iterates through the
+		/// committed slashing storage and checks if the offender is a candidate in any active
+		/// network. If so, it mutates the candidate storage and slashes the relayer's individual
+		/// stake and all stakers/nominators of the relayer. The amount of tokens that are slashed
+		/// from the relayer's individual stake and stakers/nominators is calculated based on the
+		/// percentage of slashing committed. The total amount slashed is calculated by summing up
+		/// the amount slashed from the relayer's individual stake and stakers/nominators.
+		/// Finally, it awards the reporters who reported the slashing by allocating a portion of
+		/// the slashed amount to them.
 		pub fn rotate_session() {
 			let session_index = <CurrentIndex<T>>::get();
 			log::trace!(target: "runtime::thea::staking", "rotating session {:?}", session_index);
 			let active_networks = <ActiveNetworks<T>>::get();
+
 			for (offender, (percent, reporters)) in <CommitedSlashing<T>>::iter() {
 				if let Some(net) =
 					active_networks.iter().find(|n| <Candidates<T>>::contains_key(n, &offender))
 				{
-					if let Some(to_slash) = <Candidates<T>>::get(net, &offender) {
-						// total amount transfered to treasury - used for reporters award
-						// calculations
-						let mut total_slashed = BalanceOf::<T>::zero();
-						let actual_percent = Percent::from_percent(percent);
-						// slashing relayer's individual stake
-						let amount: BalanceOf<T> = actual_percent * to_slash.individual;
+					<Candidates<T>>::mutate(net, &offender, |to_slash| {
+						if let Some(to_slash) = to_slash {
+							// total amount transfered to treasury - used for reporters award
+							// calculations
+							let mut total_slashed = BalanceOf::<T>::zero();
+							let actual_percent = Percent::from_percent(percent);
+							// slashing relayer's individual stake
+							let amount: BalanceOf<T> = actual_percent * to_slash.individual;
 
-						if let Ok(relayer_slashed_amount) = Self::do_slash(offender.clone(), amount)
-						{
-							total_slashed = total_slashed.saturating_add(relayer_slashed_amount);
-							Self::deposit_event(Event::Slashed {
-								offender,
-								amount: relayer_slashed_amount,
-							});
-						}
+							if let Ok(relayer_slashed_amount) =
+								Self::do_slash(offender.clone(), amount)
+							{
+								total_slashed =
+									total_slashed.saturating_add(relayer_slashed_amount);
+								Self::deposit_event(Event::Slashed {
+									offender: offender.clone(),
+									amount: relayer_slashed_amount,
+								});
+								//update storage
+								to_slash.individual =
+									to_slash.individual.saturating_sub(total_slashed);
+							}
 
-						// slash stakers / nominators
-						for nominator in to_slash.stakers.iter() {
-							if let Some(individual_nominator) = <Stakers<T>>::get(nominator) {
-								let nominator_amount_individual: BalanceOf<T> =
-									actual_percent * individual_nominator.value;
+							// slash stakers / nominators
+							for nominator in to_slash.stakers.iter() {
+								<Stakers<T>>::mutate(nominator, |individual_nominator| {
+									if let Some(individual_nominator) = individual_nominator {
+										let nominator_amount_individual: BalanceOf<T> =
+											actual_percent * individual_nominator.value;
+										if let Ok(nominator_slashed_amount) = Self::do_slash(
+											nominator.clone(),
+											nominator_amount_individual,
+										) {
+											total_slashed = total_slashed
+												.saturating_add(nominator_slashed_amount);
+											Self::deposit_event(Event::Slashed {
+												offender: nominator.clone(),
+												amount: nominator_slashed_amount,
+											});
+											//update nominator storage
+											individual_nominator.value = individual_nominator
+												.value
+												.saturating_sub(nominator_slashed_amount);
 
-								if let Ok(nominator_slashed_amount) =
-									Self::do_slash(nominator.clone(), nominator_amount_individual)
+										// slashed nominator
+										} else {
+											// we signal issue with nominator slashing via Event
+											Self::deposit_event(Event::SlashingFailed {
+												offender: nominator.clone(),
+											});
+										}
+									} else {
+										Self::deposit_event(Event::SlashingFailed {
+											offender: nominator.clone(),
+										});
+									}
+								});
+							}
+							//update relayer total slashed amount
+							to_slash.total = to_slash.total.saturating_sub(total_slashed);
+
+							// giving back to reporter
+							let reporter_percent =
+								Percent::from_percent(T::ReportersRewardCoeficient::get());
+							let reporter_award: BalanceOf<T> = reporter_percent * total_slashed;
+							let reporter_individual_part =
+								Permill::from_rational(1, reporters.len() as u32);
+							let reporter_individual_award: BalanceOf<T> =
+								reporter_individual_part * reporter_award;
+
+							for reporter in reporters.into_iter() {
+								if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
+									&T::TreasuryPalletId::get().into_account_truncating(),
+									&reporter,
+									reporter_individual_award,
+									ExistenceRequirement::KeepAlive,
+								)
+								.is_ok()
 								{
-									total_slashed =
-										total_slashed.saturating_add(nominator_slashed_amount);
-									Self::deposit_event(Event::Slashed {
-										offender: nominator.to_owned(),
-										amount: nominator_slashed_amount,
+									Self::deposit_event(Event::ReportRewarded {
+										reporter,
+										amount: reporter_individual_award,
 									});
 								}
-							} else {
-								// we signal issue with staker slashing via Event
-								Self::deposit_event(Event::SlashingFailed {
-									offender: nominator.to_owned(),
-								});
 							}
+						} else {
+							Self::deposit_event(Event::SlashingFailed {
+								offender: offender.clone(),
+							});
 						}
-						// distribute to reporters
-						let reporter_percent =
-							Percent::from_percent(T::ReportersRewardCoeficient::get());
-						let reporter_award: BalanceOf<T> = reporter_percent * total_slashed;
-						let reporter_individual_part =
-							Permill::from_rational(1, reporters.len() as u32);
-						let reporter_individual_award: BalanceOf<T> =
-							reporter_individual_part * reporter_award;
-						for reporter in reporters.into_iter() {
-							if <pallet_balances::Pallet<T> as Currency<_>>::transfer(
-								&T::TreasuryPalletId::get().into_account_truncating(),
-								&reporter,
-								reporter_individual_award,
-								ExistenceRequirement::KeepAlive,
-							)
-							.is_ok()
-							{
-								Self::deposit_event(Event::ReportRewarded {
-									reporter,
-									amount: reporter_individual_award,
-								});
-							}
-						}
-					} else {
-						Self::deposit_event(Event::SlashingFailed { offender });
-					}
+					});
 				}
 			}
 
