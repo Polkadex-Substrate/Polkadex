@@ -42,25 +42,25 @@ fn allow_list_token_for_fees_with_bad_origin() {
 }
 
 #[test]
-fn block_token_for_fees_when_token_not_allowlisted() {
+fn block_token_for_fees_when_token_allowlisted() {
 	new_test_ext().execute_with(|| {
-		let _asset = 1_u128;
-		//ToDo: Remove comment after fix
-		// assert_noop!(AssetsTransactionPayment::block_token_for_fees(Origin::root(),
-		// Error::<Test>::TokenNotAllowlisted));
+		let asset = 1_u128;
+		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset));
+		assert_eq!(<AllowedAssets<Test>>::get(), vec![asset]);
+		assert_ok!(AssetsTransactionPayment::block_token_for_fees(Origin::root(), asset));
+		assert_eq!(<AllowedAssets<Test>>::get(), vec![]);
 	});
 }
 
 #[test]
-fn block_token_for_fees() {
+fn block_token_for_fees_when_token_not_allowlisted() {
 	new_test_ext().execute_with(|| {
 		let asset = 1_u128;
-		assert_ok!(AssetsTransactionPayment::allow_list_token_for_fees(Origin::root(), asset));
 		assert_ok!(AssetsTransactionPayment::block_token_for_fees(Origin::root(), asset));
-		let vec: Vec<u128> = Vec::new();
-		assert_eq!(<AllowedAssets<Test>>::get(), vec);
+		assert_eq!(<AllowedAssets<Test>>::get(), vec![]);
 	});
 }
+
 pub fn info_from_weight(w: Weight) -> DispatchInfo {
 	// pays_fee: Pays::Yes -- class: DispatchClass::Normal
 	DispatchInfo { weight: w, ..Default::default() }
