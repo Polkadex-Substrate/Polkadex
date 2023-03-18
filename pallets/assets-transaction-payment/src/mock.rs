@@ -208,6 +208,7 @@ impl xyz_transaction_payment::Config for Test {
 		AlternateTokenSwapper,
 		DealWithFees,
 	>;
+	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
