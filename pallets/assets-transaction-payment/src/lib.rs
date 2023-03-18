@@ -8,13 +8,10 @@ use crate::{
 	pallet::{AllowedAssets, Config, Event, Pallet},
 	payment::OnChargeAssetTransaction,
 };
-use frame_support::{
-	dispatch::{DispatchInfo, PostDispatchInfo},
-	traits::{
-		fungibles::{CreditOf, Inspect},
-		IsType,
-	},
-};
+use frame_support::{dispatch::{DispatchInfo, PostDispatchInfo}, ensure, traits::{
+	fungibles::{CreditOf, Inspect},
+	IsType,
+}};
 use pallet_transaction_payment::OnChargeTransaction;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -37,7 +34,7 @@ pub(crate) type OnChargeTransactionOf<T> =
 	<T as pallet_transaction_payment::Config>::OnChargeTransaction;
 // Balance type alias.
 pub(crate) type BalanceOf<T> = <OnChargeTransactionOf<T> as OnChargeTransaction<T>>::Balance;
-// Liquity info type alias.
+// Liquidity info type alias.
 pub(crate) type LiquidityInfoOf<T> =
 	<OnChargeTransactionOf<T> as OnChargeTransaction<T>>::LiquidityInfo;
 
@@ -81,7 +78,6 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	/// Configure the pallet by specifying the parameters and types on which it depends.
 	pub trait Config:
 		frame_system::Config + pallet_assets::Config + pallet_transaction_payment::Config
 	{
@@ -91,6 +87,8 @@ pub mod pallet {
 		type Fungibles: Balanced<Self::AccountId>;
 		/// The actual transaction charging logic that charges the fees.
 		type OnChargeAssetTransaction: OnChargeAssetTransaction<Self>;
+		/// Governance Origin
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 	}
 
 	#[pallet::pallet]
@@ -134,14 +132,18 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// A way to add new tokens for payment for fees
+		/// A way to add new tokens as payment for fees.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: governance
+		/// * `asset`: asset id in which fees will be accepted
 		#[pallet::weight(10000)]
 		pub fn allow_list_token_for_fees(
 			origin: OriginFor<T>,
 			asset: AssetIdOf<T>,
 		) -> DispatchResult {
-			// TODO: Add a governance origin instead of root
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			<AllowedAssets<T>>::mutate(|allowed_assets| {
 				if !allowed_assets.contains(&asset) {
 					allowed_assets.push(asset);
@@ -150,11 +152,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// A way to remove tokens for payment for fees
+		/// A way to remove tokens as payment for fees.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: governance
+		/// * `asset`: asset id in which fees should not be accepted anymore
 		#[pallet::weight(10000)]
 		pub fn block_token_for_fees(origin: OriginFor<T>, asset: AssetIdOf<T>) -> DispatchResult {
-			// TODO: Add a governance origin instead of root
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			<AllowedAssets<T>>::mutate(|allowed_assets| {
 				if let Some(pos) = allowed_assets.iter().position(|&x| x == asset) {
 					allowed_assets.remove(pos);
@@ -193,7 +199,7 @@ where
 		len: usize,
 	) -> Result<(BalanceOf<T>, InitialPayment<T>), TransactionValidityError> {
 		let fee = pallet_transaction_payment::Pallet::<T>::compute_fee(len as u32, info, self.tip);
-		debug_assert!(self.tip <= fee, "tip should be included in the computed fee");
+		ensure!(self.tip <= fee,TransactionValidityError::Invalid(InvalidTransaction::Payment));
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
 		} else if self.asset_id != Zero::zero() {
@@ -261,13 +267,17 @@ where
 		len: usize,
 	) -> TransactionValidity {
 		use pallet_transaction_payment::ChargeTransactionPayment;
-		let (fee, inital_payment) = self.withdraw_fee(who, call, info, len)?;
+		let (fee, initial_payment) = self.withdraw_fee(who, call, info, len)?;
 		// Check if the given asset is valid
-		if let InitialPayment::Asset(asset) = inital_payment {
+		if let InitialPayment::Asset(asset) = initial_payment {
 			let allowed_assets = <AllowedAssets<T>>::get();
 			if !allowed_assets.contains(&asset.asset()) {
 				return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 			}
+		}
+		else {
+			//ToDo: Handle this custom error
+			return Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1)))
 		}
 		let priority = ChargeTransactionPayment::<T>::get_priority(info, len, self.tip, fee);
 		Ok(ValidTransaction { priority, ..Default::default() })

@@ -92,7 +92,7 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-use wallet_connector::{signedpayload, unchecked_extrinsic};
+use wallet_connector::{signed_payload, unchecked_extrinsic};
 mod weights;
 
 // Make the WASM binary available.
@@ -1347,6 +1347,7 @@ impl assets_transaction_payment::pallet::Config for Runtime {
 		AlternateTokenSwapper,
 		DealWithFees,
 	>;
+	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 }
 impl thea::pallet::Config for Runtime {
 	type Event = Event;
@@ -1513,7 +1514,7 @@ pub type SignedExtra = (
 pub type UncheckedExtrinsic = unchecked_extrinsic::UncheckedExtrinsic<Address, Call, SignedExtra>;
 /// The payload being signed in transactions.
 // pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
-pub type SignedPayload = signedpayload::SignedPayload<Call, SignedExtra>;
+pub type SignedPayload = signed_payload::SignedPayload<Call, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.

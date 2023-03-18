@@ -17,7 +17,7 @@
 
 //! Generic implementation of an unchecked (pre-verification) extrinsic.
 
-use crate::signedpayload::SignedPayload;
+use crate::signed_payload::SignedPayload;
 use codec::{Compact, Decode, Encode, EncodeLike, Error, Input};
 use frame_support::traits::ExtrinsicCall;
 use parity_scale_codec as codec;
@@ -294,7 +294,7 @@ impl<'a, Address: Decode, Call: Decode, Extra: SignedExtension> serde::Deseriali
 	{
 		let r = sp_core::bytes::deserialize(de)?;
 		Decode::decode(&mut &r[..])
-			.map_err(|e| serde::de::Error::custom(format!("Decode error: {e}")))
+			.map_err(|e| serde::de::Error::custom(e.to_string()))
 	}
 }
 

@@ -10829,6 +10829,7 @@ dependencies = [
  "ethers-derive-eip712",
  "frame-support",
  "hex",
+ "log",
  "parity-scale-codec",
  "parity-util-mem",
  "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",

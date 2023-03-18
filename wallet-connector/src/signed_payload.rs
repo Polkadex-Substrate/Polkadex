@@ -52,7 +52,9 @@ where
 				// Ethereum like signing
 				1 => f(&ethereum_signing(payload)),
 				// Substrate Generic Signing
-				_ => f(&substrate_signing(payload)[..]),
+				_ => {
+					f(&substrate_signing(payload)[..])
+				},
 			}
 		})
 	}
@@ -72,6 +74,7 @@ pub fn substrate_signing(payload: &[u8]) -> Vec<u8> {
 		payload.to_vec()
 	}
 }
+
 
 pub fn parse_signature_scheme<Extra: SignedExtension>(
 	additional_signed: &Extra::AdditionalSigned,

@@ -21,14 +21,22 @@ impl Verify for CustomSignature {
 		match (&self.signature, signer) {
 			(Signature::Ed25519(ref sig), who) => match ed25519::Public::from_slice(who.as_ref()) {
 				Ok(signer) => sig.verify(msg, &signer),
-				Err(()) => false,
+				Err(()) => {
+					log::error!(target:"signature-verification", "Failed to verify Ed25519 signature");
+					false
+				},
 			},
 			(Signature::Sr25519(ref sig), who) => match sr25519::Public::from_slice(who.as_ref()) {
 				Ok(signer) => sig.verify(msg, &signer),
-				Err(()) => false,
+				Err(()) => {
+					log::error!(target:"signature-verification", "Failed to verify Sr25519 signature");
+					false },
 			},
 			(Signature::Ecdsa(ref sig), who) => match msg.get().try_into() {
-				Err(_) => false,
+				Err(_) => {
+					log::error!(target:"signature-verification", "Failed to verify Ecdsa signature");
+					false
+				},
 				Ok(m) =>
 					match sp_io::crypto::secp256k1_ecdsa_recover_compressed(sig.as_ref(), &m) {
 						Ok(pubkey) =>
