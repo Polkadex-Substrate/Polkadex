@@ -168,7 +168,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         let mut withdrawal = None;
         {
             let mut trie = self.get_trie();
-
+            println!("withdrawal main acc: {:?}", hex::encode(withdraw.main.encode()));
             // Get main account
             let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
 
@@ -195,9 +195,10 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
     }
 
     pub fn get_trie(&mut self) -> TrieDBMut<ExtensionLayout> {
-        let mut trie = if self.working_state_root == [0u8;32]{
+        let mut trie = if self.working_state_root == [0u8; 32] {
             TrieDBMutBuilder::new(&mut self.memory_db, &mut self.working_state_root).build()
-        }else {
+        } else {
+            println!("Working state root: {:?}", hex::encode(self.working_state_root));
             TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root).build()
         };
         trie
@@ -308,11 +309,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         info!(target:"orderbook","📒 Processing action: {:?}", action);
         match action.action.clone() {
             UserActions::Trade(trades) => {
-                let mut trie = TrieDBMutBuilder::from_existing(
-                    &mut self.memory_db,
-                    &mut self.working_state_root,
-                )
-                    .build();
+                let mut trie = self.get_trie();
                 for trade in trades {
                     process_trade(&mut trie, trade)?
                 }
