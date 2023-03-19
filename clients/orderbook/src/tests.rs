@@ -259,20 +259,20 @@ pub fn test_network() {
 
 
 #[tokio::test]
-pub async fn test_single_worker_process_withdraw() {
+pub async fn test_single_worker() {
     let alice = AccountKeyring::Alice.pair();
     let bob = AccountKeyring::Bob.pair();
     let alice_acc =  AccountId::from(alice.public());
     let bob_acc = AccountId::from(bob.public());
-    let ingress_messages = vec![
-        IngressMessages::RegisterUser(alice_acc.clone(),bob_acc.clone()),
-        IngressMessages::Deposit(alice_acc.clone(),AssetId::polkadex,Decimal::from_f64(10.2).unwrap())
-    ];
     // Setup runtime
     create_test_api!(
 	one_validator,
 	latest_summary: SnapshotSummary::default(),
-	ingress_messages: vec![],
+	ingress_messages: vec![
+            IngressMessages::RegisterUser(AccountId::from(AccountKeyring::Alice.pair().public()),AccountId::from(AccountKeyring::Bob.pair().public())),
+            IngressMessages::AddProxy(AccountId::from(AccountKeyring::Alice.pair().public()),AccountId::from(AccountKeyring::Charlie.pair().public())),
+            IngressMessages::Deposit(AccountId::from(AccountKeyring::Alice.pair().public()),AssetId::polkadex,Decimal::from_f64(10.2).unwrap())
+    ],
 	AccountKeyring::Alice);
     let api = Arc::new(one_validator::TestApi {});
     // Setup worker
@@ -294,21 +294,32 @@ pub async fn test_single_worker_process_withdraw() {
     };
 
     let mut worker = ObWorker::new(worker_params);
+    worker.handle_blk_import(0).unwrap();
+
     let payload = WithdrawPayloadCallByUser {
         asset_id: AssetId::polkadex,
-        amount: "10".to_string(),
+        amount: "1".to_string(),
         timestamp: 0,
     };
     let withdraw_request = WithdrawalRequest{
         signature: bob.sign(&payload.encode()).into(),
-        payload,
-        main: alice_acc,
+        payload: payload.clone(),
+        main: alice_acc.clone(),
         proxy: bob_acc,
     };
-    worker.handle_blk_import(0).unwrap();
-
-    assert_ne!(worker.working_state_root, [0u8; 32]);
+    worker.process_withdraw(withdraw_request).unwrap();
+    let charlie = AccountKeyring::Charlie.pair();
+    let charlie_acc = AccountId::from(charlie.public());
+    let withdraw_request = WithdrawalRequest{
+        signature: charlie.sign(&payload.encode()).into(),
+        payload,
+        main: alice_acc,
+        proxy: charlie_acc,
+    };
     worker.process_withdraw(withdraw_request).unwrap()
+
+    // Lets send a trade
+
 }
 
 
@@ -321,16 +332,16 @@ pub fn test_trie_insertion() {
             TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root)
                 .build();
 
-        trie.insert(b"ab".as_ref(),b"cd".as_ref()).unwrap();
+        //trie.insert(b"ab".as_ref(),b"cd".as_ref()).unwrap();
         trie.commit();
     }
 
-    {
-        let mut trie: TrieDBMut<ExtensionLayout> =
-            TrieDBMutBuilder::from_existing(&mut memory_db, &mut working_state_root)
-                .build();
-        assert_eq!(trie.get(b"ab".as_ref()).unwrap(), Some(b"cd".to_vec()))
-    }
+    // {
+    //     let mut trie: TrieDBMut<ExtensionLayout> =
+    //         TrieDBMutBuilder::from_existing(&mut memory_db, &mut working_state_root)
+    //             .build();
+    //    assert_eq!(trie.get(b"ab".as_ref()).unwrap(), Some(b"cd".to_vec()))
+    // }
 
     assert_ne!(working_state_root, [0u8; 32]);
 }

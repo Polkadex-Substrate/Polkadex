@@ -29,6 +29,7 @@ impl OrderState {
 
 	// verify if we can update the order state, with the new state of order.
 	pub fn update(&mut self, order: &Order, price: Decimal, amount: Decimal) -> bool {
+		// Verify signature also here.
 		todo!()
 	}
 }
