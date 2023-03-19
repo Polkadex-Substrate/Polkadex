@@ -26,7 +26,7 @@ impl RuntimePublic for Public {
 	}
 
 	fn generate_pair(_: KeyTypeId, seed: Option<Vec<u8>>) -> Self {
-		crypto::bls_ext::generate_pair(seed)
+		crypto::bls_ext::generate_pair_and_store(seed)
 	}
 
 	fn sign<M: AsRef<[u8]>>(&self, _: KeyTypeId, msg: &M) -> Option<Self::Signature> {
@@ -39,5 +39,20 @@ impl RuntimePublic for Public {
 
 	fn to_raw_vec(&self) -> Vec<u8> {
 		self.0.to_vec()
+	}
+}
+
+
+#[cfg(test)]
+mod tests {
+	#[test]
+	pub fn test_generate_and_load_back() {
+		use super::*;
+		let loaded_keys = Public::all(KeyTypeId(*b"blsk"));
+		assert_eq!(loaded_keys.len(), 1);
+		let public = Public::generate_pair(KeyTypeId(*b"blsk"), None);
+		let loaded_keys = Public::all(KeyTypeId(*b"blsk"));
+		assert_eq!(loaded_keys.len(), 2);
+		assert_eq!(loaded_keys[0], public);
 	}
 }

@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use crate::{Error, Pair as BLSPair};
-use crate::{Public, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
+use crate::{Public, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST, Seed};
 #[cfg(feature = "std")]
 use blst::min_sig::*;
 #[cfg(feature = "std")]
@@ -14,7 +14,7 @@ use sp_runtime_interface::runtime_interface;
 
 use sp_std::vec::Vec;
 
-pub const BLS_KEYSTORE_PATH: &str = "/polkadex/.keystore/";
+pub const BLS_KEYSTORE_PATH: &str = "polkadex/.keystore/";
 
 #[runtime_interface]
 pub trait BlsExt {
@@ -44,26 +44,17 @@ pub trait BlsExt {
 
 	fn generate_pair(phrase: Option<Vec<u8>>) -> Public {
 		// generate the private key  and store it in filesystem
-		let (pair, _seed) = match phrase {
-			None => BLSPair::generate(),
-			Some(phrase) => {
-				let phrase = String::from_utf8(phrase).expect("Invalid phrase");
-				let mut uri =
-					SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
-				if uri.phrase.expose_secret() == DEV_PHRASE {
-					// We want atleast 32 bytes for bls key generation
-					uri.phrase = BLS_DEV_PHRASE.parse().unwrap();
-				}
-				let (pair, seed) = BLSPair::from_phrase(uri.phrase.expose_secret(), None)
-					.expect("Phrase is not valid; qed");
+		let (pair, _seed) = generate_pair_(phrase);
+		pair.public()
+	}
 
-				let (pair, seed) = pair
-					.derive(uri.junctions.iter().cloned(), Some(seed))
-					.expect("Expected to derive the pair here.");
-				(pair, seed.unwrap())
-			},
-		};
-		pair.public
+	fn generate_pair_and_store(phrase: Option<Vec<u8>>) -> Public {
+		let (pair, seed) = generate_pair_(phrase);
+		// store the private key in filesystem
+		let file_path = key_file_path(pair.public().as_ref());
+		write_to_file(file_path, seed.as_ref())
+			.expect("Unable to write seed to file");
+		pair.public()
 	}
 
 	fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
@@ -118,6 +109,31 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 #[cfg(feature = "std")]
+fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair,Seed) {
+	let (pair, seed) = match phrase {
+		None => BLSPair::generate(),
+		Some(phrase) => {
+			let phrase = String::from_utf8(phrase).expect("Invalid phrase");
+			let mut uri =
+				SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
+			if uri.phrase.expose_secret() == DEV_PHRASE {
+				// We want atleast 32 bytes for bls key generation
+				uri.phrase = BLS_DEV_PHRASE.parse().unwrap();
+			}
+			let (pair, seed) = BLSPair::from_phrase(uri.phrase.expose_secret(), None)
+				.expect("Phrase is not valid; qed");
+
+			let (pair, seed) = pair
+				.derive(uri.junctions.iter().cloned(), Some(seed))
+				.expect("Expected to derive the pair here.");
+			(pair, seed.unwrap())
+		},
+	};
+
+	(pair,seed)
+}
+
+#[cfg(feature = "std")]
 #[allow(dead_code)]
 fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 	let path = key_file_path(pubkey.as_ref());
@@ -141,10 +157,11 @@ fn get_all_public_keys() -> Result<Vec<Public>, Error> {
 		// skip directories and non-unicode file names (hex is unicode)
 		if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
 			match hex::decode(name) {
-				Ok(ref hex) if hex.len() > 4 => {
+				Ok(ref hex) if hex.len() == 96 => {
 					let public = hex.to_vec();
-					match Public::try_from(public.as_ref()) {
-						Ok(public) => public_keys.push(public),
+
+					match PublicKey::from_bytes(public.as_ref()) {
+						Ok(public) => public_keys.push(Public::from(public.to_bytes())),
 						Err(_) => continue,
 					}
 				},
@@ -158,8 +175,12 @@ fn get_all_public_keys() -> Result<Vec<Public>, Error> {
 /// Write the given `data` to `file`.
 #[cfg(feature = "std")]
 #[allow(dead_code)]
-fn write_to_file(file: PathBuf, data: &[u8]) -> Result<(), Error> {
-	let mut file = File::create(file)?;
+fn write_to_file(path: PathBuf, data: &[u8]) -> Result<(), Error> {
+	std::fs::create_dir_all(BLS_KEYSTORE_PATH)?;
+	let mut file = std::fs::OpenOptions::new()
+		.write(true)
+		.create(true)
+		.open(path)?;
 	use std::os::unix::fs::PermissionsExt;
 	file.metadata()?.permissions().set_mode(0o600);
 	serde_json::to_writer(&file, data)?;
@@ -193,3 +214,5 @@ fn key_phrase_by_type(public: &[u8]) -> Result<Option<String>, Error> {
 		Ok(None)
 	}
 }
+
+
