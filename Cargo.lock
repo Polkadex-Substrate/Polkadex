@@ -4726,11 +4726,13 @@ dependencies = [
  "rust_decimal",
  "sc-chain-spec",
  "sc-client-api",
+ "sc-consensus",
  "sc-keystore",
  "sc-network",
  "sc-network-common",
  "sc-network-gossip",
  "sc-network-sync",
+ "sc-network-test",
  "sc-utils",
  "serde",
  "serde_json",
@@ -4744,6 +4746,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
+ "sp-tracing",
  "substrate-prometheus-endpoint",
  "thiserror",
  "tokio",
@@ -7581,6 +7584,37 @@ dependencies = [
  "sp-finality-grandpa",
  "sp-runtime",
  "thiserror",
+]
+
+[[package]]
+name = "sc-network-test"
+version = "0.8.0"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
+dependencies = [
+ "async-std",
+ "async-trait",
+ "futures 0.3.27",
+ "futures-timer",
+ "libp2p",
+ "log",
+ "parking_lot 0.12.1",
+ "rand 0.7.3",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-consensus",
+ "sc-network",
+ "sc-network-common",
+ "sc-network-light",
+ "sc-network-sync",
+ "sc-service",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-babe",
+ "sp-core",
+ "sp-runtime",
+ "sp-tracing",
+ "substrate-test-runtime",
+ "substrate-test-runtime-client",
 ]
 
 [[package]]

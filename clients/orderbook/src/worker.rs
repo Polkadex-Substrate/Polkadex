@@ -47,9 +47,10 @@ pub const STID_IMPORT_RESPONSE: &str = "stid_response";
 pub const ORDERBOOK_STATE_SYNC_REQUEST: &str = "orderbook_state_sync_request";
 pub const ORDERBOOK_STATE_SYNC_RESPONSE: &str = "orderbook_state_sync_response";
 
-pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
+pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
     pub client: Arc<C>,
     pub backend: Arc<BE>,
+    pub runtime: Arc<R>,
     pub sync_oracle: SO,
     // pub key_store: BeefyKeystore,
     // pub links: BeefyVoterLinks<B>,
@@ -64,10 +65,11 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N> {
 }
 
 /// A Orderbook worker plays the Orderbook protocol
-pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
+pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
     // utilities
     client: Arc<C>,
     backend: Arc<BE>,
+    runtime: Arc<R>,
     sync_oracle: SO,
     is_validator: bool,
     network: Arc<N>,
@@ -96,16 +98,17 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N> {
 }
 
 // TODO: Check if implementing Send and Sync are safe.
-unsafe impl<B: Block, BE, C, SO, N> Send for ObWorker<B, BE, C, SO, N> {}
+unsafe impl<B: Block, BE, C, SO, N, R> Send for ObWorker<B, BE, C, SO, N, R> {}
 
-unsafe impl<B: Block, BE, C, SO, N> Sync for ObWorker<B, BE, C, SO, N> {}
+unsafe impl<B: Block, BE, C, SO, N, R> Sync for ObWorker<B, BE, C, SO, N, R> {}
 
-impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
+impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
     where
         B: Block + Codec,
         BE: Backend<B>,
-        C: Client<B, BE> + ProvideRuntimeApi<B>,
-        C::Api: ObApi<B>,
+        C: Client<B, BE>,
+        R: ProvideRuntimeApi<B>,
+        R::Api: ObApi<B>,
         SO: Send + Sync + Clone + 'static + SyncOracle,
         N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
@@ -115,10 +118,11 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
     /// BEEFY pallet has been deployed on-chain.
     ///
     /// The BEEFY pallet is needed in order to keep track of the BEEFY authority set.
-    pub(crate) fn new(worker_params: WorkerParams<B, BE, C, SO, N>) -> Self {
+    pub(crate) fn new(worker_params: WorkerParams<B, BE, C, SO, N, R>) -> Self {
         let WorkerParams {
             client,
             backend,
+            runtime,
             // key_store,
             sync_oracle,
             // links,
@@ -139,6 +143,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
         ObWorker {
             client: client.clone(),
             backend,
+            runtime,
             sync_oracle,
             // key_store,
             is_validator,
@@ -188,8 +193,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
     pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
         // Get the ingress messsages for this block
         let messages = self
-            .client
-            .runtime_api()
+            .runtime.runtime_api()
             .ingress_messages(&BlockId::number(num.saturated_into()))
             .expect("Expecting ingress messages api to be available");
 
@@ -233,7 +237,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
         // Get the first available key in the validator set.
         let mut validator_key = None;
         for key in available_bls_keys {
-            if active_set.contains(&orderbook_primitives::crypto::AuthorityId::from(key)){
+            if active_set.contains(&orderbook_primitives::crypto::AuthorityId::from(key)) {
                 validator_key = Some(key);
                 break;
             }
@@ -255,8 +259,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
             return Ok(());
         }
         let active_set = self
-            .client
-            .runtime_api()
+            .runtime.runtime_api()
             .validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
             .validators;
         let signing_key = self.get_validator_key(&active_set)?;
@@ -274,8 +277,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
         set_bit_field(&mut summary.bitflags, bit_index as u16);
         // send it to runtime
         if let Err(_) = self
-            .client
-            .runtime_api()
+            .runtime.runtime_api()
             .submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
             .expect("Something went wrong with the submit_snapshot runtime api; qed.")
         {
@@ -313,8 +315,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
     pub async fn check_state_sync(&mut self) -> Result<(), Error> {
         // Read latest snapshot from finalizized state
         let summary = self
-            .client
-            .runtime_api()
+            .runtime.runtime_api()
             .get_latest_snapshot(&BlockId::number(self.client.info().finalized_number))
             .expect("Something went wrong with the get_latest_snapshot runtime api; qed.");
 
@@ -377,8 +378,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
         summary: &SnapshotSummary,
     ) -> Result<(), Error> {
         let active_set = self
-            .client
-            .runtime_api()
+            .runtime.runtime_api()
             .validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
             .validators;
         match self.get_validator_key(&active_set) {
@@ -647,8 +647,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
         self.last_finalized_block = (*header.number()).saturated_into();
 
         let latest_summary = self
-            .client
-            .runtime_api()
+            .runtime.runtime_api()
             .get_latest_snapshot(&BlockId::Number(self.last_finalized_block.saturated_into()))?;
         // Update the latest snapshot summary.
         *self.last_snapshot.write() = latest_summary;
@@ -660,7 +659,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
         let mut finality_stream = self.client.finality_notification_stream().fuse();
         while let Some(notif) = finality_stream.next().await {
             let at = BlockId::hash(notif.header.hash());
-            if self.client.runtime_api().validator_set(&at).ok().is_some() {
+            if self.runtime.runtime_api().validator_set(&at).ok().is_some() {
                 break;
             } else {
                 debug!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
@@ -684,8 +683,7 @@ impl<B, BE, C, SO, N> ObWorker<B, BE, C, SO, N>
 
         // Get the latest summary from the runtime
         let latest_summary = match self
-            .client
-            .runtime_api()
+            .runtime.runtime_api()
             .get_latest_snapshot(&BlockId::Number(self.client.info().finalized_number))
         {
             Ok(summary) => summary,
