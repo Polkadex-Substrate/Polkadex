@@ -21,6 +21,9 @@ mod metrics;
 mod utils;
 mod worker;
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) mod orderbook_protocol_name {
 	use sc_chain_spec::ChainSpec;
 

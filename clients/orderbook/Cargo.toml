@@ -28,6 +28,8 @@ polkadex-primitives = { path = "../../primitives/polkadex" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
+
+sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
