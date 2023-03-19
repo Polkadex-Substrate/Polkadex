@@ -79,7 +79,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
     // Last processed state change id
     last_snapshot: Arc<RwLock<SnapshotSummary>>,
     // Working state root,
-    working_state_root: [u8; 32],
+    pub(crate) working_state_root: [u8; 32],
     // Known state ids
     known_messages: BTreeMap<u64, ObMessage>,
     // Links between the block importer, the background voter and the RPC layer.
@@ -165,29 +165,42 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
     }
 
     pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
-        let mut trie =
-            TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
-                .build();
+        let mut withdrawal = None;
+        {
+            let mut trie = self.get_trie();
 
-        // Get main account
-        let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
+            // Get main account
+            let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
 
-        let account_info = AccountInfo::decode(&mut &proxies[..])?;
-        // Check proxy registration
-        if !account_info.proxies.contains(&withdraw.proxy) {
-            return Err(Error::ProxyNotAssociatedWithMain);
+            let account_info = AccountInfo::decode(&mut &proxies[..])?;
+            // Check proxy registration
+            if !account_info.proxies.contains(&withdraw.proxy) {
+                return Err(Error::ProxyNotAssociatedWithMain);
+            }
+            // Verify signature
+            if !withdraw.verify() {
+                return Err(Error::WithdrawSignatureCheckFailed);
+            }
+            // Deduct balance
+            sub_balance(&mut trie, withdraw.account_asset(), withdraw.amount()?)?;
+            withdrawal = Some(withdraw.try_into()?);
+            // Commit the trie
+            trie.commit();
         }
-        // Verify signature
-        if !withdraw.verify() {
-            return Err(Error::WithdrawSignatureCheckFailed);
+        if let Some(withdrawal) = withdrawal {
+            // Queue withdrawal
+            self.pending_withdrawals.push(withdrawal);
         }
-        // Deduct balance
-        sub_balance(&mut trie, withdraw.account_asset(), withdraw.amount()?)?;
-        // Queue withdrawal
-        self.pending_withdrawals.push(withdraw.try_into()?);
-        // Commit the trie
-        trie.commit();
         Ok(())
+    }
+
+    pub fn get_trie(&mut self) -> TrieDBMut<ExtensionLayout> {
+        let mut trie = if self.working_state_root == [0u8;32]{
+            TrieDBMutBuilder::new(&mut self.memory_db, &mut self.working_state_root).build()
+        }else {
+            TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root).build()
+        };
+        trie
     }
 
     pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
@@ -196,37 +209,41 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             .runtime.runtime_api()
             .ingress_messages(&BlockId::number(num.saturated_into()))
             .expect("Expecting ingress messages api to be available");
+        let mut last_snapshot = None;
 
-        let mut trie =
-            TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
-                .build();
-        // 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
-        for message in messages {
-            match message {
-                IngressMessages::RegisterUser(main, proxy) =>
-                    register_main(&mut trie, main, proxy)?,
-                IngressMessages::Deposit(main, asset, amt) => deposit(&mut trie, main, asset, amt)?,
-                IngressMessages::AddProxy(main, proxy) => add_proxy(&mut trie, main, proxy)?,
-                IngressMessages::RemoveProxy(main, proxy) => remove_proxy(&mut trie, main, proxy)?,
-                IngressMessages::LatestSnapshot(
-                    snapshot_id,
-                    state_root,
-                    state_change_id,
-                    state_hash,
-                ) =>
-                    *self.last_snapshot.write() = SnapshotSummary {
+        {
+            let mut trie = self.get_trie();
+            // 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
+            for message in messages {
+                match message {
+                    IngressMessages::RegisterUser(main, proxy) =>
+                        register_main(&mut trie, main, proxy)?,
+                    IngressMessages::Deposit(main, asset, amt) => deposit(&mut trie, main, asset, amt)?,
+                    IngressMessages::AddProxy(main, proxy) => add_proxy(&mut trie, main, proxy)?,
+                    IngressMessages::RemoveProxy(main, proxy) => remove_proxy(&mut trie, main, proxy)?,
+                    IngressMessages::LatestSnapshot(
                         snapshot_id,
                         state_root,
                         state_change_id,
                         state_hash,
-                        bitflags: vec![],
-                        withdrawals: vec![],
-                        aggregate_signature: None,
-                    },
-                _ => {}
+                    ) =>
+                        last_snapshot = Some(SnapshotSummary {
+                            snapshot_id,
+                            state_root,
+                            state_change_id,
+                            state_hash,
+                            bitflags: vec![],
+                            withdrawals: vec![],
+                            aggregate_signature: None,
+                        }),
+                    _ => {}
+                }
             }
+            trie.commit();
         }
-        trie.commit();
+        if let Some(last_snapshot) = last_snapshot {
+            *self.last_snapshot.write() = last_snapshot
+        }
         Ok(())
     }
 
