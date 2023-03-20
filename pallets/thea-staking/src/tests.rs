@@ -162,16 +162,19 @@ fn test_nominate_with_already_staked_relayer_returns_staker_already_nominating()
 	})
 }
 
+// as now binding happens instantly without option this test now tests
+// that re-nominating is not happening on second nomination
 #[test]
-fn test_nominate_with_wrong_candidate_returns_candidate_not_found() {
+fn test_nominate_with_wrong_candidate_returns_candidate_alread_nominated() {
 	new_test_ext().execute_with(|| {
 		insert_staking_limit();
+		register_candidate();
 		register_nominator();
 		let (candidate, ..) = get_candidate();
 		let nominator = 2;
 		assert_noop!(
 			TheaStaking::nominate(Origin::signed(nominator), candidate),
-			Error::<Test>::CandidateNotFound
+			Error::<Test>::CandidateAlreadyNominated
 		);
 	});
 }
@@ -720,8 +723,9 @@ fn unbonding() {
 
 fn register_nominator() {
 	let nominator = 2;
+	let (candidate, _, _) = get_candidate();
 	Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
-	assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
+	assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, candidate));
 }
 
 fn register_candidate() {
