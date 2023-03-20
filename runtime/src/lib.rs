@@ -252,7 +252,7 @@ parameter_types! {
 	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
 	pub const MaxPending: u16 = 32;
 }
-use assets_transaction_payment::payment::{HandleSwap, NegativeImbalanceOf};
+use pallet_assets_transaction_payment::payment::{HandleSwap, NegativeImbalanceOf};
 use scale_info::TypeInfo;
 use sp_core::crypto::AccountId32;
 use sp_npos_elections::ExtendedBalance;
@@ -1049,7 +1049,7 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			assets_transaction_payment::ChargeAssetTransactionPayment::<Runtime> {
+			pallet_assets_transaction_payment::ChargeAssetTransactionPayment::<Runtime> {
 				signature_scheme: 0,
 				asset_id: 0,
 				tip,
@@ -1339,10 +1339,10 @@ impl HandleSwap<Runtime> for AlternateTokenSwapper {
 	}
 }
 
-impl assets_transaction_payment::pallet::Config for Runtime {
+impl pallet_assets_transaction_payment::pallet::Config for Runtime {
 	type Event = Event;
 	type Fungibles = Assets;
-	type OnChargeAssetTransaction = assets_transaction_payment::payment::FungiblesAdapter<
+	type OnChargeAssetTransaction = pallet_assets_transaction_payment::payment::FungiblesAdapter<
 		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto>,
 		AlternateTokenSwapper,
 		DealWithFees,
@@ -1475,7 +1475,7 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
-		AssetsTransactionPayment: assets_transaction_payment::pallet::{Pallet, Call, Storage, Event<T>} = 39,
+		AssetsTransactionPayment: pallet_assets_transaction_payment::pallet::{Pallet, Call, Storage, Event<T>} = 39,
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 40,
 		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 41,
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 42,
@@ -1507,7 +1507,7 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	assets_transaction_payment::ChargeAssetTransactionPayment<Runtime>,
+	pallet_assets_transaction_payment::ChargeAssetTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 // pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;

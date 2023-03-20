@@ -202,29 +202,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "assets-transaction-payment"
-version = "1.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
- "scale-info",
- "smallvec",
- "sp-application-crypto",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "wallet-connector",
-]
-
-[[package]]
 name = "async-attributes"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4953,7 +4930,6 @@ name = "node-polkadex-runtime"
 version = "4.0.0"
 dependencies = [
  "asset-handler",
- "assets-transaction-payment",
  "chainbridge",
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -4969,6 +4945,7 @@ dependencies = [
  "orml-vesting",
  "pallet-asset-handler-runtime-api",
  "pallet-assets",
+ "pallet-assets-transaction-payment",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -5282,6 +5259,29 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-assets-transaction-payment"
+version = "1.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "polkadex-primitives 0.9.19 (git+https://github.com/Polkadex-Substrate/polkadex-primitives.git?tag=polkadot-v0.9.28v0.1.11)",
+ "scale-info",
+ "smallvec",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "wallet-connector",
 ]
 
 [[package]]
@@ -6451,7 +6451,6 @@ name = "polkadex-node"
 version = "4.0.0"
 dependencies = [
  "assert_cmd",
- "assets-transaction-payment",
  "async-std",
  "clap 3.2.23",
  "frame-benchmarking",
@@ -6470,6 +6469,7 @@ dependencies = [
  "node-polkadex-runtime",
  "pallet-asset-handler-rpc",
  "pallet-asset-tx-payment",
+ "pallet-assets-transaction-payment",
  "pallet-contracts",
  "pallet-contracts-rpc",
  "pallet-im-online",

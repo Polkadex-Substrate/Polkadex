@@ -3,7 +3,7 @@ authors = ["Polkadex Authors"]
 description = "FRAME pallet for migrating ERC20 PDEX to Native PDEX"
 edition = "2021"
 homepage = "https://polkadex.trade"
-name = "assets-transaction-payment"
+name = "pallet-assets-transaction-payment"
 version = "1.1.0"
 
 [package.metadata.docs.rs]
