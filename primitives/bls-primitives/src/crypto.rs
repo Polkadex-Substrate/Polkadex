@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use crate::{Error, Pair as BLSPair};
-use crate::{Public, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST, Seed};
+use crate::{Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
 #[cfg(feature = "std")]
 use blst::min_sig::*;
 #[cfg(feature = "std")]
@@ -52,8 +52,7 @@ pub trait BlsExt {
 		let (pair, seed) = generate_pair_(phrase);
 		// store the private key in filesystem
 		let file_path = key_file_path(pair.public().as_ref());
-		write_to_file(file_path, seed.as_ref())
-			.expect("Unable to write seed to file");
+		write_to_file(file_path, seed.as_ref()).expect("Unable to write seed to file");
 		pair.public()
 	}
 
@@ -109,13 +108,12 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 #[cfg(feature = "std")]
-fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair,Seed) {
+fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed) {
 	let (pair, seed) = match phrase {
 		None => BLSPair::generate(),
 		Some(phrase) => {
 			let phrase = String::from_utf8(phrase).expect("Invalid phrase");
-			let mut uri =
-				SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
+			let mut uri = SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
 			if uri.phrase.expose_secret() == DEV_PHRASE {
 				// We want atleast 32 bytes for bls key generation
 				uri.phrase = BLS_DEV_PHRASE.parse().unwrap();
@@ -130,7 +128,7 @@ fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair,Seed) {
 		},
 	};
 
-	(pair,seed)
+	(pair, seed)
 }
 
 #[cfg(feature = "std")]
@@ -177,10 +175,7 @@ fn get_all_public_keys() -> Result<Vec<Public>, Error> {
 #[allow(dead_code)]
 fn write_to_file(path: PathBuf, data: &[u8]) -> Result<(), Error> {
 	std::fs::create_dir_all(BLS_KEYSTORE_PATH)?;
-	let mut file = std::fs::OpenOptions::new()
-		.write(true)
-		.create(true)
-		.open(path)?;
+	let mut file = std::fs::OpenOptions::new().write(true).create(true).open(path)?;
 	use std::os::unix::fs::PermissionsExt;
 	file.metadata()?.permissions().set_mode(0o600);
 	serde_json::to_writer(&file, data)?;
@@ -214,5 +209,3 @@ fn key_phrase_by_type(public: &[u8]) -> Result<Option<String>, Error> {
 		Ok(None)
 	}
 }
-
-

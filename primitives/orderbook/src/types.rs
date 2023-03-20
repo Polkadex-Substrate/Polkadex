@@ -1,14 +1,19 @@
+use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
-use crate::constants::*;
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
-use std::{borrow::Borrow, collections::HashMap, ops::Mul, str::FromStr};
-use std::fmt::{Display, Formatter};
+use std::{
+	borrow::Borrow,
+	collections::HashMap,
+	fmt::{Display, Formatter},
+	ops::Mul,
+	str::FromStr,
+};
 
 use crate::SnapshotSummary;
 
@@ -54,7 +59,7 @@ pub struct Trade {
 	pub taker: Order,
 	pub price: Decimal,
 	pub amount: Decimal,
-	pub time: i64
+	pub time: i64,
 }
 
 impl Trade {
@@ -92,13 +97,7 @@ impl Trade {
 	// Creates a Trade with zero event_tag
 	#[cfg(feature = "std")]
 	pub fn new(maker: Order, taker: Order, price: Decimal, amount: Decimal) -> Trade {
-		Self {
-			maker,
-			taker,
-			price,
-			amount,
-			time: Utc::now().timestamp_millis(),
-		}
+		Self { maker, taker, price, amount, time: Utc::now().timestamp_millis() }
 	}
 
 	// Verifies the contents of a trade
@@ -111,24 +110,24 @@ impl Trade {
 }
 
 #[cfg(feature = "std")]
-#[derive(Clone, Debug, Encode, Decode,serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
 	// (From,to, remote peer)
-	WantStid(u64,u64),
+	WantStid(u64, u64),
 	// Collection of Stids
 	Stid(Vec<ObMessage>),
 	// Single ObMessage
 	ObMessage(ObMessage),
 	// Snapshot id, bitmap, remote peer
-	Want(u64,Vec<u128>),
+	Want(u64, Vec<u128>),
 	// Snapshot id, bitmap, remote peer
-	Have(u64,Vec<u128>),
+	Have(u64, Vec<u128>),
 	// Request
 	// (snapshot id, chunk indexes requested as bitmap, remote peer)
 	RequestChunk(u64, Vec<u128>),
 	// Chunks of snapshot data
 	// ( snapshot id, index of chunk, data )
-	Chunk(u64, u16, Vec<u8>)
+	Chunk(u64, u16, Vec<u8>),
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -138,12 +137,12 @@ pub struct ObMessage {
 	pub action: UserActions,
 }
 
-#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StateSyncStatus {
 	Unavailable, // We don't have this chunk yet
 	// (Who is supposed to send us, when we requested)
 	InProgress(PeerId, i64), // We have asked a peer for this chunk and waiting
-	Available // We have this chunk
+	Available,               // We have this chunk
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -278,9 +277,7 @@ impl Into<String> for OrderStatus {
 	}
 }
 
-#[derive(
-Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq
-)]
+#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	pub base: AssetId,
@@ -293,7 +290,7 @@ impl TryFrom<String> for TradingPair {
 	fn try_from(value: String) -> Result<Self, Self::Error> {
 		let assets: Vec<&str> = value.split('-').collect();
 		if assets.len() != 2 {
-			return Err(anyhow::Error::msg("Invalid String"));
+			return Err(anyhow::Error::msg("Invalid String"))
 		}
 
 		let base_asset = if assets[0] == String::from("PDEX").as_str() {
@@ -316,10 +313,7 @@ impl TryFrom<String> for TradingPair {
 
 impl TradingPair {
 	pub fn from(quote: AssetId, base: AssetId) -> Self {
-		TradingPair {
-			base,
-			quote,
-		}
+		TradingPair { base, quote }
 	}
 
 	pub fn is_quote_asset(&self, asset_id: AssetId) -> bool {
@@ -348,7 +342,6 @@ impl TradingPair {
 		format!("{}/{}", self.base_asset_str(), self.quote_asset_str())
 	}
 }
-
 
 #[cfg(feature = "std")]
 impl Display for OrderSide {
@@ -398,7 +391,7 @@ impl Order {
 impl PartialOrd for Order {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		if self.side != other.side {
-			return None;
+			return None
 		}
 		if self.side == OrderSide::Bid {
 			// Buy side
@@ -406,9 +399,7 @@ impl PartialOrd for Order {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
 				Ordering::Less => Some(Ordering::Greater),
 				// A.price == B.price =>  Order based on timestamp - lowest timestamp first
-				Ordering::Equal => {
-					Some(self.timestamp.cmp(&other.timestamp))
-				}
+				Ordering::Equal => Some(self.timestamp.cmp(&other.timestamp)),
 				// A.price > B.price => [A, B]
 				Ordering::Greater => Some(Ordering::Less),
 			}
@@ -418,9 +409,7 @@ impl PartialOrd for Order {
 				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
 				Ordering::Less => Some(Ordering::Less),
 				// A.price == B.price => Order based on timestamp - lowest timestamp first
-				Ordering::Equal => {
-					Some(self.timestamp.cmp(&other.timestamp))
-				}
+				Ordering::Equal => Some(self.timestamp.cmp(&other.timestamp)),
 				// A.price > B.price => [B, A]
 				Ordering::Greater => Some(Ordering::Greater),
 			}
@@ -437,9 +426,7 @@ impl Ord for Order {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
 				Ordering::Less => Ordering::Greater,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal => {
-					self.timestamp.cmp(&other.timestamp)
-				}
+				Ordering::Equal => self.timestamp.cmp(&other.timestamp),
 				// A.price > B.price => [A, B]
 				Ordering::Greater => Ordering::Less,
 			}
@@ -449,9 +436,7 @@ impl Ord for Order {
 				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
 				Ordering::Less => Ordering::Less,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal => {
-					self.timestamp.cmp(&other.timestamp)
-				}
+				Ordering::Equal => self.timestamp.cmp(&other.timestamp),
 				// A.price > B.price => [B, A]
 				Ordering::Greater => Ordering::Greater,
 			}
@@ -506,7 +491,11 @@ impl Order {
 	}
 	// TODO: how to gate this only for testing
 	#[cfg(feature = "std")]
-	pub fn random_order_for_testing(pair: TradingPair, side: OrderSide, order_type: OrderType) -> Self {
+	pub fn random_order_for_testing(
+		pair: TradingPair,
+		side: OrderSide,
+		order_type: OrderType,
+	) -> Self {
 		use rand::Rng;
 		let mut rng = rand::thread_rng();
 		Self {

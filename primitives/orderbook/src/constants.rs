@@ -15,5 +15,5 @@ pub const ADDRESSFORMAT: u8 = 88u8;
 
 #[test]
 pub fn test_overflow_check() {
-    assert!(MAX_PRICE.checked_mul(MAX_QTY).is_some());
+	assert!(MAX_PRICE.checked_mul(MAX_QTY).is_some());
 }

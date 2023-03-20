@@ -1375,7 +1375,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 		if summary == SnapshotSummary::default() {
 			None
-		}else{
+		} else {
 			Some(summary)
 		}
 	}
