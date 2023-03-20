@@ -1,0 +1,5 @@
+# TODO [Issue #654]: unpin version when issue will be resolved.
+[toolchain]
+channel = "nightly-2023-02-21"
+components = [ "rustfmt", "clippy" ]
+targets = [ "wasm32-unknown-unknown" ]
