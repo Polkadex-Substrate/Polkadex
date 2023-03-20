@@ -645,6 +645,7 @@ version = "0.1.0"
 dependencies = [
  "blst",
  "hex",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "serde_json",

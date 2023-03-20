@@ -108,11 +108,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
 }
 
-// TODO: Check if implementing Send and Sync are safe.
-unsafe impl<B: Block, BE, C, SO, N, R> Send for ObWorker<B, BE, C, SO, N, R> {}
-
-unsafe impl<B: Block, BE, C, SO, N, R> Sync for ObWorker<B, BE, C, SO, N, R> {}
-
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
 where
 	B: Block + Codec,
@@ -298,8 +293,9 @@ where
 			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
 			.validators;
 		let signing_key = self.get_validator_key(&active_set)?;
+		info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
 		let signature =
-			match bls_primitives::crypto::bls_ext::sign(&signing_key, &summary.sign_data()) {
+			match bls_primitives::crypto::sign(&signing_key, &summary.sign_data()) {
 				Some(sig) => sig,
 				None => {
 					error!(target:"orderbook","📒 Failed to sign snapshot, not able to sign with validator key.");
