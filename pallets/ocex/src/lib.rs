@@ -178,7 +178,7 @@ pub mod pallet {
 							&snapshot_summary.sign_data(),
 							&signature,
 						) {
-							return InvalidTransaction::Custom(12).into()
+							return InvalidTransaction::Custom(13).into()
 						}
 					},
 				}
