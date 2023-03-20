@@ -1509,7 +1509,7 @@ construct_runtime!(
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
 		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 43,
-		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44,
 		AssetsTransactionPayment: pallet_assets_transaction_payment::pallet::{Pallet, Call, Storage, Event<T>} = 45,
 	}
 );
