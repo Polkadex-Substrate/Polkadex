@@ -6258,7 +6258,6 @@ dependencies = [
  "pallet-asset-handler-rpc",
  "pallet-assets-transaction-payment",
  "pallet-im-online",
- "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "polkadex-client",
