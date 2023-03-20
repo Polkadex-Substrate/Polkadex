@@ -1380,6 +1380,7 @@ impl thea_staking::Config for Runtime {
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
+	type WeightInfo = thea_staking::weight::StakeWeightInfo<Runtime>;
 }
 
 //Install Nomination Pool

@@ -31,8 +31,8 @@ use frame_support::{traits::Get, weights::Weight};
 use sp_std::marker::PhantomData;
 
 /// Weight functions for `thea_staking`.
-pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> thea_staking::WeightInfo for WeightInfo<T> {
+pub struct StakeWeightInfo<T>(PhantomData<T>);
+impl<T: frame_system::Config> crate::pallet::TheaStakingWeightInfo for StakeWeightInfo<T> {
 	// Storage: TheaStaking Stakinglimits (r:0 w:1)
 	/// The range of component `a` is `[1, 10]`.
 	/// The range of component `m` is `[100, 4294967295]`.
