@@ -30,7 +30,8 @@ impl Verify for CustomSignature {
 				Ok(signer) => sig.verify(msg, &signer),
 				Err(()) => {
 					log::error!(target:"signature-verification", "Failed to verify Sr25519 signature");
-					false },
+					false
+				},
 			},
 			(Signature::Ecdsa(ref sig), who) => match msg.get().try_into() {
 				Err(_) => {
