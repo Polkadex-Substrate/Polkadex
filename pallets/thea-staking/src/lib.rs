@@ -1021,14 +1021,14 @@ pub mod pallet {
 								});
 								Ok(())
 							} else {
-								return Err(Error::<T>::CandidateNotFound)
+								Err(Error::<T>::CandidateNotFound)
 							}
 						})
 					} else {
-						return Err(Error::<T>::CandidateNotFound)
+						Err(Error::<T>::CandidateNotFound)
 					}
 				} else {
-					return Err(Error::<T>::StakerNotFound)
+					Err(Error::<T>::StakerNotFound)
 				}
 			})
 		}
