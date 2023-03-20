@@ -749,7 +749,7 @@ mod tests {
 					),
 					frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(index),
 					frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-					assets_transaction_payment::ChargeAssetTransactionPayment::<
+					pallet_assets_transaction_payment::ChargeAssetTransactionPayment::<
 						node_polkadex_runtime::Runtime,
 					> {
 						asset_id: 0,
