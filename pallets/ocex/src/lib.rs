@@ -1370,6 +1370,16 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		<Snapshots<T>>::get(last_nonce)
 	}
 
+	pub fn get_snapshot_by_id(nonce: u64) -> Option<SnapshotSummary> {
+		let summary = <Snapshots<T>>::get(nonce);
+
+		if summary == SnapshotSummary::default() {
+			None
+		} else {
+			Some(summary)
+		}
+	}
+
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_pallet_account() -> T::AccountId {

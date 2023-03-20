@@ -2,10 +2,11 @@
 
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{withdrawal::Withdrawal, AccountId};
+use primitive_types::H128;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
-use sp_core::H256;
+use sp_core::{H160, H256};
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
 
@@ -18,11 +19,10 @@ use crate::{
 	utils::{return_set_bits, set_bit_field},
 };
 
-mod bls;
+pub mod constants;
 #[cfg(feature = "std")]
 pub mod types;
 pub mod utils;
-pub mod constants;
 
 /// Key type for BEEFY module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
@@ -132,7 +132,7 @@ pub struct SnapshotSummary {
 	pub snapshot_id: u64,
 	pub state_root: H256,
 	pub state_change_id: u64,
-	pub state_hash: H256,
+	pub state_chunk_hashes: Vec<H128>,
 	pub bitflags: Vec<u128>,
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	pub aggregate_signature: Option<bls_primitives::Signature>,
@@ -178,7 +178,7 @@ impl SnapshotSummary {
 			self.snapshot_id,
 			self.state_root,
 			self.state_change_id,
-			self.state_hash,
+			self.state_chunk_hashes.clone(),
 			self.withdrawals.clone(),
 		);
 
@@ -193,7 +193,11 @@ sp_api::decl_runtime_apis! {
 		/// Return the current active Orderbook validator set
 		fn validator_set() -> ValidatorSet<crypto::AuthorityId>;
 
+		/// Returns the latest Snapshot Summary
 		fn get_latest_snapshot() -> SnapshotSummary;
+
+		/// Returns the snapshot summary for given snapshot id
+		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary>;
 
 		/// Return the ingress messages at the given block
 		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;

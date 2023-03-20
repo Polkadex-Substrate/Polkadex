@@ -47,6 +47,8 @@ pub enum Error {
 	Fullnode,
 	#[error("BLS signing failed")]
 	BLSSigningFailed,
+	#[error("Offchain storage not available")]
+	OffchainStorageNotAvailable,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
