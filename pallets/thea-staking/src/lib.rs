@@ -287,14 +287,20 @@ pub mod pallet {
 				<CandidateToNetworkMapping<T>>::contains_key(&candidate),
 				Error::<T>::CandidateNotFound
 			);
-			let unlocking: Vec<UnlockChunk<T>> = vec![];
-			let individual_exposure = IndividualExposure {
-				who: nominator.clone(),
-				value: amount,
-				backing: candidate,
-				unlocking,
-			};
-			<Stakers<T>>::insert(nominator.clone(), individual_exposure);
+			<Stakers<T>>::mutate(&nominator, |n| {
+				if let Some(n_mut) = n {
+					n_mut.value += amount;
+				} else {
+					let unlocking: Vec<UnlockChunk<T>> = vec![];
+					let individual_exposure = IndividualExposure {
+						who: nominator.clone(),
+						value: amount,
+						backing: candidate,
+						unlocking,
+					};
+					<Stakers<T>>::insert(nominator.clone(), individual_exposure);
+				}
+			});
 			Self::do_bond(nominator, amount)?;
 			Ok(())
 		}
