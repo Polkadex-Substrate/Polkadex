@@ -408,7 +408,7 @@ pub mod pallet {
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			// A closure that takes a &Network and a &u8 relayer index as inputs and returns an
+			// A closure that takes a `&Network` and a `&u8` relayer index as inputs and returns an
 			// optional AccountId.
 			let get_account_id = |network: &Network, relayer_index: &u8| {
 				let relayer_account_vector = <AuthorityListVector<T>>::get(network);
