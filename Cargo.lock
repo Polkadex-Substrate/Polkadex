@@ -5265,7 +5265,6 @@ dependencies = [
 name = "pallet-assets-transaction-payment"
 version = "1.1.0"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-assets",

@@ -113,6 +113,7 @@ pub mod pallet {
 			tip: BalanceOf<T>,
 			asset_id: AssetIdOf<T>,
 		},
+		InvalidAsset
 	}
 
 	// Errors inform users that something went wrong.
@@ -276,6 +277,7 @@ where
 			}
 		}
 		else {
+			Pallet::<T>::deposit_event(Event::<T>::InvalidAsset);
 			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 		}
 		let priority = ChargeTransactionPayment::<T>::get_priority(info, len, self.tip, fee);

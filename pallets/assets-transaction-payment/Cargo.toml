@@ -14,7 +14,6 @@ parity-scale-codec = { workspace = true, default-features = false, features = ["
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 frame-support = { workspace = true, default-features = false }
-frame-benchmarking = { workspace = true, default-features = false,  optional = true }
 frame-system = { workspace = true, default-features = false }
 pallet-balances = { workspace = true, default-features = false }
 pallet-assets = { workspace = true, default-features = false }
