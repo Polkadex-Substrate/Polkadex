@@ -500,7 +500,9 @@ impl Order {
 }
 
 pub fn rounding_off(a: Decimal) -> Decimal {
-	a.round_dp_with_strategy(8, RoundingStrategy::ToZero)
+	// if we want to operate with a precision of 8 decimal places,
+	// all calculations should be done with latest 9 decimal places
+	a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
 }
 
 #[cfg(test)]
