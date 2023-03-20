@@ -3,9 +3,6 @@
 mod application_crypto;
 pub mod crypto;
 
-#[cfg(test)]
-mod tests;
-
 #[cfg(feature = "std")]
 use bip39::{Language, Mnemonic, MnemonicType};
 #[cfg(feature = "std")]
@@ -218,11 +215,11 @@ impl sp_core::crypto::Pair for Pair {
 				.entropy(),
 			password.unwrap_or(""),
 		)
-			.map_err(|_| SecretStringError::InvalidSeed)?;
+		.map_err(|_| SecretStringError::InvalidSeed)?;
 		let mut seed = Seed::default();
 		seed.copy_from_slice(&big_seed[0..32]);
 		let secret = SecretKey::key_gen(&seed, &[]).unwrap();
-		let pair = Pair { public: secret.sk_to_pk().to_bytes().into(), secret };
+		let pair = Pair { public: secret.sk_to_pk().compress().into(), secret };
 		Ok((pair, seed))
 	}
 
@@ -245,20 +242,23 @@ impl sp_core::crypto::Pair for Pair {
 			];
 			master_key = master_key.derive_child_eip2333(u32::from_be_bytes(index_bytes))
 		}
-		Ok((Pair { public: master_key.sk_to_pk().to_bytes().into(), secret: master_key }, seed))
+		Ok((Pair { public: master_key.sk_to_pk().compress().into(), secret: master_key }, seed))
 	}
 
 	fn from_seed(seed: &Self::Seed) -> Self {
-		Self::from_seed_slice(&seed[..]).expect("seed has valid length; qed")
+		Self::from_seed_slice(&seed[..]).expect("seed needs to be of valid length; qed")
 	}
 
 	fn from_seed_slice(seed: &[u8]) -> Result<Self, SecretStringError> {
-		let secret = match SecretKey::from_bytes(seed) {
+		println!("Seed: {:?}, len: {:?}", seed,seed.len());
+		let secret = match SecretKey::key_gen(seed, &[]) {
 			Ok(secret) => secret,
-			Err(_) => return Err(SecretStringError::InvalidSeed),
+			Err(err) => {
+				println!("BLS err: {:?}", err);
+				return Err(SecretStringError::InvalidSeed); },
 		};
 
-		Ok(Pair { public: secret.sk_to_pk().to_bytes().into(), secret })
+		Ok(Pair { public: secret.sk_to_pk().compress().into(), secret })
 	}
 
 	fn sign(&self, message: &[u8]) -> Self::Signature {

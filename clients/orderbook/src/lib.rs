@@ -1,3 +1,4 @@
+#![feature(unwrap_infallible)]
 extern crate core;
 
 use futures::channel::mpsc::UnboundedReceiver;
@@ -20,6 +21,9 @@ mod gossip;
 mod metrics;
 mod utils;
 mod worker;
+
+#[cfg(test)]
+mod tests;
 
 pub(crate) mod orderbook_protocol_name {
 	use sc_chain_spec::ChainSpec;
@@ -85,18 +89,21 @@ use orderbook_primitives::types::{ObMessage, UserActions};
 use sc_network_gossip::Network as GossipNetwork;
 
 /// Orderbook gadget initialization parameters.
-pub struct ObParams<B, BE, C, N>
+pub struct ObParams<B, BE, C, N, R>
 where
 	B: Block,
 	BE: Backend<B>,
-	C: Client<B, BE> + ProvideRuntimeApi<B>,
-	C::Api: ObApi<B>,
+	R: ProvideRuntimeApi<B>,
+	C: Client<B, BE>,
+	R::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
 	/// Orderbook client
 	pub client: Arc<C>,
 	/// Client Backend
 	pub backend: Arc<BE>,
+	/// Client runtime
+	pub runtime: Arc<R>,
 	/// Local key store
 	pub key_store: Option<SyncCryptoStorePtr>,
 	/// Gossip network
@@ -117,17 +124,19 @@ where
 /// Start the Orderbook gadget.
 ///
 /// This is a thin shim around running and awaiting a Orderbook worker.
-pub async fn start_orderbook_gadget<B, BE, C, N>(ob_params: ObParams<B, BE, C, N>)
+pub async fn start_orderbook_gadget<B, BE, C, N, R>(ob_params: ObParams<B, BE, C, N, R>)
 where
 	B: Block,
 	BE: Backend<B>,
-	C: Client<B, BE> + ProvideRuntimeApi<B>,
-	C::Api: ObApi<B>,
+	C: Client<B, BE>,
+	R: ProvideRuntimeApi<B>,
+	R::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
 {
 	let ObParams {
 		client,
 		backend,
+		runtime,
 		key_store: _,
 		network,
 		prometheus_registry,
@@ -156,6 +165,7 @@ where
 	let worker_params = worker::WorkerParams {
 		client,
 		backend,
+		runtime,
 		sync_oracle,
 		is_validator,
 		network,
@@ -165,7 +175,7 @@ where
 		_marker: Default::default(),
 	};
 
-	let mut worker = worker::ObWorker::<_, _, _, _, _>::new(worker_params);
+	let mut worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
 
 	worker.run().await
 }

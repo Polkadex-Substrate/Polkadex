@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
+use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use sp_core::H256;
@@ -35,7 +36,7 @@ pub enum IngressMessages<AccountId> {
 	// Close Trading Pair
 	CloseTradingPair(TradingPairConfig),
 	// Latest snapshot (snapshot number, state_root, state_change_id, state_hash)
-	LatestSnapshot(u64, H256, u64, H256),
+	LatestSnapshot(u64, H256, u64, BoundedVec<H128, StateHashesLimit>),
 	// Resetting the balances of Account
 	SetFreeReserveBalanceForAccounts(BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>),
 	// Changing the exchange state in order-book
@@ -61,5 +62,16 @@ impl Get<u32> for HandleBalanceLimit {
 	//ToDo: Set an arbitrary value to 1000.
 	fn get() -> u32 {
 		1000
+	}
+}
+
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct StateHashesLimit;
+
+impl Get<u32> for StateHashesLimit {
+	// for max 20 GB and 10 MB chunks
+	fn get() -> u32 {
+		2000
 	}
 }
