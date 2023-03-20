@@ -1566,6 +1566,10 @@ impl_runtime_apis! {
 			OCEX::get_latest_snapshot()
 		}
 
+		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary>{
+			OCEX::get_snapshot_by_id(nonce)
+		}
+
 		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>{
 			OCEX::get_ingress_messages()
 		}

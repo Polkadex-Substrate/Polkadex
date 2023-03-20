@@ -35,17 +35,11 @@ impl Metrics {
 				registry,
 			)?,
 			ob_data_sent: register(
-				Gauge::new(
-					"polkadex_ob_data_sent",
-					"Total Data sent by orderbook worker",
-				)?,
+				Gauge::new("polkadex_ob_data_sent", "Total Data sent by orderbook worker")?,
 				registry,
 			)?,
 			ob_data_recv: register(
-				Gauge::new(
-					"polkadex_ob_data_recv",
-					"Total Data received by orderbook worker",
-				)?,
+				Gauge::new("polkadex_ob_data_recv", "Total Data received by orderbook worker")?,
 				registry,
 			)?,
 		})
