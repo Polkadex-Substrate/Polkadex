@@ -42,7 +42,6 @@ impl RuntimePublic for Public {
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	#[test]

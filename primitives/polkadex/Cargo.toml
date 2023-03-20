@@ -5,6 +5,7 @@ authors = ["Gautham J <Gauthamastro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
+primitive-types = {version = "0.12.1", default-features =false, features = ["scale-info"]}
 anyhow = "1.0.56"
 codec = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive","full"] }
 serde = { version = "1.0.136", optional = true }
@@ -25,6 +26,8 @@ serde_json = { version = "1.0.94"}
 [features]
 default = ["std"]
 std = [
+    "primitive-types/serde",
+    "primitive-types/std",
     "codec/std",
     "scale-info/std",
     "serde",

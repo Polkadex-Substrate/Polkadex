@@ -218,7 +218,7 @@ impl sp_core::crypto::Pair for Pair {
 				.entropy(),
 			password.unwrap_or(""),
 		)
-			.map_err(|_| SecretStringError::InvalidSeed)?;
+		.map_err(|_| SecretStringError::InvalidSeed)?;
 		let mut seed = Seed::default();
 		seed.copy_from_slice(&big_seed[0..32]);
 		let secret = SecretKey::key_gen(&seed, &[]).unwrap();

@@ -2,6 +2,7 @@
 
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{withdrawal::Withdrawal, AccountId};
+use primitive_types::H128;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
@@ -19,10 +20,10 @@ use crate::{
 };
 
 mod bls;
+pub mod constants;
 #[cfg(feature = "std")]
 pub mod types;
 pub mod utils;
-pub mod constants;
 
 /// Key type for BEEFY module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
@@ -178,7 +179,7 @@ impl SnapshotSummary {
 			self.snapshot_id,
 			self.state_root,
 			self.state_change_id,
-			self.state_hash,
+			self.state_chunk_hashes.clone(),
 			self.withdrawals.clone(),
 		);
 

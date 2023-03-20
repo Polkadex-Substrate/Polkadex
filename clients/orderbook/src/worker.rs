@@ -3,7 +3,6 @@ use std::{
 	borrow::Cow,
 	collections::{BTreeMap, HashMap},
 	marker::PhantomData,
-	os::macos::raw::stat,
 	sync::Arc,
 	time::Duration,
 };
@@ -51,7 +50,7 @@ use crate::{
 	utils::*,
 	Client,
 };
-
+use primitive_types::H128;
 pub const STID_IMPORT_REQUEST: &str = "stid_request";
 pub const STID_IMPORT_RESPONSE: &str = "stid_response";
 pub const ORDERBOOK_STATE_SYNC_REQUEST: &str = "orderbook_state_sync_request";
@@ -243,13 +242,13 @@ where
 						snapshot_id,
 						state_root,
 						state_change_id,
-						state_hash,
+						state_chunk_hashes,
 					) =>
 						last_snapshot = Some(SnapshotSummary {
 							snapshot_id,
 							state_root,
 							state_change_id,
-							state_hash,
+							state_chunk_hashes: state_chunk_hashes.to_vec(),
 							bitflags: vec![],
 							withdrawals: vec![],
 							aggregate_signature: None,
@@ -346,111 +345,45 @@ where
 
 	// Checks if we need to sync the orderbook state before processing the messages.
 	pub async fn check_state_sync(&mut self) -> Result<(), Error> {
-		// Read latest snapshot from finalizized state
-		let summary = self
-			.runtime
-			.runtime_api()
-			.get_latest_snapshot(&BlockId::number(self.client.info().finalized_number))
-			.expect("Something went wrong with the get_latest_snapshot runtime api; qed.");
-
-		self.working_state_root = summary.state_root.as_fixed_bytes().clone();
-
-		// We need to sync only if we are need to update state
-		if self.last_snapshot.read().state_change_id < summary.state_change_id {
-			// Try to load it from our local DB if not download it from Orderbook operator
-			if let Err(_err) = self.load_snapshot(&summary) {
-				info!(target: "orderbook", "📒 Orderbook state data not found locally for stid: {:?}",summary.state_change_id);
-				if self.is_validator {
-					// Only validators can download from operator
-					self.download_snapshot_from_operator(&summary).await?; // TODO: do we need this now????
-				} else {
-					// We can't do anything about full nodes here,
-					// it is expected to be synced on start
-					panic!(" this should never happen.")
-				}
-			}
-			// X->Y sync: Ask peers to send the missed stid
-			if !self.known_messages.is_empty() {
-				// Collect all known stids
-				let mut known_stids = self.known_messages.keys().collect::<Vec<&u64>>();
-				known_stids.sort_unstable(); // unstable is fine since we know stids are unique
+		// X->Y sync: Ask peers to send the missed stid
+		if !self.known_messages.is_empty() {
+			// Collect all known stids
+			let mut known_stids = self.known_messages.keys().collect::<Vec<&u64>>();
+			known_stids.sort_unstable(); // unstable is fine since we know stids are unique
 							 // if the next best known stid is not available then ask others
-				if *known_stids[0] != self.last_snapshot.read().state_change_id.saturating_add(1) {
-					// Ask other peers to send us the requests stids.
-					let import_request = StidImportRequest {
-						from: self.last_snapshot.read().state_change_id,
-						to: *known_stids[0],
-					};
-					let data = import_request.encode();
-					let peers = self.gossip_validator.peers.read().clone();
-					for peer in &peers {
-						self.send_request_to_peer(
-							peer,
-							STID_IMPORT_REQUEST.to_string(),
-							data.clone(),
-						);
-					}
-				} else {
-					info!(target: "orderbook", "📒 sync request not required, we know the next stid");
-				}
+			if *known_stids[0] != self.last_snapshot.read().state_change_id.saturating_add(1) {
+				// Ask other peers to send us the requests stids.
+				let message = GossipMessage::WantStid(
+					self.last_snapshot.read().state_change_id,
+					*known_stids[0],
+				);
+				let mut peers = self
+					.gossip_validator
+					.peers
+					.read()
+					.clone()
+					.iter()
+					.cloned()
+					.collect::<Vec<PeerId>>();
+				let mut fullnodes = self
+					.gossip_validator
+					.fullnodes
+					.read()
+					.clone()
+					.iter()
+					.cloned()
+					.collect::<Vec<PeerId>>();
+				peers.append(&mut fullnodes);
+				// TODO: Should we even send it out to everyone we know?
+				self.gossip_engine.send_message(peers, message.encode());
+				metric_inc!(self, ob_messages_sent);
+				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 			} else {
-				info!(target: "orderbook", "📒 No new messages known after stid: {:?}",self.last_snapshot.read().state_change_id);
+				info!(target: "orderbook", "📒 sync request not required, we know the next stid");
 			}
 		} else {
-			info!(target: "orderbook", "📒 Sync is not required latest stid: {:?}, last_snapshot_stid: {:?}",self.last_snapshot.read().state_change_id, summary.state_change_id);
+			info!(target: "orderbook", "📒 No new messages known after stid: {:?}",self.last_snapshot.read().state_change_id);
 		}
-		Ok(())
-	}
-
-	pub fn send_request_to_peer(&self, peer: &PeerId, protocol: String, data: Vec<u8>) {
-		metric_inc!(self, ob_messages_sent);
-		metric_add!(self, ob_data_sent, data.len() as u64);
-		self.network.write_notification(*peer, Cow::from(protocol.clone()), data);
-	}
-
-	pub async fn download_snapshot_from_operator(
-		&mut self,
-		summary: &SnapshotSummary,
-	) -> Result<(), Error> {
-		let active_set = self
-			.runtime
-			.runtime_api()
-			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
-			.validators;
-		match self.get_validator_key(&active_set) {
-			Err(_) => return Err(Error::Fullnode),
-			Ok(signing_key) => {
-				let signature: Signature = match bls_primitives::crypto::bls_ext::sign(
-					&signing_key,
-					&summary.state_change_id.encode(),
-				) {
-					Some(sig) => sig,
-					None => return Err(Error::BLSSigningFailed),
-				};
-				// Request for presigned url with signature and stid
-				let client = reqwest::Client::new();
-				let request = client
-					.get(format!("https://snapshots.polkadex.trade/{}", summary.state_change_id))
-					.header("Signature", hex::encode(signature.0))
-					.build()?;
-				info!(target:"orderbook","📒 Requesting presigned url for stid: {:?} from operator",summary.state_change_id);
-				let presigned_url = client.execute(request).await?.text().await?;
-				info!(target:"orderbook","📒 Downloading snapshot for stid: {:?} from operator",summary.state_change_id);
-				// Download data using the presigned url
-				let request = client.get(presigned_url).build()?;
-
-				let data = client.execute(request).await?.bytes().await?.to_vec();
-				info!(target:"orderbook","📒 Checking hash of downloaded snapshot for stid: {:?}",summary.state_change_id);
-				let computed_hash = H256::from(sp_core::blake2_256(&data));
-				if computed_hash != summary.state_hash {
-					warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected:
-                {:?}",computed_hash,summary.state_hash);
-					return Err(Error::StateHashMisMatch)
-				}
-				self.load_state_from_data(&data, summary)?;
-			},
-		}
-
 		Ok(())
 	}
 
@@ -493,8 +426,9 @@ where
 				Ok(data) => {
 					let mut state_chunk_hashes = vec![];
 					// Slice the data into chunks of 10 MB
-					while let Some(chunk) = data.chunks(10 * 1024 * 1024) {
-						let chunk_hash = H128::from(blake2_128(&data));
+					let mut chunks = data.chunks(10 * 1024 * 1024);
+					while let Some(chunk) = chunks.next() {
+						let chunk_hash = H128::from(blake2_128(chunk));
 						offchain_storage.set(
 							b"OrderbookSnapshotStateChunk",
 							chunk_hash.0.as_ref(),
@@ -524,12 +458,12 @@ where
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
 		if let Some(offchain_storage) = self.backend.offchain_storage() {
 			let mut data = Vec::new();
-			for chunk_hash in summary.state_chunk_hashes {
+			for chunk_hash in &summary.state_chunk_hashes {
 				if let Some(mut chunk) =
 					offchain_storage.get(b"OrderbookSnapshotStateChunk", chunk_hash.0.as_ref())
 				{
 					let computed_hash = H128::from(blake2_128(&chunk));
-					if computed_hash != chunk_hash {
+					if computed_hash != *chunk_hash {
 						warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,chunk_hash);
 						return Err(Error::StateHashMisMatch)
 					}
@@ -574,7 +508,7 @@ where
 	pub fn want_stid(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
 		if let Some(peer) = peer {
 			let mut messages = vec![];
-			for stid in from..=to {
+			for stid in *from..=*to {
 				// We dont allow gossip messsages to be greater than 10MB
 				if messages.encoded_size() >= 10 * 1024 * 1024 {
 					// If we reach size limit, we send data in chunks of 10MB.
@@ -590,20 +524,20 @@ where
 			}
 			// Send the final chunk if any
 			if !messages.is_empty() {
-				self.gossip_engine
-					.send_message(vec![peer], GossipMessage::Stid(messages).encode());
+				let message = GossipMessage::Stid(messages);
+				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 			}
 		}
 	}
 
-	pub async fn got_stids_via_gossip(&mut self, messages: &Vec<ObMessage>) {
+	pub async fn got_stids_via_gossip(&mut self, messages: &Vec<ObMessage>) -> Result<(), Error> {
 		for message in messages {
 			// TODO: DO signature checks here and handle reputation
 			self.known_messages.entry(message.stid).or_insert(message.clone());
 		}
-		self.check_stid_gap_fill().await?
+		self.check_stid_gap_fill().await
 	}
 
 	// Expects the set bits in the bitmap to be missing chunks
@@ -614,8 +548,8 @@ where
 			if let Some(peer) = remote {
 				let mut chunks_we_have = vec![];
 				let at = BlockId::Number(self.last_finalized_block.saturated_into());
-				if let Some(summary) =
-					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id).into_ok()
+				if let Ok(Some(summary)) =
+					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 				{
 					if let Some(offchain_storage) = self.backend.offchain_storage() {
 						let required_indexes: Vec<u16> = return_set_bits(bitmap);
@@ -654,7 +588,7 @@ where
 			let mut want_chunks = vec![];
 			for index in available_chunks {
 				if let Some(chunk_status) = self.sync_state_map.get_mut(&index) {
-					if chunk_status == StateSyncStatus::Unavailable {
+					if *chunk_status == StateSyncStatus::Unavailable {
 						want_chunks.push(index);
 						*chunk_status = StateSyncStatus::InProgress(peer, Utc::now().timestamp());
 					}
@@ -679,14 +613,14 @@ where
 		if let Some(peer) = remote {
 			if let Some(offchian_storage) = self.backend.offchain_storage() {
 				let at = BlockId::Number(self.last_finalized_block.saturated_into());
-				if let Some(summary) =
-					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id).into_ok()
+				if let Ok(Some(summary)) =
+					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 				{
 					let chunk_indexes: Vec<u16> = return_set_bits(bitmap);
 					// TODO: Santiy check to ensure that indexing in to state_chunk_hashes doesn't
 					// cause a panic
 					for index in chunk_indexes {
-						let chunk_hash: H160 = summary.state_chunk_hashes[index];
+						let chunk_hash: H128 = summary.state_chunk_hashes[index as usize];
 						if let Some(data) = offchian_storage
 							.get(b"OrderbookSnapshotStateChunk", chunk_hash.0.as_ref())
 						{
@@ -701,13 +635,13 @@ where
 		}
 	}
 
-	pub async fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &Vec<u8>) {
+	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &Vec<u8>) {
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
 			let at = BlockId::Number(self.last_finalized_block.saturated_into());
-			if let Some(summary) =
-				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id).into_ok()
+			if let Ok(Some(summary)) =
+				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 			{
-				let expected_hash: H128 = summary.state_chunk_hashes[index];
+				let expected_hash: H128 = summary.state_chunk_hashes[*index as usize];
 				let computed_hash: H128 = H128::from(blake2_128(data));
 				if expected_hash == computed_hash {
 					// Store the data
@@ -718,8 +652,8 @@ where
 					);
 					// Update sync status map
 					self.sync_state_map.entry(*index).and_modify(|status| {
-						status == StateSyncStatus::Available;
-					})
+						*status = StateSyncStatus::Available;
+					});
 				}
 			}
 		}
@@ -734,12 +668,12 @@ where
 		metric_add!(self, ob_data_recv, message.encoded_size() as u64);
 		match message {
 			GossipMessage::WantStid(from, to) => self.want_stid(from, to, remote),
-			GossipMessage::Stid(messages) => self.got_stids_via_gossip(messages).await,
+			GossipMessage::Stid(messages) => self.got_stids_via_gossip(messages).await?,
 			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
-			GossipMessage::Want(snap_id, bitmap) => self.want(snap_id, bitmap, remote),
-			GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote),
+			GossipMessage::Want(snap_id, bitmap) => self.want(snap_id, bitmap, remote).await,
+			GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote).await,
 			GossipMessage::RequestChunk(snap_id, bitmap) =>
-				self.request_chunk(snap_id, bitmap, remote),
+				self.request_chunk(snap_id, bitmap, remote).await,
 			GossipMessage::Chunk(snap_id, index, data) => self.process_chunk(snap_id, index, data),
 		}
 		Ok(())
@@ -763,8 +697,8 @@ where
 		}
 		// if we are syncing the check progress
 		if self.state_is_syncing {
-			let mut inprogress = 0;
-			let mut unavailable = 0;
+			let mut inprogress: u16 = 0;
+			let mut unavailable: u16 = 0;
 			let mut total = self.sync_state_map.len();
 			let last_summary = self.last_snapshot.read().clone();
 			let mut missing_indexes = vec![];
@@ -772,13 +706,13 @@ where
 				match status {
 					StateSyncStatus::Unavailable => {
 						unavailable = unavailable.saturating_add(1);
-						missing_indexes.push(chunk_index);
+						missing_indexes.push(*chunk_index);
 					},
 					StateSyncStatus::InProgress(who, when) => {
 						inprogress = inprogress.saturating_add(1);
 						// If the peer has not responded with data in one minute we ask again
 						if (Utc::now().timestamp() - *when) > 60 {
-							missing_indexes.push(chunk_index);
+							missing_indexes.push(*chunk_index);
 							warn!(target:"orderbook","Peer: {:?} has not responded with chunk: {:?}, asking someone else", who, chunk_index);
 							*status = StateSyncStatus::Unavailable;
 						}
@@ -791,13 +725,20 @@ where
 			if !missing_indexes.is_empty() {
 				let message =
 					GossipMessage::Want(last_summary.snapshot_id, prepare_bitmap(missing_indexes));
-				let fullnodes =
-					self.gossip_validator.fullnodes.read().clone().iter().collect::<Vec<PeerId>>();
+				let fullnodes = self
+					.gossip_validator
+					.fullnodes
+					.read()
+					.clone()
+					.iter()
+					.cloned()
+					.collect::<Vec<PeerId>>();
 				self.gossip_engine.send_message(fullnodes, message.encode());
 			} else {
 				// We have all the data, state is synced,
 				// so load snapshot shouldn't have any problem now
-				self.load_snapshot(&last_summary)?
+				self.load_snapshot(&last_summary)?;
+				self.state_is_syncing = false;
 			}
 		}
 		Ok(())
@@ -844,7 +785,7 @@ where
 			.clone()
 			.into_iter()
 			.collect::<Vec<PeerId>>();
-		let message = GossipMessage::Want(latest_summary.snapshot_id, bitmap);
+		let message = GossipMessage::Want(summary.snapshot_id, bitmap);
 		self.gossip_engine.send_message(fullnodes, message.encode());
 		Ok(())
 	}
@@ -883,7 +824,7 @@ where
 		if let Err(err) = self.load_snapshot(&latest_summary) {
 			warn!(target:"orderbook","📒 Cannot load snapshot from database: {:?}",err);
 			info!(target:"orderbook","📒 Trying to sync snapshot from other peers");
-			if let Err(err) = self.send_sync_requests(&latest_summary)? {
+			if let Err(err) = self.send_sync_requests(&latest_summary) {
 				error!(target:"orderbook","Error while sending sync requests to peers: {:?}",err);
 				return
 			}
