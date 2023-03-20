@@ -14,6 +14,7 @@
 // GNU General Public License for more details.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
 
@@ -412,7 +413,7 @@ pub mod pallet {
 			// optional AccountId.
 			let get_account_id = |network: &Network, relayer_index: &u8| {
 				let relayer_account_vector = <AuthorityListVector<T>>::get(network);
-				let relayer_account = relayer_account_vector.get(relayer_index.clone() as usize);
+				let relayer_account = relayer_account_vector.get(*relayer_index as usize);
 				if let Some(relayer_account) = relayer_account {
 					return Some(relayer_account.clone())
 				}
@@ -428,7 +429,7 @@ pub mod pallet {
 			// A closure that takes a byte array reference `tx_tag` as input and returns a
 			// `ValidTransaction`.
 			let generate_valid_tx = |tx_tag: &[u8; 30]| {
-				return ValidTransaction::with_tag_prefix("thea-proc")
+				ValidTransaction::with_tag_prefix("thea-proc")
 					.priority(T::UnsignedPriority::get())
 					.and_provides([&(tx_tag)])
 					.longevity(3)
@@ -448,12 +449,12 @@ pub mod pallet {
 				match get_account_id(network, relayer_index) {
 					Some(relayer_account) => {
 						if verify_signature(signature, payload, relayer_account) {
-							return generate_valid_tx(tx_tag)
+							generate_valid_tx(tx_tag)
 						} else {
-							return InvalidTransaction::Call.into()
+							InvalidTransaction::Call.into()
 						}
 					},
-					None => return InvalidTransaction::Call.into(),
+					None => InvalidTransaction::Call.into(),
 				}
 			};
 
@@ -1140,7 +1141,7 @@ pub mod pallet {
 			relayer_index: &u8,
 		) -> Result<T::AccountId, DispatchError> {
 			let relayer_account_vector = <AuthorityListVector<T>>::get(network);
-			let relayer_account = relayer_account_vector.get(relayer_index.clone() as usize);
+			let relayer_account = relayer_account_vector.get(*relayer_index as usize);
 			if let Some(relayer_account) = relayer_account {
 				return Ok(relayer_account.clone())
 			}
