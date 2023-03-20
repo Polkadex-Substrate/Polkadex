@@ -48,10 +48,14 @@ mod tests {
 	pub fn test_generate_and_load_back() {
 		use super::*;
 		let loaded_keys = Public::all(KeyTypeId(*b"blsk"));
-		assert_eq!(loaded_keys.len(), 1);
+		assert_eq!(loaded_keys.len(), 0);
 		let public = Public::generate_pair(KeyTypeId(*b"blsk"), None);
 		let loaded_keys = Public::all(KeyTypeId(*b"blsk"));
-		assert_eq!(loaded_keys.len(), 2);
+		assert_eq!(loaded_keys.len(), 1);
+		let key = loaded_keys[0];
+		println!("{key:?}");
+		let key = AppPublic::from(key);
+		println!("{key:?}");
 		assert_eq!(loaded_keys[0], public);
 	}
 }

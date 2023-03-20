@@ -158,7 +158,7 @@ fn get_all_public_keys() -> Result<Vec<Public>, Error> {
 				Ok(ref hex) if hex.len() == 96 => {
 					let public = hex.to_vec();
 
-					match PublicKey::from_bytes(public.as_ref()) {
+					match PublicKey::uncompress(public.as_ref()) {
 						Ok(public) => public_keys.push(Public::from(public.to_bytes())),
 						Err(_) => continue,
 					}
