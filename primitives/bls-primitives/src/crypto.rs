@@ -137,7 +137,7 @@ pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 			log::error!(target:"bls","Error while reading keystore file: {:?}",err);
 			return None
 		},
-		Ok(seed) => match SecretKey::from_bytes(&seed) {
+		Ok(seed) => match SecretKey::key_gen(&seed, &[]) {
 			Ok(secret_key) => Some(Signature::from(secret_key.sign(msg, DST.as_ref(), &[]))),
 			Err(err) => {
 				log::error!(target:"bls","Error while loading secret key from seed {:?}",err);
