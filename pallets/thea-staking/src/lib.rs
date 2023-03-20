@@ -561,7 +561,7 @@ pub mod pallet {
 		/// Offender already scheduled for slashing
 		SlashingInProgress,
 		/// Attempt to withdrow when there are no funds unbounded in or prior given era
-		NoUnboundedAmountToWithdraw,
+		NoUnbondedAmountToWithdraw,
 	}
 
 	// pallet::storage attributes allow for type-safe usage of the Substrate storage database,
@@ -962,7 +962,7 @@ pub mod pallet {
 			if let Some(mut exposure) = <Stakers<T>>::get(&nominator) {
 				let amount: BalanceOf<T> = exposure.withdraw_unbonded(Self::current_index());
 				if amount.is_zero() {
-					return Err(Error::<T>::NoUnboundedAmountToWithdraw)
+					return Err(Error::<T>::NoUnbondedAmountToWithdraw)
 				}
 				let _ = pallet_balances::Pallet::<T>::unreserve_named(
 					&T::StakingReserveIdentifier::get(),
@@ -980,7 +980,7 @@ pub mod pallet {
 		pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
 			<Stakers<T>>::mutate(&nominator, |individual_exposure| {
 				if let Some(individual_exposure) = individual_exposure {
-					if individual_exposure.value > amount {
+					if individual_exposure.value < amount {
 						return Err(Error::<T>::AmountIsGreaterThanBondedAmount)
 					}
 					let candidate = individual_exposure.backing.clone();

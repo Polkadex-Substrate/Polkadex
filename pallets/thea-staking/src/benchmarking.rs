@@ -149,6 +149,7 @@ benchmarks! {
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
 		let bound_amount: BalanceOf<T> = convert_to_balance::<T>(m - 10);
 		assert_ne!(amount, Zero::zero());
+		<CurrentIndex<T>>::put(1);
 		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
 		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount, candidate.clone())?;
@@ -157,7 +158,8 @@ benchmarks! {
 		<TotalElectedRelayers<T>>::insert(1, vec!((nominator.clone(), exposure)));
 		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
 		let prev_index = TheaStaking::<T>::current_index();
-		<CurrentIndex<T>>::put(prev_index + 1);
+		let ud = T::UnbondingDelay::get();
+		<CurrentIndex<T>>::put(prev_index + ud);
 		let call = Call::<T>::withdraw_unbonded{};
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
