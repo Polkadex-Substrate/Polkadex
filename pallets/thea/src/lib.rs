@@ -551,7 +551,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 			Self::do_deposit(token_type, payload, bit_map, bls_signature)?;
-			Ok(().into())
+			Ok(Pays::No.into())
 		}
 
 		/// Manually claim an approved deposit
@@ -694,7 +694,7 @@ pub mod pallet {
 			bls_signature: [u8; 96],
 			relayer_index: u8,
 			_signature: T::Signature,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 			let relayer = Self::get_relayer_account_id(&network, &relayer_index)?;
 
@@ -734,7 +734,7 @@ pub mod pallet {
 				current_relayer_set_accounts,
 			);
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Extrinsic to update solo chain that a new Thea Key has been set by Sudo
@@ -758,7 +758,7 @@ pub mod pallet {
 			bls_signature: [u8; 96],
 			relayer_index: u8,
 			_signature: T::Signature,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 			let relayer = Self::get_relayer_account_id(&network, &relayer_index)?;
 			// Verify BLS Signature
@@ -789,7 +789,7 @@ pub mod pallet {
 				bit_map,
 				authority_set,
 			);
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
@@ -813,7 +813,7 @@ pub mod pallet {
 			bls_signature: [u8; 96],
 			_relayer_index: u8,
 			_signature: T::Signature,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 			// Fetch current active relayer set BLS Keys
 
@@ -850,7 +850,7 @@ pub mod pallet {
 				<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
 			}
 			// Add the new one to queued_queued
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Extrinsic to reset Thea Key Rotation
