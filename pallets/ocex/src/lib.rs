@@ -140,6 +140,7 @@ pub mod pallet {
 		type Call = Call<T>;
 
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			sp_runtime::print("Entering validate unsigned....");
 			let valid_tx = |provide| {
 				ValidTransaction::with_tag_prefix("orderbook")
 					.and_provides([&provide])
@@ -181,6 +182,7 @@ pub mod pallet {
 						}
 					},
 				}
+				sp_runtime::print("Signature successfull");
 				valid_tx(snapshot_summary.clone())
 			};
 			match call {
