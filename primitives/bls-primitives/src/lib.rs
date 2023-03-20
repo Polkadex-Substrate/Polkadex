@@ -130,7 +130,7 @@ impl TryFrom<&[u8]> for Signature {
 #[cfg(feature = "std")]
 impl From<BLSSignature> for Signature {
 	fn from(value: BLSSignature) -> Self {
-		Signature(value.to_bytes())
+		Signature(value.compress())
 	}
 }
 
@@ -250,12 +250,13 @@ impl sp_core::crypto::Pair for Pair {
 	}
 
 	fn from_seed_slice(seed: &[u8]) -> Result<Self, SecretStringError> {
-		println!("Seed: {:?}, len: {:?}", seed,seed.len());
+		println!("Seed: {:?}, len: {:?}", seed, seed.len());
 		let secret = match SecretKey::key_gen(seed, &[]) {
 			Ok(secret) => secret,
 			Err(err) => {
 				println!("BLS err: {:?}", err);
-				return Err(SecretStringError::InvalidSeed); },
+				return Err(SecretStringError::InvalidSeed)
+			},
 		};
 
 		Ok(Pair { public: secret.sk_to_pk().compress().into(), secret })

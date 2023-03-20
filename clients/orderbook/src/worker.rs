@@ -293,19 +293,27 @@ where
 			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
 			.validators;
 		let signing_key = self.get_validator_key(&active_set)?;
-		info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
-		let signature =
-			match bls_primitives::crypto::sign(&signing_key, &summary.sign_data()) {
-				Some(sig) => sig,
-				None => {
-					error!(target:"orderbook","📒 Failed to sign snapshot, not able to sign with validator key.");
-					return Err(Error::SnapshotSigningFailed)
-				},
-			};
+		info!(target:"orderbook","Signing snapshot with: {:?}",hex::encode(signing_key.0));
+		let initial_summary = summary.sign_data();
+		let signature = match bls_primitives::crypto::sign(&signing_key, &summary.sign_data()) {
+			Some(sig) => sig,
+			None => {
+				error!(target:"orderbook","📒 Failed to sign snapshot, not able to sign with validator key.");
+				return Err(Error::SnapshotSigningFailed)
+			},
+		};
 
-		summary.aggregate_signature = Some(signature);
+		// summary.aggregate_signature = Some(signature.clone());
 		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
 		set_bit_field(&mut summary.bitflags, bit_index as u16);
+		// println!("Signature: {:?}",summary.aggregate_signature.unwrap().0);
+		// println!("Signing key: {:?}",signing_key.0);
+		assert_eq!(initial_summary, summary.sign_data());
+		assert!(bls_primitives::crypto::bls_ext::verify(
+			&signing_key,
+			&initial_summary,
+			&signature
+		));
 		// send it to runtime
 		if let Err(_) = self
 			.runtime

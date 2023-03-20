@@ -44,18 +44,23 @@ impl RuntimePublic for Public {
 
 #[cfg(test)]
 mod tests {
+	use crate::crypto::sign;
+	use sp_application_crypto::RuntimePublic;
+	use sp_core::blake2_256;
+
 	#[test]
 	pub fn test_generate_and_load_back() {
 		use super::*;
-		let loaded_keys = Public::all(KeyTypeId(*b"blsk"));
-		assert_eq!(loaded_keys.len(), 0);
-		let public = Public::generate_pair(KeyTypeId(*b"blsk"), None);
-		let loaded_keys = Public::all(KeyTypeId(*b"blsk"));
+		let key_type = KeyTypeId(*b"blsk");
+		let public = Public::generate_pair(key_type, None);
+		let loaded_keys = Public::all(key_type);
 		assert_eq!(loaded_keys.len(), 1);
-		let key = loaded_keys[0];
-		println!("{key:?}");
-		let key = AppPublic::from(key);
-		println!("{key:?}");
 		assert_eq!(loaded_keys[0], public);
+		let message = blake2_256(&vec![0, 1]);
+
+		let signature = sign(&public, &message).unwrap();
+		println!("Pubkey: {:?}", public.0);
+		println!("Signature: {:?}", signature.0);
+		assert!(crate::crypto::bls_ext::verify(&public, message.as_ref(), &signature));
 	}
 }

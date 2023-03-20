@@ -1465,7 +1465,7 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
-		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 35,
+		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 35,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,

@@ -43,7 +43,7 @@ pub trait BlsExt {
 	}
 
 	fn generate_pair(phrase: Option<Vec<u8>>) -> Public {
-		// generate the private key  and store it in filesystem
+		// generate a pair
 		let (pair, _seed) = generate_pair_(phrase);
 		pair.public()
 	}
@@ -62,12 +62,13 @@ pub trait BlsExt {
 	}
 
 	fn verify(pubkey: &Public, msg: &[u8], signature: &Signature) -> bool {
-		let pubkey = match PublicKey::from_bytes(pubkey.0.as_ref()) {
+		println!("pubkey: {:?}", pubkey.0);
+		println!("Signature: {:?}", signature.0);
+		let pubkey = match PublicKey::uncompress(pubkey.0.as_ref()) {
 			Ok(pubkey) => pubkey,
 			Err(_) => return false,
 		};
-
-		let signature = match crate::BLSSignature::from_bytes(signature.0.as_ref()) {
+		let signature = match crate::BLSSignature::uncompress(signature.0.as_ref()) {
 			Ok(sig) => sig,
 			Err(_) => return false,
 		};
@@ -79,7 +80,7 @@ pub trait BlsExt {
 	fn verify_aggregate(pubkey: &Vec<Public>, msg: &[u8], signature: &Signature) -> bool {
 		let mut pubkeys = vec![];
 		for key in pubkey {
-			let agg_pubkey = match PublicKey::from_bytes(key.0.as_ref()) {
+			let agg_pubkey = match PublicKey::uncompress(key.0.as_ref()) {
 				Ok(pubkey) => pubkey,
 				Err(_) => return false,
 			};
@@ -87,7 +88,7 @@ pub trait BlsExt {
 		}
 		let pubkeys_ref = pubkeys.iter().collect::<Vec<&PublicKey>>();
 
-		let agg_signature = match crate::BLSSignature::from_bytes(signature.0.as_ref()) {
+		let agg_signature = match crate::BLSSignature::uncompress(signature.0.as_ref()) {
 			Ok(sig) => sig,
 			Err(_) => return false,
 		};
@@ -137,12 +138,22 @@ pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 			log::error!(target:"bls","Error while reading keystore file: {:?}",err);
 			return None
 		},
-		Ok(seed) => match SecretKey::key_gen(&seed, &[]) {
-			Ok(secret_key) => Some(Signature::from(secret_key.sign(msg, DST.as_ref(), &[]))),
-			Err(err) => {
-				log::error!(target:"bls","Error while loading secret key from seed {:?}",err);
-				return None;
-			},
+		Ok(data) => match serde_json::from_slice::<Seed>(&data) {
+			Ok(seed) =>
+				return match SecretKey::key_gen(&seed, &[]) {
+					Ok(secret_key) => {
+						let pk = secret_key.sk_to_pk().compress();
+						if pk != pubkey.0 {
+							return None
+						}
+						Some(Signature::from(secret_key.sign(msg, DST.as_ref(), &[])))
+					},
+					Err(err) => {
+						log::error!(target:"bls","Error while loading secret key from seed {:?}",err);
+						None
+					},
+				},
+			Err(_) => None,
 		},
 	}
 }
