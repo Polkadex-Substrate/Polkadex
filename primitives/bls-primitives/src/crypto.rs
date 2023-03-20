@@ -130,13 +130,19 @@ fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed) {
 
 #[cfg(feature = "std")]
 #[allow(dead_code)]
-fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
+pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 	let path = key_file_path(pubkey.as_ref());
 	match std::fs::read(&path) {
-		Err(_) => return None,
+		Err(err) => {
+			log::error!(target:"bls","Error while reading keystore file: {:?}",err);
+			return None
+		},
 		Ok(seed) => match SecretKey::from_bytes(&seed) {
 			Ok(secret_key) => Some(Signature::from(secret_key.sign(msg, DST.as_ref(), &[]))),
-			Err(_) => return None,
+			Err(err) => {
+				log::error!(target:"bls","Error while loading secret key from seed {:?}",err);
+				return None;
+			},
 		},
 	}
 }
