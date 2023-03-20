@@ -456,6 +456,10 @@ where
 	}
 
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
+		if summary.snapshot_id == 0 {
+			// Nothing to do if we are on state_id 0
+			return Ok(())
+		}
 		if let Some(offchain_storage) = self.backend.offchain_storage() {
 			let mut data = Vec::new();
 			for chunk_hash in &summary.state_chunk_hashes {
