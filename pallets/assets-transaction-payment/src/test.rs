@@ -459,13 +459,14 @@ fn converted_fee_is_never_zero_if_input_fee_is_not() {
 			.unwrap();
 		assert_eq!(Assets::balance(asset_id.into(), get_alice_account()), balance);
 
-		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+		assert!(ChargeAssetTransactionPayment::post_dispatch(
 			Some(pre_dispatch_result),
 			&info_from_pays(Pays::No),
 			&post_info_from_pays(Pays::No),
 			len,
 			&Ok(())
-		));
+		)
+		.is_err());
 		assert_eq!(Assets::balance(asset_id.into(), get_alice_account()), balance);
 	});
 }
@@ -512,13 +513,14 @@ fn post_dispatch_fee_is_zero_if_pre_dispatch_fee_is_zero() {
 			.unwrap();
 		assert_eq!(Assets::balance(asset_id.into(), get_alice_account()), balance);
 
-		assert_ok!(ChargeAssetTransactionPayment::post_dispatch(
+		assert!(ChargeAssetTransactionPayment::post_dispatch(
 			Some(pre_dispatch_result),
 			&info_from_pays(Pays::No),
 			&post_info_from_pays(Pays::Yes),
 			len,
 			&Ok(())
-		));
+		)
+		.is_err());
 		assert_eq!(Assets::balance(asset_id.into(), get_alice_account()), balance);
 	});
 }
