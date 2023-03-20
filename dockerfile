@@ -8,7 +8,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
   rustup toolchain install nightly-2023-02-21 && \
   rustup target add wasm32-unknown-unknown --toolchain nightly-2023-02-21 && \
   rustup default nightly-2023-02-21 && \
-  git clone https://github.com/Polkadex-Substrate/Polkadex -b main-net-runtime && \
+  git clone https://github.com/Polkadex-Substrate/Polkadex -b mainnet-release && \
   cd Polkadex && \
   git checkout $(git describe --tags --abbrev=0) && \
   cargo build --release
