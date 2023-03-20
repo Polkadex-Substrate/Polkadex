@@ -71,6 +71,12 @@ pub struct TradingPairConfig {
 	pub quote_asset_precision: u8,
 }
 
+impl TradingPairConfig {
+	pub fn min_volume(&self) -> Decimal {
+		self.min_qty.saturating_mul(self.min_price)
+	}
+}
+
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OnChainEvents<AccountId> {
