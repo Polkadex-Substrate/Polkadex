@@ -293,8 +293,7 @@ impl<'a, Address: Decode, Call: Decode, Extra: SignedExtension> serde::Deseriali
 		D: serde::Deserializer<'a>,
 	{
 		let r = sp_core::bytes::deserialize(de)?;
-		Decode::decode(&mut &r[..])
-			.map_err(|e| serde::de::Error::custom(e.to_string()))
+		Decode::decode(&mut &r[..]).map_err(|e| serde::de::Error::custom(e.to_string()))
 	}
 }
 

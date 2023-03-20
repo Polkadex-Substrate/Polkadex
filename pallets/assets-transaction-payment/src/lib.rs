@@ -8,10 +8,14 @@ use crate::{
 	pallet::{AllowedAssets, Config, Event, Pallet},
 	payment::OnChargeAssetTransaction,
 };
-use frame_support::{dispatch::{DispatchInfo, PostDispatchInfo}, ensure, traits::{
-	fungibles::{CreditOf, Inspect},
-	IsType,
-}};
+use frame_support::{
+	dispatch::{DispatchInfo, PostDispatchInfo},
+	ensure,
+	traits::{
+		fungibles::{CreditOf, Inspect},
+		IsType,
+	},
+};
 use pallet_transaction_payment::OnChargeTransaction;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -113,7 +117,7 @@ pub mod pallet {
 			tip: BalanceOf<T>,
 			asset_id: AssetIdOf<T>,
 		},
-		InvalidAsset
+		InvalidAsset,
 	}
 
 	// Errors inform users that something went wrong.
@@ -200,7 +204,7 @@ where
 		len: usize,
 	) -> Result<(BalanceOf<T>, InitialPayment<T>), TransactionValidityError> {
 		let fee = pallet_transaction_payment::Pallet::<T>::compute_fee(len as u32, info, self.tip);
-		ensure!(self.tip <= fee,TransactionValidityError::Invalid(InvalidTransaction::Payment));
+		ensure!(self.tip <= fee, TransactionValidityError::Invalid(InvalidTransaction::Payment));
 		if fee.is_zero() {
 			Ok((fee, InitialPayment::Nothing))
 		} else if self.asset_id != Zero::zero() {
@@ -275,8 +279,7 @@ where
 			if !allowed_assets.contains(&asset.asset()) {
 				return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 			}
-		}
-		else {
+		} else {
 			Pallet::<T>::deposit_event(Event::<T>::InvalidAsset);
 			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 		}
