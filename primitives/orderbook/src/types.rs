@@ -86,6 +86,8 @@ impl Trade {
 }
 #[cfg(feature = "std")]
 use chrono::Utc;
+use libp2p_core::PeerId;
+
 impl Trade {
 	// Creates a Trade with zero event_tag
 	#[cfg(feature = "std")]
@@ -108,11 +110,40 @@ impl Trade {
 	}
 }
 
+#[cfg(feature = "std")]
+#[derive(Clone, Debug, Encode, Decode,serde::Serialize, serde::Deserialize)]
+pub enum GossipMessage {
+	// (From,to, remote peer)
+	WantStid(u64,u64),
+	// Collection of Stids
+	Stid(Vec<ObMessage>),
+	// Single ObMessage
+	ObMessage(ObMessage),
+	// Snapshot id, bitmap, remote peer
+	Want(u64,Vec<u128>),
+	// Snapshot id, bitmap, remote peer
+	Have(u64,Vec<u128>),
+	// Request
+	// (snapshot id, chunk indexes requested as bitmap, remote peer)
+	RequestChunk(u64, Vec<u128>),
+	// Chunks of snapshot data
+	// ( snapshot id, index of chunk, data )
+	Chunk(u64, u16, Vec<u8>)
+}
+
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
+}
+
+#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq)]
+pub enum StateSyncStatus {
+	Unavailable, // We don't have this chunk yet
+	// (Who is supposed to send us, when we requested)
+	InProgress(PeerId, i64), // We have asked a peer for this chunk and waiting
+	Available // We have this chunk
 }
 
 #[derive(Clone, Debug, Encode, Decode)]

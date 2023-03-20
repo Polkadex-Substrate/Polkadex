@@ -1,3 +1,4 @@
+#![feature(unwrap_infallible)]
 extern crate core;
 
 use futures::channel::mpsc::UnboundedReceiver;
@@ -174,7 +175,7 @@ where
 		_marker: Default::default(),
 	};
 
-	let mut worker = worker::ObWorker::<_, _, _, _, _,_>::new(worker_params);
+	let mut worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
 
 	worker.run().await
 }
