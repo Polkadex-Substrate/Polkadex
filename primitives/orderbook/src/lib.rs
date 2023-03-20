@@ -19,7 +19,6 @@ use crate::{
 	utils::{return_set_bits, set_bit_field},
 };
 
-mod bls;
 pub mod constants;
 #[cfg(feature = "std")]
 pub mod types;

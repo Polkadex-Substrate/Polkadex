@@ -109,15 +109,12 @@ use std::str::FromStr;
 
 #[cfg(feature = "std")]
 fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed) {
+	// println!("Generating pair... Phrase: {:?}",phrase);
 	let (pair, seed) = match phrase {
 		None => BLSPair::generate(),
 		Some(phrase) => {
 			let phrase = String::from_utf8(phrase).expect("Invalid phrase");
 			let mut uri = SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
-			if uri.phrase.expose_secret() == DEV_PHRASE {
-				// We want atleast 32 bytes for bls key generation
-				uri.phrase = BLS_DEV_PHRASE.parse().unwrap();
-			}
 			let (pair, seed) = BLSPair::from_phrase(uri.phrase.expose_secret(), None)
 				.expect("Phrase is not valid; qed");
 
@@ -127,7 +124,7 @@ fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed) {
 			(pair, seed.unwrap())
 		},
 	};
-
+	// println!("Seed: {:?}, public key; {:?}",seed,hex::encode(pair.public.0.as_ref()));
 	(pair, seed)
 }
 
