@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+#![deny(unused_crate_dependencies)]
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]

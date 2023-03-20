@@ -12,6 +12,8 @@ members = [
     "pallets/pdex-migration",
     "pallets/assets-transaction-payment",
     "pallets/ocex",
+    "pallets/thea-staking",
+    "pallets/rewards",
     "pallets/thea",
     "thea-primitives",
     "pallets/thea-staking",
@@ -45,13 +47,11 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 frame-election-provider-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-babe = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-pallet-tips = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-proxy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-staking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-pallet-society = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -66,7 +66,6 @@ pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-contracts = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-pallet-bags-list = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -139,7 +138,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-nomination-pools = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, package="sp-finality-grandpa" }
-polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.11", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", default-features = false }
+polkadex-primitives = { tag = "polkadot-v0.9.28v0.1.14", git = "https://github.com/Polkadex-Substrate/polkadex-primitives.git", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.28" }

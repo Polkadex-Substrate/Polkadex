@@ -135,6 +135,10 @@ pub fn return_set_bits(bit_map: u128) -> Vec<u8> {
 	set_bits
 }
 
+pub trait TheaExtrinsicSubmitted<Author> {
+	fn thea_extrinsic_submitted(author: Author, bit_map: u128, active_set: Vec<Author>);
+}
+
 #[test]
 pub fn test_bit_manipulation() {
 	let x = 3;
