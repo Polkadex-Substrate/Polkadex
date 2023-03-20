@@ -30,7 +30,7 @@ pub fn return_set_bits(input: &Vec<u128>) -> Vec<u16> {
 }
 
 pub fn prepare_bitmap(indexes: Vec<u16>) -> Vec<u128> {
-	let mut bitmap = vec![];
+	let mut bitmap = Vec::new();
 	for index in indexes {
 		set_bit_field(&mut bitmap, index);
 	}

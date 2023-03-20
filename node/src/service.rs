@@ -550,6 +550,7 @@ pub fn new_full_base(
 	let config = orderbook::ObParams {
 		client: client.clone(),
 		backend,
+		runtime: client.clone(),
 		key_store: None,
 		network: network.clone(),
 		prometheus_registry,
