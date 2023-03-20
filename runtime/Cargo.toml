@@ -101,7 +101,7 @@ pdex-migration = { path = "../pallets/pdex-migration", default-features = false 
 asset-handler = { path = "../pallets/asset-handler", default-features = false }
 chainbridge = { path ="../pallets/chainbridge", default-features = false }
 thea-cross-chain-governance = { path = "../pallets/thea-cross-chain-governance", default-features = false }
-assets-transaction-payment = { path= "../pallets/assets-transaction-payment", default-features = false }
+pallet-assets-transaction-payment = { path= "../pallets/assets-transaction-payment", default-features = false }
 
 # Orderbook 
 pallet-ocex-lmp = {path = "../pallets/ocex", default-features = false }
@@ -193,7 +193,7 @@ std = [
     "pallet-ocex-lmp/std",
     "frame-try-runtime/std",
     "pallet-asset-handler-runtime-api/std",
-    "assets-transaction-payment/std",
+    "pallet-assets-transaction-payment/std",
     "thea-staking/std",
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",

@@ -276,8 +276,7 @@ where
 			}
 		}
 		else {
-			//ToDo: Handle this custom error
-			return Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1)))
+			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 		}
 		let priority = ChargeTransactionPayment::<T>::get_priority(info, len, self.tip, fee);
 		Ok(ValidTransaction { priority, ..Default::default() })
@@ -344,7 +343,7 @@ where
 					// non-zero here in case of unsigned extrinsics as they don't pay fees but
 					// `compute_actual_fee` is not aware of them. In both cases it's fine to just
 					// move ahead without adjusting the fee, though, so we do nothing.
-					debug_assert!(tip.is_zero(), "tip should be zero if initial fee was zero.");
+					return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 				},
 			}
 		}
