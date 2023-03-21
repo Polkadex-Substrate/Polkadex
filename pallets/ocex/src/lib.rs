@@ -181,7 +181,6 @@ pub mod pallet {
 						// ) {
 						// 	return InvalidTransaction::Custom(13).into()
 						// }
-						true
 					},
 				}
 				sp_runtime::print("Signature successfull");
