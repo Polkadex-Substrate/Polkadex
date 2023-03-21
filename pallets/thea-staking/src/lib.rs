@@ -66,7 +66,7 @@ pub trait SessionChanged {
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::session::{Exposure, IndividualExposure, StakingLimits};
-	use frame_support::traits::{Currency, NamedReservableCurrency, ReservableCurrency};
+	use frame_support::traits::{Currency, NamedReservableCurrency};
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::misbehavior::TheaMisbehavior;
 	use scale_info::prelude::string::String;
@@ -703,7 +703,7 @@ pub mod pallet {
 			let total_issuance = <pallet_balances::Pallet<T> as Currency<_>>::total_issuance();
 			let eras_total_stake = <TotalSessionStake<T>>::get(era);
 			let (era_payout, _rest) =
-				T::EraPayout::era_payout(eras_total_stake, total_issuance, session_length.into());
+				T::EraPayout::era_payout(eras_total_stake, total_issuance, session_length);
 			<EraRewardPayout<T>>::insert(era, era_payout);
 		}
 
@@ -742,7 +742,7 @@ pub mod pallet {
 			// panic!("Alice individual payout: {:?}", total_payout);
 			// Mint it to the Relayer
 			let individual_payout: u32 = individual_payout.unique_saturated_into();
-			<pallet_balances::Pallet<T> as Currency<_>>::deposit_into_existing(
+			let _ = <pallet_balances::Pallet<T> as Currency<_>>::deposit_into_existing(
 				&stash_account,
 				individual_payout.into(),
 			)?;
@@ -756,7 +756,7 @@ pub mod pallet {
 					let nominator_payout = nominator_part * relayer_payout;
 					let nominator_payout: u32 = nominator_payout.unique_saturated_into();
 					// Mint Rewards for Nominators
-					<pallet_balances::Pallet<T> as Currency<_>>::deposit_into_existing(
+					let _ = <pallet_balances::Pallet<T> as Currency<_>>::deposit_into_existing(
 						&nominator,
 						nominator_payout.into(),
 					)?;
