@@ -409,6 +409,7 @@ where
 	}
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
+		info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
 		// Cache the message
 		self.known_messages.insert(action.stid, action.clone());
 		if self.sync_oracle.is_major_syncing() | self.state_is_syncing {
