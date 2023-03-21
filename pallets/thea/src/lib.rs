@@ -536,9 +536,11 @@ pub mod pallet {
 		/// * `bls_signature`: BLS Signature.
 		/// * `token_type`: Token Type.
 		/// * `payload`: Encoded Deposit Payload.
-		/// * `_relayer_index`: The index of relayer in active set.
-		/// * `_network`: Network id.
-		/// * `_signature`: The signature of the relayer on the payload.
+		/// * `_relayer_index`: The index of relayer in active set will be used to validate unsigned
+		///   tx.
+		/// * `_network`: Network id will be used to validate unsigned tx.
+		/// * `_signature`: The signature of the relayer on the payload will be used to validate
+		///   unsigned tx.
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
@@ -684,7 +686,8 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		/// * `relayer_index`: The index of relayer in active set.
-		/// * `_signature`: The signature of the relayer on tx_hash.
+		/// * `_signature`: The signature of the relayer on tx_hash will be used to validate
+		///   unsigned tx.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn thea_key_rotation_complete(
@@ -748,7 +751,8 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		/// * `relayer_index`: The index of relayer in active set.
-		/// * `_signature`: The signature of the relayer on public_key.
+		/// * `_signature`: The signature of the relayer on public_key will be used to validate
+		///   unsigned tx.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn set_thea_key_complete(
@@ -802,8 +806,10 @@ pub mod pallet {
 		/// * `public_key`: Thea Public Key
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		/// * `_relayer_index`: The index of relayer in active set.
-		/// * `_signature`: The signature of the relayer on public_key.
+		/// * `_relayer_index`: The index of relayer in active set will be used to validate unsigned
+		///   tx.
+		/// * `_signature`: The signature of the relayer on public_key will be used to validate
+		///   unsigned tx.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn thea_queued_queued_public_key(
