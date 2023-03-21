@@ -126,7 +126,6 @@ impl thea_staking::Config for Test {
 	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
-	type Currency = Balances;
 }
 
 pub struct MockPallet(PhantomData<u32>);
