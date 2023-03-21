@@ -144,9 +144,6 @@ pub mod pallet {
 
 		// Era Payout for set of Relayers
 		type EraPayout: EraPayout<BalanceOf<Self>>;
-
-		/// Native Currency handler
-		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
