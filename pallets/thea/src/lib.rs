@@ -683,7 +683,7 @@ pub mod pallet {
 		/// * `tx_hash`: Transaction hash of key update on foreign chain
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		/// * `_relayer_index`: The index of relayer in active set.
+		/// * `relayer_index`: The index of relayer in active set.
 		/// * `_signature`: The signature of the relayer on tx_hash.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
@@ -747,7 +747,7 @@ pub mod pallet {
 		/// * `public_key`: New Public Key for thea (Raw Uncompressed)
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		/// * `_relayer_index`: The index of relayer in active set.
+		/// * `relayer_index`: The index of relayer in active set.
 		/// * `_signature`: The signature of the relayer on public_key.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
@@ -1124,7 +1124,7 @@ pub mod pallet {
 		/// Retrieve the AccountId of the relayer account at the specified index for the specified
 		/// network id
 		///
-		/// Arguments:
+		/// Parameters:
 		///
 		/// `network`: A reference to a Network instance representing the network in which the
 		/// relayer account is registered.
