@@ -411,7 +411,7 @@ pub mod pallet {
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			// A closure that takes a `&Network` and a `&u8` relayer index as inputs and returns an
 			// optional AccountId.
-			let get_account_id = |network: &Network, relayer_index: &u16| {
+			let get_account_id = |network: &Network, relayer_index: &u8| {
 				let relayer_account_vector = <AuthorityListVector<T>>::get(network);
 				let relayer_account = relayer_account_vector.get(*relayer_index as usize);
 				if let Some(relayer_account) = relayer_account {
@@ -442,7 +442,7 @@ pub mod pallet {
 			// registered, a `&T::Signature` signature, and a byte array reference `tx_tag` as input
 			// and returns either a `ValidTransaction` or `InvalidTransaction`.
 			let generate_tx = |payload: &[u8],
-			                   relayer_index: &u16,
+			                   relayer_index: &u8,
 			                   network: &Network,
 			                   signature: &T::Signature,
 			                   tx_tag: &[u8; 30]| {
@@ -546,7 +546,7 @@ pub mod pallet {
 			bls_signature: [u8; 96],
 			token_type: TokenType,
 			payload: Vec<u8>,
-			_relayer_index: u16,
+			_relayer_index: u8,
 			_network: Network,
 			_signature: T::Signature,
 		) -> DispatchResultWithPostInfo {
@@ -693,7 +693,7 @@ pub mod pallet {
 			tx_hash: sp_core::H256,
 			bit_map: u128,
 			bls_signature: [u8; 96],
-			relayer_index: u16,
+			relayer_index: u8,
 			_signature: T::Signature,
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
@@ -757,7 +757,7 @@ pub mod pallet {
 			public_key: [u8; 64],
 			bit_map: u128,
 			bls_signature: [u8; 96],
-			relayer_index: u16,
+			relayer_index: u8,
 			_signature: T::Signature,
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
@@ -812,7 +812,7 @@ pub mod pallet {
 			public_key: [u8; 64],
 			bit_map: u128,
 			bls_signature: [u8; 96],
-			_relayer_index: u16,
+			_relayer_index: u8,
 			_signature: T::Signature,
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
@@ -1138,7 +1138,7 @@ pub mod pallet {
 		/// is not found.
 		pub fn get_relayer_account_id(
 			network: &Network,
-			relayer_index: &u16,
+			relayer_index: &u8,
 		) -> Result<T::AccountId, DispatchError> {
 			let relayer_account_vector = <AuthorityListVector<T>>::get(network);
 			let relayer_account = relayer_account_vector.get(*relayer_index as usize);
