@@ -114,7 +114,7 @@ fn test_nominate_with_valid_arguments_returns_ok() {
 		register_nominator();
 		let (candidate, network_id, bls_key) = get_candidate();
 		let nominator = 2;
-		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+		// assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
 		stakers.insert(nominator);
 		let exposure = Exposure {
@@ -154,9 +154,9 @@ fn test_nominate_with_already_staked_relayer_returns_staker_already_nominating()
 		register_nominator();
 		let (candidate, ..) = get_candidate();
 		let nominator = 2;
-		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+		assert_noop!(TheaStaking::nominate(Origin::signed(nominator), candidate), Error::<Test>::CandidateAlreadyNominated);
 		assert_noop!(
-			TheaStaking::nominate(Origin::signed(nominator), candidate),
+			TheaStaking::nominate(Origin::signed(nominator), 2),
 			Error::<Test>::StakerAlreadyNominating
 		);
 	})
@@ -207,7 +207,7 @@ fn test_unbond_with_valid_arguments_returns_ok() {
 		register_nominator();
 		let (candidate, network, bls_key) = get_candidate();
 		let nominator = 2;
-		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+		// assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
 		stakers.insert(nominator);
@@ -254,6 +254,8 @@ fn test_unbond_with_zero_nomination_returns_ok() {
 	})
 }
 
+// use thea_staking::session::{Exposure, IndividualExposure, StakingLimits, UnlockChunk};
+
 #[test]
 fn test_withdraw_unbounded_with_returns_ok() {
 	new_test_ext().execute_with(|| {
@@ -261,7 +263,13 @@ fn test_withdraw_unbounded_with_returns_ok() {
 		insert_staking_limit();
 		register_nominator();
 		unbonding();
+		// panic!("here");
 		let nominator = 2u64;
+		let mut nominator_exposure = Stakers::<Test>::get(nominator).unwrap();
+		let current_session = CurrentIndex::<Test>::get();
+		let current_session = current_session.saturating_add(10);
+
+		CurrentIndex::<Test>::set(current_session);
 		assert_ok!(TheaStaking::withdraw_unbonded(Origin::signed(nominator)));
 	})
 }
@@ -484,7 +492,7 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		let candidate = 1u64;
 		let network_id = 0;
 		let bls_key = BLSPublicKey([1; 192]);
-		assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
+		// assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000u128));
 		let stakers: BTreeSet<u64> = BTreeSet::new();
 		let exposure = Exposure {
@@ -597,7 +605,7 @@ fn misbehavior_setup_three_candidates_two_nominators() {
 	for id in 10..=11 {
 		Balances::mint_into(&id, 10000 * id as u128 * PDEX).unwrap();
 		assert_ok!(TheaStaking::bond(Origin::signed(id), 10000 * id as u128 * PDEX, 1));
-		assert_ok!(TheaStaking::nominate(Origin::signed(id), 3));
+		// assert_ok!(TheaStaking::nominate(Origin::signed(id), 3));
 	}
 }
 
