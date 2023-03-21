@@ -54,7 +54,7 @@ jobs:
       - name: Install latest nightly with wasm target
         uses: actions-rs/toolchain@v1
         with:
-          # TODO [Issuer #654]: unpin version when issue will be resolved.
+          # TODO [Issue #654]: unpin version when issue will be resolved.
           toolchain: nightly-2023-02-21
           target: wasm32-unknown-unknown
           default: true
