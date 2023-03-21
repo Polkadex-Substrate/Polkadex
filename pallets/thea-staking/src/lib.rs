@@ -702,11 +702,11 @@ pub mod pallet {
 		pub fn end_of_era() {
 			// FIXME: Need to remove hardcoded value
 			let era = <CurrentIndex<T>>::get();
-			let total_issuance: u32 = T::Currency::total_issuance().unique_saturated_into();
+			let session_length: u64 = T::SessionLength::get().saturated_into();
+			let total_issuance = <pallet_balances::Pallet<T> as Currency<_>>::total_issuance();
 			let eras_total_stake = <TotalSessionStake<T>>::get(era);
-			// FIXME: This hardcoded value needs to be updated
 			let (era_payout, _rest) =
-				T::EraPayout::era_payout(eras_total_stake, total_issuance.into(), 7200);
+				T::EraPayout::era_payout(eras_total_stake, total_issuance, session_length.into());
 			<EraRewardPayout<T>>::insert(era, era_payout);
 		}
 
@@ -745,7 +745,10 @@ pub mod pallet {
 			// panic!("Alice individual payout: {:?}", total_payout);
 			// Mint it to the Relayer
 			let individual_payout: u32 = individual_payout.unique_saturated_into();
-			T::Currency::deposit_into_existing(&stash_account, individual_payout.into())?;
+			<pallet_balances::Pallet<T> as Currency<_>>::deposit_into_existing(
+				&stash_account,
+				individual_payout.into(),
+			)?;
 
 			for nominator in exposure.stakers {
 				// Get Exposure of Stakers
@@ -756,7 +759,10 @@ pub mod pallet {
 					let nominator_payout = nominator_part * relayer_payout;
 					let nominator_payout: u32 = nominator_payout.unique_saturated_into();
 					// Mint Rewards for Nominators
-					T::Currency::deposit_into_existing(&nominator, nominator_payout.into())?;
+					<pallet_balances::Pallet<T> as Currency<_>>::deposit_into_existing(
+						&nominator,
+						nominator_payout.into(),
+					)?;
 				}
 			}
 			Ok(())
