@@ -298,7 +298,7 @@ pub mod pallet {
 						backing: candidate,
 						unlocking,
 					};
-					<Stakers<T>>::insert(nominator.clone(), individual_exposure);
+					*n = Some(individual_exposure);
 				}
 			});
 			Self::do_bond(nominator, amount)?;
