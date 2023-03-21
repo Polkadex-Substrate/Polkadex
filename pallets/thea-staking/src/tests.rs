@@ -154,7 +154,10 @@ fn test_nominate_with_already_staked_relayer_returns_staker_already_nominating()
 		register_nominator();
 		let (candidate, ..) = get_candidate();
 		let nominator = 2;
-		assert_noop!(TheaStaking::nominate(Origin::signed(nominator), candidate), Error::<Test>::CandidateAlreadyNominated);
+		assert_noop!(
+			TheaStaking::nominate(Origin::signed(nominator), candidate),
+			Error::<Test>::CandidateAlreadyNominated
+		);
 		assert_noop!(
 			TheaStaking::nominate(Origin::signed(nominator), 2),
 			Error::<Test>::StakerAlreadyNominating
@@ -265,7 +268,6 @@ fn test_withdraw_unbounded_with_returns_ok() {
 		unbonding();
 		// panic!("here");
 		let nominator = 2u64;
-		let mut nominator_exposure = Stakers::<Test>::get(nominator).unwrap();
 		let current_session = CurrentIndex::<Test>::get();
 		let current_session = current_session.saturating_add(10);
 
@@ -637,6 +639,7 @@ fn test_slashing_misbehavior_works() {
 
 		TheaStaking::rotate_session();
 		TheaStaking::rotate_session();
+		let old_staked_balance = Balances::reserved_balance(3);
 		// Now shold be ok
 		TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).unwrap();
 		TheaStaking::report_offence(Origin::signed(2), 1, 3, OFFENCE).unwrap();
@@ -645,13 +648,16 @@ fn test_slashing_misbehavior_works() {
 		// Make sure storage is cleaned up
 		assert!(TheaStaking::commited_slashing(3).1.is_empty());
 		// Check balance of slashed offender
-		let offender_balance = Balances::free_balance(3);
-		assert_eq!(offender_balance, 98950000000000);
+		let offender_balance = Balances::reserved_balance(3);
+		// 5% reduced
+		assert_eq!(offender_balance, 950000000000);
+		// make sure it's not left with same amount
+		assert_ne!(old_staked_balance - offender_balance, 0);
 		// Reportes get rewarded ok
 		let one = Balances::free_balance(1);
 		let two = Balances::free_balance(2);
-		let nominator_ten = Balances::free_balance(10);
-		let nominator_eleven = Balances::free_balance(11);
+		let nominator_ten = Balances::reserved_balance(10);
+		let nominator_eleven = Balances::reserved_balance(11);
 		let ta = TreasuryPalletId::get().into_account_truncating();
 		let treasury = Balances::free_balance(&ta);
 		// verify math works for severe offence
@@ -686,13 +692,13 @@ fn test_slashing_severe_misbehavior_works() {
 		// Make sure storage is cleaned up
 		assert!(TheaStaking::commited_slashing(3).1.is_empty());
 		// Check balance of slashed offender
-		let offender_balance = Balances::free_balance(3);
-		assert_eq!(offender_balance, 98800000000000);
+		let offender_balance = Balances::reserved_balance(3);
+		assert_eq!(offender_balance, 99000000000000);
 		// Reportes get rewarded ok
 		let one = Balances::free_balance(1);
 		let two = Balances::free_balance(2);
-		let nominator_ten = Balances::free_balance(10);
-		let nominator_eleven = Balances::free_balance(11);
+		let nominator_ten = Balances::reserved_balance(10);
+		let nominator_eleven = Balances::reserved_balance(11);
 		let ta = TreasuryPalletId::get().into_account_truncating();
 		let treasury = Balances::free_balance(&ta);
 		// verify math works for severe offence
