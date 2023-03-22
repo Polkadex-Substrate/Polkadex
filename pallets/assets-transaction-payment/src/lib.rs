@@ -3,6 +3,7 @@
 #![allow(clippy::recursive_format_impl)]
 
 pub mod payment;
+pub mod weights;
 
 use crate::{
 	pallet::{AllowedAssets, Config, Event, Pallet},
@@ -32,6 +33,9 @@ mod mock;
 
 #[cfg(test)]
 mod test;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 // Type aliases used for interaction with `OnChargeTransaction`.
 pub(crate) type OnChargeTransactionOf<T> =
@@ -80,6 +84,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
 
+	pub trait PotpWeightInfo {
+		fn allow_list_token_for_fees(_b: u32) -> Weight;
+		fn block_token_for_fees(_b: u32) -> Weight;
+	}
+
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config:
@@ -93,6 +102,8 @@ pub mod pallet {
 		type OnChargeAssetTransaction: OnChargeAssetTransaction<Self>;
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		/// Type representing the weight of this pallet
+		type WeightInfo: PotpWeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -143,7 +154,7 @@ pub mod pallet {
 		///
 		/// * `origin`: governance
 		/// * `asset`: asset id in which fees will be accepted
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::allow_list_token_for_fees(1))]
 		pub fn allow_list_token_for_fees(
 			origin: OriginFor<T>,
 			asset: AssetIdOf<T>,
@@ -163,7 +174,7 @@ pub mod pallet {
 		///
 		/// * `origin`: governance
 		/// * `asset`: asset id in which fees should not be accepted anymore
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::block_token_for_fees(1))]
 		pub fn block_token_for_fees(origin: OriginFor<T>, asset: AssetIdOf<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<AllowedAssets<T>>::mutate(|allowed_assets| {

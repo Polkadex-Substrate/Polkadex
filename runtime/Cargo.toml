@@ -206,6 +206,7 @@ runtime-benchmarks = [
     "pdex-migration/runtime-benchmarks",
     "pallet-rewards/runtime-benchmarks",
     "liquidity/runtime-benchmarks",
+    "pallet-assets-transaction-payment/runtime-benchmarks"
 ]
 try-runtime = [
     "frame-executive/try-runtime",
