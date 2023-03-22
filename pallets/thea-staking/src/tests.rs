@@ -4,7 +4,7 @@ use crate::{
 	ActiveNetworks, Candidates, CurrentIndex, Error, Hooks, Perbill, Stakers, Stakinglimits,
 };
 use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
-use polkadex_primitives::misbehavior::TheaMisbehavior;
+use polkadex_primitives::{misbehavior::TheaMisbehavior, AccountId};
 use sp_runtime::traits::AccountIdConversion;
 use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;
@@ -588,6 +588,47 @@ const OFFENCE: TheaMisbehavior = TheaMisbehavior::FaultyDataProvided;
 // Severe Offence
 const SEVERE_OFFENCE: TheaMisbehavior = TheaMisbehavior::UnattendedKeygen;
 
+const ALICE_ACCOUNT: u64 = 1;
+const BOB_ACCOUNT: u64 = 2;
+const NEAL_ACCOUNT: u64 = 3;
+const NEAL_ACCOUNT_NOMINATOR_1: u64 = 10;
+const NEAL_ACCOUNT_NOMINATOR_2: u64 = 11;
+
+fn misbehavior_setup_as_alice_bob_and_neal_in_relayer_set() {
+	let mut active_networks = BTreeSet::new();
+	active_networks.insert(1_u8);
+	ActiveNetworks::<Test>::set(active_networks);
+	// Alice start balance
+	Balances::mint_into(&ALICE_ACCOUNT, START_BALANCE).unwrap();
+	// Bob start balance
+	Balances::mint_into(&BOB_ACCOUNT, START_BALANCE).unwrap();
+	// Charles start balance
+	Balances::mint_into(&NEAL_ACCOUNT, START_BALANCE).unwrap();
+	// Alice candidate
+	TheaStaking::add_candidate(Origin::signed(ALICE_ACCOUNT), 1, BLSPublicKey([0_u8; 192]))
+		.unwrap();
+	// Bob candidate
+	TheaStaking::add_candidate(Origin::signed(BOB_ACCOUNT), 1, BLSPublicKey([2_u8; 192])).unwrap();
+	// Neal candidate
+	TheaStaking::add_candidate(Origin::signed(NEAL_ACCOUNT), 1, BLSPublicKey([3_u8; 192])).unwrap();
+	// Neal's Nominator 1
+	Balances::mint_into(&NEAL_ACCOUNT_NOMINATOR_1, 10000 * NEAL_ACCOUNT_NOMINATOR_1 as u128 * PDEX)
+		.unwrap();
+	assert_ok!(TheaStaking::bond(
+		Origin::signed(NEAL_ACCOUNT_NOMINATOR_1),
+		10000 * NEAL_ACCOUNT_NOMINATOR_1 as u128 * PDEX,
+		NEAL_ACCOUNT
+	));
+	// Neal's Nominator 2
+	Balances::mint_into(&NEAL_ACCOUNT_NOMINATOR_2, 10000 * NEAL_ACCOUNT_NOMINATOR_2 as u128 * PDEX)
+		.unwrap();
+	assert_ok!(TheaStaking::bond(
+		Origin::signed(NEAL_ACCOUNT_NOMINATOR_2),
+		10000 * NEAL_ACCOUNT_NOMINATOR_2 as u128 * PDEX,
+		NEAL_ACCOUNT
+	));
+}
+
 fn misbehavior_setup_three_candidates_two_nominators() {
 	let mut active_networks = BTreeSet::new();
 	active_networks.insert(1_u8);
@@ -606,8 +647,7 @@ fn misbehavior_setup_three_candidates_two_nominators() {
 	TheaStaking::add_candidate(Origin::signed(3), 1, BLSPublicKey([3_u8; 192])).unwrap();
 	for id in 10..=11 {
 		Balances::mint_into(&id, 10000 * id as u128 * PDEX).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(id), 10000 * id as u128 * PDEX, 1));
-		// assert_ok!(TheaStaking::nominate(Origin::signed(id), 3));
+		assert_ok!(TheaStaking::bond(Origin::signed(id), 10000 * id as u128 * PDEX, 3));
 	}
 }
 
@@ -629,86 +669,189 @@ fn test_reporting_misbehavior_works() {
 #[test]
 fn test_slashing_misbehavior_works() {
 	new_test_ext().execute_with(|| {
-		misbehavior_setup_three_candidates_two_nominators();
-		// We fail as those are not in active set yet
-		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).is_err());
-		// make sure treasury is empty
-		let ta = TreasuryPalletId::get().into_account_truncating();
-		let treasury = Balances::free_balance(&ta);
-		assert_eq!(treasury, 0);
+		misbehavior_setup_as_alice_bob_and_neal_in_relayer_set();
 
+		let treasury_pallet_account = TreasuryPalletId::get().into_account_truncating();
+		//pallet needs to have an existential deposit
+		Balances::mint_into(&treasury_pallet_account, PDEX).unwrap();
+		let treasury = Balances::free_balance(&treasury_pallet_account);
+		assert_eq!(treasury, PDEX);
+
+		// We fail as those are not in active set yet
+		assert!(TheaStaking::report_offence(
+			Origin::signed(ALICE_ACCOUNT),
+			1,
+			NEAL_ACCOUNT,
+			OFFENCE
+		)
+		.is_err());
+
+		// make sure treasury is empty
 		TheaStaking::rotate_session();
 		TheaStaking::rotate_session();
-		let old_staked_balance = Balances::reserved_balance(3);
-		// Now shold be ok
-		TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).unwrap();
-		TheaStaking::report_offence(Origin::signed(2), 1, 3, OFFENCE).unwrap();
+
+		// Report Neal as offensive relayer
+		TheaStaking::report_offence(Origin::signed(ALICE_ACCOUNT), 1, NEAL_ACCOUNT, OFFENCE)
+			.unwrap();
+		TheaStaking::report_offence(Origin::signed(BOB_ACCOUNT), 1, NEAL_ACCOUNT, OFFENCE).unwrap();
+
+		//get alice and bob free balance
+		let alice_free_balance = Balances::free_balance(ALICE_ACCOUNT);
+		let bob_free_balance = Balances::free_balance(BOB_ACCOUNT);
+		let neal_free_balance = Balances::free_balance(BOB_ACCOUNT);
+
+		assert_eq!(alice_free_balance, 99000000000000);
+		assert_eq!(bob_free_balance, 99000000000000);
+		assert_eq!(neal_free_balance, 99000000000000);
+
+		let neal_nominator_1_reserve_balance = Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_1);
+		let neal_nominator_2_reserve_balance = Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_2);
+		let neal_reserve_balance_before_slashing = Balances::reserved_balance(NEAL_ACCOUNT);
+		assert_eq!(neal_nominator_1_reserve_balance, 100000000000000000);
+		assert_eq!(neal_nominator_2_reserve_balance, 110000000000000000);
+		assert_eq!(neal_reserve_balance_before_slashing, 1000000000000);
+
+		let treasury_balance_before_slashing = Balances::free_balance(&treasury_pallet_account);
+		assert_eq!(treasury_balance_before_slashing, PDEX);
+
 		// Rotate for slashing to take place
 		TheaStaking::rotate_session();
 		// Make sure storage is cleaned up
 		assert!(TheaStaking::commited_slashing(3).1.is_empty());
-		// Check balance of slashed offender
-		let offender_balance = Balances::reserved_balance(3);
-		// 5% reduced
-		assert_eq!(offender_balance, 950000000000);
-		// make sure it's not left with same amount
-		assert_ne!(old_staked_balance - offender_balance, 0);
-		// Reportes get rewarded ok
-		let one = Balances::free_balance(1);
-		let two = Balances::free_balance(2);
-		let nominator_ten = Balances::reserved_balance(10);
-		let nominator_eleven = Balances::reserved_balance(11);
-		let ta = TreasuryPalletId::get().into_account_truncating();
-		let treasury = Balances::free_balance(&ta);
-		// verify math works for severe offence
-		assert_eq!(one, 99000250000000);
-		assert_eq!(two, 99000250000000);
-		// nominators slashed
-		assert_eq!(nominator_ten, 99000250000000);
-		assert_eq!(nominator_eleven, 99000250000000);
-		// treasury in profit
-		assert_eq!(treasury, 49500000000);
+
+		// get alice and bob free balance after slashing
+		let alice_free_balance_after_rewarding = Balances::free_balance(ALICE_ACCOUNT);
+		let bob_free_balance_after_rewarding = Balances::free_balance(BOB_ACCOUNT);
+		// Alice and bob free balance increases as as they reported neal's offensive behaviour
+		assert_eq!(alice_free_balance_after_rewarding, 151500250000000);
+		assert_eq!(bob_free_balance_after_rewarding, 151500250000000);
+
+		// get neal's nominators as well as neal's after slashing
+		let neal_nominator_1_reserve_balance_after_slashing =
+			Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_1);
+		let neal_nominator_2_reserve_balance_after_slashing =
+			Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_2);
+		let neal_reserve_balance_after_slashing = Balances::reserved_balance(NEAL_ACCOUNT);
+		// As neal was reported for offensive behaviour, neal as well as neal nominators got slashed
+		assert_eq!(neal_nominator_1_reserve_balance_after_slashing, 95000000000000000);
+		assert_eq!(neal_nominator_2_reserve_balance_after_slashing, 104500000000000000);
+		assert_eq!(neal_reserve_balance_after_slashing, 950000000000);
+
+		let slashed_amount_nom_1 = neal_nominator_1_reserve_balance
+			.saturating_sub(neal_nominator_1_reserve_balance_after_slashing);
+		let slashed_amount_nom_2 = neal_nominator_2_reserve_balance
+			.saturating_sub(neal_nominator_2_reserve_balance_after_slashing);
+		let slashed_amount_neal = neal_reserve_balance_before_slashing
+			.saturating_sub(neal_reserve_balance_after_slashing);
+
+		let treasury_balance_after_getting_rewarded_from_slash =
+			Balances::free_balance(&treasury_pallet_account);
+		assert_eq!(treasury_balance_after_getting_rewarded_from_slash, 10396049500000000);
+
+		let total_slashed = slashed_amount_nom_1
+			.saturating_add(slashed_amount_nom_2.saturating_add(slashed_amount_neal));
+		let alice_gain = alice_free_balance_after_rewarding.saturating_sub(alice_free_balance);
+		let bob_gain = bob_free_balance_after_rewarding.saturating_sub(bob_free_balance);
+		let pallet_gain = treasury_balance_after_getting_rewarded_from_slash
+			.saturating_sub(treasury_balance_before_slashing);
+		let total_gain = alice_gain.saturating_add(bob_gain.saturating_add(pallet_gain));
+
+		assert_eq!(total_slashed, total_gain);
 	});
 }
 
 #[test]
 fn test_slashing_severe_misbehavior_works() {
 	new_test_ext().execute_with(|| {
-		misbehavior_setup_three_candidates_two_nominators();
-		// We fail as those are not in active set yet
-		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).is_err());
-		// make sure treasury is empty
-		let ta = TreasuryPalletId::get().into_account_truncating();
-		let treasury = Balances::free_balance(&ta);
-		assert_eq!(treasury, 0);
+		misbehavior_setup_as_alice_bob_and_neal_in_relayer_set();
 
+		let treasury_pallet_account = TreasuryPalletId::get().into_account_truncating();
+		//pallet needs to have an existential deposit
+		Balances::mint_into(&treasury_pallet_account, PDEX).unwrap();
+		let treasury = Balances::free_balance(&treasury_pallet_account);
+		assert_eq!(treasury, PDEX);
+
+		// We fail as those are not in active set yet
+		assert!(TheaStaking::report_offence(
+			Origin::signed(ALICE_ACCOUNT),
+			1,
+			NEAL_ACCOUNT,
+			SEVERE_OFFENCE
+		)
+		.is_err());
+
+		// make sure treasury is empty
 		TheaStaking::rotate_session();
 		TheaStaking::rotate_session();
-		// Now shold be ok
-		TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).unwrap();
-		TheaStaking::report_offence(Origin::signed(2), 1, 3, SEVERE_OFFENCE).unwrap();
+
+		// Report Neal as offensive relayer
+		TheaStaking::report_offence(Origin::signed(ALICE_ACCOUNT), 1, NEAL_ACCOUNT, SEVERE_OFFENCE)
+			.unwrap();
+		TheaStaking::report_offence(Origin::signed(BOB_ACCOUNT), 1, NEAL_ACCOUNT, SEVERE_OFFENCE)
+			.unwrap();
+
+		//get alice and bob free balance
+		let alice_free_balance = Balances::free_balance(ALICE_ACCOUNT);
+		let bob_free_balance = Balances::free_balance(BOB_ACCOUNT);
+		let neal_free_balance = Balances::free_balance(BOB_ACCOUNT);
+
+		assert_eq!(alice_free_balance, 99000000000000);
+		assert_eq!(bob_free_balance, 99000000000000);
+		assert_eq!(neal_free_balance, 99000000000000);
+
+		let neal_nominator_1_reserve_balance = Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_1);
+		let neal_nominator_2_reserve_balance = Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_2);
+		let neal_reserve_balance_before_slashing = Balances::reserved_balance(NEAL_ACCOUNT);
+		assert_eq!(neal_nominator_1_reserve_balance, 100000000000000000);
+		assert_eq!(neal_nominator_2_reserve_balance, 110000000000000000);
+		assert_eq!(neal_reserve_balance_before_slashing, 1000000000000);
+
+		let treasury_balance_before_slashing = Balances::free_balance(&treasury_pallet_account);
+		assert_eq!(treasury_balance_before_slashing, PDEX);
+
 		// Rotate for slashing to take place
 		TheaStaking::rotate_session();
 		// Make sure storage is cleaned up
 		assert!(TheaStaking::commited_slashing(3).1.is_empty());
-		// Check balance of slashed offender
-		let offender_balance = Balances::reserved_balance(3);
-		assert_eq!(offender_balance, 99000000000000);
-		// Reportes get rewarded ok
-		let one = Balances::free_balance(1);
-		let two = Balances::free_balance(2);
-		let nominator_ten = Balances::reserved_balance(10);
-		let nominator_eleven = Balances::reserved_balance(11);
-		let ta = TreasuryPalletId::get().into_account_truncating();
-		let treasury = Balances::free_balance(&ta);
-		// verify math works for severe offence
-		assert_eq!(one, 99001000000000);
-		assert_eq!(two, 99001000000000);
-		// nominators slashed
-		assert_eq!(nominator_ten, 99000250000000);
-		assert_eq!(nominator_eleven, 99000250000000);
-		// treasury in profit
-		assert_eq!(treasury, 198000000000);
+
+		// get alice and bob free balance after slashing
+		let alice_free_balance_after_rewarding = Balances::free_balance(ALICE_ACCOUNT);
+		let bob_free_balance_after_rewarding = Balances::free_balance(BOB_ACCOUNT);
+		// Alice and bob free balance increases as as they reported neal's offensive behaviour
+		assert_eq!(alice_free_balance_after_rewarding, 309001000000000);
+		assert_eq!(bob_free_balance_after_rewarding, 309001000000000);
+
+		// get neal's nominators as well as neal's after slashing
+		let neal_nominator_1_reserve_balance_after_slashing =
+			Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_1);
+		let neal_nominator_2_reserve_balance_after_slashing =
+			Balances::reserved_balance(NEAL_ACCOUNT_NOMINATOR_2);
+		let neal_reserve_balance_after_slashing = Balances::reserved_balance(NEAL_ACCOUNT);
+		// As neal was reported for offensive behaviour, neal as well as neal nominators got slashed
+		assert_eq!(neal_nominator_1_reserve_balance_after_slashing, 80000000000000000);
+		assert_eq!(neal_nominator_2_reserve_balance_after_slashing, 88000000000000000);
+		assert_eq!(neal_reserve_balance_after_slashing, 800000000000);
+
+		let slashed_amount_nom_1 = neal_nominator_1_reserve_balance
+			.saturating_sub(neal_nominator_1_reserve_balance_after_slashing);
+		let slashed_amount_nom_2 = neal_nominator_2_reserve_balance
+			.saturating_sub(neal_nominator_2_reserve_balance_after_slashing);
+		let slashed_amount_neal = neal_reserve_balance_before_slashing
+			.saturating_sub(neal_reserve_balance_after_slashing);
+
+		let treasury_balance_after_getting_rewarded_from_slash =
+			Balances::free_balance(&treasury_pallet_account);
+		assert_eq!(treasury_balance_after_getting_rewarded_from_slash, 41581198000000000);
+
+		let total_slashed = slashed_amount_nom_1
+			.saturating_add(slashed_amount_nom_2.saturating_add(slashed_amount_neal));
+		let alice_gain = alice_free_balance_after_rewarding.saturating_sub(alice_free_balance);
+		let bob_gain = bob_free_balance_after_rewarding.saturating_sub(bob_free_balance);
+		let pallet_gain = treasury_balance_after_getting_rewarded_from_slash
+			.saturating_sub(treasury_balance_before_slashing);
+		let total_gain = alice_gain.saturating_add(bob_gain.saturating_add(pallet_gain));
+
+		assert_eq!(total_slashed, total_gain);
 	});
 }
 
