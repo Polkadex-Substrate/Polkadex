@@ -1577,6 +1577,10 @@ impl_runtime_apis! {
 		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary) -> Result<(),()> {
 			OCEX::submit_snapshot_api(summary)
 		}
+
+		fn pending_snapshot() -> Option<u64> {
+			OCEX::pending_snapshot()
+		}
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {

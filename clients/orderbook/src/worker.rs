@@ -51,10 +51,8 @@ use crate::{
 	Client,
 };
 use primitive_types::H128;
-pub const STID_IMPORT_REQUEST: &str = "stid_request";
-pub const STID_IMPORT_RESPONSE: &str = "stid_response";
-pub const ORDERBOOK_STATE_SYNC_REQUEST: &str = "orderbook_state_sync_request";
-pub const ORDERBOOK_STATE_SYNC_RESPONSE: &str = "orderbook_state_sync_response";
+pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
+pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub client: Arc<C>,
@@ -303,7 +301,7 @@ where
 			},
 		};
 
-		// summary.aggregate_signature = Some(signature.clone());
+		summary.aggregate_signature = Some(signature.clone());
 		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
 		set_bit_field(&mut summary.bitflags, bit_index as u16);
 		// println!("Signature: {:?}",summary.aggregate_signature.unwrap().0);
@@ -435,7 +433,7 @@ where
 					while let Some(chunk) = chunks.next() {
 						let chunk_hash = H128::from(blake2_128(chunk));
 						offchain_storage.set(
-							b"OrderbookSnapshotStateChunk",
+							ORDERBOOK_STATE_CHUNK_PREFIX,
 							chunk_hash.0.as_ref(),
 							chunk,
 						);
@@ -444,7 +442,7 @@ where
 
 					let withdrawals = self.pending_withdrawals.clone();
 					self.pending_withdrawals.clear();
-					Ok(SnapshotSummary {
+					let summary = SnapshotSummary {
 						snapshot_id,
 						state_root: self.working_state_root.into(),
 						state_change_id,
@@ -452,7 +450,14 @@ where
 						withdrawals,
 						aggregate_signature: None,
 						state_chunk_hashes,
-					})
+					};
+
+					offchain_storage.set(
+						ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
+						&snapshot_id.encode(),
+						&summary.encode(),
+					);
+					Ok(summary)
 				},
 				Err(err) => Err(Error::Backend(format!("Error serializing the data: {:?}", err))),
 			}
@@ -469,7 +474,7 @@ where
 			let mut data = Vec::new();
 			for chunk_hash in &summary.state_chunk_hashes {
 				if let Some(mut chunk) =
-					offchain_storage.get(b"OrderbookSnapshotStateChunk", chunk_hash.0.as_ref())
+					offchain_storage.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
 				{
 					let computed_hash = H128::from(blake2_128(&chunk));
 					if computed_hash != *chunk_hash {
@@ -565,7 +570,7 @@ where
 						for chunk_index in required_indexes {
 							if offchain_storage
 								.get(
-									b"OrderbookSnapshotStateChunk",
+									ORDERBOOK_STATE_CHUNK_PREFIX,
 									summary.state_chunk_hashes[chunk_index as usize]
 										.encode()
 										.as_ref(),
@@ -631,7 +636,7 @@ where
 					for index in chunk_indexes {
 						let chunk_hash: H128 = summary.state_chunk_hashes[index as usize];
 						if let Some(data) = offchian_storage
-							.get(b"OrderbookSnapshotStateChunk", chunk_hash.0.as_ref())
+							.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
 						{
 							let message = GossipMessage::Chunk(*snapshot_id, index, data);
 							self.gossip_engine.send_message(vec![peer], message.encode());
@@ -655,7 +660,7 @@ where
 				if expected_hash == computed_hash {
 					// Store the data
 					offchian_storage.set(
-						b"OrderbookSnapshotStateChunk",
+						ORDERBOOK_STATE_CHUNK_PREFIX,
 						expected_hash.0.as_ref(),
 						data,
 					);
@@ -749,6 +754,76 @@ where
 				self.load_snapshot(&last_summary)?;
 				self.state_is_syncing = false;
 			}
+
+			if !self.sync_oracle.is_major_syncing() & !self.state_is_syncing {
+				// 1. Check if session change happened and we are part of the new set
+				let active_set = self
+					.runtime
+					.runtime_api()
+					.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+					.validators;
+				if let Ok(signing_key) = self.get_validator_key(&active_set) {
+					// 2. Check if the pending snapshot from previous set
+					if let Some(pending_snaphot) = self.runtime.runtime_api().pending_snapshot(
+						&BlockId::number(self.last_finalized_block.saturated_into()),
+					)? {
+						// 3. if yes, then submit snapshot summaries for that.
+						let offchain_storage = self
+							.backend
+							.offchain_storage()
+							.ok_or(Error::OffchainStorageNotAvailable)?;
+
+						match offchain_storage
+							.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &pending_snaphot.encode())
+						{
+							None => {
+								// This should never happen
+								log::error!(target:"orderbook", "Unable to find snapshot summary for snapshot_id: {:?}",pending_snaphot)
+							},
+							Some(data) => {
+								match SnapshotSummary::decode(&mut &data[..]) {
+									// TODO: This is repeated block of code from snapshot() fn,
+									// make it a single function
+									Ok(mut summary) => {
+										info!(target:"orderbook","Signing snapshot with: {:?}",hex::encode(signing_key.0));
+										let signature = match bls_primitives::crypto::sign(
+											&signing_key,
+											&summary.sign_data(),
+										) {
+											Some(sig) => sig,
+											None => {
+												error!(target:"orderbook","📒 Failed to sign snapshot, not able to sign with validator key.");
+												return Err(Error::SnapshotSigningFailed)
+											},
+										};
+
+										summary.aggregate_signature = Some(signature.clone());
+										let bit_index = active_set
+											.iter()
+											.position(|v| v == &signing_key.into())
+											.unwrap();
+										set_bit_field(&mut summary.bitflags, bit_index as u16);
+										// send it to runtime
+										if let Err(_) = self
+											.runtime
+											.runtime_api()
+											.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
+											.expect("Something went wrong with the submit_snapshot runtime api; qed.")
+										{
+											error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
+											return Err(Error::FailedToSubmitSnapshotToRuntime)
+										}
+									},
+									Err(err) => {
+										// This should never happen
+										log::error!(target:"orderbook", "Unable to decode snapshot summary for snapshotid: {:?}",err)
+									},
+								}
+							},
+						}
+					}
+				}
+			}
 		}
 		Ok(())
 	}
@@ -775,7 +850,7 @@ where
 		let mut missing_chunks = vec![];
 		for (index, chunk_hash) in summary.state_chunk_hashes.iter().enumerate() {
 			if offchain_storage
-				.get(b"OrderbookSnapshotStateChunk", chunk_hash.encode().as_ref())
+				.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.encode().as_ref())
 				.is_none()
 			{
 				missing_chunks.push(index as u16);
