@@ -24,8 +24,10 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
 use polkadex_primitives::{assets::AssetId, AccountId, OnChainEventsLimit};
+use sp_runtime::traits::Zero;
 
 use pallet_timestamp::{self as timestamp};
+use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -1035,6 +1037,9 @@ pub mod pallet {
 				// Update the snapshot nonce and move the summary to snapshots storage
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
+				// Clear PendingSnapshotFromPreviousSet storage if its present
+				// because we are accepted this snapshot as there are not pending snapshots
+				<PendingSnapshotFromPreviousSet<T>>::kill();
 			}
 			Ok(())
 		}
@@ -1301,6 +1306,11 @@ pub mod pallet {
 	#[pallet::getter(fn orderbook_operational_state)]
 	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
 
+	// Unprocessed Snapshot from Previous set
+	#[pallet::storage]
+	#[pallet::getter(fn pending_snapshot_from_prev_set)]
+	pub(super) type PendingSnapshotFromPreviousSet<T: Config> = StorageValue<_, u64, OptionQuery>;
+
 	// Fees collected
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
@@ -1383,6 +1393,10 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		}
 	}
 
+	pub fn pending_snapshot() -> Option<u64> {
+		<PendingSnapshotFromPreviousSet<T>>::get()
+	}
+
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_pallet_account() -> T::AccountId {
@@ -1443,6 +1457,15 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 			}
 			if changed {
 				<Authorities<T>>::put(next_bounded_authorities);
+				// Check if there is a pending snapshot from outgoing authority set
+				let next_snapshot_id = <SnapshotNonce<T>>::get().saturating_add(1);
+				let unprocessed_snapshots_from_outgoing_set =
+					<UnprocessedSnapshots<T>>::iter_prefix(next_snapshot_id)
+						.collect::<Vec<(H256, SnapshotSummary)>>();
+				if !unprocessed_snapshots_from_outgoing_set.len().is_zero() {
+					// if yes, signal the new validators to process it again.
+					<PendingSnapshotFromPreviousSet<T>>::put(next_snapshot_id);
+				}
 			}
 		}
 	}

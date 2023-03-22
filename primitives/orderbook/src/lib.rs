@@ -204,5 +204,8 @@ sp_api::decl_runtime_apis! {
 
 		/// Submits the snapshot to runtime
 		fn submit_snapshot(summary: SnapshotSummary) -> Result<(), ()>;
+
+		/// Gets pending snapshot if any
+		fn pending_snapshot() -> Option<u64>;
 	}
 }
