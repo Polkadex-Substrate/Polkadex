@@ -1397,6 +1397,13 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		<PendingSnapshotFromPreviousSet<T>>::get()
 	}
 
+	// Returns all main accounts and corresponding proxies for it at this point in time
+	pub fn get_all_accounts_and_proxies() -> Vec<(T::AccountId, Vec<T::AccountId>)> {
+		<Accounts<T>>::iter()
+			.map(|(main, info)| (main, info.proxies.to_vec()))
+			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
+	}
+
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_pallet_account() -> T::AccountId {

@@ -1581,6 +1581,10 @@ impl_runtime_apis! {
 		fn pending_snapshot() -> Option<u64> {
 			OCEX::pending_snapshot()
 		}
+
+		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
+			OCEX::get_all_accounts_and_proxies()
+		}
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {

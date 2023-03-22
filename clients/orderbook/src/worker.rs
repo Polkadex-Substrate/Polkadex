@@ -7,11 +7,24 @@ use std::{
 	time::Duration,
 };
 
+use bls_primitives::{Public, Signature};
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, OrderState, StateSyncStatus, Trade,
+		UserActions, WithdrawalRequest,
+	},
+	utils::{prepare_bitmap, return_set_bits, set_bit_field},
+	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
+};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::{Mutex, RwLock};
+use polkadex_primitives::{
+	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
+};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sc_client_api::{Backend, FinalityNotification};
@@ -24,23 +37,9 @@ use sp_consensus::SyncOracle;
 use sp_core::{blake2_128, offchain::OffchainStorage, Bytes, H160, H256};
 use sp_runtime::{
 	generic::BlockId,
-	traits::{Block, Header},
+	traits::{Block, Header, Zero},
 };
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
-
-use bls_primitives::{Public, Signature};
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, OrderState, StateSyncStatus, Trade,
-		UserActions, WithdrawalRequest,
-	},
-	utils::{prepare_bitmap, return_set_bits, set_bit_field},
-	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
-};
-use polkadex_primitives::{
-	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
-};
 
 use crate::{
 	error::Error,
@@ -693,6 +692,27 @@ where
 		Ok(())
 	}
 
+	// Updates local trie with all registered main account and proxies
+	pub fn update_storage_with_genesis_data(&mut self) -> Result<(), Error> {
+		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
+			self.last_finalized_block.saturated_into(),
+		))?;
+		let mut trie = self.get_trie();
+		for (main, proxies) in data {
+			// Register main and first proxy
+			register_main(&mut trie, main.clone(), proxies[0].clone())?;
+			// Register the remaining proxies
+			if proxies.len() > 1 {
+				for i in 1..proxies.len() {
+					add_proxy(&mut trie, main.clone(), proxies[i].clone())?;
+				}
+			}
+		}
+		// Commit the trie
+		trie.commit();
+		Ok(())
+	}
+
 	pub(crate) async fn handle_finality_notification(
 		&mut self,
 		notification: &FinalityNotification<B>,
@@ -706,6 +726,12 @@ where
 			let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
 				&BlockId::Number(self.last_finalized_block.saturated_into()),
 			)?;
+
+			// Check if its genesis then update storage with genesis data
+			if latest_summary.snapshot_id.is_zero() {
+				self.update_storage_with_genesis_data()?;
+			}
+
 			// Update the latest snapshot summary.
 			*self.last_snapshot.write() = latest_summary;
 		}
