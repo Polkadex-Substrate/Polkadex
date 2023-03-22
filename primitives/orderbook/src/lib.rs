@@ -207,5 +207,8 @@ sp_api::decl_runtime_apis! {
 
 		/// Gets pending snapshot if any
 		fn pending_snapshot() -> Option<u64>;
+
+		/// Returns all main account and corresponding proxies at this point in time
+		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>;
 	}
 }
