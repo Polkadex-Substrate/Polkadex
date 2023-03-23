@@ -23,11 +23,11 @@ mod utils;
 mod worker;
 
 #[cfg(test)]
+mod test_helper_fn;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod utils_tests;
-#[cfg(test)]
-mod test_helper_fn;
 
 pub(crate) mod orderbook_protocol_name {
 	use sc_chain_spec::ChainSpec;

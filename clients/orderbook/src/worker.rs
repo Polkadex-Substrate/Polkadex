@@ -83,7 +83,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
-	last_snapshot: Arc<RwLock<SnapshotSummary>>,
+	pub last_snapshot: Arc<RwLock<SnapshotSummary>>,
 	// Working state root,
 	pub(crate) working_state_root: [u8; 32],
 	// Known state ids
@@ -418,6 +418,12 @@ where
 		Ok(())
 	}
 
+	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
+		let mut offchain_storage = self.backend.offchain_storage().unwrap();
+		let result = offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode());
+		return result
+	}
+
 	pub fn store_snapshot(
 		&mut self,
 		state_change_id: u64,
@@ -483,7 +489,6 @@ where
 					data.append(&mut chunk);
 				}
 			}
-
 			self.load_state_from_data(&data, summary)?;
 		}
 		Ok(())

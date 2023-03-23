@@ -1,9 +1,10 @@
+use primitive_types::H128;
 use std::{borrow::Cow, future::Future, sync::Arc};
 
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use log::trace;
 use memory_db::{HashKey, MemoryDB};
-use parity_scale_codec::Encode;
+use parity_scale_codec::{Decode, Encode};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use sc_client_api::{Backend, BlockchainEvents};
@@ -33,9 +34,9 @@ use orderbook_primitives::{
 };
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
 
-use crate::worker::{
-	ObWorker, WorkerParams
-};
+use crate::worker::{ObWorker, WorkerParams};
+
+use crate::error::Error;
 
 pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	SnapshotSummary::default();
@@ -335,7 +336,7 @@ pub async fn test_single_worker() {
 	// Lets send a trade
 }
 
-	// Setup runtime
+// Setup runtime
 #[tokio::test]
 pub async fn test_offline_storage() {
 	let alice = AccountKeyring::Alice.pair();
@@ -454,5 +455,191 @@ pub async fn test_have() {
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
 	let mut worker = ObWorker::new(worker_params);
+}
 
+#[tokio::test]
+pub async fn test_store_snapshot() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let alice_acc = AccountId::from(alice.public());
+	let bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+
+	let snapshot_id = 3_u64;
+	let state_change_id = 4_u64;
+
+	let offline_storage_for_snapshot = worker.get_offline_storage(snapshot_id);
+	assert_eq!(offline_storage_for_snapshot, None);
+
+	let snapshot_summary = worker.store_snapshot(state_change_id, snapshot_id).unwrap();
+	let offline_storage_for_snapshot = worker.get_offline_storage(snapshot_id).unwrap();
+	let store_summary = SnapshotSummary::decode(&mut &offline_storage_for_snapshot[..]).unwrap();
+	assert_eq!(snapshot_summary, store_summary);
+}
+
+#[tokio::test]
+pub async fn test_load_snapshot() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let alice_acc = AccountId::from(alice.public());
+	let bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+
+	let snapshot_id = 3_u64;
+	let state_change_id = 4_u64;
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, 0);
+	assert_eq!(get_snapshot_summary.read().state_change_id, 0);
+
+	let snapshot_summary = worker.store_snapshot(state_change_id, snapshot_id).unwrap();
+	assert!(worker.load_snapshot(&snapshot_summary).is_ok());
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, snapshot_id);
+	assert_eq!(get_snapshot_summary.read().state_change_id, state_change_id);
+}
+
+#[tokio::test]
+pub async fn test_load_snapshot_with_invalid_summary() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let alice_acc = AccountId::from(alice.public());
+	let bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+
+	let snapshot_id = 3_u64;
+	let state_change_id = 4_u64;
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, 0);
+	assert_eq!(get_snapshot_summary.read().state_change_id, 0);
+
+	let mut snapshot_summary = worker.store_snapshot(state_change_id, snapshot_id).unwrap();
+	snapshot_summary.state_chunk_hashes = vec![H128::random(), H128::random()];
+	assert!(worker.load_snapshot(&snapshot_summary).is_err());
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, 0);
+	assert_eq!(get_snapshot_summary.read().state_change_id, 0);
 }
