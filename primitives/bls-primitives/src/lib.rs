@@ -55,6 +55,38 @@ pub struct Public(pub [u8; 96]);
 )]
 pub struct Signature(pub [u8; 48]);
 
+// KeyStore for Storing Seed and Junctions
+#[cfg_attr(feature = "std", derive(Hash))]
+#[derive(
+Clone,
+Encode,
+Decode,
+Eq,
+PartialEq,
+Debug,
+)]
+pub struct KeyStore{
+	seed: Seed,
+	junctions: Vec<DeriveJunction>
+}
+
+impl KeyStore{
+	fn new(seed: Seed, junctions: Vec<DeriveJunction>) -> Self {
+		Self {
+			seed,
+			junctions
+		}
+	}
+
+	fn get_seed(&self) -> Seed {
+		self.seed
+	}
+
+	fn get_junctions(&self) -> Vec<DeriveJunction> {
+		self.junctions.clone()
+	}
+}
+
 type Seed = [u8; 32];
 
 /// An error when deriving a key.
