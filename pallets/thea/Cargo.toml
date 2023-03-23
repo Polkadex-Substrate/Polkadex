@@ -29,6 +29,12 @@ thea-staking = { path = "../thea-staking", default-features = false }
 
 xcm = { workspace = true, default-features = false }
 
+[dev-dependencies]
+sp-io = { workspace = true, default-features = false }
+sp-keystore = { workspace = true, default-features = false }
+sp-application-crypto = { workspace = true, default-features = false }
+blst = "0.3.10"
+
 [features]
 default = ["std"]
 std = [
