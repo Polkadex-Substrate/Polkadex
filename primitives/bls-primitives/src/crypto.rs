@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use crate::{Error, Pair as BLSPair};
-use crate::{Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
+use crate::{Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST, KeyStore};
 #[cfg(feature = "std")]
 use blst::min_sig::*;
 #[cfg(feature = "std")]
@@ -44,15 +44,17 @@ pub trait BlsExt {
 
 	fn generate_pair(phrase: Option<Vec<u8>>) -> Public {
 		// generate a pair
-		let (pair, _seed) = generate_pair_(phrase);
+		let (pair, _seed, derive_junctions) = generate_pair_(phrase);
 		pair.public()
 	}
 
 	fn generate_pair_and_store(phrase: Option<Vec<u8>>) -> Public {
-		let (pair, seed) = generate_pair_(phrase);
+		let (pair, seed, derive_junctions) = generate_pair_(phrase);
+		// create keystore
+		let keystore: KeyStore = KeyStore::new(seed, derive_junctions);
 		// store the private key in filesystem
 		let file_path = key_file_path(pair.public().as_ref());
-		write_to_file(file_path, seed.as_ref()).expect("Unable to write seed to file");
+		write_to_file(file_path, keystore.encode().as_ref()).expect("Unable to write seed to file");
 		pair.public()
 	}
 
@@ -107,12 +109,17 @@ use std::io::Write;
 use std::path::PathBuf;
 #[cfg(feature = "std")]
 use std::str::FromStr;
+use parity_scale_codec::Encode;
+use sp_core::DeriveJunction;
 
 #[cfg(feature = "std")]
-fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed) {
+fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed, Vec<DeriveJunction>) {
 	// println!("Generating pair... Phrase: {:?}",phrase);
-	let (pair, seed) = match phrase {
-		None => BLSPair::generate(),
+	let (pair, seed, derive_junctions) = match phrase {
+		None => {
+			let (pair, seed) = BLSPair::generate();
+			(pair, seed, vec![])
+		},
 		Some(phrase) => {
 			let phrase = String::from_utf8(phrase).expect("Invalid phrase");
 			let mut uri = SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
@@ -122,11 +129,11 @@ fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed) {
 			let (pair, seed) = pair
 				.derive(uri.junctions.iter().cloned(), Some(seed))
 				.expect("Expected to derive the pair here.");
-			(pair, seed.unwrap())
+			(pair, seed.unwrap(), uri.junctions)
 		},
 	};
 	// println!("Seed: {:?}, public key; {:?}",seed,hex::encode(pair.public.0.as_ref()));
-	(pair, seed)
+	(pair, seed, derive_junctions)
 }
 
 #[cfg(feature = "std")]
