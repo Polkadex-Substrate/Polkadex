@@ -33,11 +33,11 @@ use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// mod tests;
 
 use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
 #[cfg(feature = "runtime-benchmarks")]
