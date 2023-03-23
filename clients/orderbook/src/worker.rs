@@ -996,6 +996,18 @@ where
 	}
 }
 
+/// The purpose of this function is to register a new main account along with a proxy account.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` with `ExtensionLayout`.
+/// * `main` - The `AccountId` of the main account to be registered.
+/// * `proxy` - The `AccountId` of the proxy account to be associated with the main account.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the registration is successful, or an `Error` if there was a problem
+/// registering an account.
 pub fn register_main(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1009,6 +1021,18 @@ pub fn register_main(
 	Ok(())
 }
 
+/// The purpose of this function is to add new a proxy account to main account's list.
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+///   trie database to modify.
+/// * `main` - An `AccountId` representing the main account for which to add a proxy.
+/// * `proxy` - An `AccountId` representing the proxy account to add to the list of authorized
+///   proxies.
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success, or an `Error` if there was a problem adding the proxy.
 pub fn add_proxy(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1028,6 +1052,18 @@ pub fn add_proxy(
 	Ok(())
 }
 
+/// The purpose of this function is to remove a proxy account from a main account's list.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+///   trie database to modify.
+/// * `main` - An `AccountId` representing the main account for which to remove a proxy.
+/// * `proxy` - An `AccountId` representing the proxy account that needs to be removed
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success, or an `Error` if there was a problem removing the proxy account.
 pub fn remove_proxy(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1044,7 +1080,7 @@ pub fn remove_proxy(
 					.map(|i| account_info.proxies.remove(i));
 				trie.insert(&main.encode(), &account_info.encode())?;
 			} else {
-				// its a no-op if proxy not found
+				return Err(Error::ProxyAccountNotFound)
 			}
 		},
 		None => return Err(Error::MainAccountNotFound),
@@ -1052,6 +1088,18 @@ pub fn remove_proxy(
 	Ok(())
 }
 
+/// Deposits a specified amount of an asset into an account.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `main` - An `AccountId` object representing the main account to deposit the asset into.
+/// * `asset` - An `AssetId` object representing the asset to deposit.
+/// * `amount` - A `Decimal` object representing the amount of the asset to deposit.
+///
+/// # Returns
+///
+/// A `Result<(), Error>` indicating whether the deposit was successful or not.
 pub fn deposit(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1075,6 +1123,17 @@ pub fn deposit(
 	Ok(())
 }
 
+/// Processes a trade between a maker and a taker, updating their order states and balances
+/// accordingly.
+///
+/// # Arguments
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `trade` - A `Trade` object representing the trade to process.
+///
+/// # Returns
+///
+/// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
 pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Result<(), Error> {
 	let Trade { maker, taker, price, amount, time } = trade.clone();
 
@@ -1107,10 +1166,13 @@ pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Res
 	// Update balances
 	let (maker_asset, maker_credit) = trade.credit(true);
 	add_balance(trie, maker_asset, maker_credit)?;
+
 	let (maker_asset, maker_debit) = trade.debit(true);
 	sub_balance(trie, maker_asset, maker_debit)?;
+
 	let (taker_asset, taker_credit) = trade.credit(false);
 	add_balance(trie, taker_asset, taker_credit)?;
+
 	let (taker_asset, taker_debit) = trade.debit(false);
 	sub_balance(trie, taker_asset, taker_debit)?;
 	Ok(())
