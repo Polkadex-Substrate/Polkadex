@@ -17,12 +17,11 @@
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
 
-// TODO[#614]: Thea Pallet Tests
-// #[cfg(test)]
-// mod mock;
-//
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
