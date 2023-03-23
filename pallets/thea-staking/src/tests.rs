@@ -5,7 +5,7 @@ use crate::{
 	Stakinglimits,
 };
 use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
-use polkadex_primitives::{misbehavior::TheaMisbehavior, AccountId};
+use polkadex_primitives::misbehavior::TheaMisbehavior;
 use sp_runtime::traits::AccountIdConversion;
 use std::collections::BTreeSet;
 use thea_primitives::BLSPublicKey;
@@ -557,9 +557,8 @@ fn test_reward_with_nominators() {
 		assert_ok!(TheaStaking::add_candidate(Origin::signed(21), 1, BLSPublicKey([0_u8; 192])));
 		let _bob_balances = Balances::free_balance(21);
 		Balances::mint_into(&101, 10000 * PDEX).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(101), 10000 * PDEX, 1));
+		assert_ok!(TheaStaking::bond(Origin::signed(101), 10000 * PDEX, 11));
 		let _nominator_balances = Balances::free_balance(101);
-		assert_ok!(TheaStaking::nominate(Origin::signed(101), 11));
 		let _nominator_exposure = Stakers::<Test>::get(101).unwrap();
 		let alice_exposure = Candidates::<Test>::get(1, 11).unwrap();
 		let _alice_part = Perbill::from_rational(alice_exposure.individual, alice_exposure.total);
