@@ -209,6 +209,7 @@ impl xyz_transaction_payment::Config for Test {
 		DealWithFees,
 	>;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
