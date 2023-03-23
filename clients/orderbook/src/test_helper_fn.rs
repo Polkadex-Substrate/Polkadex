@@ -140,7 +140,7 @@ pub fn deposit_when_main_account_not_register() {
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
-	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
+	let (alice_main, _alice_proxy) = get_alice_main_and_proxy_account();
 	let result = deposit(&mut trie, alice_main.clone(), AssetId::asset(1), Decimal::new(10, 0));
 	assert_eq!(result, Err(Error::MainAccountNotFound).into());
 }
