@@ -22,9 +22,10 @@ mod metrics;
 mod utils;
 mod worker;
 
-// #[cfg(test)]
-// mod tests;
-
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod utils_tests;
 #[cfg(test)]
 mod test_helper_fn;
 
