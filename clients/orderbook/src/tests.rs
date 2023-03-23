@@ -34,8 +34,7 @@ use orderbook_primitives::{
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
 
 use crate::worker::{
-	ObWorker, WorkerParams, ORDERBOOK_STATE_SYNC_REQUEST, ORDERBOOK_STATE_SYNC_RESPONSE,
-	STID_IMPORT_REQUEST, STID_IMPORT_RESPONSE,
+	ObWorker, WorkerParams
 };
 
 pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
@@ -139,12 +138,7 @@ impl TestNetFactory for ObTestnet {
 	}
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				Cow::from(ORDERBOOK_STATE_SYNC_RESPONSE),
-				Cow::from(STID_IMPORT_REQUEST),
-				Cow::from(STID_IMPORT_RESPONSE),
-				Cow::from(ORDERBOOK_STATE_SYNC_REQUEST),
-			],
+			notifications_protocols: vec![],
 			is_authority: false,
 			..Default::default()
 		})
@@ -165,12 +159,7 @@ impl ObTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				Cow::from(ORDERBOOK_STATE_SYNC_RESPONSE),
-				Cow::from(STID_IMPORT_REQUEST),
-				Cow::from(STID_IMPORT_RESPONSE),
-				Cow::from(ORDERBOOK_STATE_SYNC_REQUEST),
-			],
+			notifications_protocols: vec![],
 			is_authority: true,
 			..Default::default()
 		})
@@ -346,6 +335,56 @@ pub async fn test_single_worker() {
 	// Lets send a trade
 }
 
+	// Setup runtime
+#[tokio::test]
+pub async fn test_offline_storage() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let alice_acc = AccountId::from(alice.public());
+	let bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		sync_oracle: peer.network_service().clone(),
+		network: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+}
+
 #[test]
 pub fn test_trie_insertion() {
 	let mut working_state_root = [0u8; 32];
@@ -366,4 +405,54 @@ pub fn test_trie_insertion() {
 	// }
 
 	assert_ne!(working_state_root, [0u8; 32]);
+}
+
+#[tokio::test]
+pub async fn test_have() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let alice_acc = AccountId::from(alice.public());
+	let bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+
 }
