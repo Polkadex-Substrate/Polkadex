@@ -29,7 +29,7 @@ std = [
     "scale-info/std",
     "sp-runtime-interface/std",
     "sp-application-crypto/std",
-    "sp-core/std",
+    "sp-core/full_crypto",
     "sp-std/std",
     "substrate-bip39",
     "tiny-bip39",

@@ -108,6 +108,7 @@ use std::path::PathBuf;
 #[cfg(feature = "std")]
 use std::str::FromStr;
 use parity_scale_codec::{Encode, Decode};
+#[cfg(feature = "std")]
 use sp_core::DeriveJunction;
 
 #[cfg(feature = "std")]
