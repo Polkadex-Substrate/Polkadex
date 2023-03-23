@@ -64,8 +64,6 @@ pub trait BlsExt {
 	}
 
 	fn verify(pubkey: &Public, msg: &[u8], signature: &Signature) -> bool {
-		println!("pubkey: {:?}", pubkey.0);
-		println!("Signature: {:?}", signature.0);
 		let pubkey = match PublicKey::uncompress(pubkey.0.as_ref()) {
 			Ok(pubkey) => pubkey,
 			Err(_) => return false,
@@ -109,12 +107,11 @@ use std::io::Write;
 use std::path::PathBuf;
 #[cfg(feature = "std")]
 use std::str::FromStr;
-use parity_scale_codec::Encode;
+use parity_scale_codec::{Encode, Decode};
 use sp_core::DeriveJunction;
 
 #[cfg(feature = "std")]
 fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed, Vec<DeriveJunction>) {
-	// println!("Generating pair... Phrase: {:?}",phrase);
 	let (pair, seed, derive_junctions) = match phrase {
 		None => {
 			let (pair, seed) = BLSPair::generate();
@@ -132,7 +129,6 @@ fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed, Vec<DeriveJunction
 			(pair, seed.unwrap(), uri.junctions)
 		},
 	};
-	// println!("Seed: {:?}, public key; {:?}",seed,hex::encode(pair.public.0.as_ref()));
 	(pair, seed, derive_junctions)
 }
 
@@ -145,18 +141,29 @@ pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 			log::error!(target:"bls","Error while reading keystore file: {:?}",err);
 			return None
 		},
-		Ok(data) => match serde_json::from_slice::<Seed>(&data) {
+		Ok(data) => match serde_json::from_slice::<Vec<u8>>(&data) {
 			Ok(seed) =>
-				return match SecretKey::key_gen(&seed, &[]) {
-					Ok(secret_key) => {
-						let pk = secret_key.sk_to_pk().compress();
-						if pk != pubkey.0 {
-							return None
+				return match KeyStore::decode(&mut seed.as_ref()) {
+					Ok(keystore) => {
+						if let Ok(secret_key) = SecretKey::key_gen(keystore.get_seed().as_ref(), &[]) {
+							let mut master_key = secret_key;
+							for junction in keystore.get_junctions() {
+								let index_bytes = [
+									junction.inner()[0],
+									junction.inner()[1],
+									junction.inner()[2],
+									junction.inner()[3],
+								];
+								master_key = master_key.derive_child_eip2333(u32::from_be_bytes(index_bytes))
+							}
+							return Some(Signature::from(master_key.sign(msg, DST.as_ref(), &[])));
+						} else {
+							log::error!(target: "bls", "KeyStore has been corrupted, Unable to derive BLS Key");
+							None
 						}
-						Some(Signature::from(secret_key.sign(msg, DST.as_ref(), &[])))
 					},
 					Err(err) => {
-						log::error!(target:"bls","Error while loading secret key from seed {:?}",err);
+						log::error!(target:"bls","Error while loading keystore from storage {:?}",err);
 						None
 					},
 				},
