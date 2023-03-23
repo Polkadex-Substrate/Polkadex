@@ -97,7 +97,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const SessionLength: u64 = 10;
+	pub const SessionLength: u64 = 7000;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1000_000_000_000;
@@ -126,7 +126,6 @@ impl thea_staking::Config for Test {
 	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
-	type Currency = Balances;
 }
 
 pub struct MockPallet(PhantomData<u32>);
