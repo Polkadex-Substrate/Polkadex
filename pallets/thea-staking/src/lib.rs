@@ -42,12 +42,15 @@ use thea_primitives::{
 	thea_types::{Network, OnSessionChange, SessionIndex},
 	BLSPublicKey, TheaExtrinsicSubmitted,
 };
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 mod election;
 #[cfg(test)]
 mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
+pub mod weight;
 
 #[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct EraRewardPointTracker<Account> {
@@ -69,14 +72,29 @@ pub trait SessionChanged {
 // `construct_runtime`.
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::session::{Exposure, IndividualExposure, StakingLimits};
-	use frame_support::traits::{Currency, NamedReservableCurrency};
+	use crate::session::{Exposure, IndividualExposure, StakingLimits, UnlockChunk};
+	use frame_support::traits::{Currency, NamedReservableCurrency, ReservableCurrency};
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::misbehavior::TheaMisbehavior;
 	use scale_info::prelude::string::String;
 	use sp_runtime::traits::Zero;
+	use sp_std::vec;
 	// Import various types used to declare pallet in scope.
 	use super::*;
+
+	pub trait TheaStakingWeightInfo {
+		fn set_staking_limits(a: u32, _m: u32) -> Weight;
+		fn add_candidate(_a: u32, b: u32, _m: u32) -> Weight;
+		fn nominate(_m: u32, k: u32, _x: u32) -> Weight;
+		fn bond(_m: u32, k: u32, x: u32) -> Weight;
+		fn unbond(_m: u32, k: u32, _x: u32) -> Weight;
+		fn withdraw_unbonded(_m: u32, _k: u32, _x: u32) -> Weight;
+		fn remove_candidate(_m: u32, _k: u32) -> Weight;
+		fn add_network(_n: u32) -> Weight;
+		fn remove_network(_n: u32) -> Weight;
+		fn report_offence(_n: u32) -> Weight;
+		fn stakers_payout(_k: u32, _m: u32, _x: u32) -> Weight;
+	}
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -148,6 +166,12 @@ pub mod pallet {
 
 		// Era Payout for set of Relayers
 		type EraPayout: EraPayout<BalanceOf<Self>>;
+
+		/// Native Currency handler
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: TheaStakingWeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -189,14 +213,14 @@ pub mod pallet {
 		/// * `origin`: Root User
 		/// * `staking_limit`: Limits of Staking algorithm.
 		#[pallet::call_index(0)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_staking_limits(1, 1))]
 		pub fn set_staking_limits(
 			origin: OriginFor<T>,
 			staking_limits: StakingLimits<BalanceOf<T>>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			<Stakinglimits<T>>::put(staking_limits);
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Adds the sender as a candidate for election and to the   for selection.
@@ -206,7 +230,7 @@ pub mod pallet {
 		/// * `network`: Network for which User wants to apply for candidature.
 		/// * `bls_key`: BLS Key of Candidate.
 		#[pallet::call_index(1)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_candidate(1, 1, 1))]
 		pub fn add_candidate(
 			origin: OriginFor<T>,
 			network: Network,
@@ -242,7 +266,7 @@ pub mod pallet {
 		///
 		/// * `candidate`: Candidate to be nominated.
 		#[pallet::call_index(2)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::nominate(1, 1, 1))]
 		pub fn nominate(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 			Self::do_nominate(nominator, candidate)?;
@@ -254,10 +278,33 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// `amount`: Amount to be locked.
+		/// `candidate`: Relayer account backed up by this nominator
 		#[pallet::call_index(3)]
-		#[pallet::weight(10000)]
-		pub fn bond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
+		#[pallet::weight(<T as Config>::WeightInfo::bond(1, 1, 1))]
+		pub fn bond(
+			origin: OriginFor<T>,
+			amount: BalanceOf<T>,
+			candidate: T::AccountId,
+		) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
+			ensure!(
+				<CandidateToNetworkMapping<T>>::contains_key(&candidate),
+				Error::<T>::CandidateNotFound
+			);
+			<Stakers<T>>::mutate(&nominator, |n| {
+				if let Some(n_mut) = n {
+					n_mut.value += amount;
+				} else {
+					let unlocking: Vec<UnlockChunk<T>> = vec![];
+					let individual_exposure = IndividualExposure {
+						who: nominator.clone(),
+						value: amount,
+						backing: candidate,
+						unlocking,
+					};
+					*n = Some(individual_exposure);
+				}
+			});
 			Self::do_bond(nominator, amount)?;
 			Ok(())
 		}
@@ -268,7 +315,7 @@ pub mod pallet {
 		///
 		/// `amount`: Amount which User wants to Unbond.
 		#[pallet::call_index(4)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::unbond(1, 1, 1))]
 		pub fn unbond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 			Self::do_unbond(nominator, amount)?;
@@ -277,7 +324,7 @@ pub mod pallet {
 
 		/// Withdraws Unlocked funds
 		#[pallet::call_index(5)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_unbonded(1, 1, 1))]
 		pub fn withdraw_unbonded(origin: OriginFor<T>) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 
@@ -293,7 +340,7 @@ pub mod pallet {
 		///
 		/// `network`: Network from which Candidate will be removed.
 		#[pallet::call_index(6)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_candidate(1, 1))]
 		pub fn remove_candidate(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			let candidate = ensure_signed(origin)?;
 
@@ -311,7 +358,7 @@ pub mod pallet {
 		///
 		/// `network`: Network identifier to add
 		#[pallet::call_index(7)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_network(1))]
 		pub fn add_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			Self::do_add_new_network(network);
@@ -325,7 +372,7 @@ pub mod pallet {
 		///
 		/// `network`: Network identifier to add
 		#[pallet::call_index(8)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_network(1))]
 		pub fn remove_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			Self::do_remove_network(network);
@@ -342,7 +389,7 @@ pub mod pallet {
 		/// * offender - ID of relayer commited ofence
 		/// * offence - type of registere ofence
 		#[pallet::call_index(9)]
-		#[pallet::weight(1_000_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::report_offence(1))]
 		pub fn report_offence(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -358,10 +405,14 @@ pub mod pallet {
 			// check for re-submit
 			//FIXME: should we charge for sequential report of same offence by same reporter?
 			ensure!(
-				<ReportedOffenders<T>>::get(offender.clone(), offence)
+				!<ReportedOffenders<T>>::get(offender.clone(), offence)
 					.unwrap_or_default()
 					.contains(&reporter),
 				Error::<T>::RepeatedReport
+			);
+			ensure!(
+				!<CommitedSlashing<T>>::contains_key(&offender),
+				Error::<T>::SlashingInProgress
 			);
 			// check if coeficient treshold reached and act
 			let threshold = Self::threshold_slashing_coeficient();
@@ -385,6 +436,9 @@ pub mod pallet {
 							if new_percentage >= 100 { 100 } else { new_percentage };
 						current_slashing.0 = actual_percentage;
 						current_slashing.1.insert(reporter.clone());
+						for previous_reporter in reported {
+							current_slashing.1.insert(previous_reporter);
+						}
 					});
 				} else {
 					// extend storage
@@ -413,10 +467,11 @@ pub mod pallet {
 		///
 		/// `session`: SessionIndex of the Session to be paid out for
 		#[pallet::call_index(10)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::stakers_payout(1, 1, 1))]
 		pub fn stakers_payout(origin: OriginFor<T>, session: SessionIndex) -> DispatchResult {
 			let staker = ensure_signed(origin)?;
-			Self::do_stakers_payout(staker, session)?;
+			Self::do_stakers_payout(staker.clone(), session)?;
+			Self::deposit_event(Event::<T>::StakerPayedOut { staker, session });
 			Ok(())
 		}
 	}
@@ -457,7 +512,7 @@ pub mod pallet {
 			nominator: T::AccountId,
 		},
 		Unbonded {
-			candidate: Option<T::AccountId>,
+			candidate: T::AccountId,
 			nominator: T::AccountId,
 			amount: BalanceOf<T>,
 		},
@@ -500,6 +555,12 @@ pub mod pallet {
 		SlashingFailed {
 			offender: T::AccountId,
 		},
+
+		/// Staker got payed out for session ID
+		StakerPayedOut {
+			staker: T::AccountId,
+			session: SessionIndex,
+		},
 	}
 
 	#[pallet::error]
@@ -508,6 +569,10 @@ pub mod pallet {
 		StakingLimitsError,
 		CandidateAlreadyRegistered,
 		CandidateNotFound,
+		/// Provided candidate mismatched backed one
+		CandidateMismatchExposed,
+		/// Each nominator must register individual exposure before bounding
+		IndividualExposureNotFoundForNominator,
 		NominatorNotFound,
 		UnbondChunkLimitReached,
 		CandidateNotReadyToBeUnbonded,
@@ -521,6 +586,10 @@ pub mod pallet {
 		RepeatedReport,
 		/// Not a member of active relayers
 		NotAnActiveRelayer,
+		/// Offender already scheduled for slashing
+		SlashingInProgress,
+		/// Attempt to withdrow when there are no funds unbounded in or prior given era
+		NoUnbondedAmountToWithdraw,
 		/// Amount to Slash is greater than bonded amount
 		AmountToSlashIsGreaterThanBondedAmount,
 	}
@@ -783,7 +852,9 @@ pub mod pallet {
 			offender: T::AccountId,
 			amount: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			if let Ok(unable_to_slash) = pallet_balances::Pallet::<T>::repatriate_reserved_named(
+			if let Ok(unable_to_slash) = <pallet_balances::Pallet<T> as NamedReservableCurrency<
+				_,
+			>>::repatriate_reserved_named(
 				&T::StakingReserveIdentifier::get(),
 				&offender,
 				&T::TreasuryPalletId::get().into_account_truncating(),
@@ -828,6 +899,7 @@ pub mod pallet {
 							if let Ok(relayer_slashed_amount) =
 								Self::do_slash(offender.clone(), amount)
 							{
+								assert!(relayer_slashed_amount != Zero::zero());
 								total_slashed =
 									total_slashed.saturating_add(relayer_slashed_amount);
 								Self::deposit_event(Event::Slashed {
@@ -958,20 +1030,19 @@ pub mod pallet {
 		// with the entire stake that has been bonded
 		pub fn do_nominate(
 			nominator: T::AccountId,
-			candidate: T::AccountId,
+			given_candidate: T::AccountId,
 		) -> Result<(), Error<T>> {
-			let mut nominator_exposure =
+			let nominator_exposure =
 				<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
-			ensure!(nominator_exposure.backing.is_none(), Error::<T>::StakerAlreadyNominating);
+			let candidate = nominator_exposure.backing.clone();
+			ensure!(given_candidate == candidate, Error::<T>::StakerAlreadyNominating);
 			let network = <CandidateToNetworkMapping<T>>::get(&candidate)
 				.ok_or(Error::<T>::CandidateNotFound)?;
 			let mut exposure =
 				<Candidates<T>>::get(network, &candidate).ok_or(Error::<T>::CandidateNotFound)?;
-
 			ensure!(!exposure.stakers.contains(&nominator), Error::<T>::CandidateAlreadyNominated);
 			exposure.stakers.insert(nominator.clone());
 			exposure.total = exposure.total.saturating_add(nominator_exposure.value);
-			nominator_exposure.backing = Some((network, candidate.clone()));
 			<Stakers<T>>::insert(&nominator, nominator_exposure);
 			<Candidates<T>>::insert(network, &candidate, exposure);
 			Self::deposit_event(Event::<T>::Nominated { candidate, nominator });
@@ -981,6 +1052,9 @@ pub mod pallet {
 		pub fn do_withdraw_unbonded(nominator: T::AccountId) -> Result<(), Error<T>> {
 			if let Some(mut exposure) = <Stakers<T>>::get(&nominator) {
 				let amount: BalanceOf<T> = exposure.withdraw_unbonded(Self::current_index());
+				if amount.is_zero() {
+					return Err(Error::<T>::NoUnbondedAmountToWithdraw)
+				}
 				let _ = pallet_balances::Pallet::<T>::unreserve_named(
 					&T::StakingReserveIdentifier::get(),
 					&nominator,
@@ -995,84 +1069,70 @@ pub mod pallet {
 		}
 
 		pub fn do_unbond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), Error<T>> {
-			let mut individual_exposure =
-				<Stakers<T>>::get(&nominator).ok_or(Error::<T>::StakerNotFound)?;
-			ensure!(
-				individual_exposure.value >= amount,
-				Error::<T>::AmountIsGreaterThanBondedAmount
-			);
-			if let Some((network, candidate)) = individual_exposure.backing.as_ref() {
-				if let Some(mut exposure) = <Candidates<T>>::get(network, candidate) {
-					exposure.total = exposure.total.saturating_sub(amount);
-					if individual_exposure.value == amount {
-						exposure.stakers.remove(&nominator);
+			<Stakers<T>>::mutate(&nominator, |individual_exposure| {
+				if let Some(individual_exposure) = individual_exposure {
+					if individual_exposure.value < amount {
+						return Err(Error::<T>::AmountIsGreaterThanBondedAmount)
 					}
-					<Candidates<T>>::insert(network, candidate, exposure);
-					Self::deposit_event(Event::<T>::Unbonded {
-						candidate: Some(candidate.clone()),
-						nominator: nominator.clone(),
-						amount,
-					});
-				}
-			}
-			if individual_exposure.value == amount {
-				individual_exposure.backing = None;
-			}
-			individual_exposure
-				.unbond(amount, Self::current_index().saturating_add(T::UnbondingDelay::get()));
+					let candidate = individual_exposure.backing.clone();
+					if let Some(network) = <CandidateToNetworkMapping<T>>::get(&candidate) {
+						<Candidates<T>>::mutate(network, candidate.clone(), |exposure| {
+							if let Some(exposure) = exposure {
+								exposure.total = exposure.total.saturating_sub(amount);
+								if individual_exposure.value == amount {
+									exposure.stakers.remove(&nominator);
+								}
+								individual_exposure.unbond(
+									amount,
+									Self::current_index().saturating_add(T::UnbondingDelay::get()),
+								);
 
-			<Stakers<T>>::insert(&nominator, individual_exposure);
-			Self::deposit_event(Event::<T>::Unbonded { candidate: None, nominator, amount });
-			Ok(())
+								Self::deposit_event(Event::<T>::Unbonded {
+									candidate,
+									nominator: nominator.clone(),
+									amount,
+								});
+								Ok(())
+							} else {
+								Err(Error::<T>::CandidateNotFound)
+							}
+						})
+					} else {
+						Err(Error::<T>::CandidateNotFound)
+					}
+				} else {
+					Err(Error::<T>::StakerNotFound)
+				}
+			})
 		}
 
 		pub fn do_bond(nominator: T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
 			let limits = <Stakinglimits<T>>::get();
 			//FIXME: minimum_nominator_stake should be only checked once
 			ensure!(amount >= limits.minimum_nominator_stake, Error::<T>::StakingLimitsError);
-			if let Some(mut individual_exposure) = <Stakers<T>>::get(&nominator) {
-				if let Some((network, candidate)) = individual_exposure.backing {
-					if let Some(mut exposure) = <Candidates<T>>::get(network, &candidate) {
-						exposure.total = exposure.total.saturating_add(amount);
-						exposure.stakers.insert(nominator.clone());
-						// reserve stake
-						pallet_balances::Pallet::<T>::reserve_named(
-							&T::StakingReserveIdentifier::get(),
-							&nominator,
-							amount,
-						)?;
-						<Candidates<T>>::insert(network, &candidate, exposure);
-						Self::deposit_event(Event::<T>::Bonded { candidate, nominator, amount });
-					} else {
-						return Err(Error::<T>::CandidateNotFound.into())
-					}
-				} else {
+			if let Some(individual_exposure) = <Stakers<T>>::get(&nominator) {
+				let candidate = individual_exposure.backing;
+				if let Some(network) = <CandidateToNetworkMapping<T>>::get(&candidate) {
+					<Candidates<T>>::mutate(network, &candidate, |exposure| {
+						if let Some(exposure) = exposure {
+							exposure.total = exposure.total.saturating_add(amount);
+							exposure.stakers.insert(nominator.clone());
+						}
+					});
+					// reserve stake
 					pallet_balances::Pallet::<T>::reserve_named(
 						&T::StakingReserveIdentifier::get(),
 						&nominator,
 						amount,
 					)?;
-					individual_exposure.value += amount;
-					<Stakers<T>>::insert(&nominator, individual_exposure);
+					Self::deposit_event(Event::<T>::Bonded { candidate, nominator, amount });
+					Ok(())
+				} else {
+					Err(Error::<T>::CandidateNotFound.into())
 				}
 			} else {
-				// reserve stake
-				pallet_balances::Pallet::<T>::reserve_named(
-					&T::StakingReserveIdentifier::get(),
-					&nominator,
-					amount,
-				)?;
-				<Stakers<T>>::insert(
-					&nominator,
-					IndividualExposure {
-						who: nominator.clone(),
-						value: amount,
-						backing: None,
-						unlocking: Vec::new(),
-					},
-				)
+				Err(Error::<T>::IndividualExposureNotFoundForNominator.into())
 			}
-			Ok(())
 		}
 
 		pub fn move_queued_to_active(network: Network) -> OnSessionChange<T::AccountId> {
@@ -1217,6 +1277,7 @@ pub mod pallet {
 			stash: Self::AccountId,
 			controller: Self::AccountId,
 			value: Self::Balance,
+
 			_payee: Self::AccountId,
 		) -> DispatchResult {
 			ensure!(stash == controller, Error::<T>::StashAndControllerMustBeSame);
