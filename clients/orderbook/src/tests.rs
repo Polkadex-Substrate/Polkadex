@@ -4,6 +4,7 @@ use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamEx
 use log::trace;
 use memory_db::{HashKey, MemoryDB};
 use parity_scale_codec::Encode;
+use primitive_types::H128;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use sc_client_api::{Backend, BlockchainEvents};
@@ -19,7 +20,7 @@ use sc_network_test::{
 };
 use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
 use sp_consensus::SyncOracle;
-use sp_core::Pair;
+use sp_core::{blake2_128, Pair};
 use sp_keyring::AccountKeyring;
 use tokio::runtime::Runtime;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
@@ -31,6 +32,7 @@ use orderbook_primitives::{
 	types::{ObMessage, UserActions, WithdrawPayloadCallByUser, WithdrawalRequest},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
+use orderbook_primitives::types::StateSyncStatus;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
 
 use crate::worker::{
@@ -80,6 +82,9 @@ macro_rules! create_test_api {
 
 					/// Submits the snapshot to runtime
 					fn submit_snapshot(_: SnapshotSummary) -> Result<(), ()>{Ok(())}
+
+					/// Get Snapshot By Id
+					fn get_snapshot_by_id(_: u64) -> Option<SnapshotSummary>{Some($latest_summary)}
                 }
 			}
 		}
@@ -408,14 +413,33 @@ pub fn test_trie_insertion() {
 }
 
 #[tokio::test]
-pub async fn test_have() {
+pub async fn test_process_chunk() {
 	let alice = AccountKeyring::Alice.pair();
 	let bob = AccountKeyring::Bob.pair();
 	let alice_acc = AccountId::from(alice.public());
 	let bob_acc = AccountId::from(bob.public());
+	let data: Vec<u8> = [1u8;10].to_vec();
+	let computed_hash: H128 = H128::from(blake2_128(&data));
+	let snapshot_summary = SnapshotSummary {
+		snapshot_id: 10,
+		state_root: Default::default(),
+		state_change_id: 0,
+		state_chunk_hashes: vec![computed_hash],
+		bitflags: vec![],
+		withdrawals: vec![],
+		aggregate_signature: None
+	};
 	create_test_api!(
 		one_validator,
-		latest_summary: SnapshotSummary::default(),
+		latest_summary: SnapshotSummary {
+		snapshot_id: 10,
+		state_root: Default::default(),
+		state_change_id: 0,
+		state_chunk_hashes: vec![H128::from(blake2_128(&[1u8;10]))],
+		bitflags: vec![],
+		withdrawals: vec![],
+		aggregate_signature: None
+	},
 		ingress_messages:
 			vec![
 				IngressMessages::RegisterUser(
@@ -454,5 +478,9 @@ pub async fn test_have() {
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
 	let mut worker = ObWorker::new(worker_params);
-
+	let snapshot_id = 10;
+	let index = 0;
+	worker.process_chunk(&snapshot_id, &index, &data);
+	let status = worker.get_sync_state_map_value(index);
+	assert_eq!(status, StateSyncStatus::Available);
 }
