@@ -668,13 +668,19 @@ where
 						expected_hash.0.as_ref(),
 						data,
 					);
+					//panic!("index {:?}", index);
 					// Update sync status map
 					self.sync_state_map.entry(*index).and_modify(|status| {
 						*status = StateSyncStatus::Available;
-					});
+					}).or_insert(StateSyncStatus::Available); //TODO: @Gatham please corss check this
 				}
 			}
 		}
+	}
+
+	// Make it only available for test
+	pub fn get_sync_state_map_value(&self, key: u16) -> StateSyncStatus {
+		self.sync_state_map.get(&key).unwrap().clone()
 	}
 
 	pub async fn process_gossip_message(
