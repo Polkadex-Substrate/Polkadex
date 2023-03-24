@@ -126,6 +126,8 @@ impl thea_staking::Config for Test {
 	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
+	type Currency = Balances;
+	type WeightInfo = crate::weight::StakeWeightInfo<Test>;
 }
 
 pub struct MockPallet(PhantomData<u32>);
@@ -133,10 +135,10 @@ pub struct MockPallet(PhantomData<u32>);
 impl SessionChanged for MockPallet {
 	type Network = Network;
 	type OnSessionChange = OnSessionChange<u64>;
-	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+	fn on_new_session(_map: BTreeMap<Self::Network, Self::OnSessionChange>) {
 		// Do nothing lol
 	}
-	fn set_new_networks(networks: BTreeSet<Self::Network>) {
+	fn set_new_networks(_networks: BTreeSet<Self::Network>) {
 		// Do nothing lol
 	}
 }
