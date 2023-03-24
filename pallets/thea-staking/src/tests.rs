@@ -263,7 +263,6 @@ fn test_withdraw_unbounded_with_returns_ok() {
 		insert_staking_limit();
 		register_nominator();
 		unbonding();
-		// panic!("here");
 		let nominator = 2u64;
 		let current_session = CurrentIndex::<Test>::get();
 		let current_session = current_session.saturating_add(10);
