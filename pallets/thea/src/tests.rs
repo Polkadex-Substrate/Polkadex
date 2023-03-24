@@ -152,8 +152,6 @@ fn test_approve_deposits_with_wrong_multi_asset_returns_failed_to_handle_paracha
 	})
 }
 
-//TODO: Ignoring following test as BLS verify has unwraps() Issue #66
-#[ignore]
 #[test]
 fn test_approve_deposits_with_wrong_signature_returns_bls_signature_verification_failed() {
 	new_test_ext().execute_with(|| {
