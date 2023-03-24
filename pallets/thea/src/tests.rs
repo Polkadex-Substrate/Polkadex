@@ -586,3 +586,12 @@ fn create_account_id() -> AccountId32 {
 
 	return account_id
 }
+
+// hooks tests
+#[test]
+fn test_on_initialize() {
+	new_test_ext().execute_with(|| {
+		let msg = <IngressMessages<Test>>::get();
+		assert!(msg.is_empty());
+	});
+}
