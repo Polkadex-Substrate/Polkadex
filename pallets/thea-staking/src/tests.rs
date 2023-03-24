@@ -115,7 +115,6 @@ fn test_nominate_with_valid_arguments_returns_ok() {
 		register_nominator();
 		let (candidate, network_id, bls_key) = get_candidate();
 		let nominator = 2;
-		// assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
 		stakers.insert(nominator);
 		let exposure = Exposure {
@@ -169,7 +168,7 @@ fn test_nominate_with_already_staked_relayer_returns_staker_already_nominating()
 // as now binding happens instantly without option this test now tests
 // that re-nominating is not happening on second nomination
 #[test]
-fn test_nominate_with_wrong_candidate_returns_candidate_alread_nominated() {
+fn test_nominate_with_wrong_candidate_returns_candidate_already_nominated() {
 	new_test_ext().execute_with(|| {
 		insert_staking_limit();
 		register_candidate();
@@ -211,7 +210,6 @@ fn test_unbond_with_valid_arguments_returns_ok() {
 		register_nominator();
 		let (candidate, network, bls_key) = get_candidate();
 		let nominator = 2;
-		// assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
 		stakers.insert(nominator);
@@ -257,8 +255,6 @@ fn test_unbond_with_zero_nomination_returns_ok() {
 		assert_eq!(TheaStaking::stakers(nominator), Some(nominator_exposure));
 	})
 }
-
-// use thea_staking::session::{Exposure, IndividualExposure, StakingLimits, UnlockChunk};
 
 #[test]
 fn test_withdraw_unbounded_with_returns_ok() {
@@ -495,7 +491,6 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		let candidate = 1u64;
 		let network_id = 0;
 		let bls_key = BLSPublicKey([1; 192]);
-		// assert_ok!(TheaStaking::nominate(Origin::signed(nominator), candidate));
 		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000u128));
 		let stakers: BTreeSet<u64> = BTreeSet::new();
 		let exposure = Exposure {
