@@ -5,7 +5,6 @@ use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamEx
 use log::trace;
 use memory_db::{HashKey, MemoryDB};
 use parity_scale_codec::{Decode, Encode};
-use primitive_types::H128;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use sc_client_api::{Backend, BlockchainEvents};
@@ -30,10 +29,11 @@ use crate::Client;
 use bls_primitives::Pair as BLSPair;
 use orderbook_primitives::{
 	crypto::AuthorityId,
-	types::{ObMessage, UserActions, WithdrawPayloadCallByUser, WithdrawalRequest},
+	types::{
+		ObMessage, StateSyncStatus, UserActions, WithdrawPayloadCallByUser, WithdrawalRequest,
+	},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
-use orderbook_primitives::types::StateSyncStatus;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
 
 use crate::worker::{ObWorker, WorkerParams};
@@ -419,7 +419,7 @@ pub async fn test_process_chunk() {
 	let bob = AccountKeyring::Bob.pair();
 	let alice_acc = AccountId::from(alice.public());
 	let bob_acc = AccountId::from(bob.public());
-	let data: Vec<u8> = [1u8;10].to_vec();
+	let data: Vec<u8> = [1u8; 10].to_vec();
 	let computed_hash: H128 = H128::from(blake2_128(&data));
 	let snapshot_summary = SnapshotSummary {
 		snapshot_id: 10,
@@ -428,7 +428,7 @@ pub async fn test_process_chunk() {
 		state_chunk_hashes: vec![computed_hash],
 		bitflags: vec![],
 		withdrawals: vec![],
-		aggregate_signature: None
+		aggregate_signature: None,
 	};
 	create_test_api!(
 		one_validator,

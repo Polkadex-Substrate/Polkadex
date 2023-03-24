@@ -670,9 +670,12 @@ where
 					);
 					//panic!("index {:?}", index);
 					// Update sync status map
-					self.sync_state_map.entry(*index).and_modify(|status| {
-						*status = StateSyncStatus::Available;
-					}).or_insert(StateSyncStatus::Available); //TODO: @Gatham please corss check this
+					self.sync_state_map
+						.entry(*index)
+						.and_modify(|status| {
+							*status = StateSyncStatus::Available;
+						})
+						.or_insert(StateSyncStatus::Available); //TODO: @Gatham please corss check this
 				}
 			}
 		}
