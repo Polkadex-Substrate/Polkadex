@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 
-// Copyright (C) 2020-2022 Polkadex oü.
+// Copyright (C) 2020-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -12,29 +12,23 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-use asset_handler::pallet::TheaAssets;
-use frame_support::{assert_noop, assert_ok, ensure};
-use parity_scale_codec::{Decode, Encode};
-use sp_core::{crypto::AccountId32, H160, U256};
-use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
-use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
-
 use crate::{
-	mock,
 	mock::{new_test_ext, Test, *},
 	pallet::*,
 };
 use blst::min_sig::*;
-use frame_support::traits::fungibles::Mutate;
-use sp_runtime::traits::ConstU32;
-use sp_std::default::Default;
+use frame_support::{assert_noop, assert_ok, traits::fungibles::Mutate};
+use parity_scale_codec::Encode;
+use sp_core::crypto::AccountId32;
+use sp_keystore::{testing::KeyStore, SyncCryptoStore};
+use sp_runtime::{traits::ConstU32, BoundedVec};
 use thea_primitives::{
 	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
-	ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TokenType,
+	ApprovedWithdraw, BLSPublicKey, TokenType,
 };
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
-	prelude::{Xcm, X1},
+	prelude::X1,
 };
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
@@ -68,10 +62,6 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 		};
 		let sig = sign_payload(new_payload.encode());
 
-		let mut bit_map_1 = 0_u128;
-		bit_map_1 = set_kth_bit(bit_map_1, 0);
-		bit_map_1 = set_kth_bit(bit_map_1, 1);
-		bit_map_1 = set_kth_bit(bit_map_1, 2);
 		let mut bit_map_2 = 0_u128;
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
@@ -95,10 +85,6 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 fn test_approve_deposit_returns_failed_to_decode() {
 	new_test_ext().execute_with(|| {
 		let sig = [1; 96];
-		let mut bit_map_1 = 0_u128;
-		bit_map_1 = set_kth_bit(bit_map_1, 0);
-		bit_map_1 = set_kth_bit(bit_map_1, 1);
-		bit_map_1 = set_kth_bit(bit_map_1, 2);
 		let mut bit_map_2 = 0_u128;
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
@@ -144,10 +130,6 @@ fn test_approve_deposits_with_wrong_multi_asset_returns_failed_to_handle_paracha
 		};
 		let sig = sign_payload(new_payload.encode());
 
-		let mut bit_map_1 = 0_u128;
-		bit_map_1 = set_kth_bit(bit_map_1, 0);
-		bit_map_1 = set_kth_bit(bit_map_1, 1);
-		bit_map_1 = set_kth_bit(bit_map_1, 2);
 		let mut bit_map_2 = 0_u128;
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
@@ -195,10 +177,6 @@ fn test_approve_deposits_with_wrong_signature_returns_bls_signature_verification
 		};
 		let wrong_sig = [1; 96];
 
-		let mut bit_map_1 = 0_u128;
-		bit_map_1 = set_kth_bit(bit_map_1, 0);
-		bit_map_1 = set_kth_bit(bit_map_1, 1);
-		bit_map_1 = set_kth_bit(bit_map_1, 2);
 		let mut bit_map_2 = 0_u128;
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
@@ -245,10 +223,6 @@ fn test_approve_deposit_with_zero_amount_return_amount_cannot_be_zero() {
 		};
 		let sig = sign_payload(new_payload.encode());
 
-		let mut bit_map_1 = 0_u128;
-		bit_map_1 = set_kth_bit(bit_map_1, 0);
-		bit_map_1 = set_kth_bit(bit_map_1, 1);
-		bit_map_1 = set_kth_bit(bit_map_1, 2);
 		let mut bit_map_2 = 0_u128;
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
@@ -295,10 +269,6 @@ fn test_approve_deposit_with_wrong_nonce_return_deposit_nonce_error() {
 		};
 		let sig = sign_payload(new_payload.encode());
 
-		let mut bit_map_1 = 0_u128;
-		bit_map_1 = set_kth_bit(bit_map_1, 0);
-		bit_map_1 = set_kth_bit(bit_map_1, 1);
-		bit_map_1 = set_kth_bit(bit_map_1, 2);
 		let mut bit_map_2 = 0_u128;
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
@@ -345,10 +315,6 @@ fn test_approve_deposit_with_unregistered_asset_return_asset_not_registered() {
 		};
 		let sig = sign_payload(new_payload.encode());
 
-		let mut bit_map_1 = 0_u128;
-		bit_map_1 = set_kth_bit(bit_map_1, 0);
-		bit_map_1 = set_kth_bit(bit_map_1, 1);
-		bit_map_1 = set_kth_bit(bit_map_1, 2);
 		let mut bit_map_2 = 0_u128;
 		bit_map_2 = set_kth_bit(bit_map_2, 0);
 		bit_map_2 = set_kth_bit(bit_map_2, 1);
@@ -385,17 +351,8 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
-			1,
-			1_000_000_000_000,
-			0
-		));
-		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(
-			generate_asset_id(asset_id.clone()),
-			&1,
-			1_000_000_000_000
-		));
+		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
+		assert_ok!(Assets::mint_into(generate_asset_id(asset_id.clone()), &1, 1_000_000_000_000));
 		assert_ok!(Thea::withdraw(
 			Origin::signed(1),
 			generate_asset_id(asset_id.clone()),
@@ -411,6 +368,7 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			network: 1,
 			beneficiary: vec![1; 32],
 			payload: payload.encode(),
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -435,17 +393,8 @@ fn test_withdraw_returns_ok() {
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
-			1,
-			1_000_000_000_000,
-			0
-		));
-		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(
-			generate_asset_id(asset_id.clone()),
-			&1,
-			1_000_000_000_000
-		));
+		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
+		assert_ok!(Assets::mint_into(generate_asset_id(asset_id.clone()), &1, 1_000_000_000_000));
 		assert_ok!(Thea::withdraw(
 			Origin::signed(1),
 			generate_asset_id(asset_id.clone()),
@@ -461,6 +410,7 @@ fn test_withdraw_returns_ok() {
 			network: 1,
 			beneficiary: vec![1; 32],
 			payload: payload.encode(),
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -478,7 +428,7 @@ fn test_withdraw_with_wrong_benificiary_length() {
 }
 
 #[test]
-fn test_withdraw_with_wrong_asset_id_returns_UnableFindNetworkForAssetId() {
+fn test_withdraw_with_wrong_asset_id_returns_unable_find_network_for_asset_id() {
 	new_test_ext().execute_with(|| {
 		let beneficiary: [u8; 32] = [1; 32];
 		assert_noop!(
@@ -528,12 +478,7 @@ fn transfer_native_asset() {
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
-			1,
-			1_000_000_000_000_000_000,
-			0
-		));
+		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000_000_000, 0));
 		assert_ok!(Thea::withdraw(
 			Origin::signed(1),
 			asset_id.clone(),
@@ -549,6 +494,7 @@ fn transfer_native_asset() {
 			network: 1,
 			beneficiary: vec![1; 32],
 			payload: payload.encode(),
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -559,29 +505,28 @@ pub type PublicKeys = Vec<BLSPublicKey>;
 
 fn get_bls_keys() -> (PrivateKeys, PublicKeys) {
 	let mut private_keys: PrivateKeys = vec![];
-	let mut public_keys: PublicKeys = vec![];
-	let mut ikm = [0 as u8; 32];
+	let ikm = [0 as u8; 32];
 	let sk_1 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_1 = sk_1.sk_to_pk();
 	private_keys.push(sk_1.clone());
-	let mut ikm = [1 as u8; 32];
+	let ikm = [1 as u8; 32];
 	let sk_2 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_2 = sk_2.sk_to_pk();
 	private_keys.push(sk_2.clone());
-	let mut ikm = [2 as u8; 32];
+	let ikm = [2 as u8; 32];
 	let sk_3 = SecretKey::key_gen(&ikm, &[]).unwrap();
 	let pk_3 = sk_3.sk_to_pk();
 	private_keys.push(sk_3.clone());
 	let bls_public_key_1 = BLSPublicKey(pk_1.serialize().into());
 	let bls_public_key_2 = BLSPublicKey(pk_2.serialize().into());
 	let bls_public_key_3 = BLSPublicKey(pk_3.serialize().into());
-	let mut public_keys: PublicKeys = vec![bls_public_key_1, bls_public_key_2, bls_public_key_3];
+	let public_keys: PublicKeys = vec![bls_public_key_1, bls_public_key_2, bls_public_key_3];
 	(private_keys, public_keys)
 }
 
 fn register_bls_public_keys() {
 	let (_, public_keys) = get_bls_keys();
-	RelayersBLSKeyVector::<Test>::insert(1, BoundedVec::try_from(public_keys).unwrap());
+	RelayersBLSKeyVector::<Test>::insert(1, public_keys);
 }
 
 fn sign_payload(payload: Vec<u8>) -> [u8; 96] {
@@ -602,17 +547,8 @@ fn test_withdrawal_returns_ok() {
 			Box::from(asset_id.clone())
 		));
 		let asset_id = generate_asset_id(asset_id);
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
-			1,
-			1_000_000_000_000,
-			0
-		));
-		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(
-			asset_id,
-			&1,
-			1000000000000u128
-		));
+		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
+		assert_ok!(Assets::mint_into(asset_id, &1, 1000000000000u128));
 		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
 		assert_ok!(Thea::do_withdraw(1, asset_id, 1000000000u128, [1; 32].to_vec(), false));
 	})
