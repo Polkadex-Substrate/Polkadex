@@ -3,7 +3,7 @@ name: Continuous Integration
 on:
   pull_request: []
   push:
-    branches: [Develop, mainnet-release]
+    branches: [Develop, mainnet-release, ci-node-artifact]
 
 env:
   RUNNER_INSTANCE_TYPE: c5.4xlarge
@@ -102,10 +102,10 @@ jobs:
           name: code-coverage-report
           path: cobertura.xml
       - name: Zip compiled binaries
-        if: contains(github.ref, "Develop")
+        if: contains(github.ref, "ci-node-artifact")
         run: zip ./target/release/polkadex-node.zip ./target/release/polkadex-node
       - name: Upload zipped binaries as an artifact
-        if: contains(github.ref, "Develop")
+        if: contains(github.ref, "ci-node-artifact")
         uses: actions/upload-artifact@v3
         with:
           name: polkadex-node
