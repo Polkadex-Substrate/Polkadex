@@ -3,7 +3,7 @@ name: Continuous Integration
 on:
   pull_request: []
   push:
-    branches: [Develop, main-net-runtime, redux-ci-testing]
+    branches: [Develop, mainnet-release]
 
 env:
   RUNNER_INSTANCE_TYPE: c5.4xlarge
@@ -101,6 +101,16 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
+      - name: Zip compiled binaries
+        if: contains(github.ref, "Develop")
+        run: zip ./target/release/polkadex-node.zip ./target/release/polkadex-node
+      - name: Upload zipped binaries as an artifact
+        if: contains(github.ref, "Develop")
+        uses: actions/upload-artifact@v3
+        with:
+          name: polkadex-node
+          path: ./target/release/polkadex-node.zip
+          if-no-files-found: error
   stop-runner:
     name: Stop self-hosted EC2 runner
     needs:
