@@ -14,14 +14,12 @@
 // GNU General Public License for more details.
 use crate::{
 	mock::{new_test_ext, Test, *},
-	pallet::*,
+	pallet::{ApprovedDeposit, *},
 };
 use blst::min_sig::*;
-use frame_support::{
-	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
-};
+use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate};
 use parity_scale_codec::Encode;
-use sp_core::crypto::AccountId32;
+use sp_core::{crypto::AccountId32, H160};
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
 use sp_runtime::{traits::ConstU32, BoundedVec};
 use thea_primitives::{
@@ -622,6 +620,49 @@ fn router_method_should_error_on_non_fungibles() {
 		assert!(Thea::router(TokenType::NonFungible(1), vec!()).is_err());
 		assert!(Thea::router(TokenType::Generic(0), vec!()).is_err());
 		assert!(Thea::router(TokenType::Fungible(3), vec!()).is_err());
+	});
+}
+
+const ASSET_ADDRESS: &str = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+
+#[test]
+fn claim_deposit_pass_with_proper_inputs() {
+	new_test_ext().execute_with(|| {
+		let mut ad = vec![];
+		const NETWORK: u8 = 0;
+		const LEN: usize = 5;
+		// asset build stuff
+		let asset = ASSET_ADDRESS.parse::<H160>().unwrap();
+		let asset_addr = asset.to_fixed_bytes();
+		let mut derived_asset_id = vec![];
+		derived_asset_id.push(NETWORK);
+		derived_asset_id.push(LEN as u8);
+		let id: BoundedVec<u8, ConstU32<1000>> = asset_addr.to_vec().try_into().unwrap();
+		derived_asset_id.extend(&id[0..LEN]);
+		let asset_id = AssetHandler::get_asset_id(derived_asset_id);
+		// create asset
+		assert_ok!(AssetHandler::allowlist_token(Origin::signed(1), asset));
+		assert_ok!(AssetHandler::create_thea_asset(Origin::signed(1), NETWORK, LEN as u8, id));
+		assert_ok!(AssetHandler::mint_thea_asset(asset_id, 1, 1_000_000));
+		// generate max number of deposits
+		for i in 1..101u128 {
+			let d = ApprovedDeposit {
+				recipient: 1 as u64,
+				network_id: NETWORK,
+				deposit_nonce: i as u32,
+				amount: i.saturating_add(100_000).saturating_mul(100_000),
+				asset_id,
+				tx_hash: [i as u8; 32].into(),
+			};
+			ad.push(d);
+		}
+		let ad: BoundedVec<
+			ApprovedDeposit<<Test as frame_system::Config>::AccountId>,
+			ConstU32<100>,
+		> = ad.try_into().unwrap();
+		<ApprovedDeposits<Test>>::insert(1, ad);
+		// call extrinsic and check it passes
+		assert_ok!(Thea::claim_deposit(Origin::signed(1), 100));
 	});
 }
 
