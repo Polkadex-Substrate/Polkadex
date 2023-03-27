@@ -414,12 +414,8 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 
 			if let Some(mut deposits) = <ApprovedDeposits<T>>::get(&user) {
-				let length: u32 = if deposits.len().saturated_into::<u32>() <= num_deposits {
-					deposits.len().saturated_into()
-				} else {
-					num_deposits
-				}
-				.saturated_into();
+				let lenght: u32 = deposits.len().saturated_into();
+				let length: u32 = if lenght <= num_deposits { lenght } else { num_deposits };
 
 				for _ in 0..length {
 					if let Some(deposit) = deposits.pop() {
