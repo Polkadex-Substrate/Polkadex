@@ -807,17 +807,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::shutdown())]
-		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<ExchangeState<T>>::put(false);
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Shutdown);
-			});
-			Ok(())
-		}
-
 		///This extrinsic will pause/resume the exchange according to flag
 		/// If flag is set to false it will stop the exchange
 		/// If flag is set to true it will resume the exchange
