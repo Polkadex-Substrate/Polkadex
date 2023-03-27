@@ -17,7 +17,9 @@ use crate::{
 	pallet::*,
 };
 use blst::min_sig::*;
-use frame_support::{assert_noop, assert_ok, traits::fungibles::Mutate};
+use frame_support::{
+	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
+};
 use parity_scale_codec::Encode;
 use sp_core::crypto::AccountId32;
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
@@ -36,6 +38,33 @@ pub const DST: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
 pub fn set_kth_bit(number: u128, k_value: u8) -> u128 {
 	(1 << k_value) | number
+}
+
+#[test]
+fn test_approve_deposit_with_bad_origin_should_fail() {
+	new_test_ext().execute_with(|| {
+		let sig = [1; 96];
+		let mut bit_map_2 = 0_u128;
+		bit_map_2 = set_kth_bit(bit_map_2, 0);
+		bit_map_2 = set_kth_bit(bit_map_2, 1);
+
+		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
+		let wrong_payload = [1; 32];
+		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
+			Origin::signed(1),
+			Box::from(asset_id)
+		));
+		assert_noop!(
+			Thea::approve_deposit(
+				Origin::none(),
+				bit_map_2,
+				sig.into(),
+				TokenType::Fungible(1_u8),
+				wrong_payload.to_vec()
+			),
+			BadOrigin
+		);
+	})
 }
 
 #[test]
@@ -585,6 +614,15 @@ fn create_account_id() -> AccountId32 {
 	.expect("Unable to convert to AccountId32");
 
 	return account_id
+}
+
+#[test]
+fn router_method_should_error_on_non_fungibles() {
+	new_test_ext().execute_with(|| {
+		assert!(Thea::router(TokenType::NonFungible(1), vec!()).is_err());
+		assert!(Thea::router(TokenType::Generic(0), vec!()).is_err());
+		assert!(Thea::router(TokenType::Fungible(3), vec!()).is_err());
+	});
 }
 
 // hooks tests
