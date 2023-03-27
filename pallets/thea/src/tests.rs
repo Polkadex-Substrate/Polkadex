@@ -753,6 +753,15 @@ fn batch_withdrawal_complete_works() {
 	});
 }
 
+#[test]
+fn test_withdrawal_fee_origins() {
+	new_test_ext().execute_with(|| {
+		assert_err!(Thea::set_withdrawal_fee(Origin::none(), 1, 1u128), BadOrigin);
+		assert_err!(Thea::set_withdrawal_fee(Origin::signed(1), 1, 1u128), BadOrigin);
+		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 1u128));
+	});
+}
+
 // hooks tests
 #[test]
 fn test_on_initialize() {
