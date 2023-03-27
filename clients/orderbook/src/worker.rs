@@ -62,7 +62,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	// pub links: BeefyVoterLinks<B>,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
-	pub message_sender_link: UnboundedReceiver<ObMessage>,
+	pub message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
@@ -94,7 +94,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// voter state
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
-	message_sender_link: UnboundedReceiver<ObMessage>,
+	message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
 	_marker: PhantomData<N>,
 	// In memory store
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
@@ -405,7 +405,13 @@ where
 		Ok(())
 	}
 
-	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
+	pub async fn process_new_user_action(&mut self, action: &ObMessage, signature: &sp_core::ecdsa::Signature) -> Result<(), Error> {
+		// TODO: Verify Signature
+        let expected_public_key = self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(self.last_finalized_block.saturated_into()))?.ok_or(|| Error::SignatureVerificationFailed)?;
+		let actual_public_key = signature.recover(sp_core::hashing::keccak_256(action.encode())).ok_or(|| Error::SignatureVerificationFailed)?;
+		if expected_public_key != actual_public_key {
+			return Err(Error::SignatureVerificationFailed);
+		}
 		info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
 		// Cache the message
 		self.known_messages.insert(action.stid, action.clone());
@@ -682,7 +688,7 @@ where
 		match message {
 			GossipMessage::WantStid(from, to) => self.want_stid(from, to, remote),
 			GossipMessage::Stid(messages) => self.got_stids_via_gossip(messages).await?,
-			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
+			GossipMessage::ObMessage(msg, signature) => self.process_new_user_action(msg, signature).await?,
 			GossipMessage::Want(snap_id, bitmap) => self.want(snap_id, bitmap, remote).await,
 			GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote).await,
 			GossipMessage::RequestChunk(snap_id, bitmap) =>
@@ -969,8 +975,8 @@ where
 					}
 				},
 				message = self.message_sender_link.next() => {
-					if let Some(message) = message {
-						if let Err(err) = self.process_new_user_action(&message).await {
+					if let Some((message, signature)) = message {
+						if let Err(err) = self.process_new_user_action(&message, &signature).await {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					}else{

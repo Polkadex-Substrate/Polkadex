@@ -95,7 +95,7 @@ pub struct FullDeps<C, P, SC, B> {
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
 	/// Channel for sending ob messages to worker
-	pub orderbook: UnboundedSender<ObMessage>,
+	pub orderbook: UnboundedSender<(ObMessage, sp_core::ecdsa::Signature)>,
 }
 
 /// Instantiate all Full RPC extensions.
