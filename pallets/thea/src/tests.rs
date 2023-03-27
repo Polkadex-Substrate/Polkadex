@@ -17,7 +17,9 @@ use crate::{
 	pallet::{ApprovedDeposit, *},
 };
 use blst::min_sig::*;
-use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate};
+use frame_support::{
+	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
+};
 use parity_scale_codec::Encode;
 use sp_core::{crypto::AccountId32, H160, H256};
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
@@ -400,7 +402,7 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 }
 
 #[test]
-fn test_withdraw_returns_ok() {
+fn test_withdraw_returns_proper_errors_and_ok() {
 	new_test_ext().execute_with(|| {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		let multi_asset = MultiAsset {
@@ -420,6 +422,59 @@ fn test_withdraw_returns_ok() {
 		// Mint Asset to Alice
 		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
 		assert_ok!(Assets::mint_into(generate_asset_id(asset_id.clone()), &1, 1_000_000_000_000));
+		// bad origin test
+		assert_err!(
+			Thea::withdraw(
+				Origin::none(),
+				generate_asset_id(asset_id.clone()),
+				1000u128,
+				beneficiary.to_vec(),
+				false
+			),
+			BadOrigin
+		);
+		// network key rotation happening test
+		<TheaKeyRotation<Test>>::insert(1, true);
+		assert_err!(
+			Thea::withdraw(
+				Origin::signed(1),
+				generate_asset_id(asset_id.clone()),
+				1000u128,
+				beneficiary.to_vec(),
+				false
+			),
+			Error::<Test>::TheaKeyRotationInPlace
+		);
+		<TheaKeyRotation<Test>>::insert(1, false);
+		// withdrawal not allowed test
+		let old_withdrawals = Thea::pending_withdrawals(1);
+		let mut withdrawals = vec![];
+		let payload = ParachainWithdraw::get_parachain_withdraw(multi_asset, multi_location);
+		for _ in 1..=10 {
+			withdrawals.push(ApprovedWithdraw {
+				asset_id: generate_asset_id(asset_id.clone()),
+				amount: 1000,
+				network: 1,
+				beneficiary: vec![1; 32],
+				payload: payload.encode(),
+				index: 0,
+			});
+		}
+		let withdrawals: BoundedVec<ApprovedWithdraw, ConstU32<10>> =
+			withdrawals.try_into().unwrap();
+		<PendingWithdrawals<Test>>::insert(1, withdrawals);
+		assert_err!(
+			Thea::withdraw(
+				Origin::signed(1),
+				generate_asset_id(asset_id.clone()),
+				1000u128,
+				beneficiary.to_vec(),
+				false
+			),
+			Error::<Test>::WithdrawalNotAllowed
+		);
+		<PendingWithdrawals<Test>>::insert(1, old_withdrawals);
+		// good orogin test
 		assert_ok!(Thea::withdraw(
 			Origin::signed(1),
 			generate_asset_id(asset_id.clone()),
@@ -428,7 +483,6 @@ fn test_withdraw_returns_ok() {
 			false
 		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
-		let payload = ParachainWithdraw::get_parachain_withdraw(multi_asset, multi_location);
 		let approved_withdraw = ApprovedWithdraw {
 			asset_id: generate_asset_id(asset_id),
 			amount: 1000,
