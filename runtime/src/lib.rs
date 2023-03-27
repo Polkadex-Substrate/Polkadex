@@ -1585,6 +1585,10 @@ impl_runtime_apis! {
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
 			OCEX::get_all_accounts_and_proxies()
 		}
+
+		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>{
+			OCEX::get_orderbook_operator_public_key()
+		}
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {

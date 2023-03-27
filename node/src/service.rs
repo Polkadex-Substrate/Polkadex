@@ -146,7 +146,7 @@ pub fn new_partial(
 			),
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
-			UnboundedReceiver<ObMessage>,
+			UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
 		),
 	>,
 	ServiceError,
@@ -235,7 +235,7 @@ pub fn new_partial(
 
 	let import_setup = (block_import, grandpa_link, babe_link);
 
-	let (ob_messge_sink, ob_message_stream) = unbounded::<ObMessage>();
+	let (ob_messge_sink, ob_message_stream) = unbounded::<(ObMessage, sp_core::ecdsa::Signature)>();
 
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, babe_link) = &import_setup;
