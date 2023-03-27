@@ -19,7 +19,7 @@ use crate::{
 use blst::min_sig::*;
 use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate};
 use parity_scale_codec::Encode;
-use sp_core::{crypto::AccountId32, H160};
+use sp_core::{crypto::AccountId32, H160, H256};
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
 use sp_runtime::{traits::ConstU32, BoundedVec};
 use thea_primitives::{
@@ -663,6 +663,39 @@ fn claim_deposit_pass_with_proper_inputs() {
 		<ApprovedDeposits<Test>>::insert(1, ad);
 		// call extrinsic and check it passes
 		assert_ok!(Thea::claim_deposit(Origin::signed(1), 100));
+	});
+}
+
+#[test]
+fn batch_withdrawal_complete_works() {
+	new_test_ext().execute_with(|| {
+		// create
+		let mut awd = vec![];
+		let asset_id = H256::default();
+		for i in 1..11 {
+			awd.push(ApprovedWithdraw {
+				asset_id: i,
+				amount: i as u128,
+				network: 1,
+				beneficiary: vec![i as u8],
+				payload: vec![i as u8],
+				index: i as u32,
+			});
+		}
+		let awd: BoundedVec<ApprovedWithdraw, ConstU32<10>> = awd.try_into().unwrap();
+		<ReadyWithdrawls<Test>>::insert(1, 1, awd);
+		// check
+		assert!(!Thea::ready_withdrawals(1, 1).is_empty());
+		// clean
+		assert_ok!(Thea::batch_withdrawal_complete(
+			Origin::signed(1),
+			1,
+			1,
+			asset_id,
+			1,
+			[1 as u8; 96]
+		));
+		//check
 	});
 }
 
