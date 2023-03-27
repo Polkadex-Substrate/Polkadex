@@ -110,7 +110,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: polkadex-node
-          path: ./target/release/polkadex-node.zip
+          path: ./polkadex-node.zip
           if-no-files-found: error
   stop-runner:
     name: Stop self-hosted EC2 runner
