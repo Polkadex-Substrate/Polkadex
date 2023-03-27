@@ -103,7 +103,8 @@ jobs:
           path: cobertura.xml
       - name: Zip compiled binaries
         if: contains(github.ref, 'ci-node-artifact')
-        run: zip ./target/release/polkadex-node.zip ./target/release/polkadex-node
+        # Zipping is required since billing is based on the raw uploaded size.
+        run: zip -r -j polkadex-node.zip ./target/release/polkadex-node
       - name: Upload zipped binaries as an artifact
         if: contains(github.ref, 'ci-node-artifact')
         uses: actions/upload-artifact@v3
