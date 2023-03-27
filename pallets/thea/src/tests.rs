@@ -762,6 +762,60 @@ fn test_withdrawal_fee_origins() {
 	});
 }
 
+#[test]
+fn test_thea_key_rotation() {
+	new_test_ext().execute_with(|| {
+		// relayer key insert
+		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
+		<RelayersBLSKeyVector<Test>>::insert(1, vec![bls_key]);
+		// authority insert
+		<AuthorityListVector<Test>>::insert(1, vec![1]);
+		// test call
+		assert_ok!(Thea::thea_key_rotation_complete(
+			Origin::signed(1),
+			1,
+			H256::default(),
+			1u128,
+			[1u8; 96]
+		));
+	});
+}
+
+#[test]
+fn test_set_thea_key_complete() {
+	new_test_ext().execute_with(|| {
+		// relayer key insert
+		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
+		<RelayersBLSKeyVector<Test>>::insert(1, vec![bls_key]);
+		// authority insert
+		<AuthorityListVector<Test>>::insert(1, vec![1]);
+		// thea public key insert
+		<TheaPublicKey<Test>>::insert(1, [1u8; 64]);
+		// test call
+		assert_ok!(Thea::set_thea_key_complete(Origin::signed(1), 1, [1u8; 64], 1, [1u8; 96]));
+	});
+}
+
+#[test]
+fn test_thea_queued_queued_public_key() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Thea::thea_queued_queued_public_key(
+			Origin::signed(1),
+			1,
+			[1u8; 64],
+			1,
+			[1u8; 96]
+		));
+	});
+}
+
+#[test]
+fn test_thea_relayers_reset_rotation() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Thea::thea_relayers_reset_rotation(Origin::root(), 1));
+	});
+}
+
 // hooks tests
 #[test]
 fn test_on_initialize() {
