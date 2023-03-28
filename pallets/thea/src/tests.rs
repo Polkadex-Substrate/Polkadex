@@ -28,6 +28,7 @@ use thea_primitives::{
 	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
 	ApprovedWithdraw, BLSPublicKey, TokenType,
 };
+use thea_staking::QueuedRelayers;
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::X1,
@@ -931,13 +932,16 @@ fn test_set_thea_key_complete() {
 #[test]
 fn test_thea_queued_queued_public_key() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Thea::thea_queued_queued_public_key(
-			Origin::signed(1),
+		let (pk, sig, map) = QUEUED_QUEUED_THEA_KEY_PARAMETERS;
+		QueuedRelayers::<Test>::insert(
 			1,
-			[1u8; 64],
-			1,
-			[1u8; 96]
-		));
+			vec![
+				(1, RELAYER_1_BLS_PUBLIC_KEY),
+				(2, RELAYER_2_BLS_PUBLIC_KEY),
+				(3, RELAYER_3_BLS_PUBLIC_KEY),
+			],
+		);
+		assert_ok!(Thea::thea_queued_queued_public_key(Origin::signed(1), 1, pk, map, sig));
 	});
 }
 
