@@ -96,6 +96,7 @@ pub struct FullDeps<C, P, SC, B> {
 	pub grandpa: GrandpaDeps<B>,
 	/// Channel for sending ob messages to worker
 	pub orderbook: UnboundedSender<ObMessage>,
+	/// ToDo: Add Orderbook Dependency Struct here
 }
 
 /// Instantiate all Full RPC extensions.
@@ -174,6 +175,7 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
+	// Create Orderbook RPC
 	io.merge(OrderbookRpc::new(subscription_executor, orderbook).into_rpc())?;
 
 	Ok(io)

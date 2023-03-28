@@ -175,6 +175,7 @@ where
 		_marker: Default::default(),
 	};
 
+	// Clone data here
 	let mut worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
 
 	worker.run().await

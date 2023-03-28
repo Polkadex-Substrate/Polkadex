@@ -4786,6 +4786,7 @@ dependencies = [
  "anyhow",
  "bls-primitives",
  "chrono",
+ "futures 0.3.27",
  "libp2p-core",
  "parity-scale-codec",
  "polkadex-primitives",
