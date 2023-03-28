@@ -50,6 +50,8 @@ use crate::{
 	Client,
 };
 use primitive_types::H128;
+use sp_runtime::traits::Verify;
+
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
@@ -103,6 +105,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
+	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -165,6 +168,7 @@ where
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
+			orderbook_operator_public_key: None
 		}
 	}
 
@@ -407,10 +411,12 @@ where
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage, signature: &sp_core::ecdsa::Signature) -> Result<(), Error> {
 		// TODO: Verify Signature
-        let expected_public_key = self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(self.last_finalized_block.saturated_into()))?.ok_or(|| Error::SignatureVerificationFailed)?;
-		let actual_public_key = signature.recover(sp_core::hashing::keccak_256(action.encode())).ok_or(|| Error::SignatureVerificationFailed)?;
-		if expected_public_key != actual_public_key {
-			return Err(Error::SignatureVerificationFailed);
+		if let Some(expected_singer) = self.orderbook_operator_public_key {
+			if !signature.verify(Encode::encode(action).as_ref(), &expected_singer) {
+				return Err(Error::SignatureVerificationFailed)
+			}
+		} else {
+			return Err(Error::SignatureVerificationFailed)
 		}
 		info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
 		// Cache the message
@@ -740,6 +746,9 @@ where
 
 			// Update the latest snapshot summary.
 			*self.last_snapshot.write() = latest_summary;
+			if let Some(orderbook_operator_public_key) = self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(self.last_finalized_block.saturated_into()))? {
+				self.orderbook_operator_public_key = Some(orderbook_operator_public_key);
+			}
 		}
 		// if we are syncing the check progress
 		if self.state_is_syncing {
