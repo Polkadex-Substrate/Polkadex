@@ -17,11 +17,13 @@ use crate::{
 	pallet::{ApprovedDeposit, *},
 };
 use blst::min_sig::*;
-use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate};
+use frame_support::{
+	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
+};
 use parity_scale_codec::Encode;
 use sp_core::{crypto::AccountId32, H160, H256};
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
-use sp_runtime::{traits::ConstU32, BoundedVec};
+use sp_runtime::{traits::ConstU32, BoundedVec, TokenError};
 use thea_primitives::{
 	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
 	ApprovedWithdraw, BLSPublicKey, TokenType,
@@ -641,10 +643,10 @@ fn claim_deposit_pass_with_proper_inputs() {
 		derived_asset_id.extend(&id[0..LEN]);
 		let asset_id = AssetHandler::get_asset_id(derived_asset_id);
 		// create asset
-		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
 		assert_ok!(AssetHandler::allowlist_token(Origin::signed(1), asset));
 		assert_ok!(AssetHandler::create_thea_asset(Origin::signed(1), NETWORK, LEN as u8, id));
-		assert_ok!(AssetHandler::mint_thea_asset(asset_id, 1, 1_000_000));
+		// check no deposit error
+		assert_err!(Thea::claim_deposit(Origin::signed(1), 100), Error::<Test>::NoApprovedDeposit);
 		// generate max number of deposits
 		for i in 1..101u128 {
 			let d = ApprovedDeposit {
@@ -662,7 +664,10 @@ fn claim_deposit_pass_with_proper_inputs() {
 			ConstU32<100>,
 		> = ad.try_into().unwrap();
 		<ApprovedDeposits<Test>>::insert(1, ad);
+		// check it can't create on execute_deposit with wrong account
+		assert_err!(Thea::claim_deposit(Origin::signed(1), 100), TokenError::CannotCreate);
 		// call extrinsic and check it passes
+		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
 		assert_ok!(Thea::claim_deposit(Origin::signed(1), 100));
 	});
 }
