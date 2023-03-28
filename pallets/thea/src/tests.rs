@@ -402,7 +402,7 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 }
 
 #[test]
-fn test_withdraw_returns_ok() {
+fn test_withdraw_returns_proper_errors_and_ok() {
 	new_test_ext().execute_with(|| {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		let multi_asset = MultiAsset {
@@ -422,6 +422,59 @@ fn test_withdraw_returns_ok() {
 		// Mint Asset to Alice
 		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
 		assert_ok!(Assets::mint_into(generate_asset_id(asset_id.clone()), &1, 1_000_000_000_000));
+		// bad origin test
+		assert_err!(
+			Thea::withdraw(
+				Origin::none(),
+				generate_asset_id(asset_id.clone()),
+				1000u128,
+				beneficiary.to_vec(),
+				false
+			),
+			BadOrigin
+		);
+		// network key rotation happening test
+		<TheaKeyRotation<Test>>::insert(1, true);
+		assert_err!(
+			Thea::withdraw(
+				Origin::signed(1),
+				generate_asset_id(asset_id.clone()),
+				1000u128,
+				beneficiary.to_vec(),
+				false
+			),
+			Error::<Test>::TheaKeyRotationInPlace
+		);
+		<TheaKeyRotation<Test>>::insert(1, false);
+		// withdrawal not allowed test
+		let old_withdrawals = Thea::pending_withdrawals(1);
+		let mut withdrawals = vec![];
+		let payload = ParachainWithdraw::get_parachain_withdraw(multi_asset, multi_location);
+		for _ in 1..=10 {
+			withdrawals.push(ApprovedWithdraw {
+				asset_id: generate_asset_id(asset_id.clone()),
+				amount: 1000,
+				network: 1,
+				beneficiary: vec![1; 32],
+				payload: payload.encode(),
+				index: 0,
+			});
+		}
+		let withdrawals: BoundedVec<ApprovedWithdraw, ConstU32<10>> =
+			withdrawals.try_into().unwrap();
+		<PendingWithdrawals<Test>>::insert(1, withdrawals);
+		assert_err!(
+			Thea::withdraw(
+				Origin::signed(1),
+				generate_asset_id(asset_id.clone()),
+				1000u128,
+				beneficiary.to_vec(),
+				false
+			),
+			Error::<Test>::WithdrawalNotAllowed
+		);
+		<PendingWithdrawals<Test>>::insert(1, old_withdrawals);
+		// good orogin test
 		assert_ok!(Thea::withdraw(
 			Origin::signed(1),
 			generate_asset_id(asset_id.clone()),
@@ -430,7 +483,6 @@ fn test_withdraw_returns_ok() {
 			false
 		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
-		let payload = ParachainWithdraw::get_parachain_withdraw(multi_asset, multi_location);
 		let approved_withdraw = ApprovedWithdraw {
 			asset_id: generate_asset_id(asset_id),
 			amount: 1000,
@@ -702,6 +754,69 @@ fn batch_withdrawal_complete_works() {
 			[1 as u8; 96]
 		));
 		//check
+	});
+}
+
+#[test]
+fn test_withdrawal_fee_origins() {
+	new_test_ext().execute_with(|| {
+		assert_err!(Thea::set_withdrawal_fee(Origin::none(), 1, 1u128), BadOrigin);
+		assert_err!(Thea::set_withdrawal_fee(Origin::signed(1), 1, 1u128), BadOrigin);
+		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 1u128));
+	});
+}
+
+#[test]
+fn test_thea_key_rotation() {
+	new_test_ext().execute_with(|| {
+		// relayer key insert
+		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
+		<RelayersBLSKeyVector<Test>>::insert(1, vec![bls_key]);
+		// authority insert
+		<AuthorityListVector<Test>>::insert(1, vec![1]);
+		// test call
+		assert_ok!(Thea::thea_key_rotation_complete(
+			Origin::signed(1),
+			1,
+			H256::default(),
+			1u128,
+			[1u8; 96]
+		));
+	});
+}
+
+#[test]
+fn test_set_thea_key_complete() {
+	new_test_ext().execute_with(|| {
+		// relayer key insert
+		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
+		<RelayersBLSKeyVector<Test>>::insert(1, vec![bls_key]);
+		// authority insert
+		<AuthorityListVector<Test>>::insert(1, vec![1]);
+		// thea public key insert
+		<TheaPublicKey<Test>>::insert(1, [1u8; 64]);
+		// test call
+		assert_ok!(Thea::set_thea_key_complete(Origin::signed(1), 1, [1u8; 64], 1, [1u8; 96]));
+	});
+}
+
+#[test]
+fn test_thea_queued_queued_public_key() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Thea::thea_queued_queued_public_key(
+			Origin::signed(1),
+			1,
+			[1u8; 64],
+			1,
+			[1u8; 96]
+		));
+	});
+}
+
+#[test]
+fn test_thea_relayers_reset_rotation() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Thea::thea_relayers_reset_rotation(Origin::root(), 1));
 	});
 }
 
