@@ -17,7 +17,7 @@
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
 
-#[cfg(feature = "runtime-benchmarks")]
+//#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 // TODO[#614]: Thea Pallet Tests
 // #[cfg(test)]
