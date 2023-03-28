@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{withdrawal::Withdrawal, AccountId};
+use polkadex_primitives::{withdrawal::Withdrawal, AccountId, BlockNumber};
 use primitive_types::H128;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
@@ -210,5 +210,8 @@ sp_api::decl_runtime_apis! {
 
 		/// Returns all main account and corresponding proxies at this point in time
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>;
+
+		/// Returns snapshot generation intervals
+		fn get_snapshot_generation_intervals() -> (u64,BlockNumber);
 	}
 }

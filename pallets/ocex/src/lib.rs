@@ -758,6 +758,28 @@ pub mod pallet {
 			Ok(())
 		}
 
+		//TODO: Benchmark change_pending_withdrawal_limit
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		pub fn change_pending_withdrawal_limit(
+			origin: OriginFor<T>,
+			new_pending_withdrawals_limit: u64,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<PendingWithdrawalsAllowedPerSnapshot<T>>::put(new_pending_withdrawals_limit);
+			Ok(())
+		}
+
+		//TODO: Benchmark change_snapshot_interval_blocl
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		pub fn change_snapshot_interval_block(
+			origin: OriginFor<T>,
+			new_snapshot_interval_block: T::BlockNumber,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<SnapshotIntervalBlock<T>>::put(new_snapshot_interval_block);
+			Ok(())
+		}
+
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
@@ -1301,6 +1323,17 @@ pub mod pallet {
 	#[pallet::getter(fn snapshot_nonce)]
 	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+	// Snapshot will be produced after snapshot interval block
+	#[pallet::storage]
+	#[pallet::getter(fn snapshot_interval_block)]
+	pub(super) type SnapshotIntervalBlock<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+
+	// Snapshot will be produced after reaching pending withdrawals limit
+	#[pallet::storage]
+	#[pallet::getter(fn pending_withdrawals_allowed_per_snapshot)]
+	pub(super) type PendingWithdrawalsAllowedPerSnapshot<T: Config> =
+		StorageValue<_, u64, ValueQuery>;
+
 	// Exchange Operation State
 	#[pallet::storage]
 	#[pallet::getter(fn orderbook_operational_state)]
@@ -1402,6 +1435,12 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		<Accounts<T>>::iter()
 			.map(|(main, info)| (main, info.proxies.to_vec()))
 			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
+	}
+
+	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {
+		let pending_withdrawals_interval = <PendingWithdrawalsAllowedPerSnapshot<T>>::get();
+		let block_interval = <SnapshotIntervalBlock<T>>::get();
+		(pending_withdrawals_interval, block_interval)
 	}
 
 	/// Returns the AccountId to hold user funds, note this account has no private keys and

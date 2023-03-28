@@ -58,7 +58,7 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use polkadex_primitives::{
-	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
+	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,PendingWithdrawalsLimit
 };
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -1585,6 +1585,11 @@ impl_runtime_apis! {
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
 			OCEX::get_all_accounts_and_proxies()
 		}
+
+		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
+			OCEX::get_snapshot_generation_intervals()
+		}
+
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
