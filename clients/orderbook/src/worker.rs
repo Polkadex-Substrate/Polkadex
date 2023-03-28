@@ -96,7 +96,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	metrics: Option<Metrics>,
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
-	// In memory store
+	// In memory store, need to make this Arc
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 	// Last finalized block
 	last_finalized_block: BlockNumber,

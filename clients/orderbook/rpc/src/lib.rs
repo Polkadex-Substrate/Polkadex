@@ -11,7 +11,7 @@ use jsonrpsee::{
 	types::{error::CallError, ErrorObject},
 };
 use log::warn;
-use orderbook_primitives::types::ObMessage;
+use orderbook_primitives::types::{ObMessage,ObRecoveryState};
 
 #[derive(Debug, thiserror::Error)]
 /// Top-level error type for the RPC handler
@@ -63,6 +63,9 @@ pub trait OrderbookApi {
 	/// In such case an error would be returned.
 	#[method(name = "ob_submitAction")]
 	async fn submit_action(&self, action: ObMessage) -> RpcResult<()>;
+	/// Returns the state of the orderbook that will help engine to recover.
+	#[method(name = "ob_getObRecoverState")]
+	async fn get_orderbook_recovery_state(&self) -> RpcResult<ObRecoveryState>;
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
@@ -84,5 +87,10 @@ impl OrderbookApiServer for OrderbookRpc {
 		let mut tx = self.tx.clone();
 		tx.send(message).await?;
 		Ok(())
+	}
+
+	async fn get_orderbook_recovery_state(&self) -> RpcResult<ObRecoveryState> {
+		let ob_recovery_state = ObRecoveryState::new();
+		Ok(ob_recovery_state)
 	}
 }

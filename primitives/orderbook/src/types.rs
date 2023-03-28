@@ -1,8 +1,6 @@
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
-};
+use polkadex_primitives::{BlockNumber,ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature};
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -18,6 +16,40 @@ use std::{
 use crate::SnapshotSummary;
 
 pub type OrderId = H256;
+
+
+/// A struct representing the recovery state of an Order Book.
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct ObRecoveryState {
+	/// The snapshot ID of the order book recovery state.
+	pub snapshot_id: u64,
+	/// A `BTreeMap` that maps main account to a vector of proxy account.
+	pub account_ids: BTreeMap<AccountId, Vec<AccountId>>,
+	/// A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
+	pub balances: BTreeMap<AccountAsset, Decimal>,
+	/// The last block number that was processed by validator.
+	pub last_process_block_number: BlockNumber,
+}
+
+impl ObRecoveryState {
+	pub fn new() -> Self {
+		ObRecoveryState{
+			snapshot_id: 0,
+			account_ids: BTreeMap::default(),
+			balances: BTreeMap::default(),
+			last_process_block_number: 0,
+		}
+	}
+
+	pub fn add_balance(&self) {
+
+	}
+
+	pub fn add_account(&self) {
+
+	}
+}
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
