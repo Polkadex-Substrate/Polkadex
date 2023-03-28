@@ -641,6 +641,7 @@ fn claim_deposit_pass_with_proper_inputs() {
 		derived_asset_id.extend(&id[0..LEN]);
 		let asset_id = AssetHandler::get_asset_id(derived_asset_id);
 		// create asset
+		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
 		assert_ok!(AssetHandler::allowlist_token(Origin::signed(1), asset));
 		assert_ok!(AssetHandler::create_thea_asset(Origin::signed(1), NETWORK, LEN as u8, id));
 		assert_ok!(AssetHandler::mint_thea_asset(asset_id, 1, 1_000_000));
