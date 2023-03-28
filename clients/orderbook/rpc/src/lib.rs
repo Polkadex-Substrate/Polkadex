@@ -10,6 +10,7 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::{error::CallError, ErrorObject},
 };
+use jsonrpsee::core::__reexports::serde_json;
 use log::warn;
 use orderbook_primitives::types::{ObMessage,ObRecoveryState};
 
@@ -89,8 +90,9 @@ impl OrderbookApiServer for OrderbookRpc {
 		Ok(())
 	}
 
-	async fn get_orderbook_recovery_state(&self) -> RpcResult<ObRecoveryState> {
+	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
 		let ob_recovery_state = ObRecoveryState::new();
-		Ok(ob_recovery_state)
+		let serialize_ob_recovery_state = serde_json::to_vec(&ob_recovery_state)?;
+		Ok(serialize_ob_recovery_state)
 	}
 }
