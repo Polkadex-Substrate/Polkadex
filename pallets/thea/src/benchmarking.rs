@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Benchmarking setup for pallet-thea-staking
+//! Benchmarking setup for pallet-thea
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::{session::StakingLimits, Pallet as TheaStaking};
+use crate::Pallet as Thea;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
 use frame_system::RawOrigin;
@@ -39,35 +39,8 @@ fn convert_to_balance<T: Config>(dec: u32) -> BalanceOf<T> {
 		.unwrap()
 }
 
-fn stake_nominator_candidate<T: Config>(
-	k: u32,
-	nominator: T::AccountId,
-	candidate: T::AccountId,
-	balance: BalanceOf<T>,
-) {
-	// register stake
-	let bls_key: BLSPublicKey = BLSPublicKey([k as u8; 192]);
-	let exposure = Exposure {
-		score: 1000,
-		total: balance,
-		individual: balance,
-		bls_pub_key: bls_key,
-		stakers: Default::default(),
-	};
-	let nominator_exposure = IndividualExposure {
-		who: nominator.clone(),
-		value: balance,
-		backing: candidate.clone(),
-		unlocking: vec![],
-	};
-	drop(<pallet_balances::Pallet<T> as Currency<_>>::deposit_creating(&nominator, balance));
-	<Stakers<T>>::insert(nominator.clone(), nominator_exposure);
-	<Candidates<T>>::insert(1, candidate.clone(), exposure);
-	<CandidateToNetworkMapping<T>>::insert(candidate, 1);
-}
-
 benchmarks! {
-	set_staking_limits {
+	approve_deposit {
 		let a in 1 .. 10;
 		let m in 100 .. u32::MAX;
 		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
@@ -77,10 +50,10 @@ benchmarks! {
 			maximum_nominator_per_relayer: 10,
 			max_relayers: a,
 		};
-		let call = Call::<T>::set_staking_limits{ staking_limits };
+		let call = Call::<T>::approve_deposit{ staking_limits };
 	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
 
-	add_candidate {
+	claim_deposit {
 		let a in 0 .. 255;
 		let b in 0 .. 255;
 		let m in 100 .. u32::MAX;
@@ -88,13 +61,13 @@ benchmarks! {
 		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
 		drop(<pallet_balances::Pallet<T> as Currency<_>>::deposit_creating(&candidate, balance));
 		let bls_key = BLSPublicKey([b.try_into().unwrap(); 192]);
-		let call = Call::<T>::add_candidate{ network: a as u8, bls_key };
+		let call = Call::<T>::claim_deposit{ network: a as u8, bls_key };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(candidate.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::CandidateRegistered{candidate, stake: T::CandidateBond::get()}.into());
 	}
 
-	nominate {
+	batch_withdrawal_complete {
 		let m in 100 .. u32::MAX;
 		let k in 1 .. 255;
 		let x in 1 .. 255;
@@ -102,13 +75,13 @@ benchmarks! {
 		let nominator = account::<T::AccountId>("nominator", k, 0);
 		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
 		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), balance);
-		let call = Call::<T>::nominate { candidate: candidate.clone() };
+		let call = Call::<T>::batch_withdrawal_complete{ candidate: candidate.clone() };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::Nominated { candidate, nominator }.into());
 	}
 
-	bond {
+	withdraw {
 		let m in 100 .. u32::MAX;
 		let k in 1 .. 255;
 		let x in 1 .. 255;
@@ -117,13 +90,13 @@ benchmarks! {
 		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
 		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
 		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
-		let call = Call::<T>::bond { amount, candidate: candidate.clone() };
+		let call = Call::<T>::withdraw{ amount, candidate: candidate.clone() };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify{
 		assert_last_event::<T>(Event::Bonded{ candidate, nominator, amount }.into());
 	}
 
-	unbond {
+	set_withdrawal_fee {
 		let m in 100 .. u32::MAX;
 		let k in 1 .. 255;
 		let x in 1 .. 255;
@@ -140,7 +113,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::Unbonded{ candidate, nominator, amount }.into());
 	}
 
-	withdraw_unbonded {
+	thea_key_rotation_complete {
 		let m in 100_000_000 .. u32::MAX;
 		let k in 1 .. 255;
 		let x in 1 .. 255;
@@ -160,13 +133,13 @@ benchmarks! {
 		let prev_index = TheaStaking::<T>::current_index();
 		let ud = T::UnbondingDelay::get();
 		<CurrentIndex<T>>::put(prev_index + ud);
-		let call = Call::<T>::withdraw_unbonded{};
+		let call = Call::<T>::thea_key_rotation_complete{};
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::BondsWithdrawn{ nominator, amount }.into());
 	}
 
-	remove_candidate {
+	set_thea_key_complete {
 		let m in 100 .. u32::MAX;
 		let k in 1 .. 255;
 		let candidate = account::<T::AccountId>("candidate", k, 0);
@@ -181,71 +154,36 @@ benchmarks! {
 			stakers: Default::default(),
 		};
 		<Candidates<T>>::insert(1, candidate.clone(), exposure);
-		let call = Call::<T>::remove_candidate{ network: 1 };
+		let call = Call::<T>::set_thea_key_complete{ network: 1 };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(candidate.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::OutgoingCandidateAdded{ candidate }.into());
 	}
 
-	add_network {
+	thea_queued_queued_public_key {
 		let n in 1 .. 255;
 		let network: u8 = n as u8;
 		let go = T::GovernanceOrigin::successful_origin();
-		let call = Call::<T>::add_network{ network };
+		let call = Call::<T>::thea_queued_queued_public_key{ network };
 	}: { call.dispatch_bypass_filter(go)? }
 	verify {
 		assert_last_event::<T>(Event::NetworkAdded{ network }.into());
 	}
 
-	remove_network {
+	thea_relayers_reset_rotation {
 		let n in 1 .. 255;
 		let network: u8 = n as u8;
 		let go = T::GovernanceOrigin::successful_origin();
 		TheaStaking::<T>::add_network(go.clone(), network).unwrap();
-		let call = Call::<T>::remove_network { network };
+		let call = Call::<T>::thea_relayers_reset_rotation{ network };
 	}: { call.dispatch_bypass_filter(go)? }
 	verify {
 		assert_last_event::<T>(Event::NetworkRemoved{ network }.into());
 	}
-
-	report_offence {
-		let n in 1 .. 255;
-		let network = n as u8;
-		let a = account::<T::AccountId>("a", n + 1, 0);
-		let b = account::<T::AccountId>("b", n + 2, 0);
-		let c = account::<T::AccountId>("c", n + 3, 0);
-		let offence = TheaMisbehavior::UnattendedKeygen;
-		<ActiveRelayers<T>>::insert(network, vec!((a.clone(), BLSPublicKey([n as u8; 192])), (b.clone(), BLSPublicKey([n as u8; 192])), (c.clone(), BLSPublicKey([n as u8; 192]))));
-		<ReportedOffenders<T>>::insert(&c, &offence, vec!(b));
-		let call = Call::<T>::report_offence{ network_id: network, offender: c.clone(), offence };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(a.clone()).into())? }
-	verify {
-		assert_last_event::<T>(Event::OffenceReported{ offender: c.clone(), reporter: a.clone(), offence }.into());
-		assert!(<CommitedSlashing<T>>::get(&c).1.contains(&a));
-	}
-
-	stakers_payout {
-		let k in 1 .. 255;
-		let m in 100 .. u32::MAX;
-		let x in 1 .. 255;
-		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
-		let candidate = account::<T::AccountId>("candidate", x, 0);
-		let nominator = account::<T::AccountId>("nominator", k, 0);
-		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
-		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
-		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount, candidate.clone())?;
-		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
-		let call = Call::<T>::stakers_payout{ session: 1 };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
-	verify {
-		assert_last_event::<T>(Event::StakerPayedOut{ staker: nominator, session: 1 }.into());
-	}
 }
 
-use crate::session::{Exposure, IndividualExposure};
 #[cfg(test)]
 use frame_benchmarking::impl_benchmark_test_suite;
-use frame_support::traits::Currency;
 
 #[cfg(test)]
-impl_benchmark_test_suite!(TheaStaking, crate::mock::new_test_ext(), crate::mock::Test);
+impl_benchmark_test_suite!(Thea, crate::mock::new_test_ext(), crate::mock::Test);
