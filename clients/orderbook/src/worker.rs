@@ -103,6 +103,10 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
+	// last block at which snapshot was generated
+	last_block_snapshot_generated: BlockNumber,
+	// latest stid
+	latest_stid: u64,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -165,10 +169,34 @@ where
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
+			last_block_snapshot_generated: 0,
+			latest_stid: 0,
 		}
 	}
 
-	pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
+	pub fn should_generate_snapshot(&self) -> bool {
+		let (pending_withdrawals_interval, block_interval) = self
+			.runtime
+			.runtime_api()
+			.get_snapshot_generation_intervals(&BlockId::Number(
+				self.last_finalized_block.saturated_into(),
+			))
+			.expect("Expecting snapshot generation interval api to be available");
+
+		if pending_withdrawals_interval > self.pending_withdrawals.len() as u64 ||
+			block_interval >
+				self.last_finalized_block.saturating_sub(self.last_block_snapshot_generated)
+		{
+			return true
+		}
+		false
+	}
+
+	pub fn process_withdraw(
+		&mut self,
+		withdraw: WithdrawalRequest,
+		stid: u64,
+	) -> Result<(), Error> {
 		let mut withdrawal = None;
 		{
 			let mut trie = self.get_trie();
@@ -194,6 +222,12 @@ where
 		if let Some(withdrawal) = withdrawal {
 			// Queue withdrawal
 			self.pending_withdrawals.push(withdrawal);
+			if self.should_generate_snapshot() {
+				if let Err(err) = self.snapshot(stid) {
+					log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
+					self.last_block_snapshot_generated = self.last_finalized_block;
+				}
+			}
 		}
 		Ok(())
 	}
@@ -335,10 +369,11 @@ where
 				// Commit the state changes in trie
 				trie.commit();
 			},
-			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw)?,
+			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 			UserActions::Snapshot => self.snapshot(action.stid)?,
 		}
+		self.latest_stid = action.stid;
 		// Multicast the message to other peers
 		self.gossip_engine.gossip_message(topic::<B>(), action.encode(), true);
 		Ok(())
@@ -720,6 +755,13 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
+
+		if self.should_generate_snapshot() {
+			if let Err(err) = self.snapshot(self.latest_stid) {
+				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
+				self.last_block_snapshot_generated = self.last_finalized_block;
+			}
+		}
 
 		// We should not update latest summary if we are still syncing
 		if !self.state_is_syncing {
