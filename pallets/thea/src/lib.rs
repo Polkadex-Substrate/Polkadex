@@ -19,12 +19,12 @@
 
 //#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-// TODO[#614]: Thea Pallet Tests
-// #[cfg(test)]
-// mod mock;
-//
-// #[cfg(test)]
-// mod tests;
+
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -327,6 +327,8 @@ pub mod pallet {
 		BoundedVectorNotPresent,
 		/// Thea Key Rotation is taking place
 		TheaKeyRotationInPlace,
+		/// Wrong Withdrawal Nonce provided in batch complete
+		WithdrawalNonceIncorrect,
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -417,12 +419,8 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 
 			if let Some(mut deposits) = <ApprovedDeposits<T>>::get(&user) {
-				let length: u32 = if deposits.len().saturated_into::<u32>() <= num_deposits {
-					deposits.len().saturated_into()
-				} else {
-					num_deposits
-				}
-				.saturated_into();
+				let lenght: u32 = deposits.len().saturated_into();
+				let length: u32 = if lenght <= num_deposits { lenght } else { num_deposits };
 
 				for _ in 0..length {
 					if let Some(deposit) = deposits.pop() {
@@ -468,12 +466,36 @@ pub mod pallet {
 			withdrawal_nonce: u32,
 			network: Network,
 			tx_hash: sp_core::H256,
-			_bit_map: u128,
-			_bls_signature: [u8; 96],
+			bit_map: u128,
+			bls_signature: [u8; 96],
 		) -> DispatchResult {
 			ensure_signed(origin)?;
+			let current_withdrawal_nonce = Self::withdrawal_nonces(network);
+			// Current Withdrawal Nonce and Received Withdrawal Nonce needs to be same
+			// We update the withdrawal nonce when we perform a `do_withdraw` and
+			// this extrinsic is to inform the chain the withdrawal has been
+			// executed correctly in the foreign chain
+			ensure!(
+				current_withdrawal_nonce == withdrawal_nonce,
+				Error::<T>::WithdrawalNonceIncorrect
+			);
 
-			// TODO: This will be refactored when work on withdrawal begins
+			// Fetch current active relayer set BLS Keys
+			let current_relayer_set = Self::get_relayers_key_vector(network);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&(tx_hash, network, withdrawal_nonce).encode(),
+					&current_relayer_set
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+
+			// We remove the withdrawals from ReadyWithdrawals so that other withdrawals can be
+			// processed
 			<ReadyWithdrawls<T>>::take(network, withdrawal_nonce);
 			Self::deposit_event(Event::<T>::WithdrawalExecuted(withdrawal_nonce, network, tx_hash));
 			Ok(())
@@ -623,7 +645,10 @@ pub mod pallet {
 			let current_round_index = <TheaSessionId<T>>::get(network);
 			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
 			<TheaKeyRotation<T>>::insert(network, false);
-			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
+			Self::deposit_event(Event::TheaKeyUpdated(
+				network,
+				current_round_index.saturating_sub(1),
+			));
 			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
 				relayer,
 				bit_map,
