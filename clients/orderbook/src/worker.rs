@@ -410,7 +410,6 @@ where
 	}
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage, signature: &sp_core::ecdsa::Signature) -> Result<(), Error> {
-		// TODO: Verify Signature
 		if let Some(expected_singer) = self.orderbook_operator_public_key {
 			if !signature.verify(Encode::encode(action).as_ref(), &expected_singer) {
 				return Err(Error::SignatureVerificationFailed)
