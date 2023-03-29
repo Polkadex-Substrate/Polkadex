@@ -3,7 +3,7 @@ name: Continuous Integration
 on:
   pull_request: []
   push:
-    branches: [Develop, main-net-runtime, redux-ci-testing]
+    branches: [Develop, main-net-runtime, redux-ci-testing, gj-ob]
 
 env:
   RUNNER_INSTANCE_TYPE: c5.4xlarge
