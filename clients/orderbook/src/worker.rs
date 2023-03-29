@@ -174,7 +174,15 @@ where
 		}
 	}
 
+	/// The function checks whether a snapshot of the blockchain should be generated based on the
+	/// pending withdrawals and block interval.
+	///
+	/// # Parameters
+	/// - &self: a reference to an instance of a struct implementing some trait
+	/// # Returns
+	/// - bool: a boolean indicating whether a snapshot should be generated
 	pub fn should_generate_snapshot(&self) -> bool {
+		// Get the snapshot generation intervals from the runtime API for the last finalized block
 		let (pending_withdrawals_interval, block_interval) = self
 			.runtime
 			.runtime_api()
@@ -183,12 +191,15 @@ where
 			))
 			.expect("Expecting snapshot generation interval api to be available");
 
+		// Check if a snapshot should be generated based on the pending withdrawals interval and
+		// block interval
 		if pending_withdrawals_interval > self.pending_withdrawals.len() as u64 ||
 			block_interval >
 				self.last_finalized_block.saturating_sub(self.last_block_snapshot_generated)
 		{
 			return true
 		}
+		// If a snapshot should not be generated, return false
 		false
 	}
 
@@ -222,6 +233,7 @@ where
 		if let Some(withdrawal) = withdrawal {
 			// Queue withdrawal
 			self.pending_withdrawals.push(withdrawal);
+			// Check if snapshot should be generated or not
 			if self.should_generate_snapshot() {
 				if let Err(err) = self.snapshot(stid) {
 					log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
@@ -756,6 +768,7 @@ where
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
 
+		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(self.latest_stid) {
 				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
