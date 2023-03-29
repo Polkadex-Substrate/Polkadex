@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use crate::{Error, Pair as BLSPair};
-use crate::{Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST, KeyStore};
+use crate::{KeyStore, Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
 #[cfg(feature = "std")]
 use blst::min_sig::*;
 #[cfg(feature = "std")]
@@ -103,13 +103,13 @@ use std::fs::File;
 #[cfg(feature = "std")]
 use std::io::Write;
 
+use parity_scale_codec::{Decode, Encode};
+#[cfg(feature = "std")]
+use sp_core::DeriveJunction;
 #[cfg(feature = "std")]
 use std::path::PathBuf;
 #[cfg(feature = "std")]
 use std::str::FromStr;
-use parity_scale_codec::{Encode, Decode};
-#[cfg(feature = "std")]
-use sp_core::DeriveJunction;
 
 #[cfg(feature = "std")]
 fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed, Vec<DeriveJunction>) {
@@ -146,7 +146,9 @@ pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 			Ok(seed) =>
 				return match KeyStore::decode(&mut seed.as_ref()) {
 					Ok(keystore) => {
-						if let Ok(secret_key) = SecretKey::key_gen(keystore.get_seed().as_ref(), &[]) {
+						if let Ok(secret_key) =
+							SecretKey::key_gen(keystore.get_seed().as_ref(), &[])
+						{
 							let mut master_key = secret_key;
 							for junction in keystore.get_junctions() {
 								let index_bytes = [
@@ -155,9 +157,10 @@ pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 									junction.inner()[2],
 									junction.inner()[3],
 								];
-								master_key = master_key.derive_child_eip2333(u32::from_be_bytes(index_bytes))
+								master_key =
+									master_key.derive_child_eip2333(u32::from_be_bytes(index_bytes))
 							}
-							return Some(Signature::from(master_key.sign(msg, DST.as_ref(), &[])));
+							return Some(Signature::from(master_key.sign(msg, DST.as_ref(), &[])))
 						} else {
 							log::error!(target: "bls", "KeyStore has been corrupted, Unable to derive BLS Key");
 							None
