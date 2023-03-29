@@ -33,7 +33,7 @@ use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-// ToDo : Issue 682
+// ToDo: Issue 682
 // #[cfg(test)]
 // mod mock;
 //
@@ -41,10 +41,10 @@ pub use pallet::*;
 // mod tests;
 
 use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
+// ToDo: Issue 683
 // #[cfg(feature = "runtime-benchmarks")]
 // use sp_runtime::traits::One;
-
-// ToDo : Issue 683
+//
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 pub mod weights;

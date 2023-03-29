@@ -14,7 +14,7 @@ use scale_info::TypeInfo;
 use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive};
 
 #[cfg(feature = "std")]
-use sp_core::{crypto::SecretStringError};
+use sp_core::crypto::SecretStringError;
 #[cfg(feature = "std")]
 use sp_core::DeriveJunction;
 
@@ -62,27 +62,17 @@ pub struct Signature(pub [u8; 48]);
 
 // KeyStore for Storing Seed and Junctions
 #[cfg_attr(feature = "std", derive(Hash))]
-#[derive(
-Clone,
-Encode,
-Decode,
-Eq,
-PartialEq,
-Debug,
-)]
-pub struct KeyStore{
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug)]
+pub struct KeyStore {
 	seed: Seed,
 	#[cfg(feature = "std")]
-	junctions: Vec<DeriveJunction>
+	junctions: Vec<DeriveJunction>,
 }
 
 #[cfg(feature = "std")]
-impl KeyStore{
+impl KeyStore {
 	fn new(seed: Seed, junctions: Vec<DeriveJunction>) -> Self {
-		Self {
-			seed,
-			junctions
-		}
+		Self { seed, junctions }
 	}
 
 	fn get_seed(&self) -> Seed {
