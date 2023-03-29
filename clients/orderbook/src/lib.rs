@@ -22,7 +22,7 @@ mod metrics;
 mod utils;
 mod worker;
 
-// PR 675 will fix it
+// PR 675 will fix this
 // #[cfg(test)]
 // mod tests;
 
