@@ -28,7 +28,6 @@ use system::EnsureRoot;
 use thea_primitives::thea_types::OnSessionChange;
 use thea_staking::SessionChanged;
 
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
