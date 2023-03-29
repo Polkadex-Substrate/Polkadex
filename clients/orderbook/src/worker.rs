@@ -105,7 +105,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
-	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>
+	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -168,7 +168,7 @@ where
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
-			orderbook_operator_public_key: None
+			orderbook_operator_public_key: None,
 		}
 	}
 
@@ -409,7 +409,11 @@ where
 		Ok(())
 	}
 
-	pub async fn process_new_user_action(&mut self, action: &ObMessage, signature: &sp_core::ecdsa::Signature) -> Result<(), Error> {
+	pub async fn process_new_user_action(
+		&mut self,
+		action: &ObMessage,
+		signature: &sp_core::ecdsa::Signature,
+	) -> Result<(), Error> {
 		if let Some(expected_singer) = self.orderbook_operator_public_key {
 			if !signature.verify(Encode::encode(action).as_ref(), &expected_singer) {
 				return Err(Error::SignatureVerificationFailed)
@@ -693,7 +697,8 @@ where
 		match message {
 			GossipMessage::WantStid(from, to) => self.want_stid(from, to, remote),
 			GossipMessage::Stid(messages) => self.got_stids_via_gossip(messages).await?,
-			GossipMessage::ObMessage(msg, signature) => self.process_new_user_action(msg, signature).await?,
+			GossipMessage::ObMessage(msg, signature) =>
+				self.process_new_user_action(msg, signature).await?,
 			GossipMessage::Want(snap_id, bitmap) => self.want(snap_id, bitmap, remote).await,
 			GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote).await,
 			GossipMessage::RequestChunk(snap_id, bitmap) =>
@@ -745,7 +750,10 @@ where
 
 			// Update the latest snapshot summary.
 			*self.last_snapshot.write() = latest_summary;
-			if let Some(orderbook_operator_public_key) = self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(self.last_finalized_block.saturated_into()))? {
+			if let Some(orderbook_operator_public_key) =
+				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
+					self.last_finalized_block.saturated_into(),
+				))? {
 				self.orderbook_operator_public_key = Some(orderbook_operator_public_key);
 			}
 		}
