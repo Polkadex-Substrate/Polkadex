@@ -49,8 +49,8 @@ pub enum Error {
 	BLSSigningFailed,
 	#[error("Offchain storage not available")]
 	OffchainStorageNotAvailable,
-    #[error("Signature verification Failed")]
-    SignatureVerificationFailed
+	#[error("Signature verification Failed")]
+	SignatureVerificationFailed,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
