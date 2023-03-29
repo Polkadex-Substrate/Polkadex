@@ -28,91 +28,13 @@ use thea_primitives::{
 	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
 	ApprovedWithdraw, BLSPublicKey, TokenType,
 };
-use thea_staking::QueuedRelayers;
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::X1,
 };
-use crate::fixtures::{CHANGE_THEA_KEY_PARAMETERS, RELAYER_1_BLS_PUBLIC_KEY, RELAYER_2_BLS_PUBLIC_KEY, RELAYER_3_BLS_PUBLIC_KEY, SET_THEA_KEY_PARAMETERS};
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 pub const DST: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
-pub const RELAYER_1_BLS_PUBLIC_KEY: [u8; 192] = [
-	24, 53, 160, 192, 96, 48, 213, 168, 95, 99, 144, 223, 91, 12, 43, 210, 19, 171, 233, 211, 231,
-	95, 200, 248, 240, 79, 172, 104, 178, 210, 77, 211, 58, 221, 165, 57, 182, 25, 75, 59, 186,
-	160, 85, 120, 234, 203, 225, 140, 22, 68, 127, 246, 6, 245, 228, 203, 232, 155, 56, 88, 183,
-	145, 122, 242, 186, 2, 224, 214, 248, 111, 18, 18, 103, 78, 63, 197, 52, 197, 83, 202, 79, 157,
-	110, 97, 192, 128, 26, 226, 32, 210, 59, 18, 194, 91, 157, 102, 12, 235, 187, 24, 41, 197, 12,
-	167, 158, 200, 194, 247, 233, 129, 23, 85, 78, 154, 142, 7, 68, 148, 160, 43, 254, 76, 235, 95,
-	76, 85, 189, 147, 206, 251, 97, 229, 59, 154, 74, 153, 136, 155, 35, 76, 66, 220, 246, 162, 18,
-	159, 243, 223, 177, 184, 150, 155, 140, 147, 93, 249, 175, 131, 143, 40, 110, 48, 89, 248, 34,
-	49, 22, 190, 248, 161, 22, 184, 185, 254, 197, 91, 160, 153, 215, 34, 69, 213, 97, 40, 21, 18,
-	100, 234, 46, 217, 16, 251,
-];
-pub const RELAYER_2_BLS_PUBLIC_KEY: [u8; 192] = [
-	3, 159, 39, 235, 29, 144, 85, 28, 109, 251, 34, 191, 172, 222, 31, 46, 217, 242, 98, 156, 43,
-	195, 80, 220, 170, 58, 138, 231, 251, 222, 178, 12, 157, 170, 166, 107, 228, 39, 209, 143, 123,
-	250, 3, 230, 57, 20, 111, 241, 7, 70, 84, 203, 51, 56, 171, 10, 115, 10, 191, 200, 111, 44, 71,
-	217, 218, 230, 217, 92, 158, 236, 98, 196, 10, 126, 13, 143, 235, 207, 149, 57, 228, 26, 187,
-	169, 39, 107, 156, 68, 184, 116, 125, 96, 53, 163, 209, 117, 12, 162, 94, 175, 159, 75, 14, 55,
-	77, 214, 56, 37, 163, 212, 254, 127, 81, 65, 203, 102, 154, 211, 214, 1, 35, 143, 51, 49, 213,
-	167, 27, 81, 215, 93, 183, 40, 98, 97, 246, 185, 18, 72, 181, 97, 169, 24, 253, 230, 16, 166,
-	139, 111, 199, 52, 110, 245, 13, 38, 212, 85, 114, 135, 144, 198, 192, 221, 224, 107, 197, 24,
-	148, 33, 203, 140, 170, 84, 78, 14, 72, 195, 197, 28, 44, 161, 140, 39, 113, 64, 102, 48, 113,
-	147, 248, 127, 198, 54,
-];
-pub const RELAYER_3_BLS_PUBLIC_KEY: [u8; 192] = [
-	16, 123, 35, 130, 63, 94, 61, 2, 80, 139, 183, 36, 238, 9, 216, 200, 33, 144, 172, 9, 251, 45,
-	160, 80, 242, 195, 231, 71, 130, 55, 224, 255, 242, 56, 194, 143, 19, 215, 151, 255, 254, 192,
-	190, 132, 165, 3, 179, 254, 6, 176, 28, 241, 217, 0, 104, 28, 170, 105, 190, 55, 97, 102, 209,
-	53, 247, 114, 34, 110, 191, 111, 215, 207, 180, 223, 87, 198, 125, 48, 150, 85, 255, 61, 214,
-	247, 62, 133, 70, 245, 159, 45, 9, 239, 227, 201, 16, 215, 22, 126, 40, 231, 145, 174, 111,
-	192, 72, 239, 200, 213, 239, 183, 173, 127, 241, 67, 166, 249, 202, 67, 136, 88, 163, 155, 11,
-	181, 116, 129, 183, 197, 244, 226, 124, 134, 156, 102, 199, 94, 20, 43, 83, 40, 111, 29, 246,
-	240, 2, 253, 117, 78, 64, 24, 69, 77, 46, 28, 24, 169, 8, 118, 32, 13, 246, 134, 45, 44, 125,
-	87, 161, 10, 83, 226, 211, 165, 5, 77, 240, 4, 177, 254, 226, 148, 112, 107, 82, 126, 94, 86,
-	212, 183, 169, 250, 83, 107,
-];
-pub const SET_THEA_KEY_PARAMETERS: ([u8; 64], [u8; 96], u128) = (
-	[
-		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-	],
-	[
-		23, 66, 180, 26, 28, 111, 110, 214, 197, 11, 115, 191, 170, 132, 59, 193, 186, 37, 219, 80,
-		65, 65, 179, 62, 17, 127, 79, 231, 14, 114, 179, 227, 143, 9, 247, 181, 188, 216, 107, 130,
-		219, 233, 133, 203, 150, 7, 255, 153, 11, 159, 177, 244, 113, 3, 134, 137, 106, 109, 7, 64,
-		86, 33, 1, 235, 14, 162, 238, 66, 216, 93, 192, 42, 192, 105, 161, 1, 82, 171, 206, 146,
-		67, 193, 195, 159, 63, 114, 62, 48, 198, 226, 197, 249, 137, 32, 236, 18,
-	],
-	5,
-);
-pub const QUEUED_QUEUED_THEA_KEY_PARAMETERS: ([u8; 64], [u8; 96], u128) = (
-	[
-		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-	],
-	[
-		23, 66, 180, 26, 28, 111, 110, 214, 197, 11, 115, 191, 170, 132, 59, 193, 186, 37, 219, 80,
-		65, 65, 179, 62, 17, 127, 79, 231, 14, 114, 179, 227, 143, 9, 247, 181, 188, 216, 107, 130,
-		219, 233, 133, 203, 150, 7, 255, 153, 11, 159, 177, 244, 113, 3, 134, 137, 106, 109, 7, 64,
-		86, 33, 1, 235, 14, 162, 238, 66, 216, 93, 192, 42, 192, 105, 161, 1, 82, 171, 206, 146,
-		67, 193, 195, 159, 63, 114, 62, 48, 198, 226, 197, 249, 137, 32, 236, 18,
-	],
-	5,
-);
-pub const CHANGE_THEA_KEY_PARAMETERS: ([u8; 96], u128) = (
-	[
-		9, 17, 126, 238, 113, 248, 97, 23, 1, 36, 99, 153, 116, 22, 182, 33, 40, 93, 154, 193, 70,
-		239, 31, 100, 2, 50, 213, 203, 229, 157, 93, 130, 62, 254, 101, 217, 84, 20, 39, 160, 241,
-		215, 215, 34, 197, 136, 75, 183, 20, 165, 222, 218, 209, 20, 231, 0, 132, 165, 146, 36, 39,
-		162, 81, 14, 108, 14, 85, 54, 15, 195, 148, 22, 71, 72, 157, 63, 195, 174, 230, 50, 21,
-		110, 144, 198, 111, 41, 144, 74, 46, 181, 36, 175, 50, 175, 98, 160,
-	],
-	6,
-);
 
 pub fn set_kth_bit(number: u128, k_value: u8) -> u128 {
 	(1 << k_value) | number
@@ -806,32 +728,57 @@ fn claim_deposit_pass_with_proper_inputs() {
 fn batch_withdrawal_complete_works() {
 	new_test_ext().execute_with(|| {
 		// create
+		const PK: [u8; 64] = [1u8; 64];
+		const MAP: u128 = 7;
+		const NETWORK: u8 = 1;
 		let mut awd = vec![];
-		let asset_id = H256::default();
+		let hash = H256::zero();
 		for i in 1..11 {
 			awd.push(ApprovedWithdraw {
 				asset_id: i,
 				amount: i as u128,
-				network: 1,
+				network: NETWORK,
 				beneficiary: vec![i as u8],
 				payload: vec![i as u8],
 				index: i as u32,
 			});
 		}
 		let awd: BoundedVec<ApprovedWithdraw, ConstU32<10>> = awd.try_into().unwrap();
-		<ReadyWithdrawls<Test>>::insert(1, 1, awd);
-		// check
-		assert!(!Thea::ready_withdrawals(1, 1).is_empty());
-		// clean
+		<ReadyWithdrawls<Test>>::insert(NETWORK, 1, awd);
+		let secret_keys = create_three_bls_keys();
+		let public_keys = create_bls_public_keys(secret_keys.clone());
+		<RelayersBLSKeyVector<Test>>::insert(NETWORK, public_keys);
+		<TheaPublicKey<Test>>::insert(NETWORK, PK);
+		<WithdrawalNonces<Test>>::insert(NETWORK, 7);
+		let nonce = <WithdrawalNonces<Test>>::get(NETWORK);
+		let payload = (hash, NETWORK, nonce).encode();
+		let signature = sign_payload_with_keys(payload, secret_keys);
+		// check errors
+		assert!(!Thea::ready_withdrawals(NETWORK, 1).is_empty());
+		assert_err!(
+			Thea::batch_withdrawal_complete(Origin::signed(1), 1, NETWORK, hash, MAP, signature),
+			Error::<Test>::WithdrawalNonceIncorrect
+		);
+		assert_err!(
+			Thea::batch_withdrawal_complete(
+				Origin::signed(1),
+				nonce,
+				NETWORK,
+				hash,
+				MAP,
+				[9u8; 96]
+			),
+			Error::<Test>::BLSSignatureVerificationFailed
+		);
+		// check ok
 		assert_ok!(Thea::batch_withdrawal_complete(
 			Origin::signed(1),
-			1,
-			1,
-			asset_id,
-			1,
-			[1 as u8; 96]
+			nonce,
+			NETWORK,
+			hash,
+			MAP,
+			signature
 		));
-		//check
 	});
 }
 
@@ -847,7 +794,7 @@ fn test_withdrawal_fee_origins() {
 #[test]
 fn test_thea_key_rotation() {
 	new_test_ext().execute_with(|| {
-    // test call fails as expected
+		// test call fails as expected
 		assert_err!(
 			Thea::thea_key_rotation_complete(
 				Origin::signed(1),
@@ -881,23 +828,26 @@ fn test_set_thea_key_complete() {
 	new_test_ext().execute_with(|| {
 		let secret_keys = create_three_bls_keys();
 		let public_keys = create_bls_public_keys(secret_keys.clone());
-		<RelayersBLSKeyVector<Test>>::insert(1, public_keys.clone());
-		<QueuedTheaPublicKey<Test>>::insert(1, [1_u8; 64]);
 		let payload = [1_u8; 64].encode();
 		let signature = sign_payload_with_keys(payload, secret_keys.clone());
+		const PK: [u8; 64] = [1u8; 64];
+		const MAP: u128 = 7;
+		<RelayersBLSKeyVector<Test>>::insert(1, public_keys.clone());
+		<TheaPublicKey<Test>>::insert(1, PK);
+		<QueuedTheaPublicKey<Test>>::insert(1, PK);
 		// test call no key fails as expected
 		assert_err!(
-			Thea::set_thea_key_complete(Origin::signed(1), 1, pk, map, sig),
+			Thea::set_thea_key_complete(Origin::signed(1), 1, PK, MAP, signature),
 			Error::<Test>::QueuedTheaPublicKeyNotFound
 		);
-		<TheaPublicKey<Test>>::insert(1, [1u8; 64]);
+		<TheaPublicKey<Test>>::insert(1, [2u8; 64]);
 		// test call fails with bad signature
 		assert_err!(
-			Thea::set_thea_key_complete(Origin::signed(1), 1, [1u8; 64], 1, [1u8; 96]),
+			Thea::set_thea_key_complete(Origin::signed(1), 1, PK, MAP, [9u8; 96]),
 			Error::<Test>::BLSSignatureVerificationFailed
 		);
-    // test call
-		assert_ok!(Thea::set_thea_key_complete(Origin::signed(1), 1, [1_u8; 64], 7, signature));
+		// test call
+		assert_ok!(Thea::set_thea_key_complete(Origin::signed(1), 1, PK, MAP, signature));
 	});
 }
 
@@ -962,7 +912,10 @@ pub fn create_three_bls_keys() -> Vec<SecretKey> {
 }
 
 pub fn create_bls_public_keys(secret_keys: Vec<SecretKey>) -> Vec<BLSPublicKey> {
-	secret_keys.into_iter().map(|key| BLSPublicKey(key.sk_to_pk().serialize())).collect::<Vec<BLSPublicKey>>()
+	secret_keys
+		.into_iter()
+		.map(|key| BLSPublicKey(key.sk_to_pk().serialize()))
+		.collect::<Vec<BLSPublicKey>>()
 }
 
 pub fn sign_payload_with_keys(payload: Vec<u8>, keys: Vec<SecretKey>) -> [u8; 96] {
