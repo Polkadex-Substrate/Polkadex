@@ -31,6 +31,10 @@ pub trait TheaExt {
 		let bit_map_vec = return_set_bits(bit_map);
 		let mut agg_pk: Option<AggregatePublicKey> = None;
 		for x in bit_map_vec {
+			// prevent panic on index out of bounds
+			if x as usize >= bls_public_keys.len() {
+				return false
+			}
 			// Fetch public key
 			let _current_public_key = &bls_public_keys[x as usize];
 			// Create public key from Vec from bytes

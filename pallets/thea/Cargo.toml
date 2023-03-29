@@ -26,10 +26,20 @@ sp-runtime = { workspace = true, default-features = false }
 asset-handler = {path = "../asset-handler", default-features = false}
 thea-primitives = { path = "../../thea-primitives", default-features = false }
 thea-staking = { path = "../thea-staking", default-features = false }
-
 xcm = { workspace = true, default-features = false }
-
 pallet-balances = { default-features = false, workspace = true } # TODO: optional for PR, optional = true }
+
+[dev-dependencies]
+pallet-staking-reward-curve = { workspace = true }
+pallet-staking = { default-features = false, workspace = true }
+pallet-assets = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
+chainbridge = { path = "../chainbridge", default-features = false }
+asset-handler = { path = "../asset-handler", default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-keystore = { workspace = true, default-features = false }
+sp-application-crypto = { workspace = true, default-features = false }
+blst = "0.3.10"
 
 [features]
 default = ["std"]
