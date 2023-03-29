@@ -1,3 +1,4 @@
+//! This module contains code that defines test cases related to a offline storage of worker module.
 use primitive_types::H128;
 use std::{borrow::Cow, future::Future, sync::Arc};
 
@@ -486,6 +487,7 @@ pub async fn test_process_chunk() {
 	assert_eq!(status, StateSyncStatus::Available);
 }
 
+// Test `store_snapshot` function then retrieve and decode that snapshot to verify its correctness.
 #[tokio::test]
 pub async fn test_store_snapshot() {
 	let alice = AccountKeyring::Alice.pair();
@@ -546,6 +548,8 @@ pub async fn test_store_snapshot() {
 	assert_eq!(snapshot_summary, store_summary);
 }
 
+// Test `load_snapshot` function, then retrieve and decode the last snapshot and assert if correct
+// snapshot was loaded. Also assert if workers last snapshot was updated.
 #[tokio::test]
 pub async fn test_load_snapshot() {
 	let alice = AccountKeyring::Alice.pair();
@@ -609,6 +613,8 @@ pub async fn test_load_snapshot() {
 	assert_eq!(get_snapshot_summary.read().state_change_id, state_change_id);
 }
 
+// Test `load_snapshot` with invalid summary. Also assert that workers last snapshot should not be
+// updated.
 #[tokio::test]
 pub async fn test_load_snapshot_with_invalid_summary() {
 	let alice = AccountKeyring::Alice.pair();
