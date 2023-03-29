@@ -52,7 +52,7 @@ mod tests {
 	pub fn test_generate_and_load_back() {
 		use super::*;
 		let key_type = KeyTypeId(*b"blsk");
-		let public = Public::generate_pair(key_type, None);
+		let public = Public::generate_pair(key_type, Some(b"owner word vocal dose decline sunset battle example forget excite gentle waste//1//orderbook".to_vec()));
 		let loaded_keys = Public::all(key_type);
 		assert_eq!(loaded_keys.len(), 1);
 		assert_eq!(loaded_keys[0], public);
