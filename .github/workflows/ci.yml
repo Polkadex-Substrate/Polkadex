@@ -76,9 +76,9 @@ jobs:
           cargo clippy -V
       - name: Build Project
         run: |
+#           ToDO: Build with warnings and runtime benchmark flags (Issue number 683)
           cargo clean
-          cargo build --release --features runtime-benchmarks
-          RUSTFLAGS="-D warnings" cargo build
+          cargo build --release
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy

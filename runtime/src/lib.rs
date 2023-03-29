@@ -58,7 +58,7 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use polkadex_primitives::{
-	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,PendingWithdrawalsLimit
+	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;

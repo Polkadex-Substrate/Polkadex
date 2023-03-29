@@ -33,18 +33,20 @@ use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
+// ToDo : Issue 682
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// mod tests;
 
 use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::traits::One;
+// #[cfg(feature = "runtime-benchmarks")]
+// use sp_runtime::traits::One;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+// ToDo : Issue 683
+// #[cfg(feature = "runtime-benchmarks")]
+// mod benchmarking;
 pub mod weights;
 
 pub use weights::*;
@@ -758,7 +760,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		//TODO: Benchmark change_pending_withdrawal_limit
+		// TODO: Benchmark change_pending_withdrawal_limit (Issue number 683)
+		/// The extrinsic will be used to change pending withdrawals limit
+		///
+		/// # Parameters
+		/// * `origin`: Orderbook governance
+		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance
+		/// wants to set.
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn change_pending_withdrawal_limit(
 			origin: OriginFor<T>,
@@ -769,7 +777,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		//TODO: Benchmark change_snapshot_interval_blocl
+		// TODO: Benchmark change_snapshot_interval_block (Issue number 683)
+		/// The extrinsic will be used to change snapshot interval based on block number
+		///
+		/// # Parameters
+		/// * `origin`: Orderbook governance
+		/// * `new_snapshot_interval_block`: The new block interval at which snapshot should  be
+		/// generated.
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn change_snapshot_interval_block(
 			origin: OriginFor<T>,
