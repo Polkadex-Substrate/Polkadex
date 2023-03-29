@@ -23,9 +23,6 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
-mod fixtures;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use sp_std::{
@@ -328,7 +325,7 @@ pub mod pallet {
 		/// Thea Key Rotation is taking place
 		TheaKeyRotationInPlace,
 		/// Wrong Withdrawal Nonce provided in batch complete
-		WithdrawalNonceIncorrect
+		WithdrawalNonceIncorrect,
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -475,7 +472,10 @@ pub mod pallet {
 			// We update the withdrawal nonce when we perform a `do_withdraw` and
 			// this extrinsic is to inform the chain the withdrawal has been
 			// executed correctly in the foreign chain
-			ensure!(current_withdrawal_nonce == withdrawal_nonce, Error::<T>::WithdrawalNonceIncorrect);
+			ensure!(
+				current_withdrawal_nonce == withdrawal_nonce,
+				Error::<T>::WithdrawalNonceIncorrect
+			);
 
 			// Fetch current active relayer set BLS Keys
 			let current_relayer_set = Self::get_relayers_key_vector(network);
@@ -491,7 +491,8 @@ pub mod pallet {
 				Error::<T>::BLSSignatureVerificationFailed
 			);
 
-			// We remove the withdrawals from ReadyWithdrawals so that other withdrawals can be processed
+			// We remove the withdrawals from ReadyWithdrawals so that other withdrawals can be
+			// processed
 			<ReadyWithdrawls<T>>::take(network, withdrawal_nonce);
 			Self::deposit_event(Event::<T>::WithdrawalExecuted(withdrawal_nonce, network, tx_hash));
 			Ok(())
@@ -641,7 +642,10 @@ pub mod pallet {
 			let current_round_index = <TheaSessionId<T>>::get(network);
 			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
 			<TheaKeyRotation<T>>::insert(network, false);
-			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index.saturating_sub(1)));
+			Self::deposit_event(Event::TheaKeyUpdated(
+				network,
+				current_round_index.saturating_sub(1),
+			));
 			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
 				relayer,
 				bit_map,
