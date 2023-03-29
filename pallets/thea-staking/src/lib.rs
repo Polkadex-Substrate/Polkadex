@@ -617,7 +617,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn queued_relayers)]
 	/// Upcoming relayer set
-	pub(super) type QueuedRelayers<T: Config> =
+	pub type QueuedRelayers<T: Config> =
 		StorageMap<_, Blake2_128Concat, Network, Vec<(T::AccountId, BLSPublicKey)>, ValueQuery>;
 
 	#[pallet::storage]
