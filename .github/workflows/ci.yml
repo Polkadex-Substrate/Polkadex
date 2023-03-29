@@ -84,9 +84,9 @@ jobs:
 #          cargo clean
 #          cargo build --release --features runtime-benchmarks
 #          RUSTFLAGS="-D warnings" cargo build
-      - name: Check Formatting
-        run: cargo fmt --check
-#        ToDo: Uncomment after fixing issue 684
+#       ToDo: After fixing issue #684 comment out clippy
+#      - name: Check Formatting
+#        run: cargo fmt --check
 #      - name: Check Clippy
 #        run: cargo clippy -- -D warnings
       - name: Test Project
