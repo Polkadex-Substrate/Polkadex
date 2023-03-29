@@ -1,3 +1,4 @@
+//! This module contains code that defines test cases related to a trading system of worker module.
 use crate::{
 	error::Error,
 	worker::{add_proxy, deposit, process_trade, register_main, remove_proxy},
@@ -15,18 +16,21 @@ use sp_core::{blake2_128, offchain::OffchainStorage, Bytes, Pair, H160, H256};
 use sp_keyring::AccountKeyring;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
+/// This function returns a tuple containing Alice's main account and a proxy account
 pub fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Alice.pair().public());
 	let proxy_account = AccountId::from([1_u8; 32]);
 	(main_account, proxy_account)
 }
 
+/// This function returns a tuple containing Bob's main account and a proxy account
 pub fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Bob.pair().public());
 	let proxy_account = AccountId::from([5_u8; 32]);
 	(main_account, proxy_account)
 }
 
+// register main account and assert changes in db
 #[test]
 pub fn register_main_account() {
 	let mut working_state_root = [0u8; 32];
@@ -41,6 +45,7 @@ pub fn register_main_account() {
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy]);
 }
 
+// Try to re register main account and assert expected error
 #[test]
 pub fn re_register_main_account() {
 	let mut working_state_root = [0u8; 32];
@@ -53,6 +58,7 @@ pub fn re_register_main_account() {
 	assert_eq!(result, Err(Error::MainAlreadyRegistered).into());
 }
 
+// add proxy account and assert changes in db
 #[test]
 pub fn add_proxy_account() {
 	let mut working_state_root = [0u8; 32];
@@ -69,6 +75,7 @@ pub fn add_proxy_account() {
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy, alice_new_proxy_account]);
 }
 
+// Try to add a duplicate proxy account and assert expected error
 #[test]
 pub fn add_duplicate_proxy_account() {
 	let mut working_state_root = [0u8; 32];
@@ -81,6 +88,7 @@ pub fn add_duplicate_proxy_account() {
 	assert_eq!(result, Err(Error::ProxyAlreadyRegistered).into());
 }
 
+// Try to add a proxy account when main account is not registered and assert expected error
 #[test]
 pub fn add_proxy_account_when_main_account_not_register() {
 	let mut working_state_root = [0u8; 32];
@@ -92,6 +100,7 @@ pub fn add_proxy_account_when_main_account_not_register() {
 	assert_eq!(result, Err(Error::MainAccountNotFound).into());
 }
 
+// remove proxy account and assert changes in db
 #[test]
 pub fn remove_proxy_account() {
 	let mut working_state_root = [0u8; 32];
@@ -107,6 +116,7 @@ pub fn remove_proxy_account() {
 	assert_eq!(account_info_in_db.proxies, vec![]);
 }
 
+// Try to remove a proxy account when main account not registered
 #[test]
 pub fn remove_proxy_account_when_main_account_not_register() {
 	let mut working_state_root = [0u8; 32];
@@ -120,6 +130,7 @@ pub fn remove_proxy_account_when_main_account_not_register() {
 	);
 }
 
+// Try to remove a non registered proxy account and assert expected error
 #[test]
 pub fn remove_unregister_proxy_account() {
 	let mut working_state_root = [0u8; 32];
@@ -134,6 +145,7 @@ pub fn remove_unregister_proxy_account() {
 	);
 }
 
+// Try to deposit a amount when main account is not register and assert expected error
 #[test]
 pub fn deposit_when_main_account_not_register() {
 	let mut working_state_root = [0u8; 32];
@@ -145,6 +157,7 @@ pub fn deposit_when_main_account_not_register() {
 	assert_eq!(result, Err(Error::MainAccountNotFound).into());
 }
 
+// Deposit assets in users main account and assert changes in DB
 #[test]
 pub fn deposit_asset() {
 	let mut working_state_root = [0u8; 32];
@@ -169,6 +182,7 @@ pub fn deposit_asset() {
 	assert_eq!(balance, Decimal::new(20, 0));
 }
 
+// Process a receive trade and assert balance changes in DB
 #[test]
 pub fn process_a_trade() {
 	let mut working_state_root = [0u8; 32];
