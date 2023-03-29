@@ -23,6 +23,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod fixtures;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use sp_std::{
@@ -638,7 +641,7 @@ pub mod pallet {
 			let current_round_index = <TheaSessionId<T>>::get(network);
 			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
 			<TheaKeyRotation<T>>::insert(network, false);
-			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
+			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index.saturating_sub(1)));
 			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
 				relayer,
 				bit_map,
