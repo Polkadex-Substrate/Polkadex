@@ -77,7 +77,6 @@ jobs:
       - name: Build Project
 #      ToDo: After fixing issue #683 replace this run with commented out one
         run: |
-#  ToDo: After fixing issue #683 run node with runtime-benchmarks flag as well
           cargo clean
           cargo build --release
 #        run: |
