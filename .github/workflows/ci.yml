@@ -75,19 +75,19 @@ jobs:
           cargo fmt -- --version
           cargo clippy -V
       - name: Build Project
-#      ToDo: After fixing issue #683 replace this run with commented out one
+        #      ToDo: After fixing issue #683 replace this run with commented out one
         run: |
           cargo clean
           cargo build --release
-#        run: |
-#          cargo clean
-#          cargo build --release --features runtime-benchmarks
-#          RUSTFLAGS="-D warnings" cargo build
+      #        run: |
+      #          cargo clean
+      #          cargo build --release --features runtime-benchmarks
+      #          RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
-#       ToDo: After fixing issue #684 comment out clippy
-#      - name: Check Clippy
-#        run: cargo clippy -- -D warnings
+      #       ToDo: After fixing issue #684 comment out clippy
+      #      - name: Check Clippy
+      #        run: cargo clippy -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
