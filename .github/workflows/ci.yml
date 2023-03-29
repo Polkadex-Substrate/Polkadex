@@ -75,10 +75,15 @@ jobs:
           cargo fmt -- --version
           cargo clippy -V
       - name: Build Project
+#      ToDo: After fixing issue #683 replace this run with commented out one
         run: |
 #  ToDo: After fixing issue #683 run node with runtime-benchmarks flag as well
           cargo clean
           cargo build --release
+#        run: |
+#          cargo clean
+#          cargo build --release --features runtime-benchmarks
+#          RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
 #        ToDo: Uncomment after fixing issue 684
