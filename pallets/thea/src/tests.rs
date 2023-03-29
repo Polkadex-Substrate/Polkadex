@@ -32,6 +32,7 @@ use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::X1,
 };
+use crate::fixtures::{CHANGE_THEA_KEY_PARAMETERS, RELAYER_1_BLS_PUBLIC_KEY, RELAYER_2_BLS_PUBLIC_KEY, RELAYER_3_BLS_PUBLIC_KEY, SET_THEA_KEY_PARAMETERS};
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 pub const DST: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
@@ -769,18 +770,20 @@ fn test_withdrawal_fee_origins() {
 #[test]
 fn test_thea_key_rotation() {
 	new_test_ext().execute_with(|| {
-		// relayer key insert
-		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
-		<RelayersBLSKeyVector<Test>>::insert(1, vec![bls_key]);
-		// authority insert
-		<AuthorityListVector<Test>>::insert(1, vec![1]);
+		let secret_keys = create_three_bls_keys();
+		let public_keys = create_bls_public_keys(secret_keys.clone());
+		<RelayersBLSKeyVector<Test>>::insert(1, public_keys.clone());
+		<QueuedTheaPublicKey<Test>>::insert(1, [1_u8; 64]);
+		let payload = (H256::zero(), 1_u8).encode();
+		let signature = sign_payload_with_keys(payload.clone(), secret_keys.clone());
 		// test call
+		// BitMap is 7 because all relayers are signing the payload
 		assert_ok!(Thea::thea_key_rotation_complete(
 			Origin::signed(1),
 			1,
-			H256::default(),
-			1u128,
-			[1u8; 96]
+			H256::zero(),
+			7,
+			signature
 		));
 	});
 }
@@ -788,27 +791,47 @@ fn test_thea_key_rotation() {
 #[test]
 fn test_set_thea_key_complete() {
 	new_test_ext().execute_with(|| {
-		// relayer key insert
-		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
-		<RelayersBLSKeyVector<Test>>::insert(1, vec![bls_key]);
-		// authority insert
-		<AuthorityListVector<Test>>::insert(1, vec![1]);
-		// thea public key insert
-		<TheaPublicKey<Test>>::insert(1, [1u8; 64]);
+		let secret_keys = create_three_bls_keys();
+		let public_keys = create_bls_public_keys(secret_keys.clone());
+		<RelayersBLSKeyVector<Test>>::insert(1, public_keys.clone());
+		<QueuedTheaPublicKey<Test>>::insert(1, [1_u8; 64]);
+		let payload = [1_u8; 64].encode();
+		let signature = sign_payload_with_keys(payload, secret_keys.clone());
 		// test call
-		assert_ok!(Thea::set_thea_key_complete(Origin::signed(1), 1, [1u8; 64], 1, [1u8; 96]));
+		assert_ok!(Thea::set_thea_key_complete(Origin::signed(1), 1, [1_u8; 64], 7, signature));
 	});
 }
 
 #[test]
 fn test_thea_queued_queued_public_key() {
 	new_test_ext().execute_with(|| {
+		let secret_keys = create_three_bls_keys();
+		let public_keys = create_bls_public_keys(secret_keys.clone());
+		<RelayersBLSKeyVector<Test>>::insert(1, public_keys.clone());
+		<QueuedTheaPublicKey<Test>>::insert(1, [1_u8; 64]);
+
+		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
+		assert_ok!(Balances::set_balance(Origin::root(), 2, 1_000_000_000_000, 0));
+		assert_ok!(Balances::set_balance(Origin::root(), 3, 1_000_000_000_000, 0));
+
+		assert_ok!(TheaStaking::add_candidate(Origin::signed(1), 1, public_keys[0]));
+		assert_ok!(TheaStaking::add_candidate(Origin::signed(2), 1, public_keys[1]));
+		assert_ok!(TheaStaking::add_candidate(Origin::signed(3), 1, public_keys[2]));
+
+		assert_ok!(TheaStaking::add_network(Origin::root(), 1));
+
+		TheaStaking::rotate_session();
+		TheaStaking::rotate_session();
+
+		// Register Candidates on Thea Staking
+		let payload = [1_u8; 64].encode();
+		let signature = sign_payload_with_keys(payload, secret_keys.clone());
 		assert_ok!(Thea::thea_queued_queued_public_key(
 			Origin::signed(1),
 			1,
 			[1u8; 64],
-			1,
-			[1u8; 96]
+			7,
+			signature
 		));
 	});
 }
@@ -827,4 +850,30 @@ fn test_on_initialize() {
 		let msg = <IngressMessages<Test>>::get();
 		assert!(msg.is_empty());
 	});
+}
+
+pub fn create_three_bls_keys() -> Vec<SecretKey> {
+	let seed_1 = [1_u8; 32];
+	let secret_key_1 = SecretKey::key_gen(&seed_1, &[]).unwrap();
+	let seed_2 = [2_u8; 32];
+	let secret_key_2 = SecretKey::key_gen(&seed_2, &[]).unwrap();
+	let seed_3 = [3_u8; 32];
+	let secret_key_3 = SecretKey::key_gen(&seed_3, &[]).unwrap();
+	vec![secret_key_1, secret_key_2, secret_key_3]
+}
+
+pub fn create_bls_public_keys(secret_keys: Vec<SecretKey>) -> Vec<BLSPublicKey> {
+	secret_keys.into_iter().map(|key| BLSPublicKey(key.sk_to_pk().serialize())).collect::<Vec<BLSPublicKey>>()
+}
+
+pub fn sign_payload_with_keys(payload: Vec<u8>, keys: Vec<SecretKey>) -> [u8; 96] {
+	let mut signatures: Vec<Signature> = vec![];
+	for x in keys {
+		let signature = x.sign(&payload, DST, &[]);
+		signatures.push(signature)
+	}
+	let mut aggregate_signature = AggregateSignature::from_signature(&signatures[0]);
+	aggregate_signature.add_signature(&signatures[1], true).unwrap();
+	aggregate_signature.add_signature(&signatures[2], true).unwrap();
+	aggregate_signature.to_signature().serialize()
 }
