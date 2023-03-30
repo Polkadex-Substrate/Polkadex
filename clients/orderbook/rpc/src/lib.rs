@@ -13,6 +13,7 @@ use jsonrpsee::{
 use log::warn;
 use orderbook_primitives::types::{ObMessage, ObRecoveryState};
 use parking_lot::RwLock;
+use polkadex_primitives::BlockNumber;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_blockchain::HeaderBackend;
@@ -82,7 +83,7 @@ use reference_trie::{ExtensionLayout, RefHasher};
 pub struct OrderbookRpc<Client, Block> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
-	lock_64: Arc<RwLock<u64>>,
+	last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 	memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	client: Arc<Client>,
@@ -94,7 +95,7 @@ impl<Client, Block> OrderbookRpc<Client, Block> {
 	pub fn new(
 		_executor: SubscriptionTaskExecutor,
 		tx: UnboundedSender<ObMessage>,
-		lock_64: Arc<RwLock<u64>>,
+		last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 		memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		client: Arc<Client>,
@@ -102,7 +103,7 @@ impl<Client, Block> OrderbookRpc<Client, Block> {
 		Self {
 			tx,
 			_executor,
-			lock_64,
+			last_successful_block_no_snapshot_created,
 			memory_db,
 			working_state_root,
 			client,
@@ -126,20 +127,28 @@ where
 
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
 		// Snapshot generation logic will fix it
-		let last_finalized_block = 10_u64;
 
-		// get all accounts
+		let last_finalized_block = *self.last_successful_block_no_snapshot_created.read();
+
+		// // get all accounts
 		let all_register_accounts = self
 			.client
 			.runtime_api()
 			.get_all_accounts_and_proxies(&BlockId::number(last_finalized_block.saturated_into()))
-			.map_err(|err| JsonRpseeError::Custom(err.to_string()))?;
+			.map_err(|err| {
+				JsonRpseeError::Custom((err.to_string() + "failed to get accounts").to_string())
+			})?;
 
+		// get snapshot summary
 		let last_snapshot_summary = self
 			.client
 			.runtime_api()
 			.get_latest_snapshot(&BlockId::number(last_finalized_block.saturated_into()))
-			.map_err(|err| JsonRpseeError::Custom(err.to_string()))?;
+			.map_err(|err| {
+				JsonRpseeError::Custom(
+					(err.to_string() + "failed to get snapshot summary").to_string(),
+				)
+			})?;
 
 		// ToDo: Get all allow listed AssetIds
 		// ToDo: Create existing DB

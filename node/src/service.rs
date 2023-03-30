@@ -28,7 +28,7 @@ use memory_db::{HashKey, MemoryDB};
 use node_polkadex_runtime::RuntimeApi;
 use parking_lot::{RawRwLock, RwLock};
 use polkadex_client::ExecutorDispatch;
-use polkadex_primitives::Block;
+use polkadex_primitives::{Block, BlockNumber};
 use reference_trie::{ExtensionLayout, RefHasher};
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_executor::NativeElseWasmExecutor;
@@ -150,7 +150,7 @@ pub fn new_partial(
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
 			UnboundedReceiver<ObMessage>,
-			Arc<RwLock<u64>>,
+			Arc<RwLock<BlockNumber>>,
 			Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 			Arc<RwLock<[u8; 32]>>,
 		),
@@ -158,7 +158,7 @@ pub fn new_partial(
 	ServiceError,
 > {
 	// sample variable
-	let lock_64 = Arc::new(RwLock::new(0_u64));
+	let last_successful_block_no_snapshot_created = Arc::new(RwLock::new(0_u32.saturated_into()));
 	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
 	let working_state_root = Arc::new(RwLock::new([0; 32]));
 	let telemetry = config
@@ -268,7 +268,8 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.sync_keystore();
 		let chain_spec = config.chain_spec.cloned_box();
-		let lock_64_cloned = lock_64.clone();
+		let last_successful_block_no_snapshot_created_cloned =
+			last_successful_block_no_snapshot_created.clone();
 		let memory_db_cloned = memory_db.clone();
 		let working_state_root_cloned = working_state_root.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
@@ -291,7 +292,8 @@ pub fn new_partial(
 					finality_provider: finality_proof_provider.clone(),
 				},
 				orderbook: ob_messge_sink.clone(),
-				lock_64: lock_64_cloned.clone(),
+				last_successful_block_no_snapshot_created:
+					last_successful_block_no_snapshot_created_cloned.clone(),
 				memory_db: memory_db_cloned.clone(),
 				working_state_root: working_state_root_cloned.clone(),
 			};
@@ -317,7 +319,7 @@ pub fn new_partial(
 			rpc_setup,
 			telemetry,
 			ob_message_stream,
-			lock_64,
+			last_successful_block_no_snapshot_created,
 			memory_db,
 			working_state_root,
 		),
@@ -355,7 +357,7 @@ pub fn new_full_base(
 				rpc_setup,
 				mut telemetry,
 				orderbook_stream,
-				lock_64,
+				last_successful_block_no_snapshot_created,
 				memory_db,
 				working_state_root,
 			),
@@ -588,7 +590,8 @@ pub fn new_full_base(
 		marker: Default::default(),
 		is_validator: role.is_authority(),
 		message_sender_link: orderbook_stream,
-		lock_64: lock_64.clone(),
+		last_successful_block_no_snapshot_created: last_successful_block_no_snapshot_created
+			.clone(),
 		memory_db: memory_db.clone(),
 		working_state_root: working_state_root.clone(),
 	};

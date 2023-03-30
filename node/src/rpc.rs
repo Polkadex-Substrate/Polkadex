@@ -101,8 +101,8 @@ pub struct FullDeps<C, P, SC, B> {
 	pub grandpa: GrandpaDeps<B>,
 	/// Channel for sending ob messages to worker
 	pub orderbook: UnboundedSender<ObMessage>,
-	/// sample read write lock
-	pub lock_64: Arc<RwLock<u64>>,
+	/// last successful block number snapshot created
+	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 	/// memory db
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	/// working_state_root
@@ -151,7 +151,7 @@ where
 		babe,
 		grandpa,
 		orderbook,
-		lock_64,
+		last_successful_block_no_snapshot_created,
 		memory_db,
 		working_state_root,
 	} = deps;
@@ -202,7 +202,7 @@ where
 		OrderbookRpc::new(
 			subscription_executor,
 			orderbook,
-			lock_64,
+			last_successful_block_no_snapshot_created,
 			memory_db,
 			working_state_root,
 			client.clone(),
