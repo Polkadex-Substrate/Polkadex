@@ -715,7 +715,6 @@ where
 						expected_hash.0.as_ref(),
 						data,
 					);
-					//panic!("index {:?}", index);
 					// Update sync status map
 					self.sync_state_map
 						.entry(*index)
@@ -728,7 +727,7 @@ where
 		}
 	}
 
-	// Make it only available for test
+	#[cfg(test)]
 	pub fn get_sync_state_map_value(&self, key: u16) -> StateSyncStatus {
 		self.sync_state_map.get(&key).unwrap().clone()
 	}
