@@ -3,43 +3,32 @@ use primitive_types::H128;
 use std::{borrow::Cow, future::Future, sync::Arc};
 
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
-use log::trace;
 use memory_db::{HashKey, MemoryDB};
 use parity_scale_codec::{Decode, Encode};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use sc_client_api::{Backend, BlockchainEvents};
-use sc_network::{
-	config::{build_multiaddr, EmptyTransactionPool, Role},
-	NetworkWorker,
-};
-use sc_network_common::service::NetworkStateInfo;
-use sc_network_gossip::MessageIntent::PeriodicRebroadcast;
+use sc_client_api::{Backend};
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
-	TestClientBuilder, TestClientBuilderExt, TestNetFactory,
+	TestNetFactory,
 };
-use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
-use sp_consensus::SyncOracle;
+use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{blake2_128, Pair};
 use sp_keyring::AccountKeyring;
 use tokio::runtime::Runtime;
-use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+use trie_db::{TrieDBMut, TrieDBMutBuilder};
 
-use crate::Client;
 use bls_primitives::Pair as BLSPair;
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{
-		ObMessage, StateSyncStatus, UserActions, WithdrawPayloadCallByUser, WithdrawalRequest,
+		ObMessage, StateSyncStatus, WithdrawPayloadCallByUser, WithdrawalRequest,
 	},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId, BlockNumber};
 
 use crate::worker::{ObWorker, WorkerParams};
-
-use crate::error::Error;
 
 pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	SnapshotSummary::default();
