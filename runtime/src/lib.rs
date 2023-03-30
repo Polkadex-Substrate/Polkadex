@@ -1588,6 +1588,11 @@ impl_runtime_apis! {
 			OCEX::get_all_accounts_and_proxies()
 		}
 
+		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
+			OCEX::get_snapshot_generation_intervals()
+		}
+
+
 		fn get_allowlisted_assets() -> Vec<AssetId> {
 			OCEX::get_allowlisted_assets()
 		}
