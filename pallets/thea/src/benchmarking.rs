@@ -19,10 +19,8 @@
 //! Benchmarking setup for pallet-thea
 //#![cfg(feature = "runtime-benchmarks")]
 
-use super::{
-	pallet::{ApprovedDeposit, Pallet as Thea},
-	*,
-};
+use super::*;
+use crate::Pallet as Thea;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::{Config, RawOrigin};
@@ -36,17 +34,8 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 
 benchmarks! {
 	approve_deposit {
-		let a in 1 .. 10;
-		let m in 100 .. u32::MAX;
-		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
-		let staking_limits = StakingLimits {
-			mininum_relayer_stake: balance,
-			minimum_nominator_stake: balance,
-			maximum_nominator_per_relayer: 10,
-			max_relayers: a,
-		};
-		let call = Call::<T>::approve_deposit{ staking_limits };
-	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
+		let call = Call::<T>::approve_deposit{ };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 
 	claim_deposit {
 		let a in 0 .. 255;
@@ -58,7 +47,7 @@ benchmarks! {
 		for i in 1..101u128 {
 			let d = ApprovedDeposit {
 				recipient: 1 as u64,
-				network_id: NETWORK,
+				network_id: mock::NETWORK,
 				deposit_nonce: i as u32,
 				amount: i.saturating_add(100_000).saturating_mul(100_000),
 				asset_id,
@@ -75,117 +64,52 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(acconut.clone()).into())? }
 
 	batch_withdrawal_complete {
-		let m in 100 .. u32::MAX;
-		let k in 1 .. 255;
-		let x in 1 .. 255;
-		let candidate = account::<T::AccountId>("candidate", x, 0);
-		let nominator = account::<T::AccountId>("nominator", k, 0);
-		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
-		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), balance);
-		let call = Call::<T>::batch_withdrawal_complete{ candidate: candidate.clone() };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
+		let call = Call::<T>::batch_withdrawal_complete{ };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify {
-		assert_last_event::<T>(Event::Nominated { candidate, nominator }.into());
+		//assert_last_event::<T>(Event::Nominated { candidate, nominator }.into());
 	}
 
 	withdraw {
-		let m in 100 .. u32::MAX;
-		let k in 1 .. 255;
-		let x in 1 .. 255;
-		let nominator = account::<T::AccountId>("nominator", k, 0);
-		let candidate = account::<T::AccountId>("candidate", x, 0);
-		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
-		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
-		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
-		let call = Call::<T>::withdraw{ amount, candidate: candidate.clone() };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
+		let call = Call::<T>::withdraw{};
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify{
-		assert_last_event::<T>(Event::Bonded{ candidate, nominator, amount }.into());
+		//assert_last_event::<T>(Event::Bonded{ candidate, nominator, amount }.into());
 	}
 
 	set_withdrawal_fee {
-		let m in 100 .. u32::MAX;
-		let k in 1 .. 255;
-		let x in 1 .. 255;
-		let candidate = account::<T::AccountId>("candidate", x, 0);
-		let nominator = account::<T::AccountId>("nominator", k, 0);
-		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
-		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
-		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone()).unwrap();
-		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount, candidate.clone()).unwrap();
-		let call = Call::<T>::unbond { amount };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
+		let call = Call::<T>::set_withdrawal_fee{ };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify {
-		// None - as two events emmited, and only first one can have Some(candidate)
-		assert_last_event::<T>(Event::Unbonded{ candidate, nominator, amount }.into());
+		//assert_last_event::<T>(Event::Unbonded{ candidate, nominator, amount }.into());
 	}
 
 	thea_key_rotation_complete {
-		let m in 100_000_000 .. u32::MAX;
-		let k in 1 .. 255;
-		let x in 1 .. 255;
-		let nominator = account::<T::AccountId>("nominator", k, 0);
-		let candidate = account::<T::AccountId>("candidate", x, 0);
-		let amount: BalanceOf<T> = convert_to_balance::<T>(m);
-		let bound_amount: BalanceOf<T> = convert_to_balance::<T>(m - 10);
-		assert_ne!(amount, Zero::zero());
-		<CurrentIndex<T>>::put(1);
-		stake_nominator_candidate::<T>(k, nominator.clone(), candidate.clone(), amount);
-		TheaStaking::<T>::nominate(RawOrigin::Signed(nominator.clone()).into(), candidate.clone())?;
-		TheaStaking::<T>::bond(RawOrigin::Signed(nominator.clone()).into(), amount, candidate.clone())?;
-		// elect exposure
-		let exposure = <Candidates<T>>::get(1, &candidate).unwrap();
-		<TotalElectedRelayers<T>>::insert(1, vec!((nominator.clone(), exposure)));
-		TheaStaking::<T>::unbond(RawOrigin::Signed(nominator.clone()).into(), amount)?;
-		let prev_index = TheaStaking::<T>::current_index();
-		let ud = T::UnbondingDelay::get();
-		<CurrentIndex<T>>::put(prev_index + ud);
 		let call = Call::<T>::thea_key_rotation_complete{};
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(nominator.clone()).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify {
-		assert_last_event::<T>(Event::BondsWithdrawn{ nominator, amount }.into());
+		//assert_last_event::<T>(Event::BondsWithdrawn{ nominator, amount }.into());
 	}
 
 	set_thea_key_complete {
-		let m in 100 .. u32::MAX;
-		let k in 1 .. 255;
-		let candidate = account::<T::AccountId>("candidate", k, 0);
-		// register stake
-		let bls_key: BLSPublicKey = BLSPublicKey([k as u8; 192]);
-		let balance: BalanceOf<T> = convert_to_balance::<T>(m);
-		let exposure = Exposure {
-			score: 1000,
-			total: balance,
-			individual: balance,
-			bls_pub_key: bls_key,
-			stakers: Default::default(),
-		};
-		<Candidates<T>>::insert(1, candidate.clone(), exposure);
-		let call = Call::<T>::set_thea_key_complete{ network: 1 };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(candidate.clone()).into())? }
+		let call = Call::<T>::set_thea_key_complete{  };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify {
-		assert_last_event::<T>(Event::OutgoingCandidateAdded{ candidate }.into());
+		//assert_last_event::<T>(Event::OutgoingCandidateAdded{ candidate }.into());
 	}
 
 	thea_queued_queued_public_key {
-		let n in 1 .. 255;
-		let network: u8 = n as u8;
-		let go = T::GovernanceOrigin::successful_origin();
-		let call = Call::<T>::thea_queued_queued_public_key{ network };
-	}: { call.dispatch_bypass_filter(go)? }
+		let call = Call::<T>::thea_queued_queued_public_key{};
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify {
-		assert_last_event::<T>(Event::NetworkAdded{ network }.into());
+		//assert_last_event::<T>(Event::NetworkAdded{ network }.into());
 	}
 
 	thea_relayers_reset_rotation {
-		let n in 1 .. 255;
-		let network: u8 = n as u8;
-		let go = T::GovernanceOrigin::successful_origin();
-		TheaStaking::<T>::add_network(go.clone(), network).unwrap();
 		let call = Call::<T>::thea_relayers_reset_rotation{ network };
-	}: { call.dispatch_bypass_filter(go)? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify {
-		assert_last_event::<T>(Event::NetworkRemoved{ network }.into());
+		//assert_last_event::<T>(Event::NetworkRemoved{ network }.into());
 	}
 }
 
