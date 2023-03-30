@@ -332,7 +332,7 @@ pub async fn test_single_worker() {
 		main: alice_acc.clone(),
 		proxy: bob_acc,
 	};
-	worker.process_withdraw(withdraw_request).unwrap();
+	worker.process_withdraw(withdraw_request, 0).unwrap();
 	let charlie = AccountKeyring::Charlie.pair();
 	let charlie_acc = AccountId::from(charlie.public());
 	let withdraw_request = WithdrawalRequest {
@@ -341,7 +341,7 @@ pub async fn test_single_worker() {
 		main: alice_acc,
 		proxy: charlie_acc,
 	};
-	worker.process_withdraw(withdraw_request).unwrap()
+	worker.process_withdraw(withdraw_request, 0).unwrap()
 
 	// Lets send a trade
 }
