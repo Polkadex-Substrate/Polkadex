@@ -5,7 +5,10 @@ use futures::channel::mpsc::UnboundedReceiver;
 use orderbook_primitives::{ObApi, SnapshotSummary};
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 
+use memory_db::{HashKey, MemoryDB};
+use parking_lot::RwLock;
 use prometheus::Registry;
+use reference_trie::{ExtensionLayout, RefHasher};
 use sc_client_api::{Backend, BlockchainEvents, FinalityNotification, Finalizer};
 use sc_network::PeerId;
 use sc_network_common::protocol::event::Event;
@@ -120,6 +123,12 @@ where
 	// Links between the block importer, the background voter and the RPC layer.
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
+	// lock 64
+	pub lock_64: Arc<RwLock<u64>>,
+	// memory db
+	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	// working state root
+	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
 /// Start the Orderbook gadget.
@@ -145,6 +154,9 @@ where
 		is_validator,
 		message_sender_link,
 		marker: _,
+		lock_64,
+		memory_db,
+		working_state_root,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -176,7 +188,7 @@ where
 		_marker: Default::default(),
 	};
 
-	// Clone data here
+	// ToDo: Pass the parameters to the worker module
 	let mut worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
 
 	worker.run().await
