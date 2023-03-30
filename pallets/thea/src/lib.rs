@@ -17,14 +17,14 @@
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
 
-#[cfg(any(test, feature = "runtime-benchmarks"))]
+#[cfg(test)]
 mod util;
+
+#[cfg(test)]
+mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-
-#[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock;
 
 #[cfg(test)]
 mod tests;
