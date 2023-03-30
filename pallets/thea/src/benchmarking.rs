@@ -24,6 +24,8 @@ use crate::Pallet as Thea;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::{Config, RawOrigin};
+use pallet_balances as _;
+use sp_core::H160;
 use sp_runtime::traits::{ConstU32, Zero};
 use sp_std::vec;
 
@@ -47,10 +49,10 @@ benchmarks! {
 		for i in 1..101u128 {
 			let d = ApprovedDeposit {
 				recipient: 1 as u64,
-				network_id: mock::NETWORK,
+				network_id: 1,
 				deposit_nonce: i as u32,
 				amount: i.saturating_add(100_000).saturating_mul(100_000),
-				asset_id,
+				asset_id: H160::zero(),
 				tx_hash: [i as u8; 32].into(),
 			};
 			ad.push(d);
@@ -61,7 +63,7 @@ benchmarks! {
 		> = ad.try_into().unwrap();
 		<ApprovedDeposits<T>>::insert(account.clone(), ad);
 		let call = Call::<T>::claim_deposit{ num_deposits: 100 };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(acconut.clone()).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(account).into())? }
 
 	batch_withdrawal_complete {
 		let call = Call::<T>::batch_withdrawal_complete{ };
@@ -106,7 +108,7 @@ benchmarks! {
 	}
 
 	thea_relayers_reset_rotation {
-		let call = Call::<T>::thea_relayers_reset_rotation{ network };
+		let call = Call::<T>::thea_relayers_reset_rotation{ network: 1 };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
 	verify {
 		//assert_last_event::<T>(Event::NetworkRemoved{ network }.into());
