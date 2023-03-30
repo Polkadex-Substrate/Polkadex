@@ -24,6 +24,9 @@ pub trait TheaExt {
 		payload: &[u8],
 		bls_public_keys: &[BLSPublicKey],
 	) -> bool {
+		if bls_public_keys.is_empty() {
+			return false;
+		}
 		let recon_sig = match Signature::from_bytes(agg_sig) {
 			Ok(sig) => sig,
 			Err(_e) => return false,
