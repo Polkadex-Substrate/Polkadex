@@ -129,7 +129,9 @@ where
 	}
 
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
-		let last_finalized_block = *self.last_successful_block_no_snapshot_created.read();
+		let last_finalized_block_guard = self.last_successful_block_no_snapshot_created.read();
+		let last_finalized_block = last_finalized_block_guard.clone();
+
 		let memory_db_guard = self.memory_db.read();
 		let mut memory_db = memory_db_guard.clone();
 		let worker_state_root_guard = self.working_state_root.read();
