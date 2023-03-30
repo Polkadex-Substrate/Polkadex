@@ -130,7 +130,7 @@ where
 
 		let last_finalized_block = *self.last_successful_block_no_snapshot_created.read();
 
-		// // get all accounts
+		// get all accounts
 		let all_register_accounts = self
 			.client
 			.runtime_api()
@@ -150,7 +150,18 @@ where
 				)
 			})?;
 
-		// ToDo: Get all allow listed AssetIds
+		// Get all allow listed AssetIds
+		let allowlisted_asset_ids = self
+			.client
+			.runtime_api()
+			.get_allowlisted_assets(&BlockId::number(last_finalized_block.saturated_into()))
+			.map_err(|err| {
+				JsonRpseeError::Custom(
+					(err.to_string() + "failed to get allow listed asset ids").to_string(),
+				)
+			})?;
+
+
 		// ToDo: Create existing DB
 		// ToDo: Generate account info from existing DB
 		// ToDo: st_id ?

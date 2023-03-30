@@ -1406,6 +1406,12 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
 	}
 
+	// Returns allowlisted asset id's
+	pub fn get_allowlisted_assets() -> Vec<AssetId> {
+		<AllowlistedToken<T>>::get().iter().map(|asset_id| (asset_id.clone()))
+			.collect::<Vec<AssetId>>()
+	}
+
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_pallet_account() -> T::AccountId {
