@@ -85,7 +85,7 @@ jobs:
       #          RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
-      #       ToDo: After fixing issue #684 comment out clippy
+      #       ToDo: After fixing issue #684 uncomment clippy
       #      - name: Check Clippy
       #        run: cargo clippy -- -D warnings
       - name: Test Project
