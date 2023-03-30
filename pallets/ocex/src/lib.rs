@@ -89,14 +89,11 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_core::crypto::AccountId32;
-	use sp_runtime::traits::AccountIdConversion;
-	use sp_core::H256;
+	use sp_core::{crypto::AccountId32, H256};
 	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
+		traits::{AccountIdConversion, Convert, IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
-	use sp_runtime::traits::Convert;
 	use sp_std::vec::Vec;
 
 	pub trait OcexWeightInfo {
@@ -341,7 +338,7 @@ pub mod pallet {
 		/// Snapshot in invalid state
 		InvalidSnapshotState,
 		/// AccountId cannot be decoded
-		AccountIdCannotBeDecoded
+		AccountIdCannotBeDecoded,
 	}
 
 	#[pallet::hooks]
@@ -1044,22 +1041,23 @@ pub mod pallet {
 				// Update the snapshot nonce and move the summary to snapshots storage
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
 				//TODO: Handle Withdrawal
-				let withdrawal_map = Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
+				let withdrawal_map =
+					Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
 				if working_summary.withdrawals.len() > 0 {
 					ensure!(
-					<OnChainEvents<T>>::try_mutate(|onchain_events| {
-						onchain_events.try_push(
-							polkadex_primitives::ocex::OnChainEvents::GetStorage(
-								polkadex_primitives::ocex::Pallet::OCEX,
-								polkadex_primitives::ocex::StorageItem::Withdrawal,
-								working_summary.snapshot_id,
-							),
-						)?;
-						Ok::<(), ()>(())
-					})
-					.is_ok(),
-					Error::<T>::OnchainEventsBoundedVecOverflow
-				);
+						<OnChainEvents<T>>::try_mutate(|onchain_events| {
+							onchain_events.try_push(
+								polkadex_primitives::ocex::OnChainEvents::GetStorage(
+									polkadex_primitives::ocex::Pallet::OCEX,
+									polkadex_primitives::ocex::StorageItem::Withdrawal,
+									working_summary.snapshot_id,
+								),
+							)?;
+							Ok::<(), ()>(())
+						})
+						.is_ok(),
+						Error::<T>::OnchainEventsBoundedVecOverflow
+					);
 				}
 				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
@@ -1218,37 +1216,50 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn create_withdrawal_tree(pending_withdrawals: Vec<Withdrawal<AccountId32>>) -> Result<WithdrawalsMap<T>, sp_runtime::DispatchError> {
+		fn create_withdrawal_tree(
+			pending_withdrawals: Vec<Withdrawal<AccountId32>>,
+		) -> Result<WithdrawalsMap<T>, sp_runtime::DispatchError> {
 			let mut withdrawal_map: WithdrawalsMap<T> = BoundedBTreeMap::new();
 			for withdrawal in pending_withdrawals {
-				let recipient_account: T::AccountId = T::AccountId::decode(&mut withdrawal.main_account.as_ref()).map_err(|_| Error::<T>::AccountIdCannotBeDecoded)?;
+				let recipient_account: T::AccountId =
+					T::AccountId::decode(&mut withdrawal.main_account.as_ref())
+						.map_err(|_| Error::<T>::AccountIdCannotBeDecoded)?;
 				if let Some(pending_withdrawals) = withdrawal_map.get_mut(&recipient_account) {
 					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
 						main_account: recipient_account.clone(),
 						amount: withdrawal.amount,
 						asset: withdrawal.asset,
 						event_id: withdrawal.event_id,
-						fees: withdrawal.fees
+						fees: withdrawal.fees,
 					};
-					pending_withdrawals.try_push(new_withdrawal).map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					pending_withdrawals
+						.try_push(new_withdrawal)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
 				} else {
-					let mut pending_withdrawals: BoundedVec<Withdrawal<<T as frame_system::Config>::AccountId>, WithdrawalLimit>  = BoundedVec::default();
+					let mut pending_withdrawals: BoundedVec<
+						Withdrawal<<T as frame_system::Config>::AccountId>,
+						WithdrawalLimit,
+					> = BoundedVec::default();
 					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
 						main_account: recipient_account.clone(),
 						amount: withdrawal.amount,
 						asset: withdrawal.asset,
 						event_id: withdrawal.event_id,
-						fees: withdrawal.fees
+						fees: withdrawal.fees,
 					};
-					pending_withdrawals.try_push(new_withdrawal.clone()).map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
-					withdrawal_map.try_insert(recipient_account, pending_withdrawals).map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					pending_withdrawals
+						.try_push(new_withdrawal.clone())
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					withdrawal_map
+						.try_insert(recipient_account, pending_withdrawals)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
 				}
 			}
 			Ok(withdrawal_map)
 		}
 
-		// fn convert_account_id32_to_account_id<T, Z: Convert<AccountId32, T::AccountId>>(account_id32: AccountId32) -> T::AccountId {
-		// 	account_id32.into()
+		// fn convert_account_id32_to_account_id<T, Z: Convert<AccountId32,
+		// T::AccountId>>(account_id32: AccountId32) -> T::AccountId { 	account_id32.into()
 		// }
 	}
 
