@@ -149,15 +149,15 @@ mod tests {
 
 	#[test]
 	pub fn test_assetid_serde() {
-		let polkadex = AssetId::polkadex;
+		let polkadex_asset = AssetId::polkadex;
 		let asset_max = AssetId::asset(u128::MAX);
 
-		println!("{:?}", serde_json::to_string(&polkadex).unwrap());
+		println!("{:?}", serde_json::to_string(&polkadex_asset).unwrap());
 		println!("{:?}", serde_json::to_string(&asset_max).unwrap());
 
 		assert_eq!(
-			polkadex,
-			serde_json::from_str(&serde_json::to_string(&polkadex).unwrap()).unwrap()
+			polkadex_asset,
+			serde_json::from_str(&serde_json::to_string(&polkadex_asset).unwrap()).unwrap()
 		);
 		assert_eq!(
 			asset_max,
