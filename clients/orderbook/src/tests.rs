@@ -7,7 +7,7 @@ use memory_db::{HashKey, MemoryDB};
 use parity_scale_codec::{Decode, Encode};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use sc_client_api::{Backend};
+use sc_client_api::Backend;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
 	TestNetFactory,
@@ -21,9 +21,7 @@ use trie_db::{TrieDBMut, TrieDBMutBuilder};
 use bls_primitives::Pair as BLSPair;
 use orderbook_primitives::{
 	crypto::AuthorityId,
-	types::{
-		ObMessage, StateSyncStatus, WithdrawPayloadCallByUser, WithdrawalRequest,
-	},
+	types::{ObMessage, StateSyncStatus, WithdrawPayloadCallByUser, WithdrawalRequest},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId, BlockNumber};
