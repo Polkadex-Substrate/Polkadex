@@ -1,6 +1,8 @@
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{BlockNumber,ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature};
+use polkadex_primitives::{
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber, Signature,
+};
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -16,7 +18,6 @@ use std::{
 use crate::SnapshotSummary;
 
 pub type OrderId = H256;
-
 
 /// A struct representing the recovery state of an Order Book.
 #[derive(Clone, Debug, Encode, Decode)]
@@ -34,7 +35,7 @@ pub struct ObRecoveryState {
 
 impl ObRecoveryState {
 	pub fn new() -> Self {
-		ObRecoveryState{
+		ObRecoveryState {
 			snapshot_id: 0,
 			account_ids: BTreeMap::default(),
 			balances: BTreeMap::default(),
@@ -42,13 +43,9 @@ impl ObRecoveryState {
 		}
 	}
 
-	pub fn add_balance(&self) {
+	pub fn add_balance(&self) {}
 
-	}
-
-	pub fn add_account(&self) {
-
-	}
+	pub fn add_account(&self) {}
 }
 
 #[derive(Clone, Debug, Encode, Decode)]

@@ -36,6 +36,8 @@ polkadex-client = { path = "../client"}
 orderbook = {path = "../clients/orderbook"}
 orderbook-primitives = {path="../primitives/orderbook"}
 orderbook-rpc = {path="../clients/orderbook/rpc"}
+memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch ="master"  }
+reference-trie ={ git = "https://github.com/Polkadex-Substrate/trie.git", branch ="master"  }
 
 # Substrate dependencies
 thea-primitives = {path = "../thea-primitives"}
