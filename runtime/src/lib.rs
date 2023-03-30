@@ -65,6 +65,8 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
+use polkadex_primitives::AssetId;
+
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -1585,6 +1587,11 @@ impl_runtime_apis! {
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
 			OCEX::get_all_accounts_and_proxies()
 		}
+
+		fn get_allowlisted_assets() -> Vec<AssetId> {
+			OCEX::get_allowlisted_assets()
+		}
+
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
