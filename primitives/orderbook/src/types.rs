@@ -31,6 +31,8 @@ pub struct ObRecoveryState {
 	pub balances: BTreeMap<AccountAsset, Decimal>,
 	/// The last block number that was processed by validator.
 	pub last_process_block_number: BlockNumber,
+	/// State change id
+	pub state_change_id: u64,
 }
 
 impl ObRecoveryState {
@@ -40,6 +42,7 @@ impl ObRecoveryState {
 			account_ids: BTreeMap::default(),
 			balances: BTreeMap::default(),
 			last_process_block_number: 0,
+			state_change_id: 0,
 		}
 	}
 
@@ -80,6 +83,12 @@ pub struct AccountInfo {
 pub struct AccountAsset {
 	pub main: AccountId,
 	pub asset: AssetId,
+}
+
+impl AccountAsset {
+	pub fn new(main: AccountId, asset: AssetId) -> Self {
+		AccountAsset { main, asset }
+	}
 }
 
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]

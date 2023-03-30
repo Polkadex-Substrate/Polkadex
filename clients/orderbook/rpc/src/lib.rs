@@ -4,6 +4,7 @@
 
 use sc_rpc::SubscriptionTaskExecutor;
 
+use codec::{Decode, Encode};
 use futures::{channel::mpsc::UnboundedSender, task::SpawnError, SinkExt};
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult, __reexports::serde_json},
@@ -11,14 +12,16 @@ use jsonrpsee::{
 	types::{error::CallError, ErrorObject},
 };
 use log::warn;
-use orderbook_primitives::types::{ObMessage, ObRecoveryState};
+use orderbook_primitives::types::{AccountAsset, ObMessage, ObRecoveryState};
 use parking_lot::RwLock;
 use polkadex_primitives::BlockNumber;
+use rust_decimal::Decimal;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
+use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 #[derive(Debug, thiserror::Error)]
 /// Top-level error type for the RPC handler
@@ -126,9 +129,11 @@ where
 	}
 
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
-		// Snapshot generation logic will fix it
-
 		let last_finalized_block = *self.last_successful_block_no_snapshot_created.read();
+		let memory_db_guard = self.memory_db.read();
+		let mut memory_db = memory_db_guard.clone();
+		let worker_state_root_guard = self.working_state_root.read();
+		let mut worker_state_root = worker_state_root_guard.clone();
 
 		// get all accounts
 		let all_register_accounts = self
@@ -161,11 +166,30 @@ where
 				)
 			})?;
 
+		// Create existing DB, it will fail if root does not exist
+		let trie: TrieDBMut<ExtensionLayout> =
+			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
 
-		// ToDo: Create existing DB
-		// ToDo: Generate account info from existing DB
-		// ToDo: st_id ?
-		let ob_recovery_state = ObRecoveryState::new();
+		let mut ob_recovery_state = ObRecoveryState::new();
+
+		// Generate account info from existing DB
+		for (user_main_account, list_of_proxy_accounts) in all_register_accounts {
+			for asset in allowlisted_asset_ids.clone() {
+				let account_asset = AccountAsset::new(user_main_account.clone(), asset.clone());
+				match trie.get(&account_asset.encode()).unwrap() {
+					None => {},
+					Some(data) => {
+						let account_balance = Decimal::decode(&mut &data[..]).unwrap();
+						ob_recovery_state.balances.insert(account_asset, account_balance);
+					},
+				}
+			}
+			ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
+		}
+
+		ob_recovery_state.snapshot_id = last_snapshot_summary.snapshot_id;
+		ob_recovery_state.state_change_id = last_snapshot_summary.state_change_id;
+
 		let serialize_ob_recovery_state = serde_json::to_vec(&ob_recovery_state)?;
 		Ok(serialize_ob_recovery_state)
 	}

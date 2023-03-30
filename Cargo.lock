@@ -4818,6 +4818,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "polkadex-primitives",
  "reference-trie",
+ "rust_decimal",
  "sc-rpc",
  "sc-utils",
  "serde",
@@ -4827,6 +4828,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "thiserror",
+ "trie-db 0.26.0",
 ]
 
 [[package]]
