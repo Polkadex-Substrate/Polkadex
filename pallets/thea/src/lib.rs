@@ -17,48 +17,57 @@
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
 
-//#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(test, feature = "runtime-benchmarks"))]
+mod util;
+
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 mod mock;
 
 #[cfg(test)]
 mod tests;
 
+use core::default::Default;
+use frame_support::{
+	dispatch::fmt::Debug,
+	pallet_prelude::*,
+	traits::{Currency, ExistenceRequirement, ReservableCurrency},
+	PalletId,
+};
+use frame_system::pallet_prelude::*;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use sp_runtime::{
+	traits::{AccountIdConversion, Zero},
+	SaturatedConversion,
+};
+use sp_std::{
+	collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+	vec::Vec,
+};
+use thea_primitives::{
+	normal_deposit::Deposit,
+	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
+	thea_types::OnSessionChange,
+	ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaExtrinsicSubmitted, TheaPalletMessages,
+	TokenType,
+};
+use thea_staking::SessionChanged;
+use xcm::{
+	latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
+	prelude::{Fungible, X1},
+};
+
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
+
 #[frame_support::pallet]
 pub mod pallet {
-	use sp_std::{
-		collections::{btree_map::BTreeMap, btree_set::BTreeSet},
-		vec::Vec,
-	};
+	use super::*;
 
-	use frame_support::{
-		dispatch::fmt::Debug,
-		pallet_prelude::*,
-		traits::{Currency, ExistenceRequirement, ReservableCurrency},
-		PalletId,
-	};
-	use frame_system::pallet_prelude::*;
-	use sp_runtime::{
-		traits::{AccountIdConversion, Zero},
-		SaturatedConversion,
-	};
-
-	use thea_primitives::{
-		normal_deposit::Deposit,
-		parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
-		thea_types::OnSessionChange,
-		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaExtrinsicSubmitted,
-		TheaPalletMessages, TokenType,
-	};
-	use thea_staking::SessionChanged;
-	use xcm::{
-		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
-		prelude::{Fungible, X1},
-	};
-
-	use core::default::Default;
+	/// Identifier for linked network
 	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
@@ -116,6 +125,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -393,6 +403,7 @@ pub mod pallet {
 		/// * `bls_signature`: BLS Signature.
 		/// * `token_type`: Token Type.
 		/// * `payload`: Encoded Deposit Payload.
+		#[pallet::call_index(0)]
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
@@ -414,6 +425,7 @@ pub mod pallet {
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
 		/// (it's used to parametrise the weight of this extrinsic)
 		// TODO: [Issue #606] Use benchmarks
+		#[pallet::call_index(1)]
 		#[pallet::weight(1000)]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
@@ -460,6 +472,7 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
+		#[pallet::call_index(2)]
 		#[pallet::weight(1000)]
 		pub fn batch_withdrawal_complete(
 			origin: OriginFor<T>,
@@ -512,6 +525,7 @@ pub mod pallet {
 		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
 		///   withdrawal
 		// TODO: [Issue #606] Use benchmarks
+		#[pallet::call_index(3)]
 		#[pallet::weight(1000)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -533,6 +547,7 @@ pub mod pallet {
 		///
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
+		#[pallet::call_index(4)]
 		#[pallet::weight(1000)]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
@@ -555,6 +570,7 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
+		#[pallet::call_index(5)]
 		#[pallet::weight(1000)]
 		pub fn thea_key_rotation_complete(
 			origin: OriginFor<T>,
@@ -614,6 +630,7 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
+		#[pallet::call_index(6)]
 		#[pallet::weight(1000)]
 		pub fn set_thea_key_complete(
 			origin: OriginFor<T>,
@@ -667,6 +684,7 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
+		#[pallet::call_index(7)]
 		#[pallet::weight(1000)]
 		pub fn thea_queued_queued_public_key(
 			origin: OriginFor<T>,
@@ -720,6 +738,7 @@ pub mod pallet {
 		///
 		/// * `origin`: Any relayer
 		/// * `network`: Network id
+		#[pallet::call_index(8)]
 		#[pallet::weight(1000)]
 		pub fn thea_relayers_reset_rotation(
 			origin: OriginFor<T>,
