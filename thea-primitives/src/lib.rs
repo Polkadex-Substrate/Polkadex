@@ -25,7 +25,7 @@ pub trait TheaExt {
 		bls_public_keys: &[BLSPublicKey],
 	) -> bool {
 		if bls_public_keys.is_empty() {
-			return false;
+			return false
 		}
 		let recon_sig = match Signature::from_bytes(agg_sig) {
 			Ok(sig) => sig,
