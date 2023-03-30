@@ -90,6 +90,7 @@ where
 
 use crate::error::Error;
 use orderbook_primitives::types::{ObMessage, UserActions};
+use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
 
 /// Orderbook gadget initialization parameters.
@@ -124,7 +125,7 @@ where
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
 	// lock 64
-	pub lock_64: Arc<RwLock<u64>>,
+	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 	// memory db
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	// working state root
@@ -154,7 +155,7 @@ where
 		is_validator,
 		message_sender_link,
 		marker: _,
-		lock_64,
+		last_successful_block_no_snapshot_created,
 		memory_db,
 		working_state_root,
 	} = ob_params;
