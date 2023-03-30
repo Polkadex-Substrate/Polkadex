@@ -35,7 +35,7 @@ use orderbook_primitives::{
 	},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
-use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
+use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId, BlockNumber};
 
 use crate::worker::{ObWorker, WorkerParams};
 
@@ -87,6 +87,12 @@ macro_rules! create_test_api {
 
 					/// Get Snapshot By Id
 					fn get_snapshot_by_id(_: u64) -> Option<SnapshotSummary>{Some($latest_summary)}
+
+					/// Returns all main account and corresponding proxies at this point in time
+					fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{Vec::new()}
+
+					/// Returns snapshot generation intervals
+					fn get_snapshot_generation_intervals() -> (u64,BlockNumber){(0,0)}
                 }
 			}
 		}
