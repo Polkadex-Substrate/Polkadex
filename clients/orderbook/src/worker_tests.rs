@@ -3,28 +3,27 @@ use crate::{
 	error::Error,
 	worker::{add_proxy, deposit, process_trade, register_main, remove_proxy},
 };
-use log::trace;
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::types::{
 	AccountAsset, AccountInfo, Order, OrderSide, OrderType, Trade, TradingPair,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
+use polkadex_primitives::{AccountId, AssetId};
 use reference_trie::{ExtensionLayout, RefHasher};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
-use sp_core::{blake2_128, offchain::OffchainStorage, Bytes, Pair, H160, H256};
+use rust_decimal::Decimal;
+use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 /// This function returns a tuple containing Alice's main account and a proxy account
-pub fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {
+fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Alice.pair().public());
 	let proxy_account = AccountId::from([1_u8; 32]);
 	(main_account, proxy_account)
 }
 
 /// This function returns a tuple containing Bob's main account and a proxy account
-pub fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
+fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Bob.pair().public());
 	let proxy_account = AccountId::from([5_u8; 32]);
 	(main_account, proxy_account)
@@ -32,7 +31,7 @@ pub fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
 
 // register main account and assert changes in db
 #[test]
-pub fn register_main_account() {
+pub fn register_main_will_store_successfully() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -47,7 +46,7 @@ pub fn register_main_account() {
 
 // Try to re register main account and assert expected error
 #[test]
-pub fn re_register_main_account() {
+pub fn register_main_with_the_same_account_will_return_main_already_registered_error() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -60,7 +59,7 @@ pub fn re_register_main_account() {
 
 // add proxy account and assert changes in db
 #[test]
-pub fn add_proxy_account() {
+pub fn add_proxy_will_store_it_successfully() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -77,7 +76,7 @@ pub fn add_proxy_account() {
 
 // Try to add a duplicate proxy account and assert expected error
 #[test]
-pub fn add_duplicate_proxy_account() {
+pub fn add_proxy_with_the_same_proxy_account_will_return_proxy_already_registered_error() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -90,7 +89,7 @@ pub fn add_duplicate_proxy_account() {
 
 // Try to add a proxy account when main account is not registered and assert expected error
 #[test]
-pub fn add_proxy_account_when_main_account_not_register() {
+pub fn add_proxy_with_not_registered_main_account_will_return_main_account_not_found_error() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -102,7 +101,7 @@ pub fn add_proxy_account_when_main_account_not_register() {
 
 // remove proxy account and assert changes in db
 #[test]
-pub fn remove_proxy_account() {
+pub fn remove_proxy_will_remove_it_from_the_storage_successfully() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -118,7 +117,7 @@ pub fn remove_proxy_account() {
 
 // Try to remove a proxy account when main account not registered
 #[test]
-pub fn remove_proxy_account_when_main_account_not_register() {
+pub fn remove_proxy_with_not_registered_main_account_will_return_main_account_not_found_error() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -132,7 +131,7 @@ pub fn remove_proxy_account_when_main_account_not_register() {
 
 // Try to remove a non registered proxy account and assert expected error
 #[test]
-pub fn remove_unregister_proxy_account() {
+pub fn remove_proxy_with_not_registered_proxy_will_return_proxy_account_not_found_error() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -147,7 +146,7 @@ pub fn remove_unregister_proxy_account() {
 
 // Try to deposit a amount when main account is not register and assert expected error
 #[test]
-pub fn deposit_when_main_account_not_register() {
+pub fn deposit_with_not_registered_main_account_will_return_main_account_not_found_error() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -159,7 +158,7 @@ pub fn deposit_when_main_account_not_register() {
 
 // Deposit assets in users main account and assert changes in DB
 #[test]
-pub fn deposit_asset() {
+pub fn deposit_will_store_amount_successfully() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =
@@ -184,7 +183,7 @@ pub fn deposit_asset() {
 
 // Process a receive trade and assert balance changes in DB
 #[test]
-pub fn process_a_trade() {
+pub fn process_trade_will_process_successfully() {
 	let mut working_state_root = [0u8; 32];
 	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 	let mut trie: TrieDBMut<ExtensionLayout> =

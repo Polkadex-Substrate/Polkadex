@@ -23,7 +23,7 @@ mod utils;
 mod worker;
 
 #[cfg(test)]
-mod test_helper_fn;
+mod worker_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
