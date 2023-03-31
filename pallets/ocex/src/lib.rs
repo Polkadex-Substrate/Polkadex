@@ -108,7 +108,6 @@ pub mod pallet {
 		fn submit_snapshot() -> Weight;
 		fn insert_enclave(_x: u32) -> Weight;
 		fn collect_fees(_x: u32) -> Weight;
-		fn shutdown() -> Weight;
 		fn set_exchange_state(_x: u32) -> Weight;
 		fn set_balances(_x: u32) -> Weight;
 		fn claim_withdraw(_x: u32) -> Weight;
