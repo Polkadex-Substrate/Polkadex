@@ -33,6 +33,8 @@ pub enum Error {
 	DecimalError(rust_decimal::Error),
 	#[error("Unable to find main account in trie")]
 	MainAccountNotFound,
+	#[error("Unable to find proxy account in trie")]
+	ProxyAccountNotFound,
 	#[error("Proxy not associated with main")]
 	ProxyNotAssociatedWithMain,
 	#[error("Error while snapshot signing")]

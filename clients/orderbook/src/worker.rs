@@ -83,7 +83,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
-	last_snapshot: Arc<RwLock<SnapshotSummary>>,
+	pub last_snapshot: Arc<RwLock<SnapshotSummary>>,
 	// Working state root,
 	pub(crate) working_state_root: [u8; 32],
 	// Known state ids
@@ -103,6 +103,10 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
+	// last block at which snapshot was generated
+	last_block_snapshot_generated: BlockNumber,
+	// latest stid
+	latest_stid: u64,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -165,10 +169,45 @@ where
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
+			last_block_snapshot_generated: 0,
+			latest_stid: 0,
 		}
 	}
 
-	pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
+	/// The function checks whether a snapshot of the blockchain should be generated based on the
+	/// pending withdrawals and block interval.
+	///
+	/// # Parameters
+	/// - &self: a reference to an instance of a struct implementing some trait
+	/// # Returns
+	/// - bool: a boolean indicating whether a snapshot should be generated
+	pub fn should_generate_snapshot(&self) -> bool {
+		// Get the snapshot generation intervals from the runtime API for the last finalized block
+		let (pending_withdrawals_interval, block_interval) = self
+			.runtime
+			.runtime_api()
+			.get_snapshot_generation_intervals(&BlockId::Number(
+				self.last_finalized_block.saturated_into(),
+			))
+			.expect("Expecting snapshot generation interval api to be available");
+
+		// Check if a snapshot should be generated based on the pending withdrawals interval and
+		// block interval
+		if pending_withdrawals_interval > self.pending_withdrawals.len() as u64 ||
+			block_interval >
+				self.last_finalized_block.saturating_sub(self.last_block_snapshot_generated)
+		{
+			return true
+		}
+		// If a snapshot should not be generated, return false
+		false
+	}
+
+	pub fn process_withdraw(
+		&mut self,
+		withdraw: WithdrawalRequest,
+		stid: u64,
+	) -> Result<(), Error> {
 		let mut withdrawal = None;
 		{
 			let mut trie = self.get_trie();
@@ -194,6 +233,13 @@ where
 		if let Some(withdrawal) = withdrawal {
 			// Queue withdrawal
 			self.pending_withdrawals.push(withdrawal);
+			// Check if snapshot should be generated or not
+			if self.should_generate_snapshot() {
+				if let Err(err) = self.snapshot(stid) {
+					log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
+					self.last_block_snapshot_generated = self.last_finalized_block;
+				}
+			}
 		}
 		Ok(())
 	}
@@ -335,10 +381,11 @@ where
 				// Commit the state changes in trie
 				trie.commit();
 			},
-			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw)?,
+			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 			UserActions::Snapshot => self.snapshot(action.stid)?,
 		}
+		self.latest_stid = action.stid;
 		// Multicast the message to other peers
 		self.gossip_engine.gossip_message(topic::<B>(), action.encode(), true);
 		Ok(())
@@ -418,6 +465,12 @@ where
 		Ok(())
 	}
 
+	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
+		let mut offchain_storage = self.backend.offchain_storage().unwrap();
+		let result = offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode());
+		return result
+	}
+
 	pub fn store_snapshot(
 		&mut self,
 		state_change_id: u64,
@@ -483,7 +536,6 @@ where
 					data.append(&mut chunk);
 				}
 			}
-
 			self.load_state_from_data(&data, summary)?;
 		}
 		Ok(())
@@ -664,12 +716,20 @@ where
 						data,
 					);
 					// Update sync status map
-					self.sync_state_map.entry(*index).and_modify(|status| {
-						*status = StateSyncStatus::Available;
-					});
+					self.sync_state_map
+						.entry(*index)
+						.and_modify(|status| {
+							*status = StateSyncStatus::Available;
+						})
+						.or_insert(StateSyncStatus::Available); //TODO: @Gatham please corss check this
 				}
 			}
 		}
+	}
+
+	#[cfg(test)]
+	pub fn get_sync_state_map_value(&self, key: u16) -> StateSyncStatus {
+		self.sync_state_map.get(&key).unwrap().clone()
 	}
 
 	pub async fn process_gossip_message(
@@ -720,6 +780,14 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
+
+		// Check if snapshot should be generated or not
+		if self.should_generate_snapshot() {
+			if let Err(err) = self.snapshot(self.latest_stid) {
+				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
+				self.last_block_snapshot_generated = self.last_finalized_block;
+			}
+		}
 
 		// We should not update latest summary if we are still syncing
 		if !self.state_is_syncing {
@@ -996,6 +1064,18 @@ where
 	}
 }
 
+/// The purpose of this function is to register a new main account along with a proxy account.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` with `ExtensionLayout`.
+/// * `main` - The `AccountId` of the main account to be registered.
+/// * `proxy` - The `AccountId` of the proxy account to be associated with the main account.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the registration is successful, or an `Error` if there was a problem
+/// registering an account.
 pub fn register_main(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1009,6 +1089,18 @@ pub fn register_main(
 	Ok(())
 }
 
+/// The purpose of this function is to add new a proxy account to main account's list.
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+///   trie database to modify.
+/// * `main` - An `AccountId` representing the main account for which to add a proxy.
+/// * `proxy` - An `AccountId` representing the proxy account to add to the list of authorized
+///   proxies.
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success, or an `Error` if there was a problem adding the proxy.
 pub fn add_proxy(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1028,6 +1120,18 @@ pub fn add_proxy(
 	Ok(())
 }
 
+/// The purpose of this function is to remove a proxy account from a main account's list.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+///   trie database to modify.
+/// * `main` - An `AccountId` representing the main account for which to remove a proxy.
+/// * `proxy` - An `AccountId` representing the proxy account that needs to be removed
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success, or an `Error` if there was a problem removing the proxy account.
 pub fn remove_proxy(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1044,7 +1148,7 @@ pub fn remove_proxy(
 					.map(|i| account_info.proxies.remove(i));
 				trie.insert(&main.encode(), &account_info.encode())?;
 			} else {
-				// its a no-op if proxy not found
+				return Err(Error::ProxyAccountNotFound)
 			}
 		},
 		None => return Err(Error::MainAccountNotFound),
@@ -1052,6 +1156,18 @@ pub fn remove_proxy(
 	Ok(())
 }
 
+/// Deposits a specified amount of an asset into an account.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `main` - An `AccountId` object representing the main account to deposit the asset into.
+/// * `asset` - An `AssetId` object representing the asset to deposit.
+/// * `amount` - A `Decimal` object representing the amount of the asset to deposit.
+///
+/// # Returns
+///
+/// A `Result<(), Error>` indicating whether the deposit was successful or not.
 pub fn deposit(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1075,6 +1191,17 @@ pub fn deposit(
 	Ok(())
 }
 
+/// Processes a trade between a maker and a taker, updating their order states and balances
+/// accordingly.
+///
+/// # Arguments
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `trade` - A `Trade` object representing the trade to process.
+///
+/// # Returns
+///
+/// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
 pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Result<(), Error> {
 	let Trade { maker, taker, price, amount, time } = trade.clone();
 
@@ -1107,10 +1234,13 @@ pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Res
 	// Update balances
 	let (maker_asset, maker_credit) = trade.credit(true);
 	add_balance(trie, maker_asset, maker_credit)?;
+
 	let (maker_asset, maker_debit) = trade.debit(true);
 	sub_balance(trie, maker_asset, maker_debit)?;
+
 	let (taker_asset, taker_credit) = trade.credit(false);
 	add_balance(trie, taker_asset, taker_credit)?;
+
 	let (taker_asset, taker_debit) = trade.debit(false);
 	sub_balance(trie, taker_asset, taker_debit)?;
 	Ok(())

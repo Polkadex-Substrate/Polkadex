@@ -1585,6 +1585,11 @@ impl_runtime_apis! {
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
 			OCEX::get_all_accounts_and_proxies()
 		}
+
+		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
+			OCEX::get_snapshot_generation_intervals()
+		}
+
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
