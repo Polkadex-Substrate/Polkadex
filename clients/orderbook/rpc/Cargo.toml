@@ -13,6 +13,7 @@ jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
 log = "0.4"
 parking_lot = "0.12.0"
 serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1.0.94"
 thiserror = "1.0"
 orderbook = { path = "../." }
 orderbook-primitives = {path = "../../../primitives/orderbook" }
