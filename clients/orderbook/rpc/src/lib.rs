@@ -95,7 +95,7 @@ pub struct OrderbookRpc<Client, Block> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
 	last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
-	memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	memory_db: DbRef,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	client: Arc<Client>,
 	_marker: std::marker::PhantomData<Block>,
@@ -107,7 +107,7 @@ impl<Client, Block> OrderbookRpc<Client, Block> {
 		_executor: SubscriptionTaskExecutor,
 		tx: UnboundedSender<ObMessage>,
 		last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
-		memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+		memory_db: DbRef,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		client: Arc<Client>,
 	) -> Self {
