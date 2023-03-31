@@ -230,7 +230,13 @@ benchmarks! {
 
 	set_thea_key_complete {
 		let origin = account::<T::AccountId>("1", 0, 0);
-		let call = Call::<T>::set_thea_key_complete{  };
+		RelayersBLSKeyVector::<T>::insert(1, vec!(PK1, PK2, PK3));
+		TheaPublicKey::<T>::insert(1, [2u8; 64]);
+		QueuedTheaPublicKey::<T>::insert(1, [1u8; 64]);
+		const PK: [u8; 64] = [1u8; 64];
+		const MAP: u128 = 7;
+		const SIG: [u8; 96] = [24, 133, 148, 191, 177, 175, 155, 152, 176, 84, 27, 162, 31, 118, 161, 171, 127, 27, 11, 76, 242, 182, 243, 188, 69, 159, 83, 93, 255, 192, 48, 87, 85, 46, 201, 11, 109, 64, 7, 130, 101, 123, 106, 122, 91, 192, 8, 115, 1, 59, 27, 77, 176, 61, 187, 8, 176, 17, 222, 255, 63, 219, 15, 196, 22, 160, 59, 246, 65, 5, 17, 3, 195, 2, 7, 231, 205, 220, 182, 74, 169, 173, 80, 120, 28, 251, 130, 222, 92, 125, 68, 125, 202, 70, 86, 40];
+		let call = Call::<T>::set_thea_key_complete{ network: 1, public_key: PK, bit_map: MAP, bls_signature: SIG };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
 		//assert_last_event::<T>(Event::OutgoingCandidateAdded{ candidate }.into());
