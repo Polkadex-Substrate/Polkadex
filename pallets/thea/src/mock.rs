@@ -239,6 +239,7 @@ impl thea::Config for Test {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
+	type Weights = crate::weights::TheaWeightInfo<Test>;
 }
 
 // Build genesis storage according to the mock runtime.
