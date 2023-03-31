@@ -71,7 +71,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	// last successful block snapshot created
 	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	// memory db
-	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	pub memory_db: DbRef,
 	// working state root
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
@@ -103,7 +103,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
 	// In memory store
-	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	pub memory_db: DbRef,
 	// Last finalized block
 	last_finalized_block: BlockNumber,
 	state_is_syncing: bool,
