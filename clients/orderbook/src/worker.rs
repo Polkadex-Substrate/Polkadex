@@ -102,7 +102,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	metrics: Option<Metrics>,
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
-	// In memory store, need to make this Arc
+	// In memory store
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	// Last finalized block
 	last_finalized_block: BlockNumber,
@@ -988,6 +988,14 @@ where
 		Ok(())
 	}
 
+	/// public function to get a mutable trie instance with the given mutable memory_db and working_state_root
+	///
+	/// # Parameters:
+	/// - `memory_db`: a mutable reference to a MemoryDB instance
+	/// - `working_state_root`: a mutable reference to a 32-byte array of bytes representing the root of the trie
+	///
+	/// # Returns
+	/// `TrieDBMut`:  instance representing a mutable trie
 	pub fn get_trie<'a>(
 		memory_db: &'a mut MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 		working_state_root: &'a mut [u8; 32],

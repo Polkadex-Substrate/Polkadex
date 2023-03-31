@@ -157,7 +157,6 @@ pub fn new_partial(
 	>,
 	ServiceError,
 > {
-	// sample variable
 	let last_successful_block_no_snapshot_created = Arc::new(RwLock::new(0_u32.saturated_into()));
 	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
 	let working_state_root = Arc::new(RwLock::new([0; 32]));

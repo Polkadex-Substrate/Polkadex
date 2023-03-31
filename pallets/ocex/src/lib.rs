@@ -1451,7 +1451,15 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
 	}
 
-	// Returns allowlisted asset id's
+	/// Returns a vector of allowlisted asset IDs.
+	///
+	/// # Parameters
+	///
+	/// None
+	///
+	/// # Returns
+	///
+	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.
 	pub fn get_allowlisted_assets() -> Vec<AssetId> {
 		<AllowlistedToken<T>>::get()
 			.iter()
