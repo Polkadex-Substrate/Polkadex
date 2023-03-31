@@ -94,7 +94,7 @@ pub trait OrderbookApi {
 pub struct OrderbookRpc<Client, Block> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
-	last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
+	last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	client: Arc<Client>,
@@ -106,7 +106,7 @@ impl<Client, Block> OrderbookRpc<Client, Block> {
 	pub fn new(
 		_executor: SubscriptionTaskExecutor,
 		tx: UnboundedSender<ObMessage>,
-		last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
+		last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 		memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		client: Arc<Client>,
@@ -114,7 +114,7 @@ impl<Client, Block> OrderbookRpc<Client, Block> {
 		Self {
 			tx,
 			_executor,
-			last_successful_block_no_snapshot_created,
+			last_successful_block_number_snapshot_created,
 			memory_db,
 			working_state_root,
 			client,
@@ -137,7 +137,7 @@ where
 	}
 
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
-		let last_finalized_block_guard = self.last_successful_block_no_snapshot_created.read();
+		let last_finalized_block_guard = self.last_successful_block_number_snapshot_created.read();
 		let last_finalized_block = last_finalized_block_guard.clone();
 
 		let memory_db_guard = self.memory_db.read();

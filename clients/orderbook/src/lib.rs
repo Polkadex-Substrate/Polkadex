@@ -126,7 +126,7 @@ where
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
 	// last successful block snapshot created
-	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
+	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	// memory db
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	// working state root
@@ -156,7 +156,7 @@ where
 		is_validator,
 		message_sender_link,
 		marker: _,
-		last_successful_block_no_snapshot_created,
+		last_successful_block_number_snapshot_created,
 		memory_db,
 		working_state_root,
 	} = ob_params;
@@ -188,7 +188,7 @@ where
 		message_sender_link,
 		metrics,
 		_marker: Default::default(),
-		last_successful_block_no_snapshot_created,
+		last_successful_block_number_snapshot_created,
 		memory_db,
 		working_state_root,
 	};

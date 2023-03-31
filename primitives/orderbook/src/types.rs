@@ -27,7 +27,7 @@ pub struct ObRecoveryState {
 	/// A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
 	pub balances: BTreeMap<AccountAsset, Decimal>,
 	/// The last block number that was processed by validator.
-	pub last_process_block_number: BlockNumber,
+	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
 }
@@ -38,7 +38,7 @@ impl ObRecoveryState {
 			snapshot_id: 0,
 			account_ids: BTreeMap::default(),
 			balances: BTreeMap::default(),
-			last_process_block_number: 0,
+			last_processed_block_number: 0,
 			state_change_id: 0,
 		}
 	}

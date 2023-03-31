@@ -589,7 +589,7 @@ pub fn new_full_base(
 		marker: Default::default(),
 		is_validator: role.is_authority(),
 		message_sender_link: orderbook_stream,
-		last_successful_block_no_snapshot_created: last_successful_block_no_snapshot_created
+		last_successful_block_number_snapshot_created: last_successful_block_no_snapshot_created
 			.clone(),
 		memory_db: memory_db.clone(),
 		working_state_root: working_state_root.clone(),
