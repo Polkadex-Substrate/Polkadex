@@ -25,7 +25,7 @@ use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::{Config, RawOrigin};
 use pallet_balances as _;
-use sp_core::H160;
+use sp_core::{H160, H256};
 use sp_runtime::traits::{ConstU32, Zero};
 use sp_std::{boxed::Box, vec};
 use thea_primitives::{
@@ -61,7 +61,7 @@ const ID: [u8; 32] = [
 ];
 
 benchmarks! {
-	where_clause { where T: pallet::Config + asset_handler::pallet::Config }
+	where_clause { where T: Config + pallet::Config + asset_handler::pallet::Config }
 
 	approve_deposit {
 		let origin = account::<T::AccountId>("1", 0, 0);
@@ -80,7 +80,7 @@ benchmarks! {
 			recipient: multi_location,
 			asset_and_amount: multi_asset,
 			deposit_nonce: 1,
-			transaction_hash: sp_core::H256::zero(),
+			transaction_hash: H256::zero(),
 			network_id: 1,
 		};
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
@@ -118,50 +118,68 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(account).into())? }
 
 	batch_withdrawal_complete {
-		let call = Call::<T>::batch_withdrawal_complete{ };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
+		let origin = account::<T::AccountId>("1", 0, 0);
+		let hash = H256::zero();
+		const MAP: u128 = 7;
+		WithdrawalNonces::<T>::insert(1, 7);
+		const PK: [u8; 64] = [1u8; 64];
+		TheaPublicKey::<T>::insert(1, PK);
+		const PK1: BLSPublicKey = BLSPublicKey([18, 197, 237, 44, 126, 194, 180, 119, 175, 48, 180, 169, 64, 255, 129, 227, 103, 190, 202, 14, 28, 249, 141, 168, 91, 231, 160, 85, 38, 64, 215, 169, 8, 63, 84, 228, 68, 221, 231, 76, 213, 34, 178, 2, 129, 190, 160, 222, 20, 51, 200, 177, 82, 242, 137, 190, 88, 136, 144, 174, 79, 217, 207, 179, 161, 106, 57, 191, 229, 29, 82, 86, 21, 99, 199, 197, 125, 237, 38, 44, 241, 155, 99, 156, 2, 213, 230, 105, 106, 122, 44, 246, 1, 55, 209, 123, 8, 116, 46, 106, 198, 67, 48, 92, 82, 185, 122, 90, 227, 88, 24, 235, 176, 52, 75, 207, 178, 217, 254, 38, 47, 228, 58, 187, 170, 21, 197, 107, 47, 213, 1, 116, 200, 200, 25, 146, 9, 98, 121, 191, 246, 195, 178, 123, 1, 81, 193, 207, 246, 50, 209, 196, 254, 50, 40, 48, 235, 13, 124, 252, 240, 18, 89, 96, 226, 5, 117, 11, 189, 141, 189, 210, 212, 217, 67, 201, 208, 238, 202, 218, 50, 46, 139, 142, 193, 150, 52, 137, 46, 169, 20, 167]);
+		const PK2: BLSPublicKey = BLSPublicKey([18, 163, 116, 54, 177, 117, 234, 160, 132, 146, 93, 176, 156, 40, 130, 224, 77, 56, 89, 191, 235, 175, 56, 1, 84, 163, 135, 231, 94, 214, 245, 135, 94, 58, 149, 227, 59, 107, 15, 59, 161, 62, 221, 118, 72, 102, 226, 40, 7, 5, 114, 28, 78, 166, 253, 106, 168, 36, 194, 90, 246, 76, 252, 76, 140, 230, 212, 188, 201, 67, 166, 230, 246, 241, 69, 184, 20, 229, 180, 115, 47, 255, 211, 99, 210, 154, 251, 135, 130, 85, 33, 205, 137, 86, 100, 237, 13, 93, 88, 166, 66, 71, 118, 204, 249, 132, 241, 222, 191, 75, 41, 39, 219, 19, 55, 242, 77, 213, 210, 81, 14, 28, 50, 223, 129, 208, 249, 62, 30, 50, 61, 170, 67, 104, 103, 171, 82, 11, 113, 98, 87, 130, 140, 205, 8, 90, 213, 122, 189, 151, 159, 25, 48, 123, 148, 196, 126, 5, 40, 109, 183, 223, 254, 140, 147, 68, 93, 138, 89, 184, 66, 136, 138, 76, 62, 104, 110, 89, 22, 248, 56, 113, 124, 93, 27, 78, 163, 122, 241, 0, 251, 55]);
+		const PK3: BLSPublicKey = BLSPublicKey([4, 45, 89, 104, 18, 181, 135, 112, 206, 129, 195, 7, 58, 161, 223, 167, 152, 1, 217, 251, 80, 224, 83, 102, 130, 62, 22, 183, 38, 20, 27, 174, 181, 154, 155, 156, 123, 84, 90, 20, 54, 30, 145, 152, 209, 121, 93, 233, 23, 70, 142, 138, 87, 242, 100, 206, 237, 228, 108, 23, 217, 206, 241, 217, 206, 56, 136, 159, 109, 239, 234, 115, 189, 76, 164, 33, 250, 12, 135, 103, 31, 92, 168, 53, 127, 55, 16, 98, 42, 192, 51, 147, 169, 42, 185, 192, 0, 152, 219, 106, 163, 59, 138, 124, 197, 67, 126, 79, 190, 118, 182, 192, 216, 201, 32, 136, 154, 255, 251, 208, 132, 160, 232, 237, 104, 78, 122, 51, 66, 62, 179, 139, 252, 79, 4, 213, 153, 210, 37, 186, 81, 59, 207, 51, 3, 121, 216, 166, 152, 107, 208, 227, 165, 233, 52, 194, 174, 197, 240, 166, 235, 32, 66, 151, 235, 9, 239, 75, 208, 212, 102, 93, 230, 137, 186, 198, 175, 236, 125, 233, 218, 72, 44, 148, 109, 157, 221, 99, 246, 251, 2, 71]);
+		RelayersBLSKeyVector::<T>::insert(1, vec!(PK1, PK2, PK3));
+		const PL: [u8; 37] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7, 0, 0, 0];
+		const SIG: [u8; 96] = [3, 93, 156, 87, 199, 252, 234, 160, 116, 147, 65, 175, 49, 56, 44, 170, 47, 205, 1, 118, 217, 79, 120, 100, 141, 133, 142, 142, 97, 246, 97, 215, 187, 208, 190, 15, 177, 176, 109, 102, 204, 108, 156, 96, 136, 129, 236, 48, 3, 63, 59, 81, 56, 87, 193, 239, 23, 54, 154, 72, 234, 6, 55, 208, 226, 187, 139, 141, 155, 173, 175, 204, 93, 57, 93, 230, 172, 60, 137, 44, 247, 115, 147, 154, 47, 104, 129, 117, 47, 34, 63, 1, 105, 126, 15, 28];
+		let call = Call::<T>::batch_withdrawal_complete{ withdrawal_nonce: 7, network: 1, tx_hash: hash,  bit_map: MAP, bls_signature: SIG};
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
-		//assert_last_event::<T>(Event::Nominated { candidate, nominator }.into());
+		//assert_last_event::<T>(Event::WithdrawalExecuted( 7, 1, hash).into());
 	}
 
 	withdraw {
-		let call = Call::<T>::withdraw{};
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
+		let origin = account::<T::AccountId>("1", 0, 0);
+		let call = Call::<T>::withdraw{ asset_id: , amount: , beneficiary: , pay_for_remaining: };
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify{
 		//assert_last_event::<T>(Event::Bonded{ candidate, nominator, amount }.into());
 	}
 
 	set_withdrawal_fee {
+		let origin = account::<T::AccountId>("1", 0, 0);
 		let call = Call::<T>::set_withdrawal_fee{ };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
 		//assert_last_event::<T>(Event::Unbonded{ candidate, nominator, amount }.into());
 	}
 
 	thea_key_rotation_complete {
+		let origin = account::<T::AccountId>("1", 0, 0);
 		let call = Call::<T>::thea_key_rotation_complete{};
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
 		//assert_last_event::<T>(Event::BondsWithdrawn{ nominator, amount }.into());
 	}
 
 	set_thea_key_complete {
+		let origin = account::<T::AccountId>("1", 0, 0);
 		let call = Call::<T>::set_thea_key_complete{  };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
 		//assert_last_event::<T>(Event::OutgoingCandidateAdded{ candidate }.into());
 	}
 
 	thea_queued_queued_public_key {
+		let origin = account::<T::AccountId>("1", 0, 0);
 		let call = Call::<T>::thea_queued_queued_public_key{};
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
 		//assert_last_event::<T>(Event::NetworkAdded{ network }.into());
 	}
 
 	thea_relayers_reset_rotation {
+		let origin = account::<T::AccountId>("1", 0, 0);
 		let call = Call::<T>::thea_relayers_reset_rotation{ network: 1 };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(1).into())? }
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify {
 		//assert_last_event::<T>(Event::NetworkRemoved{ network }.into());
 	}
