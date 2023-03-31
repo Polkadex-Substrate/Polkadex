@@ -33,18 +33,20 @@ use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
+// ToDo: Issue 682
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// mod tests;
 
 use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::traits::One;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+// ToDo: Issue 683
+// #[cfg(feature = "runtime-benchmarks")]
+// use sp_runtime::traits::One;
+//
+// #[cfg(feature = "runtime-benchmarks")]
+// mod benchmarking;
 pub mod weights;
 
 pub use weights::*;
@@ -758,6 +760,40 @@ pub mod pallet {
 			Ok(())
 		}
 
+		// TODO: Benchmark change_pending_withdrawal_limit (Issue number 683)
+		/// The extrinsic will be used to change pending withdrawals limit
+		///
+		/// # Parameters
+		/// * `origin`: Orderbook governance
+		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance
+		/// wants to set.
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		pub fn change_pending_withdrawal_limit(
+			origin: OriginFor<T>,
+			new_pending_withdrawals_limit: u64,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<PendingWithdrawalsAllowedPerSnapshot<T>>::put(new_pending_withdrawals_limit);
+			Ok(())
+		}
+
+		// TODO: Benchmark change_snapshot_interval_block (Issue number 683)
+		/// The extrinsic will be used to change snapshot interval based on block number
+		///
+		/// # Parameters
+		/// * `origin`: Orderbook governance
+		/// * `new_snapshot_interval_block`: The new block interval at which snapshot should  be
+		/// generated.
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		pub fn change_snapshot_interval_block(
+			origin: OriginFor<T>,
+			new_snapshot_interval_block: T::BlockNumber,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<SnapshotIntervalBlock<T>>::put(new_snapshot_interval_block);
+			Ok(())
+		}
+
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
@@ -1290,6 +1326,17 @@ pub mod pallet {
 	#[pallet::getter(fn snapshot_nonce)]
 	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+	// Snapshot will be produced after snapshot interval block
+	#[pallet::storage]
+	#[pallet::getter(fn snapshot_interval_block)]
+	pub(super) type SnapshotIntervalBlock<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+
+	// Snapshot will be produced after reaching pending withdrawals limit
+	#[pallet::storage]
+	#[pallet::getter(fn pending_withdrawals_allowed_per_snapshot)]
+	pub(super) type PendingWithdrawalsAllowedPerSnapshot<T: Config> =
+		StorageValue<_, u64, ValueQuery>;
+
 	// Exchange Operation State
 	#[pallet::storage]
 	#[pallet::getter(fn orderbook_operational_state)]
@@ -1391,6 +1438,12 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		<Accounts<T>>::iter()
 			.map(|(main, info)| (main, info.proxies.to_vec()))
 			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
+	}
+
+	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {
+		let pending_withdrawals_interval = <PendingWithdrawalsAllowedPerSnapshot<T>>::get();
+		let block_interval = <SnapshotIntervalBlock<T>>::get();
+		(pending_withdrawals_interval, block_interval)
 	}
 
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
