@@ -988,11 +988,13 @@ where
 		Ok(())
 	}
 
-	/// public function to get a mutable trie instance with the given mutable memory_db and working_state_root
+	/// public function to get a mutable trie instance with the given mutable memory_db and
+	/// working_state_root
 	///
 	/// # Parameters:
 	/// - `memory_db`: a mutable reference to a MemoryDB instance
-	/// - `working_state_root`: a mutable reference to a 32-byte array of bytes representing the root of the trie
+	/// - `working_state_root`: a mutable reference to a 32-byte array of bytes representing the
+	///   root of the trie
 	///
 	/// # Returns
 	/// `TrieDBMut`:  instance representing a mutable trie
