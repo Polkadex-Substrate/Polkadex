@@ -51,6 +51,9 @@ use crate::{
 };
 use primitive_types::H128;
 use sp_runtime::traits::Verify;
+use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
+use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
+use curv::arithmetic::Converter;
 
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
@@ -64,7 +67,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	// pub links: BeefyVoterLinks<B>,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
-	pub message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
+	pub message_sender_link: UnboundedReceiver<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
@@ -96,7 +99,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// voter state
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
-	message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
+	message_sender_link: UnboundedReceiver<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
 	_marker: PhantomData<N>,
 	// In memory store
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
@@ -991,10 +994,10 @@ where
 					}
 				},
 				message = self.message_sender_link.next() => {
-					if let Some((message, signature)) = message {
-						if let Err(err) = self.process_new_user_action(&message, &signature).await {
-							debug!(target: "orderbook", "📒 {}", err);
-						}
+					if let Some((message, signature_r, signature_s)) = message {
+						// if let Err(err) = self.process_new_user_action(&message, &signature).await {
+						// 	debug!(target: "orderbook", "📒 {}", err);
+						// }
 					}else{
 						return;
 					}

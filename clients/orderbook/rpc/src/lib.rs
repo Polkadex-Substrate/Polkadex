@@ -12,6 +12,9 @@ use jsonrpsee::{
 };
 use log::warn;
 use orderbook_primitives::types::ObMessage;
+use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
+use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
+use curv::arithmetic::Converter;
 
 #[derive(Debug, thiserror::Error)]
 /// Top-level error type for the RPC handler
@@ -65,13 +68,14 @@ pub trait OrderbookApi {
 	async fn submit_action(
 		&self,
 		action: ObMessage,
-		signature: sp_core::ecdsa::Signature,
+		signature_r: Scalar<Secp256k1>,
+		signature_s: Scalar<Secp256k1>
 	) -> RpcResult<()>;
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
 pub struct OrderbookRpc {
-	tx: UnboundedSender<(ObMessage, sp_core::ecdsa::Signature)>,
+	tx: UnboundedSender<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
 	_executor: SubscriptionTaskExecutor,
 }
 
@@ -79,7 +83,7 @@ impl OrderbookRpc {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
 		_executor: SubscriptionTaskExecutor,
-		tx: UnboundedSender<(ObMessage, sp_core::ecdsa::Signature)>,
+		tx: UnboundedSender<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
 	) -> Self {
 		Self { tx, _executor }
 	}
@@ -90,10 +94,11 @@ impl OrderbookApiServer for OrderbookRpc {
 	async fn submit_action(
 		&self,
 		message: ObMessage,
-		signature: sp_core::ecdsa::Signature,
+		signature_r: Scalar<Secp256k1>,
+		signature_s: Scalar<Secp256k1>
 	) -> RpcResult<()> {
 		let mut tx = self.tx.clone();
-		tx.send((message, signature)).await?;
+		tx.send((message, signature_r, signature_s)).await?;
 		Ok(())
 	}
 }

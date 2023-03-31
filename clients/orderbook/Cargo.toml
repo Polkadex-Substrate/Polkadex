@@ -30,6 +30,9 @@ polkadex-primitives = { path = "../../primitives/polkadex" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
+multi-party-ecdsa = { git = "https://github.com/Polkadex-Substrate/multi-party-ecdsa-2.git", branch = "master" , features = ["backup"] }
+curv = { package = "curv-kzen", version = "~0.9", default-features = false }
+secp256k1 = { version="0.22.1", features = ["recovery"] }
 
 sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }

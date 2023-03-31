@@ -19,3 +19,6 @@ sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+multi-party-ecdsa = { git = "https://github.com/Polkadex-Substrate/multi-party-ecdsa-2.git", branch = "master" , features = ["backup"] }
+curv = { package = "curv-kzen", version = "~0.9", default-features = false }
+secp256k1 = { version="0.22.1", features = ["recovery"] }
