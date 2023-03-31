@@ -659,6 +659,7 @@ fn claim_deposit_pass_with_proper_inputs() {
 		// call extrinsic and check it passes
 		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000, 0));
 		assert_ok!(Thea::claim_deposit(Origin::signed(1), 100));
+		assert!(<ApprovedDeposits<Test>>::get(1).is_none());
 	});
 }
 
