@@ -11,7 +11,7 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::{error::CallError, ErrorObject},
 };
-use log::warn;
+use log::info;
 use orderbook::DbRef;
 use orderbook_primitives::{
 	types::{AccountAsset, ObMessage, ObRecoveryState},
@@ -186,12 +186,23 @@ where
 		for (user_main_account, list_of_proxy_accounts) in all_register_accounts {
 			for asset in allowlisted_asset_ids.clone() {
 				let account_asset = AccountAsset::new(user_main_account.clone(), asset.clone());
-				match trie.get(&account_asset.encode()).unwrap() {
-					None => {},
-					Some(data) => {
-						let account_balance = Decimal::decode(&mut &data[..]).unwrap();
+				if let Ok(data) = trie.get(&account_asset.encode()) {
+					if let Some(data) = data {
+						let account_balance = Decimal::decode(&mut &data[..]).map_err(|err| {
+							JsonRpseeError::Custom(
+								(err.to_string() + "failed to decode decimal").to_string(),
+							)
+						})?;
 						ob_recovery_state.balances.insert(account_asset, account_balance);
-					},
+					}
+					// Ignored none case as account may not have balance for asset
+				}
+				else {
+					info!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: \
+					{:?}",&account_asset.main,&account_asset.asset);
+					return Err(JsonRpseeError::Custom(
+						"unable to fetch data for account".to_string()),
+					);
 				}
 			}
 			ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
