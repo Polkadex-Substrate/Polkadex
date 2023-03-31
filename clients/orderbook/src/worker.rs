@@ -7,7 +7,7 @@ use std::{
 	time::Duration,
 };
 
-use bls_primitives::{Public, Signature};
+use bls_primitives::Public;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
@@ -18,10 +18,10 @@ use orderbook_primitives::{
 		UserActions, WithdrawalRequest,
 	},
 	utils::{prepare_bitmap, return_set_bits, set_bit_field},
-	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
+	ObApi, SnapshotSummary,
 };
 use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use polkadex_primitives::{
 	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
 };
@@ -29,12 +29,11 @@ use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sc_client_api::{Backend, FinalityNotification};
 use sc_network::PeerId;
-use sc_network_common::{protocol::event::Event, service::NetworkNotification};
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_consensus::SyncOracle;
-use sp_core::{blake2_128, offchain::OffchainStorage, Bytes, H160, H256};
+use sp_core::{blake2_128, offchain::OffchainStorage};
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
@@ -47,9 +46,10 @@ use crate::{
 	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
 	utils::*,
-	Client,
+	Client, DbRef,
 };
 use primitive_types::H128;
+
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
@@ -66,7 +66,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
-	pub protocol_name: std::borrow::Cow<'static, str>,
+	pub protocol_name: Cow<'static, str>,
 	pub _marker: PhantomData<B>,
 	// last successful block snapshot created
 	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
@@ -988,7 +988,7 @@ where
 		Ok(())
 	}
 
-	/// public function to get a mutable trie instance with the given mutable memory_db and
+	/// Public method to get a mutable trie instance with the given mutable memory_db and
 	/// working_state_root
 	///
 	/// # Parameters:

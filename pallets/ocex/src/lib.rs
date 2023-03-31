@@ -1453,10 +1453,6 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 	/// Returns a vector of allowlisted asset IDs.
 	///
-	/// # Parameters
-	///
-	/// None
-	///
 	/// # Returns
 	///
 	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.

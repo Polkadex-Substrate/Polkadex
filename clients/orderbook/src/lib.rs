@@ -2,22 +2,20 @@
 extern crate core;
 
 use futures::channel::mpsc::UnboundedReceiver;
-use orderbook_primitives::{ObApi, SnapshotSummary};
+use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use prometheus::Registry;
-use reference_trie::{ExtensionLayout, RefHasher};
-use sc_client_api::{Backend, BlockchainEvents, FinalityNotification, Finalizer};
-use sc_network::PeerId;
-use sc_network_common::protocol::event::Event;
+use reference_trie::RefHasher;
+use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
-use std::{future::Future, marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
@@ -92,7 +90,7 @@ where
 }
 
 use crate::error::Error;
-use orderbook_primitives::types::{ObMessage, UserActions};
+use orderbook_primitives::types::ObMessage;
 use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
 
