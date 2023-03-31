@@ -29,8 +29,8 @@ use frame_support::{traits::Get, weights::Weight};
 use sp_std::marker::PhantomData;
 
 /// Weight functions for `thea`.
-pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> thea::WeightInfo for WeightInfo<T> {
+pub struct TheaWeightInfo<T>(PhantomData<T>);
+impl<T: frame_system::Config> crate::WeightInfo for TheaWeightInfo<T> {
 	// Storage: Thea DepositNonce (r:1 w:1)
 	// Storage: AssetHandler TheaAssets (r:1 w:0)
 	// Storage: Thea RelayersBLSKeyVector (r:1 w:0)

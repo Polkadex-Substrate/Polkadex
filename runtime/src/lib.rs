@@ -1346,6 +1346,7 @@ impl thea::pallet::Config for Runtime {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
+	type Weights = thea::weights::TheaWeightInfo<Runtime>;
 }
 
 //Install Staking Pallet
