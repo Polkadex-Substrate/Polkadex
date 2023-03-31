@@ -27,6 +27,8 @@ use orderbook_primitives::{
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId, BlockNumber};
 
 use crate::worker::{ObWorker, WorkerParams};
+use parking_lot::{RawRwLock, RwLock};
+use sp_runtime::SaturatedConversion;
 
 pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	SnapshotSummary::default();
@@ -198,6 +200,11 @@ where
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
+			last_successful_block_no_snapshot_created: Arc::new(RwLock::new(
+				0_u32.saturated_into(),
+			)),
+			memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+			working_state_root: Arc::new(RwLock::new([0; 32])),
 		};
 		let gadget = crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params);
 
@@ -305,6 +312,9 @@ pub async fn test_single_worker() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
+		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 
 	let mut worker = ObWorker::new(worker_params);
@@ -331,8 +341,6 @@ pub async fn test_single_worker() {
 		proxy: charlie_acc,
 	};
 	worker.process_withdraw(withdraw_request, 0).unwrap()
-
-	// Lets send a trade
 }
 
 // Setup runtime
@@ -380,6 +388,9 @@ pub async fn test_offline_storage() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
+		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
 	let mut worker = ObWorker::new(worker_params);
@@ -470,6 +481,9 @@ pub async fn test_process_chunk() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
+		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
 	let mut worker = ObWorker::new(worker_params);
@@ -525,6 +539,9 @@ pub async fn test_store_snapshot() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
+		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
 	let mut worker = ObWorker::new(worker_params);
@@ -587,6 +604,9 @@ pub async fn test_load_snapshot() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
+		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
 	let mut worker = ObWorker::new(worker_params);
@@ -652,6 +672,9 @@ pub async fn test_load_snapshot_with_invalid_summary() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
+		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
 	let mut worker = ObWorker::new(worker_params);
