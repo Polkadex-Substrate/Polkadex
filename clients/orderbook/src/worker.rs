@@ -103,13 +103,14 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
 	// In memory store, need to make this Arc
-	memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	// Last finalized block
 	last_finalized_block: BlockNumber,
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
 	// last block at which snapshot was generated
+	// ToDO
 	last_block_snapshot_generated: BlockNumber,
 	// latest stid
 	latest_stid: u64,
@@ -219,14 +220,10 @@ where
 	) -> Result<(), Error> {
 		let mut withdrawal = None;
 		{
-			let memory_db_lock = self.memory_db.write();
-			let mut memory_db = memory_db_lock.clone();
-			let working_state_root_lock = self.working_state_root.write();
-			let mut working_state_root = working_state_root_lock.clone();
+			let mut memory_db = self.memory_db.read().clone();
+			let mut working_state_root = self.working_state_root.read().clone();
+			let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
-			let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
-
-			println!("withdrawal main acc: {:?}", hex::encode(withdraw.main.encode()));
 			// Get main account
 			let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
 
@@ -244,6 +241,11 @@ where
 			withdrawal = Some(withdraw.try_into()?);
 			// Commit the trie
 			trie.commit();
+			// drop the trie
+			drop(trie);
+			// update the memory_db & working_state_root
+			*self.memory_db.write() = memory_db;
+			*self.working_state_root.write() = working_state_root;
 		}
 		if let Some(withdrawal) = withdrawal {
 			// Queue withdrawal
@@ -259,25 +261,10 @@ where
 		Ok(())
 	}
 
-	pub fn get_trie_now<'a>(
-		memory_db: &'a mut MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
-		working_state_root: &'a mut [u8; 32],
-	) -> TrieDBMut<'a, ExtensionLayout> {
-		let mut trie = if working_state_root == &mut [0u8; 32] {
-			TrieDBMutBuilder::new(memory_db, working_state_root).build()
-		} else {
-			TrieDBMutBuilder::from_existing(memory_db, working_state_root).build()
-		};
-		trie
-	}
-
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
-		let memory_db_lock = self.memory_db.write();
-		let mut memory_db = memory_db_lock.clone();
-		let working_state_root_lock = self.working_state_root.write();
-		let mut working_state_root = working_state_root_lock.clone();
-
-		let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
+		let mut memory_db = self.memory_db.read().clone();
+		let mut working_state_root = self.working_state_root.read().clone();
+		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 		// Get the ingress messsages for this block
 		let messages = self
@@ -316,11 +303,18 @@ where
 					_ => {},
 				}
 			}
+			// Commit the trie
 			trie.commit();
+			// drop the trie
+			drop(trie);
+			// update the memory_db & working_state_root
+			*self.memory_db.write() = memory_db;
+			*self.working_state_root.write() = working_state_root;
 		}
 		if let Some(last_snapshot) = last_snapshot {
 			*self.last_snapshot.write() = last_snapshot
 		}
+
 		Ok(())
 	}
 
@@ -398,19 +392,20 @@ where
 			// Get Trie here itself and pass to required function
 			// No need to change Test cases
 			UserActions::Trade(trades) => {
-				// let mut trie = self.get_trie();
-				let memory_db_lock = self.memory_db.write();
-				let mut memory_db = memory_db_lock.clone();
-				let working_state_root_lock = self.working_state_root.write();
-				let mut working_state_root = working_state_root_lock.clone();
-
-				let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
+				let mut memory_db = self.memory_db.read().clone();
+				let mut working_state_root = self.working_state_root.read().clone();
+				let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 				for trade in trades {
 					process_trade(&mut trie, trade)?
 				}
-				// Commit the state changes in trie
+				// Commit the trie
 				trie.commit();
+				// drop the trie
+				drop(trie);
+				// update the memory_db & working_state_root
+				*self.memory_db.write() = memory_db;
+				*self.working_state_root.write() = working_state_root;
 			},
 			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
@@ -796,12 +791,9 @@ where
 		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
 			self.last_finalized_block.saturated_into(),
 		))?;
-		let memory_db_lock = self.memory_db.write();
-		let mut memory_db = memory_db_lock.clone();
-		let working_state_root_lock = self.working_state_root.write();
-		let mut working_state_root = working_state_root_lock.clone();
-
-		let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
+		let mut memory_db = self.memory_db.read().clone();
+		let mut working_state_root = self.working_state_root.read().clone();
+		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 		for (main, proxies) in data {
 			// Register main and first proxy
@@ -815,6 +807,11 @@ where
 		}
 		// Commit the trie
 		trie.commit();
+		// drop the trie
+		drop(trie);
+		// update the memory_db & working_state_root
+		*self.memory_db.write() = memory_db;
+		*self.working_state_root.write() = working_state_root;
 		Ok(())
 	}
 
@@ -1011,6 +1008,18 @@ where
 		let message = GossipMessage::Want(summary.snapshot_id, bitmap);
 		self.gossip_engine.send_message(fullnodes, message.encode());
 		Ok(())
+	}
+
+	pub fn get_trie<'a>(
+		memory_db: &'a mut MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
+		working_state_root: &'a mut [u8; 32],
+	) -> TrieDBMut<'a, ExtensionLayout> {
+		let mut trie = if working_state_root == &mut [0u8; 32] {
+			TrieDBMutBuilder::new(memory_db, working_state_root).build()
+		} else {
+			TrieDBMutBuilder::from_existing(memory_db, working_state_root).build()
+		};
+		trie
 	}
 
 	/// Main loop for Orderbook worker.

@@ -26,7 +26,7 @@ use orderbook_primitives::{
 };
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId, BlockNumber};
 
-use crate::worker::{ObWorker, WorkerParams};
+use crate::worker::{register_main, ObWorker, WorkerParams};
 use parking_lot::{RawRwLock, RwLock};
 use sp_runtime::SaturatedConversion;
 
@@ -318,7 +318,6 @@ pub async fn test_single_worker() {
 	};
 
 	let mut worker = ObWorker::new(worker_params);
-	worker.handle_blk_import(0).unwrap();
 
 	let payload = WithdrawPayloadCallByUser {
 		asset_id: AssetId::polkadex,
@@ -331,6 +330,11 @@ pub async fn test_single_worker() {
 		main: alice_acc.clone(),
 		proxy: bob_acc,
 	};
+
+	println!("Handle block import Start");
+	worker.handle_blk_import(0).unwrap();
+	println!("Handle block import Finished");
+
 	worker.process_withdraw(withdraw_request, 0).unwrap();
 	let charlie = AccountKeyring::Charlie.pair();
 	let charlie_acc = AccountId::from(charlie.public());
