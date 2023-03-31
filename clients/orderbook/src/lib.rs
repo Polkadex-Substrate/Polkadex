@@ -22,9 +22,12 @@ mod metrics;
 mod utils;
 mod worker;
 
-// PR 675 will fix test cases
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod utils_tests;
+#[cfg(test)]
+mod worker_tests;
 
 pub(crate) mod orderbook_protocol_name {
 	use sc_chain_spec::ChainSpec;
