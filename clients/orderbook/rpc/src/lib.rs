@@ -75,6 +75,12 @@ pub trait OrderbookApi {
 	#[method(name = "ob_submitAction")]
 	async fn submit_action(&self, action: ObMessage) -> RpcResult<()>;
 	/// Returns the state of the orderbook that will help engine to recover.
+	///
+	/// # Parameters
+	/// - self: a reference to the current object
+	///
+	/// # Return type:
+	/// - RpcResult<Vec<u8>>: a Result containing serialize `ObRecoveryState`.
 	#[method(name = "ob_getObRecoverState")]
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>>;
 }

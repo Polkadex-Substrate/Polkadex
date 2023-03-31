@@ -45,10 +45,6 @@ impl ObRecoveryState {
 			state_change_id: 0,
 		}
 	}
-
-	pub fn add_balance(&self) {}
-
-	pub fn add_account(&self) {}
 }
 
 #[derive(Clone, Debug, Encode, Decode)]

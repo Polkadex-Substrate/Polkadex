@@ -331,9 +331,7 @@ pub async fn test_single_worker() {
 		proxy: bob_acc,
 	};
 
-	println!("Handle block import Start");
 	worker.handle_blk_import(0).unwrap();
-	println!("Handle block import Finished");
 
 	worker.process_withdraw(withdraw_request, 0).unwrap();
 	let charlie = AccountKeyring::Charlie.pair();

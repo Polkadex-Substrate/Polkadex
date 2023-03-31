@@ -195,7 +195,6 @@ where
 		working_state_root,
 	};
 
-	// ToDo: Pass the parameters to the worker module
 	let mut worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
 
 	worker.run().await
