@@ -224,7 +224,7 @@ where
 			let working_state_root_lock = self.working_state_root.write();
 			let mut working_state_root = working_state_root_lock.clone();
 
-			let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+			let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
 
 			println!("withdrawal main acc: {:?}", hex::encode(withdraw.main.encode()));
 			// Get main account
@@ -266,20 +266,18 @@ where
 		let mut trie = if working_state_root == &mut [0u8; 32] {
 			TrieDBMutBuilder::new(memory_db, working_state_root).build()
 		} else {
-			TrieDBMutBuilder::from_existing(memory_db, working_state_root)
-				.build()
+			TrieDBMutBuilder::from_existing(memory_db, working_state_root).build()
 		};
 		trie
 	}
 
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
-
 		let memory_db_lock = self.memory_db.write();
 		let mut memory_db = memory_db_lock.clone();
 		let working_state_root_lock = self.working_state_root.write();
 		let mut working_state_root = working_state_root_lock.clone();
 
-		let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+		let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
 
 		// Get the ingress messsages for this block
 		let messages = self
@@ -406,7 +404,7 @@ where
 				let working_state_root_lock = self.working_state_root.write();
 				let mut working_state_root = working_state_root_lock.clone();
 
-				let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+				let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
 
 				for trade in trades {
 					process_trade(&mut trie, trade)?
@@ -803,7 +801,7 @@ where
 		let working_state_root_lock = self.working_state_root.write();
 		let mut working_state_root = working_state_root_lock.clone();
 
-		let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+		let mut trie = Self::get_trie_now(&mut memory_db, &mut working_state_root);
 
 		for (main, proxies) in data {
 			// Register main and first proxy
