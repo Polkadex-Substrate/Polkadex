@@ -9,13 +9,10 @@ use sp_runtime::traits::Verify;
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
 use std::{
 	borrow::Borrow,
-	collections::HashMap,
 	fmt::{Display, Formatter},
 	ops::Mul,
 	str::FromStr,
 };
-
-use crate::SnapshotSummary;
 
 pub type OrderId = H256;
 

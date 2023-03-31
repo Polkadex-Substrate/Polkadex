@@ -12,9 +12,14 @@ use jsonrpsee::{
 	types::{error::CallError, ErrorObject},
 };
 use log::warn;
-use orderbook_primitives::types::{AccountAsset, ObMessage, ObRecoveryState};
+use orderbook::DbRef;
+use orderbook_primitives::{
+	types::{AccountAsset, ObMessage, ObRecoveryState},
+	ObApi,
+};
 use parking_lot::RwLock;
 use polkadex_primitives::BlockNumber;
+use reference_trie::ExtensionLayout;
 use rust_decimal::Decimal;
 use serde_json;
 use sp_api::ProvideRuntimeApi;
@@ -80,14 +85,10 @@ pub trait OrderbookApi {
 	/// - self: a reference to the current object
 	///
 	/// # Return
-	/// - RpcResult<Vec<u8>>: a Result containing serialize `ObRecoveryState`.
+	/// - RpcResult<Vec<u8>>: a Result containing serialized `ObRecoveryState`.
 	#[method(name = "ob_getObRecoverState")]
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>>;
 }
-
-use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::ObApi;
-use reference_trie::{ExtensionLayout, RefHasher};
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
 pub struct OrderbookRpc<Client, Block> {
