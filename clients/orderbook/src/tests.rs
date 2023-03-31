@@ -200,7 +200,7 @@ where
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
-			last_successful_block_no_snapshot_created: Arc::new(RwLock::new(
+			last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
 				0_u32.saturated_into(),
 			)),
 			memory_db: Arc::new(RwLock::new(MemoryDB::default())),
@@ -312,7 +312,9 @@ pub async fn test_single_worker() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
 		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
 		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
@@ -390,7 +392,9 @@ pub async fn test_offline_storage() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
 		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
 		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
@@ -483,7 +487,9 @@ pub async fn test_process_chunk() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
 		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
 		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
@@ -541,7 +547,9 @@ pub async fn test_store_snapshot() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
 		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
 		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
@@ -606,7 +614,9 @@ pub async fn test_load_snapshot() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
 		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
 		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
@@ -674,7 +684,9 @@ pub async fn test_load_snapshot_with_invalid_summary() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_no_snapshot_created: Arc::new(RwLock::new(0_u32.saturated_into())),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
 		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
 		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};

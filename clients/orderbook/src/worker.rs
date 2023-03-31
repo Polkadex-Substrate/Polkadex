@@ -69,7 +69,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub protocol_name: Cow<'static, str>,
 	pub _marker: PhantomData<B>,
 	// last successful block snapshot created
-	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
+	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	// memory db
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	// working state root
@@ -145,7 +145,7 @@ where
 			network,
 			protocol_name,
 			_marker,
-			last_successful_block_no_snapshot_created: last_block_snapshot_generated,
+			last_successful_block_number_snapshot_created: last_block_snapshot_generated,
 			memory_db,
 			working_state_root,
 		} = worker_params;
