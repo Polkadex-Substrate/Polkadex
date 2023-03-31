@@ -53,6 +53,9 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
+use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
+use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
+use curv::arithmetic::Converter;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -95,7 +98,7 @@ pub struct FullDeps<C, P, SC, B> {
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
 	/// Channel for sending ob messages to worker
-	pub orderbook: UnboundedSender<(ObMessage, sp_core::ecdsa::Signature)>,
+	pub orderbook: UnboundedSender<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
 }
 
 /// Instantiate all Full RPC extensions.

@@ -102,6 +102,9 @@ sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true }
+multi-party-ecdsa = { git = "https://github.com/Polkadex-Substrate/multi-party-ecdsa-2.git", branch = "master" , features = ["backup"] }
+curv = { package = "curv-kzen", version = "~0.9", default-features = false }
+secp256k1 = { version="0.22.1", features = ["recovery"] }
 
 [dev-dependencies]
 futures = "0.3.9"
