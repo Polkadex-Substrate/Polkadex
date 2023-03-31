@@ -124,7 +124,7 @@ where
 	// Links between the block importer, the background voter and the RPC layer.
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
-	// lock 64
+	// last successful block snapshot created
 	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 	// memory db
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
@@ -187,6 +187,9 @@ where
 		message_sender_link,
 		metrics,
 		_marker: Default::default(),
+		last_successful_block_no_snapshot_created,
+		memory_db,
+		working_state_root,
 	};
 
 	// ToDo: Pass the parameters to the worker module

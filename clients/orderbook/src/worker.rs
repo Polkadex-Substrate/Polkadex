@@ -68,6 +68,12 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
 	pub protocol_name: std::borrow::Cow<'static, str>,
 	pub _marker: PhantomData<B>,
+	// last successful block snapshot created
+	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
+	// memory db
+	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	// working state root
+	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
 /// A Orderbook worker plays the Orderbook protocol
@@ -85,7 +91,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// Last processed state change id
 	last_snapshot: Arc<RwLock<SnapshotSummary>>,
 	// Working state root,
-	pub(crate) working_state_root: [u8; 32],
+	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 	// Known state ids
 	known_messages: BTreeMap<u64, ObMessage>,
 	// Links between the block importer, the background voter and the RPC layer.
@@ -97,7 +103,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
 	// In memory store, need to make this Arc
-	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
+	memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	// Last finalized block
 	last_finalized_block: BlockNumber,
 	state_is_syncing: bool,
@@ -139,6 +145,9 @@ where
 			network,
 			protocol_name,
 			_marker,
+			last_successful_block_no_snapshot_created,
+			memory_db,
+			working_state_root,
 		} = worker_params;
 
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
@@ -157,7 +166,7 @@ where
 			network,
 			gossip_engine,
 			gossip_validator,
-			memory_db: MemoryDB::default(),
+			memory_db,
 			// links,
 			message_sender_link,
 			state_is_syncing: false,
@@ -165,7 +174,7 @@ where
 			last_snapshot,
 			_marker: Default::default(),
 			known_messages: Default::default(),
-			working_state_root: Default::default(),
+			working_state_root,
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
@@ -210,7 +219,13 @@ where
 	) -> Result<(), Error> {
 		let mut withdrawal = None;
 		{
-			let mut trie = self.get_trie();
+			let memory_db_lock = self.memory_db.write();
+			let mut memory_db = memory_db_lock.clone();
+			let working_state_root_lock = self.working_state_root.write();
+			let mut working_state_root = working_state_root_lock.clone();
+
+			let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+
 			println!("withdrawal main acc: {:?}", hex::encode(withdraw.main.encode()));
 			// Get main account
 			let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
@@ -244,18 +259,28 @@ where
 		Ok(())
 	}
 
-	pub fn get_trie(&mut self) -> TrieDBMut<ExtensionLayout> {
-		let mut trie = if self.working_state_root == [0u8; 32] {
-			TrieDBMutBuilder::new(&mut self.memory_db, &mut self.working_state_root).build()
+	pub fn get_trie_now<'a>(
+		memory_db: &'a mut MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
+		working_state_root: &'a mut [u8; 32],
+	) -> TrieDBMut<'a, ExtensionLayout> {
+		let mut trie = if working_state_root == &mut [0u8; 32] {
+			TrieDBMutBuilder::new(memory_db, working_state_root).build()
 		} else {
-			println!("Working state root: {:?}", hex::encode(self.working_state_root));
-			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
+			TrieDBMutBuilder::from_existing(memory_db, working_state_root)
 				.build()
 		};
 		trie
 	}
 
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
+
+		let memory_db_lock = self.memory_db.write();
+		let mut memory_db = memory_db_lock.clone();
+		let working_state_root_lock = self.working_state_root.write();
+		let mut working_state_root = working_state_root_lock.clone();
+
+		let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+
 		// Get the ingress messsages for this block
 		let messages = self
 			.runtime
@@ -265,7 +290,6 @@ where
 		let mut last_snapshot = None;
 
 		{
-			let mut trie = self.get_trie();
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
 			for message in messages {
 				match message {
@@ -373,8 +397,17 @@ where
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
+			// Get Trie here itself and pass to required function
+			// No need to change Test cases
 			UserActions::Trade(trades) => {
-				let mut trie = self.get_trie();
+				// let mut trie = self.get_trie();
+				let memory_db_lock = self.memory_db.write();
+				let mut memory_db = memory_db_lock.clone();
+				let working_state_root_lock = self.working_state_root.write();
+				let mut working_state_root = working_state_root_lock.clone();
+
+				let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+
 				for trade in trades {
 					process_trade(&mut trie, trade)?
 				}
@@ -442,7 +475,9 @@ where
 	) -> Result<(), Error> {
 		match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(data) {
 			Ok(data) => {
-				self.memory_db.load_from(data);
+				let memory_db_write_lock = self.memory_db.write();
+				let mut memory_db = memory_db_write_lock.clone();
+				memory_db.load_from(data);
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 			},
@@ -471,7 +506,9 @@ where
 		snapshot_id: u64,
 	) -> Result<SnapshotSummary, Error> {
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			return match serde_json::to_vec(self.memory_db.data()) {
+			let memory_db_read_lock = self.memory_db.read();
+			let memory_db = memory_db_read_lock.clone();
+			return match serde_json::to_vec(memory_db.data()) {
 				Ok(data) => {
 					let mut state_chunk_hashes = vec![];
 					// Slice the data into chunks of 10 MB
@@ -488,9 +525,13 @@ where
 
 					let withdrawals = self.pending_withdrawals.clone();
 					self.pending_withdrawals.clear();
+
+					let working_state_root_read_lock = self.working_state_root.read();
+					let working_state_root = working_state_root_read_lock.clone();
+
 					let summary = SnapshotSummary {
 						snapshot_id,
-						state_root: self.working_state_root.into(),
+						state_root: working_state_root.into(),
 						state_change_id,
 						bitflags: vec![],
 						withdrawals,
@@ -744,7 +785,13 @@ where
 		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
 			self.last_finalized_block.saturated_into(),
 		))?;
-		let mut trie = self.get_trie();
+		let memory_db_lock = self.memory_db.write();
+		let mut memory_db = memory_db_lock.clone();
+		let working_state_root_lock = self.working_state_root.write();
+		let mut working_state_root = working_state_root_lock.clone();
+
+		let mut trie = Self::get_trie_now(&mut memory_db,&mut working_state_root);
+
 		for (main, proxies) in data {
 			// Register main and first proxy
 			register_main(&mut trie, main.clone(), proxies[0].clone())?;
