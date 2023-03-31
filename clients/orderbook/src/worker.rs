@@ -110,8 +110,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
 	// last block at which snapshot was generated
-	// ToDO
-	last_block_snapshot_generated: BlockNumber,
+	last_block_snapshot_generated: Arc<RwLock<BlockNumber>>,
 	// latest stid
 	latest_stid: u64,
 }
@@ -146,7 +145,7 @@ where
 			network,
 			protocol_name,
 			_marker,
-			last_successful_block_no_snapshot_created,
+			last_successful_block_no_snapshot_created: last_block_snapshot_generated,
 			memory_db,
 			working_state_root,
 		} = worker_params;
@@ -179,7 +178,7 @@ where
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
-			last_block_snapshot_generated: 0,
+			last_block_snapshot_generated,
 			latest_stid: 0,
 		}
 	}
@@ -205,7 +204,8 @@ where
 		// block interval
 		if pending_withdrawals_interval > self.pending_withdrawals.len() as u64 ||
 			block_interval >
-				self.last_finalized_block.saturating_sub(self.last_block_snapshot_generated)
+				self.last_finalized_block
+					.saturating_sub(*self.last_block_snapshot_generated.read())
 		{
 			return true
 		}
@@ -254,7 +254,7 @@ where
 			if self.should_generate_snapshot() {
 				if let Err(err) = self.snapshot(stid) {
 					log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
-					self.last_block_snapshot_generated = self.last_finalized_block;
+					*self.last_block_snapshot_generated.write() = self.last_finalized_block;
 				}
 			}
 		}
@@ -822,12 +822,11 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
-
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(self.latest_stid) {
 				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
-				self.last_block_snapshot_generated = self.last_finalized_block;
+				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
 			}
 		}
 
