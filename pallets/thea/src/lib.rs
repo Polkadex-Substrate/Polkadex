@@ -452,6 +452,7 @@ pub mod pallet {
 					// If pending deposits are available, save it back
 					<ApprovedDeposits<T>>::insert(&user, deposits)
 				} else {
+					<ApprovedDeposits<T>>::remove(&user);
 					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
 				}
 			} else {
