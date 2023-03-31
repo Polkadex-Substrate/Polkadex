@@ -220,8 +220,8 @@ where
 	) -> Result<(), Error> {
 		let mut withdrawal = None;
 		{
-			let mut memory_db = self.memory_db.read().clone();
-			let mut working_state_root = self.working_state_root.read().clone();
+			let mut memory_db = self.memory_db.write();
+			let mut working_state_root = self.working_state_root.write();
 			let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 			// Get main account
@@ -241,11 +241,6 @@ where
 			withdrawal = Some(withdraw.try_into()?);
 			// Commit the trie
 			trie.commit();
-			// drop the trie
-			drop(trie);
-			// update the memory_db & working_state_root
-			*self.memory_db.write() = memory_db;
-			*self.working_state_root.write() = working_state_root;
 		}
 		if let Some(withdrawal) = withdrawal {
 			// Queue withdrawal
@@ -262,8 +257,8 @@ where
 	}
 
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
-		let mut memory_db = self.memory_db.read().clone();
-		let mut working_state_root = self.working_state_root.read().clone();
+		let mut memory_db = self.memory_db.write();
+		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 		// Get the ingress messsages for this block
@@ -305,16 +300,10 @@ where
 			}
 			// Commit the trie
 			trie.commit();
-			// drop the trie
-			drop(trie);
-			// update the memory_db & working_state_root
-			*self.memory_db.write() = memory_db;
-			*self.working_state_root.write() = working_state_root;
 		}
 		if let Some(last_snapshot) = last_snapshot {
 			*self.last_snapshot.write() = last_snapshot
 		}
-
 		Ok(())
 	}
 
@@ -392,8 +381,8 @@ where
 			// Get Trie here itself and pass to required function
 			// No need to change Test cases
 			UserActions::Trade(trades) => {
-				let mut memory_db = self.memory_db.read().clone();
-				let mut working_state_root = self.working_state_root.read().clone();
+				let mut memory_db = self.memory_db.write();
+				let mut working_state_root = self.working_state_root.write();
 				let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 				for trade in trades {
@@ -401,11 +390,6 @@ where
 				}
 				// Commit the trie
 				trie.commit();
-				// drop the trie
-				drop(trie);
-				// update the memory_db & working_state_root
-				*self.memory_db.write() = memory_db;
-				*self.working_state_root.write() = working_state_root;
 			},
 			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
@@ -791,8 +775,8 @@ where
 		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
 			self.last_finalized_block.saturated_into(),
 		))?;
-		let mut memory_db = self.memory_db.read().clone();
-		let mut working_state_root = self.working_state_root.read().clone();
+		let mut memory_db = self.memory_db.write();
+		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 		for (main, proxies) in data {
@@ -807,11 +791,6 @@ where
 		}
 		// Commit the trie
 		trie.commit();
-		// drop the trie
-		drop(trie);
-		// update the memory_db & working_state_root
-		*self.memory_db.write() = memory_db;
-		*self.working_state_root.write() = working_state_root;
 		Ok(())
 	}
 

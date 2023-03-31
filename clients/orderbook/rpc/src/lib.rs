@@ -7,10 +7,11 @@ use sc_rpc::SubscriptionTaskExecutor;
 use codec::{Decode, Encode};
 use futures::{channel::mpsc::UnboundedSender, task::SpawnError, SinkExt};
 use jsonrpsee::{
-	core::{async_trait, Error as JsonRpseeError, RpcResult, __reexports::serde_json},
+	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
 	types::{error::CallError, ErrorObject},
 };
+use serde_json;
 use log::warn;
 use orderbook_primitives::types::{AccountAsset, ObMessage, ObRecoveryState};
 use parking_lot::RwLock;
