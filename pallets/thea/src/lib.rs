@@ -29,6 +29,8 @@ mod benchmarking;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+
 use core::default::Default;
 use frame_support::{
 	dispatch::fmt::Debug,
@@ -62,6 +64,18 @@ use xcm::{
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+
+pub trait WeightInfo {
+	fn approve_deposit() -> Weight;
+	fn claim_deposit(_a: u32, _m: u32) -> Weight;
+	fn batch_withdrawal_complete() -> Weight;
+	fn withdraw() -> Weight;
+	fn set_withdrawal_fee() -> Weight;
+	fn thea_key_rotation_complete() -> Weight;
+	fn set_thea_key_complete() -> Weight;
+	fn thea_queued_queued_public_key() -> Weight;
+	fn thea_relayers_reset_rotation() -> Weight;
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -122,6 +136,8 @@ pub mod pallet {
 		type ParaId: Get<u32>;
 		/// Extrinsic Notifier for rewards
 		type ExtrinsicSubmittedNotifier: TheaExtrinsicSubmitted<Self::AccountId>;
+		/// Weights for Thea extrinsics
+		type Weights: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -404,7 +420,7 @@ pub mod pallet {
 		/// * `token_type`: Token Type.
 		/// * `payload`: Encoded Deposit Payload.
 		#[pallet::call_index(0)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::approve_deposit())]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
 			bit_map: u128,
@@ -424,9 +440,8 @@ pub mod pallet {
 		/// * `origin`: User
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
 		/// (it's used to parametrise the weight of this extrinsic)
-		// TODO: [Issue #606] Use benchmarks
 		#[pallet::call_index(1)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::claim_deposit(1, 1))]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 
@@ -472,9 +487,8 @@ pub mod pallet {
 		/// * `tx_hash`: Vec<u8>
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
 		#[pallet::call_index(2)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::batch_withdrawal_complete())]
 		pub fn batch_withdrawal_complete(
 			origin: OriginFor<T>,
 			withdrawal_nonce: u32,
@@ -525,9 +539,8 @@ pub mod pallet {
 		/// * `beneficiary`: beneficiary of the withdraw
 		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
 		///   withdrawal
-		// TODO: [Issue #606] Use benchmarks
 		#[pallet::call_index(3)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::withdraw())]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -549,7 +562,7 @@ pub mod pallet {
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
 		#[pallet::call_index(4)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::set_withdrawal_fee())]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -570,9 +583,8 @@ pub mod pallet {
 		/// * `tx_hash`: Transaction hash of key update on foreign chain
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
 		#[pallet::call_index(5)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::thea_key_rotation_complete())]
 		pub fn thea_key_rotation_complete(
 			origin: OriginFor<T>,
 			network: Network,
@@ -630,9 +642,8 @@ pub mod pallet {
 		/// * `public_key`: New Public Key for thea (Raw Uncompressed)
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
 		#[pallet::call_index(6)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::set_thea_key_complete())]
 		pub fn set_thea_key_complete(
 			origin: OriginFor<T>,
 			network: Network,
@@ -684,9 +695,8 @@ pub mod pallet {
 		/// * `public_key`: Thea Public Key
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
 		#[pallet::call_index(7)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::thea_queued_queued_public_key())]
 		pub fn thea_queued_queued_public_key(
 			origin: OriginFor<T>,
 			network: Network,
@@ -740,7 +750,7 @@ pub mod pallet {
 		/// * `origin`: Any relayer
 		/// * `network`: Network id
 		#[pallet::call_index(8)]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::Weights::thea_relayers_reset_rotation())]
 		pub fn thea_relayers_reset_rotation(
 			origin: OriginFor<T>,
 			network: Network,
