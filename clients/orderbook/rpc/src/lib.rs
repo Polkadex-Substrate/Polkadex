@@ -183,27 +183,33 @@ where
 		let mut ob_recovery_state = ObRecoveryState::new();
 
 		// Generate account info from existing DB
+		let insert_balance = |trie: &TrieDBMut<ExtensionLayout>,
+		                      ob_recovery_state: &mut ObRecoveryState,
+		                      account_asset: &AccountAsset|
+		 -> RpcResult<()> {
+			if let Ok(data) = trie.get(&account_asset.encode()) {
+				if let Some(data) = data {
+					let account_balance = Decimal::decode(&mut &data[..]).map_err(|err| {
+						JsonRpseeError::Custom(
+							(err.to_string() + "failed to decode decimal").to_string(),
+						)
+					})?;
+					ob_recovery_state.balances.insert(account_asset.clone(), account_balance);
+				}
+			// Ignored none case as account may not have balance for asset
+			} else {
+				info!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
+				return Err(JsonRpseeError::Custom(
+					"unable to fetch DB data for account".to_string(),
+				))
+			}
+			Ok(())
+		};
+
 		for (user_main_account, list_of_proxy_accounts) in all_register_accounts {
 			for asset in allowlisted_asset_ids.clone() {
 				let account_asset = AccountAsset::new(user_main_account.clone(), asset.clone());
-				if let Ok(data) = trie.get(&account_asset.encode()) {
-					if let Some(data) = data {
-						let account_balance = Decimal::decode(&mut &data[..]).map_err(|err| {
-							JsonRpseeError::Custom(
-								(err.to_string() + "failed to decode decimal").to_string(),
-							)
-						})?;
-						ob_recovery_state.balances.insert(account_asset, account_balance);
-					}
-					// Ignored none case as account may not have balance for asset
-				}
-				else {
-					info!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: \
-					{:?}",&account_asset.main,&account_asset.asset);
-					return Err(JsonRpseeError::Custom(
-						"unable to fetch data for account".to_string()),
-					);
-				}
+				insert_balance(&trie, &mut ob_recovery_state, &account_asset)?;
 			}
 			ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
 		}
