@@ -11,12 +11,12 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::{error::CallError, ErrorObject},
 };
-use serde_json;
 use log::warn;
 use orderbook_primitives::types::{AccountAsset, ObMessage, ObRecoveryState};
 use parking_lot::RwLock;
 use polkadex_primitives::BlockNumber;
 use rust_decimal::Decimal;
+use serde_json;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_blockchain::HeaderBackend;
@@ -79,7 +79,7 @@ pub trait OrderbookApi {
 	/// # Parameters
 	/// - self: a reference to the current object
 	///
-	/// # Return type:
+	/// # Return
 	/// - RpcResult<Vec<u8>>: a Result containing serialize `ObRecoveryState`.
 	#[method(name = "ob_getObRecoverState")]
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>>;
