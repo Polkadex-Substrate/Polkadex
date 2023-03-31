@@ -178,9 +178,8 @@ benchmarks! {
 	}
 
 	set_withdrawal_fee {
-		let origin = account::<T::AccountId>("1", 0, 0);
-		let call = Call::<T>::set_withdrawal_fee{ };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
+		let call = Call::<T>::set_withdrawal_fee{ network_id: 1, fee: u128::MAX };
+	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
 	verify {
 		//assert_last_event::<T>(Event::Unbonded{ candidate, nominator, amount }.into());
 	}
