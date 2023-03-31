@@ -23,6 +23,7 @@ asset-handler = {path = "../asset-handler", default-features = false}
 thea-primitives = { path = "../../thea-primitives", default-features = false }
 thea-staking = { path = "../thea-staking", default-features = false }
 xcm = { workspace = true, default-features = false }
+pallet-assets = { workspace = true, default-features = false, optional = true }
 pallet-staking = { default-features = false, workspace = true, optional = true }
 pallet-balances = { default-features = false, workspace = true , optional = true }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
@@ -59,6 +60,7 @@ runtime-benchmarks = [
     "pallet-balances/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
+    "pallet-assets/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "chainbridge/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",

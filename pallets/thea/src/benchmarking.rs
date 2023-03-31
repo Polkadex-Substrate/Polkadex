@@ -22,11 +22,15 @@
 use super::*;
 use crate::Pallet as Thea;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
+use frame_support::{
+	dispatch::UnfilteredDispatchable,
+	traits::{fungibles::Mutate, EnsureOrigin},
+	BoundedVec,
+};
 use frame_system::{Config, RawOrigin};
 use pallet_balances as _;
 use sp_core::{H160, H256};
-use sp_runtime::traits::{ConstU32, Zero};
+use sp_runtime::traits::{ConstU32, StaticLookup, Zero};
 use sp_std::{boxed::Box, vec};
 use thea_primitives::{
 	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
@@ -61,7 +65,7 @@ const ID: [u8; 32] = [
 ];
 
 benchmarks! {
-	where_clause { where T: Config + pallet::Config + asset_handler::pallet::Config }
+	where_clause { where T: Config + pallet::Config + asset_handler::pallet::Config + pallet_assets::Config }
 
 	approve_deposit {
 		let origin = account::<T::AccountId>("1", 0, 0);
@@ -138,7 +142,36 @@ benchmarks! {
 
 	withdraw {
 		let origin = account::<T::AccountId>("1", 0, 0);
-		let call = Call::<T>::withdraw{ asset_id: , amount: , beneficiary: , pay_for_remaining: };
+		TheaKeyRotation::<T>::insert(1, false);
+		let mut withdrawals = vec![];
+		const PL: [u8; 45] = [1, 4, 0, 1, 0, 0, 161, 15, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+		const ASSET_ID: u128 = 313675452054768990531043083915731189857;
+		const BF: [u8; 32] = [1u8; 32];
+		for _ in 1..=10 {
+			withdrawals.push(ApprovedWithdraw {
+				asset_id: ASSET_ID,
+				amount: 1000,
+				network: 1,
+				beneficiary: BF.to_vec(),
+				payload: PL.to_vec(),
+				index: 0,
+			});
+		}
+		let user_lookup: <T::Lookup as StaticLookup>::Source = T::Lookup::unlookup(origin.clone());
+		pallet_balances::pallet::Pallet::<T>::set_balance(
+			RawOrigin::Root.into(),
+			user_lookup,
+			<T as pallet_balances::Config>::Balance::decode(&mut 1_000_000_000_000u128.to_le_bytes().as_ref()).unwrap(),
+			<T as pallet_balances::Config>::Balance::decode(&mut 0u128.to_le_bytes().as_ref()).unwrap(),
+		)?;
+		pallet_assets::pallet::Pallet::<T>::mint_into(
+			<T as pallet_assets::Config>::AssetId::decode(&mut [0, 1, 0].as_ref()).unwrap(),
+			&origin,
+			<T as pallet_assets::Config>::Balance::decode(&mut 1_000_000_000_000u128.to_le_bytes()
+				.as_ref())
+				.unwrap()
+		)?;
+		let call = Call::<T>::withdraw{ asset_id: ASSET_ID, amount: 1000, beneficiary: BF.to_vec(), pay_for_remaining: false };
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
 	verify{
 		//assert_last_event::<T>(Event::Bonded{ candidate, nominator, amount }.into());
