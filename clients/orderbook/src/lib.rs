@@ -2,19 +2,20 @@
 extern crate core;
 
 use futures::channel::mpsc::UnboundedReceiver;
-use orderbook_primitives::{ObApi, SnapshotSummary};
+use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 
+use memory_db::{HashKey, MemoryDB};
+use parking_lot::RwLock;
 use prometheus::Registry;
-use sc_client_api::{Backend, BlockchainEvents, FinalityNotification, Finalizer};
-use sc_network::PeerId;
-use sc_network_common::protocol::event::Event;
+use reference_trie::RefHasher;
+use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
-use std::{future::Future, marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
@@ -89,8 +90,12 @@ where
 }
 
 use crate::error::Error;
-use orderbook_primitives::types::{ObMessage, UserActions};
+use orderbook_primitives::types::ObMessage;
+use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
+
+/// Alias type for the `MemoryDB` database lock reference.
+pub type DbRef = Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>;
 
 /// Orderbook gadget initialization parameters.
 pub struct ObParams<B, BE, C, N, R>
@@ -123,6 +128,12 @@ where
 	// Links between the block importer, the background voter and the RPC layer.
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
+	// last successful block snapshot created
+	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
+	// memory db
+	pub memory_db: DbRef,
+	// working state root
+	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
 /// Start the Orderbook gadget.
@@ -148,6 +159,9 @@ where
 		is_validator,
 		message_sender_link,
 		marker: _,
+		last_successful_block_number_snapshot_created,
+		memory_db,
+		working_state_root,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -177,6 +191,9 @@ where
 		message_sender_link,
 		metrics,
 		_marker: Default::default(),
+		last_successful_block_number_snapshot_created,
+		memory_db,
+		working_state_root,
 	};
 
 	let mut worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
