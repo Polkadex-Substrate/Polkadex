@@ -80,8 +80,8 @@ impl TradingPairConfig {
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OnChainEvents<AccountId> {
-	OrderBookWithdrawalClaimed(u32, AccountId, BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>),
-	GetStorage(Pallet, StorageItem, u32),
+	OrderBookWithdrawalClaimed(u64, AccountId, BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>),
+	GetStorage(Pallet, StorageItem, u64),
 }
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
