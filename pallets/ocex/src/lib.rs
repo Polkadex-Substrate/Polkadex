@@ -1451,6 +1451,18 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
 	}
 
+	/// Returns a vector of allowlisted asset IDs.
+	///
+	/// # Returns
+	///
+	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.
+	pub fn get_allowlisted_assets() -> Vec<AssetId> {
+		<AllowlistedToken<T>>::get()
+			.iter()
+			.map(|asset_id| (asset_id.clone()))
+			.collect::<Vec<AssetId>>()
+	}
+
 	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {
 		let pending_withdrawals_interval = <PendingWithdrawalsAllowedPerSnapshot<T>>::get();
 		let block_interval = <SnapshotIntervalBlock<T>>::get();
