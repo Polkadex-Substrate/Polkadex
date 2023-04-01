@@ -440,7 +440,6 @@ where
 					}
 
 					let withdrawals = self.pending_withdrawals.clone();
-					//TODO: Extra logic to handle it
 					self.pending_withdrawals.clear();
 					let summary = SnapshotSummary {
 						snapshot_id,

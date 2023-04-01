@@ -1040,7 +1040,6 @@ pub mod pallet {
 				}
 				// Update the snapshot nonce and move the summary to snapshots storage
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
-				//TODO: Handle Withdrawal
 				let withdrawal_map =
 					Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
 				if working_summary.withdrawals.len() > 0 {
@@ -1257,10 +1256,6 @@ pub mod pallet {
 			}
 			Ok(withdrawal_map)
 		}
-
-		// fn convert_account_id32_to_account_id<T, Z: Convert<AccountId32,
-		// T::AccountId>>(account_id32: AccountId32) -> T::AccountId { 	account_id32.into()
-		// }
 	}
 
 	/// Events are a simple means of reporting specific conditions and
