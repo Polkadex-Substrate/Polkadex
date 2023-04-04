@@ -89,7 +89,7 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_core::H256;
+	use sp_core::{crypto::AccountId32, H256};
 	use sp_runtime::{
 		traits::{IdentifyAccount, One, Verify},
 		BoundedBTreeSet, SaturatedConversion,
@@ -336,6 +336,8 @@ pub mod pallet {
 		SignerIndexNotFound,
 		/// Snapshot in invalid state
 		InvalidSnapshotState,
+		/// AccountId cannot be decoded
+		AccountIdCannotBeDecoded,
 	}
 
 	#[pallet::hooks]
@@ -893,7 +895,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::claim_withdraw(1))]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
-			snapshot_id: u32,
+			snapshot_id: u64,
 			account: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			// Anyone can claim the withdrawal for any user
@@ -1060,6 +1062,25 @@ pub mod pallet {
 				}
 				// Update the snapshot nonce and move the summary to snapshots storage
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
+				let withdrawal_map =
+					Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
+				if working_summary.withdrawals.len() > 0 {
+					ensure!(
+						<OnChainEvents<T>>::try_mutate(|onchain_events| {
+							onchain_events.try_push(
+								polkadex_primitives::ocex::OnChainEvents::GetStorage(
+									polkadex_primitives::ocex::Pallet::OCEX,
+									polkadex_primitives::ocex::StorageItem::Withdrawal,
+									working_summary.snapshot_id,
+								),
+							)?;
+							Ok::<(), ()>(())
+						})
+						.is_ok(),
+						Error::<T>::OnchainEventsBoundedVecOverflow
+					);
+				}
+				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
 				// Clear PendingSnapshotFromPreviousSet storage if its present
 				// because we are accepted this snapshot as there are not pending snapshots
@@ -1215,6 +1236,48 @@ pub mod pallet {
 			Self::deposit_event(Event::WithdrawFromOrderbook(user, asset, amount));
 			Ok(())
 		}
+
+		fn create_withdrawal_tree(
+			pending_withdrawals: Vec<Withdrawal<AccountId32>>,
+		) -> Result<WithdrawalsMap<T>, sp_runtime::DispatchError> {
+			let mut withdrawal_map: WithdrawalsMap<T> = BoundedBTreeMap::new();
+			for withdrawal in pending_withdrawals {
+				let recipient_account: T::AccountId =
+					T::AccountId::decode(&mut withdrawal.main_account.as_ref())
+						.map_err(|_| Error::<T>::AccountIdCannotBeDecoded)?;
+				if let Some(pending_withdrawals) = withdrawal_map.get_mut(&recipient_account) {
+					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
+						main_account: recipient_account.clone(),
+						amount: withdrawal.amount,
+						asset: withdrawal.asset,
+						event_id: withdrawal.event_id,
+						fees: withdrawal.fees,
+					};
+					pending_withdrawals
+						.try_push(new_withdrawal)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+				} else {
+					let mut pending_withdrawals: BoundedVec<
+						Withdrawal<<T as frame_system::Config>::AccountId>,
+						WithdrawalLimit,
+					> = BoundedVec::default();
+					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
+						main_account: recipient_account.clone(),
+						amount: withdrawal.amount,
+						asset: withdrawal.asset,
+						event_id: withdrawal.event_id,
+						fees: withdrawal.fees,
+					};
+					pending_withdrawals
+						.try_push(new_withdrawal.clone())
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					withdrawal_map
+						.try_insert(recipient_account, pending_withdrawals)
+						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+				}
+			}
+			Ok(withdrawal_map)
+		}
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -1356,7 +1419,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn withdrawals)]
 	pub(super) type Withdrawals<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, WithdrawalsMap<T>, ValueQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]
@@ -1437,6 +1500,18 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		<Accounts<T>>::iter()
 			.map(|(main, info)| (main, info.proxies.to_vec()))
 			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
+	}
+
+	/// Returns a vector of allowlisted asset IDs.
+	///
+	/// # Returns
+	///
+	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.
+	pub fn get_allowlisted_assets() -> Vec<AssetId> {
+		<AllowlistedToken<T>>::get()
+			.iter()
+			.map(|asset_id| (asset_id.clone()))
+			.collect::<Vec<AssetId>>()
 	}
 
 	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {

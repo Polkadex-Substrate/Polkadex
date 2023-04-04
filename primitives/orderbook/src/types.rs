@@ -1,7 +1,7 @@
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber, Signature,
 };
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
@@ -9,15 +9,40 @@ use sp_runtime::traits::Verify;
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
 use std::{
 	borrow::Borrow,
-	collections::HashMap,
 	fmt::{Display, Formatter},
 	ops::Mul,
 	str::FromStr,
 };
 
-use crate::SnapshotSummary;
-
 pub type OrderId = H256;
+
+/// A struct representing the recovery state of an Order Book.
+#[derive(Clone, Debug, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct ObRecoveryState {
+	/// The snapshot ID of the order book recovery state.
+	pub snapshot_id: u64,
+	/// A `BTreeMap` that maps main account to a vector of proxy account.
+	pub account_ids: BTreeMap<AccountId, Vec<AccountId>>,
+	/// A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
+	pub balances: BTreeMap<AccountAsset, Decimal>,
+	/// The last block number that was processed by validator.
+	pub last_processed_block_number: BlockNumber,
+	/// State change id
+	pub state_change_id: u64,
+}
+
+impl ObRecoveryState {
+	pub fn new() -> Self {
+		ObRecoveryState {
+			snapshot_id: 0,
+			account_ids: BTreeMap::default(),
+			balances: BTreeMap::default(),
+			last_processed_block_number: 0,
+			state_change_id: 0,
+		}
+	}
+}
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -51,6 +76,12 @@ pub struct AccountInfo {
 pub struct AccountAsset {
 	pub main: AccountId,
 	pub asset: AssetId,
+}
+
+impl AccountAsset {
+	pub fn new(main: AccountId, asset: AssetId) -> Self {
+		AccountAsset { main, asset }
+	}
 }
 
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
@@ -398,21 +429,33 @@ impl PartialOrd for Order {
 			// Buy side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
-				Ordering::Less => Some(Ordering::Greater),
+				Ordering::Less => Some(Ordering::Less),
 				// A.price == B.price =>  Order based on timestamp - lowest timestamp first
-				Ordering::Equal => Some(self.timestamp.cmp(&other.timestamp)),
+				Ordering::Equal =>
+					if self.timestamp < other.timestamp {
+						Some(Ordering::Greater)
+					} else {
+						Some(Ordering::Less)
+					},
 				// A.price > B.price => [A, B]
-				Ordering::Greater => Some(Ordering::Less),
+				Ordering::Greater => Some(Ordering::Greater),
 			}
 		} else {
 			// Sell side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
-				Ordering::Less => Some(Ordering::Less),
+				Ordering::Less => Some(Ordering::Greater),
 				// A.price == B.price => Order based on timestamp - lowest timestamp first
-				Ordering::Equal => Some(self.timestamp.cmp(&other.timestamp)),
+				Ordering::Equal => {
+					// If price is equal, we follow the FIFO priority
+					if self.timestamp < other.timestamp {
+						Some(Ordering::Greater)
+					} else {
+						Some(Ordering::Less)
+					}
+				},
 				// A.price > B.price => [B, A]
-				Ordering::Greater => Some(Ordering::Greater),
+				Ordering::Greater => Some(Ordering::Less),
 			}
 		}
 	}
@@ -425,21 +468,33 @@ impl Ord for Order {
 			// Buy side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
-				Ordering::Less => Ordering::Greater,
+				Ordering::Less => Ordering::Less,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal => self.timestamp.cmp(&other.timestamp),
+				Ordering::Equal =>
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					},
 				// A.price > B.price => [A, B]
-				Ordering::Greater => Ordering::Less,
+				Ordering::Greater => Ordering::Greater,
 			}
 		} else {
 			// Sell side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
-				Ordering::Less => Ordering::Less,
+				Ordering::Less => Ordering::Greater,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal => self.timestamp.cmp(&other.timestamp),
+				Ordering::Equal => {
+					// If price is equal, we follow the FIFO priority
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					}
+				},
 				// A.price > B.price => [B, A]
-				Ordering::Greater => Ordering::Greater,
+				Ordering::Greater => Ordering::Less,
 			}
 		}
 	}
