@@ -24,7 +24,7 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
-use polkadex_primitives::{assets::AssetId, AccountId, OnChainEventsLimit};
+use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
 use sp_runtime::traits::Zero;
 
 use pallet_timestamp::{self as timestamp};
@@ -90,7 +90,7 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
-		traits::{IdentifyAccount, One, Verify},
+		traits::{IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
