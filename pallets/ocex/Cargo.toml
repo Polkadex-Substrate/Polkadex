@@ -21,7 +21,6 @@ sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
-test-utils = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
@@ -31,7 +30,6 @@ bls-primitives = {path="../../primitives/bls-primitives", default-features = fal
 sp-application-crypto = { workspace = true }
 
 [dev-dependencies]
-test-utils = { workspace = true }
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
@@ -61,7 +59,6 @@ runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
-    "test-utils",
     "liquidity/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
