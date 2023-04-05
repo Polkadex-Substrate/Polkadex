@@ -478,7 +478,7 @@ where
 	}
 
 	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
-		let mut offchain_storage = self.backend.offchain_storage().unwrap();
+		let offchain_storage = self.backend.offchain_storage().unwrap();
 		let result = offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode());
 		return result
 	}
@@ -827,7 +827,7 @@ where
 		if self.state_is_syncing {
 			let mut inprogress: u16 = 0;
 			let mut unavailable: u16 = 0;
-			let mut total = self.sync_state_map.len();
+			let total = self.sync_state_map.len();
 			let last_summary = self.last_snapshot.read().clone();
 			let mut missing_indexes = vec![];
 			for (chunk_index, status) in self.sync_state_map.iter_mut() {
@@ -956,7 +956,7 @@ where
 	}
 
 	pub fn send_sync_requests(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
-		let mut offchain_storage =
+		let offchain_storage =
 			self.backend.offchain_storage().ok_or(Error::OffchainStorageNotAvailable)?;
 
 		// Check the chunks we need
@@ -1002,7 +1002,7 @@ where
 		memory_db: &'a mut MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 		working_state_root: &'a mut [u8; 32],
 	) -> TrieDBMut<'a, ExtensionLayout> {
-		let mut trie = if working_state_root == &mut [0u8; 32] {
+		let trie = if working_state_root == &mut [0u8; 32] {
 			TrieDBMutBuilder::new(memory_db, working_state_root).build()
 		} else {
 			TrieDBMutBuilder::from_existing(memory_db, working_state_root).build()
@@ -1245,7 +1245,7 @@ pub fn deposit(
 ///
 /// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
 pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Result<(), Error> {
-	let Trade { maker, taker, price, amount, time } = trade.clone();
+	let Trade { maker, taker, price, amount, time: _ } = trade.clone();
 
 	// Check order states
 	let maker_order_state = match trie.get(maker.id.as_ref())? {
