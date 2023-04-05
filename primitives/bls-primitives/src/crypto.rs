@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use crate::{Error, Pair as BLSPair};
-use crate::{KeyStore, Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
+use crate::{KeyStore, Public, Seed, Signature, DST};
 #[cfg(feature = "std")]
 use blst::min_sig::*;
 #[cfg(feature = "std")]
@@ -44,7 +44,7 @@ pub trait BlsExt {
 
 	fn generate_pair(phrase: Option<Vec<u8>>) -> Public {
 		// generate a pair
-		let (pair, _seed, derive_junctions) = generate_pair_(phrase);
+		let (pair, _seed, _derive_junctions) = generate_pair_(phrase);
 		pair.public()
 	}
 
@@ -120,7 +120,7 @@ fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed, Vec<DeriveJunction
 		},
 		Some(phrase) => {
 			let phrase = String::from_utf8(phrase).expect("Invalid phrase");
-			let mut uri = SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
+			let uri = SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
 			let (pair, seed) = BLSPair::from_phrase(uri.phrase.expose_secret(), None)
 				.expect("Phrase is not valid; qed");
 
