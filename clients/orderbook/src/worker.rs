@@ -351,8 +351,6 @@ where
 		summary.aggregate_signature = Some(signature.clone());
 		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
 		set_bit_field(&mut summary.bitflags, bit_index as u16);
-		// println!("Signature: {:?}",summary.aggregate_signature.unwrap().0);
-		// println!("Signing key: {:?}",signing_key.0);
 		assert_eq!(initial_summary, summary.sign_data());
 		assert!(bls_primitives::crypto::bls_ext::verify(
 			&signing_key,
