@@ -118,7 +118,7 @@ pub enum GossipMessage {
 	// Collection of Stids
 	Stid(Vec<ObMessage>),
 	// Single ObMessage
-	ObMessage(ObMessage, sp_core::ecdsa::Signature),
+	ObMessage(ObMessage, Vec<u8>, Vec<u8>),
 	// Snapshot id, bitmap, remote peer
 	Want(u64, Vec<u128>),
 	// Snapshot id, bitmap, remote peer
