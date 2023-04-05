@@ -84,7 +84,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	runtime: Arc<R>,
 	sync_oracle: SO,
 	is_validator: bool,
-	network: Arc<N>,
+	_network: Arc<N>,
 	// key_store: BeefyKeystore,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
@@ -163,7 +163,7 @@ where
 			sync_oracle,
 			// key_store,
 			is_validator,
-			network,
+			_network: network,
 			gossip_engine,
 			gossip_validator,
 			memory_db,
@@ -218,39 +218,36 @@ where
 		withdraw: WithdrawalRequest,
 		stid: u64,
 	) -> Result<(), Error> {
-		let mut withdrawal = None;
-		{
-			let mut memory_db = self.memory_db.write();
-			let mut working_state_root = self.working_state_root.write();
-			let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
+		let mut memory_db = self.memory_db.write();
+		let mut working_state_root = self.working_state_root.write();
+		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
-			// Get main account
-			let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
+		// Get main account
+		let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
 
-			let account_info = AccountInfo::decode(&mut &proxies[..])?;
-			// Check proxy registration
-			if !account_info.proxies.contains(&withdraw.proxy) {
-				return Err(Error::ProxyNotAssociatedWithMain)
-			}
-			// Verify signature
-			if !withdraw.verify() {
-				return Err(Error::WithdrawSignatureCheckFailed)
-			}
-			// Deduct balance
-			sub_balance(&mut trie, withdraw.account_asset(), withdraw.amount()?)?;
-			withdrawal = Some(withdraw.try_into()?);
-			// Commit the trie
-			trie.commit();
+		let account_info = AccountInfo::decode(&mut &proxies[..])?;
+		// Check proxy registration
+		if !account_info.proxies.contains(&withdraw.proxy) {
+			return Err(Error::ProxyNotAssociatedWithMain)
 		}
-		if let Some(withdrawal) = withdrawal {
-			// Queue withdrawal
-			self.pending_withdrawals.push(withdrawal);
-			// Check if snapshot should be generated or not
-			if self.should_generate_snapshot() {
-				if let Err(err) = self.snapshot(stid) {
-					log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
-					*self.last_block_snapshot_generated.write() = self.last_finalized_block;
-				}
+		// Verify signature
+		if !withdraw.verify() {
+			return Err(Error::WithdrawSignatureCheckFailed)
+		}
+		// Deduct balance
+		sub_balance(&mut trie, withdraw.account_asset(), withdraw.amount()?)?;
+		// Commit the trie
+		trie.commit();
+		drop(trie);
+		drop(memory_db);
+		drop(working_state_root);
+		// Queue withdrawal
+		self.pending_withdrawals.push(withdraw.try_into()?);
+		// Check if snapshot should be generated or not
+		if self.should_generate_snapshot() {
+			if let Err(err) = self.snapshot(stid) {
+				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
+				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
 			}
 		}
 		Ok(())
@@ -477,6 +474,7 @@ where
 		Ok(())
 	}
 
+	#[cfg(test)]
 	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
 		let offchain_storage = self.backend.offchain_storage().unwrap();
 		let result = offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode());
