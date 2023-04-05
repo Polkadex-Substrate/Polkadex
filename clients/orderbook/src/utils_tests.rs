@@ -16,7 +16,7 @@ fn test_add_balance_creates_new_free_balance() {
 	let mut working_state_root = [0u8; 32];
 	let mut db_client = get_trie_db_client(&mut db, &mut working_state_root);
 	let new_account = AccountId::new([1; 32]);
-	let account_asset = AccountAsset { main: new_account, asset: AssetId::polkadex };
+	let account_asset = AccountAsset { main: new_account, asset: AssetId::Polkadex };
 	assert_eq!(
 		add_balance(
 			&mut db_client,
@@ -36,7 +36,7 @@ fn test_add_balance_updates_existing_balance() {
 	let mut working_state_root = [0u8; 32];
 	let mut db_client = get_trie_db_client(&mut db, &mut working_state_root);
 	let new_account = AccountId::new([1; 32]);
-	let account_asset = AccountAsset { main: new_account, asset: AssetId::polkadex };
+	let account_asset = AccountAsset { main: new_account, asset: AssetId::Polkadex };
 	add_balance(
 		&mut db_client,
 		account_asset.clone(),
@@ -59,7 +59,7 @@ fn test_sub_balance_updates_balance() {
 	let mut working_state_root = [0u8; 32];
 	let mut db_client = get_trie_db_client(&mut db, &mut working_state_root);
 	let new_account = AccountId::new([1; 32]);
-	let account_asset = AccountAsset { main: new_account, asset: AssetId::polkadex };
+	let account_asset = AccountAsset { main: new_account, asset: AssetId::Polkadex };
 	add_balance(
 		&mut db_client,
 		account_asset.clone(),
@@ -86,7 +86,7 @@ fn test_sub_balance_returns_account_not_found() {
 	let mut working_state_root = [0u8; 32];
 	let mut db_client = get_trie_db_client(&mut db, &mut working_state_root);
 	let new_account = AccountId::new([1; 32]);
-	let account_asset = AccountAsset { main: new_account, asset: AssetId::polkadex };
+	let account_asset = AccountAsset { main: new_account, asset: AssetId::Polkadex };
 	let reduce_balance = 1_000_000_000_000u128;
 	assert_eq!(
 		sub_balance(
@@ -104,7 +104,7 @@ fn test_sub_balance_returns_insufficient_balance() {
 	let mut working_state_root = [0u8; 32];
 	let mut db_client = get_trie_db_client(&mut db, &mut working_state_root);
 	let new_account = AccountId::new([1; 32]);
-	let account_asset = AccountAsset { main: new_account, asset: AssetId::polkadex };
+	let account_asset = AccountAsset { main: new_account, asset: AssetId::Polkadex };
 	add_balance(
 		&mut db_client,
 		account_asset.clone(),

@@ -1030,7 +1030,10 @@ pub mod pallet {
 				}
 				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
 				// The unwrap below should not fail
-				<FeesCollected<T>>::insert(working_summary.snapshot_id, BoundedVec::try_from(working_summary.get_fees()).unwrap());
+				<FeesCollected<T>>::insert(
+					working_summary.snapshot_id,
+					BoundedVec::try_from(working_summary.get_fees()).unwrap(),
+				);
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
 				// Clear PendingSnapshotFromPreviousSet storage if its present
 				// because we are accepted this snapshot as there are not pending snapshots
@@ -1081,7 +1084,7 @@ pub mod pallet {
 
 		#[cfg(feature = "runtime-benchmarks")]
 		fn allowlist_and_create_token(account: Self::AccountId, token: u128) -> DispatchResult {
-			let asset: AssetId = AssetId::asset(token);
+			let asset: AssetId = AssetId::Asset(token);
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
 			allowlisted_tokens
 				.try_insert(asset)
@@ -1412,7 +1415,6 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
-
 	pub fn validate_snapshot(snapshot_summary: &SnapshotSummary) -> TransactionValidity {
 		let valid_tx = |provide| {
 			ValidTransaction::with_tag_prefix("orderbook")
@@ -1438,7 +1440,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			Some(auth) => auth,
 			None => return InvalidTransaction::Custom(11).into(),
 		}
-			.clone();
+		.clone();
 
 		// Verify Signature
 		match snapshot_summary.aggregate_signature {
@@ -1455,7 +1457,6 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		}
 		sp_runtime::print("Signature successfull");
 		valid_tx(snapshot_summary.clone())
-
 	}
 
 	pub fn validator_set() -> ValidatorSet<AuthorityId> {
@@ -1529,7 +1530,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		asset: AssetId,
 	) -> DispatchResult {
 		match asset {
-			AssetId::polkadex => {
+			AssetId::Polkadex => {
 				T::NativeCurrency::transfer(
 					payer,
 					payee,
@@ -1537,7 +1538,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 					ExistenceRequirement::KeepAlive,
 				)?;
 			},
-			AssetId::asset(id) => {
+			AssetId::Asset(id) => {
 				T::OtherAssets::teleport(id, payer, payee, amount.unique_saturated_into())?;
 			},
 		}

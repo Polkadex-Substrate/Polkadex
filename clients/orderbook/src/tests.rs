@@ -322,7 +322,7 @@ pub async fn test_single_worker() {
 	let mut worker = ObWorker::new(worker_params);
 
 	let payload = WithdrawPayloadCallByUser {
-		asset_id: AssetId::polkadex,
+		asset_id: AssetId::Polkadex,
 		amount: "1".to_string(),
 		timestamp: 0,
 	};

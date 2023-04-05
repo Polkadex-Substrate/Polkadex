@@ -27,7 +27,6 @@ use serde::{Deserialize, Serialize, Serializer};
 use sp_core::RuntimeDebug;
 use sp_std::fmt::{Display, Formatter};
 
-
 /// Enumerated asset on chain
 #[derive(
 	Encode,
@@ -45,8 +44,8 @@ use sp_std::fmt::{Display, Formatter};
 )]
 pub enum AssetId {
 	/// PDEX the native currency of the chain
-	asset(u128),
-	polkadex,
+	Asset(u128),
+	Polkadex,
 }
 
 #[cfg(feature = "std")]
@@ -56,9 +55,9 @@ impl Serialize for AssetId {
 		S: Serializer,
 	{
 		match *self {
-			AssetId::asset(ref id) =>
+			AssetId::Asset(ref id) =>
 				serializer.serialize_newtype_variant("asset_id", 0, "asset", &id.to_string()),
-			AssetId::polkadex =>
+			AssetId::Polkadex =>
 				serializer.serialize_newtype_variant("asset_id", 1, "asset", "PDEX"),
 		}
 	}
@@ -70,7 +69,7 @@ impl<'de> Deserialize<'de> for AssetId {
 	where
 		D: Deserializer<'de>,
 	{
-		deserializer.deserialize_map(AssetId::polkadex)
+		deserializer.deserialize_map(AssetId::Polkadex)
 	}
 }
 
@@ -91,7 +90,7 @@ impl<'de> Visitor<'de> for AssetId {
 		while let Some((key, mut value)) = access.next_entry::<String, String>()? {
 			if key == String::from("asset") {
 				return if value == String::from("PDEX") {
-					Ok(AssetId::polkadex)
+					Ok(AssetId::Polkadex)
 				} else {
 					// Check if its hex or not
 					let radix = if value.contains("0x") {
@@ -105,7 +104,7 @@ impl<'de> Visitor<'de> for AssetId {
 							Unexpected::Unsigned(128),
 							&format!("Expected an u128 string: recv {:?}", value).as_str(),
 						)),
-						Ok(id) => Ok(AssetId::asset(id)),
+						Ok(id) => Ok(AssetId::Asset(id)),
 					}
 				}
 			}
@@ -120,11 +119,11 @@ impl TryFrom<String> for AssetId {
 
 	fn try_from(value: String) -> Result<Self, Self::Error> {
 		if value.as_str() == "PDEX" {
-			return Ok(AssetId::polkadex)
+			return Ok(AssetId::Polkadex)
 		}
 
 		match value.parse::<u128>() {
-			Ok(id) => Ok(AssetId::asset(id)),
+			Ok(id) => Ok(AssetId::Asset(id)),
 			Err(_) => Err(anyhow::Error::msg::<String>(
 				format!("Could not parse 'AssetId' from {}", value).into(),
 			)),
@@ -136,8 +135,8 @@ impl TryFrom<String> for AssetId {
 impl Display for AssetId {
 	fn fmt(&self, f: &mut Formatter<'_>) -> sp_std::fmt::Result {
 		match self {
-			AssetId::polkadex => write!(f, "PDEX"),
-			AssetId::asset(id) => write!(f, "{:?}", id),
+			AssetId::Polkadex => write!(f, "PDEX"),
+			AssetId::Asset(id) => write!(f, "{:?}", id),
 		}
 	}
 }
@@ -148,8 +147,8 @@ mod tests {
 
 	#[test]
 	pub fn test_assetid_serde() {
-		let polkadex_asset = AssetId::polkadex;
-		let asset_max = AssetId::asset(u128::MAX);
+		let polkadex_asset = AssetId::Polkadex;
+		let asset_max = AssetId::Asset(u128::MAX);
 
 		println!("{:?}", serde_json::to_string(&polkadex_asset).unwrap());
 		println!("{:?}", serde_json::to_string(&asset_max).unwrap());
