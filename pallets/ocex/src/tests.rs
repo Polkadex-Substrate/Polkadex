@@ -17,25 +17,25 @@
 
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
-use polkadex_primitives::{assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, SnapshotAccLimit, UNIT_BALANCE};
+use polkadex_primitives::{assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, SnapshotAccLimit, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
-use sp_application_crypto::sp_core::H256;
+
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
 use frame_system::EventRecord;
-use parity_scale_codec::Encode;
+
 use polkadex_primitives::{
 	AccountId, AssetsLimit, WithdrawalLimit,
 };
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimePublic;
-use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
+use sp_keystore::{testing::KeyStore, SyncCryptoStore};
 use sp_runtime::{
-	traits::CheckedConversion, AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
-	DispatchError::BadOrigin, MultiSignature, SaturatedConversion, TokenError,
+	AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
+	DispatchError::BadOrigin, SaturatedConversion, TokenError,
 };
-use std::sync::Arc;
+
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -1280,7 +1280,7 @@ fn collect_fees() {
 			initial_balance
 		);
 
-		let (mut snapshot,public) = get_dummy_snapshot(1);
+		let (mut snapshot,_public) = get_dummy_snapshot(1);
 
 		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
 
@@ -1471,7 +1471,7 @@ fn collect_fees_ddos(){
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
-		let (mut snapshot, public) = get_dummy_snapshot(0);
+		let (mut snapshot, _public) = get_dummy_snapshot(0);
 		snapshot.snapshot_id = 2; // Wrong nonce
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::none(), snapshot),
@@ -1505,7 +1505,7 @@ fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitive
 		withdrawals,
 		aggregate_signature: None,
 	};
-	let (pair,seed) = bls_primitives::Pair::generate();
+	let (pair,_seed) = bls_primitives::Pair::generate();
 	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
 
 	(snapshot, pair.public())
@@ -1524,10 +1524,10 @@ fn test_submit_snapshot_bad_origin() {
 
 #[test]
 fn test_submit_snapshot() {
-	let account_id = create_account_id();
+	let _account_id = create_account_id();
 	let mut t = new_test_ext();
 	t.execute_with(|| {
-		let (mut snapshot, public) = get_dummy_snapshot(1);
+		let (mut snapshot, _public) = get_dummy_snapshot(1);
 		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
 		let mut withdrawal_map: BoundedBTreeMap<AccountId,BoundedVec<Withdrawal<AccountId>,WithdrawalLimit>, SnapshotAccLimit> = BoundedBTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
@@ -1595,7 +1595,7 @@ fn test_withdrawal() {
 			initial_balance
 		);
 
-		let (snapshot,public )  = get_dummy_snapshot(1);
+		let (snapshot,_public )  = get_dummy_snapshot(1);
 
 		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot.clone()));
 
@@ -1646,7 +1646,7 @@ fn test_onchain_events_overflow() {
 			});
 		}
 
-		let (mut snapshot, public ) = get_dummy_snapshot(1);
+		let (mut snapshot, _public ) = get_dummy_snapshot(1);
 		snapshot.withdrawals = withdrawals.clone();
 
 		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot));
@@ -1699,7 +1699,7 @@ fn test_withdrawal_bad_origin() {
 #[test]
 pub fn test_allowlist_and_blacklist_token() {
 	new_test_ext().execute_with(|| {
-		let account_id = create_account_id();
+		let _account_id = create_account_id();
 		let new_token = AssetId::asset(1);
 		assert_ok!(OCEX::allowlist_token(Origin::root(), new_token));
 		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
@@ -1713,7 +1713,7 @@ pub fn test_allowlist_and_blacklist_token() {
 #[test]
 pub fn test_allowlist_with_limit_reaching_returns_error() {
 	new_test_ext().execute_with(|| {
-		let account_id = create_account_id();
+		let _account_id = create_account_id();
 		let mut allowlisted_assets: BoundedBTreeSet<AssetId, AllowlistedTokenLimit> =
 			BoundedBTreeSet::new();
 		for ele in 0..50 {
@@ -1735,7 +1735,7 @@ use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 fn test_set_balances_with_bad_origin() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
-		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
+		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
@@ -1747,7 +1747,7 @@ fn test_set_balances_with_bad_origin() {
 pub fn test_set_balances_when_exchange_is_not_pause() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
-		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
+		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
@@ -1787,7 +1787,7 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		for i in 0..1001 {
+		for _i in 0..1001 {
 			vec_of_balances.push(HandleBalance {
 				main_account: account_id.clone(),
 				asset_id: AssetId::polkadex,
@@ -1809,7 +1809,7 @@ pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		for i in 0..1000 {
+		for _i in 0..1000 {
 			vec_of_balances.push(HandleBalance {
 				main_account: account_id.clone(),
 				asset_id: AssetId::polkadex,
