@@ -43,6 +43,7 @@ use std::sync::Arc;
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
 use parity_scale_codec::Decode;
+use sp_core::Pair;
 use test_utils::ias::ias::TEST4_SETUP;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
@@ -1267,17 +1268,7 @@ fn test_collect_fees_decimal_overflow() {
 fn collect_fees() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let public_key_store = KeyStore::new();
-	let public_key = SyncCryptoStore::sr25519_generate_new(
-		&public_key_store,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair");
 	let mut t = new_test_ext();
-	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
 		mint_into_account(account_id.clone());
 		mint_into_account(custodian_account.clone());
@@ -1292,26 +1283,9 @@ fn collect_fees() {
 		);
 		let fees = create_fees::<Test>();
 
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: account_id.clone(),
-				event_id: 0,
-				snapshot_number: 1,
-				snapshot_hash: H256::random(),
-				withdrawals: Default::default(),
-				fees: bounded_vec![fees],
-			};
-		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
-		let bytes = snapshot.encode();
-		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		let (snapshot,public) = get_dummy_snapshot(1);
 
-		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
-
-		assert_ok!(OCEX::submit_snapshot(
-			Origin::signed(account_id.clone().into()),
-			snapshot,
-			signature.clone().into()
-		),);
+		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot));
 
 		assert_ok!(OCEX::collect_fees(Origin::root(), 1, account_id.clone().into()));
 		// Balances after collect fees
@@ -1486,20 +1460,10 @@ fn collect_fees_ddos(){
 #[test]
 fn test_submit_snapshot_sender_is_not_attested_enclave() {
 	let account_id = create_account_id();
-	let payl: [u8; 64] = [0; 64];
-	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: AccountId::new([1; 32]),
-				event_id: 0,
-				snapshot_number: 1,
-				snapshot_hash: H256::random(),
-				withdrawals: Default::default(),
-				fees: bounded_vec![],
-			};
+		let (snapshot, public) = get_dummy_snapshot(1);
 		assert_noop!(
-			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
+			OCEX::submit_snapshot(Origin::none(), snapshot),
 			Error::<Test>::SenderIsNotAttestedEnclave
 		);
 		assert_eq!(OCEX::ingress_messages().len(), 0);
@@ -1509,22 +1473,12 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	let account_id = create_account_id();
-	let payl: [u8; 64] = [0; 64];
-	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
+
 	new_test_ext().execute_with(|| {
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: account_id.clone(),
-				event_id: 0,
-				snapshot_number: 2,
-				snapshot_hash: H256::random(),
-				withdrawals: Default::default(),
-				fees: bounded_vec![],
-			};
-		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
-		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
+		let (snapshot, public) = get_dummy_snapshot(0);
+
 		assert_noop!(
-			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
+			OCEX::submit_snapshot(Origin::none(), snapshot),
 			Error::<Test>::SnapshotNonceError
 		);
 
@@ -1535,22 +1489,11 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 #[test]
 fn test_submit_snapshot_enclave_signature_verification_failed() {
 	let account_id = create_account_id();
-	let payl: [u8; 64] = [0; 64];
-	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: account_id.clone(),
-				event_id: 0,
-				snapshot_number: 1,
-				snapshot_hash: H256::random(),
-				withdrawals: Default::default(),
-				fees: bounded_vec![],
-			};
-		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
-		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
+		let (snapshot,public) =  get_dummy_snapshot(1);
+
 		assert_noop!(
-			OCEX::submit_snapshot(Origin::signed(account_id.into()), snapshot, sig.clone().into()),
+			OCEX::submit_snapshot(Origin::none(), snapshot),
 			Error::<Test>::EnclaveSignatureVerificationFailed
 		);
 
@@ -1558,27 +1501,41 @@ fn test_submit_snapshot_enclave_signature_verification_failed() {
 	});
 }
 
+fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitives::Public) {
+	let main = create_account_id();
+
+	let mut withdrawals = vec![];
+	for _ in 0..withdrawals_len {
+		withdrawals.push(Withdrawal{
+			main_account: main.clone(),
+			amount: Decimal::one(),
+			asset: AssetId::polkadex,
+			event_id: 0,
+			fees: Default::default(),
+		})
+	}
+
+	let mut snapshot = SnapshotSummary{
+		snapshot_id: 1,
+		state_root: Default::default(),
+		state_change_id: 1,
+		state_chunk_hashes: vec![],
+		bitflags: vec![1,2],
+		withdrawals,
+		aggregate_signature: None,
+	};
+	let (pair,seed) = bls_primitives::Pair::generate();
+	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
+
+	(snapshot, pair.public())
+}
+
 #[test]
 fn test_submit_snapshot_bad_origin() {
-	let payl: [u8; 64] = [0; 64];
-	let sig = sp_application_crypto::sr25519::Signature::from_raw(payl);
 	new_test_ext().execute_with(|| {
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: AccountId::new([1; 32]),
-				event_id: 0,
-				snapshot_number: 0,
-				snapshot_hash: H256::random(),
-				withdrawals: Default::default(),
-				fees: bounded_vec![],
-			};
+		let (snapshot,_public) = get_dummy_snapshot(1);
 		assert_noop!(
-			OCEX::submit_snapshot(Origin::root(), snapshot.clone(), sig.clone().into()),
-			BadOrigin
-		);
-
-		assert_noop!(
-			OCEX::submit_snapshot(Origin::root(), snapshot, sig.clone().into()),
+			OCEX::submit_snapshot(Origin::none(), snapshot),
 			BadOrigin
 		);
 	});
@@ -1587,53 +1544,31 @@ fn test_submit_snapshot_bad_origin() {
 #[test]
 fn test_submit_snapshot() {
 	let account_id = create_account_id();
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let public_key_store = KeyStore::new();
-	let public_key = SyncCryptoStore::sr25519_generate_new(
-		&public_key_store,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair");
 	let mut t = new_test_ext();
-	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
-		let withdrawal = create_withdrawal::<Test>();
-		let mut withdrawal_map: BoundedBTreeMap<
-			AccountId,
-			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		> = BoundedBTreeMap::new();
-		withdrawal_map.try_insert(account_id.clone(), bounded_vec![withdrawal]).unwrap();
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: account_id.clone(),
-				event_id: 0,
-				snapshot_number: 1,
-				snapshot_hash: H256::random(),
-				withdrawals: withdrawal_map.clone(),
-				fees: bounded_vec![],
-			};
-		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
-		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
-		let bytes = snapshot.encode();
-		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
-		let ms = MultiSignature::Sr25519(signature.clone());
-		let bs = ms.encode();
-		println!("pk: {:?}\nsnapshot: {:?}\nsig: {:?}", account_id.encode(), bytes, bs);
-		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
-		assert_ok!(OCEX::submit_snapshot(
-			Origin::signed(account_id.into()),
-			snapshot.clone(),
-			signature.clone().into()
-		),);
+		let (snapshot, public) = get_dummy_snapshot(1);
+
+		let mut withdrawal_map: BoundedBTreeMap<AccountId,BoundedVec<Withdrawal<AccountId>,WithdrawalLimit>, SnapshotAccLimit> = BoundedBTreeMap::new();
+		for withdrawal in &snapshot.withdrawals {
+			match withdrawal_map.get_mut(&withdrawal.main_account) {
+				None => {
+					withdrawal_map.try_insert(
+						withdrawal.main_account.clone(),
+						BoundedVec::truncate_from(vec![withdrawal.clone()])).unwrap();
+				}
+				Some(list) => {
+					list.try_push(withdrawal.clone()).unwrap();
+				}
+			}
+		}
+		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot.clone()));
+
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
 		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
 		assert_eq!(FeesCollected::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
-		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
-		assert_eq!(SnapshotNonce::<Test>::get().unwrap(), 1);
+		assert_eq!(Snapshots::<Test>::get(1), snapshot.clone());
+		assert_eq!(SnapshotNonce::<Test>::get(), 1);
 		let onchain_events: BoundedVec<
 			polkadex_primitives::ocex::OnChainEvents<AccountId>,
 			polkadex_primitives::OnChainEventsLimit,
@@ -1644,15 +1579,7 @@ fn test_submit_snapshot() {
 		)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
-		let withdrawal_map_empty: BoundedBTreeMap<
-			AccountId,
-			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		> = BoundedBTreeMap::new();
-		let empty_fees: BoundedVec<Fees, AssetsLimit> = bounded_vec![];
-
-		assert_eq!(Snapshots::<Test>::get(1).unwrap().fees, empty_fees);
-		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, withdrawal_map_empty);
+		assert_eq!(Snapshots::<Test>::get(1).withdrawals, Vec::new());
 	})
 }
 
@@ -1671,17 +1598,7 @@ fn test_withdrawal_invalid_withdrawal_index() {
 fn test_withdrawal() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let public_key_store = KeyStore::new();
-	let public_key = SyncCryptoStore::sr25519_generate_new(
-		&public_key_store,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair");
 	let mut t = new_test_ext();
-	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
 		mint_into_account(account_id.clone());
 		mint_into_account(custodian_account.clone());
@@ -1694,28 +1611,17 @@ fn test_withdrawal() {
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
 			10000000000000000000000
 		);
-		let withdrawal = create_withdrawal::<Test>();
-		let mut withdrawal_map: BoundedBTreeMap<
-			AccountId,
-			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		> = BoundedBTreeMap::new();
-		withdrawal_map
-			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
-			.unwrap();
 
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				enclave_id: account_id.clone(),
-				event_id: 0,
-				snapshot_number: 1,
-				snapshot_hash: H256::random(),
-				withdrawals: withdrawal_map,
-				fees: bounded_vec![],
-			};
-		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
-		let bytes = snapshot.encode();
-		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		let withdrawal = Withdrawal{
+			main_account: account_id.clone(),
+			amount: Decimal::one(),
+			asset: AssetId::polkadex,
+			event_id: 0,
+			fees: Default::default(),
+		};
+
+		let (snapshot,public )  = get_dummy_snapshot(1);
+
 
 		// Balances after withdrawal
 		assert_eq!(
@@ -1739,72 +1645,31 @@ fn test_withdrawal() {
 fn test_onchain_events_overflow() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let public_key_store = KeyStore::new();
-	let public_key = SyncCryptoStore::sr25519_generate_new(
-		&public_key_store,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair");
+
 	// create 500 accounts
-	let mut account_id_vector: Vec<AccountId> = vec![];
-	for x in 0..500 {
-		let account_id_500 = create_account_id_500(x as u32);
-		account_id_vector.push(account_id_500);
-	}
 	let mut t = new_test_ext();
-	t.register_extension(KeystoreExt(Arc::new(public_key_store)));
 	t.execute_with(|| {
 		mint_into_account(account_id.clone());
 		mint_into_account(custodian_account.clone());
-		let withdrawal = create_withdrawal::<Test>();
-		let mut withdrawal_map: BoundedBTreeMap<
-			AccountId,
-			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		> = BoundedBTreeMap::new();
-		withdrawal_map
-			.try_insert(account_id.clone(), bounded_vec![withdrawal.clone()])
-			.unwrap();
-		for x in account_id_vector.clone() {
-			withdrawal_map.try_insert(x, bounded_vec![withdrawal.clone()]).unwrap();
-		}
 
-		let snapshot =
-			EnclaveSnapshot::<AccountId32, WithdrawalLimit, AssetsLimit, SnapshotAccLimit> {
-				snapshot_number: 1,
-				enclave_id: account_id.clone(),
-				event_id: 0,
-				snapshot_hash: H256::random(),
-				withdrawals: withdrawal_map,
-				fees: bounded_vec![],
-			};
-		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
-		let bytes = snapshot.encode();
-		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
+		let (snapshot, public ) = get_dummy_snapshot(500);
 
-		assert_ok!(OCEX::submit_snapshot(
-			Origin::signed(account_id.clone().into()),
-			snapshot,
-			signature.clone().into()
-		),);
+		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot));
 
-		// Perform withdraw for 500 accounts
-		for x in 0..account_id_vector.len() - 1 {
+		// Perform withdraw for 499 accounts
+		for _ in 0..499 {
 			assert_ok!(OCEX::claim_withdraw(
-				Origin::signed(account_id_vector[x].clone().into()),
+				Origin::signed(account_id.clone().into()),
 				1,
-				account_id_vector[x].clone()
+				account_id.clone()
 			));
 		}
-		let last_account = account_id_vector.len() - 1;
+		// last account
 		assert_noop!(
 			OCEX::claim_withdraw(
-				Origin::signed(account_id_vector[last_account].clone().into()),
+				Origin::signed(account_id.clone().into()),
 				1,
-				account_id_vector[last_account].clone()
+				account_id.clone()
 			),
 			Error::<Test>::WithdrawalBoundOverflow
 		);
@@ -1815,12 +1680,13 @@ fn test_onchain_events_overflow() {
 
 		// Perform withdraw now
 		assert_ok!(OCEX::claim_withdraw(
-			Origin::signed(account_id_vector[last_account].clone().into()),
+			Origin::signed(account_id.clone().into()),
 			1,
-			account_id_vector[last_account].clone()
+			account_id.clone()
 		));
 	});
 }
+use sp_runtime::traits::One;
 
 #[test]
 fn test_withdrawal_bad_origin() {
@@ -1829,19 +1695,6 @@ fn test_withdrawal_bad_origin() {
 		assert_noop!(OCEX::claim_withdraw(Origin::root(), 1, account_id.clone()), BadOrigin);
 
 		assert_noop!(OCEX::claim_withdraw(Origin::none(), 1, account_id.clone()), BadOrigin);
-	});
-}
-
-#[test]
-fn test_unregister_timed_out_enclaves() {
-	let enclave_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		let past_ts = 1000;
-		let ts: Moment = past_ts.try_into().unwrap();
-		RegisteredEnclaves::<Test>::insert(enclave_id.clone(), ts);
-		Timestamp::set_timestamp(past_ts + 86400000);
-		<OCEX as OnInitialize<u64>>::on_initialize(100000000);
-		//assert_eq!(RegisteredEnclaves::<Test>::contains_key(enclave_id), false);
 	});
 }
 

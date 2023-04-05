@@ -35,19 +35,20 @@ use sp_std::prelude::*;
 pub use pallet::*;
 
 // ToDo: Issue 682
-// #[cfg(test)]
-// mod mock;
-//
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
 
 use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
 // ToDo: Issue 683
-// #[cfg(feature = "runtime-benchmarks")]
-// use sp_runtime::traits::One;
-//
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::One;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 pub mod weights;
 
 pub use weights::*;
