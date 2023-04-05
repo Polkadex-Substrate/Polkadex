@@ -696,22 +696,20 @@ pub mod pallet {
 			})
 		}
 
-		//TODO: Benchmark set_snapshot
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight(<T as Config>::WeightInfo::set_snapshot())]
 		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u64) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<SnapshotNonce<T>>::put(new_snapshot_id);
 			Ok(())
 		}
 
-		// TODO: Benchmark change_pending_withdrawal_limit (Issue number 683)
 		/// The extrinsic will be used to change pending withdrawals limit
 		///
 		/// # Parameters
 		/// * `origin`: Orderbook governance
 		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance
 		/// wants to set.
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight(<T as Config>::WeightInfo::change_pending_withdrawal_limit())]
 		pub fn change_pending_withdrawal_limit(
 			origin: OriginFor<T>,
 			new_pending_withdrawals_limit: u64,
@@ -721,14 +719,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// TODO: Benchmark change_snapshot_interval_block (Issue number 683)
 		/// The extrinsic will be used to change snapshot interval based on block number
 		///
 		/// # Parameters
 		/// * `origin`: Orderbook governance
 		/// * `new_snapshot_interval_block`: The new block interval at which snapshot should  be
 		/// generated.
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		#[pallet::weight(<T as Config>::WeightInfo::change_snapshot_interval_block())]
 		pub fn change_snapshot_interval_block(
 			origin: OriginFor<T>,
 			new_snapshot_interval_block: T::BlockNumber,
