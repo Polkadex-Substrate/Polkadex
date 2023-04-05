@@ -1657,67 +1657,6 @@ fn test_submit_snapshot() {
 }
 
 #[test]
-fn test_register_enclave() {
-	let account_id = create_account_id();
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::update_certificate(Origin::root(), 1679861524));
-		Timestamp::set_timestamp(TEST4_SETUP.timestamp.checked_into().unwrap());
-		let enclave_account_id = create_signer::<Test>();
-		assert_ok!(OCEX::allowlist_enclave(Origin::root(), enclave_account_id));
-
-		assert_ok!(OCEX::register_enclave(
-			Origin::signed(account_id.clone()),
-			TEST4_SETUP.cert.to_vec()
-		));
-	});
-}
-
-#[test]
-fn test_allowlist_enclave() {
-	let account_id = create_account_id();
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::allowlist_enclave(Origin::root(), account_id));
-	});
-}
-
-#[test]
-fn test_allowlist_enclave_bad_origin() {
-	let account_id = create_account_id();
-
-	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::allowlist_enclave(Origin::none(), account_id.clone()), BadOrigin);
-
-		assert_noop!(
-			OCEX::allowlist_enclave(Origin::signed(account_id.clone()), account_id),
-			BadOrigin
-		);
-	});
-}
-
-#[test]
-fn test_register_enclave_empty_report() {
-	let account_id = create_account_id();
-	let ias_report = vec![];
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			OCEX::register_enclave(Origin::signed(account_id), ias_report),
-			Error::<Test>::RemoteAttestationVerificationFailed
-		);
-	});
-}
-
-#[test]
-fn test_reigster_enclave_bad_origin() {
-	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::register_enclave(Origin::root(), vec![]), BadOrigin);
-
-		assert_noop!(OCEX::register_enclave(Origin::none(), vec![]), BadOrigin);
-	});
-}
-
-#[test]
 fn test_withdrawal_invalid_withdrawal_index() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
@@ -1777,18 +1716,7 @@ fn test_withdrawal() {
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
-		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
-		assert_ok!(OCEX::submit_snapshot(
-			Origin::signed(account_id.clone().into()),
-			snapshot,
-			signature.clone().into()
-		),);
 
-		assert_ok!(OCEX::claim_withdraw(
-			Origin::signed(account_id.clone().into()),
-			1,
-			account_id.clone()
-		));
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -1856,7 +1784,6 @@ fn test_onchain_events_overflow() {
 		assert_ok!(OCEX::insert_enclave(Origin::root(), account_id.clone().into()));
 		let bytes = snapshot.encode();
 		let signature = public_key.sign(KEY_TYPE, &bytes).unwrap();
-		<AllowlistedEnclaves<Test>>::insert(&account_id, true);
 
 		assert_ok!(OCEX::submit_snapshot(
 			Origin::signed(account_id.clone().into()),
