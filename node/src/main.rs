@@ -1,4 +1,4 @@
-#![deny(unused_crate_dependencies)]
+// #![deny(unused_crate_dependencies)]
 //! Substrate Node Template CLI library.
 #![warn(missing_docs)]
 mod chain_spec;

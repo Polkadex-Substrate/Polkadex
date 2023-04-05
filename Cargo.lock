@@ -199,7 +199,6 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
- "pallet-sudo",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -826,7 +825,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "log",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
@@ -4004,9 +4002,7 @@ dependencies = [
  "polkadex-primitives",
  "scale-info",
  "sp-application-crypto",
- "sp-core",
  "sp-io",
- "sp-keystore",
  "sp-runtime",
  "sp-std",
 ]
@@ -4525,12 +4521,10 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
- "pallet-bags-list",
  "pallet-balances",
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-contracts",
  "pallet-democracy",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
@@ -4550,12 +4544,10 @@ dependencies = [
  "pallet-rewards",
  "pallet-scheduler",
  "pallet-session",
- "pallet-society",
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-tips",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -4570,7 +4562,6 @@ dependencies = [
  "sp-block-builder",
  "sp-consensus-babe",
  "sp-core",
- "sp-finality-grandpa",
  "sp-inherents",
  "sp-io",
  "sp-npos-elections",
@@ -4585,7 +4576,6 @@ dependencies = [
  "substrate-wasm-builder",
  "thea",
  "thea-cross-chain-governance",
- "thea-primitives",
  "thea-staking",
 ]
 
@@ -4989,23 +4979,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-asset-tx-payment"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-assets"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
@@ -5071,21 +5044,6 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-bags-list"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
-dependencies = [
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
  "sp-std",
 ]
 
@@ -5420,13 +5378,11 @@ dependencies = [
 name = "pallet-ocex-lmp"
 version = "4.0.0"
 dependencies = [
- "anyhow",
  "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "liquidity",
- "log",
  "orderbook-primitives",
  "pallet-assets",
  "pallet-balances",
@@ -5524,7 +5480,6 @@ dependencies = [
 name = "pallet-rewards"
 version = "1.0.0"
 dependencies = [
- "anyhow",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -5535,10 +5490,8 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
- "sp-application-crypto",
  "sp-core",
  "sp-io",
- "sp-keystore",
  "sp-runtime",
  "sp-std",
  "test-utils",
@@ -5579,20 +5532,6 @@ dependencies = [
  "sp-staking",
  "sp-std",
  "sp-trie",
-]
-
-[[package]]
-name = "pallet-society"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "rand_chacha 0.2.2",
- "scale-info",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -5656,24 +5595,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
-]
-
-[[package]]
-name = "pallet-tips"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-treasury",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -6082,7 +6003,6 @@ dependencies = [
  "frame-benchmarking-cli",
  "frame-support",
  "frame-system",
- "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "futures 0.3.27",
  "hex-literal",
@@ -6097,7 +6017,6 @@ dependencies = [
  "orderbook-primitives",
  "orderbook-rpc",
  "pallet-asset-handler-rpc",
- "pallet-asset-tx-payment",
  "pallet-contracts",
  "pallet-contracts-rpc",
  "pallet-im-online",
@@ -6132,7 +6051,6 @@ dependencies = [
  "sc-rpc",
  "sc-rpc-api",
  "sc-service",
- "sc-service-test",
  "sc-sync-state-rpc",
  "sc-telemetry",
  "sc-transaction-pool",
@@ -6155,7 +6073,6 @@ dependencies = [
  "sp-runtime",
  "sp-timestamp",
  "sp-tracing",
- "sp-transaction-pool",
  "sp-trie",
  "structopt",
  "substrate-build-script-utils",
@@ -7949,44 +7866,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-service-test"
-version = "2.0.0"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
-dependencies = [
- "fdlimit",
- "futures 0.3.27",
- "hex",
- "hex-literal",
- "log",
- "parity-scale-codec",
- "parking_lot 0.12.1",
- "sc-block-builder",
- "sc-client-api",
- "sc-client-db",
- "sc-consensus",
- "sc-executor",
- "sc-network",
- "sc-network-common",
- "sc-service",
- "sc-transaction-pool-api",
- "sp-api",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-externalities",
- "sp-panic-handler",
- "sp-runtime",
- "sp-state-machine",
- "sp-storage",
- "sp-tracing",
- "sp-trie",
- "substrate-test-runtime",
- "substrate-test-runtime-client",
- "tempfile",
- "tokio",
-]
-
-[[package]]
 name = "sc-state-db"
 version = "0.10.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
@@ -9668,21 +9547,11 @@ name = "thea"
 version = "1.0.0"
 dependencies = [
  "asset-handler",
- "blst",
- "chainbridge",
- "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-sudo",
  "parity-scale-codec",
- "polkadex-primitives",
  "scale-info",
- "sp-application-crypto",
  "sp-core",
- "sp-io",
- "sp-keystore",
  "sp-runtime",
  "sp-std",
  "thea-primitives",
@@ -9694,10 +9563,8 @@ dependencies = [
 name = "thea-cross-chain-governance"
 version = "0.1.0"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
- "log",
  "pallet-balances",
  "pallet-identity",
  "parity-scale-codec",
@@ -9706,7 +9573,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-staking",
  "sp-std",
 ]
 
@@ -9749,7 +9615,6 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
- "thea",
  "thea-primitives",
 ]
 
