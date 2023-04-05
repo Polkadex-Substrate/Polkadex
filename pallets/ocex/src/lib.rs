@@ -24,7 +24,7 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
-use polkadex_primitives::{assets::AssetId, AccountId, OnChainEventsLimit};
+use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
 use sp_runtime::traits::Zero;
 
 use pallet_timestamp::{self as timestamp};
@@ -42,14 +42,11 @@ pub use pallet::*;
 // mod tests;
 
 use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
-// ToDo: Issue 683
-// #[cfg(feature = "runtime-benchmarks")]
-// use sp_runtime::traits::One;
-//
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::One;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 pub mod weights;
-
 pub use weights::*;
 
 /// A type alias for the balance type from this pallet's point of view.
@@ -83,7 +80,7 @@ pub mod pallet {
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
-		snapshot::{EnclaveSnapshot, Fees},
+		snapshot::Fees,
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};

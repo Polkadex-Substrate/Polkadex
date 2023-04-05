@@ -30,14 +30,6 @@ orderbook-primitives = {path="../../primitives/orderbook", default-features = fa
 bls-primitives = {path="../../primitives/bls-primitives", default-features = false}
 sp-application-crypto = { workspace = true }
 
-[dev-dependencies]
-test-utils = { workspace = true }
-pallet-assets = { workspace = true, features = ["std"] }
-pallet-balances = { workspace = true, features = ["std"] }
-sp-application-crypto = { workspace = true }
-sp-keystore = { workspace = true }
-sp-io = { workspace = true }
-
 [features]
 default = ["std"]
 std = [
