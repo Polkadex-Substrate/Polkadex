@@ -3,6 +3,7 @@
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{withdrawal::Withdrawal, AccountId, AssetId, BlockNumber};
 use primitive_types::H128;
+use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
@@ -121,6 +122,12 @@ pub struct StidImportRequest {
 	pub to: u64,
 }
 
+#[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
+pub struct Fees {
+	pub asset: AssetId,
+	pub amount: Decimal,
+}
+
 #[derive(Clone, Encode, Decode, Default)]
 #[cfg(feature = "std")]
 pub struct StidImportResponse {
@@ -151,6 +158,14 @@ impl SnapshotSummary {
 			},
 			Err(_) => return Err(()),
 		}
+	}
+
+	pub fn get_fees(&self) -> Vec<Fees> {
+		let mut fees = Vec::new();
+		for withdrawal in &self.withdrawals {
+			fees.push(Fees{ asset: withdrawal.asset, amount: withdrawal.fees });
+		}
+		fees
 	}
 
 	pub fn add_auth_index(&mut self, index: u16) {

@@ -28,7 +28,6 @@ use crate::mock::*;
 use frame_system::EventRecord;
 use parity_scale_codec::Encode;
 use polkadex_primitives::{
-	snapshot::{EnclaveSnapshot, Fees},
 	AccountId, AssetsLimit, WithdrawalLimit,
 };
 use rust_decimal::Decimal;
@@ -1253,7 +1252,7 @@ fn test_collect_fees_decimal_overflow() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		let max_fees = create_max_fees::<Test>();
-		FeesCollected::<Test>::insert::<u32, BoundedVec<Fees, AssetsLimit>>(
+		FeesCollected::<Test>::insert::<u64, BoundedVec<Fees, AssetsLimit>>(
 			0,
 			bounded_vec![max_fees],
 		);
@@ -1283,7 +1282,8 @@ fn collect_fees() {
 		);
 		let fees = create_fees::<Test>();
 
-		let (snapshot,public) = get_dummy_snapshot(1);
+		let (mut snapshot,public) = get_dummy_snapshot(1);
+		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
 
 		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot));
 
@@ -1546,8 +1546,8 @@ fn test_submit_snapshot() {
 	let account_id = create_account_id();
 	let mut t = new_test_ext();
 	t.execute_with(|| {
-		let (snapshot, public) = get_dummy_snapshot(1);
-
+		let (mut snapshot, public) = get_dummy_snapshot(1);
+		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
 		let mut withdrawal_map: BoundedBTreeMap<AccountId,BoundedVec<Withdrawal<AccountId>,WithdrawalLimit>, SnapshotAccLimit> = BoundedBTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
 			match withdrawal_map.get_mut(&withdrawal.main_account) {
@@ -1579,7 +1579,7 @@ fn test_submit_snapshot() {
 		)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
-		assert_eq!(Snapshots::<Test>::get(1).withdrawals, Vec::new());
+		assert_eq!(Snapshots::<Test>::get(1).withdrawals, snapshot.withdrawals);
 	})
 }
 
@@ -1687,6 +1687,7 @@ fn test_onchain_events_overflow() {
 	});
 }
 use sp_runtime::traits::One;
+use orderbook_primitives::Fees;
 
 #[test]
 fn test_withdrawal_bad_origin() {
