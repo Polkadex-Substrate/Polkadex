@@ -14,18 +14,17 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 parity-scale-codec = { workspace = true, default-features = false }
-log = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
 frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
-frame-benchmarking = { workspace = true, default-features = false, optional = true }
 test-utils = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+sp-core = { workspace = true, default-features = false }
 liquidity = { path = "../liquidity", default-features = false }
 orderbook-primitives = {path="../../primitives/orderbook", default-features = false}
 bls-primitives = {path="../../primitives/bls-primitives", default-features = false}
@@ -37,8 +36,6 @@ pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
-frame-benchmarking = { workspace = true }
-anyhow = { workspace = true }
 sp-io = { workspace = true }
 
 [features]
@@ -48,17 +45,16 @@ std = [
     "orderbook-primitives/std",
     "bls-primitives/std",
     "parity-scale-codec/std",
-    "log/std",
     "scale-info/std",
     "frame-support/std",
     "frame-system/std",
     "sp-runtime/std",
     "sp-std/std",
-    "sp-core/std",
     "polkadex-primitives/std",
     "rust_decimal/std",
     "pallet-timestamp/std",
     "liquidity/std",
+    "sp-core/std",
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
