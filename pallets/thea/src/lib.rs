@@ -549,8 +549,6 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			// Put a soft limit of size of beneficiary vector to avoid spam
-			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
 			Ok(())
 		}
@@ -787,7 +785,7 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
-			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
+			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			let network = if asset_id == T::PolkadexAssetId::get() {
 				1
 			} else {
@@ -905,15 +903,9 @@ pub mod pallet {
 		}
 
 		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {
-			let recipient: [u8; 32] =
-				recipient.try_into().map_err(|_| Error::<T>::DepositNonceError)?; //TODO Handle error
-			Ok(MultiLocation {
-				parents: 1,
-				interior: Junctions::X1(Junction::AccountId32 {
-					network: NetworkId::Any,
-					id: recipient,
-				}),
-			})
+			let recipient: MultiLocation =
+				Decode::decode(&mut &recipient[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+			Ok(recipient)
 		}
 
 		pub fn do_deposit(
