@@ -1833,27 +1833,6 @@ fn test_withdrawal_bad_origin() {
 }
 
 #[test]
-fn test_shutdown() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::shutdown(Origin::root()));
-
-		let ingress_message: IngressMessages<AccountId32> = IngressMessages::Shutdown;
-		assert_eq!(OCEX::ingress_messages()[0], ingress_message);
-		assert_eq!(ExchangeState::<Test>::get(), false);
-	});
-}
-
-#[test]
-fn test_shutdown_bad_origin() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::shutdown(Origin::signed(account_id.into())), BadOrigin);
-
-		assert_noop!(OCEX::shutdown(Origin::none()), BadOrigin);
-	});
-}
-
-#[test]
 fn test_unregister_timed_out_enclaves() {
 	let enclave_id = create_account_id();
 	new_test_ext().execute_with(|| {

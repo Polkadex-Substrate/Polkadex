@@ -89,7 +89,7 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
+		traits::{IdentifyAccount, One, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
@@ -106,7 +106,6 @@ pub mod pallet {
 		fn submit_snapshot() -> Weight;
 		fn insert_enclave(_x: u32) -> Weight;
 		fn collect_fees(_x: u32) -> Weight;
-		fn shutdown() -> Weight;
 		fn set_exchange_state(_x: u32) -> Weight;
 		fn set_balances(_x: u32) -> Weight;
 		fn claim_withdraw(_x: u32) -> Weight;
@@ -832,17 +831,6 @@ pub mod pallet {
 				Error::<T>::FeesNotCollectedFully
 			);
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
-			Ok(())
-		}
-
-		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::shutdown())]
-		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<ExchangeState<T>>::put(false);
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Shutdown);
-			});
 			Ok(())
 		}
 
