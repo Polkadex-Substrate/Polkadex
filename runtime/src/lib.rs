@@ -1338,6 +1338,10 @@ impl asset_handler::pallet::Config for Runtime {
 	type PDEXHolderAccount = PDEXHolderAccount;
 }
 
+parameter_types! {
+	pub const TheaUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+}
+
 impl thea::pallet::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -1346,6 +1350,9 @@ impl thea::pallet::Config for Runtime {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type UnsignedPriority = TheaUnsignedPriority;
 }
 
 //Install Staking Pallet
