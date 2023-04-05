@@ -17,9 +17,7 @@
 
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
-use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, SnapshotAccLimit,
-};
+use polkadex_primitives::{assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, SnapshotAccLimit, UNIT_BALANCE};
 use rust_decimal::prelude::FromPrimitive;
 use sp_application_crypto::sp_core::H256;
 // The testing primitives are very useful for avoiding having to work with signatures
@@ -1458,19 +1456,6 @@ fn collect_fees_ddos(){
 } */
 
 #[test]
-fn test_submit_snapshot_sender_is_not_attested_enclave() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		let (snapshot, public) = get_dummy_snapshot(1);
-		assert_noop!(
-			OCEX::submit_snapshot(Origin::none(), snapshot),
-			Error::<Test>::SenderIsNotAttestedEnclave
-		);
-		assert_eq!(OCEX::ingress_messages().len(), 0);
-	});
-}
-
-#[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
 		let (mut snapshot, public) = get_dummy_snapshot(0);
@@ -1585,41 +1570,41 @@ fn test_withdrawal() {
 	t.execute_with(|| {
 		mint_into_account(account_id.clone());
 		mint_into_account(custodian_account.clone());
+
+		let initial_balance = 10_000_000_000 * UNIT_BALANCE;
 		// Initial Balances
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			10000000000000000000000
+			initial_balance
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			10000000000000000000000
+			initial_balance
 		);
-
-		let withdrawal = Withdrawal{
-			main_account: account_id.clone(),
-			amount: Decimal::one(),
-			asset: AssetId::polkadex,
-			event_id: 0,
-			fees: Default::default(),
-		};
 
 		let (snapshot,public )  = get_dummy_snapshot(1);
 
+		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot.clone()));
 
+		assert_ok!(OCEX::claim_withdraw(
+				Origin::signed(account_id.clone().into()),
+				1,
+				account_id.clone()
+			));
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			10000000100000000000000
+			initial_balance + UNIT_BALANCE // Increased by 1
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			9999999900000000000000,
+			initial_balance - UNIT_BALANCE, // Dec
 		);
 		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<AccountId> =
 			polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 				1,
 				account_id.clone().into(),
-				bounded_vec![withdrawal],
+				bounded_vec![snapshot.withdrawals[0].clone()],
 			);
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
