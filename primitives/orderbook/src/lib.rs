@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
-use sp_core::{H160, H256};
+use sp_core::{H256};
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
 
@@ -84,7 +84,7 @@ pub struct ValidatorSet<AuthorityId> {
 
 impl<AuthorityId> ValidatorSet<AuthorityId> {
 	/// Return a validator set with the given validators and set id.
-	pub fn new<I>(validators: I, id: ValidatorSetId) -> Option<Self>
+	pub fn new<I>(validators: I, _id: ValidatorSetId) -> Option<Self>
 	where
 		I: IntoIterator<Item = AuthorityId>,
 	{

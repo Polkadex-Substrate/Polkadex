@@ -1,5 +1,5 @@
 use crate::constants::*;
-use parity_scale_codec::{Codec, Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber, Signature,
 };
@@ -58,7 +58,7 @@ impl OrderState {
 	}
 
 	// verify if we can update the order state, with the new state of order.
-	pub fn update(&mut self, order: &Order, price: Decimal, amount: Decimal) -> bool {
+	pub fn update(&mut self, _order: &Order, _price: Decimal, _amount: Decimal) -> bool {
 		// Verify signature also here.
 		// TODO: FIX this.
 		true
