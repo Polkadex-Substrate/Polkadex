@@ -152,7 +152,7 @@ pub fn deposit_with_not_registered_main_account_will_return_main_account_not_fou
 	let mut trie: TrieDBMut<ExtensionLayout> =
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, _alice_proxy) = get_alice_main_and_proxy_account();
-	let result = deposit(&mut trie, alice_main.clone(), AssetId::asset(1), Decimal::new(10, 0));
+	let result = deposit(&mut trie, alice_main.clone(), AssetId::Asset(1), Decimal::new(10, 0));
 	assert_eq!(result, Err(Error::MainAccountNotFound).into());
 }
 
@@ -164,7 +164,7 @@ pub fn deposit_will_store_amount_successfully() {
 	let mut trie: TrieDBMut<ExtensionLayout> =
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-	let asset_id = AssetId::asset(1);
+	let asset_id = AssetId::Asset(1);
 	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
 	assert!(deposit(&mut trie, alice_main.clone(), asset_id.clone(), Decimal::new(10, 0)).is_ok());
 
@@ -191,8 +191,8 @@ pub fn process_trade_will_process_successfully() {
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
 	let (bob_main, bob_proxy) = get_bob_main_and_proxy_account();
 
-	let asset_id_1 = AssetId::asset(1);
-	let asset_id_2 = AssetId::asset(1);
+	let asset_id_1 = AssetId::Asset(1);
+	let asset_id_2 = AssetId::Asset(1);
 
 	//Register alice & deposit asset 1 & 2
 	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());

@@ -1,5 +1,5 @@
 use crate::constants::*;
-use parity_scale_codec::{Codec, Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber, Signature,
 };
@@ -58,7 +58,7 @@ impl OrderState {
 	}
 
 	// verify if we can update the order state, with the new state of order.
-	pub fn update(&mut self, order: &Order, price: Decimal, amount: Decimal) -> bool {
+	pub fn update(&mut self, _order: &Order, _price: Decimal, _amount: Decimal) -> bool {
 		// Verify signature also here.
 		// TODO: FIX this.
 		true
@@ -326,17 +326,17 @@ impl TryFrom<String> for TradingPair {
 		}
 
 		let base_asset = if assets[0] == String::from("PDEX").as_str() {
-			AssetId::polkadex
+			AssetId::Polkadex
 		} else {
 			let id = assets[0].parse::<u128>()?;
-			AssetId::asset(id)
+			AssetId::Asset(id)
 		};
 
 		let quote_asset = if assets[1] == String::from("PDEX").as_str() {
-			AssetId::polkadex
+			AssetId::Polkadex
 		} else {
 			let id = assets[1].parse::<u128>()?;
-			AssetId::asset(id)
+			AssetId::Asset(id)
 		};
 
 		Ok(TradingPair::from(quote_asset, base_asset))
@@ -360,14 +360,14 @@ impl TradingPair {
 	}
 	pub fn base_asset_str(&self) -> String {
 		match self.base {
-			AssetId::polkadex => "PDEX".into(),
-			AssetId::asset(id) => id.to_string(),
+			AssetId::Polkadex => "PDEX".into(),
+			AssetId::Asset(id) => id.to_string(),
 		}
 	}
 	pub fn quote_asset_str(&self) -> String {
 		match self.quote {
-			AssetId::polkadex => "PDEX".into(),
-			AssetId::asset(id) => id.to_string(),
+			AssetId::Polkadex => "PDEX".into(),
+			AssetId::Asset(id) => id.to_string(),
 		}
 	}
 	pub fn market_id(&self) -> String {

@@ -31,8 +31,6 @@ pub enum IngressMessages<AccountId> {
 	RemoveProxy(AccountId, AccountId),
 	// Enclave registration confirmation
 	EnclaveRegistered(AccountId),
-	// Shutdown Exchange
-	Shutdown,
 	// Close Trading Pair
 	CloseTradingPair(TradingPairConfig),
 	// Latest snapshot (snapshot number, state_root, state_change_id, state_hash)
