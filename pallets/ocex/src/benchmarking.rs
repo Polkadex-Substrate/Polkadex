@@ -65,6 +65,35 @@ fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {
 	}
 }
 
+fn get_snapshot() -> (SnapshotSummary, bls_primitives::Public) {
+	let main = create_account_id();
+
+	let mut withdrawals = Vec::with_capacity(500);
+	for _ in 0..500 {
+		withdrawals.push(Withdrawal {
+			main_account: main.clone(),
+			amount: Decimal::one(),
+			asset: AssetId::polkadex,
+			event_id: 0,
+			fees: Default::default(),
+		})
+	}
+
+	let mut snapshot = SnapshotSummary {
+		snapshot_id: 1,
+		state_root: Default::default(),
+		state_change_id: 1,
+		state_chunk_hashes: [1u8; 2000 * 32].to_vec(), //2000 * H128 in Bytes
+		bitflags: vec![1],
+		withdrawals,
+		aggregate_signature: None,
+	};
+	let (pair, seed) = bls_primitives::Pair::generate();
+	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
+
+	(snapshot, pair.public())
+}
+
 benchmarks! {
 	register_main_account {
 		let b in 0 .. 50_000;
@@ -276,12 +305,10 @@ benchmarks! {
 	}
 
 	submit_snapshot {
-		let origin = T::AccountId::decode(&mut &[6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26][..]).unwrap();
-		let snapshot = EnclaveSnapshot::decode(&mut &[1, 0, 0, 0, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 0, 0, 0, 0, 0, 0, 0, 0, 23, 37, 201, 208, 94, 204, 130, 95, 211, 53, 43, 176, 181, 1, 65, 226, 243, 204, 57, 204, 23, 96, 37, 86, 231, 196, 102, 57, 246, 53, 78, 45, 4, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 4, 6, 196, 28, 36, 60, 116, 41, 76, 197, 21, 40, 124, 17, 142, 128, 189, 115, 168, 219, 199, 151, 158, 208, 8, 177, 131, 105, 116, 42, 17, 129, 26, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0][..]).unwrap();
-		let signature = T::Signature::decode(&mut &[1, 72, 147, 92, 172, 203, 231, 169, 79, 161, 0, 194, 169, 78, 12, 77, 116, 14, 7, 123, 158, 175, 231, 123, 104, 171, 190, 145, 83, 0, 205, 149, 71, 207, 251, 50, 173, 233, 38, 192, 117, 255, 49, 30, 177, 16, 241, 184, 36, 251, 100, 211, 178, 101, 255, 177, 13, 75, 130, 72, 242, 35, 95, 182, 129][..]).unwrap();
+		let (_key, snapshot) = get_snapshot();
 		<ExchangeState<T>>::put(true);
-		let call = Call::<T>::submit_snapshot { snapshot, signature };
-	}: { call.dispatch_bypass_filter(RawOrigin::Signed(origin).into())? }
+		let call = Call::<T>::submit_snapshot { summary: snapshot };
+	}: { call.dispatch_bypass_filter(RawOrigin::None.into())? }
 	verify {
 		assert!(<Snapshots<T>>::contains_key(1));
 	}

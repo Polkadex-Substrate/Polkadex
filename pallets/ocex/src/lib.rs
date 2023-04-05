@@ -1009,7 +1009,7 @@ pub mod pallet {
 		}
 
 		/// Submit Snapshot Summary
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(origin: OriginFor<T>, summary: SnapshotSummary) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
