@@ -43,7 +43,7 @@ use frame_system::pallet_prelude::*;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, Zero},
+	traits::{AccountIdConversion, IdentifyAccount, Verify, Zero},
 	SaturatedConversion,
 };
 use sp_std::{
@@ -82,7 +82,7 @@ pub trait WeightInfo {
 pub mod pallet {
 	use super::*;
 
-  /// Identifier for linked network
+	/// Identifier for linked network
 	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
