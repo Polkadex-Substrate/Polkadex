@@ -28,7 +28,7 @@ use polkadex_primitives::{assets::AssetId, AccountId, OnChainEventsLimit};
 use sp_runtime::traits::Zero;
 
 use pallet_timestamp::{self as timestamp};
-use sp_core::H256;
+use sp_core::{crypto::AccountId32, H256};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -90,7 +90,6 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_core::{crypto::AccountId32, H256};
 	use sp_runtime::{
 		traits::{AccountIdConversion, Convert, IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
