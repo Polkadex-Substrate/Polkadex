@@ -132,6 +132,6 @@ fn get_trie_db_client<'a>(
 
 fn get_balance(client: &TrieDBMut<ExtensionLayout>, account_asset: AccountAsset) -> Decimal {
 	let db_value = client.get(&account_asset.encode()).unwrap().unwrap();
-	let mut account_balance = Decimal::decode(&mut &db_value[..]).unwrap();
+	let account_balance = Decimal::decode(&mut &db_value[..]).unwrap();
 	account_balance
 }
