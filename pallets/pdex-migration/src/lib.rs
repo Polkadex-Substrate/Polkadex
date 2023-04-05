@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![deny(unused_crate_dependencies)]
 
 use frame_support::weights::Weight;
 pub mod weights;
