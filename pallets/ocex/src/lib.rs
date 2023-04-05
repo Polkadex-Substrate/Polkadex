@@ -46,6 +46,8 @@ use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
 use sp_runtime::traits::One;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+pub(crate) mod fixtures;
 pub mod weights;
 pub use weights::*;
 
