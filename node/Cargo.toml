@@ -91,7 +91,7 @@ polkadex-primitives = { path = "../primitives/polkadex" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-cli = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"] }
-sc-service = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"]}
+sc-service = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"] }
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, features = [
 	"memory-tracker",
 ] }
@@ -114,6 +114,7 @@ sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polk
 sc-consensus-babe =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-consensus-epochs =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-tracing =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sc-service-test = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 
 [features]
 default = []

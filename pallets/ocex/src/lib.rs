@@ -19,15 +19,15 @@
 
 use frame_support::{
 	dispatch::DispatchResult,
-	pallet_prelude::Get,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement, OneSessionHandler},
+	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction},
+	traits::{fungibles::Mutate, Currency, ExistenceRequirement, Get, OneSessionHandler},
 	BoundedVec,
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
 use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
 use sp_runtime::traits::Zero;
 
-use pallet_timestamp::{self as timestamp};
+use pallet_timestamp as timestamp;
 use sp_core::{crypto::AccountId32, H256};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
@@ -35,11 +35,11 @@ use sp_std::prelude::*;
 pub use pallet::*;
 
 // ToDo: Issue 682
-// #[cfg(test)]
-// mod mock;
-//
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
 
 use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
 #[cfg(feature = "runtime-benchmarks")]
@@ -76,11 +76,10 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary};
+	use orderbook_primitives::{crypto::AuthorityId, Fees, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
-		snapshot::Fees,
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
@@ -102,7 +101,6 @@ pub mod pallet {
 		fn remove_proxy_account(x: u32) -> Weight;
 		fn submit_snapshot() -> Weight;
 		fn collect_fees(_x: u32) -> Weight;
-		fn shutdown() -> Weight;
 		fn set_exchange_state(_x: u32) -> Weight;
 		fn set_balances(_x: u32) -> Weight;
 		fn claim_withdraw(_x: u32) -> Weight;
@@ -132,52 +130,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Entering validate unsigned....");
-			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("orderbook")
-					.and_provides([&provide])
-					.longevity(3)
-					.propagate(true)
-					.build()
-			};
-
-			let validate_snapshot = |snapshot_summary: &SnapshotSummary| -> TransactionValidity {
-				// Verify Nonce/state_change_id
-				let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
-				if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
-					return InvalidTransaction::Custom(10).into()
-				}
-
-				// Get authority from active set
-				// index is zero because we are signing only with one authority
-				// when submitting snapshot
-				let auth_idx = match snapshot_summary.signed_auth_indexes().get(0) {
-					Some(idx) => *idx,
-					None => return InvalidTransaction::BadSigner.into(),
-				};
-				let authority = match <Authorities<T>>::get().get(auth_idx as usize) {
-					Some(auth) => auth,
-					None => return InvalidTransaction::Custom(11).into(),
-				}
-				.clone();
-
-				// Verify Signature
-				match snapshot_summary.aggregate_signature {
-					None => return InvalidTransaction::Custom(12).into(),
-					Some(signature) => {
-						if !bls_primitives::crypto::bls_ext::verify(
-							&authority.into(),
-							&snapshot_summary.sign_data(),
-							&signature,
-						) {
-							return InvalidTransaction::Custom(13).into()
-						}
-					},
-				}
-				sp_runtime::print("Signature successfull");
-				valid_tx(snapshot_summary.clone())
-			};
 			match call {
-				Call::submit_snapshot { summary } => validate_snapshot(summary),
+				Call::submit_snapshot { summary } => Self::validate_snapshot(&summary),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -788,7 +742,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::collect_fees(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
-			snapshot_id: u32,
+			snapshot_id: u64,
 			beneficiary: T::AccountId,
 		) -> DispatchResult {
 			// TODO: The caller should be of operational council
@@ -828,17 +782,6 @@ pub mod pallet {
 				Error::<T>::FeesNotCollectedFully
 			);
 			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
-			Ok(())
-		}
-
-		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::shutdown())]
-		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<ExchangeState<T>>::put(false);
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Shutdown);
-			});
 			Ok(())
 		}
 
@@ -1014,7 +957,7 @@ pub mod pallet {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 			ensure!(
-				summary.state_change_id.eq(&(last_snapshot_serial_number + 1)),
+				summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)),
 				Error::<T>::SnapshotNonceError
 			);
 			let summary_hash = H256::from_slice(&summary.sign_data());
@@ -1063,6 +1006,7 @@ pub mod pallet {
 				let withdrawal_map =
 					Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
 				if working_summary.withdrawals.len() > 0 {
+					// TODO: We can't use ensure after storages are modified.
 					ensure!(
 						<OnChainEvents<T>>::try_mutate(|onchain_events| {
 							onchain_events.try_push(
@@ -1079,6 +1023,11 @@ pub mod pallet {
 					);
 				}
 				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
+				// The unwrap below should not fail
+				<FeesCollected<T>>::insert(
+					working_summary.snapshot_id,
+					BoundedVec::try_from(working_summary.get_fees()).unwrap(),
+				);
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
 				// Clear PendingSnapshotFromPreviousSet storage if its present
 				// because we are accepted this snapshot as there are not pending snapshots
@@ -1129,7 +1078,7 @@ pub mod pallet {
 
 		#[cfg(feature = "runtime-benchmarks")]
 		fn allowlist_and_create_token(account: Self::AccountId, token: u128) -> DispatchResult {
-			let asset: AssetId = AssetId::asset(token);
+			let asset: AssetId = AssetId::Asset(token);
 			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
 			allowlisted_tokens
 				.try_insert(asset)
@@ -1286,7 +1235,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		FeesClaims {
 			beneficiary: T::AccountId,
-			snapshot_id: u32,
+			snapshot_id: u64,
 		},
 		MainAccountRegistered {
 			main: T::AccountId,
@@ -1411,7 +1360,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
 	pub(super) type FeesCollected<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
 
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
@@ -1460,6 +1409,50 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
+	pub fn validate_snapshot(snapshot_summary: &SnapshotSummary) -> TransactionValidity {
+		let valid_tx = |provide| {
+			ValidTransaction::with_tag_prefix("orderbook")
+				.and_provides([&provide])
+				.longevity(3)
+				.propagate(true)
+				.build()
+		};
+		// Verify Nonce/state_change_id
+		let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
+		if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
+			return InvalidTransaction::Custom(10).into()
+		}
+
+		// Get authority from active set
+		// index is zero because we are signing only with one authority
+		// when submitting snapshot
+		let auth_idx = match snapshot_summary.signed_auth_indexes().get(0) {
+			Some(idx) => *idx,
+			None => return InvalidTransaction::BadSigner.into(),
+		};
+		let authority = match <Authorities<T>>::get().get(auth_idx as usize) {
+			Some(auth) => auth,
+			None => return InvalidTransaction::Custom(11).into(),
+		}
+		.clone();
+
+		// Verify Signature
+		match snapshot_summary.aggregate_signature {
+			None => return InvalidTransaction::Custom(12).into(),
+			Some(signature) => {
+				if !bls_primitives::crypto::bls_ext::verify(
+					&authority.into(),
+					&snapshot_summary.sign_data(),
+					&signature,
+				) {
+					return InvalidTransaction::Custom(13).into()
+				}
+			},
+		}
+		sp_runtime::print("Signature successfull");
+		valid_tx(snapshot_summary.clone())
+	}
+
 	pub fn validator_set() -> ValidatorSet<AuthorityId> {
 		ValidatorSet { validators: <Authorities<T>>::get().into_inner() }
 	}
@@ -1531,7 +1524,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		asset: AssetId,
 	) -> DispatchResult {
 		match asset {
-			AssetId::polkadex => {
+			AssetId::Polkadex => {
 				T::NativeCurrency::transfer(
 					payer,
 					payee,
@@ -1539,7 +1532,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 					ExistenceRequirement::KeepAlive,
 				)?;
 			},
-			AssetId::asset(id) => {
+			AssetId::Asset(id) => {
 				T::OtherAssets::teleport(id, payer, payee, amount.unique_saturated_into())?;
 			},
 		}

@@ -335,16 +335,6 @@ benchmarks! {
 		assert_last_event::<T>(Event::FeesClaims{ beneficiary, snapshot_id: x }.into());
 	}
 
-	shutdown {
-		let origin = T::GovernanceOrigin::successful_origin();
-		<ExchangeState<T>>::put(true);
-		let call = Call::<T>::shutdown {};
-	}: { call.dispatch_bypass_filter(origin)? }
-	verify {
-		assert_eq!(<ExchangeState<T>>::get(), false);
-		assert_eq!(<IngressMessages<T>>::get().last().unwrap(), &polkadex_primitives::ingress::IngressMessages::Shutdown);
-	}
-
 	set_exchange_state {
 		let x in 0 .. 100_000;
 		let state = x % 2 == 0;

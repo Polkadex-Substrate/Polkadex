@@ -32,6 +32,9 @@ use crate::OcexWeightInfo;
 /// Weight functions for `pallet_ocex_lmp`.
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> OcexWeightInfo for WeightInfo<T> {
+		fn set_snapshot() -> Weight { 1_000_000_00 as Weight }
+		fn change_pending_withdrawal_limit() -> Weight { 1_000_000_00 as Weight }
+		fn change_snapshot_interval_block() -> Weight { 1_000_000_00 as Weight }
 	// Storage: OCEX ExchangeState (r:1 w:0)
 	// Storage: OCEX Accounts (r:1 w:1)
 	// Storage: OCEX IngressMessages (r:1 w:1)
@@ -121,27 +124,12 @@ impl<T: frame_system::Config> OcexWeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(5 as Weight))
 	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Storage: OCEX RegisteredEnclaves (r:0 w:1)
-	/// The range of component `x` is `[0, 255]`.
-	fn insert_enclave(_x: u32, ) -> Weight {
-		(4_948_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
 	// Storage: OCEX FeesCollected (r:1 w:1)
 	/// The range of component `x` is `[0, 255]`.
 	fn collect_fees(_x: u32, ) -> Weight {
 		(13_008_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	// Storage: OCEX IngressMessages (r:1 w:1)
-	// Storage: OCEX ExchangeState (r:0 w:1)
-	fn shutdown() -> Weight {
-		(5_049_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: OCEX IngressMessages (r:1 w:1)
 	// Storage: OCEX ExchangeState (r:0 w:1)
@@ -170,14 +158,6 @@ impl<T: frame_system::Config> OcexWeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(6 as Weight))
 			.saturating_add(T::DbWeight::get().writes(6 as Weight))
 	}
-	// Storage: OCEX CertificateValidity (r:1 w:0)
-	// Storage: OCEX RegisteredEnclaves (r:1 w:1)
-	/// The range of component `x` is `[0, 65000]`.
-	fn register_enclave(_x: u32, ) -> Weight {
-		(92_320_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
 	// Storage: OCEX AllowlistedToken (r:1 w:1)
 	/// The range of component `x` is `[0, 65000]`.
 	fn allowlist_token(_x: u32, ) -> Weight {
@@ -190,18 +170,6 @@ impl<T: frame_system::Config> OcexWeightInfo for WeightInfo<T> {
 	fn remove_allowlisted_token(_x: u32, ) -> Weight {
 		(13_360_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	// Storage: OCEX AllowlistedEnclaves (r:0 w:1)
-	/// The range of component `x` is `[0, 255]`.
-	fn allowlist_enclave(_x: u32, ) -> Weight {
-		(11_662_000 as Weight)
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	// Storage: OCEX CertificateValidity (r:0 w:1)
-	/// The range of component `x` is `[0, 4294967295]`.
-	fn update_certificate(_x: u32, ) -> Weight {
-		(2_923_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 }
