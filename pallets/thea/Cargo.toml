@@ -42,7 +42,7 @@ std = [
     "asset-handler/std",
     "thea-primitives/std",
     "xcm/std",
-    "thea-staking/std",
+    "thea-staking/std"
 ]
 
 runtime-benchmarks = [
