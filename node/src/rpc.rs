@@ -55,7 +55,7 @@ use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
 
 use memory_db::{HashKey, MemoryDB};
-use reference_trie::{RefHasher};
+use reference_trie::RefHasher;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {

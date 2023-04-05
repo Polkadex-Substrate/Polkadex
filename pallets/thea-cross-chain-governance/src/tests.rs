@@ -6,7 +6,6 @@ use frame_support::{assert_noop, assert_ok};
 use pallet_identity::{Data, IdentityInfo};
 use sp_runtime::{traits::ConstU32, BoundedBTreeMap, BoundedVec};
 
-
 type PublicKey = BoundedVec<u8, ConstU32<1000>>;
 type KeysMap = BoundedBTreeMap<u8, PublicKey, ConstU32<20>>;
 
