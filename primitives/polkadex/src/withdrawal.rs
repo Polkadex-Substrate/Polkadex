@@ -1,3 +1,4 @@
+use std::ops::{Deref, DerefMut};
 use crate::assets::AssetId;
 use codec::{Decode, Encode, MaxEncodedLen};
 use rust_decimal::Decimal;
@@ -17,6 +18,7 @@ pub struct Withdrawal<AccountId> {
 	pub event_id: u64,
 	pub fees: Decimal,
 }
+
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
