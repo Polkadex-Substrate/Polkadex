@@ -417,6 +417,21 @@ benchmarks! {
 	verify {
 		assert_last_event::<T>(Event::AllowlistedTokenRemoved(asset_id).into());
 	}
+
+	set_snapshot {
+		let call = Call::<T>::set_snapshot{ new_snapshot_id: u64::MAX };
+	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
+
+	change_pending_withdrawal_limit {
+		let origin = T::GovernanceOrigin::successful_origin();
+		let call = Call::<T>::change_pending_withdrawal_limit { new_pending_withdrawals_limit: u64::MAX };
+	}: { call.dispatch_bypass_filter(origin)? }
+
+	change_snapshot_interval_block {
+		let origin = T::GovernanceOrigin::successful_origin();
+		let new_snapshot_interval_block = T::BlockNumber::decode(&mut 123u64.to_le_bytes().as_ref()).unwrap();
+		let call = Call::<T>::change_snapshot_interval_block{ new_snapshot_interval_block };
+	}: { call.dispatch_bypass_filter(origin)? }
 }
 
 #[cfg(test)]
