@@ -1535,8 +1535,8 @@ fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let (snapshot,_public) = get_dummy_snapshot(1);
 		assert_noop!(
-			OCEX::submit_snapshot(Origin::none(), snapshot),
-			BadOrigin
+			OCEX::validate_snapshot(&snapshot),
+			InvalidTransaction::Custom(11)
 		);
 	});
 }

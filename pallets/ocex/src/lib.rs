@@ -45,6 +45,7 @@ use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
 // ToDo: Issue 683
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
+use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -135,52 +136,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Entering validate unsigned....");
-			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("orderbook")
-					.and_provides([&provide])
-					.longevity(3)
-					.propagate(true)
-					.build()
-			};
-
-			let validate_snapshot = |snapshot_summary: &SnapshotSummary| -> TransactionValidity {
-				// Verify Nonce/state_change_id
-				let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
-				if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
-					return InvalidTransaction::Custom(10).into()
-				}
-
-				// Get authority from active set
-				// index is zero because we are signing only with one authority
-				// when submitting snapshot
-				let auth_idx = match snapshot_summary.signed_auth_indexes().get(0) {
-					Some(idx) => *idx,
-					None => return InvalidTransaction::BadSigner.into(),
-				};
-				let authority = match <Authorities<T>>::get().get(auth_idx as usize) {
-					Some(auth) => auth,
-					None => return InvalidTransaction::Custom(11).into(),
-				}
-				.clone();
-
-				// Verify Signature
-				match snapshot_summary.aggregate_signature {
-					None => return InvalidTransaction::Custom(12).into(),
-					Some(signature) => {
-						if !bls_primitives::crypto::bls_ext::verify(
-							&authority.into(),
-							&snapshot_summary.sign_data(),
-							&signature,
-						) {
-							return InvalidTransaction::Custom(13).into()
-						}
-					},
-				}
-				sp_runtime::print("Signature successfull");
-				valid_tx(snapshot_summary.clone())
-			};
 			match call {
-				Call::submit_snapshot { summary } => validate_snapshot(summary),
+				Call::submit_snapshot { summary } => Self::validate_snapshot(&summary),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -1455,6 +1412,52 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
+
+	pub fn validate_snapshot(snapshot_summary: &SnapshotSummary) -> TransactionValidity {
+		let valid_tx = |provide| {
+			ValidTransaction::with_tag_prefix("orderbook")
+				.and_provides([&provide])
+				.longevity(3)
+				.propagate(true)
+				.build()
+		};
+		// Verify Nonce/state_change_id
+		let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
+		if !snapshot_summary.state_change_id.eq(&(last_snapshot_serial_number + 1)) {
+			return InvalidTransaction::Custom(10).into()
+		}
+
+		// Get authority from active set
+		// index is zero because we are signing only with one authority
+		// when submitting snapshot
+		let auth_idx = match snapshot_summary.signed_auth_indexes().get(0) {
+			Some(idx) => *idx,
+			None => return InvalidTransaction::BadSigner.into(),
+		};
+		let authority = match <Authorities<T>>::get().get(auth_idx as usize) {
+			Some(auth) => auth,
+			None => return InvalidTransaction::Custom(11).into(),
+		}
+			.clone();
+
+		// Verify Signature
+		match snapshot_summary.aggregate_signature {
+			None => return InvalidTransaction::Custom(12).into(),
+			Some(signature) => {
+				if !bls_primitives::crypto::bls_ext::verify(
+					&authority.into(),
+					&snapshot_summary.sign_data(),
+					&signature,
+				) {
+					return InvalidTransaction::Custom(13).into()
+				}
+			},
+		}
+		sp_runtime::print("Signature successfull");
+		valid_tx(snapshot_summary.clone())
+
+	}
+
 	pub fn validator_set() -> ValidatorSet<AuthorityId> {
 		ValidatorSet { validators: <Authorities<T>>::get().into_inner() }
 	}
