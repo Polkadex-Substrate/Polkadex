@@ -3994,15 +3994,10 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-ocex-lmp",
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
- "sp-application-crypto",
- "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -6051,6 +6046,7 @@ dependencies = [
  "sc-rpc",
  "sc-rpc-api",
  "sc-service",
+ "sc-service-test",
  "sc-sync-state-rpc",
  "sc-telemetry",
  "sc-transaction-pool",
@@ -7863,6 +7859,44 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-futures",
+]
+
+[[package]]
+name = "sc-service-test"
+version = "2.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
+dependencies = [
+ "fdlimit",
+ "futures 0.3.27",
+ "hex",
+ "hex-literal",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-network",
+ "sc-network-common",
+ "sc-service",
+ "sc-transaction-pool-api",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-externalities",
+ "sp-panic-handler",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-storage",
+ "sp-tracing",
+ "sp-trie",
+ "substrate-test-runtime",
+ "substrate-test-runtime-client",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
