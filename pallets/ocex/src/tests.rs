@@ -18,7 +18,7 @@
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
 use polkadex_primitives::{assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, Moment, SnapshotAccLimit, UNIT_BALANCE};
-use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_application_crypto::sp_core::H256;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
@@ -1269,31 +1269,44 @@ fn collect_fees() {
 	t.execute_with(|| {
 		mint_into_account(account_id.clone());
 		mint_into_account(custodian_account.clone());
+		let initial_balance = 10_000_000_000 * UNIT_BALANCE;
 		// Initial Balances
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			10000000000000000000000
+			initial_balance
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			10000000000000000000000
+			initial_balance
 		);
-		let fees = create_fees::<Test>();
 
 		let (mut snapshot,public) = get_dummy_snapshot(1);
+
 		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
 
-		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot));
+		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot.clone()));
 
-		assert_ok!(OCEX::collect_fees(Origin::root(), 1, account_id.clone().into()));
-		// Balances after collect fees
+		assert_ok!(OCEX::claim_withdraw(Origin::signed(account_id.clone().into()), 1, account_id.clone()));
+
+		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			10000000010000000000000
+			initial_balance + UNIT_BALANCE
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			9999999990000000000000
+			initial_balance - UNIT_BALANCE
+		);
+
+		assert_ok!(OCEX::collect_fees(Origin::root(), 1, account_id.clone().into()));
+
+		assert_eq!(
+			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
+			initial_balance + UNIT_BALANCE + snapshot.withdrawals[0].fees.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128().unwrap()
+		);
+		assert_eq!(
+			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
+			initial_balance - UNIT_BALANCE - snapshot.withdrawals[0].fees.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128().unwrap()
 		);
 	});
 }
