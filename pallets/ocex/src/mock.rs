@@ -164,11 +164,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 use sp_runtime::{
-	testing::{TestXt},
-	traits::{
-		Extrinsic as ExtrinsicT,
-		IdentifyAccount, Verify,
-	},
+	testing::TestXt,
+	traits::{Extrinsic as ExtrinsicT, IdentifyAccount, Verify},
 };
 
 type Extrinsic = TestXt<Call, ()>;
@@ -179,14 +176,16 @@ impl frame_system::offchain::SigningTypes for Test {
 	type Signature = Signature;
 }
 
-impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test where
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
+where
 	Call: From<LocalCall>,
 {
 	type OverarchingCall = Call;
 	type Extrinsic = Extrinsic;
 }
 
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test where
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
+where
 	Call: From<LocalCall>,
 {
 	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(

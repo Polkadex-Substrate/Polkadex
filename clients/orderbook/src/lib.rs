@@ -89,7 +89,6 @@ where
 	// empty
 }
 
-
 use orderbook_primitives::types::ObMessage;
 use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;

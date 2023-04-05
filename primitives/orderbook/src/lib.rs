@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
-use sp_core::{H256};
+use sp_core::H256;
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
 
@@ -163,7 +163,7 @@ impl SnapshotSummary {
 	pub fn get_fees(&self) -> Vec<Fees> {
 		let mut fees = Vec::new();
 		for withdrawal in &self.withdrawals {
-			fees.push(Fees{ asset: withdrawal.asset, amount: withdrawal.fees });
+			fees.push(Fees { asset: withdrawal.asset, amount: withdrawal.fees });
 		}
 		fees
 	}
