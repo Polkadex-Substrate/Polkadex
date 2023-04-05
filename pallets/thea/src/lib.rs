@@ -58,7 +58,7 @@ use thea_primitives::{
 };
 use thea_staking::SessionChanged;
 use xcm::{
-	latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
+	latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation},
 	prelude::{Fungible, X1},
 };
 
