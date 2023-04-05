@@ -80,11 +80,10 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary};
+	use orderbook_primitives::{crypto::AuthorityId, Fees, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
-		snapshot::{EnclaveSnapshot, Fees},
 		withdrawal::Withdrawal,
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
@@ -792,7 +791,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::collect_fees(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
-			snapshot_id: u32,
+			snapshot_id: u64,
 			beneficiary: T::AccountId,
 		) -> DispatchResult {
 			// TODO: The caller should be of operational council
@@ -1056,6 +1055,7 @@ pub mod pallet {
 				let withdrawal_map =
 					Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
 				if working_summary.withdrawals.len() > 0 {
+					// TODO: We can't use ensure after storages are modified.
 					ensure!(
 						<OnChainEvents<T>>::try_mutate(|onchain_events| {
 							onchain_events.try_push(
@@ -1072,6 +1072,8 @@ pub mod pallet {
 					);
 				}
 				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
+				// The unwrap below should not fail
+				<FeesCollected<T>>::insert(working_summary.snapshot_id, BoundedVec::try_from(working_summary.get_fees()).unwrap());
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
 				// Clear PendingSnapshotFromPreviousSet storage if its present
 				// because we are accepted this snapshot as there are not pending snapshots
@@ -1279,7 +1281,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		FeesClaims {
 			beneficiary: T::AccountId,
-			snapshot_id: u32,
+			snapshot_id: u64,
 		},
 		MainAccountRegistered {
 			main: T::AccountId,
@@ -1404,7 +1406,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
 	pub(super) type FeesCollected<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
 
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
