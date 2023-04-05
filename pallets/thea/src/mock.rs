@@ -17,6 +17,7 @@ use crate::pallet as thea;
 use core::marker::PhantomData;
 use frame_support::{parameter_types, PalletId};
 use frame_system as system;
+use polkadex_primitives::Signature;
 use sp_core::H256;
 use sp_runtime::{
 	curve::PiecewiseLinear,
@@ -240,6 +241,9 @@ impl thea::Config for Test {
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
 	type Weights = crate::weights::TheaWeightInfo<Test>;
+	type Public = <Signature as traits::Verify>::Signer;
+	type Signature = Signature;
+	type UnsignedPriority = TheaUnsignedPriority;
 }
 
 // Build genesis storage according to the mock runtime.
