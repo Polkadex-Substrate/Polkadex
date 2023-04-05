@@ -45,7 +45,6 @@ impl RuntimePublic for Public {
 #[cfg(test)]
 mod tests {
 	use crate::crypto::sign;
-	use sp_application_crypto::RuntimePublic;
 	use sp_core::blake2_256;
 
 	#[test]
