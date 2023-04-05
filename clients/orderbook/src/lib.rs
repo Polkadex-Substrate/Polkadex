@@ -89,7 +89,7 @@ where
 	// empty
 }
 
-use crate::error::Error;
+
 use orderbook_primitives::types::ObMessage;
 use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
@@ -196,7 +196,7 @@ where
 		working_state_root,
 	};
 
-	let mut worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
+	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
 
 	worker.run().await
 }
