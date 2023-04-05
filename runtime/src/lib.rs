@@ -20,6 +20,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+#![deny(unused_crate_dependencies)]
 
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
@@ -1358,8 +1359,11 @@ parameter_types! {
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const ModerateSK: u8 = 5; // 5% of stake to slash
+	pub const SevereSK: u8 = 20; // 20% of stake to slash
+	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
+	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-
 }
 
 impl thea_staking::Config for Runtime {
@@ -1370,10 +1374,16 @@ impl thea_staking::Config for Runtime {
 	type CandidateBond = CandidateBond;
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
+	type ModerateSlashingCoeficient = ModerateSK;
+	type SevereSlashingCoeficient = SevereSK;
+	type ReportersRewardCoeficient = ReporterRewardKF;
+	type SlashingThreshold = SlashingTh;
 	type SessionChangeNotifier = Thea;
+	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
+	type WeightInfo = thea_staking::weight::StakeWeightInfo<Runtime>;
 }
 
 //Install Nomination Pool
@@ -1770,6 +1780,7 @@ impl_runtime_apis! {
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
+			list_benchmark!(list, extra, thea_staking, TheaStaking);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
@@ -1804,6 +1815,7 @@ impl_runtime_apis! {
 			let params = (&config, &allowlist);
 
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
+			add_benchmark!(params, batches, thea_staking, TheaStaking);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);

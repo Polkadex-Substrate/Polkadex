@@ -97,12 +97,17 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const SessionLength: u64 = 10;
+	pub const SessionLength: u64 = 7000;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const ModerateSK: u8 = 5; // 5% of stake to slash
+	pub const SevereSK: u8 = 20; // 20% of stake to slash
+	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
+	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 }
 
 impl thea_staking::Config for Test {
@@ -114,9 +119,15 @@ impl thea_staking::Config for Test {
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
 	type SessionChangeNotifier = MockPallet;
+	type ModerateSlashingCoeficient = ModerateSK;
+	type SevereSlashingCoeficient = SevereSK;
+	type ReportersRewardCoeficient = ReporterRewardKF;
+	type SlashingThreshold = SlashingTh;
+	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type Currency = Balances;
+	type WeightInfo = crate::weight::StakeWeightInfo<Test>;
 }
 
 pub struct MockPallet(PhantomData<u32>);
@@ -124,10 +135,10 @@ pub struct MockPallet(PhantomData<u32>);
 impl SessionChanged for MockPallet {
 	type Network = Network;
 	type OnSessionChange = OnSessionChange<u64>;
-	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+	fn on_new_session(_map: BTreeMap<Self::Network, Self::OnSessionChange>) {
 		// Do nothing lol
 	}
-	fn set_new_networks(networks: BTreeSet<Self::Network>) {
+	fn set_new_networks(_networks: BTreeSet<Self::Network>) {
 		// Do nothing lol
 	}
 }
