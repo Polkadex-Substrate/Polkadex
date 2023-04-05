@@ -2,10 +2,10 @@ use crate::{
 	mock::{new_test_ext, *},
 	ActiveMembers, Candidates, Error,
 };
-use frame_support::{assert_noop, assert_ok, metadata::StorageHasher::Identity};
+use frame_support::{assert_noop, assert_ok};
 use pallet_identity::{Data, IdentityInfo};
 use sp_runtime::{traits::ConstU32, BoundedBTreeMap, BoundedVec};
-use std::convert::identity;
+
 
 type PublicKey = BoundedVec<u8, ConstU32<1000>>;
 type KeysMap = BoundedBTreeMap<u8, PublicKey, ConstU32<20>>;
@@ -197,7 +197,7 @@ fn test_apply_for_candidature_without_identity_returns_identity_not_found() {
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let key_map = get_keylist();
-		let general_council = 2;
+		let _general_council = 2;
 		assert_ok!(Balances::set_balance(
 			Origin::root(),
 			candidate,
