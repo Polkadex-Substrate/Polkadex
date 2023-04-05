@@ -26,8 +26,8 @@ use orderbook_primitives::{
 };
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId, BlockNumber};
 
-use crate::worker::{register_main, ObWorker, WorkerParams};
-use parking_lot::{RawRwLock, RwLock};
+use crate::worker::{ObWorker, WorkerParams};
+use parking_lot::RwLock;
 use sp_runtime::SaturatedConversion;
 
 pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
@@ -289,7 +289,7 @@ pub async fn test_single_worker() {
 				),
 				IngressMessages::Deposit(
 					AccountId::from(AccountKeyring::Alice.pair().public()),
-					AssetId::polkadex,
+					AssetId::Polkadex,
 					Decimal::from_f64(10.2).unwrap()
 				)
 			],
@@ -369,7 +369,7 @@ pub async fn test_offline_storage() {
 				),
 				IngressMessages::Deposit(
 					AccountId::from(AccountKeyring::Alice.pair().public()),
-					AssetId::polkadex,
+					AssetId::Polkadex,
 					Decimal::from_f64(10.2).unwrap()
 				)
 			],
@@ -464,7 +464,7 @@ pub async fn test_process_chunk() {
 				),
 				IngressMessages::Deposit(
 					AccountId::from(AccountKeyring::Alice.pair().public()),
-					AssetId::polkadex,
+					AssetId::Polkadex,
 					Decimal::from_f64(10.2).unwrap()
 				)
 			],
@@ -524,7 +524,7 @@ pub async fn test_store_snapshot() {
 				),
 				IngressMessages::Deposit(
 					AccountId::from(AccountKeyring::Alice.pair().public()),
-					AssetId::polkadex,
+					AssetId::Polkadex,
 					Decimal::from_f64(10.2).unwrap()
 				)
 			],
@@ -591,7 +591,7 @@ pub async fn test_load_snapshot() {
 				),
 				IngressMessages::Deposit(
 					AccountId::from(AccountKeyring::Alice.pair().public()),
-					AssetId::polkadex,
+					AssetId::Polkadex,
 					Decimal::from_f64(10.2).unwrap()
 				)
 			],
@@ -661,7 +661,7 @@ pub async fn test_load_snapshot_with_invalid_summary() {
 				),
 				IngressMessages::Deposit(
 					AccountId::from(AccountKeyring::Alice.pair().public()),
-					AssetId::polkadex,
+					AssetId::Polkadex,
 					Decimal::from_f64(10.2).unwrap()
 				)
 			],

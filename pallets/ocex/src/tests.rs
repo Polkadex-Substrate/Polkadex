@@ -30,7 +30,7 @@ use frame_system::EventRecord;
 
 use polkadex_primitives::{AccountId, AssetsLimit, WithdrawalLimit};
 use rust_decimal::Decimal;
-use sp_application_crypto::RuntimePublic;
+use sp_core::Pair;
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
 use sp_runtime::{
 	AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin,
@@ -38,10 +38,6 @@ use sp_runtime::{
 };
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
-
-use parity_scale_codec::Decode;
-use sp_core::Pair;
-use test_utils::ias::ias::TEST4_SETUP;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	let events = frame_system::Pallet::<T>::events();
@@ -1928,29 +1924,7 @@ fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	return account_id
 }
 
-pub fn create_withdrawal<T: Config>() -> Withdrawal<AccountId32> {
-	let account_id = create_account_id();
-	let withdrawal: Withdrawal<AccountId32> = Withdrawal {
-		main_account: account_id,
-		asset: AssetId::Polkadex,
-		amount: 100_u32.into(),
-		event_id: 0,
-		fees: 1_u32.into(),
-	};
-	return withdrawal
-}
-
-pub fn create_fees<T: Config>() -> Fees {
-	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::new(100, 1) };
-	return fees
-}
-
-pub fn create_max_fees<T: Config>() -> Fees {
+fn create_max_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::MAX };
 	return fees
-}
-
-pub fn create_signer<T: Config>() -> T::AccountId {
-	let signer: T::AccountId = T::AccountId::decode(&mut &TEST4_SETUP.signer_pub[..]).unwrap();
-	return signer
 }

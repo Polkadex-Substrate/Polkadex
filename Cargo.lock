@@ -5392,7 +5392,6 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
- "test-utils",
 ]
 
 [[package]]

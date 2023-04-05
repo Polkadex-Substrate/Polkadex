@@ -1,6 +1,6 @@
 use crate::{
+	error::Error,
 	utils::{add_balance, sub_balance},
-	Error,
 };
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::types::AccountAsset;
