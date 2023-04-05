@@ -1627,30 +1627,46 @@ fn test_onchain_events_overflow() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
 
-	// create 500 accounts
 	let mut t = new_test_ext();
 	t.execute_with(|| {
 		mint_into_account(account_id.clone());
 		mint_into_account(custodian_account.clone());
 
-		let (snapshot, public ) = get_dummy_snapshot(500);
+		// create 500 accounts
+		let mut withdrawals: Vec<Withdrawal<AccountId>> = vec![];
+
+		for x in 0..500 {
+			let main = create_account_id_500(x as u32);
+			withdrawals.push(Withdrawal{
+				main_account: main.clone(),
+				amount: Decimal::one(),
+				asset: AssetId::polkadex,
+				event_id: 0,
+				fees: Default::default(),
+			});
+		}
+
+		let (mut snapshot, public ) = get_dummy_snapshot(1);
+		snapshot.withdrawals = withdrawals.clone();
 
 		assert_ok!(OCEX::submit_snapshot(Origin::none(),snapshot));
 
 		// Perform withdraw for 499 accounts
-		for _ in 0..499 {
+		for i in 0..499 {
 			assert_ok!(OCEX::claim_withdraw(
-				Origin::signed(account_id.clone().into()),
+				Origin::signed(withdrawals[i].main_account.clone().into()),
 				1,
-				account_id.clone()
+				withdrawals[i].main_account.clone()
 			));
 		}
+		println!("{:?}",OnChainEvents::<Test>::get());
+		assert_eq!(OnChainEvents::<Test>::get().len(), 500);
 		// last account
 		assert_noop!(
 			OCEX::claim_withdraw(
-				Origin::signed(account_id.clone().into()),
+				Origin::signed(withdrawals[499].main_account.clone().into()),
 				1,
-				account_id.clone()
+				withdrawals[499].main_account.clone()
 			),
 			Error::<Test>::WithdrawalBoundOverflow
 		);
