@@ -5393,7 +5393,6 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-std",
- "test-utils",
 ]
 
 [[package]]

@@ -101,17 +101,16 @@ pub mod pallet {
 		fn deposit(_x: u32) -> Weight;
 		fn remove_proxy_account(x: u32) -> Weight;
 		fn submit_snapshot() -> Weight;
-		fn insert_enclave(_x: u32) -> Weight;
 		fn collect_fees(_x: u32) -> Weight;
 		fn shutdown() -> Weight;
 		fn set_exchange_state(_x: u32) -> Weight;
 		fn set_balances(_x: u32) -> Weight;
 		fn claim_withdraw(_x: u32) -> Weight;
-		fn register_enclave(_x: u32) -> Weight;
 		fn allowlist_token(_x: u32) -> Weight;
 		fn remove_allowlisted_token(_x: u32) -> Weight;
-		fn allowlist_enclave(_x: u32) -> Weight;
-		fn update_certificate(_x: u32) -> Weight;
+		fn set_snapshot() -> Weight;
+		fn change_pending_withdrawal_limit() -> Weight;
+		fn change_snapshot_interval_block() -> Weight;
 	}
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
