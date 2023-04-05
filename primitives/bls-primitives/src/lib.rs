@@ -141,7 +141,7 @@ impl TryFrom<Public> for PublicKey {
 
 impl From<[u8; 96]> for Public {
 	fn from(value: [u8; 96]) -> Self {
-		Self { 0: value }
+		Self(value)
 	}
 }
 
