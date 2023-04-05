@@ -45,10 +45,6 @@ pub enum Error {
 	MainAlreadyRegistered,
 	#[error("Proxy account already registered")]
 	ProxyAlreadyRegistered,
-	#[error("Full node tried to download snapshot from operator")]
-	Fullnode,
-	#[error("BLS signing failed")]
-	BLSSigningFailed,
 	#[error("Offchain storage not available")]
 	OffchainStorageNotAvailable,
 }
