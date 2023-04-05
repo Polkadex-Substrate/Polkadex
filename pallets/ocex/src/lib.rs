@@ -963,7 +963,7 @@ pub mod pallet {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 			ensure!(
-				summary.state_change_id.eq(&(last_snapshot_serial_number + 1)),
+				summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)),
 				Error::<T>::SnapshotNonceError
 			);
 			let summary_hash = H256::from_slice(&summary.sign_data());

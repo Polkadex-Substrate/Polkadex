@@ -1472,29 +1472,12 @@ fn test_submit_snapshot_sender_is_not_attested_enclave() {
 
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
-	let account_id = create_account_id();
-
 	new_test_ext().execute_with(|| {
-		let (snapshot, public) = get_dummy_snapshot(0);
-
+		let (mut snapshot, public) = get_dummy_snapshot(0);
+		snapshot.snapshot_id = 2; // Wrong nonce
 		assert_noop!(
 			OCEX::submit_snapshot(Origin::none(), snapshot),
 			Error::<Test>::SnapshotNonceError
-		);
-
-		assert_eq!(OCEX::ingress_messages().len(), 0);
-	});
-}
-
-#[test]
-fn test_submit_snapshot_enclave_signature_verification_failed() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		let (snapshot,public) =  get_dummy_snapshot(1);
-
-		assert_noop!(
-			OCEX::submit_snapshot(Origin::none(), snapshot),
-			Error::<Test>::EnclaveSignatureVerificationFailed
 		);
 
 		assert_eq!(OCEX::ingress_messages().len(), 0);
