@@ -15,6 +15,7 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+#![deny(unused_crate_dependencies)]
 
 use frame_support::{
 	dispatch::DispatchResult,
@@ -27,7 +28,7 @@ use polkadex_primitives::{assets::AssetId, AccountId, OnChainEventsLimit};
 use sp_runtime::traits::Zero;
 
 use pallet_timestamp::{self as timestamp};
-use sp_core::H256;
+use sp_core::{crypto::AccountId32, H256};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -67,10 +68,8 @@ pub mod pallet {
 	use core::fmt::Debug;
 	// Import various types used to declare pallet in scope.
 	use super::*;
-	use bls_primitives::Signature;
 	use frame_support::{
 		pallet_prelude::*,
-		sp_tracing::debug,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
 			fungibles::{Create, Inspect, Mutate},
@@ -89,7 +88,6 @@ pub mod pallet {
 		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_core::{crypto::AccountId32, H256};
 	use sp_runtime::{
 		traits::{IdentifyAccount, One, Verify},
 		BoundedBTreeSet, SaturatedConversion,
@@ -124,13 +122,6 @@ pub mod pallet {
 		SnapshotAccLimit,
 	>;
 
-	type EnclaveSnapshotType<T> = EnclaveSnapshot<
-		<T as frame_system::Config>::AccountId,
-		WithdrawalLimit,
-		AssetsLimit,
-		SnapshotAccLimit,
-	>;
-
 	pub struct AllowlistedTokenLimit;
 	impl Get<u32> for AllowlistedTokenLimit {
 		fn get() -> u32 {
@@ -142,7 +133,7 @@ pub mod pallet {
 	impl<T: Config> frame_support::unsigned::ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
-		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Entering validate unsigned....");
 			let valid_tx = |provide| {
 				ValidTransaction::with_tag_prefix("orderbook")
@@ -176,14 +167,13 @@ pub mod pallet {
 				match snapshot_summary.aggregate_signature {
 					None => return InvalidTransaction::Custom(12).into(),
 					Some(signature) => {
-						// TODO: Ivan to fix this.
-						// if !bls_primitives::crypto::bls_ext::verify(
-						// 	&authority.into(),
-						// 	&snapshot_summary.sign_data(),
-						// 	&signature,
-						// ) {
-						// 	return InvalidTransaction::Custom(13).into()
-						// }
+						if !bls_primitives::crypto::bls_ext::verify(
+							&authority.into(),
+							&snapshot_summary.sign_data(),
+							&signature,
+						) {
+							return InvalidTransaction::Custom(13).into()
+						}
 					},
 				}
 				sp_runtime::print("Signature successfull");
