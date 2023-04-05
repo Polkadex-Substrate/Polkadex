@@ -138,13 +138,6 @@ impl<T: frame_system::Config> OcexWeightInfo for WeightInfo<T> {
 	}
 	// Storage: OCEX IngressMessages (r:1 w:1)
 	// Storage: OCEX ExchangeState (r:0 w:1)
-	fn shutdown() -> Weight {
-		(5_049_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	// Storage: OCEX IngressMessages (r:1 w:1)
-	// Storage: OCEX ExchangeState (r:0 w:1)
 	/// The range of component `x` is `[0, 100000]`.
 	fn set_exchange_state(_x: u32, ) -> Weight {
 		(13_210_000 as Weight)
