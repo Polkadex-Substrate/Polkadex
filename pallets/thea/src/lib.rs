@@ -14,6 +14,7 @@
 // GNU General Public License for more details.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::too_many_arguments)]
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
 
@@ -39,7 +40,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{
-		traits::{AccountIdConversion, Zero},
+		traits::{AccountIdConversion, IdentifyAccount, Zero},
 		SaturatedConversion,
 	};
 
@@ -57,6 +58,8 @@ pub mod pallet {
 	};
 
 	use core::default::Default;
+	use sp_runtime::traits::Verify;
+
 	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
@@ -111,6 +114,28 @@ pub mod pallet {
 		type ParaId: Get<u32>;
 		/// Extrinsic Notifier for rewards
 		type ExtrinsicSubmittedNotifier: TheaExtrinsicSubmitted<Self::AccountId>;
+		type Public: Clone
+			+ PartialEq
+			+ IdentifyAccount<AccountId = Self::AccountId>
+			+ Debug
+			+ parity_scale_codec::Codec
+			+ Ord
+			+ scale_info::TypeInfo;
+
+		/// A matching `Signature` type.
+		type Signature: Verify<Signer = Self::Public>
+			+ Clone
+			+ PartialEq
+			+ Debug
+			+ parity_scale_codec::Codec
+			+ scale_info::TypeInfo;
+
+		/// A configuration for base priority of unsigned transactions.
+		///
+		/// This is exposed so that it can be tuned for particular runtime, when
+		/// multiple pallets send unsigned transactions.
+		#[pallet::constant]
+		type UnsignedPriority: Get<TransactionPriority>;
 	}
 
 	#[pallet::pallet]
@@ -129,7 +154,7 @@ pub mod pallet {
 	pub(super) type RelayersBLSKeyVector<T: Config> =
 		StorageMap<_, frame_support::Blake2_128Concat, u8, Vec<BLSPublicKey>, ValueQuery>;
 
-	/// Active Relayers ECDSA Keys for a given Network
+	/// Active Relayers AccountId for a given Network
 	#[pallet::storage]
 	#[pallet::getter(fn get_auth_list)]
 	pub(super) type AuthorityListVector<T: Config> =
@@ -325,6 +350,8 @@ pub mod pallet {
 		BoundedVectorNotPresent,
 		/// Thea Key Rotation is taking place
 		TheaKeyRotationInPlace,
+		/// Relayer is absent in active set
+		RelayerAbsentInActiveSet,
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -378,6 +405,126 @@ pub mod pallet {
 		}
 	}
 
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			// A closure that takes a `&Network` and a `&u8` relayer index as inputs and returns an
+			// optional AccountId.
+			let get_account_id = |network: &Network, relayer_index: &u8| {
+				let relayer_account_vector = <AuthorityListVector<T>>::get(network);
+				let relayer_account = relayer_account_vector.get(*relayer_index as usize);
+				if let Some(relayer_account) = relayer_account {
+					return Some(relayer_account.clone())
+				}
+				None
+			};
+
+			// Verify provided payload by provided signature
+			let verify_signature =
+				|signature: &T::Signature, payload: &[u8], signer: T::AccountId| {
+					signature.verify(payload, &signer)
+				};
+
+			// A closure that takes a byte array reference `tx_tag` as input and returns a
+			// `ValidTransaction`.
+			let generate_valid_tx = |tx_tag: &[u8; 30]| {
+				ValidTransaction::with_tag_prefix("thea-proc")
+					.priority(T::UnsignedPriority::get())
+					.and_provides([&(tx_tag)])
+					.longevity(3)
+					.propagate(true)
+					.build()
+			};
+
+			// A closure that takes a byte array reference `payload`, a reference to a `u8` relayer
+			// index, a `&Network` instance representing the network in which the relayer is
+			// registered, a `&T::Signature` signature, and a byte array reference `tx_tag` as input
+			// and returns either a `ValidTransaction` or `InvalidTransaction`.
+			let generate_tx = |payload: &[u8],
+			                   relayer_index: &u8,
+			                   network: &Network,
+			                   signature: &T::Signature,
+			                   tx_tag: &[u8; 30]| {
+				match get_account_id(network, relayer_index) {
+					Some(relayer_account) => {
+						if verify_signature(signature, payload, relayer_account) {
+							generate_valid_tx(tx_tag)
+						} else {
+							InvalidTransaction::Call.into()
+						}
+					},
+					None => InvalidTransaction::Call.into(),
+				}
+			};
+
+			match call {
+				Call::approve_deposit {
+					bit_map: _,
+					bls_signature: _,
+					token_type: _,
+					payload,
+					relayer_index,
+					network,
+					signature,
+				} =>
+					return generate_tx(
+						payload.as_slice(),
+						relayer_index,
+						network,
+						signature,
+						b"thea_unsigned_approved_depsoit",
+					),
+				Call::set_thea_key_complete {
+					network,
+					public_key,
+					bit_map: _,
+					bls_signature: _,
+					relayer_index,
+					signature,
+				} =>
+					return generate_tx(
+						public_key.as_slice(),
+						relayer_index,
+						network,
+						signature,
+						b"thea_unsigned_key_completed___",
+					),
+				Call::thea_queued_queued_public_key {
+					network,
+					public_key,
+					bit_map: _,
+					bls_signature: _,
+					relayer_index,
+					signature,
+				} =>
+					return generate_tx(
+						public_key.as_slice(),
+						relayer_index,
+						network,
+						signature,
+						b"thea_unsigned_qq_key_completed",
+					),
+				Call::thea_key_rotation_complete {
+					network,
+					tx_hash,
+					bit_map: _,
+					bls_signature: _,
+					relayer_index,
+					signature,
+				} =>
+					return generate_tx(
+						tx_hash.as_bytes(),
+						relayer_index,
+						network,
+						signature,
+						b"thea_key_rotation_completed___",
+					),
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
 	// Extrinsic for Thea Pallet are defined here
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -389,6 +536,11 @@ pub mod pallet {
 		/// * `bls_signature`: BLS Signature.
 		/// * `token_type`: Token Type.
 		/// * `payload`: Encoded Deposit Payload.
+		/// * `_relayer_index`: The index of relayer in active set will be used to validate unsigned
+		///   tx.
+		/// * `_network`: Network id will be used to validate unsigned tx.
+		/// * `_signature`: The signature of the relayer on the payload will be used to validate
+		///   unsigned tx.
 		#[pallet::weight(1000)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
@@ -396,10 +548,13 @@ pub mod pallet {
 			bls_signature: [u8; 96],
 			token_type: TokenType,
 			payload: Vec<u8>,
-		) -> DispatchResult {
-			let _relayer = ensure_signed(origin)?;
+			_relayer_index: u8,
+			_network: Network,
+			_signature: T::Signature,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
 			Self::do_deposit(token_type, payload, bit_map, bls_signature)?;
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Manually claim an approved deposit
@@ -528,6 +683,9 @@ pub mod pallet {
 		/// * `tx_hash`: Transaction hash of key update on foreign chain
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
+		/// * `relayer_index`: The index of relayer in active set.
+		/// * `_signature`: The signature of the relayer on tx_hash will be used to validate
+		///   unsigned tx.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn thea_key_rotation_complete(
@@ -536,8 +694,11 @@ pub mod pallet {
 			tx_hash: sp_core::H256,
 			bit_map: u128,
 			bls_signature: [u8; 96],
-		) -> DispatchResult {
-			let relayer = ensure_signed(origin)?;
+			relayer_index: u8,
+			_signature: T::Signature,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
+			let relayer = Self::get_relayer_account_id(&network, &relayer_index)?;
 
 			// Check if tx_hash is already included
 			ensure!(
@@ -575,7 +736,7 @@ pub mod pallet {
 				current_relayer_set_accounts,
 			);
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Extrinsic to update solo chain that a new Thea Key has been set by Sudo
@@ -587,6 +748,9 @@ pub mod pallet {
 		/// * `public_key`: New Public Key for thea (Raw Uncompressed)
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
+		/// * `relayer_index`: The index of relayer in active set.
+		/// * `_signature`: The signature of the relayer on public_key will be used to validate
+		///   unsigned tx.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn set_thea_key_complete(
@@ -595,8 +759,11 @@ pub mod pallet {
 			public_key: [u8; 64],
 			bit_map: u128,
 			bls_signature: [u8; 96],
-		) -> DispatchResult {
-			let relayer = ensure_signed(origin)?;
+			relayer_index: u8,
+			_signature: T::Signature,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
+			let relayer = Self::get_relayer_account_id(&network, &relayer_index)?;
 			// Verify BLS Signature
 			// Fetch Current BLS Keys
 			let current_thea_key = <TheaPublicKey<T>>::get(network).unwrap_or([0_u8; 64]);
@@ -625,7 +792,7 @@ pub mod pallet {
 				bit_map,
 				authority_set,
 			);
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Extrinsic to acknowledge on chain state key change completion on all foreign chains
@@ -637,6 +804,10 @@ pub mod pallet {
 		/// * `public_key`: Thea Public Key
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
+		/// * `_relayer_index`: The index of relayer in active set will be used to validate unsigned
+		///   tx.
+		/// * `_signature`: The signature of the relayer on public_key will be used to validate
+		///   unsigned tx.
 		// TODO: [Issue #606] Use benchmarks
 		#[pallet::weight(1000)]
 		pub fn thea_queued_queued_public_key(
@@ -645,8 +816,10 @@ pub mod pallet {
 			public_key: [u8; 64],
 			bit_map: u128,
 			bls_signature: [u8; 96],
-		) -> DispatchResult {
-			let _relayer = ensure_signed(origin)?;
+			_relayer_index: u8,
+			_signature: T::Signature,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
 			// Fetch current active relayer set BLS Keys
 
 			let current_public_key =
@@ -682,7 +855,7 @@ pub mod pallet {
 				<QueuedQueuedTheaPublicKey<T>>::insert(network, public_key);
 			}
 			// Add the new one to queued_queued
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Extrinsic to reset Thea Key Rotation
@@ -946,6 +1119,33 @@ pub mod pallet {
 
 	// Helper Functions for Thea Pallet
 	impl<T: Config> Pallet<T> {
+		/// Retrieve the AccountId of the relayer account at the specified index for the specified
+		/// network id
+		///
+		/// Parameters:
+		///
+		/// `network`: A reference to a Network instance representing the network in which the
+		/// relayer account is registered.
+		/// `relayer_index`: A reference to a u8 value representing
+		/// the index of the relayer account in the list of registered relayers for the specified
+		/// network.
+		///
+		/// Returns:
+		/// A `Result::Ok` containing the `AccountId` of the relayer.
+		/// A `DispatchError` with the `RelayerAbsentInActiveSet` error code if the relayer account
+		/// is not found.
+		pub fn get_relayer_account_id(
+			network: &Network,
+			relayer_index: &u8,
+		) -> Result<T::AccountId, DispatchError> {
+			let relayer_account_vector = <AuthorityListVector<T>>::get(network);
+			let relayer_account = relayer_account_vector.get(*relayer_index as usize);
+			if let Some(relayer_account) = relayer_account {
+				return Ok(relayer_account.clone())
+			}
+			Err(Error::<T>::RelayerAbsentInActiveSet.into())
+		}
+
 		// Move Queued Authoritys and BLSKeys to Active Storage. It will triggered by
 		// submission of new thea key updation on all foreign chains to Polkadex.
 		pub fn move_queued_to_active(network: Network) -> DispatchResult {
