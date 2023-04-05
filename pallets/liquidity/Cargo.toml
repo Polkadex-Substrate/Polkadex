@@ -16,7 +16,6 @@ frame-support = { default-features = false, workspace = true }
 frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
@@ -25,8 +24,6 @@ pallet-timestamp = { workspace = true, default-features = false }
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
-sp-keystore = { workspace = true }
-frame-benchmarking = { workspace = true }
 sp-io = { workspace = true }
 pallet-ocex-lmp = { path = "../ocex", default-features = false }
 
@@ -39,7 +36,6 @@ std = [
     "frame-system/std",
     "sp-runtime/std",
     "sp-std/std",
-    "sp-core/std",
     "polkadex-primitives/std",
     "pallet-timestamp/std",
     "pallet-ocex-lmp/std",
