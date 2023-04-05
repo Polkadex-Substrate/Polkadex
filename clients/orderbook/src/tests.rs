@@ -254,7 +254,7 @@ where
 pub fn test_network() {
 	sp_tracing::try_init_simple();
 
-	let mut runtime = Runtime::new().unwrap();
+	let runtime = Runtime::new().unwrap();
 	let peers = &[(AccountKeyring::Alice, true), (AccountKeyring::Bob, true)];
 	let mut net = ObTestnet::new(2, 0);
 
@@ -299,7 +299,7 @@ pub async fn test_single_worker() {
 	// Setup worker
 	let testnet = ObTestnet::new(1, 0);
 	let peer = &testnet.peers[0];
-	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
 
 	let worker_params = WorkerParams {
 		client: peer.client().as_client(),
@@ -352,8 +352,8 @@ pub async fn test_single_worker() {
 pub async fn test_offline_storage() {
 	let alice = AccountKeyring::Alice.pair();
 	let bob = AccountKeyring::Bob.pair();
-	let alice_acc = AccountId::from(alice.public());
-	let bob_acc = AccountId::from(bob.public());
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
 	create_test_api!(
 		one_validator,
 		latest_summary: SnapshotSummary::default(),
@@ -379,7 +379,7 @@ pub async fn test_offline_storage() {
 	// Setup worker
 	let testnet = ObTestnet::new(1, 0);
 	let peer = &testnet.peers[0];
-	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
 
 	let worker_params = WorkerParams {
 		client: peer.client().as_client(),
@@ -399,7 +399,7 @@ pub async fn test_offline_storage() {
 		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 	assert!(worker_params.backend.offchain_storage().is_some());
-	let mut worker = ObWorker::new(worker_params);
+	let _worker = ObWorker::new(worker_params);
 }
 
 #[test]
@@ -428,11 +428,11 @@ pub fn test_trie_insertion() {
 pub async fn test_process_chunk() {
 	let alice = AccountKeyring::Alice.pair();
 	let bob = AccountKeyring::Bob.pair();
-	let alice_acc = AccountId::from(alice.public());
-	let bob_acc = AccountId::from(bob.public());
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
 	let data: Vec<u8> = [1u8; 10].to_vec();
 	let computed_hash: H128 = H128::from(blake2_128(&data));
-	let snapshot_summary = SnapshotSummary {
+	let _snapshot_summary = SnapshotSummary {
 		snapshot_id: 10,
 		state_root: Default::default(),
 		state_change_id: 0,
@@ -474,7 +474,7 @@ pub async fn test_process_chunk() {
 	// Setup worker
 	let testnet = ObTestnet::new(1, 0);
 	let peer = &testnet.peers[0];
-	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
 
 	let worker_params = WorkerParams {
 		client: peer.client().as_client(),
@@ -507,8 +507,8 @@ pub async fn test_process_chunk() {
 pub async fn test_store_snapshot() {
 	let alice = AccountKeyring::Alice.pair();
 	let bob = AccountKeyring::Bob.pair();
-	let alice_acc = AccountId::from(alice.public());
-	let bob_acc = AccountId::from(bob.public());
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
 	create_test_api!(
 		one_validator,
 		latest_summary: SnapshotSummary::default(),
@@ -534,7 +534,7 @@ pub async fn test_store_snapshot() {
 	// Setup worker
 	let testnet = ObTestnet::new(1, 0);
 	let peer = &testnet.peers[0];
-	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
 
 	let worker_params = WorkerParams {
 		client: peer.client().as_client(),
@@ -574,8 +574,8 @@ pub async fn test_store_snapshot() {
 pub async fn test_load_snapshot() {
 	let alice = AccountKeyring::Alice.pair();
 	let bob = AccountKeyring::Bob.pair();
-	let alice_acc = AccountId::from(alice.public());
-	let bob_acc = AccountId::from(bob.public());
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
 	create_test_api!(
 		one_validator,
 		latest_summary: SnapshotSummary::default(),
@@ -601,7 +601,7 @@ pub async fn test_load_snapshot() {
 	// Setup worker
 	let testnet = ObTestnet::new(1, 0);
 	let peer = &testnet.peers[0];
-	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
 
 	let worker_params = WorkerParams {
 		client: peer.client().as_client(),
@@ -644,8 +644,8 @@ pub async fn test_load_snapshot() {
 pub async fn test_load_snapshot_with_invalid_summary() {
 	let alice = AccountKeyring::Alice.pair();
 	let bob = AccountKeyring::Bob.pair();
-	let alice_acc = AccountId::from(alice.public());
-	let bob_acc = AccountId::from(bob.public());
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
 	create_test_api!(
 		one_validator,
 		latest_summary: SnapshotSummary::default(),
@@ -671,7 +671,7 @@ pub async fn test_load_snapshot_with_invalid_summary() {
 	// Setup worker
 	let testnet = ObTestnet::new(1, 0);
 	let peer = &testnet.peers[0];
-	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
 
 	let worker_params = WorkerParams {
 		client: peer.client().as_client(),
