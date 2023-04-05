@@ -26,10 +26,10 @@ use futures::{
 };
 use memory_db::{HashKey, MemoryDB};
 use node_polkadex_runtime::RuntimeApi;
-use parking_lot::{RawRwLock, RwLock};
+use parking_lot::{RwLock};
 use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::{Block, BlockNumber};
-use reference_trie::{ExtensionLayout, RefHasher};
+use reference_trie::{RefHasher};
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
