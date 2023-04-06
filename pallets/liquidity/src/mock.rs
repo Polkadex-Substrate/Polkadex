@@ -17,12 +17,11 @@
 
 use crate::{pallet as liquidity, LiquidityModifier, *};
 use frame_support::{
+	pallet_prelude::Weight,
 	parameter_types,
-	traits::{ConstU128, ConstU64, OnTimestampSet},
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU64, OnTimestampSet},
 	PalletId,
 };
-use frame_support::pallet_prelude::Weight;
-use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::{EnsureRoot, EnsureSigned};
 use polkadex_primitives::{AccountId, AssetId, Moment, Signature};
 use sp_core::H256;
@@ -215,8 +214,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
-	where
-		RuntimeCall: From<C>,
+where
+	RuntimeCall: From<C>,
 {
 	type Extrinsic = UncheckedExtrinsic;
 	type OverarchingCall = RuntimeCall;

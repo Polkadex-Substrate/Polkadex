@@ -127,7 +127,10 @@ fn test_add_proxy_account_main_account_not_found() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
-			OCEX::add_proxy_account(RuntimeOrigin::signed(account_id.clone().into()), account_id.into()),
+			OCEX::add_proxy_account(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				account_id.into()
+			),
 			Error::<Test>::MainAccountNotFound
 		);
 	});
@@ -138,7 +141,10 @@ fn test_add_proxy_account_exchange_state_not_operational() {
 
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::add_proxy_account(RuntimeOrigin::signed(account_id.clone().into()), account_id.into()),
+			OCEX::add_proxy_account(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				account_id.into()
+			),
 			Error::<Test>::ExchangeNotOperational
 		);
 	});
@@ -176,9 +182,15 @@ fn test_add_proxy_account_proxy_limit_exceeded() {
 fn test_add_proxy_account_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::add_proxy_account(RuntimeOrigin::root(), account_id.clone().into()), BadOrigin);
+		assert_noop!(
+			OCEX::add_proxy_account(RuntimeOrigin::root(), account_id.clone().into()),
+			BadOrigin
+		);
 
-		assert_noop!(OCEX::add_proxy_account(RuntimeOrigin::none(), account_id.clone().into()), BadOrigin);
+		assert_noop!(
+			OCEX::add_proxy_account(RuntimeOrigin::none(), account_id.clone().into()),
+			BadOrigin
+		);
 	});
 }
 
@@ -689,7 +701,11 @@ fn test_update_trading_pair_with_less_than_min_volume() {
 			100_u128.into(),
 			10_u128.into()
 		));
-		assert_ok!(OCEX::close_trading_pair(RuntimeOrigin::root(), AssetId::Polkadex, AssetId::Asset(1),));
+		assert_ok!(OCEX::close_trading_pair(
+			RuntimeOrigin::root(),
+			AssetId::Polkadex,
+			AssetId::Asset(1),
+		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
@@ -855,7 +871,11 @@ fn test_deposit_unknown_asset() {
 			account_id.clone()
 		));
 		assert_noop!(
-			OCEX::deposit(RuntimeOrigin::signed(account_id.clone().into()), asset_id, 100_u128.into()),
+			OCEX::deposit(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				asset_id,
+				100_u128.into()
+			),
 			TokenError::UnknownAsset
 		);
 	});
@@ -885,9 +905,15 @@ fn test_deposit_bad_origin() {
 			account_id.clone()
 		));
 
-		assert_noop!(OCEX::deposit(RuntimeOrigin::root(), AssetId::Asset(10), 100_u128.into()), BadOrigin);
+		assert_noop!(
+			OCEX::deposit(RuntimeOrigin::root(), AssetId::Asset(10), 100_u128.into()),
+			BadOrigin
+		);
 
-		assert_noop!(OCEX::deposit(RuntimeOrigin::none(), AssetId::Asset(10), 100_u128.into()), BadOrigin);
+		assert_noop!(
+			OCEX::deposit(RuntimeOrigin::none(), AssetId::Asset(10), 100_u128.into()),
+			BadOrigin
+		);
 	});
 }
 
@@ -1092,7 +1118,11 @@ fn test_open_trading_pair() {
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
 		));
-		assert_ok!(OCEX::open_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(20)));
+		assert_ok!(OCEX::open_trading_pair(
+			RuntimeOrigin::root(),
+			AssetId::Asset(10),
+			AssetId::Asset(20)
+		));
 		assert_eq!(
 			TradingPairs::<Test>::get(AssetId::Asset(10), AssetId::Asset(20))
 				.unwrap()
@@ -1326,7 +1356,11 @@ fn test_collect_fees_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::collect_fees(RuntimeOrigin::signed(account_id.clone()), 100, account_id.clone().into()),
+			OCEX::collect_fees(
+				RuntimeOrigin::signed(account_id.clone()),
+				100,
+				account_id.clone().into()
+			),
 			BadOrigin
 		);
 
@@ -1582,7 +1616,11 @@ fn test_withdrawal_invalid_withdrawal_index() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::claim_withdraw(RuntimeOrigin::signed(account_id.clone().into()), 1, account_id.clone()),
+			OCEX::claim_withdraw(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				1,
+				account_id.clone()
+			),
 			Error::<Test>::InvalidWithdrawalIndex
 		);
 	});
@@ -1785,7 +1823,10 @@ pub fn test_set_balances_when_exchange_is_pause() {
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
-		assert_eq!(OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()), Ok(()));
+		assert_eq!(
+			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()),
+			Ok(())
+		);
 		assert_eq!(
 			OCEX::ingress_messages()[1],
 			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice,)
@@ -1831,7 +1872,10 @@ pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 		}
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
-		assert_eq!(OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()), Ok(()));
+		assert_eq!(
+			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()),
+			Ok(())
+		);
 	});
 }
 

@@ -4,9 +4,9 @@
 
 use super::{
 	mock::{
-		assert_events, new_test_ext, new_test_ext_initialized, Balances, Bridge, RuntimeCall, RuntimeEvent,
-		RuntimeOrigin, ProposalLifetime, System, Test, TestChainId, ENDOWED_BALANCE, RELAYER_A, RELAYER_B,
-		RELAYER_C, TEST_THRESHOLD,
+		assert_events, new_test_ext, new_test_ext_initialized, Balances, Bridge, ProposalLifetime,
+		RuntimeCall, RuntimeEvent, RuntimeOrigin, System, Test, TestChainId, ENDOWED_BALANCE,
+		RELAYER_A, RELAYER_B, RELAYER_C, TEST_THRESHOLD,
 	},
 	pallet::Event as PalletEvent,
 	*,

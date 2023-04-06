@@ -1834,7 +1834,7 @@ mod tests {
 	fn validate_transaction_submitter_bounds() {
 		fn is_submit_signed_transaction<T>()
 		where
-			T: CreateSignedTransaction<Call>,
+			T: CreateSignedTransaction<RuntimeCall>,
 		{
 		}
 
