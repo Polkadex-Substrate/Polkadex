@@ -5161,7 +5161,7 @@ dependencies = [
  "anyhow",
  "bls-primitives",
  "chrono",
- "libp2p-identity",
+ "libp2p-core 0.39.1",
  "parity-scale-codec",
  "polkadex-primitives",
  "primitive-types",

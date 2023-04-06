@@ -109,7 +109,7 @@ impl Trade {
 #[cfg(feature = "std")]
 use chrono::Utc;
 #[cfg(feature = "std")]
-use libp2p_identity::PeerId;
+use libp2p_core::PeerId;
 use rust_decimal::prelude::FromPrimitive;
 
 #[cfg(feature = "std")]
