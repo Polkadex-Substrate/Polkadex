@@ -40,9 +40,13 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-use orderbook_primitives::{crypto::AuthorityId, SnapshotSummary, ValidatorSet};
+use orderbook_primitives::{
+	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
+};
+use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
@@ -985,7 +989,8 @@ pub mod pallet {
 			if working_summary.signed_auth_indexes().len() >=
 				total_validators.saturating_mul(2).saturating_div(3)
 			{
-				// TODO: Do we need to verify aggregrate signature once more???
+				// We don't need to verify signatures again as it is already verified inside
+				// validate unsigned closure
 				// Remove all the unprocessed snapshots with prefix snapshot_id
 				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
 					working_summary.snapshot_id,
@@ -1195,7 +1200,6 @@ pub mod pallet {
 						main_account: recipient_account.clone(),
 						amount: withdrawal.amount,
 						asset: withdrawal.asset,
-						event_id: withdrawal.event_id,
 						fees: withdrawal.fees,
 					};
 					pending_withdrawals
@@ -1210,7 +1214,6 @@ pub mod pallet {
 						main_account: recipient_account.clone(),
 						amount: withdrawal.amount,
 						asset: withdrawal.asset,
-						event_id: withdrawal.event_id,
 						fees: withdrawal.fees,
 					};
 					pending_withdrawals
@@ -1513,6 +1516,15 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	/// can accessed using on-chain logic.
 	fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	pub fn read_trading_pair_configs() -> Vec<(TradingPair, TradingPairConfig)> {
+		let iterator = <TradingPairs<T>>::iter();
+		let mut configs = Vec::new();
+		for (base, quote, config) in iterator {
+			configs.push((TradingPair { base, quote }, config))
+		}
+		configs
 	}
 
 	fn transfer_asset(

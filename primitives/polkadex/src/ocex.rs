@@ -1,7 +1,7 @@
 use crate::assets::AssetId;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -74,6 +74,23 @@ pub struct TradingPairConfig {
 impl TradingPairConfig {
 	pub fn min_volume(&self) -> Decimal {
 		self.min_qty.saturating_mul(self.min_price)
+	}
+
+	// This is an easy to use default config for testing and other purposes.
+	pub fn default(base: AssetId, quote: AssetId) -> Self {
+		Self {
+			base_asset: base,
+			quote_asset: quote,
+			min_price: Decimal::from_f64(0.0001).unwrap(),
+			max_price: Decimal::from_f64(1000.0).unwrap(),
+			price_tick_size: Decimal::from_f64(0.000001).unwrap(),
+			min_qty: Decimal::from_f64(0.0001).unwrap(),
+			max_qty: Decimal::from_f64(1000.0).unwrap(),
+			qty_step_size: Decimal::from_f64(0.001).unwrap(),
+			operational_status: true,
+			base_asset_precision: 8,
+			quote_asset_precision: 8,
+		}
 	}
 }
 

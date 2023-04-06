@@ -8,7 +8,7 @@ use orderbook_primitives::types::{
 	AccountAsset, AccountInfo, Order, OrderSide, OrderType, Trade, TradingPair,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{AccountId, AssetId};
+use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sp_core::Pair;
@@ -247,7 +247,8 @@ pub fn process_trade_will_process_successfully() {
 	let trade =
 		Trade::new(bob_bid_limit_order, alice_ask_limit_order, Decimal::from(1), Decimal::from(2));
 
-	assert!(process_trade(&mut trie, trade.clone()).is_ok());
+	let config = TradingPairConfig::default(trading_pair.base, trading_pair.quote);
+	assert!(process_trade(&mut trie, trade.clone(), config).is_ok());
 	trie.commit();
 
 	//getting balances

@@ -216,7 +216,7 @@ where
 	workers.for_each(|_| async move {})
 }
 
-// TODO: Make this work
+// This is just for reference of setting up mock of ob worker., keep it like this.
 // use sc_network_gossip::Network as GossipNetwork;
 // pub fn setup_one<B, BE, C, SO, N, R>(api: Arc<R>, is_validator: bool) -> (ObWorker<B, BE, C, SO,
 // N, R>, UnboundedSender<ObMessage>) where
@@ -409,17 +409,8 @@ pub fn test_trie_insertion() {
 	{
 		let mut trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
-
-		//trie.insert(b"ab".as_ref(),b"cd".as_ref()).unwrap();
 		trie.commit();
 	}
-
-	// {
-	//     let mut trie: TrieDBMut<ExtensionLayout> =
-	//         TrieDBMutBuilder::from_existing(&mut memory_db, &mut working_state_root)
-	//             .build();
-	//    assert_eq!(trie.get(b"ab".as_ref()).unwrap(), Some(b"cd".to_vec()))
-	// }
 
 	assert_ne!(working_state_root, [0u8; 32]);
 }

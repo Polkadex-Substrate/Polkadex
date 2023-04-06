@@ -1607,6 +1607,10 @@ impl_runtime_apis! {
 			OCEX::get_allowlisted_assets()
 		}
 
+		fn read_trading_pair_configs() -> Vec<(orderbook_primitives::types::TradingPair, polkadex_primitives::ocex::TradingPairConfig)> {
+			OCEX::read_trading_pair_configs()
+		}
+
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {

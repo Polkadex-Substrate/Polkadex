@@ -57,7 +57,6 @@ pub struct HandleBalance<AccountId> {
 pub struct HandleBalanceLimit;
 
 impl Get<u32> for HandleBalanceLimit {
-	//ToDo: Set an arbitrary value to 1000.
 	fn get() -> u32 {
 		1000
 	}
