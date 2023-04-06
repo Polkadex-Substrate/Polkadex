@@ -344,7 +344,6 @@ benchmarks! {
 			amount: Decimal::new(x.into(), 0),
 			asset,
 			main_account: main.clone(),
-			event_id: 1,
 			fees,
 		});
 		let withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> = frame_support::BoundedVec::try_from(vec_withdrawals.clone()).unwrap();
