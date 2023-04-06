@@ -1276,8 +1276,6 @@ pub fn process_trade(
 		return Err(Error::InvalidTrade)
 	}
 
-	let Trade { maker, taker, price, amount, time: _ } = trade.clone();
-
 	// Update balances
 	let (maker_asset, maker_credit) = trade.credit(true);
 	add_balance(trie, maker_asset, maker_credit)?;
