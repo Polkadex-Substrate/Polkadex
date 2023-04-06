@@ -1501,7 +1501,6 @@ fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitive
 			main_account: main.clone(),
 			amount: Decimal::one(),
 			asset: AssetId::Polkadex,
-			event_id: 0,
 			fees: Default::default(),
 		})
 	}
@@ -1655,7 +1654,6 @@ fn test_onchain_events_overflow() {
 				main_account: main.clone(),
 				amount: Decimal::one(),
 				asset: AssetId::Polkadex,
-				event_id: 0,
 				fees: Default::default(),
 			});
 		}

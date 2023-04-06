@@ -5,10 +5,10 @@ use crate::{
 };
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::types::{
-	AccountAsset, AccountInfo, Order, OrderSide, OrderType, Trade, TradingPair,
+	AccountAsset, AccountInfo, Order, OrderPayload, OrderSide, OrderType, Trade, TradingPair,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
+use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId, Signature};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sp_core::Pair;
@@ -18,14 +18,14 @@ use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 /// This function returns a tuple containing Alice's main account and a proxy account
 fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Alice.pair().public());
-	let proxy_account = AccountId::from([1_u8; 32]);
+	let proxy_account = AccountId::from(AccountKeyring::Charlie.pair().public());
 	(main_account, proxy_account)
 }
 
 /// This function returns a tuple containing Bob's main account and a proxy account
 fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Bob.pair().public());
-	let proxy_account = AccountId::from([5_u8; 32]);
+	let proxy_account = AccountId::from(AccountKeyring::Eve.pair().public());
 	(main_account, proxy_account)
 }
 
@@ -237,12 +237,24 @@ pub fn process_trade_will_process_successfully() {
 	alice_ask_limit_order.user = alice_proxy.clone();
 	alice_ask_limit_order.main_account = alice_main.clone();
 
+	alice_ask_limit_order.signature = Signature::from(
+		AccountKeyring::Charlie
+			.pair()
+			.sign(&OrderPayload::from(alice_ask_limit_order.clone()).encode()[..]),
+	);
+
 	let mut bob_bid_limit_order =
 		Order::random_order_for_testing(trading_pair, OrderSide::Bid, OrderType::LIMIT);
 	bob_bid_limit_order.price = Decimal::from(1_u32);
 	bob_bid_limit_order.qty = Decimal::from(2_u32);
 	bob_bid_limit_order.user = bob_proxy.clone();
 	bob_bid_limit_order.main_account = bob_main.clone();
+
+	bob_bid_limit_order.signature = Signature::from(
+		AccountKeyring::Eve
+			.pair()
+			.sign(&OrderPayload::from(bob_bid_limit_order.clone()).encode()[..]),
+	);
 
 	let trade =
 		Trade::new(bob_bid_limit_order, alice_ask_limit_order, Decimal::from(1), Decimal::from(2));
