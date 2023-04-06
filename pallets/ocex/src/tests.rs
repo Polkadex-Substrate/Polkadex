@@ -39,9 +39,9 @@ use sp_runtime::{
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
-fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	let events = frame_system::Pallet::<T>::events();
-	let system_event: <T as frame_system::Config>::Event = generic_event.into();
+	let system_event: <T as frame_system::Config>::RuntimeEvent = generic_event.into();
 	// compare to the last event record
 	let EventRecord { event, .. } = &events[events.len() - 1];
 	assert_eq!(event, &system_event);
@@ -60,10 +60,10 @@ fn test_register_main_account() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), false);
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), true);
@@ -88,15 +88,15 @@ fn test_register_main_account_main_account_already_exists() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
 		assert_eq!(Accounts::<Test>::contains_key::<AccountId32>(account_id.clone().into()), true);
 		assert_noop!(
 			OCEX::register_main_account(
-				Origin::signed(account_id.clone().into()),
+				RuntimeOrigin::signed(account_id.clone().into()),
 				account_id.clone().into()
 			),
 			Error::<Test>::MainAccountAlreadyRegistered
@@ -110,11 +110,11 @@ fn test_register_main_account_bad_origin() {
 
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::register_main_account(Origin::root(), account_id.clone().into()),
+			OCEX::register_main_account(RuntimeOrigin::root(), account_id.clone().into()),
 			BadOrigin
 		);
 		assert_noop!(
-			OCEX::register_main_account(Origin::none(), account_id.clone().into()),
+			OCEX::register_main_account(RuntimeOrigin::none(), account_id.clone().into()),
 			BadOrigin
 		);
 	});
@@ -125,9 +125,9 @@ fn test_add_proxy_account_main_account_not_found() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
-			OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.into()),
+			OCEX::add_proxy_account(RuntimeOrigin::signed(account_id.clone().into()), account_id.into()),
 			Error::<Test>::MainAccountNotFound
 		);
 	});
@@ -138,7 +138,7 @@ fn test_add_proxy_account_exchange_state_not_operational() {
 
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::add_proxy_account(Origin::signed(account_id.clone().into()), account_id.into()),
+			OCEX::add_proxy_account(RuntimeOrigin::signed(account_id.clone().into()), account_id.into()),
 			Error::<Test>::ExchangeNotOperational
 		);
 	});
@@ -149,22 +149,22 @@ fn test_add_proxy_account_proxy_limit_exceeded() {
 	let account_id = create_account_id();
 	let proxy_account = create_proxy_account();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
 		assert_ok!(OCEX::add_proxy_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
 		assert_ok!(OCEX::add_proxy_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
 		assert_noop!(
 			OCEX::add_proxy_account(
-				Origin::signed(account_id.clone().into()),
+				RuntimeOrigin::signed(account_id.clone().into()),
 				proxy_account.clone().into()
 			),
 			Error::<Test>::ProxyLimitExceeded
@@ -176,9 +176,9 @@ fn test_add_proxy_account_proxy_limit_exceeded() {
 fn test_add_proxy_account_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_noop!(OCEX::add_proxy_account(Origin::root(), account_id.clone().into()), BadOrigin);
+		assert_noop!(OCEX::add_proxy_account(RuntimeOrigin::root(), account_id.clone().into()), BadOrigin);
 
-		assert_noop!(OCEX::add_proxy_account(Origin::none(), account_id.clone().into()), BadOrigin);
+		assert_noop!(OCEX::add_proxy_account(RuntimeOrigin::none(), account_id.clone().into()), BadOrigin);
 	});
 }
 
@@ -187,13 +187,13 @@ fn test_add_proxy_account() {
 	let account_id = create_account_id();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
 		assert_ok!(OCEX::add_proxy_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
 		assert_last_event::<Test>(
@@ -212,10 +212,10 @@ fn test_add_proxy_account() {
 #[test]
 fn test_register_trading_pair_both_assets_cannot_be_same() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
 				10001_u128.into(),
@@ -234,7 +234,7 @@ fn test_register_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
 				10001_u128.into(),
@@ -255,7 +255,7 @@ fn test_register_trading_pair_bad_origin() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::none(),
+				RuntimeOrigin::none(),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
 				1_u128.into(),
@@ -270,7 +270,7 @@ fn test_register_trading_pair_bad_origin() {
 
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::signed(account_id.into()),
+				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
 				1_u128.into(),
@@ -288,10 +288,10 @@ fn test_register_trading_pair_bad_origin() {
 #[test]
 fn test_register_trading_pair_value_zero() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				0_u128.into(),
@@ -309,9 +309,9 @@ fn test_register_trading_pair_value_zero() {
 #[test]
 fn test_register_trading_pair() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -349,10 +349,10 @@ fn test_register_trading_pair() {
 #[test]
 fn test_register_trading_pair_amount_overflow() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				DEPOSIT_MAX + 1,
@@ -367,7 +367,7 @@ fn test_register_trading_pair_amount_overflow() {
 
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
@@ -382,7 +382,7 @@ fn test_register_trading_pair_amount_overflow() {
 
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
@@ -397,27 +397,27 @@ fn test_register_trading_pair_amount_overflow() {
 
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-
-		assert_noop!(
-			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
 				100_u128.into(),
 				1_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
 				10_u128.into()
@@ -427,7 +427,7 @@ fn test_register_trading_pair_amount_overflow() {
 
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
@@ -445,9 +445,9 @@ fn test_register_trading_pair_amount_overflow() {
 #[test]
 fn test_update_trading_pair_amount_overflow() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			10000_0000_u128.into(),
@@ -458,13 +458,13 @@ fn test_update_trading_pair_amount_overflow() {
 			1_0000_0000_u128.into(),
 		));
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				DEPOSIT_MAX + 1,
@@ -477,14 +477,14 @@ fn test_update_trading_pair_amount_overflow() {
 			Error::<Test>::AmountOverflow
 		);
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
@@ -497,14 +497,14 @@ fn test_update_trading_pair_amount_overflow() {
 			Error::<Test>::AmountOverflow
 		);
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
@@ -517,39 +517,39 @@ fn test_update_trading_pair_amount_overflow() {
 			Error::<Test>::AmountOverflow
 		);
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
-			AssetId::Asset(10),
-			AssetId::Asset(20)
-		));
-
-		assert_noop!(
-			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
 				100_u128.into(),
 				1_u128.into(),
+				DEPOSIT_MAX + 1,
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::AmountOverflow
+		);
+		assert_ok!(OCEX::close_trading_pair(
+			RuntimeOrigin::root(),
+			AssetId::Asset(10),
+			AssetId::Asset(20)
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				1_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
 				10_u128.into()
@@ -557,14 +557,14 @@ fn test_update_trading_pair_amount_overflow() {
 			Error::<Test>::AmountOverflow
 		);
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
@@ -582,9 +582,9 @@ fn test_update_trading_pair_amount_overflow() {
 #[test]
 fn test_register_trading_pair_trading_pair_already_registered() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -597,7 +597,7 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				1_u128.into(),
@@ -612,7 +612,7 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(20),
 				AssetId::Asset(10),
 				1_u128.into(),
@@ -630,9 +630,9 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 #[test]
 fn test_update_trading_pair() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -643,13 +643,13 @@ fn test_update_trading_pair() {
 			1_0000_0000_u128.into(),
 		));
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
 
 		assert_ok!(OCEX::update_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -677,9 +677,9 @@ fn test_update_trading_pair() {
 #[test]
 fn test_update_trading_pair_with_less_than_min_volume() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Polkadex,
 			AssetId::Asset(1),
 			10001_u128.into(),
@@ -689,11 +689,11 @@ fn test_update_trading_pair_with_less_than_min_volume() {
 			100_u128.into(),
 			10_u128.into()
 		));
-		assert_ok!(OCEX::close_trading_pair(Origin::root(), AssetId::Polkadex, AssetId::Asset(1),));
+		assert_ok!(OCEX::close_trading_pair(RuntimeOrigin::root(), AssetId::Polkadex, AssetId::Asset(1),));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Asset(1),
 				10000_u128.into(),
@@ -711,10 +711,10 @@ fn test_update_trading_pair_with_less_than_min_volume() {
 #[test]
 fn test_update_trading_pair_trading_pair_not_registered() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				1_u128.into(),
@@ -734,7 +734,7 @@ fn test_update_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				1_u128.into(),
@@ -755,7 +755,7 @@ fn test_update_trading_pair_bad_origin() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::none(),
+				RuntimeOrigin::none(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				1_u128.into(),
@@ -769,7 +769,7 @@ fn test_update_trading_pair_bad_origin() {
 		);
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::signed(account_id.into()),
+				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				1_u128.into(),
@@ -787,10 +787,10 @@ fn test_update_trading_pair_bad_origin() {
 #[test]
 fn test_register_trading_pair_volume_too_low() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
 			OCEX::register_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Asset(1),
 				10000_u128.into(),
@@ -808,9 +808,9 @@ fn test_register_trading_pair_volume_too_low() {
 #[test]
 fn test_update_trading_pair_value_zero() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -821,14 +821,14 @@ fn test_update_trading_pair_value_zero() {
 			1_0000_0000_u128.into(),
 		));
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
 
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				0_u128.into(),
@@ -847,15 +847,15 @@ fn test_update_trading_pair_value_zero() {
 fn test_deposit_unknown_asset() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		let asset_id = AssetId::Asset(10);
 		allowlist_token(asset_id);
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone()
 		));
 		assert_noop!(
-			OCEX::deposit(Origin::signed(account_id.clone().into()), asset_id, 100_u128.into()),
+			OCEX::deposit(RuntimeOrigin::signed(account_id.clone().into()), asset_id, 100_u128.into()),
 			TokenError::UnknownAsset
 		);
 	});
@@ -866,7 +866,7 @@ fn test_deposit_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			OCEX::deposit(
-				Origin::signed(account_id.clone().into()),
+				RuntimeOrigin::signed(account_id.clone().into()),
 				AssetId::Asset(10),
 				100_u128.into()
 			),
@@ -879,15 +879,15 @@ fn test_deposit_exchange_not_operational() {
 fn test_deposit_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone()
 		));
 
-		assert_noop!(OCEX::deposit(Origin::root(), AssetId::Asset(10), 100_u128.into()), BadOrigin);
+		assert_noop!(OCEX::deposit(RuntimeOrigin::root(), AssetId::Asset(10), 100_u128.into()), BadOrigin);
 
-		assert_noop!(OCEX::deposit(Origin::none(), AssetId::Asset(10), 100_u128.into()), BadOrigin);
+		assert_noop!(OCEX::deposit(RuntimeOrigin::none(), AssetId::Asset(10), 100_u128.into()), BadOrigin);
 	});
 }
 
@@ -895,11 +895,11 @@ fn test_deposit_bad_origin() {
 fn test_deposit_account_not_registered() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		allowlist_token(AssetId::Asset(10));
 		assert_noop!(
 			OCEX::deposit(
-				Origin::signed(account_id.clone().into()),
+				RuntimeOrigin::signed(account_id.clone().into()),
 				AssetId::Asset(10),
 				100_u128.into()
 			),
@@ -913,7 +913,7 @@ fn test_deposit() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		mint_into_account(account_id.clone());
 		// Balances before deposit
 		assert_eq!(
@@ -923,11 +923,11 @@ fn test_deposit() {
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
 		allowlist_token(AssetId::Polkadex);
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone()
 		));
 		assert_ok!(OCEX::deposit(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			AssetId::Polkadex,
 			100_u128.into()
 		));
@@ -956,7 +956,7 @@ fn test_deposit_large_value() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		mint_into_account_large(account_id.clone());
 		// Balances before deposit
 		assert_eq!(
@@ -966,12 +966,12 @@ fn test_deposit_large_value() {
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
 		allowlist_token(AssetId::Polkadex);
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone()
 		));
 		assert_noop!(
 			OCEX::deposit(
-				Origin::signed(account_id.clone().into()),
+				RuntimeOrigin::signed(account_id.clone().into()),
 				AssetId::Polkadex,
 				1_000_000_000_000_000_000_000_000_0000
 			),
@@ -985,7 +985,7 @@ fn test_deposit_assets_overflow() {
 	let account_id = create_account_id();
 	let custodian_account = OCEX::get_pallet_account();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		mint_into_account_large(account_id.clone());
 		// Balances before deposit
 		assert_eq!(
@@ -995,11 +995,11 @@ fn test_deposit_assets_overflow() {
 		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
 		allowlist_token(AssetId::Polkadex);
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone()
 		));
 		assert_ok!(OCEX::deposit(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			AssetId::Polkadex,
 			1_000_000_000_000_000_000_000_000_000
 		));
@@ -1013,7 +1013,7 @@ fn test_deposit_assets_overflow() {
 
 		assert_noop!(
 			OCEX::deposit(
-				Origin::signed(account_id.clone().into()),
+				RuntimeOrigin::signed(account_id.clone().into()),
 				AssetId::Polkadex,
 				10_u128.pow(20)
 			),
@@ -1025,9 +1025,9 @@ fn test_deposit_assets_overflow() {
 #[test]
 fn test_open_trading_pair_both_assets_cannot_be_same() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
-			OCEX::open_trading_pair(Origin::root(), AssetId::Asset(10), AssetId::Asset(10)),
+			OCEX::open_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(10)),
 			Error::<Test>::BothAssetsCannotBeSame
 		);
 
@@ -1038,7 +1038,7 @@ fn test_open_trading_pair_both_assets_cannot_be_same() {
 fn test_open_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::open_trading_pair(Origin::root(), AssetId::Asset(10), AssetId::Asset(10)),
+			OCEX::open_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(10)),
 			Error::<Test>::ExchangeNotOperational
 		);
 	});
@@ -1047,9 +1047,9 @@ fn test_open_trading_pair_exchange_not_operational() {
 #[test]
 fn test_open_trading_pair_trading_pair_not_found() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
-			OCEX::open_trading_pair(Origin::root(), AssetId::Asset(10), AssetId::Asset(20)),
+			OCEX::open_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(20)),
 			Error::<Test>::TradingPairNotFound
 		);
 
@@ -1062,13 +1062,13 @@ fn test_open_trading_pair_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::open_trading_pair(Origin::none(), AssetId::Asset(10), AssetId::Asset(20)),
+			OCEX::open_trading_pair(RuntimeOrigin::none(), AssetId::Asset(10), AssetId::Asset(20)),
 			BadOrigin
 		);
 
 		assert_noop!(
 			OCEX::open_trading_pair(
-				Origin::signed(account_id.into()),
+				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Asset(10),
 				AssetId::Asset(20)
 			),
@@ -1080,9 +1080,9 @@ fn test_open_trading_pair_bad_origin() {
 #[test]
 fn test_open_trading_pair() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -1092,7 +1092,7 @@ fn test_open_trading_pair() {
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
 		));
-		assert_ok!(OCEX::open_trading_pair(Origin::root(), AssetId::Asset(10), AssetId::Asset(20)));
+		assert_ok!(OCEX::open_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(20)));
 		assert_eq!(
 			TradingPairs::<Test>::get(AssetId::Asset(10), AssetId::Asset(20))
 				.unwrap()
@@ -1111,9 +1111,9 @@ fn test_open_trading_pair() {
 #[test]
 fn test_close_trading_pair_both_assets_cannot_be_same() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
-			OCEX::close_trading_pair(Origin::root(), AssetId::Asset(10), AssetId::Asset(10)),
+			OCEX::close_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(10)),
 			Error::<Test>::BothAssetsCannotBeSame
 		);
 		assert_eq!(OCEX::ingress_messages().len(), 1);
@@ -1124,7 +1124,7 @@ fn test_close_trading_pair_both_assets_cannot_be_same() {
 fn test_close_trading_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::close_trading_pair(Origin::root(), AssetId::Asset(10), AssetId::Asset(10)),
+			OCEX::close_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(10)),
 			Error::<Test>::ExchangeNotOperational
 		);
 	});
@@ -1133,9 +1133,9 @@ fn test_close_trading_exchange_not_operational() {
 #[test]
 fn test_close_trading_trading_pair_not_found() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
-			OCEX::close_trading_pair(Origin::root(), AssetId::Asset(10), AssetId::Asset(20)),
+			OCEX::close_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(20)),
 			Error::<Test>::TradingPairNotFound
 		);
 		assert_eq!(OCEX::ingress_messages().len(), 1);
@@ -1147,13 +1147,13 @@ fn test_close_trading_trading_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::close_trading_pair(Origin::none(), AssetId::Asset(10), AssetId::Asset(20)),
+			OCEX::close_trading_pair(RuntimeOrigin::none(), AssetId::Asset(10), AssetId::Asset(20)),
 			BadOrigin
 		);
 
 		assert_noop!(
 			OCEX::close_trading_pair(
-				Origin::signed(account_id.into()),
+				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Asset(10),
 				AssetId::Asset(20)
 			),
@@ -1165,9 +1165,9 @@ fn test_close_trading_trading_bad_origin() {
 #[test]
 fn test_close_trading_pair() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -1178,7 +1178,7 @@ fn test_close_trading_pair() {
 			1_0000_0000_u128.into(),
 		));
 		assert_ok!(OCEX::close_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20)
 		));
@@ -1200,9 +1200,9 @@ fn test_close_trading_pair() {
 #[test]
 fn test_update_trading_pair_with_closed_operational_status() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
@@ -1214,7 +1214,7 @@ fn test_update_trading_pair_with_closed_operational_status() {
 		));
 		assert_noop!(
 			OCEX::update_trading_pair(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				1_0000_0000_u128.into(),
@@ -1234,7 +1234,7 @@ fn collect_fees_unexpected_behaviour() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		assert_ok!(OCEX::collect_fees(Origin::root(), 100, account_id.clone().into()));
+		assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), 100, account_id.clone().into()));
 
 		assert_last_event::<Test>(
 			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
@@ -1251,7 +1251,7 @@ fn test_collect_fees_decimal_overflow() {
 			bounded_vec![max_fees],
 		);
 		assert_noop!(
-			OCEX::collect_fees(Origin::root(), 0, account_id.into()),
+			OCEX::collect_fees(RuntimeOrigin::root(), 0, account_id.into()),
 			Error::<Test>::FeesNotCollectedFully
 		);
 	})
@@ -1280,10 +1280,10 @@ fn collect_fees() {
 
 		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
 
-		assert_ok!(OCEX::submit_snapshot(Origin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
 
 		assert_ok!(OCEX::claim_withdraw(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			1,
 			account_id.clone()
 		));
@@ -1298,7 +1298,7 @@ fn collect_fees() {
 			initial_balance - UNIT_BALANCE
 		);
 
-		assert_ok!(OCEX::collect_fees(Origin::root(), 1, account_id.clone().into()));
+		assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), 1, account_id.clone().into()));
 
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -1326,12 +1326,12 @@ fn test_collect_fees_bad_origin() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.clone().into()),
+			OCEX::collect_fees(RuntimeOrigin::signed(account_id.clone()), 100, account_id.clone().into()),
 			BadOrigin
 		);
 
 		assert_noop!(
-			OCEX::collect_fees(Origin::signed(account_id.clone()), 100, account_id.into()),
+			OCEX::collect_fees(RuntimeOrigin::signed(account_id.clone()), 100, account_id.into()),
 			BadOrigin
 		);
 	});
@@ -1360,7 +1360,7 @@ fn withdrawal_when_token_not_allowlisted() {
 	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_noop!(
 			OCEX::withdrawal_from_orderbook(
 				alice_main_account.clone(),
@@ -1379,7 +1379,7 @@ fn withdrawal_when_account_not_register() {
 	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		allowlist_token(AssetId::Polkadex);
 		assert_noop!(
 			OCEX::withdrawal_from_orderbook(
@@ -1399,11 +1399,11 @@ fn withdrawal_with_overflow_amount() {
 	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		allowlist_token(AssetId::Polkadex);
 
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(alice_main_account.clone().into()),
+			RuntimeOrigin::signed(alice_main_account.clone().into()),
 			alice_proxy_account.clone().into()
 		));
 
@@ -1425,11 +1425,11 @@ fn withdrawal() {
 	let (alice_main_account, alice_proxy_account) = get_alice_accounts();
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		allowlist_token(AssetId::Polkadex);
 
 		assert_ok!(OCEX::register_main_account(
-			Origin::signed(alice_main_account.clone().into()),
+			RuntimeOrigin::signed(alice_main_account.clone().into()),
 			alice_proxy_account.clone().into()
 		));
 
@@ -1469,7 +1469,7 @@ fn collect_fees_ddos(){
 		for x in 0..10000000 {
 			assert_ok!(
 				OCEX::collect_fees(
-					Origin::signed(account_id.clone().into()),
+					RuntimeOrigin::signed(account_id.clone().into()),
 					x,
 					account_id.clone().into()
 				)
@@ -1484,7 +1484,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 		let (mut snapshot, _public) = get_dummy_snapshot(0);
 		snapshot.snapshot_id = 2; // Wrong nonce
 		assert_noop!(
-			OCEX::submit_snapshot(Origin::none(), snapshot),
+			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot),
 			Error::<Test>::SnapshotNonceError
 		);
 
@@ -1555,7 +1555,7 @@ fn test_submit_snapshot() {
 				},
 			}
 		}
-		assert_ok!(OCEX::submit_snapshot(Origin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
 
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
 		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
@@ -1582,7 +1582,7 @@ fn test_withdrawal_invalid_withdrawal_index() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OCEX::claim_withdraw(Origin::signed(account_id.clone().into()), 1, account_id.clone()),
+			OCEX::claim_withdraw(RuntimeOrigin::signed(account_id.clone().into()), 1, account_id.clone()),
 			Error::<Test>::InvalidWithdrawalIndex
 		);
 	});
@@ -1610,10 +1610,10 @@ fn test_withdrawal() {
 
 		let (snapshot, _public) = get_dummy_snapshot(1);
 
-		assert_ok!(OCEX::submit_snapshot(Origin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
 
 		assert_ok!(OCEX::claim_withdraw(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			1,
 			account_id.clone()
 		));
@@ -1661,12 +1661,12 @@ fn test_onchain_events_overflow() {
 		let (mut snapshot, _public) = get_dummy_snapshot(1);
 		snapshot.withdrawals = withdrawals.clone();
 
-		assert_ok!(OCEX::submit_snapshot(Origin::none(), snapshot));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot));
 
 		// Perform withdraw for 499 accounts
 		for i in 0..499 {
 			assert_ok!(OCEX::claim_withdraw(
-				Origin::signed(withdrawals[i].main_account.clone().into()),
+				RuntimeOrigin::signed(withdrawals[i].main_account.clone().into()),
 				1,
 				withdrawals[i].main_account.clone()
 			));
@@ -1676,7 +1676,7 @@ fn test_onchain_events_overflow() {
 		// last account
 		assert_noop!(
 			OCEX::claim_withdraw(
-				Origin::signed(withdrawals[499].main_account.clone().into()),
+				RuntimeOrigin::signed(withdrawals[499].main_account.clone().into()),
 				1,
 				withdrawals[499].main_account.clone()
 			),
@@ -1689,7 +1689,7 @@ fn test_onchain_events_overflow() {
 
 		// Perform withdraw now
 		assert_ok!(OCEX::claim_withdraw(
-			Origin::signed(account_id.clone().into()),
+			RuntimeOrigin::signed(account_id.clone().into()),
 			1,
 			account_id.clone()
 		));
@@ -1702,9 +1702,9 @@ use sp_runtime::traits::One;
 fn test_withdrawal_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let account_id = create_account_id();
-		assert_noop!(OCEX::claim_withdraw(Origin::root(), 1, account_id.clone()), BadOrigin);
+		assert_noop!(OCEX::claim_withdraw(RuntimeOrigin::root(), 1, account_id.clone()), BadOrigin);
 
-		assert_noop!(OCEX::claim_withdraw(Origin::none(), 1, account_id.clone()), BadOrigin);
+		assert_noop!(OCEX::claim_withdraw(RuntimeOrigin::none(), 1, account_id.clone()), BadOrigin);
 	});
 }
 
@@ -1713,10 +1713,10 @@ pub fn test_allowlist_and_blacklist_token() {
 	new_test_ext().execute_with(|| {
 		let _account_id = create_account_id();
 		let new_token = AssetId::Asset(1);
-		assert_ok!(OCEX::allowlist_token(Origin::root(), new_token));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), new_token));
 		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
 		assert!(allowlisted_tokens.contains(&new_token));
-		assert_ok!(OCEX::remove_allowlisted_token(Origin::root(), new_token));
+		assert_ok!(OCEX::remove_allowlisted_token(RuntimeOrigin::root(), new_token));
 		let allowlisted_tokens = <AllowlistedToken<Test>>::get();
 		assert!(!allowlisted_tokens.contains(&new_token));
 	});
@@ -1735,7 +1735,7 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 		<AllowlistedToken<Test>>::put(allowlisted_assets);
 		let new_token = AssetId::Asset(100);
 		assert_noop!(
-			OCEX::allowlist_token(Origin::root(), new_token),
+			OCEX::allowlist_token(RuntimeOrigin::root(), new_token),
 			Error::<Test>::AllowlistedTokenLimitReached
 		);
 	});
@@ -1746,25 +1746,25 @@ use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 #[test]
 fn test_set_balances_with_bad_origin() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
-		assert_noop!(OCEX::set_balances(Origin::none(), bounded_vec_for_alice), BadOrigin);
+		assert_noop!(OCEX::set_balances(RuntimeOrigin::none(), bounded_vec_for_alice), BadOrigin);
 	});
 }
 
 #[test]
 pub fn test_set_balances_when_exchange_is_not_pause() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), true));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
 		assert_noop!(
-			OCEX::set_balances(Origin::root(), bounded_vec_for_alice),
+			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice),
 			Error::<Test>::ExchangeOperational
 		);
 	});
@@ -1774,7 +1774,7 @@ pub fn test_set_balances_when_exchange_is_not_pause() {
 pub fn test_set_balances_when_exchange_is_pause() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		vec_of_balances.push(HandleBalance {
 			main_account: account_id,
@@ -1785,7 +1785,7 @@ pub fn test_set_balances_when_exchange_is_pause() {
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
 
-		assert_eq!(OCEX::set_balances(Origin::root(), bounded_vec_for_alice.clone()), Ok(()));
+		assert_eq!(OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()), Ok(()));
 		assert_eq!(
 			OCEX::ingress_messages()[1],
 			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice,)
@@ -1797,7 +1797,7 @@ pub fn test_set_balances_when_exchange_is_pause() {
 pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		for _i in 0..1001 {
 			vec_of_balances.push(HandleBalance {
@@ -1809,7 +1809,7 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 		}
 		let bounded_vec_for_alice: Result<
 			BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>,
-			(),
+			Vec<HandleBalance<AccountId32>>,
 		> = BoundedVec::try_from(vec_of_balances);
 		assert!(bounded_vec_for_alice.is_err());
 	});
@@ -1819,7 +1819,7 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 	let account_id = create_account_id();
 	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(Origin::root(), false));
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
 		for _i in 0..1000 {
 			vec_of_balances.push(HandleBalance {
@@ -1831,7 +1831,7 @@ pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 		}
 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
 			BoundedVec::try_from(vec_of_balances).unwrap();
-		assert_eq!(OCEX::set_balances(Origin::root(), bounded_vec_for_alice.clone()), Ok(()));
+		assert_eq!(OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()), Ok(()));
 	});
 }
 
@@ -1853,7 +1853,7 @@ fn mint_into_account_large(account_id: AccountId32) {
 #[allow(dead_code)]
 fn create_asset_and_credit(asset_id: u128, account_id: AccountId32) {
 	assert_ok!(Assets::create(
-		Origin::signed(account_id.clone().into()),
+		RuntimeOrigin::signed(account_id.clone().into()),
 		asset_id.into(),
 		account_id.clone().into(),
 		100_u128

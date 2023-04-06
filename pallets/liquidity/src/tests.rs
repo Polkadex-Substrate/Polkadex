@@ -15,10 +15,10 @@ fn get_account_generation_key() -> u32 {
 #[test]
 fn register_pallet_account() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Liquidity::register_account(Origin::root(), u32::MAX));
+		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), u32::MAX));
 		assert_eq!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MAX), true);
 
-		assert_ok!(Liquidity::register_account(Origin::root(), u32::MIN));
+		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), u32::MIN));
 		assert_eq!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MIN), true);
 	});
 }
@@ -27,9 +27,9 @@ fn register_pallet_account() {
 fn try_to_register_pallet_account() {
 	let account_generation_key = get_account_generation_key();
 	new_test_ext().execute_with(|| {
-		assert_ok!(Liquidity::register_account(Origin::root(), account_generation_key));
+		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), account_generation_key));
 		assert_noop!(
-			Liquidity::register_account(Origin::root(), account_generation_key),
+			Liquidity::register_account(RuntimeOrigin::root(), account_generation_key),
 			Error::<Test>::PalletAlreadyRegistered
 		);
 	});
@@ -40,12 +40,12 @@ fn register_account_with_bad_origin() {
 	let account_generation_key = get_account_generation_key();
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Liquidity::register_account(Origin::none(), account_generation_key),
+			Liquidity::register_account(RuntimeOrigin::none(), account_generation_key),
 			BadOrigin,
 		);
 		assert_noop!(
 			Liquidity::register_account(
-				Origin::signed(get_alice_account()),
+				RuntimeOrigin::signed(get_alice_account()),
 				account_generation_key
 			),
 			BadOrigin,
@@ -56,10 +56,10 @@ fn register_account_with_bad_origin() {
 fn deposit() {
 	let account_generation_key = get_account_generation_key();
 	new_test_ext().execute_with(|| {
-		assert_ok!(Liquidity::register_account(Origin::root(), account_generation_key));
+		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), account_generation_key));
 		assert_ok!(Liquidity::deposit_to_orderbook(
-			Origin::root(),
-			AssetId::polkadex,
+			RuntimeOrigin::root(),
+			AssetId::Polkadex,
 			100_u128.saturated_into(),
 			account_generation_key
 		));
@@ -72,8 +72,8 @@ fn deposit_with_bad_origin() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Liquidity::deposit_to_orderbook(
-				Origin::none(),
-				AssetId::polkadex,
+				RuntimeOrigin::none(),
+				AssetId::Polkadex,
 				100_u128.saturated_into(),
 				account_generation_key
 			),
@@ -81,8 +81,8 @@ fn deposit_with_bad_origin() {
 		);
 		assert_noop!(
 			Liquidity::deposit_to_orderbook(
-				Origin::signed(get_alice_account()),
-				AssetId::polkadex,
+				RuntimeOrigin::signed(get_alice_account()),
+				AssetId::Polkadex,
 				100_u128.saturated_into(),
 				account_generation_key
 			),
@@ -98,8 +98,8 @@ fn deposit_when_pallet_not_register() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Liquidity::deposit_to_orderbook(
-				Origin::root(),
-				AssetId::polkadex,
+				RuntimeOrigin::root(),
+				AssetId::Polkadex,
 				100_u128.saturated_into(),
 				account_generation_key
 			),
@@ -112,10 +112,10 @@ fn deposit_when_pallet_not_register() {
 fn withdraw() {
 	let account_generation_key = get_account_generation_key();
 	new_test_ext().execute_with(|| {
-		assert_ok!(Liquidity::register_account(Origin::root(), account_generation_key));
+		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), account_generation_key));
 		assert_ok!(Liquidity::withdraw_from_orderbook(
-			Origin::root(),
-			AssetId::polkadex,
+			RuntimeOrigin::root(),
+			AssetId::Polkadex,
 			100_u128.saturated_into(),
 			true,
 			account_generation_key,
@@ -129,8 +129,8 @@ fn withdraw_with_bad_origin() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Liquidity::withdraw_from_orderbook(
-				Origin::none(),
-				AssetId::polkadex,
+				RuntimeOrigin::none(),
+				AssetId::Polkadex,
 				100_u128.saturated_into(),
 				true,
 				account_generation_key
@@ -139,8 +139,8 @@ fn withdraw_with_bad_origin() {
 		);
 		assert_noop!(
 			Liquidity::withdraw_from_orderbook(
-				Origin::signed(get_alice_account()),
-				AssetId::polkadex,
+				RuntimeOrigin::signed(get_alice_account()),
+				AssetId::Polkadex,
 				100_u128.saturated_into(),
 				true,
 				account_generation_key
@@ -156,8 +156,8 @@ fn withdraw_when_pallet_not_register() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Liquidity::withdraw_from_orderbook(
-				Origin::root(),
-				AssetId::polkadex,
+				RuntimeOrigin::root(),
+				AssetId::Polkadex,
 				100_u128.saturated_into(),
 				true,
 				account_generation_key

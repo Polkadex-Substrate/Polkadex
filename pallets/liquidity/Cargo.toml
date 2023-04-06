@@ -20,9 +20,21 @@ polkadex-primitives = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
 
+[dev-dependencies]
+pallet-assets = {workspace = true, default-features = false}
+pallet-balances = {workspace = true, default-features = false}
+pallet-ocex-lmp = {path = "../ocex", default-features = false}
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+
 [features]
 default = ["std"]
 std = [
+    "sp-core/std",
+    "sp-io/std",
+    "pallet-assets/std",
+    "pallet-balances/std",
+    "pallet-ocex-lmp/std",
     "parity-scale-codec/std",
     "scale-info/std",
     "frame-support/std",

@@ -12,11 +12,12 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+
 use asset_handler::pallet::TheaAssets;
 use frame_support::{assert_noop, assert_ok, ensure};
 use parity_scale_codec::{Decode, Encode};
 use sp_core::{crypto::AccountId32, H160, U256};
-use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
+// use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::{BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin, TokenError};
 
 use crate::{
@@ -37,7 +38,8 @@ use xcm::{
 	prelude::{Xcm, X1},
 };
 
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
+// pub const KEY_TYPE: sp_application_crypto::KeyTypeId =
+// sp_application_crypto::KeyTypeId(*b"ocex");
 pub const DST: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
 pub fn set_kth_bit(number: u128, k_value: u8) -> u128 {
@@ -78,11 +80,11 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_ok!(Thea::approve_deposit(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			bit_map_2,
 			sig.into(),
 			TokenType::Fungible(1_u8),
@@ -106,12 +108,12 @@ fn test_approve_deposit_returns_failed_to_decode() {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		let wrong_payload = [1; 32];
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -154,12 +156,12 @@ fn test_approve_deposits_with_wrong_multi_asset_returns_failed_to_handle_paracha
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -205,12 +207,12 @@ fn test_approve_deposits_with_wrong_signature_returns_bls_signature_verification
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				wrong_sig.into(),
 				TokenType::Fungible(1_u8),
@@ -255,12 +257,12 @@ fn test_approve_deposit_with_zero_amount_return_amount_cannot_be_zero() {
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -305,12 +307,12 @@ fn test_approve_deposit_with_wrong_nonce_return_deposit_nonce_error() {
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -355,7 +357,7 @@ fn test_approve_deposit_with_unregistered_asset_return_asset_not_registered() {
 
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -379,14 +381,14 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
 		};
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
-		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
+		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			1,
 			1_000_000_000_000,
 			0
@@ -397,7 +399,7 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			1_000_000_000_000
 		));
 		assert_ok!(Thea::withdraw(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			generate_asset_id(asset_id.clone()),
 			1000u128,
 			beneficiary.to_vec(),
@@ -411,6 +413,7 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			network: 1,
 			beneficiary: vec![1; 32],
 			payload: payload.encode(),
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -429,14 +432,14 @@ fn test_withdraw_returns_ok() {
 			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
 		};
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
-		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
+		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			1,
 			1_000_000_000_000,
 			0
@@ -447,7 +450,7 @@ fn test_withdraw_returns_ok() {
 			1_000_000_000_000
 		));
 		assert_ok!(Thea::withdraw(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			generate_asset_id(asset_id.clone()),
 			1000u128,
 			beneficiary.to_vec(),
@@ -461,6 +464,7 @@ fn test_withdraw_returns_ok() {
 			network: 1,
 			beneficiary: vec![1; 32],
 			payload: payload.encode(),
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -471,7 +475,7 @@ fn test_withdraw_with_wrong_benificiary_length() {
 	new_test_ext().execute_with(|| {
 		let beneficiary: [u8; 1000] = [1; 1000];
 		assert_noop!(
-			Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
+			Thea::withdraw(RuntimeOrigin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
 			Error::<Test>::BeneficiaryTooLong
 		);
 	})
@@ -482,7 +486,7 @@ fn test_withdraw_with_wrong_asset_id_returns_UnableFindNetworkForAssetId() {
 	new_test_ext().execute_with(|| {
 		let beneficiary: [u8; 32] = [1; 32];
 		assert_noop!(
-			Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
+			Thea::withdraw(RuntimeOrigin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
 			Error::<Test>::UnableFindNetworkForAssetId
 		);
 	})
@@ -494,12 +498,12 @@ fn test_withdraw_with_no_fee_config() {
 		let beneficiary: [u8; 32] = [1; 32];
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
 		assert_noop!(
 			Thea::withdraw(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				generate_asset_id(asset_id),
 				1000u128,
 				beneficiary.to_vec(),
@@ -525,17 +529,17 @@ fn transfer_native_asset() {
 			id: AssetId::Concrete(asset_location),
 			fun: 10_000_000_000_000u128.into(),
 		};
-		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
+		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			1,
 			1_000_000_000_000_000_000,
 			0
 		));
 		assert_ok!(Thea::withdraw(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			asset_id.clone(),
 			10_000_000_000_000u128,
 			beneficiary.to_vec(),
@@ -549,6 +553,7 @@ fn transfer_native_asset() {
 			network: 1,
 			beneficiary: vec![1; 32],
 			payload: payload.encode(),
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -581,7 +586,7 @@ fn get_bls_keys() -> (PrivateKeys, PublicKeys) {
 
 fn register_bls_public_keys() {
 	let (_, public_keys) = get_bls_keys();
-	RelayersBLSKeyVector::<Test>::insert(1, BoundedVec::try_from(public_keys).unwrap());
+	RelayersBLSKeyVector::<Test>::insert(1, public_keys);
 }
 
 fn sign_payload(payload: Vec<u8>) -> [u8; 96] {
@@ -592,18 +597,19 @@ fn sign_payload(payload: Vec<u8>) -> [u8; 96] {
 	agg_sig.add_signature(&sig_2, false).unwrap();
 	agg_sig.to_signature().serialize()
 }
-
+use sp_core::Pair;
+use sp_runtime::traits::IdentifyAccount;
 #[test]
 fn test_withdrawal_returns_ok() {
 	new_test_ext().execute_with(|| {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
 		let asset_id = generate_asset_id(asset_id);
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			1,
 			1_000_000_000_000,
 			0
@@ -613,7 +619,7 @@ fn test_withdrawal_returns_ok() {
 			&1,
 			1000000000000u128
 		));
-		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
+		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		assert_ok!(Thea::do_withdraw(1, asset_id, 1000000000u128, [1; 32].to_vec(), false));
 	})
 }
@@ -638,17 +644,17 @@ pub fn generate_asset_id(asset_id: AssetId) -> u128 {
 }
 
 fn create_account_id() -> AccountId32 {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = KeyStore::new();
-	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair")
-	.try_into()
-	.expect("Unable to convert to AccountId32");
+	// const PHRASE: &str =
+	// 	"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	// let keystore = KeyStore::new();
+	// let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
+	// 	&keystore,
+	// 	KEY_TYPE,
+	// 	Some(&format!("{}/hunter1", PHRASE)),
+	// )
+	// .expect("Unable to create sr25519 key pair")
+	// .try_into()
+	// .expect("Unable to convert to AccountId32");
 
-	return account_id
+	return sp_keyring::AccountKeyring::Alice.pair().public().into_account().into()
 }

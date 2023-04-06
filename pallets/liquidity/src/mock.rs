@@ -21,10 +21,11 @@ use frame_support::{
 	traits::{ConstU128, ConstU64, OnTimestampSet},
 	PalletId,
 };
-use frame_system::EnsureRoot;
-use pallet_ocex_lmp::WeightInfo as OcexWeightInfo;
+use frame_support::pallet_prelude::Weight;
+use frame_support::traits::AsEnsureOriginWithArg;
+use frame_system::{EnsureRoot, EnsureSigned};
 use polkadex_primitives::{AccountId, AssetId, Moment, Signature};
-use sp_application_crypto::sp_core::H256;
+use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
@@ -52,24 +53,24 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub BlockWeights: frame_system::limits::BlockWeights =
-		frame_system::limits::BlockWeights::simple_max(1024);
+		frame_system::limits::BlockWeights::simple_max(Weight::from_ref_time(1024));
 }
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type DbWeight = ();
-	type Origin = Origin;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
-	type Call = Call;
 	type Hashing = BlakeTwo256;
-	type AccountId = sp_runtime::AccountId32;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
+	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<u128>;
@@ -87,7 +88,7 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 	type Balance = u128;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -118,13 +119,12 @@ parameter_types! {
 }
 
 impl pallet_ocex_lmp::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type PalletId = OcexPalletId;
-	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type GovernanceOrigin = EnsureRoot<AccountId>;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
-	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
-	type WeightInfo = OcexWeightInfo<Test>;
+	type EnclaveOrigin = EnsureRoot<AccountId>;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
@@ -173,11 +173,11 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = u128;
 	type AssetId = u128;
 	type Currency = Balances;
-	type ForceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type ForceOrigin = EnsureRoot<AccountId>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -187,6 +187,10 @@ impl pallet_assets::Config for Test {
 	type Freezer = ();
 	type Extra = ();
 	type WeightInfo = ();
+	type AssetIdParameter = parity_scale_codec::Compact<u128>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type CallbackHandle = ();
+	type RemoveItemsLimit = ();
 }
 
 parameter_types! {
@@ -194,14 +198,13 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type PalletId = LiquidityPalletId;
 	type NativeCurrency = Balances;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
-	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type GovernanceOrigin = EnsureRoot<AccountId>;
 	type CallOcex = OCEX;
-	type WeightInfo = weights::WeightInfo<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -209,4 +212,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
 	ext
+}
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+	where
+		RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type OverarchingCall = RuntimeCall;
 }
