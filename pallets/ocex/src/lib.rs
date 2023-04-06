@@ -277,7 +277,7 @@ pub mod pallet {
 
 			Weight::default()
 				.saturating_add(T::DbWeight::get().reads(2))
-				.saturating_add(T::DbWeight::get().writes(2 ))
+				.saturating_add(T::DbWeight::get().writes(2))
 		}
 	}
 
@@ -1011,7 +1011,7 @@ pub mod pallet {
 									polkadex_primitives::ocex::StorageItem::Withdrawal,
 									working_summary.snapshot_id,
 								),
-							){
+							) {
 								return Err(())
 							}
 							Ok::<(), ()>(())

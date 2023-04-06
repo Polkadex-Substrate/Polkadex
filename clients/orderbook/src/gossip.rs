@@ -2,7 +2,7 @@ use orderbook_primitives::{types::ObMessage, SnapshotSummary};
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
-use sc_network_common::protocol::event::ObservedRole;
+use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
 use std::{collections::BTreeSet, sync::Arc};

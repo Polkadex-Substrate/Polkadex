@@ -28,9 +28,9 @@ use frame_support::{
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{
-		ConstU16, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly, Everything, Get,
-		Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced,
-		U128CurrencyToVote,
+		AsEnsureOriginWithArg, ConstU16, Currency, EitherOfDiverse, EnsureOrigin,
+		EqualPrivilegeOnly, Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem,
+		LockIdentifier, OnUnbalanced, U128CurrencyToVote,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
@@ -38,7 +38,6 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use frame_support::traits::AsEnsureOriginWithArg;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use sp_std::vec;
 
@@ -89,8 +88,10 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::weights::{IdentityFee, WeightToFeeCoefficients, WeightToFeePolynomial};
-use frame_support::weights::constants::WEIGHT_REF_TIME_PER_SECOND;
+use frame_support::weights::{
+	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee, WeightToFeeCoefficients,
+	WeightToFeePolynomial,
+};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -163,7 +164,8 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// by  Operational  extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 4 seconds of compute with a 12 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(4), u64::MAX);
+const MAXIMUM_BLOCK_WEIGHT: Weight =
+	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(4), u64::MAX);
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
@@ -293,13 +295,15 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => false,
 			ProxyType::NonTransfer => !matches!(
 				c,
-				RuntimeCall::Balances(..) | RuntimeCall::Indices(pallet_indices::Call::transfer { .. })
+				RuntimeCall::Balances(..) |
+					RuntimeCall::Indices(pallet_indices::Call::transfer { .. })
 			),
 			ProxyType::Governance => matches!(
 				c,
 				RuntimeCall::Council(..) |
 					RuntimeCall::TechnicalCommittee(..) |
-					RuntimeCall::Elections(..) | RuntimeCall::Treasury(..) |
+					RuntimeCall::Elections(..) |
+					RuntimeCall::Treasury(..) |
 					RuntimeCall::OrderbookCommittee(..)
 			),
 			ProxyType::Staking => matches!(c, RuntimeCall::Staking(..)),
@@ -447,8 +451,13 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = IdentityFee<Balance>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-	type FeeMultiplierUpdate =
-		TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier, MaximumMultiplier>;
+	type FeeMultiplierUpdate = TargetedFeeAdjustment<
+		Self,
+		TargetBlockFullness,
+		AdjustmentVariable,
+		MinimumMultiplier,
+		MaximumMultiplier,
+	>;
 }
 
 parameter_types! {
@@ -1505,7 +1514,8 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type UncheckedExtrinsic =
+	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 /// Extrinsic type that has already been checked.

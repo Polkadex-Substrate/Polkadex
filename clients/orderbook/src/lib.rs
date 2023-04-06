@@ -41,7 +41,7 @@ pub(crate) mod orderbook_protocol_name {
 	pub fn standard_name<Hash: AsRef<[u8]>>(
 		genesis_hash: &Hash,
 		chain_spec: &Box<dyn ChainSpec>,
-	) -> std::borrow::Cow<'static, str> {
+	) -> sc_network::ProtocolName {
 		let chain_prefix = match chain_spec.fork_id() {
 			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),
 			None => format!("/{}", hex::encode(genesis_hash)),
@@ -54,9 +54,9 @@ pub(crate) mod orderbook_protocol_name {
 /// [`sc_network::config::NetworkConfiguration::extra_sets`].
 /// For standard protocol name see [`orderbook_protocol_name::standard_name`].
 pub fn orderbook_peers_set_config(
-	protocol_name: std::borrow::Cow<'static, str>,
-) -> sc_network::config::NonDefaultSetConfig {
-	let mut cfg = sc_network::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
+	protocol_name: sc_network::ProtocolName,
+) -> sc_network_common::config::NonDefaultSetConfig {
+	let mut cfg = sc_network_common::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
 
 	cfg.allow_non_reserved(25, 25);
 	cfg
@@ -119,7 +119,7 @@ where
 	/// Prometheus metric registry
 	pub prometheus_registry: Option<Registry>,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
-	pub protocol_name: std::borrow::Cow<'static, str>,
+	pub protocol_name: sc_network::ProtocolName,
 	/// Boolean indicating if this node is a validator
 	pub is_validator: bool,
 	/// Submit message link

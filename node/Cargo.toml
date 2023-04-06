@@ -22,10 +22,10 @@ codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.136", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.3.1"
-clap = { version = "3.0", features = ["derive"] }
+clap = { version = "4.0.9", features = ["derive"] }
 parking_lot = "0.12.1"
 itertools = "0.10.1"
-jsonrpsee = { version = "0.15.1", features = ["server"] }
+jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies
 node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
 pallet-asset-handler-rpc = { path = "../pallets/asset-handler/rpc" }
@@ -84,7 +84,7 @@ sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polka
 sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sc-cli = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.37" }
 sc-service = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.37" }
-
+sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.37" }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37", optional = true }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37", optional = true }
 
