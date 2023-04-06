@@ -30,7 +30,6 @@ use sp_std::prelude::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-pub mod weights;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -81,12 +80,6 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 
-	pub trait LiquidityWeightInfo {
-		fn register_account(_a: u32) -> Weight;
-		fn deposit_to_orderbook(_a: u32, _i: u32, _z: u32) -> Weight;
-		fn withdraw_from_orderbook(a: u32, _i: u32, _z: u32) -> Weight;
-	}
-
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
@@ -95,7 +88,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + timestamp::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Address which holds the customer funds.
 		#[pallet::constant]
@@ -121,11 +114,9 @@ pub mod pallet {
 			+ scale_info::TypeInfo;
 
 		/// Governance Origin
-		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		type CallOcex: LiquidityModifier<AssetId = AssetId, AccountId = Self::AccountId>;
-
-		type WeightInfo: LiquidityWeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -159,7 +150,8 @@ pub mod pallet {
 		/// * `origin`: governance
 		/// * `account_generation_key`: u32 value that will be used to generate main account and
 		///   proxy account
-		#[pallet::weight(<T as Config>::WeightInfo::register_account(1))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(0)]
 		pub fn register_account(
 			origin: OriginFor<T>,
 			account_generation_key: u32,
@@ -199,7 +191,8 @@ pub mod pallet {
 		/// * `amount`: amount to deposit
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
 		///   account
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2,3))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(1)]
 		pub fn deposit_to_orderbook(
 			origin: OriginFor<T>,
 			asset: AssetId,
@@ -232,7 +225,8 @@ pub mod pallet {
 		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
 		///  account given amount will be withdrawn
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_to_orderbook(1,2,3))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(2)]
 		pub fn withdraw_from_orderbook(
 			origin: OriginFor<T>,
 			asset: AssetId,
