@@ -14,7 +14,7 @@ use sp_std::vec::Vec;
 use std::{
 	borrow::Borrow,
 	fmt::{Display, Formatter},
-	ops::Mul,
+	ops::{Mul, Rem},
 	str::FromStr,
 };
 
@@ -110,6 +110,7 @@ impl Trade {
 use chrono::Utc;
 #[cfg(feature = "std")]
 use libp2p_core::PeerId;
+use rust_decimal::prelude::FromPrimitive;
 
 #[cfg(feature = "std")]
 impl Trade {
@@ -412,15 +413,25 @@ pub struct Order {
 	pub quote_order_qty: Decimal,
 	pub timestamp: i64,
 	pub overall_unreserved_volume: Decimal,
+	pub signature: Signature
 }
 
+#[cfg(feature = "std")]
 impl Order {
-	pub fn verify_config(&self, _config: &TradingPairConfig) -> bool {
-		todo!()
+	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
+			self.price >= config.min_price &&
+				self.price <= config.max_price &&
+				self.qty >= config.min_qty &&
+				self.qty <= config.max_qty &&
+				self.pair.base == config.base_asset &&
+				self.pair.quote == config.quote_asset &&
+				self.price.rem(config.price_tick_size).is_zero() &&
+				self.qty.rem(config.qty_step_size).is_zero()
 	}
 
 	pub fn verify_signature(&self) -> bool {
-		todo!()
+		let payload: OrderPayload = self.clone().into();
+		self.signature.verify(&payload.encode()[..],&self.user)
 	}
 }
 
@@ -577,6 +588,7 @@ impl Order {
 			quote_order_qty: Decimal::zero(),
 			timestamp: 1,
 			overall_unreserved_volume: Decimal::zero(),
+			signature: Signature::Sr25519(sp_core::sr25519::Signature::from_raw([0;64])),
 		}
 	}
 }
@@ -585,6 +597,112 @@ pub fn rounding_off(a: Decimal) -> Decimal {
 	// if we want to operate with a precision of 8 decimal places,
 	// all calculations should be done with latest 9 decimal places
 	a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
+}
+
+#[cfg(feature = "std")]
+pub struct OrderDetails {
+	payload: OrderPayload,
+	signature: Signature
+}
+
+#[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "std")]
+pub struct OrderPayload {
+	pub client_order_id: H256,
+	pub user: AccountId,
+	pub main_account: AccountId,
+	pub pair: String,
+	pub side: OrderSide,
+	pub order_type: OrderType,
+	pub quote_order_quantity: String,
+	// Quantity is defined in base asset
+	pub qty: String,
+	// Price is defined in quote asset per unit base asset
+	pub price: String,
+	pub timestamp: i64,
+}
+#[cfg(feature = "std")]
+impl From<Order> for OrderPayload {
+	fn from(value: Order) -> Self {
+		Self{
+			client_order_id: value.client_order_id,
+			user: value.user,
+			main_account: value.main_account,
+			pair: value.pair.to_string(),
+			side: value.side,
+			order_type: value.order_type,
+			quote_order_quantity: value.quote_order_qty.to_string(),
+			qty: value.qty.to_string(),
+			price: value.price.to_string(),
+			timestamp: value.timestamp,
+		}
+	}
+}
+#[cfg(feature = "std")]
+impl TryFrom<OrderDetails> for Order {
+	type Error = anyhow::Error;
+	fn try_from(details: OrderDetails) -> Result<Self, anyhow::Error> {
+		let payload = details.payload;
+		if let Ok(qty) = payload.qty.parse::<f64>() {
+			if let Ok(price) = payload.price.parse::<f64>() {
+				return if let Some(qty) = Decimal::from_f64(qty) {
+					if let Some(price) = Decimal::from_f64(price) {
+						if let Ok(quote_order_qty) = payload.quote_order_quantity.parse::<f64>() {
+							if let Some(quote_order_qty) = Decimal::from_f64(quote_order_qty) {
+								if let Ok(trading_pair) = payload.pair.try_into() {
+									Ok(Self {
+										stid: 0,
+										client_order_id: payload.client_order_id,
+										avg_filled_price: Decimal::zero(),
+										fee: Decimal::zero(),
+										filled_quantity: Decimal::zero(),
+										id: H256::random(),
+										status: OrderStatus::OPEN,
+										user: payload.user,
+										main_account: payload.main_account,
+										pair: trading_pair,
+										side: payload.side,
+										order_type: payload.order_type,
+										qty: qty.round_dp(8),
+										price: price.round_dp(8),
+										quote_order_qty: quote_order_qty.round_dp(8),
+										timestamp: payload.timestamp,
+										overall_unreserved_volume: Decimal::zero(),
+										signature: details.signature,
+									})
+								} else {
+									Err(anyhow::Error::msg("Not able to to parse trading pair".to_string()))
+								}
+							} else {
+								Err(anyhow::Error::msg(
+									"Quote order quantity couldn't be parsed to decimal".to_string(),
+								))
+							}
+						} else {
+							Err(anyhow::Error::msg(
+								"Quote order quantity couldn't be parsed".to_string(),
+							))
+						}
+					} else {
+						Err(anyhow::Error::msg("Price couldn't be converted to decimal".to_string()))
+					}
+				} else {
+					Err(anyhow::Error::msg("Qty couldn't be converted to decimal".to_string()))
+				};
+			}
+			return Err(anyhow::Error::msg("Price couldn't be parsed".to_string()));
+		}
+		Err(anyhow::Error::msg(format!("Qty couldn't be parsed {}", payload.qty)))
+	}
+}
+
+#[cfg(feature = "std")]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Encode, Decode, Eq, PartialEq)]
+pub struct WithdrawalDetails {
+	pub payload: WithdrawPayloadCallByUser,
+	pub main: AccountId,
+	pub proxy: AccountId,
+	pub signature: Signature,
 }
 
 #[cfg(test)]
