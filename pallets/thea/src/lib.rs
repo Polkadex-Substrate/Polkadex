@@ -96,11 +96,11 @@ pub mod pallet {
 		frame_system::Config + asset_handler::pallet::Config + thea_staking::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Balances Pallet
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 		/// Asset Create/ Update Origin
-		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<PalletId>;
@@ -374,7 +374,7 @@ pub mod pallet {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
 			// TODO: Benchmarking for Thea Pallet
-			1000 as Weight
+			Weight::default()
 		}
 	}
 
@@ -389,7 +389,8 @@ pub mod pallet {
 		/// * `bls_signature`: BLS Signature.
 		/// * `token_type`: Token Type.
 		/// * `payload`: Encoded Deposit Payload.
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(0)]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
 			bit_map: u128,
@@ -410,7 +411,8 @@ pub mod pallet {
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
 		/// (it's used to parametrise the weight of this extrinsic)
 		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(1)]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 
@@ -460,7 +462,8 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(2)]
 		pub fn batch_withdrawal_complete(
 			origin: OriginFor<T>,
 			withdrawal_nonce: u32,
@@ -488,7 +491,8 @@ pub mod pallet {
 		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
 		///   withdrawal
 		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(3)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -507,7 +511,8 @@ pub mod pallet {
 		///
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(4)]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -529,7 +534,8 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(5)]
 		pub fn thea_key_rotation_complete(
 			origin: OriginFor<T>,
 			network: Network,
@@ -588,7 +594,8 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(6)]
 		pub fn set_thea_key_complete(
 			origin: OriginFor<T>,
 			network: Network,
@@ -638,7 +645,8 @@ pub mod pallet {
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
 		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(7)]
 		pub fn thea_queued_queued_public_key(
 			origin: OriginFor<T>,
 			network: Network,
@@ -691,7 +699,8 @@ pub mod pallet {
 		///
 		/// * `origin`: Any relayer
 		/// * `network`: Network id
-		#[pallet::weight(1000)]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(8)]
 		pub fn thea_relayers_reset_rotation(
 			origin: OriginFor<T>,
 			network: Network,
@@ -777,7 +786,7 @@ pub mod pallet {
 				index: pending_withdrawals.len() as u32,
 			};
 
-			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
+			if let Err(_) = pending_withdrawals.try_push(withdrawal) {
 				// This should not fail because of is_full check above
 			}
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
