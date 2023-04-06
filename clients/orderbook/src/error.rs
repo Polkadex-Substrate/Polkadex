@@ -17,8 +17,6 @@ pub enum Error {
 	Keystore(String),
 	#[error("State hash mismatch")]
 	StateHashMisMatch,
-	#[error("OrderStateCheckFailed")]
-	OrderStateCheckFailed,
 	#[error("AccountBalanceNotFound in the state")]
 	AccountBalanceNotFound(AccountAsset),
 	#[error("Not enough balance in account")]
@@ -47,6 +45,10 @@ pub enum Error {
 	ProxyAlreadyRegistered,
 	#[error("Offchain storage not available")]
 	OffchainStorageNotAvailable,
+	#[error("Invalid trade found")]
+	InvalidTrade,
+	#[error("Unable to find trading pair config")]
+	TradingPairConfigNotFound,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {

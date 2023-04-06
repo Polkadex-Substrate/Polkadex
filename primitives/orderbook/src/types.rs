@@ -7,6 +7,10 @@ use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
+
+#[cfg(not(feature = "std"))]
+use sp_std::vec::Vec;
+#[cfg(feature = "std")]
 use std::{
 	borrow::Borrow,
 	fmt::{Display, Formatter},
@@ -46,27 +50,6 @@ impl ObRecoveryState {
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct OrderState {
-	pub filled_qty: Decimal,
-	pub required_qty: Decimal,
-}
-
-impl OrderState {
-	pub fn from(order: &Order) -> Self {
-		// TODO: compute correct filled qty
-		Self { filled_qty: order.filled_quantity, required_qty: order.qty }
-	}
-
-	// verify if we can update the order state, with the new state of order.
-	pub fn update(&mut self, _order: &Order, _price: Decimal, _amount: Decimal) -> bool {
-		// Verify signature also here.
-		// TODO: FIX this.
-		true
-	}
-}
-
-#[derive(Clone, Debug, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountInfo {
 	pub proxies: Vec<AccountId>,
 }
@@ -86,6 +69,7 @@ impl AccountAsset {
 
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "std")]
 pub struct Trade {
 	pub maker: Order,
 	pub taker: Order,
@@ -94,6 +78,7 @@ pub struct Trade {
 	pub time: i64,
 }
 
+#[cfg(feature = "std")]
 impl Trade {
 	pub fn credit(&self, maker: bool) -> (AccountAsset, Decimal) {
 		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
@@ -123,21 +108,24 @@ impl Trade {
 }
 #[cfg(feature = "std")]
 use chrono::Utc;
+#[cfg(feature = "std")]
 use libp2p_core::PeerId;
 
+#[cfg(feature = "std")]
 impl Trade {
 	// Creates a Trade with zero event_tag
-	#[cfg(feature = "std")]
 	pub fn new(maker: Order, taker: Order, price: Decimal, amount: Decimal) -> Trade {
 		Self { maker, taker, price, amount, time: Utc::now().timestamp_millis() }
 	}
 
 	// Verifies the contents of a trade
-	pub fn verify(&self) -> bool {
-		// TODO: Verify the signatures of both orders
-		//  Validity of both orders
-		//
-		todo!()
+	pub fn verify(&self, config: TradingPairConfig) -> bool {
+		// Verify signatures
+		self.maker.verify_signature() &
+		self.taker.verify_signature() &
+			// Verify pair configs
+		self.maker.verify_config(&config) &
+			self.taker.verify_config(&config)
 	}
 }
 
@@ -164,12 +152,14 @@ pub enum GossipMessage {
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "std")]
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg(feature = "std")]
 pub enum StateSyncStatus {
 	Unavailable, // We don't have this chunk yet
 	// (Who is supposed to send us, when we requested)
@@ -179,6 +169,7 @@ pub enum StateSyncStatus {
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "std")]
 pub enum UserActions {
 	Trade(Vec<Trade>),
 	Withdraw(WithdrawalRequest),
@@ -186,8 +177,8 @@ pub enum UserActions {
 	Snapshot,
 }
 
-#[derive(Clone, Debug, Decode, Encode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "std")]
 pub struct WithdrawalRequest {
 	pub signature: Signature,
 	pub payload: WithdrawPayloadCallByUser,
@@ -195,6 +186,7 @@ pub struct WithdrawalRequest {
 	pub proxy: AccountId,
 }
 
+#[cfg(feature = "std")]
 impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
 	type Error = rust_decimal::Error;
 
@@ -203,12 +195,12 @@ impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
 			main_account: self.main.clone(),
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
-			event_id: 0,              // TODO: We don't use this
-			fees: Default::default(), // TODO: We don't use this
+			fees: Default::default(),
 		})
 	}
 }
 
+#[cfg(feature = "std")]
 impl WithdrawalRequest {
 	pub fn verify(&self) -> bool {
 		self.signature.verify(self.payload.encode().as_ref(), &self.proxy)
@@ -223,8 +215,8 @@ impl WithdrawalRequest {
 	}
 }
 
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "std")]
 pub struct WithdrawPayloadCallByUser {
 	pub asset_id: AssetId,
 	pub amount: String,
@@ -247,6 +239,7 @@ impl OrderSide {
 	}
 }
 
+#[cfg(feature = "std")]
 impl TryFrom<String> for OrderSide {
 	type Error = anyhow::Error;
 
@@ -266,6 +259,7 @@ pub enum OrderType {
 	MARKET,
 }
 
+#[cfg(feature = "std")]
 impl TryFrom<String> for OrderType {
 	type Error = anyhow::Error;
 
@@ -286,6 +280,7 @@ pub enum OrderStatus {
 	CANCELLED,
 }
 
+#[cfg(feature = "std")]
 impl TryFrom<String> for OrderStatus {
 	type Error = anyhow::Error;
 
@@ -299,6 +294,7 @@ impl TryFrom<String> for OrderStatus {
 	}
 }
 
+#[cfg(feature = "std")]
 impl Into<String> for OrderStatus {
 	fn into(self) -> String {
 		match self {
@@ -358,18 +354,22 @@ impl TradingPair {
 	pub fn is_part_of(&self, asset_id: AssetId) -> bool {
 		(self.base == asset_id) | (self.quote == asset_id)
 	}
+	#[cfg(feature = "std")]
 	pub fn base_asset_str(&self) -> String {
 		match self.base {
 			AssetId::Polkadex => "PDEX".into(),
 			AssetId::Asset(id) => id.to_string(),
 		}
 	}
+	#[cfg(feature = "std")]
 	pub fn quote_asset_str(&self) -> String {
 		match self.quote {
 			AssetId::Polkadex => "PDEX".into(),
 			AssetId::Asset(id) => id.to_string(),
 		}
 	}
+
+	#[cfg(feature = "std")]
 	pub fn market_id(&self) -> String {
 		format!("{}/{}", self.base_asset_str(), self.quote_asset_str())
 	}
@@ -416,6 +416,10 @@ pub struct Order {
 
 impl Order {
 	pub fn verify_config(&self, _config: &TradingPairConfig) -> bool {
+		todo!()
+	}
+
+	pub fn verify_signature(&self) -> bool {
 		todo!()
 	}
 }
@@ -500,6 +504,7 @@ impl Ord for Order {
 	}
 }
 
+#[cfg(feature = "std")]
 impl Order {
 	/// Computes the new avg_price and adds qty to filled_qty
 	/// if returned is false then underflow occurred during division

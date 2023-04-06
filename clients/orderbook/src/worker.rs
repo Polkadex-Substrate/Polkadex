@@ -14,8 +14,8 @@ use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, OrderState, StateSyncStatus, Trade,
-		UserActions, WithdrawalRequest,
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, UserActions,
+		WithdrawalRequest,
 	},
 	utils::{prepare_bitmap, return_set_bits, set_bit_field},
 	ObApi, SnapshotSummary,
@@ -48,6 +48,8 @@ use crate::{
 	utils::*,
 	Client, DbRef,
 };
+use orderbook_primitives::types::TradingPair;
+use polkadex_primitives::ocex::TradingPairConfig;
 use primitive_types::H128;
 
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
@@ -58,8 +60,6 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub backend: Arc<BE>,
 	pub runtime: Arc<R>,
 	pub sync_oracle: SO,
-	// pub key_store: BeefyKeystore,
-	// pub links: BeefyVoterLinks<B>,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
@@ -85,7 +85,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	sync_oracle: SO,
 	is_validator: bool,
 	_network: Arc<N>,
-	// key_store: BeefyKeystore,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
@@ -94,10 +93,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 	// Known state ids
 	known_messages: BTreeMap<u64, ObMessage>,
-	// Links between the block importer, the background voter and the RPC layer.
-	// links: BeefyVoterLinks<B>,
 	pending_withdrawals: Vec<Withdrawal<AccountId>>,
-	// voter state
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
 	message_sender_link: UnboundedReceiver<ObMessage>,
@@ -113,6 +109,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	last_block_snapshot_generated: Arc<RwLock<BlockNumber>>,
 	// latest stid
 	latest_stid: u64,
+	// Map of trading pair configs
+	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -136,9 +134,7 @@ where
 			client,
 			backend,
 			runtime,
-			// key_store,
 			sync_oracle,
-			// links,
 			metrics,
 			is_validator,
 			message_sender_link,
@@ -161,13 +157,11 @@ where
 			backend,
 			runtime,
 			sync_oracle,
-			// key_store,
 			is_validator,
 			_network: network,
 			gossip_engine,
 			gossip_validator,
 			memory_db,
-			// links,
 			message_sender_link,
 			state_is_syncing: false,
 			metrics,
@@ -180,6 +174,7 @@ where
 			sync_state_map: Default::default(),
 			last_block_snapshot_generated,
 			latest_stid: 0,
+			trading_pair_configs: Default::default(),
 		}
 	}
 
@@ -381,7 +376,12 @@ where
 				let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 				for trade in trades {
-					process_trade(&mut trie, trade)?
+					let config = self
+						.trading_pair_configs
+						.get(&trade.maker.pair)
+						.ok_or(Error::TradingPairConfigNotFound)?
+						.clone();
+					process_trade(&mut trie, trade, config)?
 				}
 				// Commit the trie
 				trie.commit();
@@ -613,7 +613,7 @@ where
 
 	pub async fn got_stids_via_gossip(&mut self, messages: &Vec<ObMessage>) -> Result<(), Error> {
 		for message in messages {
-			// TODO: DO signature checks here and handle reputation
+			// TODO: handle reputation change.
 			self.known_messages.entry(message.stid).or_insert(message.clone());
 		}
 		self.check_stid_gap_fill().await
@@ -696,17 +696,21 @@ where
 					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 				{
 					let chunk_indexes: Vec<u16> = return_set_bits(bitmap);
-					// TODO: Santiy check to ensure that indexing in to state_chunk_hashes doesn't
-					// cause a panic
 					for index in chunk_indexes {
-						let chunk_hash: H128 = summary.state_chunk_hashes[index as usize];
-						if let Some(data) = offchian_storage
-							.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
-						{
-							let message = GossipMessage::Chunk(*snapshot_id, index, data);
-							self.gossip_engine.send_message(vec![peer], message.encode());
-							metric_inc!(self, ob_messages_sent);
-							metric_add!(self, ob_data_sent, message.encoded_size() as u64);
+						match summary.state_chunk_hashes.get(index as usize) {
+							None => {
+								log::warn!(target:"orderbook","Chunk hash not found for index: {:?}",index)
+							},
+							Some(chunk_hash) => {
+								if let Some(data) = offchian_storage
+									.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
+								{
+									let message = GossipMessage::Chunk(*snapshot_id, index, data);
+									self.gossip_engine.send_message(vec![peer], message.encode());
+									metric_inc!(self, ob_messages_sent);
+									metric_add!(self, ob_data_sent, message.encoded_size() as u64);
+								}
+							},
 						}
 					}
 				}
@@ -720,22 +724,27 @@ where
 			if let Ok(Some(summary)) =
 				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 			{
-				let expected_hash: H128 = summary.state_chunk_hashes[*index as usize];
-				let computed_hash: H128 = H128::from(blake2_128(data));
-				if expected_hash == computed_hash {
-					// Store the data
-					offchian_storage.set(
-						ORDERBOOK_STATE_CHUNK_PREFIX,
-						expected_hash.0.as_ref(),
-						data,
-					);
-					// Update sync status map
-					self.sync_state_map
-						.entry(*index)
-						.and_modify(|status| {
-							*status = StateSyncStatus::Available;
-						})
-						.or_insert(StateSyncStatus::Available); //TODO: @Gatham please corss check this
+				match summary.state_chunk_hashes.get(*index as usize) {
+					None =>
+						warn!(target:"orderbook","Invalid index recvd, index > length of state chunk hashes"),
+					Some(expected_hash) => {
+						let computed_hash: H128 = H128::from(blake2_128(data));
+						if *expected_hash == computed_hash {
+							// Store the data
+							offchian_storage.set(
+								ORDERBOOK_STATE_CHUNK_PREFIX,
+								expected_hash.0.as_ref(),
+								data,
+							);
+							// Update sync status map
+							self.sync_state_map
+								.entry(*index)
+								.and_modify(|status| {
+									*status = StateSyncStatus::Available;
+								})
+								.or_insert(StateSyncStatus::Available);
+						}
+					},
 				}
 			}
 		}
@@ -892,8 +901,6 @@ where
 							},
 							Some(data) => {
 								match SnapshotSummary::decode(&mut &data[..]) {
-									// TODO: This is repeated block of code from snapshot() fn,
-									// make it a single function
 									Ok(mut summary) => {
 										info!(target:"orderbook","Signing snapshot with: {:?}",hex::encode(signing_key.0));
 										let signature = match bls_primitives::crypto::sign(
@@ -1006,6 +1013,20 @@ where
 		trie
 	}
 
+	/// Loads the latest trading pair configs from runtime
+	pub fn load_trading_pair_configs(&mut self) -> Result<(), Error> {
+		let tradingpairs = self
+			.runtime
+			.runtime_api()
+			.read_trading_pair_configs(&BlockId::Number(self.client.info().finalized_number))?;
+
+		for (pair, config) in tradingpairs {
+			self.trading_pair_configs.insert(pair, config);
+		}
+
+		Ok(())
+	}
+
 	/// Main loop for Orderbook worker.
 	///
 	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
@@ -1046,6 +1067,12 @@ where
 			}
 			self.state_is_syncing = true;
 		}
+
+		if let Err(err) = self.load_trading_pair_configs() {
+			error!(target:"orderbook","Error while loading trading pair configs: {:?}",err);
+			return
+		}
+
 		info!(target:"orderbook","📒 Starting event streams...");
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
@@ -1240,34 +1267,16 @@ pub fn deposit(
 /// # Returns
 ///
 /// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
-pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Result<(), Error> {
+pub fn process_trade(
+	trie: &mut TrieDBMut<ExtensionLayout>,
+	trade: Trade,
+	config: TradingPairConfig,
+) -> Result<(), Error> {
+	if !trade.verify(config) {
+		return Err(Error::InvalidTrade)
+	}
+
 	let Trade { maker, taker, price, amount, time: _ } = trade.clone();
-
-	// Check order states
-	let maker_order_state = match trie.get(maker.id.as_ref())? {
-		None => OrderState::from(&maker),
-		Some(data) => {
-			let mut state = OrderState::decode(&mut &data[..])?;
-			if !state.update(&maker, price, amount) {
-				return Err(Error::OrderStateCheckFailed)
-			}
-			state
-		},
-	};
-
-	let taker_order_state = match trie.get(taker.id.as_ref())? {
-		None => OrderState::from(&taker),
-		Some(data) => {
-			let mut state = OrderState::decode(&mut &data[..])?;
-			if !state.update(&taker, price, amount) {
-				return Err(Error::OrderStateCheckFailed)
-			}
-			state
-		},
-	};
-
-	trie.insert(maker.id.as_ref(), &maker_order_state.encode())?;
-	trie.insert(taker.id.as_ref(), &taker_order_state.encode())?;
 
 	// Update balances
 	let (maker_asset, maker_credit) = trade.credit(true);

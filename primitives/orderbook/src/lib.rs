@@ -1,7 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{withdrawal::Withdrawal, AccountId, AssetId, BlockNumber};
+use polkadex_primitives::{
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
+};
 use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
@@ -21,7 +23,6 @@ use crate::{
 };
 
 pub mod constants;
-#[cfg(feature = "std")]
 pub mod types;
 pub mod utils;
 
@@ -101,11 +102,6 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 	pub fn validators(&self) -> &[AuthorityId] {
 		&self.validators
 	}
-
-	// /// Return the validator set id.
-	// pub fn id(&self) -> ValidatorSetId {
-	//     self.id
-	// }
 
 	/// Return the number of validators in the set.
 	pub fn len(&self) -> usize {
@@ -231,5 +227,8 @@ sp_api::decl_runtime_apis! {
 
 		/// Get all allow listed assets
 		fn get_allowlisted_assets() -> Vec<AssetId>;
+
+		/// Reads the current trading pair configs
+		fn read_trading_pair_configs() -> Vec<(crate::types::TradingPair, TradingPairConfig)>;
 	}
 }

@@ -84,7 +84,6 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
 
-// TODO: Figure out the actual bound given below
 #[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ProxyLimit;
