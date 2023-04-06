@@ -18,13 +18,10 @@ structopt = { version = "0.3.8", optional = true }
 
 [dependencies]
 # third-party dependencies
-jsonrpc-core = "18.0.0"
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.136", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.3.1"
-log = "0.4.8"
-rand = "0.8.5"
 clap = { version = "3.0", features = ["derive"] }
 parking_lot = "0.12.1"
 itertools = "0.10.1"
@@ -40,15 +37,10 @@ memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "
 reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master"  }
 
 # Substrate dependencies
-thea-primitives = { path = "../thea-primitives" }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-staking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-contracts = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-contracts-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
@@ -92,9 +84,6 @@ sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polka
 sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-cli = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"] }
 sc-service = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", features = ["wasmtime"] }
-sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, features = [
-	"memory-tracker",
-] }
 
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", optional = true }
