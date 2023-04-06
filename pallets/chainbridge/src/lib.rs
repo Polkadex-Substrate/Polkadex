@@ -15,11 +15,10 @@ pub mod hashing;
 
 pub use pallet::*;
 
-
 #[frame_support::pallet]
 pub mod pallet {
 	pub use frame_support::{
-		pallet_prelude::*, traits::StorageVersion, dispatch::GetDispatchInfo, PalletId, Parameter,
+		dispatch::GetDispatchInfo, pallet_prelude::*, traits::StorageVersion, PalletId, Parameter,
 	};
 	use frame_system::{self as system, pallet_prelude::*};
 	use parity_scale_codec::{Decode, Encode, EncodeLike};

@@ -1222,7 +1222,8 @@ pub mod pallet {
 	}
 
 	/// Staking Interface is required to Nomination Pools pallet to work
-	/// TODO: The staking interface is changed drastically in polkadot-v0.9.37, we need to reimplement it.
+	/// TODO: The staking interface is changed drastically in polkadot-v0.9.37, we need to
+	/// reimplement it.
 	impl<T: Config> StakingInterface for Pallet<T> {
 		type Balance = T::Balance;
 		type AccountId = T::AccountId;
@@ -1299,11 +1300,18 @@ pub mod pallet {
 			todo!()
 		}
 
-		fn bond(who: &Self::AccountId, value: Self::Balance, payee: &Self::AccountId) -> sp_runtime::DispatchResult {
+		fn bond(
+			who: &Self::AccountId,
+			value: Self::Balance,
+			payee: &Self::AccountId,
+		) -> sp_runtime::DispatchResult {
 			todo!()
 		}
 
-		fn nominate(who: &Self::AccountId, validators: Vec<Self::AccountId>) -> sp_runtime::DispatchResult {
+		fn nominate(
+			who: &Self::AccountId,
+			validators: Vec<Self::AccountId>,
+		) -> sp_runtime::DispatchResult {
 			todo!()
 		}
 
@@ -1331,7 +1339,10 @@ pub mod pallet {
 			todo!()
 		}
 
-		fn withdraw_unbonded(stash: Self::AccountId, num_slashing_spans: u32) -> Result<bool, DispatchError> {
+		fn withdraw_unbonded(
+			stash: Self::AccountId,
+			num_slashing_spans: u32,
+		) -> Result<bool, DispatchError> {
 			todo!()
 		}
 
@@ -1351,9 +1362,9 @@ pub mod pallet {
 			todo!()
 		}
 
-		// fn bond(who: &Self::AccountId, value: Self::Balance, payee: &Self::AccountId) -> sp_runtime::DispatchResult {
-		// 	ensure!(who == payee, Error::<T>::StashAndControllerMustBeSame);
-		// 	Pallet::<T>::do_bond(payee, value)?;
+		// fn bond(who: &Self::AccountId, value: Self::Balance, payee: &Self::AccountId) ->
+		// sp_runtime::DispatchResult { 	ensure!(who == payee,
+		// Error::<T>::StashAndControllerMustBeSame); 	Pallet::<T>::do_bond(payee, value)?;
 		// 	Ok(())
 		// }
 	}
