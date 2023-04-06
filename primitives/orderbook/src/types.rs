@@ -601,8 +601,8 @@ pub fn rounding_off(a: Decimal) -> Decimal {
 
 #[cfg(feature = "std")]
 pub struct OrderDetails {
-	payload: OrderPayload,
-	signature: Signature,
+	pub payload: OrderPayload,
+	pub signature: Signature,
 }
 
 #[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]
