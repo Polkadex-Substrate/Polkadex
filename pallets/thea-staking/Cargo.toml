@@ -38,6 +38,7 @@ asset-handler = { path = "../asset-handler" }
 [features]
 default = ["std"]
 std = [
+	"pallet-assets/std",
 	"parity-scale-codec/std",
 	"frame-support/std",
 	"frame-system/std",

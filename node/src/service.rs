@@ -619,7 +619,7 @@ mod tests {
 	use codec::Encode;
 	use node_polkadex_runtime::{
 		constants::{currency::CENTS, time::SLOT_DURATION},
-		Address, BalancesCall, Call, UncheckedExtrinsic,
+		Address, BalancesCall, RuntimeCall, UncheckedExtrinsic,
 	};
 	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
@@ -693,8 +693,8 @@ mod tests {
 				Ok((node, setup_handles.unwrap()))
 			},
 			|service, &mut (ref mut block_import, ref babe_link)| {
-				let parent_id = BlockId::number(service.client().chain_info().best_number);
-				let parent_header = service.client().header(&parent_id).unwrap().unwrap();
+				let parent_hash = service.client().chain_info().best_hash;
+				let parent_header = service.client().header(parent_hash).unwrap().unwrap();
 				let parent_hash = parent_header.hash();
 				let parent_number = *parent_header.number();
 
@@ -731,10 +731,7 @@ mod tests {
 						.epoch_changes()
 						.shared_data()
 						.epoch_data(&epoch_descriptor, |slot| {
-							sc_consensus_babe::Epoch::genesis(
-								babe_link.config().genesis_config(),
-								slot,
-							)
+							sc_consensus_babe::Epoch::genesis(babe_link.config(), slot)
 						})
 						.unwrap();
 
@@ -748,14 +745,16 @@ mod tests {
 					slot += 1;
 				};
 
-				let inherent_data = (
-					sp_timestamp::InherentDataProvider::new(
-						std::time::Duration::from_millis(SLOT_DURATION * slot).into(),
-					),
-					sp_consensus_babe::inherents::InherentDataProvider::new(slot.into()),
+				let inherent_data = futures::executor::block_on(
+					(
+						sp_timestamp::InherentDataProvider::new(
+							std::time::Duration::from_millis(SLOT_DURATION * slot).into(),
+						),
+						sp_consensus_babe::inherents::InherentDataProvider::new(slot.into()),
+					)
+						.create_inherent_data(),
 				)
-					.create_inherent_data()
-					.expect("Creates inherent data");
+				.expect("Creates inherent data");
 
 				digest.push(<DigestItem as CompatibleDigestItem>::babe_pre_digest(babe_pre_digest));
 
@@ -811,8 +810,10 @@ mod tests {
 				};
 				let signer = charlie.clone();
 
-				let function =
-					Call::Balances(BalancesCall::transfer { dest: to.into(), value: amount });
+				let function = RuntimeCall::Balances(BalancesCall::transfer {
+					dest: to.into(),
+					value: amount,
+				});
 
 				let tip = 0;
 				let extra: node_polkadex_runtime::SignedExtra = (

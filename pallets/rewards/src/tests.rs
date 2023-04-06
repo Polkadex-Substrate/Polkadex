@@ -181,11 +181,23 @@ fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, _, reward_id) = get_parameters_for_reward_cycle();
 		assert_noop!(
-			Rewards::create_reward_cycle(RuntimeOrigin::root(), start_block, end_block, 101, reward_id),
+			Rewards::create_reward_cycle(
+				RuntimeOrigin::root(),
+				start_block,
+				end_block,
+				101,
+				reward_id
+			),
 			Error::<Test>::InvalidInitialPercentage
 		);
 		assert_noop!(
-			Rewards::create_reward_cycle(RuntimeOrigin::root(), start_block, end_block, 0, reward_id),
+			Rewards::create_reward_cycle(
+				RuntimeOrigin::root(),
+				start_block,
+				end_block,
+				0,
+				reward_id
+			),
 			Error::<Test>::InvalidInitialPercentage
 		);
 	});
@@ -435,7 +447,10 @@ pub fn claim_reward_for_unregister_id() {
 	new_test_ext().execute_with(|| {
 		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
 		assert_noop!(
-			Rewards::claim(RuntimeOrigin::signed(get_alice_account_with_rewards().0.into()), reward_id),
+			Rewards::claim(
+				RuntimeOrigin::signed(get_alice_account_with_rewards().0.into()),
+				reward_id
+			),
 			Error::<Test>::RewardIdNotRegister
 		);
 	});

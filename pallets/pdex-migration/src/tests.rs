@@ -2,7 +2,7 @@ use frame_support::{assert_noop, assert_ok};
 use sp_core::H256;
 use sp_runtime::traits::{BadOrigin, BlockNumberProvider};
 
-use crate::mock::{new_test_ext, RuntimeOrigin, PDEXMigration, Test, PDEX};
+use crate::mock::{new_test_ext, PDEXMigration, RuntimeOrigin, Test, PDEX};
 
 use crate::pallet::*;
 
@@ -165,19 +165,34 @@ pub fn mint_works() {
 		assert!(!EthTxns::<Test>::get(eth_hash).approvers.contains(&relayer));
 		// Check if operational flag is working
 		assert_noop!(
-			PDEXMigration::mint(RuntimeOrigin::signed(relayer), beneficiary, valid_amount, eth_hash),
+			PDEXMigration::mint(
+				RuntimeOrigin::signed(relayer),
+				beneficiary,
+				valid_amount,
+				eth_hash
+			),
 			Error::<Test>::NotOperational,
 		);
 		assert_ok!(PDEXMigration::set_migration_operational_status(RuntimeOrigin::root(), true));
 		// Check if only registered relayers can call the mint function
 		assert_noop!(
-			PDEXMigration::mint(RuntimeOrigin::signed(non_relayer), beneficiary, valid_amount, eth_hash),
+			PDEXMigration::mint(
+				RuntimeOrigin::signed(non_relayer),
+				beneficiary,
+				valid_amount,
+				eth_hash
+			),
 			Error::<Test>::UnknownRelayer,
 		);
 		assert_ok!(PDEXMigration::set_relayer_status(RuntimeOrigin::root(), relayer, true));
 		// Ensure mint function cannot mint more than the amount available for migration
 		assert_noop!(
-			PDEXMigration::mint(RuntimeOrigin::signed(relayer), beneficiary, invalid_amount, eth_hash),
+			PDEXMigration::mint(
+				RuntimeOrigin::signed(relayer),
+				beneficiary,
+				invalid_amount,
+				eth_hash
+			),
 			Error::<Test>::InvalidMintAmount,
 		);
 		// Check if vote for a successful transaction is incremented

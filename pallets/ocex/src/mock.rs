@@ -17,12 +17,11 @@
 
 use crate::*;
 use frame_support::{
+	dispatch::Weight,
 	parameter_types,
-	traits::{ConstU128, ConstU64, OnTimestampSet},
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU64, OnTimestampSet},
 	PalletId,
 };
-use frame_support::dispatch::Weight;
-use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::{EnsureRoot, EnsureSigned};
 use polkadex_primitives::{Moment, Signature};
 use sp_application_crypto::sp_core::H256;

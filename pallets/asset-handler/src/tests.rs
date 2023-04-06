@@ -382,7 +382,13 @@ pub fn test_withdraw_with_not_allowlisted_chain_will_return_chain_is_not_allowli
 	new_test_ext().execute_with(|| {
 		allowlist_token(asset_address);
 		assert_noop!(
-			AssetHandler::withdraw(RuntimeOrigin::signed(sender), chain_id, asset_address, 100, recipient),
+			AssetHandler::withdraw(
+				RuntimeOrigin::signed(sender),
+				chain_id,
+				asset_address,
+				100,
+				recipient
+			),
 			Error::<Test>::ChainIsNotAllowlisted
 		);
 	});
@@ -398,7 +404,13 @@ pub fn test_withdraw_on_not_registered_asset_will_return_not_enough_balance_erro
 		assert_ok!(ChainBridge::allowlist_chain(RuntimeOrigin::signed(1), chain_id));
 
 		assert_noop!(
-			AssetHandler::withdraw(RuntimeOrigin::signed(sender), chain_id, asset_address, 100, recipient),
+			AssetHandler::withdraw(
+				RuntimeOrigin::signed(sender),
+				chain_id,
+				asset_address,
+				100,
+				recipient
+			),
 			Error::<Test>::NotEnoughBalance
 		);
 	});
@@ -415,7 +427,13 @@ pub fn test_withdraw_with_disabled_bridge_will_return_bridge_error() {
 		<BridgeDeactivated<Test>>::put(true);
 		assert!(<BridgeDeactivated<Test>>::get());
 		assert_noop!(
-			AssetHandler::withdraw(RuntimeOrigin::signed(sender), chain_id, asset_address, 100, recipient),
+			AssetHandler::withdraw(
+				RuntimeOrigin::signed(sender),
+				chain_id,
+				asset_address,
+				100,
+				recipient
+			),
 			Error::<Test>::BridgeDeactivated
 		);
 	});
@@ -437,7 +455,12 @@ pub fn test_withdraw_with_sender_not_enough_balance_will_return_not_enough_balan
 		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_ok!(Assets::mint(RuntimeOrigin::signed(ChainBridge::account_id()), asset_id.into(), sender, 100));
+		assert_ok!(Assets::mint(
+			RuntimeOrigin::signed(ChainBridge::account_id()),
+			asset_id.into(),
+			sender,
+			100
+		));
 
 		assert_noop!(
 			AssetHandler::withdraw(
@@ -469,7 +492,12 @@ pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insuffic
 		));
 		let rid = chainbridge::derive_resource_id(chain_id, &asset_address.0);
 		let asset_id = AssetHandler::convert_asset_id(rid);
-		assert_ok!(Assets::mint(RuntimeOrigin::signed(ChainBridge::account_id()), asset_id.into(), sender, 1000));
+		assert_ok!(Assets::mint(
+			RuntimeOrigin::signed(ChainBridge::account_id()),
+			asset_id.into(),
+			sender,
+			1000
+		));
 
 		assert_ok!(AssetHandler::withdraw(
 			RuntimeOrigin::signed(sender),
@@ -481,7 +509,13 @@ pub fn test_withdraw_with_sender_not_enough_balance_for_fee_will_return_insuffic
 
 		assert_ok!(AssetHandler::update_fee(RuntimeOrigin::signed(1), chain_id, 10, 100));
 		assert_noop!(
-			AssetHandler::withdraw(RuntimeOrigin::signed(sender), chain_id, asset_address, 10, recipient),
+			AssetHandler::withdraw(
+				RuntimeOrigin::signed(sender),
+				chain_id,
+				asset_address,
+				10,
+				recipient
+			),
 			pallet_balances::Error::<Test>::InsufficientBalance
 		);
 	});
@@ -544,7 +578,12 @@ pub fn test_account_balances() {
 		assert_eq!(balances_vec.len(), 1);
 		assert_eq!(balances_vec[0], 0_u128);
 
-		assert_ok!(Assets::mint(RuntimeOrigin::signed(ChainBridge::account_id()), asset_id.into(), 1_u64, 100));
+		assert_ok!(Assets::mint(
+			RuntimeOrigin::signed(ChainBridge::account_id()),
+			asset_id.into(),
+			1_u64,
+			100
+		));
 		assert_eq!(Assets::balance(asset_id, 1_u64), 100);
 
 		// Check Balances now using helper function for different assset_ids

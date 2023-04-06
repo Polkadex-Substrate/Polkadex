@@ -12,8 +12,7 @@ use sp_runtime::{
 };
 use sp_std::convert::{TryFrom, TryInto};
 
-use frame_support::PalletId;
-use frame_support::traits::AsEnsureOriginWithArg;
+use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
 use frame_system::{EnsureRoot, EnsureSigned};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;

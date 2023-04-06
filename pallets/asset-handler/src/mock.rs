@@ -26,8 +26,7 @@ use sp_runtime::{
 
 use crate::pallet as asset_handler;
 
-use frame_support::PalletId;
-use frame_support::traits::AsEnsureOriginWithArg;
+use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
