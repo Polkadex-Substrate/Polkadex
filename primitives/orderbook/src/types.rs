@@ -413,25 +413,25 @@ pub struct Order {
 	pub quote_order_qty: Decimal,
 	pub timestamp: i64,
 	pub overall_unreserved_volume: Decimal,
-	pub signature: Signature
+	pub signature: Signature,
 }
 
 #[cfg(feature = "std")]
 impl Order {
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
-			self.price >= config.min_price &&
-				self.price <= config.max_price &&
-				self.qty >= config.min_qty &&
-				self.qty <= config.max_qty &&
-				self.pair.base == config.base_asset &&
-				self.pair.quote == config.quote_asset &&
-				self.price.rem(config.price_tick_size).is_zero() &&
-				self.qty.rem(config.qty_step_size).is_zero()
+		self.price >= config.min_price &&
+			self.price <= config.max_price &&
+			self.qty >= config.min_qty &&
+			self.qty <= config.max_qty &&
+			self.pair.base == config.base_asset &&
+			self.pair.quote == config.quote_asset &&
+			self.price.rem(config.price_tick_size).is_zero() &&
+			self.qty.rem(config.qty_step_size).is_zero()
 	}
 
 	pub fn verify_signature(&self) -> bool {
 		let payload: OrderPayload = self.clone().into();
-		self.signature.verify(&payload.encode()[..],&self.user)
+		self.signature.verify(&payload.encode()[..], &self.user)
 	}
 }
 
@@ -588,7 +588,7 @@ impl Order {
 			quote_order_qty: Decimal::zero(),
 			timestamp: 1,
 			overall_unreserved_volume: Decimal::zero(),
-			signature: Signature::Sr25519(sp_core::sr25519::Signature::from_raw([0;64])),
+			signature: Signature::Sr25519(sp_core::sr25519::Signature::from_raw([0; 64])),
 		}
 	}
 }
@@ -602,7 +602,7 @@ pub fn rounding_off(a: Decimal) -> Decimal {
 #[cfg(feature = "std")]
 pub struct OrderDetails {
 	payload: OrderPayload,
-	signature: Signature
+	signature: Signature,
 }
 
 #[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -624,7 +624,7 @@ pub struct OrderPayload {
 #[cfg(feature = "std")]
 impl From<Order> for OrderPayload {
 	fn from(value: Order) -> Self {
-		Self{
+		Self {
 			client_order_id: value.client_order_id,
 			user: value.user,
 			main_account: value.main_account,
@@ -671,11 +671,14 @@ impl TryFrom<OrderDetails> for Order {
 										signature: details.signature,
 									})
 								} else {
-									Err(anyhow::Error::msg("Not able to to parse trading pair".to_string()))
+									Err(anyhow::Error::msg(
+										"Not able to to parse trading pair".to_string(),
+									))
 								}
 							} else {
 								Err(anyhow::Error::msg(
-									"Quote order quantity couldn't be parsed to decimal".to_string(),
+									"Quote order quantity couldn't be parsed to decimal"
+										.to_string(),
 								))
 							}
 						} else {
@@ -684,13 +687,15 @@ impl TryFrom<OrderDetails> for Order {
 							))
 						}
 					} else {
-						Err(anyhow::Error::msg("Price couldn't be converted to decimal".to_string()))
+						Err(anyhow::Error::msg(
+							"Price couldn't be converted to decimal".to_string(),
+						))
 					}
 				} else {
 					Err(anyhow::Error::msg("Qty couldn't be converted to decimal".to_string()))
-				};
+				}
 			}
-			return Err(anyhow::Error::msg("Price couldn't be parsed".to_string()));
+			return Err(anyhow::Error::msg("Price couldn't be parsed".to_string()))
 		}
 		Err(anyhow::Error::msg(format!("Qty couldn't be parsed {}", payload.qty)))
 	}
