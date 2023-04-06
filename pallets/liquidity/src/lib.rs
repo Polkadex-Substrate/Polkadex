@@ -21,12 +21,11 @@ use frame_support::{dispatch::DispatchResult, traits::Currency};
 use pallet_timestamp::{self as timestamp};
 use sp_std::prelude::*;
 
-// ToDo: Issue 682
-// #[cfg(test)]
-// mod tests;
-//
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;

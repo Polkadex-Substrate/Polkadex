@@ -13,7 +13,8 @@ use sp_runtime::{
 use sp_std::convert::{TryFrom, TryInto};
 
 use frame_support::PalletId;
-use frame_system::EnsureRoot;
+use frame_support::traits::AsEnsureOriginWithArg;
+use frame_system::{EnsureRoot, EnsureSigned};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -43,9 +44,8 @@ impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -53,8 +53,9 @@ impl system::Config for Test {
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
+	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
@@ -77,7 +78,7 @@ parameter_types! {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type MaxLocks = MaxLocks;
@@ -95,10 +96,13 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = u128;
+	type RemoveItemsLimit = ();
 	type AssetId = u128;
+	type AssetIdParameter = parity_scale_codec::Compact<u128>;
 	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<sp_runtime::AccountId32>>;
 	type ForceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
@@ -108,6 +112,7 @@ impl pallet_assets::Config for Test {
 	type StringLimit = StringLimit;
 	type Freezer = ();
 	type Extra = ();
+	type CallbackHandle = ();
 	type WeightInfo = ();
 }
 
@@ -128,13 +133,12 @@ parameter_types! {
 }
 
 impl rewards::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type PalletId = RewardsPalletId;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type NativeCurrency = Balances;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
-	type WeightInfo = weights::WeightInfo<Test>;
 }
 
 impl pallet_timestamp::Config for Test {
