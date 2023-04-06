@@ -92,6 +92,7 @@ use frame_support::weights::{
 	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee, WeightToFeeCoefficients,
 	WeightToFeePolynomial,
 };
+use pallet_assets::BenchmarkHelper;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1152,6 +1153,16 @@ impl pallet_assets::Config for Runtime {
 	type Extra = ();
 	type CallbackHandle = ();
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = assetU128;
+}
+#[cfg(feature = "runtime-benchmarks")]
+pub struct assetU128;
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for assetU128 {
+	fn create_asset_id_parameter(id: u32) -> parity_scale_codec::Compact<u128> {
+		parity_scale_codec::Compact::from(id as u128)
+	}
 }
 
 parameter_types! {
