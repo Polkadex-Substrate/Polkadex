@@ -50,7 +50,6 @@ mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-pub mod weights;
 
 mod crowdloan_rewardees;
 
@@ -72,11 +71,6 @@ pub mod pallet {
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 	use sp_std::cmp::min;
 
-	pub trait RewardsWeightInfo {
-		fn create_reward_cycle(_b: u32, _i: u32, _r: u32) -> Weight;
-		fn initialize_claim_rewards() -> Weight;
-		fn claim() -> Weight;
-	}
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
@@ -85,7 +79,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + timestamp::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Address which holds the customer funds.
 		#[pallet::constant]
@@ -113,9 +107,7 @@ pub mod pallet {
 			+ scale_info::TypeInfo;
 
 		/// Governance Origin
-		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
-
-		type WeightInfo: RewardsWeightInfo;
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -134,7 +126,8 @@ pub mod pallet {
 		/// * `end_block`: The block at which last rewards will be distributed
 		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block
 		/// * `reward_id`: The reward id
-		#[pallet::weight(<T as Config>::WeightInfo::create_reward_cycle(1,1,1))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(0)]
 		pub fn create_reward_cycle(
 			origin: OriginFor<T>,
 			start_block: T::BlockNumber,
@@ -171,7 +164,8 @@ pub mod pallet {
 		/// # Parameters,
 		/// * `origin`: The users address which has been mapped to reward id
 		/// * `reward_id`: Reward id
-		#[pallet::weight(<T as Config>::WeightInfo::initialize_claim_rewards())]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(1)]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 
@@ -255,7 +249,8 @@ pub mod pallet {
 		/// # Parameters
 		/// * `origin`: The users address which has been mapped to reward id
 		/// * `id`: The reward id
-		#[pallet::weight(<T as Config>::WeightInfo::claim())]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(2)]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 

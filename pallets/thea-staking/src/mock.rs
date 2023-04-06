@@ -111,7 +111,7 @@ parameter_types! {
 }
 
 impl thea_staking::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type SessionLength = SessionLength;
 	type UnbondingDelay = UnbondingDelay;
 	type MaxUnlockChunks = MaxUnlockChunks;
@@ -127,7 +127,6 @@ impl thea_staking::Config for Test {
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type Currency = Balances;
-	type WeightInfo = crate::weight::StakeWeightInfo<Test>;
 }
 
 pub struct MockPallet(PhantomData<u32>);

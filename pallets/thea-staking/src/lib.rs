@@ -50,7 +50,6 @@ mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
-pub mod weight;
 
 #[derive(Debug, Encode, Decode, Clone, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct EraRewardPointTracker<Account> {
@@ -78,23 +77,10 @@ pub mod pallet {
 	use polkadex_primitives::misbehavior::TheaMisbehavior;
 	use scale_info::prelude::string::String;
 	use sp_runtime::traits::Zero;
+	use sp_staking::Stake;
 	use sp_std::vec;
 	// Import various types used to declare pallet in scope.
 	use super::*;
-
-	pub trait TheaStakingWeightInfo {
-		fn set_staking_limits(a: u32, _m: u32) -> Weight;
-		fn add_candidate(_a: u32, b: u32, _m: u32) -> Weight;
-		fn nominate(_m: u32, k: u32, _x: u32) -> Weight;
-		fn bond(_m: u32, k: u32, x: u32) -> Weight;
-		fn unbond(_m: u32, k: u32, _x: u32) -> Weight;
-		fn withdraw_unbonded(_m: u32, _k: u32, _x: u32) -> Weight;
-		fn remove_candidate(_m: u32, _k: u32) -> Weight;
-		fn add_network(_n: u32) -> Weight;
-		fn remove_network(_n: u32) -> Weight;
-		fn report_offence(_n: u32) -> Weight;
-		fn stakers_payout(_k: u32, _m: u32, _x: u32) -> Weight;
-	}
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -104,7 +90,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: pallet_balances::Config + frame_system::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Staking Session length
 		#[pallet::constant]
@@ -162,16 +148,13 @@ pub mod pallet {
 		>;
 
 		/// Governance origin to update the thea staking configuration
-		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		// Era Payout for set of Relayers
 		type EraPayout: EraPayout<BalanceOf<Self>>;
 
 		/// Native Currency handler
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
-
-		/// Type representing the weight of this pallet
-		type WeightInfo: TheaStakingWeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -192,7 +175,7 @@ pub mod pallet {
 			if Self::should_end_session(current_block_num) {
 				Self::rotate_session();
 				Self::end_of_era();
-				T::BlockWeights::get().max_block
+				Weight::default() // TODO: Fix this weight
 			} else {
 				// NOTE: the non-database part of the weight for `should_end_session(n)` is
 				// included as weight for empty block, the database part is expected to be in
@@ -212,8 +195,8 @@ pub mod pallet {
 		///
 		/// * `origin`: Root User
 		/// * `staking_limit`: Limits of Staking algorithm.
+		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_staking_limits(1, 1))]
 		pub fn set_staking_limits(
 			origin: OriginFor<T>,
 			staking_limits: StakingLimits<BalanceOf<T>>,
@@ -230,7 +213,7 @@ pub mod pallet {
 		/// * `network`: Network for which User wants to apply for candidature.
 		/// * `bls_key`: BLS Key of Candidate.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_candidate(1, 1, 1))]
+		#[pallet::weight(Weight::default())]
 		pub fn add_candidate(
 			origin: OriginFor<T>,
 			network: Network,
@@ -266,7 +249,7 @@ pub mod pallet {
 		///
 		/// * `candidate`: Candidate to be nominated.
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::nominate(1, 1, 1))]
+		#[pallet::weight(Weight::default())]
 		pub fn nominate(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 			Self::do_nominate(nominator, candidate)?;
@@ -280,7 +263,7 @@ pub mod pallet {
 		/// `amount`: Amount to be locked.
 		/// `candidate`: Relayer account backed up by this nominator
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::bond(1, 1, 1))]
+		#[pallet::weight(Weight::default())]
 		pub fn bond(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
@@ -315,7 +298,7 @@ pub mod pallet {
 		///
 		/// `amount`: Amount which User wants to Unbond.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::unbond(1, 1, 1))]
+		#[pallet::weight(Weight::default())]
 		pub fn unbond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 			Self::do_unbond(nominator, amount)?;
@@ -324,7 +307,7 @@ pub mod pallet {
 
 		/// Withdraws Unlocked funds
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_unbonded(1, 1, 1))]
+		#[pallet::weight(Weight::default())]
 		pub fn withdraw_unbonded(origin: OriginFor<T>) -> DispatchResult {
 			let nominator = ensure_signed(origin)?;
 
@@ -340,7 +323,7 @@ pub mod pallet {
 		///
 		/// `network`: Network from which Candidate will be removed.
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_candidate(1, 1))]
+		#[pallet::weight(Weight::default())]
 		pub fn remove_candidate(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			let candidate = ensure_signed(origin)?;
 
@@ -358,7 +341,7 @@ pub mod pallet {
 		///
 		/// `network`: Network identifier to add
 		#[pallet::call_index(7)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_network(1))]
+		#[pallet::weight(Weight::default())]
 		pub fn add_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			Self::do_add_new_network(network);
@@ -372,7 +355,7 @@ pub mod pallet {
 		///
 		/// `network`: Network identifier to add
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_network(1))]
+		#[pallet::weight(Weight::default())]
 		pub fn remove_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			Self::do_remove_network(network);
@@ -389,7 +372,7 @@ pub mod pallet {
 		/// * offender - ID of relayer commited ofence
 		/// * offence - type of registere ofence
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as Config>::WeightInfo::report_offence(1))]
+		#[pallet::weight(Weight::default())]
 		pub fn report_offence(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -467,7 +450,7 @@ pub mod pallet {
 		///
 		/// `session`: SessionIndex of the Session to be paid out for
 		#[pallet::call_index(10)]
-		#[pallet::weight(<T as Config>::WeightInfo::stakers_payout(1, 1, 1))]
+		#[pallet::weight(Weight::default())]
 		pub fn stakers_payout(origin: OriginFor<T>, session: SessionIndex) -> DispatchResult {
 			let staker = ensure_signed(origin)?;
 			Self::do_stakers_payout(staker.clone(), session)?;
@@ -1239,85 +1222,139 @@ pub mod pallet {
 	}
 
 	/// Staking Interface is required to Nomination Pools pallet to work
+	/// TODO: The staking interface is changed drastically in polkadot-v0.9.37, we need to reimplement it.
 	impl<T: Config> StakingInterface for Pallet<T> {
 		type Balance = T::Balance;
 		type AccountId = T::AccountId;
 
-		fn minimum_bond() -> Self::Balance {
+		fn minimum_nominator_bond() -> Self::Balance {
 			T::CandidateBond::get()
+		}
+
+		fn minimum_validator_bond() -> Self::Balance {
+			todo!()
+		}
+
+		// fn active_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
+		// 	if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
+		// 		return Some(individual_exposure.value)
+		// 	}
+		// 	None
+		// }
+
+		// fn total_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
+		// 	if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
+		// 		let mut total: BalanceOf<T> = individual_exposure.value;
+		// 		for chunk in individual_exposure.unlocking {
+		// 			total = total.saturating_add(chunk.value)
+		// 		}
+		// 		return Some(total)
+		// 	}
+		// 	None
+		// }
+
+		fn stash_by_ctrl(controller: &Self::AccountId) -> Result<Self::AccountId, DispatchError> {
+			todo!()
 		}
 
 		fn bonding_duration() -> EraIndex {
 			T::UnbondingDelay::get()
 		}
 
+		// fn unbond(stash: Self::AccountId, value: Self::Balance) -> DispatchResult {
+		// 	Pallet::<T>::do_unbond(stash, value)?;
+		// 	Ok(())
+		// }
+
+		// fn withdraw_unbonded(
+		// 	stash: Self::AccountId,
+		// 	_num_slashing_spans: u32,
+		// ) -> Result<bool, DispatchError> {
+		// 	// TODO: Figure out whether it is right to return false.
+		// 	Pallet::<T>::do_withdraw_unbonded(stash)?;
+		// 	Ok(false)
+		// }
+
 		fn current_era() -> EraIndex {
 			<CurrentIndex<T>>::get()
 		}
 
-		fn active_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
-			if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
-				return Some(individual_exposure.value)
-			}
-			None
+		fn stake(who: &Self::AccountId) -> Result<Stake<Self>, DispatchError> {
+			todo!()
 		}
 
-		fn total_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
-			if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
-				let mut total: BalanceOf<T> = individual_exposure.value;
-				for chunk in individual_exposure.unlocking {
-					total = total.saturating_add(chunk.value)
-				}
-				return Some(total)
-			}
-			None
+		fn total_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
+			todo!()
 		}
 
-		fn bond(
-			stash: Self::AccountId,
-			controller: Self::AccountId,
-			value: Self::Balance,
+		fn active_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
+			todo!()
+		}
 
-			_payee: Self::AccountId,
-		) -> DispatchResult {
-			ensure!(stash == controller, Error::<T>::StashAndControllerMustBeSame);
-			Pallet::<T>::do_bond(stash, value)?;
-			Ok(())
+		fn is_unbonding(who: &Self::AccountId) -> Result<bool, DispatchError> {
+			todo!()
+		}
+
+		fn fully_unbond(who: &Self::AccountId) -> sp_runtime::DispatchResult {
+			todo!()
+		}
+
+		fn bond(who: &Self::AccountId, value: Self::Balance, payee: &Self::AccountId) -> sp_runtime::DispatchResult {
+			todo!()
+		}
+
+		fn nominate(who: &Self::AccountId, validators: Vec<Self::AccountId>) -> sp_runtime::DispatchResult {
+			todo!()
 		}
 
 		/// NOTE: Thea staking doesnt have the concept of controller-stash pair.
 		/// So controller and stash should be same.
-		fn nominate(
-			controller: Self::AccountId,
-			validators: Vec<Self::AccountId>,
-		) -> DispatchResult {
-			ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
-			Pallet::<T>::do_nominate(controller, validators[0].clone())?;
-			Ok(())
-		}
+		// fn nominate(
+		// 	controller: Self::AccountId,
+		// 	validators: Vec<Self::AccountId>,
+		// ) -> DispatchResult {
+		// 	ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
+		// 	Pallet::<T>::do_nominate(controller, validators[0].clone())?;
+		// 	Ok(())
+		// }
 
-		fn chill(_controller: Self::AccountId) -> DispatchResult {
+		fn chill(_controller: &Self::AccountId) -> DispatchResult {
 			// There is no concept of chill in Thea Staking.
 			Ok(())
 		}
 
-		fn bond_extra(stash: Self::AccountId, extra: Self::Balance) -> DispatchResult {
-			Pallet::<T>::do_bond(stash, extra)?;
-			Ok(())
+		fn bond_extra(stash: &Self::AccountId, extra: Self::Balance) -> DispatchResult {
+			todo!()
 		}
 
-		fn unbond(stash: Self::AccountId, value: Self::Balance) -> DispatchResult {
-			Pallet::<T>::do_unbond(stash, value)?;
-			Ok(())
+		fn unbond(stash: &Self::AccountId, value: Self::Balance) -> sp_runtime::DispatchResult {
+			todo!()
 		}
 
-		fn withdraw_unbonded(
-			stash: Self::AccountId,
-			_num_slashing_spans: u32,
-		) -> Result<bool, DispatchError> {
-			// TODO: Figure out whether it is right to return false.
-			Pallet::<T>::do_withdraw_unbonded(stash)?;
-			Ok(false)
+		fn withdraw_unbonded(stash: Self::AccountId, num_slashing_spans: u32) -> Result<bool, DispatchError> {
+			todo!()
 		}
+
+		fn desired_validator_count() -> u32 {
+			todo!()
+		}
+
+		fn election_ongoing() -> bool {
+			todo!()
+		}
+
+		fn force_unstake(who: Self::AccountId) -> sp_runtime::DispatchResult {
+			todo!()
+		}
+
+		fn is_exposed_in_era(who: &Self::AccountId, era: &EraIndex) -> bool {
+			todo!()
+		}
+
+		// fn bond(who: &Self::AccountId, value: Self::Balance, payee: &Self::AccountId) -> sp_runtime::DispatchResult {
+		// 	ensure!(who == payee, Error::<T>::StashAndControllerMustBeSame);
+		// 	Pallet::<T>::do_bond(payee, value)?;
+		// 	Ok(())
+		// }
 	}
 }
