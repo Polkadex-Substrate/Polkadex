@@ -25,7 +25,6 @@ use serde::Deserializer;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize, Serializer};
 use sp_core::RuntimeDebug;
-use sp_std::fmt::{Display, Formatter};
 
 /// Enumerated asset on chain
 #[derive(
