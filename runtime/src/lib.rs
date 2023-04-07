@@ -1316,6 +1316,7 @@ impl liquidity::Config for Runtime {
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type CallOcex = OCEX;
+	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {

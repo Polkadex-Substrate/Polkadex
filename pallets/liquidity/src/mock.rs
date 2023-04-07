@@ -205,6 +205,7 @@ impl Config for Test {
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRoot<AccountId>;
 	type CallOcex = OCEX;
+	type WeightInfo = super::weights::WeightInfo<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

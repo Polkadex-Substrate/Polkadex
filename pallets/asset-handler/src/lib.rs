@@ -49,8 +49,8 @@ use xcm::latest::AssetId;
 
 pub trait WeightInfo {
 	fn create_asset(_b: u32) -> Weight;
-	fn create_thea_asset(_b: u32) -> Weight;
-	fn create_parachain_asset(_b: u32) -> Weight;
+	fn create_thea_asset() -> Weight;
+	fn create_parachain_asset() -> Weight;
 	fn mint_asset(_b: u32) -> Weight;
 	fn set_bridge_status() -> Weight;
 	fn set_block_delay() -> Weight;
@@ -58,7 +58,7 @@ pub trait WeightInfo {
 	fn withdraw(_b: u32, c: u32) -> Weight;
 	fn allowlist_token(b: u32) -> Weight;
 	fn remove_allowlisted_token(b: u32) -> Weight;
-	fn add_precision() -> Weight;
+	fn add_precision(_b: u32) -> Weight;
 }
 
 #[frame_support::pallet]
@@ -343,7 +343,7 @@ pub mod pallet {
 		/// * `identifier_length`: Length of asset identifier length
 		/// * `asset_identifier`: Identifier for a given asset
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_thea_asset(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::create_thea_asset())]
 		pub fn create_thea_asset(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -383,7 +383,7 @@ pub mod pallet {
 		///
 		/// * `asset`: Parachain Asset
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_parachain_asset(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::create_parachain_asset())]
 		pub fn create_parachain_asset(
 			origin: OriginFor<T>,
 			asset: sp_std::boxed::Box<AssetId>,
@@ -593,7 +593,7 @@ pub mod pallet {
 
 		/// Remove allowlisted tokens
 		#[pallet::call_index(10)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_precision())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_precision(1))]
 		pub fn add_precision(
 			origin: OriginFor<T>,
 			rid: ResourceId,
