@@ -8,17 +8,16 @@ pub fn set_bit_field(input: &mut Vec<u128>, bit_index: u16) {
 	}
 	let element: usize = required_elements.saturating_sub(1) as usize;
 	if element != 0 {
-		input[element] = input[element] | (1 << (bit_index % (128 * element as u16)));
+		input[element] |= 1 << (bit_index % (128 * element as u16));
 	} else {
-		input[element] = input[element] | (1 << (bit_index % 128));
+		input[element] |= 1 << (bit_index % 128);
 	}
 }
 
-pub fn return_set_bits(input: &Vec<u128>) -> Vec<u16> {
+pub fn return_set_bits(input: &[u128]) -> Vec<u16> {
 	let mut set_bits: Vec<u16> = Vec::new();
 
-	for element_index in 0..input.len() {
-		let element = input[element_index];
+	for (element_index, element) in input.iter().enumerate() {
 		for bit_index in 0..128u16 {
 			if (element & (1 << bit_index)) == (1 << bit_index) {
 				set_bits.push(bit_index.saturating_add((element_index * 128) as u16));

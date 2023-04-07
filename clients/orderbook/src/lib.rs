@@ -40,7 +40,7 @@ pub(crate) mod orderbook_protocol_name {
 	/// Must be registered towards the networking in order for BEEFY to properly function.
 	pub fn standard_name<Hash: AsRef<[u8]>>(
 		genesis_hash: &Hash,
-		chain_spec: &Box<dyn ChainSpec>,
+		chain_spec: &dyn ChainSpec,
 	) -> std::borrow::Cow<'static, str> {
 		let chain_prefix = match chain_spec.fork_id() {
 			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),

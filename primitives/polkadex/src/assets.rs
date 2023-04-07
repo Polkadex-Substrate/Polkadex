@@ -88,8 +88,8 @@ impl<'de> Visitor<'de> for AssetId {
 		// While there are entries remaining in the input, add them
 		// into our map.
 		while let Some((key, mut value)) = access.next_entry::<String, String>()? {
-			if key == String::from("asset") {
-				return if value == String::from("PDEX") {
+			if key == *"asset" {
+				return if value == *"PDEX" {
 					Ok(AssetId::Polkadex)
 				} else {
 					// Check if its hex or not
@@ -124,9 +124,10 @@ impl TryFrom<String> for AssetId {
 
 		match value.parse::<u128>() {
 			Ok(id) => Ok(AssetId::Asset(id)),
-			Err(_) => Err(anyhow::Error::msg::<String>(
-				format!("Could not parse 'AssetId' from {}", value).into(),
-			)),
+			Err(_) => Err(anyhow::Error::msg::<String>(format!(
+				"Could not parse 'AssetId' from {}",
+				value
+			))),
 		}
 	}
 }

@@ -136,7 +136,7 @@ pub mod pallet {
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Entering validate unsigned....");
 			match call {
-				Call::submit_snapshot { summary } => Self::validate_snapshot(&summary),
+				Call::submit_snapshot { summary } => Self::validate_snapshot(summary),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -970,11 +970,11 @@ pub mod pallet {
 					Some(mut stored_summary) => {
 						if let Some(signature) = summary.aggregate_signature {
 							// Aggregrate the signature
-							if let Err(_) = stored_summary.add_signature(signature) {
+							if stored_summary.add_signature(signature).is_err() {
 								return Err(Error::<T>::InvalidSignatureAggregation.into())
 							}
 							// update the bitfield
-							let auth_index = match summary.signed_auth_indexes().get(0) {
+							let auth_index = match summary.signed_auth_indexes().first() {
 								Some(index) => *index,
 								None => return Err(Error::<T>::SignerIndexNotFound.into()),
 							};
@@ -1009,7 +1009,7 @@ pub mod pallet {
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
 				let withdrawal_map =
 					Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
-				if working_summary.withdrawals.len() > 0 {
+				if !working_summary.withdrawals.is_empty() {
 					// TODO: We can't use ensure after storages are modified.
 					ensure!(
 						<OnChainEvents<T>>::try_mutate(|onchain_events| {
@@ -1428,7 +1428,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		// Get authority from active set
 		// index is zero because we are signing only with one authority
 		// when submitting snapshot
-		let auth_idx = match snapshot_summary.signed_auth_indexes().get(0) {
+		let auth_idx = match snapshot_summary.signed_auth_indexes().first() {
 			Some(idx) => *idx,
 			None => return InvalidTransaction::BadSigner.into(),
 		};
@@ -1464,6 +1464,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		<IngressMessages<T>>::get()
 	}
 
+	#[allow(clippy::result_unit_err)]
 	pub fn submit_snapshot_api(summary: SnapshotSummary) -> Result<(), ()> {
 		let call = Call::<T>::submit_snapshot { summary };
 		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
@@ -1501,10 +1502,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	///
 	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.
 	pub fn get_allowlisted_assets() -> Vec<AssetId> {
-		<AllowlistedToken<T>>::get()
-			.iter()
-			.map(|asset_id| (asset_id.clone()))
-			.collect::<Vec<AssetId>>()
+		<AllowlistedToken<T>>::get().iter().copied().collect::<Vec<AssetId>>()
 	}
 
 	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {

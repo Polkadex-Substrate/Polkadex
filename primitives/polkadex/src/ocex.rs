@@ -20,14 +20,14 @@ pub struct AccountInfo<Account, ProxyLimit: Get<u32>> {
 }
 impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
 	pub fn maker_fee_fraction(&self) -> Decimal {
-		self.fee_config.maker_fraction.clone()
+		self.fee_config.maker_fraction
 	}
 	pub fn taker_fee_fraction(&self) -> Decimal {
-		self.fee_config.taker_fraction.clone()
+		self.fee_config.taker_fraction
 	}
 }
 
-impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
+impl<Account: PartialEq + Clone, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
 	pub fn new(main_account_id: Account) -> AccountInfo<Account, ProxyLimit> {
 		let proxies = BoundedVec::default();
 		AccountInfo {
@@ -39,8 +39,11 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 	}
 
 	// Adds a new proxy account
-	pub fn add_proxy(&mut self, proxy: Account) -> Result<(), ()> {
-		self.proxies.try_push(proxy)
+	pub fn add_proxy(&mut self, proxy: Account) -> Result<(), Account> {
+		if let Err(()) = self.proxies.try_push(proxy.clone()) {
+			return Err(proxy)
+		}
+		Ok(())
 	}
 
 	// Removes a proxy account
