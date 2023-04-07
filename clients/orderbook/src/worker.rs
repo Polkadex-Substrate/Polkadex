@@ -64,7 +64,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub sync_oracle: SO,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
-	pub message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
+	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
@@ -98,7 +98,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	pending_withdrawals: Vec<Withdrawal<AccountId>>,
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
-	message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
+	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
 	// In memory store
 	pub memory_db: DbRef,
@@ -464,16 +464,13 @@ where
 		Ok(())
 	}
 
-	pub async fn process_new_user_action(
-		&mut self,
-		action: &ObMessage,
-		signature: &sp_core::ecdsa::Signature,
-	) -> Result<(), Error> {
+	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		if let Some(expected_singer) = self.orderbook_operator_public_key {
-			if !signature.verify(Encode::encode(action).as_ref(), &expected_singer) {
+			if !action.verify(&expected_singer) {
 				return Err(Error::SignatureVerificationFailed)
 			}
 		} else {
+			warn!(target: "orderbook", "📒 Orderbook operator public key not set");
 			return Err(Error::SignatureVerificationFailed)
 		}
 		info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
@@ -781,8 +778,7 @@ where
 		match message {
 			GossipMessage::WantStid(from, to) => self.want_stid(from, to, remote),
 			GossipMessage::Stid(messages) => self.got_stids_via_gossip(messages).await?,
-			GossipMessage::ObMessage(msg, signature) =>
-				self.process_new_user_action(msg, signature).await?,
+			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
 			GossipMessage::Want(snap_id, bitmap) => self.want(snap_id, bitmap, remote).await,
 			GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote).await,
 			GossipMessage::RequestChunk(snap_id, bitmap) =>
@@ -1125,8 +1121,8 @@ where
 					}
 				},
 				message = self.message_sender_link.next() => {
-					if let Some((message, signature)) = message {
-						if let Err(err) = self.process_new_user_action(&message, &signature).await {
+					if let Some(message) = message {
+						if let Err(err) = self.process_new_user_action(&message).await {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					}else{

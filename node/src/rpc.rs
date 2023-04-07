@@ -100,7 +100,7 @@ pub struct FullDeps<C, P, SC, B> {
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
 	/// Channel for sending ob messages to worker
-	pub orderbook: UnboundedSender<(ObMessage, sp_core::ecdsa::Signature)>,
+	pub orderbook: UnboundedSender<ObMessage>,
 	/// last successful block number snapshot created
 	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 	/// memory db
