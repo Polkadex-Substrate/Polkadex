@@ -119,7 +119,7 @@ sc-cli = {  git = "https://github.com/paritytech/substrate",branch = "polkadot-v
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sc-service = {  git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", default-features = false }
+sc-service = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.28", default-features = false }
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -144,8 +144,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-nomination-pools = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, package="sp-finality-grandpa" }
-polkadex-primitives = { path="primitives/polkadex", default-features = false }
+polkadex-primitives = { path = "primitives/polkadex", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28", default-features = false }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.28" }
-#node-executor = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, features = ["wasmtime"] }

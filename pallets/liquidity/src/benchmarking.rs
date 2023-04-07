@@ -54,7 +54,7 @@ benchmarks! {
 		let z in 10..u32::MAX;
 
 		let origin = T::GovernanceOrigin::successful_origin();
-		let asset = AssetId::asset(a.into());
+		let asset = AssetId::Asset(a.into());
 		let amount = BalanceOf::<T>::decode(&mut &(z as u128).saturating_mul(4u128).to_le_bytes()[..]).unwrap();
 		let account_generation_key = i as u32;
 		let main_account: T::AccountId  = liquidity::<T>::generate_main_account(account_generation_key).unwrap();
@@ -90,7 +90,7 @@ benchmarks! {
 		let z in 10..u32::MAX;
 
 		let origin = T::GovernanceOrigin::successful_origin();
-		let asset = AssetId::asset(a.into());
+		let asset = AssetId::Asset(a.into());
 		let amount = BalanceOf::<T>::decode(&mut &(z as u128).saturating_mul(4u128).to_le_bytes()[..]).unwrap();
 		let account_generation_key = i as u32;
 		let main_account: T::AccountId  = liquidity::<T>::generate_main_account(account_generation_key).unwrap();

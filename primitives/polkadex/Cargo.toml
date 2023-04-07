@@ -5,7 +5,7 @@ authors = ["Gautham J <Gauthamastro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-primitive-types = {version = "0.12.1", default-features =false, features = ["scale-info"]}
+primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 anyhow = "1.0.56"
 codec = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive","full"] }
 serde = { version = "1.0.136", optional = true }
@@ -15,13 +15,13 @@ sp-core = { default-features = false, git = "https://github.com/paritytech/subst
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
 sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git",  branch = "polkadot-v0.9.28" }
-rust_decimal = {git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch="master", features = ["scale-codec"], default-features = false }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
+rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"], default-features = false }
 
 [dev-dependencies]
 sp-serializer = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 pretty_assertions = "1.2.1"
-serde_json = { version = "1.0.94"}
+serde_json = { version = "1.0.94" }
 
 [features]
 default = ["std"]

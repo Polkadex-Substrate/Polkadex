@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 
-// Copyright (C) 2020-2021 Polkadex oü.
+// Copyright (C) 2020-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@ pub mod fees;
 pub mod ingress;
 pub mod misbehavior;
 pub mod ocex;
-pub mod snapshot;
 pub mod withdrawal;
 
 pub use frame_support::storage::bounded_vec::BoundedVec;
@@ -44,7 +43,7 @@ use sp_runtime::{
 // reexports:
 pub use assets::*;
 
-pub const UNIT_BALANCE: u128 = 1000_000_000_000;
+pub const UNIT_BALANCE: u128 = 1_000_000_000_000;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -85,7 +84,6 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
 
-// TODO: Figure out the actual bound given below
 #[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ProxyLimit;

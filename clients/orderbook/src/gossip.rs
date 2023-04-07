@@ -27,7 +27,7 @@ pub struct GossipValidator<B>
 where
 	B: Block,
 {
-	topic: B::Hash,
+	_topic: B::Hash,
 	last_snapshot: Arc<RwLock<SnapshotSummary>>,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
@@ -39,7 +39,7 @@ where
 {
 	pub fn new(last_snapshot: Arc<RwLock<SnapshotSummary>>) -> GossipValidator<B> {
 		GossipValidator {
-			topic: topic::<B>(),
+			_topic: topic::<B>(),
 			last_snapshot,
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
@@ -64,10 +64,10 @@ where
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
 		match role {
 			ObservedRole::Authority => {
-				self.peers.write().insert(who.clone());
+				self.peers.write().insert(*who);
 			},
 			ObservedRole::Full => {
-				self.fullnodes.write().insert(who.clone());
+				self.fullnodes.write().insert(*who);
 			},
 			_ => {},
 		};

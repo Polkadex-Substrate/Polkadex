@@ -20,6 +20,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+#![deny(unused_crate_dependencies)]
 
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
@@ -57,6 +58,7 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use polkadex_primitives::AssetId;
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
@@ -65,6 +67,7 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
+
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -1356,8 +1359,11 @@ parameter_types! {
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const ModerateSK: u8 = 5; // 5% of stake to slash
+	pub const SevereSK: u8 = 20; // 20% of stake to slash
+	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
+	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-
 }
 
 impl thea_staking::Config for Runtime {
@@ -1368,10 +1374,16 @@ impl thea_staking::Config for Runtime {
 	type CandidateBond = CandidateBond;
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type StakingDataPruneDelay = StakingDataPruneDelay;
+	type ModerateSlashingCoeficient = ModerateSK;
+	type SevereSlashingCoeficient = SevereSK;
+	type ReportersRewardCoeficient = ReporterRewardKF;
+	type SlashingThreshold = SlashingTh;
 	type SessionChangeNotifier = Thea;
+	type TreasuryPalletId = TreasuryPalletId;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
+	type WeightInfo = thea_staking::weight::StakeWeightInfo<Runtime>;
 }
 
 //Install Nomination Pool
@@ -1586,6 +1598,20 @@ impl_runtime_apis! {
 			OCEX::get_all_accounts_and_proxies()
 		}
 
+		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
+			OCEX::get_snapshot_generation_intervals()
+		}
+
+
+		fn get_allowlisted_assets() -> Vec<AssetId> {
+			OCEX::get_allowlisted_assets()
+		}
+
+		fn read_trading_pair_configs() -> Vec<(orderbook_primitives::types::TradingPair, polkadex_primitives::ocex::TradingPairConfig)> {
+			OCEX::read_trading_pair_configs()
+		}
+
+
 		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>{
 			OCEX::get_orderbook_operator_public_key()
 		}
@@ -1762,6 +1788,7 @@ impl_runtime_apis! {
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
+			list_benchmark!(list, extra, thea_staking, TheaStaking);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
@@ -1796,6 +1823,7 @@ impl_runtime_apis! {
 			let params = (&config, &allowlist);
 
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
+			add_benchmark!(params, batches, thea_staking, TheaStaking);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);

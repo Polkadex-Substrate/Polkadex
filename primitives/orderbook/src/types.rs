@@ -1,43 +1,39 @@
 use crate::constants::*;
-use parity_scale_codec::{Codec, Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber, Signature,
 };
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
+
+#[cfg(not(feature = "std"))]
+use sp_std::vec::Vec;
+#[cfg(feature = "std")]
 use std::{
 	borrow::Borrow,
-	collections::HashMap,
 	fmt::{Display, Formatter},
-	ops::Mul,
+	ops::{Mul, Rem},
 	str::FromStr,
 };
 
-use crate::SnapshotSummary;
-
 pub type OrderId = H256;
 
-#[derive(Clone, Debug, Encode, Decode)]
+/// A struct representing the recovery state of an Order Book.
+#[derive(Clone, Debug, Encode, Decode, Default)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct OrderState {
-	pub filled_qty: Decimal,
-	pub required_qty: Decimal,
-}
-
-impl OrderState {
-	pub fn from(order: &Order) -> Self {
-		// TODO: compute correct filled qty
-		Self { filled_qty: order.filled_quantity, required_qty: order.qty }
-	}
-
-	// verify if we can update the order state, with the new state of order.
-	pub fn update(&mut self, order: &Order, price: Decimal, amount: Decimal) -> bool {
-		// Verify signature also here.
-		// TODO: FIX this.
-		true
-	}
+pub struct ObRecoveryState {
+	/// The snapshot ID of the order book recovery state.
+	pub snapshot_id: u64,
+	/// A `BTreeMap` that maps main account to a vector of proxy account.
+	pub account_ids: BTreeMap<AccountId, Vec<AccountId>>,
+	/// A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
+	pub balances: BTreeMap<AccountAsset, Decimal>,
+	/// The last block number that was processed by validator.
+	pub last_processed_block_number: BlockNumber,
+	/// State change id
+	pub state_change_id: u64,
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -53,8 +49,15 @@ pub struct AccountAsset {
 	pub asset: AssetId,
 }
 
+impl AccountAsset {
+	pub fn new(main: AccountId, asset: AssetId) -> Self {
+		AccountAsset { main, asset }
+	}
+}
+
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "std")]
 pub struct Trade {
 	pub maker: Order,
 	pub taker: Order,
@@ -63,6 +66,7 @@ pub struct Trade {
 	pub time: i64,
 }
 
+#[cfg(feature = "std")]
 impl Trade {
 	pub fn credit(&self, maker: bool) -> (AccountAsset, Decimal) {
 		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
@@ -92,21 +96,25 @@ impl Trade {
 }
 #[cfg(feature = "std")]
 use chrono::Utc;
+#[cfg(feature = "std")]
 use libp2p_core::PeerId;
+use rust_decimal::prelude::FromPrimitive;
 
+#[cfg(feature = "std")]
 impl Trade {
 	// Creates a Trade with zero event_tag
-	#[cfg(feature = "std")]
 	pub fn new(maker: Order, taker: Order, price: Decimal, amount: Decimal) -> Trade {
 		Self { maker, taker, price, amount, time: Utc::now().timestamp_millis() }
 	}
 
 	// Verifies the contents of a trade
-	pub fn verify(&self) -> bool {
-		// TODO: Verify the signatures of both orders
-		//  Validity of both orders
-		//
-		todo!()
+	pub fn verify(&self, config: TradingPairConfig) -> bool {
+		// Verify signatures
+		self.maker.verify_signature() &
+		self.taker.verify_signature() &
+			// Verify pair configs
+		self.maker.verify_config(&config) &
+			self.taker.verify_config(&config)
 	}
 }
 
@@ -133,12 +141,14 @@ pub enum GossipMessage {
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "std")]
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg(feature = "std")]
 pub enum StateSyncStatus {
 	Unavailable, // We don't have this chunk yet
 	// (Who is supposed to send us, when we requested)
@@ -148,6 +158,7 @@ pub enum StateSyncStatus {
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "std")]
 pub enum UserActions {
 	Trade(Vec<Trade>),
 	Withdraw(WithdrawalRequest),
@@ -155,8 +166,8 @@ pub enum UserActions {
 	Snapshot,
 }
 
-#[derive(Clone, Debug, Decode, Encode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "std")]
 pub struct WithdrawalRequest {
 	pub signature: Signature,
 	pub payload: WithdrawPayloadCallByUser,
@@ -164,6 +175,7 @@ pub struct WithdrawalRequest {
 	pub proxy: AccountId,
 }
 
+#[cfg(feature = "std")]
 impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
 	type Error = rust_decimal::Error;
 
@@ -172,12 +184,12 @@ impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
 			main_account: self.main.clone(),
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
-			event_id: 0,              // TODO: We don't use this
-			fees: Default::default(), // TODO: We don't use this
+			fees: Default::default(),
 		})
 	}
 }
 
+#[cfg(feature = "std")]
 impl WithdrawalRequest {
 	pub fn verify(&self) -> bool {
 		self.signature.verify(self.payload.encode().as_ref(), &self.proxy)
@@ -192,8 +204,8 @@ impl WithdrawalRequest {
 	}
 }
 
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "std")]
 pub struct WithdrawPayloadCallByUser {
 	pub asset_id: AssetId,
 	pub amount: String,
@@ -216,6 +228,7 @@ impl OrderSide {
 	}
 }
 
+#[cfg(feature = "std")]
 impl TryFrom<String> for OrderSide {
 	type Error = anyhow::Error;
 
@@ -235,6 +248,7 @@ pub enum OrderType {
 	MARKET,
 }
 
+#[cfg(feature = "std")]
 impl TryFrom<String> for OrderType {
 	type Error = anyhow::Error;
 
@@ -255,6 +269,7 @@ pub enum OrderStatus {
 	CANCELLED,
 }
 
+#[cfg(feature = "std")]
 impl TryFrom<String> for OrderStatus {
 	type Error = anyhow::Error;
 
@@ -268,12 +283,13 @@ impl TryFrom<String> for OrderStatus {
 	}
 }
 
-impl Into<String> for OrderStatus {
-	fn into(self) -> String {
-		match self {
-			Self::OPEN => "OPEN".to_string(),
-			Self::CLOSED => "CLOSED".to_string(),
-			Self::CANCELLED => "CANCELLED".to_string(),
+#[cfg(feature = "std")]
+impl From<OrderStatus> for String {
+	fn from(value: OrderStatus) -> Self {
+		match value {
+			OrderStatus::OPEN => "OPEN".to_string(),
+			OrderStatus::CLOSED => "CLOSED".to_string(),
+			OrderStatus::CANCELLED => "CANCELLED".to_string(),
 		}
 	}
 }
@@ -295,17 +311,17 @@ impl TryFrom<String> for TradingPair {
 		}
 
 		let base_asset = if assets[0] == String::from("PDEX").as_str() {
-			AssetId::polkadex
+			AssetId::Polkadex
 		} else {
 			let id = assets[0].parse::<u128>()?;
-			AssetId::asset(id)
+			AssetId::Asset(id)
 		};
 
 		let quote_asset = if assets[1] == String::from("PDEX").as_str() {
-			AssetId::polkadex
+			AssetId::Polkadex
 		} else {
 			let id = assets[1].parse::<u128>()?;
-			AssetId::asset(id)
+			AssetId::Asset(id)
 		};
 
 		Ok(TradingPair::from(quote_asset, base_asset))
@@ -327,18 +343,22 @@ impl TradingPair {
 	pub fn is_part_of(&self, asset_id: AssetId) -> bool {
 		(self.base == asset_id) | (self.quote == asset_id)
 	}
+	#[cfg(feature = "std")]
 	pub fn base_asset_str(&self) -> String {
 		match self.base {
-			AssetId::polkadex => "PDEX".into(),
-			AssetId::asset(id) => id.to_string(),
+			AssetId::Polkadex => "PDEX".into(),
+			AssetId::Asset(id) => id.to_string(),
 		}
 	}
+	#[cfg(feature = "std")]
 	pub fn quote_asset_str(&self) -> String {
 		match self.quote {
-			AssetId::polkadex => "PDEX".into(),
-			AssetId::asset(id) => id.to_string(),
+			AssetId::Polkadex => "PDEX".into(),
+			AssetId::Asset(id) => id.to_string(),
 		}
 	}
+
+	#[cfg(feature = "std")]
 	pub fn market_id(&self) -> String {
 		format!("{}/{}", self.base_asset_str(), self.quote_asset_str())
 	}
@@ -381,11 +401,25 @@ pub struct Order {
 	pub quote_order_qty: Decimal,
 	pub timestamp: i64,
 	pub overall_unreserved_volume: Decimal,
+	pub signature: Signature,
 }
 
+#[cfg(feature = "std")]
 impl Order {
-	pub fn verify_config(&self, _config: &TradingPairConfig) -> bool {
-		todo!()
+	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
+		self.price >= config.min_price &&
+			self.price <= config.max_price &&
+			self.qty >= config.min_qty &&
+			self.qty <= config.max_qty &&
+			self.pair.base == config.base_asset &&
+			self.pair.quote == config.quote_asset &&
+			self.price.rem(config.price_tick_size).is_zero() &&
+			self.qty.rem(config.qty_step_size).is_zero()
+	}
+
+	pub fn verify_signature(&self) -> bool {
+		let payload: OrderPayload = self.clone().into();
+		self.signature.verify(&payload.encode()[..], &self.user)
 	}
 }
 
@@ -398,21 +432,33 @@ impl PartialOrd for Order {
 			// Buy side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
-				Ordering::Less => Some(Ordering::Greater),
+				Ordering::Less => Some(Ordering::Less),
 				// A.price == B.price =>  Order based on timestamp - lowest timestamp first
-				Ordering::Equal => Some(self.timestamp.cmp(&other.timestamp)),
+				Ordering::Equal =>
+					if self.timestamp < other.timestamp {
+						Some(Ordering::Greater)
+					} else {
+						Some(Ordering::Less)
+					},
 				// A.price > B.price => [A, B]
-				Ordering::Greater => Some(Ordering::Less),
+				Ordering::Greater => Some(Ordering::Greater),
 			}
 		} else {
 			// Sell side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
-				Ordering::Less => Some(Ordering::Less),
+				Ordering::Less => Some(Ordering::Greater),
 				// A.price == B.price => Order based on timestamp - lowest timestamp first
-				Ordering::Equal => Some(self.timestamp.cmp(&other.timestamp)),
+				Ordering::Equal => {
+					// If price is equal, we follow the FIFO priority
+					if self.timestamp < other.timestamp {
+						Some(Ordering::Greater)
+					} else {
+						Some(Ordering::Less)
+					}
+				},
 				// A.price > B.price => [B, A]
-				Ordering::Greater => Some(Ordering::Greater),
+				Ordering::Greater => Some(Ordering::Less),
 			}
 		}
 	}
@@ -425,26 +471,39 @@ impl Ord for Order {
 			// Buy side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
-				Ordering::Less => Ordering::Greater,
+				Ordering::Less => Ordering::Less,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal => self.timestamp.cmp(&other.timestamp),
+				Ordering::Equal =>
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					},
 				// A.price > B.price => [A, B]
-				Ordering::Greater => Ordering::Less,
+				Ordering::Greater => Ordering::Greater,
 			}
 		} else {
 			// Sell side
 			match self.price.cmp(&other.price) {
 				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
-				Ordering::Less => Ordering::Less,
+				Ordering::Less => Ordering::Greater,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal => self.timestamp.cmp(&other.timestamp),
+				Ordering::Equal => {
+					// If price is equal, we follow the FIFO priority
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					}
+				},
 				// A.price > B.price => [B, A]
-				Ordering::Greater => Ordering::Greater,
+				Ordering::Greater => Ordering::Less,
 			}
 		}
 	}
 }
 
+#[cfg(feature = "std")]
 impl Order {
 	/// Computes the new avg_price and adds qty to filled_qty
 	/// if returned is false then underflow occurred during division
@@ -517,6 +576,7 @@ impl Order {
 			quote_order_qty: Decimal::zero(),
 			timestamp: 1,
 			overall_unreserved_volume: Decimal::zero(),
+			signature: Signature::Sr25519(sp_core::sr25519::Signature::from_raw([0; 64])),
 		}
 	}
 }
@@ -525,6 +585,117 @@ pub fn rounding_off(a: Decimal) -> Decimal {
 	// if we want to operate with a precision of 8 decimal places,
 	// all calculations should be done with latest 9 decimal places
 	a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
+}
+
+#[cfg(feature = "std")]
+pub struct OrderDetails {
+	pub payload: OrderPayload,
+	pub signature: Signature,
+}
+
+#[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "std")]
+pub struct OrderPayload {
+	pub client_order_id: H256,
+	pub user: AccountId,
+	pub main_account: AccountId,
+	pub pair: String,
+	pub side: OrderSide,
+	pub order_type: OrderType,
+	pub quote_order_quantity: String,
+	// Quantity is defined in base asset
+	pub qty: String,
+	// Price is defined in quote asset per unit base asset
+	pub price: String,
+	pub timestamp: i64,
+}
+#[cfg(feature = "std")]
+impl From<Order> for OrderPayload {
+	fn from(value: Order) -> Self {
+		Self {
+			client_order_id: value.client_order_id,
+			user: value.user,
+			main_account: value.main_account,
+			pair: value.pair.to_string(),
+			side: value.side,
+			order_type: value.order_type,
+			quote_order_quantity: value.quote_order_qty.to_string(),
+			qty: value.qty.to_string(),
+			price: value.price.to_string(),
+			timestamp: value.timestamp,
+		}
+	}
+}
+#[cfg(feature = "std")]
+impl TryFrom<OrderDetails> for Order {
+	type Error = anyhow::Error;
+	fn try_from(details: OrderDetails) -> Result<Self, anyhow::Error> {
+		let payload = details.payload;
+		if let Ok(qty) = payload.qty.parse::<f64>() {
+			if let Ok(price) = payload.price.parse::<f64>() {
+				return if let Some(qty) = Decimal::from_f64(qty) {
+					if let Some(price) = Decimal::from_f64(price) {
+						if let Ok(quote_order_qty) = payload.quote_order_quantity.parse::<f64>() {
+							if let Some(quote_order_qty) = Decimal::from_f64(quote_order_qty) {
+								if let Ok(trading_pair) = payload.pair.try_into() {
+									Ok(Self {
+										stid: 0,
+										client_order_id: payload.client_order_id,
+										avg_filled_price: Decimal::zero(),
+										fee: Decimal::zero(),
+										filled_quantity: Decimal::zero(),
+										id: H256::random(),
+										status: OrderStatus::OPEN,
+										user: payload.user,
+										main_account: payload.main_account,
+										pair: trading_pair,
+										side: payload.side,
+										order_type: payload.order_type,
+										qty: qty.round_dp(8),
+										price: price.round_dp(8),
+										quote_order_qty: quote_order_qty.round_dp(8),
+										timestamp: payload.timestamp,
+										overall_unreserved_volume: Decimal::zero(),
+										signature: details.signature,
+									})
+								} else {
+									Err(anyhow::Error::msg(
+										"Not able to to parse trading pair".to_string(),
+									))
+								}
+							} else {
+								Err(anyhow::Error::msg(
+									"Quote order quantity couldn't be parsed to decimal"
+										.to_string(),
+								))
+							}
+						} else {
+							Err(anyhow::Error::msg(
+								"Quote order quantity couldn't be parsed".to_string(),
+							))
+						}
+					} else {
+						Err(anyhow::Error::msg(
+							"Price couldn't be converted to decimal".to_string(),
+						))
+					}
+				} else {
+					Err(anyhow::Error::msg("Qty couldn't be converted to decimal".to_string()))
+				}
+			}
+			return Err(anyhow::Error::msg("Price couldn't be parsed".to_string()))
+		}
+		Err(anyhow::Error::msg(format!("Qty couldn't be parsed {}", payload.qty)))
+	}
+}
+
+#[cfg(feature = "std")]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Encode, Decode, Eq, PartialEq)]
+pub struct WithdrawalDetails {
+	pub payload: WithdrawPayloadCallByUser,
+	pub main: AccountId,
+	pub proxy: AccountId,
+	pub signature: Signature,
 }
 
 #[cfg(test)]

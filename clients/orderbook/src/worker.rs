@@ -7,21 +7,21 @@ use std::{
 	time::Duration,
 };
 
-use bls_primitives::{Public, Signature};
+use bls_primitives::Public;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, OrderState, StateSyncStatus, Trade,
-		UserActions, WithdrawalRequest,
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, UserActions,
+		WithdrawalRequest,
 	},
 	utils::{prepare_bitmap, return_set_bits, set_bit_field},
-	ObApi, SnapshotSummary, StidImportRequest, StidImportResponse,
+	ObApi, SnapshotSummary,
 };
 use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use polkadex_primitives::{
 	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
 };
@@ -29,12 +29,11 @@ use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sc_client_api::{Backend, FinalityNotification};
 use sc_network::PeerId;
-use sc_network_common::{protocol::event::Event, service::NetworkNotification};
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_consensus::SyncOracle;
-use sp_core::{blake2_128, offchain::OffchainStorage, Bytes, H160, H256};
+use sp_core::{blake2_128, offchain::OffchainStorage};
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
@@ -47,9 +46,12 @@ use crate::{
 	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
 	utils::*,
-	Client,
+	Client, DbRef,
 };
+use orderbook_primitives::types::TradingPair;
+use polkadex_primitives::ocex::TradingPairConfig;
 use primitive_types::H128;
+
 use sp_runtime::traits::Verify;
 
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
@@ -60,16 +62,20 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub backend: Arc<BE>,
 	pub runtime: Arc<R>,
 	pub sync_oracle: SO,
-	// pub key_store: BeefyKeystore,
-	// pub links: BeefyVoterLinks<B>,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
 	pub message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
-	pub protocol_name: std::borrow::Cow<'static, str>,
+	pub protocol_name: Cow<'static, str>,
 	pub _marker: PhantomData<B>,
+	// last successful block snapshot created
+	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
+	// memory db
+	pub memory_db: DbRef,
+	// working state root
+	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
 /// A Orderbook worker plays the Orderbook protocol
@@ -80,31 +86,33 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	runtime: Arc<R>,
 	sync_oracle: SO,
 	is_validator: bool,
-	network: Arc<N>,
-	// key_store: BeefyKeystore,
+	_network: Arc<N>,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
-	last_snapshot: Arc<RwLock<SnapshotSummary>>,
+	pub last_snapshot: Arc<RwLock<SnapshotSummary>>,
 	// Working state root,
-	pub(crate) working_state_root: [u8; 32],
+	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 	// Known state ids
 	known_messages: BTreeMap<u64, ObMessage>,
-	// Links between the block importer, the background voter and the RPC layer.
-	// links: BeefyVoterLinks<B>,
 	pending_withdrawals: Vec<Withdrawal<AccountId>>,
-	// voter state
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
 	message_sender_link: UnboundedReceiver<(ObMessage, sp_core::ecdsa::Signature)>,
 	_marker: PhantomData<N>,
 	// In memory store
-	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
+	pub memory_db: DbRef,
 	// Last finalized block
 	last_finalized_block: BlockNumber,
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<u16, StateSyncStatus>,
+	// last block at which snapshot was generated
+	last_block_snapshot_generated: Arc<RwLock<BlockNumber>>,
+	// latest stid
+	latest_stid: u64,
+	// Map of trading pair configs
+	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
 	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 }
 
@@ -129,15 +137,16 @@ where
 			client,
 			backend,
 			runtime,
-			// key_store,
 			sync_oracle,
-			// links,
 			metrics,
 			is_validator,
 			message_sender_link,
 			network,
 			protocol_name,
 			_marker,
+			last_successful_block_number_snapshot_created: last_block_snapshot_generated,
+			memory_db,
+			working_state_root,
 		} = worker_params;
 
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
@@ -147,73 +156,107 @@ where
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
 		ObWorker {
-			client: client.clone(),
+			client,
 			backend,
 			runtime,
 			sync_oracle,
-			// key_store,
 			is_validator,
-			network,
+			_network: network,
 			gossip_engine,
 			gossip_validator,
-			memory_db: MemoryDB::default(),
-			// links,
+			memory_db,
 			message_sender_link,
 			state_is_syncing: false,
 			metrics,
 			last_snapshot,
 			_marker: Default::default(),
 			known_messages: Default::default(),
-			working_state_root: Default::default(),
+			working_state_root,
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
+			last_block_snapshot_generated,
+			latest_stid: 0,
+			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
 		}
 	}
 
-	pub fn process_withdraw(&mut self, withdraw: WithdrawalRequest) -> Result<(), Error> {
-		let mut withdrawal = None;
-		{
-			let mut trie = self.get_trie();
-			println!("withdrawal main acc: {:?}", hex::encode(withdraw.main.encode()));
-			// Get main account
-			let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
+	/// The function checks whether a snapshot of the blockchain should be generated based on the
+	/// pending withdrawals and block interval.
+	///
+	/// # Parameters
+	/// - &self: a reference to an instance of a struct implementing some trait
+	/// # Returns
+	/// - bool: a boolean indicating whether a snapshot should be generated
+	pub fn should_generate_snapshot(&self) -> bool {
+		// Get the snapshot generation intervals from the runtime API for the last finalized block
+		let (pending_withdrawals_interval, block_interval) = self
+			.runtime
+			.runtime_api()
+			.get_snapshot_generation_intervals(&BlockId::Number(
+				self.last_finalized_block.saturated_into(),
+			))
+			.expect("Expecting snapshot generation interval api to be available");
 
-			let account_info = AccountInfo::decode(&mut &proxies[..])?;
-			// Check proxy registration
-			if !account_info.proxies.contains(&withdraw.proxy) {
-				return Err(Error::ProxyNotAssociatedWithMain)
-			}
-			// Verify signature
-			if !withdraw.verify() {
-				return Err(Error::WithdrawSignatureCheckFailed)
-			}
-			// Deduct balance
-			sub_balance(&mut trie, withdraw.account_asset(), withdraw.amount()?)?;
-			withdrawal = Some(withdraw.try_into()?);
-			// Commit the trie
-			trie.commit();
+		// Check if a snapshot should be generated based on the pending withdrawals interval and
+		// block interval
+		if pending_withdrawals_interval > self.pending_withdrawals.len() as u64 ||
+			block_interval >
+				self.last_finalized_block
+					.saturating_sub(*self.last_block_snapshot_generated.read())
+		{
+			return true
 		}
-		if let Some(withdrawal) = withdrawal {
-			// Queue withdrawal
-			self.pending_withdrawals.push(withdrawal);
+		// If a snapshot should not be generated, return false
+		false
+	}
+
+	pub fn process_withdraw(
+		&mut self,
+		withdraw: WithdrawalRequest,
+		stid: u64,
+	) -> Result<(), Error> {
+		let mut memory_db = self.memory_db.write();
+		let mut working_state_root = self.working_state_root.write();
+		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
+
+		// Get main account
+		let proxies = trie.get(&withdraw.main.encode())?.ok_or(Error::MainAccountNotFound)?;
+
+		let account_info = AccountInfo::decode(&mut &proxies[..])?;
+		// Check proxy registration
+		if !account_info.proxies.contains(&withdraw.proxy) {
+			return Err(Error::ProxyNotAssociatedWithMain)
+		}
+		// Verify signature
+		if !withdraw.verify() {
+			return Err(Error::WithdrawSignatureCheckFailed)
+		}
+		// Deduct balance
+		sub_balance(&mut trie, withdraw.account_asset(), withdraw.amount()?)?;
+		// Commit the trie
+		trie.commit();
+		drop(trie);
+		drop(memory_db);
+		drop(working_state_root);
+		// Queue withdrawal
+		self.pending_withdrawals.push(withdraw.try_into()?);
+		// Check if snapshot should be generated or not
+		if self.should_generate_snapshot() {
+			if let Err(err) = self.snapshot(stid) {
+				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
+				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
+			}
 		}
 		Ok(())
 	}
 
-	pub fn get_trie(&mut self) -> TrieDBMut<ExtensionLayout> {
-		let mut trie = if self.working_state_root == [0u8; 32] {
-			TrieDBMutBuilder::new(&mut self.memory_db, &mut self.working_state_root).build()
-		} else {
-			println!("Working state root: {:?}", hex::encode(self.working_state_root));
-			TrieDBMutBuilder::from_existing(&mut self.memory_db, &mut self.working_state_root)
-				.build()
-		};
-		trie
-	}
-
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
+		let mut memory_db = self.memory_db.write();
+		let mut working_state_root = self.working_state_root.write();
+		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
+
 		// Get the ingress messsages for this block
 		let messages = self
 			.runtime
@@ -223,7 +266,6 @@ where
 		let mut last_snapshot = None;
 
 		{
-			let mut trie = self.get_trie();
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
 			for message in messages {
 				match message {
@@ -252,6 +294,7 @@ where
 					_ => {},
 				}
 			}
+			// Commit the trie
 			trie.commit();
 		}
 		if let Some(last_snapshot) = last_snapshot {
@@ -304,11 +347,9 @@ where
 			},
 		};
 
-		summary.aggregate_signature = Some(signature.clone());
+		summary.aggregate_signature = Some(signature);
 		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
 		set_bit_field(&mut summary.bitflags, bit_index as u16);
-		// println!("Signature: {:?}",summary.aggregate_signature.unwrap().0);
-		// println!("Signing key: {:?}",signing_key.0);
 		assert_eq!(initial_summary, summary.sign_data());
 		assert!(bls_primitives::crypto::bls_ext::verify(
 			&signing_key,
@@ -316,11 +357,12 @@ where
 			&signature
 		));
 		// send it to runtime
-		if let Err(_) = self
+		if self
 			.runtime
 			.runtime_api()
 			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
 			.expect("Something went wrong with the submit_snapshot runtime api; qed.")
+			.is_err()
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 			return Err(Error::FailedToSubmitSnapshotToRuntime)
@@ -331,18 +373,29 @@ where
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
+			// Get Trie here itself and pass to required function
+			// No need to change Test cases
 			UserActions::Trade(trades) => {
-				let mut trie = self.get_trie();
+				let mut memory_db = self.memory_db.write();
+				let mut working_state_root = self.working_state_root.write();
+				let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
+
 				for trade in trades {
-					process_trade(&mut trie, trade)?
+					let config = self
+						.trading_pair_configs
+						.get(&trade.maker.pair)
+						.ok_or(Error::TradingPairConfigNotFound)?
+						.clone();
+					process_trade(&mut trie, trade, config)?
 				}
-				// Commit the state changes in trie
+				// Commit the trie
 				trie.commit();
 			},
-			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw)?,
+			UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 			UserActions::Snapshot => self.snapshot(action.stid)?,
 		}
+		self.latest_stid = action.stid;
 		// Multicast the message to other peers
 		self.gossip_engine.gossip_message(topic::<B>(), action.encode(), true);
 		Ok(())
@@ -399,7 +452,9 @@ where
 	) -> Result<(), Error> {
 		match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(data) {
 			Ok(data) => {
-				self.memory_db.load_from(data);
+				let memory_db_write_lock = self.memory_db.write();
+				let mut memory_db = memory_db_write_lock.clone();
+				memory_db.load_from(data);
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 			},
@@ -433,18 +488,27 @@ where
 		Ok(())
 	}
 
+	#[cfg(test)]
+	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
+		let offchain_storage = self.backend.offchain_storage().unwrap();
+		let result = offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode());
+		return result
+	}
+
 	pub fn store_snapshot(
 		&mut self,
 		state_change_id: u64,
 		snapshot_id: u64,
 	) -> Result<SnapshotSummary, Error> {
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			return match serde_json::to_vec(self.memory_db.data()) {
+			let memory_db_read_lock = self.memory_db.read();
+			let memory_db = memory_db_read_lock.clone();
+			return match serde_json::to_vec(memory_db.data()) {
 				Ok(data) => {
 					let mut state_chunk_hashes = vec![];
 					// Slice the data into chunks of 10 MB
 					let mut chunks = data.chunks(10 * 1024 * 1024);
-					while let Some(chunk) = chunks.next() {
+					for chunk in &mut chunks {
 						let chunk_hash = H128::from(blake2_128(chunk));
 						offchain_storage.set(
 							ORDERBOOK_STATE_CHUNK_PREFIX,
@@ -456,9 +520,13 @@ where
 
 					let withdrawals = self.pending_withdrawals.clone();
 					self.pending_withdrawals.clear();
+
+					let working_state_root_read_lock = self.working_state_root.read();
+					let working_state_root = *working_state_root_read_lock;
+
 					let summary = SnapshotSummary {
 						snapshot_id,
-						state_root: self.working_state_root.into(),
+						state_root: working_state_root.into(),
 						state_change_id,
 						bitflags: vec![],
 						withdrawals,
@@ -476,7 +544,7 @@ where
 				Err(err) => Err(Error::Backend(format!("Error serializing the data: {:?}", err))),
 			}
 		}
-		return Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
+		Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
 	}
 
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
@@ -498,7 +566,6 @@ where
 					data.append(&mut chunk);
 				}
 			}
-
 			self.load_state_from_data(&data, summary)?;
 		}
 		Ok(())
@@ -562,14 +629,14 @@ where
 
 	pub async fn got_stids_via_gossip(&mut self, messages: &Vec<ObMessage>) -> Result<(), Error> {
 		for message in messages {
-			// TODO: DO signature checks here and handle reputation
+			// TODO: handle reputation change.
 			self.known_messages.entry(message.stid).or_insert(message.clone());
 		}
 		self.check_stid_gap_fill().await
 	}
 
 	// Expects the set bits in the bitmap to be missing chunks
-	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
+	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		// Only respond if we are a fullnode
 		// TODO: Should we respond if we are also syncing???
 		if !self.is_validator {
@@ -609,7 +676,7 @@ where
 		}
 	}
 
-	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
+	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		if let Some(peer) = remote {
 			// Note: Set bits here are available for syncing
 			let available_chunks: Vec<u16> = return_set_bits(bitmap);
@@ -635,7 +702,7 @@ where
 	pub async fn request_chunk(
 		&mut self,
 		snapshot_id: &u64,
-		bitmap: &Vec<u128>,
+		bitmap: &[u128],
 		remote: Option<PeerId>,
 	) {
 		if let Some(peer) = remote {
@@ -645,17 +712,21 @@ where
 					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 				{
 					let chunk_indexes: Vec<u16> = return_set_bits(bitmap);
-					// TODO: Santiy check to ensure that indexing in to state_chunk_hashes doesn't
-					// cause a panic
 					for index in chunk_indexes {
-						let chunk_hash: H128 = summary.state_chunk_hashes[index as usize];
-						if let Some(data) = offchian_storage
-							.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
-						{
-							let message = GossipMessage::Chunk(*snapshot_id, index, data);
-							self.gossip_engine.send_message(vec![peer], message.encode());
-							metric_inc!(self, ob_messages_sent);
-							metric_add!(self, ob_data_sent, message.encoded_size() as u64);
+						match summary.state_chunk_hashes.get(index as usize) {
+							None => {
+								log::warn!(target:"orderbook","Chunk hash not found for index: {:?}",index)
+							},
+							Some(chunk_hash) => {
+								if let Some(data) = offchian_storage
+									.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
+								{
+									let message = GossipMessage::Chunk(*snapshot_id, index, data);
+									self.gossip_engine.send_message(vec![peer], message.encode());
+									metric_inc!(self, ob_messages_sent);
+									metric_add!(self, ob_data_sent, message.encoded_size() as u64);
+								}
+							},
 						}
 					}
 				}
@@ -663,28 +734,41 @@ where
 		}
 	}
 
-	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &Vec<u8>) {
+	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &[u8]) {
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
 			let at = BlockId::Number(self.last_finalized_block.saturated_into());
 			if let Ok(Some(summary)) =
 				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 			{
-				let expected_hash: H128 = summary.state_chunk_hashes[*index as usize];
-				let computed_hash: H128 = H128::from(blake2_128(data));
-				if expected_hash == computed_hash {
-					// Store the data
-					offchian_storage.set(
-						ORDERBOOK_STATE_CHUNK_PREFIX,
-						expected_hash.0.as_ref(),
-						data,
-					);
-					// Update sync status map
-					self.sync_state_map.entry(*index).and_modify(|status| {
-						*status = StateSyncStatus::Available;
-					});
+				match summary.state_chunk_hashes.get(*index as usize) {
+					None =>
+						warn!(target:"orderbook","Invalid index recvd, index > length of state chunk hashes"),
+					Some(expected_hash) => {
+						let computed_hash: H128 = H128::from(blake2_128(data));
+						if *expected_hash == computed_hash {
+							// Store the data
+							offchian_storage.set(
+								ORDERBOOK_STATE_CHUNK_PREFIX,
+								expected_hash.0.as_ref(),
+								data,
+							);
+							// Update sync status map
+							self.sync_state_map
+								.entry(*index)
+								.and_modify(|status| {
+									*status = StateSyncStatus::Available;
+								})
+								.or_insert(StateSyncStatus::Available);
+						}
+					},
 				}
 			}
 		}
+	}
+
+	#[cfg(test)]
+	pub fn get_sync_state_map_value(&self, key: u16) -> StateSyncStatus {
+		self.sync_state_map.get(&key).unwrap().clone()
 	}
 
 	pub async fn process_gossip_message(
@@ -713,14 +797,17 @@ where
 		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
 			self.last_finalized_block.saturated_into(),
 		))?;
-		let mut trie = self.get_trie();
+		let mut memory_db = self.memory_db.write();
+		let mut working_state_root = self.working_state_root.write();
+		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
+
 		for (main, proxies) in data {
 			// Register main and first proxy
 			register_main(&mut trie, main.clone(), proxies[0].clone())?;
 			// Register the remaining proxies
 			if proxies.len() > 1 {
-				for i in 1..proxies.len() {
-					add_proxy(&mut trie, main.clone(), proxies[i].clone())?;
+				for proxy in proxies.iter().skip(1) {
+					add_proxy(&mut trie, main.clone(), proxy.clone())?;
 				}
 			}
 		}
@@ -736,6 +823,13 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
+		// Check if snapshot should be generated or not
+		if self.should_generate_snapshot() {
+			if let Err(err) = self.snapshot(self.latest_stid) {
+				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
+				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
+			}
+		}
 
 		// We should not update latest summary if we are still syncing
 		if !self.state_is_syncing {
@@ -761,7 +855,7 @@ where
 		if self.state_is_syncing {
 			let mut inprogress: u16 = 0;
 			let mut unavailable: u16 = 0;
-			let mut total = self.sync_state_map.len();
+			let total = self.sync_state_map.len();
 			let last_summary = self.last_snapshot.read().clone();
 			let mut missing_indexes = vec![];
 			for (chunk_index, status) in self.sync_state_map.iter_mut() {
@@ -830,8 +924,6 @@ where
 							},
 							Some(data) => {
 								match SnapshotSummary::decode(&mut &data[..]) {
-									// TODO: This is repeated block of code from snapshot() fn,
-									// make it a single function
 									Ok(mut summary) => {
 										info!(target:"orderbook","Signing snapshot with: {:?}",hex::encode(signing_key.0));
 										let signature = match bls_primitives::crypto::sign(
@@ -845,18 +937,18 @@ where
 											},
 										};
 
-										summary.aggregate_signature = Some(signature.clone());
+										summary.aggregate_signature = Some(signature);
 										let bit_index = active_set
 											.iter()
 											.position(|v| v == &signing_key.into())
 											.unwrap();
 										set_bit_field(&mut summary.bitflags, bit_index as u16);
 										// send it to runtime
-										if let Err(_) = self
+										if self
 											.runtime
 											.runtime_api()
 											.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
-											.expect("Something went wrong with the submit_snapshot runtime api; qed.")
+											.expect("Something went wrong with the submit_snapshot runtime api; qed.").is_err()
 										{
 											error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 											return Err(Error::FailedToSubmitSnapshotToRuntime)
@@ -890,7 +982,7 @@ where
 	}
 
 	pub fn send_sync_requests(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
-		let mut offchain_storage =
+		let offchain_storage =
 			self.backend.offchain_storage().ok_or(Error::OffchainStorageNotAvailable)?;
 
 		// Check the chunks we need
@@ -919,6 +1011,42 @@ where
 			.collect::<Vec<PeerId>>();
 		let message = GossipMessage::Want(summary.snapshot_id, bitmap);
 		self.gossip_engine.send_message(fullnodes, message.encode());
+		Ok(())
+	}
+
+	/// Public method to get a mutable trie instance with the given mutable memory_db and
+	/// working_state_root
+	///
+	/// # Parameters:
+	/// - `memory_db`: a mutable reference to a MemoryDB instance
+	/// - `working_state_root`: a mutable reference to a 32-byte array of bytes representing the
+	///   root of the trie
+	///
+	/// # Returns
+	/// `TrieDBMut`:  instance representing a mutable trie
+	pub fn get_trie<'a>(
+		memory_db: &'a mut MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
+		working_state_root: &'a mut [u8; 32],
+	) -> TrieDBMut<'a, ExtensionLayout> {
+		let trie = if working_state_root == &mut [0u8; 32] {
+			TrieDBMutBuilder::new(memory_db, working_state_root).build()
+		} else {
+			TrieDBMutBuilder::from_existing(memory_db, working_state_root).build()
+		};
+		trie
+	}
+
+	/// Loads the latest trading pair configs from runtime
+	pub fn load_trading_pair_configs(&mut self) -> Result<(), Error> {
+		let tradingpairs = self
+			.runtime
+			.runtime_api()
+			.read_trading_pair_configs(&BlockId::Number(self.client.info().finalized_number))?;
+
+		for (pair, config) in tradingpairs {
+			self.trading_pair_configs.insert(pair, config);
+		}
+
 		Ok(())
 	}
 
@@ -962,6 +1090,12 @@ where
 			}
 			self.state_is_syncing = true;
 		}
+
+		if let Err(err) = self.load_trading_pair_configs() {
+			error!(target:"orderbook","Error while loading trading pair configs: {:?}",err);
+			return
+		}
+
 		info!(target:"orderbook","📒 Starting event streams...");
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
@@ -1018,6 +1152,18 @@ where
 	}
 }
 
+/// The purpose of this function is to register a new main account along with a proxy account.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` with `ExtensionLayout`.
+/// * `main` - The `AccountId` of the main account to be registered.
+/// * `proxy` - The `AccountId` of the proxy account to be associated with the main account.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the registration is successful, or an `Error` if there was a problem
+/// registering an account.
 pub fn register_main(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1031,6 +1177,18 @@ pub fn register_main(
 	Ok(())
 }
 
+/// The purpose of this function is to add new a proxy account to main account's list.
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+///   trie database to modify.
+/// * `main` - An `AccountId` representing the main account for which to add a proxy.
+/// * `proxy` - An `AccountId` representing the proxy account to add to the list of authorized
+///   proxies.
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success, or an `Error` if there was a problem adding the proxy.
 pub fn add_proxy(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1050,6 +1208,18 @@ pub fn add_proxy(
 	Ok(())
 }
 
+/// The purpose of this function is to remove a proxy account from a main account's list.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+///   trie database to modify.
+/// * `main` - An `AccountId` representing the main account for which to remove a proxy.
+/// * `proxy` - An `AccountId` representing the proxy account that needs to be removed
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success, or an `Error` if there was a problem removing the proxy account.
 pub fn remove_proxy(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1066,7 +1236,7 @@ pub fn remove_proxy(
 					.map(|i| account_info.proxies.remove(i));
 				trie.insert(&main.encode(), &account_info.encode())?;
 			} else {
-				// its a no-op if proxy not found
+				return Err(Error::ProxyAccountNotFound)
 			}
 		},
 		None => return Err(Error::MainAccountNotFound),
@@ -1074,6 +1244,18 @@ pub fn remove_proxy(
 	Ok(())
 }
 
+/// Deposits a specified amount of an asset into an account.
+///
+/// # Parameters
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `main` - An `AccountId` object representing the main account to deposit the asset into.
+/// * `asset` - An `AssetId` object representing the asset to deposit.
+/// * `amount` - A `Decimal` object representing the amount of the asset to deposit.
+///
+/// # Returns
+///
+/// A `Result<(), Error>` indicating whether the deposit was successful or not.
 pub fn deposit(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	main: AccountId,
@@ -1097,42 +1279,36 @@ pub fn deposit(
 	Ok(())
 }
 
-pub fn process_trade(trie: &mut TrieDBMut<ExtensionLayout>, trade: Trade) -> Result<(), Error> {
-	let Trade { maker, taker, price, amount, time } = trade.clone();
-
-	// Check order states
-	let maker_order_state = match trie.get(maker.id.as_ref())? {
-		None => OrderState::from(&maker),
-		Some(data) => {
-			let mut state = OrderState::decode(&mut &data[..])?;
-			if !state.update(&maker, price, amount) {
-				return Err(Error::OrderStateCheckFailed)
-			}
-			state
-		},
-	};
-
-	let taker_order_state = match trie.get(taker.id.as_ref())? {
-		None => OrderState::from(&taker),
-		Some(data) => {
-			let mut state = OrderState::decode(&mut &data[..])?;
-			if !state.update(&taker, price, amount) {
-				return Err(Error::OrderStateCheckFailed)
-			}
-			state
-		},
-	};
-
-	trie.insert(maker.id.as_ref(), &maker_order_state.encode())?;
-	trie.insert(taker.id.as_ref(), &taker_order_state.encode())?;
+/// Processes a trade between a maker and a taker, updating their order states and balances
+/// accordingly.
+///
+/// # Arguments
+///
+/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `trade` - A `Trade` object representing the trade to process.
+///
+/// # Returns
+///
+/// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
+pub fn process_trade(
+	trie: &mut TrieDBMut<ExtensionLayout>,
+	trade: Trade,
+	config: TradingPairConfig,
+) -> Result<(), Error> {
+	if !trade.verify(config) {
+		return Err(Error::InvalidTrade)
+	}
 
 	// Update balances
 	let (maker_asset, maker_credit) = trade.credit(true);
 	add_balance(trie, maker_asset, maker_credit)?;
+
 	let (maker_asset, maker_debit) = trade.debit(true);
 	sub_balance(trie, maker_asset, maker_debit)?;
+
 	let (taker_asset, taker_credit) = trade.credit(false);
 	add_balance(trie, taker_asset, taker_credit)?;
+
 	let (taker_asset, taker_debit) = trade.debit(false);
 	sub_balance(trie, taker_asset, taker_debit)?;
 	Ok(())
