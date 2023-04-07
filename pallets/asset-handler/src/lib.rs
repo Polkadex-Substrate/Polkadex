@@ -16,38 +16,54 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+pub mod weights;
+
+use chainbridge::{BridgeChainId, ResourceId};
+use frame_support::{
+	dispatch::fmt::Debug,
+	log,
+	pallet_prelude::*,
+	traits::{
+		tokens::fungibles::{Create, Inspect, Mutate},
+		Currency, ExistenceRequirement, ReservableCurrency,
+	},
+	PalletId,
+};
+use frame_system::pallet_prelude::*;
+use sp_core::{H160, U256};
+use sp_io::hashing::keccak_256;
+use sp_runtime::{
+	traits::{One, Saturating, UniqueSaturatedInto},
+	BoundedBTreeSet, SaturatedConversion,
+};
+use sp_std::{vec, vec::Vec};
+use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
+use xcm::latest::AssetId;
+
+pub trait WeightInfo {
+	fn create_asset(_b: u32) -> Weight;
+	fn create_thea_asset(_b: u32) -> Weight;
+	fn create_parachain_asset(_b: u32) -> Weight;
+	fn mint_asset(_b: u32) -> Weight;
+	fn set_bridge_status() -> Weight;
+	fn set_block_delay() -> Weight;
+	fn update_fee(_m: u32, f: u32) -> Weight;
+	fn withdraw(_b: u32, c: u32) -> Weight;
+	fn allowlist_token(b: u32) -> Weight;
+	fn remove_allowlisted_token(b: u32) -> Weight;
+	fn add_precision() -> Weight;
+}
 
 #[frame_support::pallet]
 pub mod pallet {
-	use chainbridge::{BridgeChainId, ResourceId};
-	use frame_support::{
-		dispatch::fmt::Debug,
-		log,
-		pallet_prelude::*,
-		traits::{
-			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, ExistenceRequirement, ReservableCurrency,
-		},
-		PalletId,
-	};
-	use frame_system::pallet_prelude::*;
-	use sp_core::{H160, U256};
-	use sp_io::hashing::keccak_256;
-	use sp_runtime::{
-		traits::{One, Saturating, UniqueSaturatedInto},
-		BoundedBTreeSet, SaturatedConversion,
-	};
-	use sp_std::{vec, vec::Vec};
-	use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
-	use xcm::latest::AssetId;
+	use super::*;
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -121,6 +137,9 @@ pub mod pallet {
 
 		/// PDEX Token Holder Account
 		type PDEXHolderAccount: Get<Self::AccountId>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -286,8 +305,8 @@ pub mod pallet {
 		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_asset(1))]
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -323,8 +342,8 @@ pub mod pallet {
 		/// * `network_id`: Network ID of asset being Bridges
 		/// * `identifier_length`: Length of asset identifier length
 		/// * `asset_identifier`: Identifier for a given asset
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_thea_asset(1))]
 		pub fn create_thea_asset(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -363,8 +382,8 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `asset`: Parachain Asset
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_parachain_asset(1))]
 		pub fn create_parachain_asset(
 			origin: OriginFor<T>,
 			asset: sp_std::boxed::Box<AssetId>,
@@ -398,8 +417,8 @@ pub mod pallet {
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
 		#[allow(clippy::unnecessary_lazy_evaluations)]
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
 			destination_add: Vec<u8>,
@@ -431,8 +450,8 @@ pub mod pallet {
 		}
 
 		/// Set Bridge Status
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_bridge_status())]
 		pub fn set_bridge_status(origin: OriginFor<T>, status: bool) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeDeactivated<T>>::put(status);
@@ -441,8 +460,8 @@ pub mod pallet {
 		}
 
 		/// Set Block Delay
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_block_delay())]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
 			no_of_blocks: T::BlockNumber,
@@ -462,8 +481,8 @@ pub mod pallet {
 		/// * `contract_add`: Asset's actual address at native chain
 		/// * `amount`: Amount to be burned and transferred from Sender's Account
 		/// * `recipient`: recipient
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1, 1))]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -532,8 +551,8 @@ pub mod pallet {
 		/// * `chain_id`: Asset's native chain
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(7)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_fee(1, 1))]
 		pub fn update_fee(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -547,8 +566,8 @@ pub mod pallet {
 		}
 
 		/// Allowlists Token
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -561,8 +580,8 @@ pub mod pallet {
 		}
 
 		/// Remove allowlisted tokens
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(9)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -573,8 +592,8 @@ pub mod pallet {
 		}
 
 		/// Remove allowlisted tokens
-		#[pallet::weight(Weight::default().saturating_add(T::DbWeight::get().writes(1)))]
 		#[pallet::call_index(10)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_precision())]
 		pub fn add_precision(
 			origin: OriginFor<T>,
 			rid: ResourceId,

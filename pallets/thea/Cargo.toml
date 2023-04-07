@@ -19,22 +19,26 @@ frame-system = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
-
 asset-handler = {path = "../asset-handler", default-features = false}
 thea-primitives = { path = "../../thea-primitives", default-features = false }
 thea-staking = { path = "../thea-staking", default-features = false }
-
 xcm = { workspace = true, default-features = false }
+pallet-assets = { workspace = true, default-features = false, optional = true }
+pallet-staking = { default-features = false, workspace = true, optional = true }
+pallet-balances = { default-features = false, workspace = true , optional = true }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
-sp-keyring = { workspace = true, default-features = false }
-sp-io = { workspace = true, default-features = false }
-blst = { version = "0.3.10", default-features = false }
-pallet-balances = { workspace = true, default-features = false }
+pallet-staking-reward-curve = { workspace = true }
+pallet-staking = { default-features = false, workspace = true }
 pallet-assets = { workspace = true, default-features = false }
-pallet-staking = { workspace = true, default-features = false }
-chainbridge = {path="../chainbridge", default-features = false}
-pallet-staking-reward-curve ={ workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
+chainbridge = { path = "../chainbridge", default-features = false }
+asset-handler = { path = "../asset-handler", default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-keystore = { workspace = true, default-features = false }
+sp-application-crypto = { workspace = true, default-features = false }
+blst = "0.3.10"
 
 [features]
 default = ["std"]
@@ -56,10 +60,14 @@ std = [
     "xcm/std",
     "thea-staking/std"
 ]
-
 runtime-benchmarks = [
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "sp-runtime/runtime-benchmarks",
+    "frame-benchmarking/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
     "asset-handler/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "pallet-assets/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "chainbridge/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
 ]
+try-runtime = ["frame-support/try-runtime"]

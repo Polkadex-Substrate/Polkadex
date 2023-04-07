@@ -228,6 +228,9 @@ sp_api::decl_runtime_apis! {
 		/// Returns all main account and corresponding proxies at this point in time
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>;
 
+		/// Returns Public Key of Whitelisted Orderbook Operator
+		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>;
+
 		/// Returns snapshot generation intervals
 		fn get_snapshot_generation_intervals() -> (u64,BlockNumber);
 
