@@ -31,8 +31,6 @@ pub enum IngressMessages<AccountId> {
 	RemoveProxy(AccountId, AccountId),
 	// Enclave registration confirmation
 	EnclaveRegistered(AccountId),
-	// Shutdown Exchange
-	Shutdown,
 	// Close Trading Pair
 	CloseTradingPair(TradingPairConfig),
 	// Latest snapshot (snapshot number, state_root, state_change_id, state_hash)
@@ -59,7 +57,6 @@ pub struct HandleBalance<AccountId> {
 pub struct HandleBalanceLimit;
 
 impl Get<u32> for HandleBalanceLimit {
-	//ToDo: Set an arbitrary value to 1000.
 	fn get() -> u32 {
 		1000
 	}

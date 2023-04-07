@@ -1,12 +1,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{withdrawal::Withdrawal, AccountId};
+use polkadex_primitives::{
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
+};
 use primitive_types::H128;
+use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
-use sp_core::{H160, H256};
+use sp_core::H256;
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
 
@@ -20,7 +23,6 @@ use crate::{
 };
 
 pub mod constants;
-#[cfg(feature = "std")]
 pub mod types;
 pub mod utils;
 
@@ -83,7 +85,7 @@ pub struct ValidatorSet<AuthorityId> {
 
 impl<AuthorityId> ValidatorSet<AuthorityId> {
 	/// Return a validator set with the given validators and set id.
-	pub fn new<I>(validators: I, id: ValidatorSetId) -> Option<Self>
+	pub fn new<I>(validators: I, _id: ValidatorSetId) -> Option<Self>
 	where
 		I: IntoIterator<Item = AuthorityId>,
 	{
@@ -101,14 +103,14 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 		&self.validators
 	}
 
-	// /// Return the validator set id.
-	// pub fn id(&self) -> ValidatorSetId {
-	//     self.id
-	// }
-
 	/// Return the number of validators in the set.
 	pub fn len(&self) -> usize {
 		self.validators.len()
+	}
+
+	/// Return true if set is empty
+	pub fn is_empty(&self) -> bool {
+		self.validators.is_empty()
 	}
 }
 
@@ -119,6 +121,12 @@ pub type AuthorityIndex = u32;
 pub struct StidImportRequest {
 	pub from: u64,
 	pub to: u64,
+}
+
+#[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
+pub struct Fees {
+	pub asset: AssetId,
+	pub amount: Decimal,
 }
 
 #[derive(Clone, Encode, Decode, Default)]
@@ -140,17 +148,25 @@ pub struct SnapshotSummary {
 
 impl SnapshotSummary {
 	// Add a new signature to the snapshot summary
-	pub fn add_signature(&mut self, signature: Signature) -> Result<(), ()> {
+	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
 		match bls_primitives::crypto::bls_ext::add_signature(
-			&self.aggregate_signature.ok_or(())?,
+			&self.aggregate_signature.ok_or(signature)?,
 			&signature,
 		) {
 			Ok(signature) => {
 				self.aggregate_signature = Some(signature);
 				Ok(())
 			},
-			Err(_) => return Err(()),
+			Err(_) => Err(signature),
 		}
+	}
+
+	pub fn get_fees(&self) -> Vec<Fees> {
+		let mut fees = Vec::new();
+		for withdrawal in &self.withdrawals {
+			fees.push(Fees { asset: withdrawal.asset, amount: withdrawal.fees });
+		}
+		fees
 	}
 
 	pub fn add_auth_index(&mut self, index: u16) {
@@ -166,7 +182,7 @@ impl SnapshotSummary {
 	pub fn verify(&self, public_keys: Vec<Public>) -> bool {
 		let msg = self.sign_data();
 		match self.aggregate_signature {
-			None => return false,
+			None => false,
 			Some(sig) =>
 				bls_primitives::crypto::bls_ext::verify_aggregate(&public_keys, &msg, &sig),
 		}
@@ -203,6 +219,7 @@ sp_api::decl_runtime_apis! {
 		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
 
 		/// Submits the snapshot to runtime
+		#[allow(clippy::result_unit_err)]
 		fn submit_snapshot(summary: SnapshotSummary) -> Result<(), ()>;
 
 		/// Gets pending snapshot if any
@@ -213,5 +230,14 @@ sp_api::decl_runtime_apis! {
 
 		/// Returns Public Key of Whitelisted Orderbook Operator
 		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>;
+
+		/// Returns snapshot generation intervals
+		fn get_snapshot_generation_intervals() -> (u64,BlockNumber);
+
+		/// Get all allow listed assets
+		fn get_allowlisted_assets() -> Vec<AssetId>;
+
+		/// Reads the current trading pair configs
+		fn read_trading_pair_configs() -> Vec<(crate::types::TradingPair, TradingPairConfig)>;
 	}
 }

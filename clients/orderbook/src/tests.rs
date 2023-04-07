@@ -1,42 +1,34 @@
+//! This module contains code that defines test cases related to a offline storage of worker module.
+use primitive_types::H128;
 use std::{borrow::Cow, future::Future, sync::Arc};
 
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
-use log::trace;
 use memory_db::{HashKey, MemoryDB};
-use parity_scale_codec::Encode;
+use parity_scale_codec::{Decode, Encode};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use sc_client_api::{Backend, BlockchainEvents};
-use sc_network::{
-	config::{build_multiaddr, EmptyTransactionPool, Role},
-	NetworkWorker,
-};
-use sc_network_common::service::NetworkStateInfo;
-use sc_network_gossip::MessageIntent::PeriodicRebroadcast;
+use sc_client_api::Backend;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
-	TestClientBuilder, TestClientBuilderExt, TestNetFactory,
+	TestNetFactory,
 };
-use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
-use sp_consensus::SyncOracle;
-use sp_core::Pair;
+use sp_api::{ApiRef, ProvideRuntimeApi};
+use sp_core::{blake2_128, Pair};
 use sp_keyring::AccountKeyring;
 use tokio::runtime::Runtime;
-use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+use trie_db::{TrieDBMut, TrieDBMutBuilder};
 
-use crate::Client;
 use bls_primitives::Pair as BLSPair;
 use orderbook_primitives::{
 	crypto::AuthorityId,
-	types::{ObMessage, UserActions, WithdrawPayloadCallByUser, WithdrawalRequest},
+	types::{ObMessage, StateSyncStatus, WithdrawPayloadCallByUser, WithdrawalRequest},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
-use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
+use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId, BlockNumber};
 
-use crate::worker::{
-	ObWorker, WorkerParams, ORDERBOOK_STATE_SYNC_REQUEST, ORDERBOOK_STATE_SYNC_RESPONSE,
-	STID_IMPORT_REQUEST, STID_IMPORT_RESPONSE,
-};
+use crate::worker::{ObWorker, WorkerParams};
+use parking_lot::RwLock;
+use sp_runtime::SaturatedConversion;
 
 pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	SnapshotSummary::default();
@@ -81,6 +73,15 @@ macro_rules! create_test_api {
 
 					/// Submits the snapshot to runtime
 					fn submit_snapshot(_: SnapshotSummary) -> Result<(), ()>{Ok(())}
+
+					/// Get Snapshot By Id
+					fn get_snapshot_by_id(_: u64) -> Option<SnapshotSummary>{Some($latest_summary)}
+
+					/// Returns all main account and corresponding proxies at this point in time
+					fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{Vec::new()}
+
+					/// Returns snapshot generation intervals
+					fn get_snapshot_generation_intervals() -> (u64,BlockNumber){(0,0)}
                 }
 			}
 		}
@@ -139,12 +140,7 @@ impl TestNetFactory for ObTestnet {
 	}
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				Cow::from(ORDERBOOK_STATE_SYNC_RESPONSE),
-				Cow::from(STID_IMPORT_REQUEST),
-				Cow::from(STID_IMPORT_RESPONSE),
-				Cow::from(ORDERBOOK_STATE_SYNC_REQUEST),
-			],
+			notifications_protocols: vec![],
 			is_authority: false,
 			..Default::default()
 		})
@@ -165,12 +161,7 @@ impl ObTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				Cow::from(ORDERBOOK_STATE_SYNC_RESPONSE),
-				Cow::from(STID_IMPORT_REQUEST),
-				Cow::from(STID_IMPORT_RESPONSE),
-				Cow::from(ORDERBOOK_STATE_SYNC_REQUEST),
-			],
+			notifications_protocols: vec![],
 			is_authority: true,
 			..Default::default()
 		})
@@ -209,6 +200,11 @@ where
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
+			last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+				0_u32.saturated_into(),
+			)),
+			memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+			working_state_root: Arc::new(RwLock::new([0; 32])),
 		};
 		let gadget = crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params);
 
@@ -220,7 +216,7 @@ where
 	workers.for_each(|_| async move {})
 }
 
-// TODO: Make this work
+// This is just for reference of setting up mock of ob worker., keep it like this.
 // use sc_network_gossip::Network as GossipNetwork;
 // pub fn setup_one<B, BE, C, SO, N, R>(api: Arc<R>, is_validator: bool) -> (ObWorker<B, BE, C, SO,
 // N, R>, UnboundedSender<ObMessage>) where
@@ -258,7 +254,7 @@ where
 pub fn test_network() {
 	sp_tracing::try_init_simple();
 
-	let mut runtime = Runtime::new().unwrap();
+	let runtime = Runtime::new().unwrap();
 	let peers = &[(AccountKeyring::Alice, true), (AccountKeyring::Bob, true)];
 	let mut net = ObTestnet::new(2, 0);
 
@@ -293,7 +289,7 @@ pub async fn test_single_worker() {
 				),
 				IngressMessages::Deposit(
 					AccountId::from(AccountKeyring::Alice.pair().public()),
-					AssetId::polkadex,
+					AssetId::Polkadex,
 					Decimal::from_f64(10.2).unwrap()
 				)
 			],
@@ -303,7 +299,7 @@ pub async fn test_single_worker() {
 	// Setup worker
 	let testnet = ObTestnet::new(1, 0);
 	let peer = &testnet.peers[0];
-	let (rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
 
 	let worker_params = WorkerParams {
 		client: peer.client().as_client(),
@@ -316,13 +312,17 @@ pub async fn test_single_worker() {
 		message_sender_link: rpc_receiver,
 		metrics: None,
 		_marker: Default::default(),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
 	};
 
 	let mut worker = ObWorker::new(worker_params);
-	worker.handle_blk_import(0).unwrap();
 
 	let payload = WithdrawPayloadCallByUser {
-		asset_id: AssetId::polkadex,
+		asset_id: AssetId::Polkadex,
 		amount: "1".to_string(),
 		timestamp: 0,
 	};
@@ -332,7 +332,10 @@ pub async fn test_single_worker() {
 		main: alice_acc.clone(),
 		proxy: bob_acc,
 	};
-	worker.process_withdraw(withdraw_request).unwrap();
+
+	worker.handle_blk_import(0).unwrap();
+
+	worker.process_withdraw(withdraw_request, 0).unwrap();
 	let charlie = AccountKeyring::Charlie.pair();
 	let charlie_acc = AccountId::from(charlie.public());
 	let withdraw_request = WithdrawalRequest {
@@ -341,9 +344,62 @@ pub async fn test_single_worker() {
 		main: alice_acc,
 		proxy: charlie_acc,
 	};
-	worker.process_withdraw(withdraw_request).unwrap()
+	worker.process_withdraw(withdraw_request, 0).unwrap()
+}
 
-	// Lets send a trade
+// Setup runtime
+#[tokio::test]
+pub async fn test_offline_storage() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::Polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		sync_oracle: peer.network_service().clone(),
+		network: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let _worker = ObWorker::new(worker_params);
 }
 
 #[test]
@@ -353,17 +409,293 @@ pub fn test_trie_insertion() {
 	{
 		let mut trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
-
-		//trie.insert(b"ab".as_ref(),b"cd".as_ref()).unwrap();
 		trie.commit();
 	}
 
-	// {
-	//     let mut trie: TrieDBMut<ExtensionLayout> =
-	//         TrieDBMutBuilder::from_existing(&mut memory_db, &mut working_state_root)
-	//             .build();
-	//    assert_eq!(trie.get(b"ab".as_ref()).unwrap(), Some(b"cd".to_vec()))
-	// }
-
 	assert_ne!(working_state_root, [0u8; 32]);
+}
+
+#[tokio::test]
+pub async fn test_process_chunk() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
+	let data: Vec<u8> = [1u8; 10].to_vec();
+	let computed_hash: H128 = H128::from(blake2_128(&data));
+	let _snapshot_summary = SnapshotSummary {
+		snapshot_id: 10,
+		state_root: Default::default(),
+		state_change_id: 0,
+		state_chunk_hashes: vec![computed_hash],
+		bitflags: vec![],
+		withdrawals: vec![],
+		aggregate_signature: None,
+	};
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary {
+		snapshot_id: 10,
+		state_root: Default::default(),
+		state_change_id: 0,
+		state_chunk_hashes: vec![H128::from(blake2_128(&[1u8;10]))],
+		bitflags: vec![],
+		withdrawals: vec![],
+		aggregate_signature: None
+	},
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::Polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+	let snapshot_id = 10;
+	let index = 0;
+	worker.process_chunk(&snapshot_id, &index, &data);
+	let status = worker.get_sync_state_map_value(index);
+	assert_eq!(status, StateSyncStatus::Available);
+}
+
+// Test `store_snapshot` function then retrieve and decode that snapshot to verify its correctness.
+#[tokio::test]
+pub async fn test_store_snapshot() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::Polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+
+	let snapshot_id = 3_u64;
+	let state_change_id = 4_u64;
+
+	let offline_storage_for_snapshot = worker.get_offline_storage(snapshot_id);
+	assert_eq!(offline_storage_for_snapshot, None);
+
+	let snapshot_summary = worker.store_snapshot(state_change_id, snapshot_id).unwrap();
+	let offline_storage_for_snapshot = worker.get_offline_storage(snapshot_id).unwrap();
+	let store_summary = SnapshotSummary::decode(&mut &offline_storage_for_snapshot[..]).unwrap();
+	assert_eq!(snapshot_summary, store_summary);
+}
+
+// Test `load_snapshot` function, then retrieve and decode the last snapshot and assert if correct
+// snapshot was loaded. Also assert if workers last snapshot was updated.
+#[tokio::test]
+pub async fn test_load_snapshot() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::Polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+
+	let snapshot_id = 3_u64;
+	let state_change_id = 4_u64;
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, 0);
+	assert_eq!(get_snapshot_summary.read().state_change_id, 0);
+
+	let snapshot_summary = worker.store_snapshot(state_change_id, snapshot_id).unwrap();
+	assert!(worker.load_snapshot(&snapshot_summary).is_ok());
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, snapshot_id);
+	assert_eq!(get_snapshot_summary.read().state_change_id, state_change_id);
+}
+
+// Test `load_snapshot` with invalid summary. Also assert that workers last snapshot should not be
+// updated.
+#[tokio::test]
+pub async fn test_load_snapshot_with_invalid_summary() {
+	let alice = AccountKeyring::Alice.pair();
+	let bob = AccountKeyring::Bob.pair();
+	let _alice_acc = AccountId::from(alice.public());
+	let _bob_acc = AccountId::from(bob.public());
+	create_test_api!(
+		one_validator,
+		latest_summary: SnapshotSummary::default(),
+		ingress_messages:
+			vec![
+				IngressMessages::RegisterUser(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Bob.pair().public())
+				),
+				IngressMessages::AddProxy(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AccountId::from(AccountKeyring::Charlie.pair().public())
+				),
+				IngressMessages::Deposit(
+					AccountId::from(AccountKeyring::Alice.pair().public()),
+					AssetId::Polkadex,
+					Decimal::from_f64(10.2).unwrap()
+				)
+			],
+		AccountKeyring::Alice
+	);
+	let api = Arc::new(one_validator::TestApi {});
+	// Setup worker
+	let testnet = ObTestnet::new(1, 0);
+	let peer = &testnet.peers[0];
+	let (_rpc_sender, rpc_receiver) = futures::channel::mpsc::unbounded();
+
+	let worker_params = WorkerParams {
+		client: peer.client().as_client(),
+		backend: peer.client().as_backend(),
+		runtime: api,
+		network: peer.network_service().clone(),
+		sync_oracle: peer.network_service().clone(),
+		protocol_name: Cow::from("blah"),
+		is_validator: true,
+		message_sender_link: rpc_receiver,
+		metrics: None,
+		_marker: Default::default(),
+		last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
+			0_u32.saturated_into(),
+		)),
+		memory_db: Arc::new(RwLock::new(MemoryDB::default())),
+		working_state_root: Arc::new(RwLock::new([0; 32])),
+	};
+	assert!(worker_params.backend.offchain_storage().is_some());
+	let mut worker = ObWorker::new(worker_params);
+
+	let snapshot_id = 3_u64;
+	let state_change_id = 4_u64;
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, 0);
+	assert_eq!(get_snapshot_summary.read().state_change_id, 0);
+
+	let mut snapshot_summary = worker.store_snapshot(state_change_id, snapshot_id).unwrap();
+	snapshot_summary.state_chunk_hashes = vec![H128::random(), H128::random()];
+	assert!(worker.load_snapshot(&snapshot_summary).is_err());
+
+	let get_snapshot_summary = worker.last_snapshot.clone();
+	assert_eq!(get_snapshot_summary.read().snapshot_id, 0);
+	assert_eq!(get_snapshot_summary.read().state_change_id, 0);
 }

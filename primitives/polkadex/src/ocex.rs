@@ -1,7 +1,7 @@
 use crate::assets::AssetId;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -20,14 +20,14 @@ pub struct AccountInfo<Account, ProxyLimit: Get<u32>> {
 }
 impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
 	pub fn maker_fee_fraction(&self) -> Decimal {
-		self.fee_config.maker_fraction.clone()
+		self.fee_config.maker_fraction
 	}
 	pub fn taker_fee_fraction(&self) -> Decimal {
-		self.fee_config.taker_fraction.clone()
+		self.fee_config.taker_fraction
 	}
 }
 
-impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
+impl<Account: PartialEq + Clone, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
 	pub fn new(main_account_id: Account) -> AccountInfo<Account, ProxyLimit> {
 		let proxies = BoundedVec::default();
 		AccountInfo {
@@ -39,8 +39,11 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 	}
 
 	// Adds a new proxy account
-	pub fn add_proxy(&mut self, proxy: Account) -> Result<(), ()> {
-		self.proxies.try_push(proxy)
+	pub fn add_proxy(&mut self, proxy: Account) -> Result<(), Account> {
+		if let Err(()) = self.proxies.try_push(proxy.clone()) {
+			return Err(proxy)
+		}
+		Ok(())
 	}
 
 	// Removes a proxy account
@@ -75,13 +78,30 @@ impl TradingPairConfig {
 	pub fn min_volume(&self) -> Decimal {
 		self.min_qty.saturating_mul(self.min_price)
 	}
+
+	// This is an easy to use default config for testing and other purposes.
+	pub fn default(base: AssetId, quote: AssetId) -> Self {
+		Self {
+			base_asset: base,
+			quote_asset: quote,
+			min_price: Decimal::from_f64(0.0001).unwrap(),
+			max_price: Decimal::from_f64(1000.0).unwrap(),
+			price_tick_size: Decimal::from_f64(0.000001).unwrap(),
+			min_qty: Decimal::from_f64(0.0001).unwrap(),
+			max_qty: Decimal::from_f64(1000.0).unwrap(),
+			qty_step_size: Decimal::from_f64(0.001).unwrap(),
+			operational_status: true,
+			base_asset_precision: 8,
+			quote_asset_precision: 8,
+		}
+	}
 }
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OnChainEvents<AccountId> {
-	OrderBookWithdrawalClaimed(u32, AccountId, BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>),
-	GetStorage(Pallet, StorageItem, u32),
+	OrderBookWithdrawalClaimed(u64, AccountId, BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>),
+	GetStorage(Pallet, StorageItem, u64),
 }
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]

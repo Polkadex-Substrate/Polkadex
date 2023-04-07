@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-primitive-types = {version = "0.12.1", default-features =false, features = ["scale-info"]}
+primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
 sp-api = { workspace = true }
@@ -14,15 +14,15 @@ sp-io = { workspace = true }
 sp-application-crypto = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
-sp-std = { workspace = true}
+sp-std = { workspace = true }
 polkadex-primitives = { workspace = true }
-chrono = {version = "0.4.23", optional = true}
-rand = {version = "0.8.5", optional = true}
-serde = { version = "1.0.152", optional = true, default-features = false}
+chrono = { version = "0.4.23", optional = true }
+rand = { version = "0.8.5", optional = true }
+serde = { version = "1.0.152", optional = true, default-features = false }
 anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"], default-features = false }
-bls-primitives = {path="../bls-primitives", default-features = false}
-libp2p-core = {version ="0.34.0", optional = true}
+bls-primitives = { path = "../bls-primitives", default-features = false }
+libp2p-core = { version = "0.34.0", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.94"

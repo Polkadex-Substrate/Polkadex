@@ -17,8 +17,6 @@ pub enum Error {
 	Keystore(String),
 	#[error("State hash mismatch")]
 	StateHashMisMatch,
-	#[error("OrderStateCheckFailed")]
-	OrderStateCheckFailed,
 	#[error("AccountBalanceNotFound in the state")]
 	AccountBalanceNotFound(AccountAsset),
 	#[error("Not enough balance in account")]
@@ -33,6 +31,8 @@ pub enum Error {
 	DecimalError(rust_decimal::Error),
 	#[error("Unable to find main account in trie")]
 	MainAccountNotFound,
+	#[error("Unable to find proxy account in trie")]
+	ProxyAccountNotFound,
 	#[error("Proxy not associated with main")]
 	ProxyNotAssociatedWithMain,
 	#[error("Error while snapshot signing")]
@@ -43,14 +43,14 @@ pub enum Error {
 	MainAlreadyRegistered,
 	#[error("Proxy account already registered")]
 	ProxyAlreadyRegistered,
-	#[error("Full node tried to download snapshot from operator")]
-	Fullnode,
-	#[error("BLS signing failed")]
-	BLSSigningFailed,
 	#[error("Offchain storage not available")]
 	OffchainStorageNotAvailable,
 	#[error("Signature verification Failed")]
 	SignatureVerificationFailed,
+	#[error("Invalid trade found")]
+	InvalidTrade,
+	#[error("Unable to find trading pair config")]
+	TradingPairConfigNotFound,
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {

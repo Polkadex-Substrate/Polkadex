@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use crate::{Error, Pair as BLSPair};
-use crate::{KeyStore, Public, Seed, Signature, BLS_DEV_PHRASE, DEV_PHRASE, DST};
+use crate::{KeyStore, Public, Seed, Signature, DST};
 #[cfg(feature = "std")]
 use blst::min_sig::*;
 #[cfg(feature = "std")]
@@ -18,6 +18,7 @@ pub const BLS_KEYSTORE_PATH: &str = "polkadex/.keystore/";
 
 #[runtime_interface]
 pub trait BlsExt {
+	#[allow(clippy::result_unit_err)]
 	fn add_signature(agg_signature: &Signature, new: &Signature) -> Result<Signature, ()> {
 		let agg_signature = match crate::BLSSignature::from_bytes(agg_signature.0.as_ref()) {
 			Ok(sig) => sig,
@@ -28,7 +29,7 @@ pub trait BlsExt {
 			Err(_) => return Err(()),
 		};
 		let mut agg_signature = AggregateSignature::from_signature(&agg_signature);
-		if let Err(_) = agg_signature.add_signature(&new, true) {
+		if agg_signature.add_signature(&new, true).is_err() {
 			return Err(())
 		}
 		Ok(Signature::from(crate::BLSSignature::from_aggregate(&agg_signature)))
@@ -44,7 +45,7 @@ pub trait BlsExt {
 
 	fn generate_pair(phrase: Option<Vec<u8>>) -> Public {
 		// generate a pair
-		let (pair, _seed, derive_junctions) = generate_pair_(phrase);
+		let (pair, _seed, _derive_junctions) = generate_pair_(phrase);
 		pair.public()
 	}
 
@@ -74,10 +75,10 @@ pub trait BlsExt {
 		};
 		// verify the signature
 		let err = signature.verify(true, msg, DST.as_ref(), &[], &pubkey, true);
-		return if err == BLST_ERROR::BLST_SUCCESS { true } else { false }
+		err == BLST_ERROR::BLST_SUCCESS
 	}
 
-	fn verify_aggregate(pubkey: &Vec<Public>, msg: &[u8], signature: &Signature) -> bool {
+	fn verify_aggregate(pubkey: &[Public], msg: &[u8], signature: &Signature) -> bool {
 		let mut pubkeys = vec![];
 		for key in pubkey {
 			let agg_pubkey = match PublicKey::uncompress(key.0.as_ref()) {
@@ -94,7 +95,7 @@ pub trait BlsExt {
 		};
 		// verify the signature
 		let err = agg_signature.fast_aggregate_verify(true, msg, DST.as_ref(), &pubkeys_ref);
-		return if err == BLST_ERROR::BLST_SUCCESS { true } else { false }
+		err == BLST_ERROR::BLST_SUCCESS
 	}
 }
 
@@ -120,7 +121,7 @@ fn generate_pair_(phrase: Option<Vec<u8>>) -> (BLSPair, Seed, Vec<DeriveJunction
 		},
 		Some(phrase) => {
 			let phrase = String::from_utf8(phrase).expect("Invalid phrase");
-			let mut uri = SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
+			let uri = SecretUri::from_str(phrase.as_ref()).expect("expected a valid phrase");
 			let (pair, seed) = BLSPair::from_phrase(uri.phrase.expose_secret(), None)
 				.expect("Phrase is not valid; qed");
 
@@ -140,7 +141,7 @@ pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 	match std::fs::read(&path) {
 		Err(err) => {
 			log::error!(target:"bls","Error while reading keystore file: {:?}",err);
-			return None
+			None
 		},
 		Ok(data) => match serde_json::from_slice::<Vec<u8>>(&data) {
 			Ok(seed) =>
@@ -180,7 +181,7 @@ pub fn sign(pubkey: &Public, msg: &[u8]) -> Option<Signature> {
 #[allow(dead_code)]
 fn get_all_public_keys() -> Result<Vec<Public>, Error> {
 	let mut public_keys = vec![];
-	for entry in std::fs::read_dir(&BLS_KEYSTORE_PATH)? {
+	for entry in std::fs::read_dir(BLS_KEYSTORE_PATH)? {
 		let entry = entry?;
 		let path = entry.path();
 
