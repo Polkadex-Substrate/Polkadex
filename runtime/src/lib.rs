@@ -25,6 +25,7 @@
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
 	construct_runtime,
+	dispatch::DispatchClass,
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{
@@ -38,7 +39,6 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use frame_support::dispatch::DispatchClass;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use sp_std::vec;
 
@@ -88,8 +88,7 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::weights::{
-	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
+use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
