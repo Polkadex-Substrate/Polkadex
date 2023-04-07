@@ -12,9 +12,6 @@ use jsonrpsee::{
 };
 use log::warn;
 use orderbook_primitives::types::ObMessage;
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
-use curv::arithmetic::Converter;
 
 #[derive(Debug, thiserror::Error)]
 /// Top-level error type for the RPC handler
@@ -68,8 +65,7 @@ pub trait OrderbookApi {
 	async fn submit_action(
 		&self,
 		action: ObMessage,
-		signature_r: Scalar<Secp256k1>,
-		signature_s: Scalar<Secp256k1>
+		signature_asn1_encoded: Vec<u8>,
 	) -> RpcResult<()>;
 }
 
@@ -94,10 +90,9 @@ impl OrderbookApiServer for OrderbookRpc {
 	async fn submit_action(
 		&self,
 		message: ObMessage,
-		signature_r: Scalar<Secp256k1>,
-		signature_s: Scalar<Secp256k1>
+		signature_asn1_encoded: Vec<u8>,
 	) -> RpcResult<()> {
-// Since KMS does not return V value, It is assumed that it is either 27 or 28
+		// Since KMS does not return V value, It is assumed that it is either 27 or 28
 		// So only if both function returns false, it is a signature verification error
 		let mut tx = self.tx.clone();
 		tx.send(message).await?;

@@ -47,10 +47,6 @@ type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
 	sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
-use curv::arithmetic::Converter;
-
 /// Fetch the nonce of the given `account` from the chain state.
 ///
 /// Note: Should only be used for tests.
@@ -150,7 +146,7 @@ pub fn new_partial(
 			),
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
-			UnboundedReceiver<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
+			UnboundedReceiver<(ObMessage, Vec<u8>)>,
 		),
 	>,
 	ServiceError,
@@ -239,7 +235,7 @@ pub fn new_partial(
 
 	let import_setup = (block_import, grandpa_link, babe_link);
 
-	let (ob_messge_sink, ob_message_stream) = unbounded::<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>();
+	let (ob_messge_sink, ob_message_stream) = unbounded::<(ObMessage, Vec<u8>)>();
 
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, babe_link) = &import_setup;
