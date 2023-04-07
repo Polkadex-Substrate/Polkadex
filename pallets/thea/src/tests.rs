@@ -398,11 +398,15 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			&1,
 			1_000_000_000_000
 		));
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
 		assert_ok!(Thea::withdraw(
 			RuntimeOrigin::signed(1),
 			generate_asset_id(asset_id.clone()),
 			1000u128,
-			beneficiary.to_vec(),
+			beneficiary.encode().to_vec(),
 			false
 		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
@@ -411,9 +415,9 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			asset_id: generate_asset_id(asset_id),
 			amount: 1000,
 			network: 1,
-			beneficiary: vec![1; 32],
+			beneficiary: beneficiary.encode(),
 			payload: payload.encode(),
-			index: 0,
+			index: 0
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -437,6 +441,10 @@ fn test_withdraw_returns_ok() {
 		));
 		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
 		// Mint Asset to Alice
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
 			RuntimeOrigin::root(),
@@ -453,7 +461,7 @@ fn test_withdraw_returns_ok() {
 			RuntimeOrigin::signed(1),
 			generate_asset_id(asset_id.clone()),
 			1000u128,
-			beneficiary.to_vec(),
+			beneficiary.encode().to_vec(),
 			false
 		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
@@ -462,9 +470,9 @@ fn test_withdraw_returns_ok() {
 			asset_id: generate_asset_id(asset_id),
 			amount: 1000,
 			network: 1,
-			beneficiary: vec![1; 32],
+			beneficiary: beneficiary.encode(),
 			payload: payload.encode(),
-			index: 0,
+			index: 0
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -473,7 +481,7 @@ fn test_withdraw_returns_ok() {
 #[test]
 fn test_withdraw_with_wrong_benificiary_length() {
 	new_test_ext().execute_with(|| {
-		let beneficiary: [u8; 1000] = [1; 1000];
+		let beneficiary: [u8; 1001] = [1; 1001];
 		assert_noop!(
 			Thea::withdraw(RuntimeOrigin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
 			Error::<Test>::BeneficiaryTooLong
@@ -496,6 +504,10 @@ fn test_withdraw_with_wrong_asset_id_returns_UnableFindNetworkForAssetId() {
 fn test_withdraw_with_no_fee_config() {
 	new_test_ext().execute_with(|| {
 		let beneficiary: [u8; 32] = [1; 32];
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
 			RuntimeOrigin::signed(1),
@@ -506,7 +518,7 @@ fn test_withdraw_with_no_fee_config() {
 				RuntimeOrigin::signed(1),
 				generate_asset_id(asset_id),
 				1000u128,
-				beneficiary.to_vec(),
+				beneficiary.encode().to_vec(),
 				false
 			),
 			Error::<Test>::WithdrawalFeeConfigNotFound
@@ -542,18 +554,18 @@ fn transfer_native_asset() {
 			RuntimeOrigin::signed(1),
 			asset_id.clone(),
 			10_000_000_000_000u128,
-			beneficiary.to_vec(),
+			multi_location.encode().to_vec(),
 			false
 		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
-		let payload = ParachainWithdraw::get_parachain_withdraw(asset, multi_location);
+		let payload = ParachainWithdraw::get_parachain_withdraw(asset, multi_location.clone());
 		let approved_withdraw = ApprovedWithdraw {
 			asset_id,
 			amount: 10_000_000_000_000u128,
 			network: 1,
-			beneficiary: vec![1; 32],
+			beneficiary: multi_location.encode().to_vec(),
 			payload: payload.encode(),
-			index: 0,
+			index: 0
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -620,7 +632,18 @@ fn test_withdrawal_returns_ok() {
 			1000000000000u128
 		));
 		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
-		assert_ok!(Thea::do_withdraw(1, asset_id, 1000000000u128, [1; 32].to_vec(), false));
+		let beneficiary: [u8; 32] = [1; 32];
+		let beneficiary: MultiLocation = MultiLocation::new(
+			1,
+			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
+		);
+		assert_ok!(Thea::do_withdraw(
+			1,
+			asset_id,
+			1000000000u128,
+			beneficiary.encode().to_vec(),
+			false
+		));
 	})
 }
 
