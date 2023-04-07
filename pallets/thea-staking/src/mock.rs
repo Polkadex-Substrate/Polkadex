@@ -108,6 +108,7 @@ parameter_types! {
 	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+		pub const IdealActiveValidators: u32 = 3;
 }
 
 impl thea_staking::Config for Test {
@@ -127,6 +128,7 @@ impl thea_staking::Config for Test {
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
 }
 
 pub struct MockPallet(PhantomData<u32>);
@@ -222,6 +224,8 @@ impl pallet_assets::Config for Test {
 	type Extra = ();
 	type CallbackHandle = ();
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 // Build genesis storage according to the mock runtime.

@@ -195,6 +195,7 @@ parameter_types! {
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const IdealActiveValidators: u32 = 3;
 	pub const ModerateSK: u8 = 5; // 5% of stake to slash
 	pub const SevereSK: u8 = 20; // 20% of stake to slash
 	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
@@ -231,6 +232,7 @@ impl thea_staking::Config for Test {
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
 }
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

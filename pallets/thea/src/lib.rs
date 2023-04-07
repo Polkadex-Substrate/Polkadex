@@ -785,7 +785,7 @@ pub mod pallet {
 				index: pending_withdrawals.len() as u32,
 			};
 
-			if let Err(_) = pending_withdrawals.try_push(withdrawal) {
+			if pending_withdrawals.try_push(withdrawal).is_err() {
 				// This should not fail because of is_full check above
 			}
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
