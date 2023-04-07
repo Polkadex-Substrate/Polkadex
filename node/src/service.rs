@@ -20,10 +20,16 @@
 
 //! Service implementation. Specialized wrapper over substrate service.
 use crate::rpc as node_rpc;
-use futures::prelude::*;
+use futures::{
+	channel::mpsc::{unbounded, UnboundedReceiver},
+	prelude::*,
+};
+use memory_db::{HashKey, MemoryDB};
 use node_polkadex_runtime::RuntimeApi;
+use parking_lot::RwLock;
 use polkadex_client::ExecutorDispatch;
-use polkadex_primitives::Block;
+use polkadex_primitives::{Block, BlockNumber};
+use reference_trie::RefHasher;
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
@@ -118,6 +124,7 @@ pub fn create_extrinsic(
 		extra,
 	)
 }
+use orderbook_primitives::types::ObMessage;
 use sc_network_common::service::NetworkEventStream;
 
 #[allow(clippy::type_complexity)]
@@ -142,10 +149,17 @@ pub fn new_partial(
 			),
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
+			UnboundedReceiver<ObMessage>,
+			Arc<RwLock<BlockNumber>>,
+			Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+			Arc<RwLock<[u8; 32]>>,
 		),
 	>,
 	ServiceError,
 > {
+	let last_successful_block_no_snapshot_created = Arc::new(RwLock::new(0_u32.saturated_into()));
+	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
+	let working_state_root = Arc::new(RwLock::new([0; 32]));
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -230,6 +244,8 @@ pub fn new_partial(
 
 	let import_setup = (block_import, grandpa_link, babe_link);
 
+	let (ob_messge_sink, ob_message_stream) = unbounded::<ObMessage>();
+
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, babe_link) = &import_setup;
 
@@ -251,7 +267,10 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.sync_keystore();
 		let chain_spec = config.chain_spec.cloned_box();
-
+		let last_successful_block_no_snapshot_created_cloned =
+			last_successful_block_no_snapshot_created.clone();
+		let memory_db_cloned = memory_db.clone();
+		let working_state_root_cloned = working_state_root.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),
@@ -271,6 +290,11 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
+				orderbook: ob_messge_sink.clone(),
+				last_successful_block_no_snapshot_created:
+					last_successful_block_no_snapshot_created_cloned.clone(),
+				memory_db: memory_db_cloned.clone(),
+				working_state_root: working_state_root_cloned.clone(),
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)
@@ -279,6 +303,7 @@ pub fn new_partial(
 		(rpc_extensions_builder, rpc_setup)
 	};
 
+	// here the struct should be passed back
 	Ok(sc_service::PartialComponents {
 		client,
 		backend,
@@ -287,7 +312,16 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (Box::new(rpc_extensions_builder), import_setup, rpc_setup, telemetry),
+		other: (
+			Box::new(rpc_extensions_builder),
+			import_setup,
+			rpc_setup,
+			telemetry,
+			ob_message_stream,
+			last_successful_block_no_snapshot_created,
+			memory_db,
+			working_state_root,
+		),
 	})
 }
 
@@ -314,11 +348,23 @@ pub fn new_full_base(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
+		// need to add all the parameters required here
+		other:
+			(
+				rpc_builder,
+				import_setup,
+				rpc_setup,
+				mut telemetry,
+				orderbook_stream,
+				last_successful_block_no_snapshot_created,
+				memory_db,
+				working_state_root,
+			),
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
+
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
@@ -328,6 +374,16 @@ pub fn new_full_base(
 		.network
 		.extra_sets
 		.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
+
+	let orderbook_protocol_name = orderbook::protocol_standard_name(
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		config.chain_spec.as_ref(),
+	);
+
+	config
+		.network
+		.extra_sets
+		.push(orderbook::orderbook_peers_set_config(orderbook_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
@@ -375,7 +431,7 @@ pub fn new_full_base(
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend,
+		backend: backend.clone(),
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		network: network.clone(),
@@ -492,7 +548,7 @@ pub fn new_full_base(
 		observer_enabled: false,
 		keystore,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		local_role: role,
+		local_role: role.clone(),
 		protocol_name: grandpa_protocol_name,
 	};
 
@@ -509,7 +565,7 @@ pub fn new_full_base(
 			network: network.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry,
+			prometheus_registry: prometheus_registry.clone(),
 			shared_voter_state,
 		};
 
@@ -521,6 +577,29 @@ pub fn new_full_base(
 			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
+
+	let config = orderbook::ObParams {
+		client: client.clone(),
+		backend,
+		runtime: client.clone(),
+		key_store: None,
+		network: network.clone(),
+		prometheus_registry,
+		protocol_name: orderbook_protocol_name,
+		marker: Default::default(),
+		is_validator: role.is_authority(),
+		message_sender_link: orderbook_stream,
+		last_successful_block_number_snapshot_created: last_successful_block_no_snapshot_created,
+		memory_db,
+		working_state_root,
+	};
+
+	// Orderbook task
+	task_manager.spawn_handle().spawn_blocking(
+		"orderbook",
+		None,
+		orderbook::start_orderbook_gadget(config),
+	);
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })

@@ -20,13 +20,6 @@ polkadex-primitives = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
 
-[dev-dependencies]
-pallet-assets = { workspace = true, features = ["std"] }
-pallet-balances = { workspace = true, features = ["std"] }
-sp-application-crypto = { workspace = true }
-sp-io = { workspace = true }
-pallet-ocex-lmp = { path = "../ocex", default-features = false }
-
 [features]
 default = ["std"]
 std = [
@@ -38,13 +31,11 @@ std = [
     "sp-std/std",
     "polkadex-primitives/std",
     "pallet-timestamp/std",
-    "pallet-ocex-lmp/std",
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
-    "pallet-ocex-lmp/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
