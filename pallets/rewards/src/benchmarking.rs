@@ -5,6 +5,7 @@ use crate::{pallet::Call, Pallet as pallet_rewards};
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
 use frame_system::RawOrigin;
+use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_runtime::traits::SaturatedConversion;
 
@@ -47,19 +48,23 @@ benchmarks! {
 		//insert reward info into storage
 		let reward_info = RewardInfo { start_block: start_block.saturated_into(), end_block: end_block.saturated_into(), initial_percentage };
 		<InitializeRewards<T>>::insert(reward_id, reward_info);
-
-		let alice_account = account::<T::AccountId>("alice", 1, 0);
+		let someone: [u8; 32] =
+			[
+				56, 134, 235, 7, 231, 177, 252, 235, 55, 126, 246, 106, 208, 183, 23, 68, 222, 230,
+				68, 172, 98, 117, 196, 201, 188, 54, 116, 10, 8, 86, 229, 86,
+			];
+		let alice_account = T::AccountId::decode(&mut someone.as_ref()).unwrap();
 		let pallet_id_account = pallet_rewards::<T>::get_pallet_account();
 
 		//set balance for pallet account
 		T::NativeCurrency::deposit_creating(
-			&pallet_id_account.clone(),
+			&pallet_id_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
 
 		//set existential balance for alice
 		T::NativeCurrency::deposit_creating(
-			&alice_account.clone(),
+			&alice_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
 
@@ -70,7 +75,7 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(RawOrigin::Signed(alice_account.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::UserUnlockedReward {
-			user: alice_account.clone(),
+			user: alice_account,
 			reward_id
 		}.into());
 	}
@@ -89,13 +94,13 @@ benchmarks! {
 
 		//set balance for pallet account
 		T::NativeCurrency::deposit_creating(
-			&pallet_id_account.clone(),
+			&pallet_id_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
 
 		//set existential balance for alice
 		T::NativeCurrency::deposit_creating(
-			&alice_account.clone(),
+			&alice_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
 
@@ -117,7 +122,7 @@ benchmarks! {
 		let call = Call::<T>::claim {
 			reward_id };
 
-	}: {call.dispatch_bypass_filter(RawOrigin::Signed(alice_account.clone()).into())?}
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(alice_account.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::UserClaimedReward {
 			user: alice_account.clone(),
