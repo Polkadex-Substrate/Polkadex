@@ -15,7 +15,6 @@ use sc_network_test::{
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{blake2_128, Pair};
 use sp_keyring::AccountKeyring;
-use tokio::runtime::Runtime;
 use trie_db::{TrieDBMut, TrieDBMutBuilder};
 
 use bls_primitives::Pair as BLSPair;
@@ -250,11 +249,10 @@ where
 //     (worker, rpc_sender)
 // }
 
-#[test]
-pub fn test_network() {
+#[tokio::test]
+async fn test_network() {
 	sp_tracing::try_init_simple();
 
-	let runtime = Runtime::new().unwrap();
 	let peers = &[(AccountKeyring::Alice, true), (AccountKeyring::Bob, true)];
 	let mut net = ObTestnet::new(2, 0);
 
@@ -264,7 +262,7 @@ pub fn test_network() {
 		.enumerate()
 		.map(|(id, (key, is_auth))| (id, key, api.clone(), *is_auth))
 		.collect();
-	runtime.spawn(async move {
+	tokio::spawn(async move {
 		initialize_orderbook(&mut net, ob_peers).await;
 	});
 }
