@@ -37,7 +37,8 @@ benchmarks! {
 		let chain_id = 1;
 		let id = H160::from_slice(&[b as u8; 20]);
 		let rid = chainbridge::derive_resource_id(chain_id, &id.0);
-	}: _(origin, chain_id, id, PrecisionType::LowPrecision(1000000))
+		let call = Call::<T>::create_asset { chain_id, contract_add: id, precision_type: PrecisionType::LowPrecision(1000000) };
+	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_last_event::<T>(Event::AssetRegistered(rid).into());
 	}
@@ -46,7 +47,8 @@ benchmarks! {
 		let asset_address = H160::decode(&mut [218, 193, 127, 149, 141, 46, 229, 35, 162, 32, 98, 6, 153, 69, 151, 193, 61, 131, 30, 199].as_ref()).unwrap();
 		let origin = T::AssetCreateUpdateOrigin::successful_origin();
 		let id = BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap();
-	}: _(origin, 0, 5, id)
+		let call = Call::<T>::create_thea_asset { network_id: 0, identifier_length: 5, asset_identifier: id };
+	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_last_event::<T>(Event::TheaAssetCreated(1).into());
 	}
@@ -55,7 +57,8 @@ benchmarks! {
 		let b in 0 .. 255;
 		let origin = T::AssetCreateUpdateOrigin::successful_origin();
 		let asset = sp_std::boxed::Box::new(AssetId::from([b as u8; 64].to_vec()));
-	}: _(origin, asset)
+		let call = Call::<T>::create_parachain_asset { asset };
+	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_last_event::<T>(Event::TheaAssetCreated(1).into());
 	}
