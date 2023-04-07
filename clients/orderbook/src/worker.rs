@@ -111,6 +111,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	latest_stid: u64,
 	// Map of trading pair configs
 	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
+	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -175,6 +176,7 @@ where
 			last_block_snapshot_generated,
 			latest_stid: 0,
 			trading_pair_configs: Default::default(),
+			orderbook_operator_public_key: None,
 		}
 	}
 
@@ -461,6 +463,14 @@ where
 	}
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
+		if let Some(expected_singer) = self.orderbook_operator_public_key {
+			if !action.verify(&expected_singer) {
+				return Err(Error::SignatureVerificationFailed)
+			}
+		} else {
+			warn!(target: "orderbook", "📒 Orderbook operator public key not set");
+			return Err(Error::SignatureVerificationFailed)
+		}
 		info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
 		// Cache the message
 		self.known_messages.insert(action.stid, action.clone());
@@ -592,7 +602,7 @@ where
 				// We dont allow gossip messsages to be greater than 10MB
 				if messages.encoded_size() >= 10 * 1024 * 1024 {
 					// If we reach size limit, we send data in chunks of 10MB.
-					let message = GossipMessage::Stid(messages);
+					let message = GossipMessage::Stid(Box::new(messages));
 					self.gossip_engine.send_message(vec![peer], message.encode());
 					metric_inc!(self, ob_messages_sent);
 					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -604,7 +614,7 @@ where
 			}
 			// Send the final chunk if any
 			if !messages.is_empty() {
-				let message = GossipMessage::Stid(messages);
+				let message = GossipMessage::Stid(Box::new(messages));
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -828,6 +838,12 @@ where
 
 			// Update the latest snapshot summary.
 			*self.last_snapshot.write() = latest_summary;
+			if let Some(orderbook_operator_public_key) =
+				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
+					self.last_finalized_block.saturated_into(),
+				))? {
+				self.orderbook_operator_public_key = Some(orderbook_operator_public_key);
+			}
 		}
 		// if we are syncing the check progress
 		if self.state_is_syncing {
