@@ -75,7 +75,7 @@ pub trait OrderbookApi {
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
 pub struct OrderbookRpc {
-	tx: UnboundedSender<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
+	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
 }
 
@@ -83,7 +83,7 @@ impl OrderbookRpc {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
 		_executor: SubscriptionTaskExecutor,
-		tx: UnboundedSender<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
+		tx: UnboundedSender<ObMessage>,
 	) -> Self {
 		Self { tx, _executor }
 	}
@@ -97,8 +97,10 @@ impl OrderbookApiServer for OrderbookRpc {
 		signature_r: Scalar<Secp256k1>,
 		signature_s: Scalar<Secp256k1>
 	) -> RpcResult<()> {
+// Since KMS does not return V value, It is assumed that it is either 27 or 28
+		// So only if both function returns false, it is a signature verification error
 		let mut tx = self.tx.clone();
-		tx.send((message, signature_r, signature_s)).await?;
+		tx.send(message).await?;
 		Ok(())
 	}
 }

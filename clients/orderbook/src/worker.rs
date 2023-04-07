@@ -51,9 +51,6 @@ use crate::{
 };
 use primitive_types::H128;
 use sp_runtime::traits::Verify;
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
-use curv::arithmetic::Converter;
 
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
@@ -67,7 +64,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	// pub links: BeefyVoterLinks<B>,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
-	pub message_sender_link: UnboundedReceiver<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
+	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
@@ -99,7 +96,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// voter state
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
-	message_sender_link: UnboundedReceiver<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
+	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
 	// In memory store
 	memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
@@ -412,66 +409,18 @@ where
 		Ok(())
 	}
 
-	pub fn convert_signature(signature: &SignatureRecid) -> Option<sp_core::ecdsa::Signature> {
-		let recid = secp256k1::ecdsa::RecoveryId::from_i32(signature.recid as i32).unwrap();
-		let mut signature_template = signature.r.to_bigint().to_bytes();
-		signature_template.append(&mut signature.s.to_bigint().to_bytes());
-		let signature_converted =
-			secp256k1::ecdsa::RecoverableSignature::from_compact(&signature_template, recid).unwrap();
-
-		// TODO: Inbuilt conversion is not working for some reason., copy pasted the code here
-		let mut r = sp_core::ecdsa::Signature::default();
-		let (recid, sig) = signature_converted.serialize_compact();
-		r.0[..64].copy_from_slice(&sig);
-		// This is safe due to the limited range of possible valid ids.
-		r.0[64] = recid.to_i32() as u8;
-
-		Some(r)
-	}
-	pub fn verify_ecdsa_prehashed(
-		signature: &sp_core::ecdsa::Signature,
-		public_key: &sp_core::ecdsa::Public,
-		message: &[u8; 32],
-	) -> bool {
-		if let Some(pubk) = signature.recover_prehashed(message) {
-			&pubk == public_key
-		} else {
-			false
-		}
-	}
-
-	pub async fn verify_user_action(
-		&mut self,
-		data: &[u8; 32],
-		signature_r: Scalar<Secp256k1>,
-		signature_s: Scalar<Secp256k1>,
-		v_value: u8
-	) -> bool {
-		let signature = SignatureRecid {
-			r: signature_r,
-			s: signature_s,
-			recid: v_value
-		};
-		let signature = Self::convert_signature(&signature).unwrap();
-		if let Some(expected_signer) = self.orderbook_operator_public_key {
-			return Self::verify_ecdsa_prehashed(&signature, &expected_signer, data);
-		}
-		false
-	}
-
 	pub async fn process_new_user_action(
 		&mut self,
 		action: &ObMessage,
-		signature_r: Scalar<Secp256k1>,
-		signature_s: Scalar<Secp256k1>
 	) -> Result<(), Error> {
-		let json = serde_json::to_string(action).unwrap_or_default();
-		let hashed_ob_message = sp_core::hashing::keccak_256(json.as_bytes());
 
-		// Since KMS does not return V value, It is assumed that it is either 27 or 28
-		// So only if both function returns false, it is a signature verification error
-		if !self.verify_user_action(&hashed_ob_message, signature_r.clone(), signature_s.clone(), 0).await && !self.verify_user_action(&hashed_ob_message, signature_r, signature_s, 1).await {
-			return  Err(Error::SignatureVerificationFailed)
+		match self.orderbook_operator_public_key {
+			None => return Err(Error::OperatorNotRegisteredOnRuntime),
+			Some(operator) => {
+				if !action.verify(&operator){
+					return Err(Error::SignatureVerificationFailed)
+				}
+			}
 		}
 
 		info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
@@ -750,11 +699,7 @@ where
 		match message {
 			GossipMessage::WantStid(from, to) => self.want_stid(from, to, remote),
 			GossipMessage::Stid(messages) => self.got_stids_via_gossip(messages).await?,
-			GossipMessage::ObMessage(msg, signature_r, signature_s) => {
-				let r_point = Scalar::from_bytes(signature_r).map_err(|_| Error::SignatureVerificationFailed)?;
-				let s_point = Scalar::from_bytes(signature_s).map_err(|_| Error::SignatureVerificationFailed)?;
-				self.process_new_user_action(msg, r_point, s_point).await?;
-			}
+			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
 			GossipMessage::Want(snap_id, bitmap) => self.want(snap_id, bitmap, remote).await,
 			GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote).await,
 			GossipMessage::RequestChunk(snap_id, bitmap) =>
@@ -1047,8 +992,8 @@ where
 					}
 				},
 				message = self.message_sender_link.next() => {
-					if let Some((message, signature_r, signature_s)) = message {
-						if let Err(err) = self.process_new_user_action(&message, signature_r, signature_s).await {
+					if let Some(message) = message {
+						if let Err(err) = self.process_new_user_action(&message).await {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					}else{

@@ -15,9 +15,6 @@ use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
 use std::{future::Future, marker::PhantomData, sync::Arc};
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
-use curv::arithmetic::Converter;
 
 mod error;
 mod gossip;
@@ -119,7 +116,7 @@ where
 	/// Boolean indicating if this node is a validator
 	pub is_validator: bool,
 	/// Submit message link
-	pub message_sender_link: UnboundedReceiver<(ObMessage, Scalar<Secp256k1>, Scalar<Secp256k1>)>,
+	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	// Links between the block importer, the background voter and the RPC layer.
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,

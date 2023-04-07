@@ -93,6 +93,8 @@ impl Trade {
 #[cfg(feature = "std")]
 use chrono::Utc;
 use libp2p_core::PeerId;
+use serde_json::Error;
+use sp_core::ecdsa::Public;
 
 impl Trade {
 	// Creates a Trade with zero event_tag
@@ -118,7 +120,7 @@ pub enum GossipMessage {
 	// Collection of Stids
 	Stid(Vec<ObMessage>),
 	// Single ObMessage
-	ObMessage(ObMessage, Vec<u8>, Vec<u8>),
+	ObMessage(ObMessage),
 	// Snapshot id, bitmap, remote peer
 	Want(u64, Vec<u128>),
 	// Snapshot id, bitmap, remote peer
@@ -136,6 +138,36 @@ pub enum GossipMessage {
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
+	pub signature: Option<sp_core::ecdsa::Signature>
+}
+
+impl ObMessage {
+	#[cfg(feature = "std")]
+	pub fn verify(&self, public_key: &sp_core::ecdsa::Public) -> bool {
+		match self.sign_data() {
+			Ok(message) => {
+				match self.signature.as_ref() {
+					None => false,
+					Some(signature) => {
+						match signature.recover_prehashed(&message){
+							None => false,
+							Some(recovered_pubk) => &recovered_pubk == public_key
+						}
+					}
+				}
+			},
+
+			Err(_) => false
+		}
+	}
+
+	#[cfg(feature = "std")]
+	pub fn sign_data(&self) -> Result<[u8;32],Error> {
+		let mut cloned_self = self.clone();
+		cloned_self.signature = None;
+		let json = serde_json::to_string(&cloned_self)?;
+		Ok(sp_core::hashing::keccak_256(json.as_bytes()))
+	}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

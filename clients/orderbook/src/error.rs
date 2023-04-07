@@ -11,6 +11,8 @@ use trie_db::TrieError;
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
+	#[error("Orderbook Operator is not registered on runtime")]
+	OperatorNotRegisteredOnRuntime,
 	#[error("Backend: {0}")]
 	Backend(String),
 	#[error("Keystore error: {0}")]
