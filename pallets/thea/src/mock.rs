@@ -196,41 +196,6 @@ impl SessionChanged for MockPallet {
 }
 
 parameter_types! {
-	pub const SessionLength: u64 = 7000;
-	pub const UnbondingDelay: u32 = 10;
-	pub const MaxUnlockChunks: u32 = 10;
-	pub const CandidateBond: Balance = 1000_000_000_000;
-	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
-	pub const StakingDataPruneDelay: u32 = 6;
-	pub const ModerateSK: u8 = 5; // 5% of stake to slash
-	pub const SevereSK: u8 = 20; // 20% of stake to slash
-	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
-	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
-	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-}
-
-impl thea_staking::Config for Test {
-	type Event = Event;
-	type SessionLength = SessionLength;
-	type UnbondingDelay = UnbondingDelay;
-	type MaxUnlockChunks = MaxUnlockChunks;
-	type CandidateBond = CandidateBond;
-	type StakingReserveIdentifier = StakingReserveIdentifier;
-	type StakingDataPruneDelay = StakingDataPruneDelay;
-	type SessionChangeNotifier = MockPallet;
-	type ModerateSlashingCoeficient = ModerateSK;
-	type SevereSlashingCoeficient = SevereSK;
-	type ReportersRewardCoeficient = ReporterRewardKF;
-	type SlashingThreshold = SlashingTh;
-	type TreasuryPalletId = TreasuryPalletId;
-	type GovernanceOrigin = EnsureRoot<u64>;
-	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
-	type Currency = Balances;
-	type WeightInfo = thea_staking::weight::StakeWeightInfo<Test>;
-}
-
-parameter_types! {
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
 	pub const WithdrawalSize: u32 = 10;
 	pub const ParaId: u32 = 2040;
@@ -293,6 +258,7 @@ impl thea_staking::Config for Test {
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
 	type ActiveValidators = IdealActiveValidators;
+	type WeightInfo = thea_staking::weight::StakeWeightInfo<Test>;
 }
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

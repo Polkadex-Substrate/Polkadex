@@ -20,6 +20,7 @@ use crate::{
 use frame_support::{
 	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
 };
+use frame_system::Origin;
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
 use sp_runtime::{traits::ConstU32, BoundedVec, TokenError};
