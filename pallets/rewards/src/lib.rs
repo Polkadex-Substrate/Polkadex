@@ -26,10 +26,10 @@
 
 use frame_support::{
 	dispatch::DispatchResult,
-	pallet_prelude::Get,
+	pallet_prelude::{Get, Weight},
 	traits::{Currency, ExistenceRequirement, LockIdentifier},
 };
-use pallet_timestamp::{self as timestamp};
+use pallet_timestamp as timestamp;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
 	SaturatedConversion,
@@ -42,16 +42,20 @@ pub use pallet::*;
 type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-mod mock;
+pub trait WeightInfo {
+	fn create_reward_cycle(_b: u32, _i: u32, _r: u32) -> Weight;
+	fn initialize_claim_rewards() -> Weight;
+	fn claim() -> Weight;
+}
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-
 mod crowdloan_rewardees;
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+pub mod weights;
 
 const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
@@ -108,6 +112,9 @@ pub mod pallet {
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and

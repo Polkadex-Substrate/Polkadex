@@ -1286,6 +1286,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
 //Install rewards Pallet
@@ -1300,6 +1301,7 @@ impl pallet_rewards::Config for Runtime {
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type WeightInfo = pallet_rewards::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
