@@ -417,7 +417,7 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			network: 1,
 			beneficiary: beneficiary.encode(),
 			payload: payload.encode(),
-			index: 0
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -472,7 +472,7 @@ fn test_withdraw_returns_ok() {
 			network: 1,
 			beneficiary: beneficiary.encode(),
 			payload: payload.encode(),
-			index: 0
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -565,7 +565,7 @@ fn transfer_native_asset() {
 			network: 1,
 			beneficiary: multi_location.encode().to_vec(),
 			payload: payload.encode(),
-			index: 0
+			index: 0,
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
