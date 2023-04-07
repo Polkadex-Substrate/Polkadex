@@ -52,8 +52,6 @@ use orderbook_primitives::types::TradingPair;
 use polkadex_primitives::ocex::TradingPairConfig;
 use primitive_types::H128;
 
-use sp_runtime::traits::Verify;
-
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
@@ -604,7 +602,7 @@ where
 				// We dont allow gossip messsages to be greater than 10MB
 				if messages.encoded_size() >= 10 * 1024 * 1024 {
 					// If we reach size limit, we send data in chunks of 10MB.
-					let message = GossipMessage::Stid(messages);
+					let message = GossipMessage::Stid(Box::new(messages));
 					self.gossip_engine.send_message(vec![peer], message.encode());
 					metric_inc!(self, ob_messages_sent);
 					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -616,7 +614,7 @@ where
 			}
 			// Send the final chunk if any
 			if !messages.is_empty() {
-				let message = GossipMessage::Stid(messages);
+				let message = GossipMessage::Stid(Box::new(messages));
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
