@@ -15,11 +15,12 @@
 
 use crate::pallet::{Pallet as AssetHandler, *};
 use frame_benchmarking::{account, benchmarks};
-use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
+use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
 use sp_core::H160;
 use sp_runtime::SaturatedConversion;
+use xcm::latest::AssetId;
 
 const SEED: u32 = 0;
 pub const UNIT_BALANCE: u128 = 1000_000_000_000;
@@ -32,12 +33,31 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 benchmarks! {
 	create_asset {
 		let b in 0 .. 255;
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
 		let chain_id = 1;
 		let id = H160::from_slice(&[b as u8; 20]);
 		let rid = chainbridge::derive_resource_id(chain_id, &id.0);
-	}: _(RawOrigin::Root, chain_id, id, PrecisionType::LowPrecision(1000000))
+	}: _(origin, chain_id, id, PrecisionType::LowPrecision(1000000))
 	verify {
 		assert_last_event::<T>(Event::AssetRegistered(rid).into());
+	}
+
+	create_thea_asset {
+		let asset_address = H160::decode(&mut [218, 193, 127, 149, 141, 46, 229, 35, 162, 32, 98, 6, 153, 69, 151, 193, 61, 131, 30, 199].as_ref()).unwrap();
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
+		let id = BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap();
+	}: _(origin, 0, 5, id)
+	verify {
+		assert_last_event::<T>(Event::TheaAssetCreated(1).into());
+	}
+
+	create_parachain_asset {
+		let b in 0 .. 255;
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
+		let asset = sp_std::boxed::Box::new(AssetId::from([b as u8; 64].to_vec()));
+	}: _(origin, asset)
+	verify {
+		assert_last_event::<T>(Event::TheaAssetCreated(1).into());
 	}
 
 	mint_asset {

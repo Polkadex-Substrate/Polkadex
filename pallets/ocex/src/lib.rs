@@ -1063,6 +1063,18 @@ pub mod pallet {
 			}
 			Ok(())
 		}
+
+		/// Submit Snapshot Summary
+		#[pallet::weight(10000)]
+		pub fn whitelist_orderbook_operator(
+			origin: OriginFor<T>,
+			operator_public_key: sp_core::ecdsa::Public,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<OrderbookOperatorPublicKey<T>>::put(operator_public_key);
+			Self::deposit_event(Event::<T>::OrderbookOperatorKeyWhitelisted(operator_public_key));
+			Ok(())
+		}
 	}
 
 	impl<T: Config> LiquidityModifier for Pallet<T> {
@@ -1312,6 +1324,8 @@ pub mod pallet {
 		ExchangeStateUpdated(bool),
 		/// Withdraw Assets from Orderbook
 		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
+		/// Orderbook Operator Key Whitelisted
+		OrderbookOperatorKeyWhitelisted(sp_core::ecdsa::Public),
 	}
 
 	///Allowlisted tokens
@@ -1427,6 +1441,11 @@ pub mod pallet {
 	#[pallet::getter(fn get_next_authorities)]
 	pub(super) type NextAuthorities<T: Config> =
 		StorageValue<_, BoundedVec<AuthorityId, OnChainEventsLimit>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_orderbook_operator_public_key)]
+	pub(super) type OrderbookOperatorPublicKey<T: Config> =
+		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
