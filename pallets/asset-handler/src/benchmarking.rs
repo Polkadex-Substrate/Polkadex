@@ -55,7 +55,7 @@ benchmarks! {
 		let amount = b as u128 * UNIT_BALANCE;
 	}: _(RawOrigin::Signed(chainbridge::Pallet::<T>::account_id()), recipient.clone().to_vec(), amount, rid)
 	verify {
-		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, AssetHandler::<T>::convert_18dec_to_12dec(amount).unwrap()).into());
+		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, amount).into());
 	}
 
 	set_bridge_status {

@@ -2,10 +2,9 @@
 
 use super::*;
 use crate::{pallet::Call, Pallet as pallet_rewards};
-use frame_benchmarking::benchmarks;
+use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
 use frame_system::RawOrigin;
-use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_runtime::traits::SaturatedConversion;
 
@@ -49,13 +48,8 @@ benchmarks! {
 		let reward_info = RewardInfo { start_block: start_block.saturated_into(), end_block: end_block.saturated_into(), initial_percentage };
 		<InitializeRewards<T>>::insert(reward_id, reward_info);
 
-		let alice_account_in_vec = Vec::from([
-				7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-				7, 7, 7, 7,
-			]);
-
+		let alice_account = account::<T::AccountId>("alice", 1, 0);
 		let pallet_id_account = pallet_rewards::<T>::get_pallet_account();
-		let alice_account = T::AccountId::decode(&mut &alice_account_in_vec[..]).unwrap();
 
 		//set balance for pallet account
 		T::NativeCurrency::deposit_creating(
@@ -73,7 +67,7 @@ benchmarks! {
 
 		let call = Call::<T>::initialize_claim_rewards {
 			reward_id };
-	}: {call.dispatch_bypass_filter(RawOrigin::Signed(alice_account.clone()).into())?}
+	}: { call.dispatch_bypass_filter(RawOrigin::Signed(alice_account.clone()).into())? }
 	verify {
 		assert_last_event::<T>(Event::UserUnlockedReward {
 			user: alice_account.clone(),
@@ -89,14 +83,9 @@ benchmarks! {
 		let reward_info = RewardInfo { start_block: start_block.saturated_into(), end_block: end_block.saturated_into(), initial_percentage };
 		<InitializeRewards<T>>::insert(reward_id, reward_info);
 
-		let alice_account_in_vec = Vec::from([
-				7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-				7, 7, 7, 7,
-			]);
+		let alice_account = account::<T::AccountId>("alice", 1, 0);
 
 		let pallet_id_account = pallet_rewards::<T>::get_pallet_account();
-
-		let alice_account = T::AccountId::decode(&mut &alice_account_in_vec[..]).unwrap();
 
 		//set balance for pallet account
 		T::NativeCurrency::deposit_creating(
