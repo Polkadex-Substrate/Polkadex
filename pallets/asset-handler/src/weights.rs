@@ -30,34 +30,41 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions for `asset_handler`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> super::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
+	// Storage: AssetHandler AssetPrecision (r:0 w:1)
+	/// The range of component `b` is `[0, 255]`.
+	fn add_precision(_b: u32, ) -> Weight {
+		// Minimum execution time: 5_164 nanoseconds.
+		Weight::from_ref_time(5_619_805)
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
 	// Storage: ChainBridge AssetIdToResourceMap (r:1 w:1)
 	// Storage: Assets Asset (r:1 w:1)
 	// Storage: AssetHandler AssetPrecision (r:0 w:1)
 	/// The range of component `b` is `[0, 255]`.
-	fn create_asset(_b: u32, ) -> Weight {
-		// Minimum execution time: 25_273 nanoseconds.
-		Weight::from_ref_time(26_363_307)
+	fn create_asset(b: u32, ) -> Weight {
+		// Minimum execution time: 25_105 nanoseconds.
+		Weight::from_ref_time(26_127_166)
+			// Standard Error: 16
+			.saturating_add(Weight::from_ref_time(169).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
-	fn create_thea_asset(_b: u32, ) -> Weight {
-		// Minimum execution time: 25_273 nanoseconds.
-		Weight::from_ref_time(26_363_307)
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(3))
+	// Storage: Assets Asset (r:1 w:1)
+	// Storage: AssetHandler TheaAssets (r:0 w:1)
+	fn create_thea_asset() -> Weight {
+		// Minimum execution time: 21_721 nanoseconds.
+		Weight::from_ref_time(22_417_000)
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
-	fn create_parachain_asset(_b: u32, ) -> Weight {
-		// Minimum execution time: 25_273 nanoseconds.
-		Weight::from_ref_time(26_363_307)
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(3))
-	}
-	fn add_precision() -> Weight {
-		// Minimum execution time: 25_273 nanoseconds.
-		Weight::from_ref_time(26_363_307)
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(3))
+	// Storage: Assets Asset (r:1 w:1)
+	// Storage: AssetHandler TheaAssets (r:0 w:1)
+	fn create_parachain_asset() -> Weight {
+		// Minimum execution time: 22_157 nanoseconds.
+		Weight::from_ref_time(22_668_000)
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	// Storage: AssetHandler AssetPrecision (r:1 w:0)
 	// Storage: ChainBridge AssetIdToResourceMap (r:1 w:0)
@@ -66,31 +73,33 @@ impl<T: frame_system::Config> super::WeightInfo for WeightInfo<T> {
 	// Storage: System Account (r:1 w:1)
 	/// The range of component `b` is `[1, 1000]`.
 	fn mint_asset(_b: u32, ) -> Weight {
-		// Minimum execution time: 36_967 nanoseconds.
-		Weight::from_ref_time(39_561_440)
+		// Minimum execution time: 36_416 nanoseconds.
+		Weight::from_ref_time(38_686_747)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
 	// Storage: AssetHandler BridgeDeactivated (r:0 w:1)
 	fn set_bridge_status() -> Weight {
-		// Minimum execution time: 14_007 nanoseconds.
-		Weight::from_ref_time(14_431_000)
+		// Minimum execution time: 13_639 nanoseconds.
+		Weight::from_ref_time(14_169_000)
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: AssetHandler WithdrawalExecutionBlockDiff (r:0 w:1)
 	fn set_block_delay() -> Weight {
-		// Minimum execution time: 14_106 nanoseconds.
-		Weight::from_ref_time(14_489_000)
+		// Minimum execution time: 13_834 nanoseconds.
+		Weight::from_ref_time(14_338_000)
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: AssetHandler BridgeFee (r:0 w:1)
 	/// The range of component `m` is `[1, 100]`.
 	/// The range of component `f` is `[1, 1000]`.
-	fn update_fee(_m: u32, f: u32, ) -> Weight {
-		// Minimum execution time: 14_507 nanoseconds.
-		Weight::from_ref_time(15_426_495)
+	fn update_fee(m: u32, f: u32, ) -> Weight {
+		// Minimum execution time: 14_522 nanoseconds.
+		Weight::from_ref_time(15_305_367)
+			// Standard Error: 33
+			.saturating_add(Weight::from_ref_time(248).saturating_mul(m.into()))
 			// Standard Error: 3
-			.saturating_add(Weight::from_ref_time(4).saturating_mul(f.into()))
+			.saturating_add(Weight::from_ref_time(28).saturating_mul(f.into()))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: AssetHandler AllowlistedToken (r:1 w:0)
@@ -103,31 +112,31 @@ impl<T: frame_system::Config> super::WeightInfo for WeightInfo<T> {
 	// Storage: AssetHandler WithdrawalExecutionBlockDiff (r:1 w:0)
 	/// The range of component `b` is `[10, 1000]`.
 	/// The range of component `c` is `[1010, 2000]`.
-	fn withdraw(_b: u32, c: u32, ) -> Weight {
-		// Minimum execution time: 48_126 nanoseconds.
-		Weight::from_ref_time(49_488_873)
+	fn withdraw(b: u32, _c: u32, ) -> Weight {
+		// Minimum execution time: 46_899 nanoseconds.
+		Weight::from_ref_time(48_658_037)
 			// Standard Error: 5
-			.saturating_add(Weight::from_ref_time(87).saturating_mul(c.into()))
+			.saturating_add(Weight::from_ref_time(8).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(8))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
 	// Storage: AssetHandler AllowlistedToken (r:1 w:1)
 	/// The range of component `b` is `[0, 225]`.
 	fn allowlist_token(b: u32, ) -> Weight {
-		// Minimum execution time: 15_586 nanoseconds.
-		Weight::from_ref_time(16_392_591)
-			// Standard Error: 19
-			.saturating_add(Weight::from_ref_time(151).saturating_mul(b.into()))
+		// Minimum execution time: 15_533 nanoseconds.
+		Weight::from_ref_time(16_322_829)
+			// Standard Error: 17
+			.saturating_add(Weight::from_ref_time(253).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: AssetHandler AllowlistedToken (r:1 w:1)
 	/// The range of component `b` is `[0, 225]`.
 	fn remove_allowlisted_token(b: u32, ) -> Weight {
-		// Minimum execution time: 17_546 nanoseconds.
-		Weight::from_ref_time(18_411_512)
-			// Standard Error: 18
-			.saturating_add(Weight::from_ref_time(178).saturating_mul(b.into()))
+		// Minimum execution time: 17_548 nanoseconds.
+		Weight::from_ref_time(18_295_296)
+			// Standard Error: 17
+			.saturating_add(Weight::from_ref_time(239).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}

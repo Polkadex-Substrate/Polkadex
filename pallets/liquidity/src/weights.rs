@@ -30,7 +30,7 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions for `liquidity`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> liquidity::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> super::WeightInfo for WeightInfo<T> {
 	// Storage: Liquidity RegisterGovernanceAccounts (r:1 w:1)
 	// Storage: OCEX ExchangeState (r:1 w:0)
 	// Storage: OCEX Accounts (r:1 w:1)
