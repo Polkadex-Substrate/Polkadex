@@ -77,11 +77,7 @@ pub trait OrderbookApi {
 	/// in the network or if the client is still initializing or syncing with the network.
 	/// In such case an error would be returned.
 	#[method(name = "ob_submitAction")]
-	async fn submit_action(
-		&self,
-		action: ObMessage,
-		signature: sp_core::ecdsa::Signature,
-	) -> RpcResult<()>;
+	async fn submit_action(&self, action: ObMessage) -> RpcResult<()>;
 	/// Returns the state of the orderbook that will help engine to recover.
 	///
 	/// # Parameters
@@ -95,7 +91,7 @@ pub trait OrderbookApi {
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
 pub struct OrderbookRpc<Client, Block> {
-	tx: UnboundedSender<(ObMessage, sp_core::ecdsa::Signature)>,
+	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
 	last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	memory_db: DbRef,
@@ -133,13 +129,9 @@ where
 	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	Client::Api: ObApi<Block>,
 {
-	async fn submit_action(
-		&self,
-		message: ObMessage,
-		signature: sp_core::ecdsa::Signature,
-	) -> RpcResult<()> {
+	async fn submit_action(&self, message: ObMessage) -> RpcResult<()> {
 		let mut tx = self.tx.clone();
-		tx.send((message, signature)).await?;
+		tx.send(message).await?;
 		Ok(())
 	}
 

@@ -126,7 +126,7 @@ pub enum GossipMessage {
 	// Collection of Stids
 	Stid(Vec<ObMessage>),
 	// Single ObMessage
-	ObMessage(ObMessage, sp_core::ecdsa::Signature),
+	ObMessage(ObMessage),
 	// Snapshot id, bitmap, remote peer
 	Want(u64, Vec<u128>),
 	// Snapshot id, bitmap, remote peer
@@ -145,6 +145,24 @@ pub enum GossipMessage {
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
+	pub signature: sp_core::ecdsa::Signature,
+}
+
+impl ObMessage {
+	#[cfg(feature = "std")]
+	pub fn verify(&self, public_key: &sp_core::ecdsa::Public) -> bool {
+		match self.signature.recover_prehashed(&self.sign_data()) {
+			None => false,
+			Some(recovered_pubk) => &recovered_pubk == public_key,
+		}
+	}
+
+	#[cfg(feature = "std")]
+	pub fn sign_data(&self) -> [u8; 32] {
+		let mut cloned_self = self.clone();
+		cloned_self.signature = sp_core::ecdsa::Signature::default();
+		sp_core::hashing::keccak_256(&cloned_self.encode())
+	}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
