@@ -1065,6 +1065,7 @@ pub mod pallet {
 		}
 
 		/// Submit Snapshot Summary
+		#[pallet::call_index(18)]
 		#[pallet::weight(10000)]
 		pub fn whitelist_orderbook_operator(
 			origin: OriginFor<T>,

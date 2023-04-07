@@ -15,7 +15,7 @@
 
 use crate::pallet as thea;
 use core::marker::PhantomData;
-use frame_support::{parameter_types, PalletId};
+use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
@@ -25,7 +25,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 use std::collections::{BTreeMap, BTreeSet};
-use system::EnsureRoot;
 use thea_primitives::thea_types::OnSessionChange;
 use thea_staking::SessionChanged;
 
@@ -209,8 +208,9 @@ impl thea::Config for Test {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
-	type Weights = crate::weights::TheaWeightInfo<Test>;
+	type Weights = crate::weights::WeightInfo<Test>;
 }
+
 //Install Staking Pallet
 parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
@@ -227,18 +227,6 @@ parameter_types! {
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
-pallet_staking_reward_curve::build! {
-	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		// Before, we launch the products we want 50% of supply to be staked
-		ideal_stake: 0_500_000,
-		falloff: 0_050_000,
-		max_piece_count: 40,
-		test_precision: 0_005_000,
-	);
-}
-use sp_runtime::curve::PiecewiseLinear;
 
 impl thea_staking::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -258,7 +246,6 @@ impl thea_staking::Config for Test {
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
 	type ActiveValidators = IdealActiveValidators;
-	type WeightInfo = thea_staking::weight::StakeWeightInfo<Test>;
 }
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
