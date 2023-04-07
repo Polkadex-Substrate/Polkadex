@@ -9443,7 +9443,6 @@ dependencies = [
  "pallet-staking",
  "pallet-staking-reward-curve",
  "parity-scale-codec",
- "polkadex-primitives",
  "scale-info",
  "sp-application-crypto",
  "sp-core",
