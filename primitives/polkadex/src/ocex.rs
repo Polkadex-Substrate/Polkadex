@@ -27,7 +27,7 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 	}
 }
 
-impl<Account: PartialEq + Clone, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
+impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
 	pub fn new(main_account_id: Account) -> AccountInfo<Account, ProxyLimit> {
 		let proxies = BoundedVec::default();
 		AccountInfo {
@@ -40,7 +40,7 @@ impl<Account: PartialEq + Clone, ProxyLimit: Get<u32>> AccountInfo<Account, Prox
 
 	// Adds a new proxy account
 	pub fn add_proxy(&mut self, proxy: Account) -> Result<(), Account> {
-		self.proxies.try_push(proxy.clone())
+		self.proxies.try_push(proxy)
 	}
 
 	// Removes a proxy account

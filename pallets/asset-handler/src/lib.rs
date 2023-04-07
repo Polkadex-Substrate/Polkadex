@@ -513,7 +513,7 @@ pub mod pallet {
 			<PendingWithdrawals<T>>::try_mutate(
 				withdrawal_execution_block.saturated_into::<T::BlockNumber>(),
 				|withdrawals| {
-					if let Err(_) = withdrawals.try_push(pending_withdrawal) {
+					if withdrawals.try_push(pending_withdrawal).is_err() {
 						return Err(())
 					}
 					Ok(())

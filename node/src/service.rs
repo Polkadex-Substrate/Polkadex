@@ -30,7 +30,7 @@ use parking_lot::RwLock;
 use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::{Block, BlockNumber};
 use reference_trie::RefHasher;
-use sc_client_api::{BlockBackend, ExecutorProvider};
+use sc_client_api::{BlockBackend};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};

@@ -34,10 +34,11 @@ use frame_support::{
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
-		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient,
+		ConstantMultiplier, Weight,
 	},
 	PalletId, RuntimeDebug,
 };
+use frame_support::dispatch::DispatchClass;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use sp_std::vec;
 
@@ -62,7 +63,6 @@ use polkadex_primitives::AssetId;
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
-use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -89,10 +89,7 @@ use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{
-	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee, WeightToFeeCoefficients,
-	WeightToFeePolynomial,
-};
-use pallet_assets::BenchmarkHelper;
+	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -726,8 +723,8 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	// burn slashes
 	type RewardHandler = ();
 	type DataProvider = Staking;
-	type Fallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
-	type GovernanceFallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
+	type Fallback = onchain::OnChainExecution<OnChainSeqPhragmen>;
+	type GovernanceFallback = onchain::OnChainExecution<OnChainSeqPhragmen>;
 	type Solver = SequentialPhragmen<
 		AccountId,
 		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
@@ -1154,12 +1151,14 @@ impl pallet_assets::Config for Runtime {
 	type CallbackHandle = ();
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = assetU128;
+	type BenchmarkHelper = AssetU128;
 }
 #[cfg(feature = "runtime-benchmarks")]
-pub struct assetU128;
+pub struct AssetU128;
 #[cfg(feature = "runtime-benchmarks")]
-impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for assetU128 {
+use pallet_assets::BenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
 	fn create_asset_id_parameter(id: u32) -> parity_scale_codec::Compact<u128> {
 		parity_scale_codec::Compact::from(id as u128)
 	}
@@ -1375,6 +1374,7 @@ parameter_types! {
 	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+	pub const IdealActiveValidators: u32 = 3;
 }
 
 impl thea_staking::Config for Runtime {
@@ -1394,6 +1394,7 @@ impl thea_staking::Config for Runtime {
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
 }
 
 //Install Nomination Pool

@@ -1005,13 +1005,13 @@ pub mod pallet {
 					// TODO: We can't use ensure after storages are modified.
 					ensure!(
 						<OnChainEvents<T>>::try_mutate(|onchain_events| {
-							if let Err(_) = onchain_events.try_push(
+							if onchain_events.try_push(
 								polkadex_primitives::ocex::OnChainEvents::GetStorage(
 									polkadex_primitives::ocex::Pallet::OCEX,
 									polkadex_primitives::ocex::StorageItem::Withdrawal,
 									working_summary.snapshot_id,
 								),
-							) {
+							).is_err() {
 								return Err(())
 							}
 							Ok::<(), ()>(())
