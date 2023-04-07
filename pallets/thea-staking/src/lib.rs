@@ -1260,24 +1260,20 @@ pub mod pallet {
 				for chunk in individual_exposure.unlocking {
 					total = total.saturating_add(chunk.value)
 				}
-				return Ok(Stake{
-					stash: who.clone(),
-					total,
-					active: individual_exposure.value,
-				})
+				return Ok(Stake { stash: who.clone(), total, active: individual_exposure.value })
 			}
 			Err(Error::<T>::CandidateNotFound.into())
 		}
 
 		fn total_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
-				if let Some(individual_exposure) = <Stakers<T>>::get(who) {
-					let mut total: BalanceOf<T> = individual_exposure.value;
-					for chunk in individual_exposure.unlocking {
-						total = total.saturating_add(chunk.value)
-					}
-					return Ok(total)
+			if let Some(individual_exposure) = <Stakers<T>>::get(who) {
+				let mut total: BalanceOf<T> = individual_exposure.value;
+				for chunk in individual_exposure.unlocking {
+					total = total.saturating_add(chunk.value)
 				}
-				Err(Error::<T>::CandidateNotFound.into())
+				return Ok(total)
+			}
+			Err(Error::<T>::CandidateNotFound.into())
 		}
 
 		fn active_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
@@ -1301,8 +1297,8 @@ pub mod pallet {
 			value: Self::Balance,
 			payee: &Self::AccountId,
 		) -> sp_runtime::DispatchResult {
-			Self::do_bond(who.clone(),value)?;
-			Self::do_nominate(who.clone(),payee.clone())?;
+			Self::do_bond(who.clone(), value)?;
+			Self::do_nominate(who.clone(), payee.clone())?;
 			Ok(())
 		}
 
@@ -1312,11 +1308,10 @@ pub mod pallet {
 			who: &Self::AccountId,
 			validators: Vec<Self::AccountId>,
 		) -> sp_runtime::DispatchResult {
-				ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
-				Pallet::<T>::do_nominate(who.clone(), validators[0].clone())?;
-				Ok(())
+			ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
+			Pallet::<T>::do_nominate(who.clone(), validators[0].clone())?;
+			Ok(())
 		}
-
 
 		fn chill(_controller: &Self::AccountId) -> DispatchResult {
 			// There is no concept of chill in Thea Staking.
@@ -1324,12 +1319,12 @@ pub mod pallet {
 		}
 
 		fn bond_extra(stash: &Self::AccountId, extra: Self::Balance) -> DispatchResult {
-			Self::do_bond(stash.clone(),extra)
+			Self::do_bond(stash.clone(), extra)
 		}
 
 		fn unbond(stash: &Self::AccountId, value: Self::Balance) -> sp_runtime::DispatchResult {
-				Pallet::<T>::do_unbond(stash.clone(), value)?;
-				Ok(())
+			Pallet::<T>::do_unbond(stash.clone(), value)?;
+			Ok(())
 		}
 
 		fn withdraw_unbonded(
@@ -1346,8 +1341,8 @@ pub mod pallet {
 		}
 
 		fn election_ongoing() -> bool {
-			// Since election is happening on session change's handler, it will not span across multiple blocks
-			// so it is safe to return false here.
+			// Since election is happening on session change's handler, it will not span across
+			// multiple blocks so it is safe to return false here.
 			false
 		}
 
