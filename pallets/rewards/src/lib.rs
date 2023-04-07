@@ -133,8 +133,8 @@ pub mod pallet {
 		/// * `end_block`: The block at which last rewards will be distributed
 		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block
 		/// * `reward_id`: The reward id
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_reward_cycle(1, 1, 1))]
 		pub fn create_reward_cycle(
 			origin: OriginFor<T>,
 			start_block: T::BlockNumber,
@@ -171,8 +171,8 @@ pub mod pallet {
 		/// # Parameters,
 		/// * `origin`: The users address which has been mapped to reward id
 		/// * `reward_id`: Reward id
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::initialize_claim_rewards())]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 
@@ -256,8 +256,8 @@ pub mod pallet {
 		/// # Parameters
 		/// * `origin`: The users address which has been mapped to reward id
 		/// * `id`: The reward id
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 

@@ -173,6 +173,7 @@ impl asset_handler::pallet::Config for Test {
 	type ParachainNetworkId = ParachainNetworkId;
 	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
+	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 }
 
 parameter_types! {
