@@ -29,7 +29,6 @@ pallet-balances = { default-features = false, workspace = true , optional = true
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
-polkadex-primitives = { workspace = true }
 pallet-staking-reward-curve = { workspace = true }
 pallet-staking = { default-features = false, workspace = true }
 pallet-assets = { workspace = true, default-features = false }
