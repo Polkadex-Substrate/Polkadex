@@ -91,13 +91,6 @@ try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch 
 [dev-dependencies]
 futures = "0.3.9"
 tempfile = "3.1.0"
-assert_cmd = "2.0.4"
-nix = "0.25.0"
-serde_json = "1.0"
-regex = "1"
-platforms = "3.0.1"
-async-std = { version = "1.6.5", features = ["attributes"] }
-soketto = "0.7.1"
 sc-keystore =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sc-consensus-babe =  { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }

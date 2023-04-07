@@ -64,10 +64,10 @@ where
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
 		match role {
 			ObservedRole::Authority => {
-				self.peers.write().insert(who.clone());
+				self.peers.write().insert(*who);
 			},
 			ObservedRole::Full => {
-				self.fullnodes.write().insert(who.clone());
+				self.fullnodes.write().insert(*who);
 			},
 			_ => {},
 		};

@@ -153,7 +153,7 @@ where
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
 		ObWorker {
-			client: client.clone(),
+			client,
 			backend,
 			runtime,
 			sync_oracle,
@@ -343,7 +343,7 @@ where
 			},
 		};
 
-		summary.aggregate_signature = Some(signature.clone());
+		summary.aggregate_signature = Some(signature);
 		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
 		set_bit_field(&mut summary.bitflags, bit_index as u16);
 		assert_eq!(initial_summary, summary.sign_data());
@@ -353,11 +353,12 @@ where
 			&signature
 		));
 		// send it to runtime
-		if let Err(_) = self
+		if self
 			.runtime
 			.runtime_api()
 			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
 			.expect("Something went wrong with the submit_snapshot runtime api; qed.")
+			.is_err()
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 			return Err(Error::FailedToSubmitSnapshotToRuntime)
@@ -492,7 +493,7 @@ where
 					let mut state_chunk_hashes = vec![];
 					// Slice the data into chunks of 10 MB
 					let mut chunks = data.chunks(10 * 1024 * 1024);
-					while let Some(chunk) = chunks.next() {
+					for chunk in &mut chunks {
 						let chunk_hash = H128::from(blake2_128(chunk));
 						offchain_storage.set(
 							ORDERBOOK_STATE_CHUNK_PREFIX,
@@ -506,7 +507,7 @@ where
 					self.pending_withdrawals.clear();
 
 					let working_state_root_read_lock = self.working_state_root.read();
-					let working_state_root = working_state_root_read_lock.clone();
+					let working_state_root = *working_state_root_read_lock;
 
 					let summary = SnapshotSummary {
 						snapshot_id,
@@ -528,7 +529,7 @@ where
 				Err(err) => Err(Error::Backend(format!("Error serializing the data: {:?}", err))),
 			}
 		}
-		return Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
+		Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
 	}
 
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
@@ -620,7 +621,7 @@ where
 	}
 
 	// Expects the set bits in the bitmap to be missing chunks
-	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
+	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		// Only respond if we are a fullnode
 		// TODO: Should we respond if we are also syncing???
 		if !self.is_validator {
@@ -660,7 +661,7 @@ where
 		}
 	}
 
-	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
+	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		if let Some(peer) = remote {
 			// Note: Set bits here are available for syncing
 			let available_chunks: Vec<u16> = return_set_bits(bitmap);
@@ -686,7 +687,7 @@ where
 	pub async fn request_chunk(
 		&mut self,
 		snapshot_id: &u64,
-		bitmap: &Vec<u128>,
+		bitmap: &[u128],
 		remote: Option<PeerId>,
 	) {
 		if let Some(peer) = remote {
@@ -718,7 +719,7 @@ where
 		}
 	}
 
-	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &Vec<u8>) {
+	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &[u8]) {
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
 			let at = BlockId::Number(self.last_finalized_block.saturated_into());
 			if let Ok(Some(summary)) =
@@ -789,8 +790,8 @@ where
 			register_main(&mut trie, main.clone(), proxies[0].clone())?;
 			// Register the remaining proxies
 			if proxies.len() > 1 {
-				for i in 1..proxies.len() {
-					add_proxy(&mut trie, main.clone(), proxies[i].clone())?;
+				for proxy in proxies.iter().skip(1) {
+					add_proxy(&mut trie, main.clone(), proxy.clone())?;
 				}
 			}
 		}
@@ -914,18 +915,18 @@ where
 											},
 										};
 
-										summary.aggregate_signature = Some(signature.clone());
+										summary.aggregate_signature = Some(signature);
 										let bit_index = active_set
 											.iter()
 											.position(|v| v == &signing_key.into())
 											.unwrap();
 										set_bit_field(&mut summary.bitflags, bit_index as u16);
 										// send it to runtime
-										if let Err(_) = self
+										if self
 											.runtime
 											.runtime_api()
 											.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
-											.expect("Something went wrong with the submit_snapshot runtime api; qed.")
+											.expect("Something went wrong with the submit_snapshot runtime api; qed.").is_err()
 										{
 											error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 											return Err(Error::FailedToSubmitSnapshotToRuntime)
