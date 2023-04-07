@@ -1350,6 +1350,7 @@ impl asset_handler::pallet::Config for Runtime {
 	type ParachainNetworkId = ParachainNetworkId;
 	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
+	type WeightInfo = asset_handler::weights::WeightInfo<Runtime>;
 }
 
 impl thea::pallet::Config for Runtime {

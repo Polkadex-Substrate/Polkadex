@@ -127,6 +127,7 @@ impl pallet_ocex_lmp::Config for Test {
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
+	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Test>;
 }
 
 //defined trait for Session Change
