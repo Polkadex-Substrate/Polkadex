@@ -21,7 +21,6 @@ use parking_lot::RwLock;
 use polkadex_primitives::BlockNumber;
 use reference_trie::ExtensionLayout;
 use rust_decimal::Decimal;
-use serde_json;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_blockchain::HeaderBackend;
@@ -138,21 +137,19 @@ where
 
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
 		let last_finalized_block_guard = self.last_successful_block_number_snapshot_created.read();
-		let last_finalized_block = last_finalized_block_guard.clone();
+		let last_finalized_block = *last_finalized_block_guard;
 
 		let memory_db_guard = self.memory_db.read();
 		let mut memory_db = memory_db_guard.clone();
 		let worker_state_root_guard = self.working_state_root.read();
-		let mut worker_state_root = worker_state_root_guard.clone();
+		let mut worker_state_root = *worker_state_root_guard;
 
 		// get all accounts
 		let all_register_accounts = self
 			.client
 			.runtime_api()
 			.get_all_accounts_and_proxies(&BlockId::number(last_finalized_block.saturated_into()))
-			.map_err(|err| {
-				JsonRpseeError::Custom((err.to_string() + "failed to get accounts").to_string())
-			})?;
+			.map_err(|err| JsonRpseeError::Custom(err.to_string() + "failed to get accounts"))?;
 
 		// get snapshot summary
 		let last_snapshot_summary = self
@@ -160,9 +157,7 @@ where
 			.runtime_api()
 			.get_latest_snapshot(&BlockId::number(last_finalized_block.saturated_into()))
 			.map_err(|err| {
-				JsonRpseeError::Custom(
-					(err.to_string() + "failed to get snapshot summary").to_string(),
-				)
+				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
 			})?;
 
 		// Get all allow listed AssetIds
@@ -171,16 +166,14 @@ where
 			.runtime_api()
 			.get_allowlisted_assets(&BlockId::number(last_finalized_block.saturated_into()))
 			.map_err(|err| {
-				JsonRpseeError::Custom(
-					(err.to_string() + "failed to get allow listed asset ids").to_string(),
-				)
+				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;
 
 		// Create existing DB, it will fail if root does not exist
 		let trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
 
-		let mut ob_recovery_state = ObRecoveryState::new();
+		let mut ob_recovery_state = ObRecoveryState::default();
 
 		// Generate account info from existing DB
 		let insert_balance = |trie: &TrieDBMut<ExtensionLayout>,
@@ -190,9 +183,7 @@ where
 			if let Ok(data) = trie.get(&account_asset.encode()) {
 				if let Some(data) = data {
 					let account_balance = Decimal::decode(&mut &data[..]).map_err(|err| {
-						JsonRpseeError::Custom(
-							(err.to_string() + "failed to decode decimal").to_string(),
-						)
+						JsonRpseeError::Custom(err.to_string() + "failed to decode decimal")
 					})?;
 					ob_recovery_state.balances.insert(account_asset.clone(), account_balance);
 				}
@@ -208,7 +199,7 @@ where
 
 		for (user_main_account, list_of_proxy_accounts) in all_register_accounts {
 			for asset in allowlisted_asset_ids.clone() {
-				let account_asset = AccountAsset::new(user_main_account.clone(), asset.clone());
+				let account_asset = AccountAsset::new(user_main_account.clone(), asset);
 				insert_balance(&trie, &mut ob_recovery_state, &account_asset)?;
 			}
 			ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);

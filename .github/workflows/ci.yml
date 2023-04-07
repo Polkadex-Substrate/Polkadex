@@ -6,7 +6,7 @@ on:
     branches: [Develop, main-net-runtime]
 
 env:
-  RUNNER_INSTANCE_TYPE: c5.4xlarge
+  RUNNER_INSTANCE_TYPE: c5d.9xlarge
 
 jobs:
   start-runner:
@@ -74,16 +74,14 @@ jobs:
           rustup -V
           cargo fmt -- --version
           cargo clippy -V
-      - name: Build Project
-        run: |
-          cargo clean
-          cargo build --release --features runtime-benchmarks
-          RUSTFLAGS="-D warnings" cargo build --release
+      - name: Build Project with runtime benchmarks
+        run: cargo build --features runtime-benchmarks
+      - name: Normal Build
+        run: RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
-      #       ToDo: After fixing issue #684 uncomment clippy
-      #      - name: Check Clippy
-      #        run: cargo clippy -- -D warnings
+      - name: Check Clippy
+        run: cargo clippy -- -D warnings
       - name: Test Project
         run: cargo test
       - name: Run Cargo Trampulin
