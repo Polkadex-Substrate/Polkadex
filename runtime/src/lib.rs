@@ -1349,6 +1349,7 @@ impl thea::pallet::Config for Runtime {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
+	type Weights = thea::weights::TheaWeightInfo<Runtime>;
 }
 
 //Install Staking Pallet
@@ -1785,6 +1786,7 @@ impl_runtime_apis! {
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, thea_staking, TheaStaking);
+			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
@@ -1820,6 +1822,7 @@ impl_runtime_apis! {
 
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, thea_staking, TheaStaking);
+			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
