@@ -13,14 +13,13 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 use crate::{
-	mock::{new_test_ext, Test, *},
+	mock::{new_test_ext, RuntimeOrigin as Origin, Test, *},
 	pallet::{ApprovedDeposit, *},
 	util::*,
 };
 use frame_support::{
 	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
 };
-use frame_system::Origin;
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
 use sp_runtime::{traits::ConstU32, BoundedVec, TokenError};
