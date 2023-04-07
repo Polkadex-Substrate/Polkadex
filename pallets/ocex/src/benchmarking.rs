@@ -20,10 +20,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::{
-	fixtures::{PUBLIC, SNAPSHOT},
-	Pallet as Ocex,
-};
+use crate::{fixtures::SNAPSHOT, Pallet as Ocex};
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{
 	dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedBTreeMap, BoundedVec,
