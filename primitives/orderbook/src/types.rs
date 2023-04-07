@@ -21,7 +21,7 @@ use std::{
 pub type OrderId = H256;
 
 /// A struct representing the recovery state of an Order Book.
-#[derive(Clone, Debug, Encode, Decode)]
+#[derive(Clone, Debug, Encode, Decode, Default)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObRecoveryState {
 	/// The snapshot ID of the order book recovery state.
@@ -34,18 +34,6 @@ pub struct ObRecoveryState {
 	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
-}
-
-impl ObRecoveryState {
-	pub fn new() -> Self {
-		ObRecoveryState {
-			snapshot_id: 0,
-			account_ids: BTreeMap::default(),
-			balances: BTreeMap::default(),
-			last_processed_block_number: 0,
-			state_change_id: 0,
-		}
-	}
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -296,12 +284,12 @@ impl TryFrom<String> for OrderStatus {
 }
 
 #[cfg(feature = "std")]
-impl Into<String> for OrderStatus {
-	fn into(self) -> String {
-		match self {
-			Self::OPEN => "OPEN".to_string(),
-			Self::CLOSED => "CLOSED".to_string(),
-			Self::CANCELLED => "CANCELLED".to_string(),
+impl From<OrderStatus> for String {
+	fn from(value: OrderStatus) -> Self {
+		match value {
+			OrderStatus::OPEN => "OPEN".to_string(),
+			OrderStatus::CLOSED => "CLOSED".to_string(),
+			OrderStatus::CANCELLED => "CANCELLED".to_string(),
 		}
 	}
 }
@@ -601,8 +589,8 @@ pub fn rounding_off(a: Decimal) -> Decimal {
 
 #[cfg(feature = "std")]
 pub struct OrderDetails {
-	payload: OrderPayload,
-	signature: Signature,
+	pub payload: OrderPayload,
+	pub signature: Signature,
 }
 
 #[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]

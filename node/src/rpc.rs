@@ -104,6 +104,7 @@ pub struct FullDeps<C, P, SC, B> {
 	/// last successful block number snapshot created
 	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 	/// memory db
+	#[allow(clippy::type_complexity)]
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 	/// working_state_root
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
@@ -205,7 +206,7 @@ where
 			last_successful_block_no_snapshot_created,
 			memory_db,
 			working_state_root,
-			client.clone(),
+			client,
 		)
 		.into_rpc(),
 	)?;

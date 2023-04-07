@@ -376,7 +376,7 @@ pub fn new_full_base(
 
 	let orderbook_protocol_name = orderbook::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
-		&config.chain_spec,
+		config.chain_spec.as_ref(),
 	);
 
 	config
@@ -591,10 +591,9 @@ pub fn new_full_base(
 		marker: Default::default(),
 		is_validator: role.is_authority(),
 		message_sender_link: orderbook_stream,
-		last_successful_block_number_snapshot_created: last_successful_block_no_snapshot_created
-			.clone(),
-		memory_db: memory_db.clone(),
-		working_state_root: working_state_root.clone(),
+		last_successful_block_number_snapshot_created: last_successful_block_no_snapshot_created,
+		memory_db,
+		working_state_root,
 	};
 
 	// Orderbook task

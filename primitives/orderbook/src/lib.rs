@@ -107,6 +107,11 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 	pub fn len(&self) -> usize {
 		self.validators.len()
 	}
+
+	/// Return true if set is empty
+	pub fn is_empty(&self) -> bool {
+		self.validators.is_empty()
+	}
 }
 
 /// The index of an authority.
@@ -143,16 +148,16 @@ pub struct SnapshotSummary {
 
 impl SnapshotSummary {
 	// Add a new signature to the snapshot summary
-	pub fn add_signature(&mut self, signature: Signature) -> Result<(), ()> {
+	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
 		match bls_primitives::crypto::bls_ext::add_signature(
-			&self.aggregate_signature.ok_or(())?,
+			&self.aggregate_signature.ok_or(signature)?,
 			&signature,
 		) {
 			Ok(signature) => {
 				self.aggregate_signature = Some(signature);
 				Ok(())
 			},
-			Err(_) => return Err(()),
+			Err(_) => Err(signature),
 		}
 	}
 
@@ -177,7 +182,7 @@ impl SnapshotSummary {
 	pub fn verify(&self, public_keys: Vec<Public>) -> bool {
 		let msg = self.sign_data();
 		match self.aggregate_signature {
-			None => return false,
+			None => false,
 			Some(sig) =>
 				bls_primitives::crypto::bls_ext::verify_aggregate(&public_keys, &msg, &sig),
 		}
@@ -214,6 +219,7 @@ sp_api::decl_runtime_apis! {
 		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
 
 		/// Submits the snapshot to runtime
+		#[allow(clippy::result_unit_err)]
 		fn submit_snapshot(summary: SnapshotSummary) -> Result<(), ()>;
 
 		/// Gets pending snapshot if any
