@@ -58,6 +58,7 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use polkadex_primitives::AssetId;
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
@@ -66,6 +67,7 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
+
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -493,6 +495,7 @@ impl_opaque_keys! {
 		pub babe: Babe,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
+		pub orderbook: OCEX,
 	}
 }
 
@@ -1338,10 +1341,6 @@ impl asset_handler::pallet::Config for Runtime {
 	type PDEXHolderAccount = PDEXHolderAccount;
 }
 
-parameter_types! {
-	pub const TheaUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
-}
-
 impl thea::pallet::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -1351,9 +1350,6 @@ impl thea::pallet::Config for Runtime {
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
 	type Weights = thea::weights::TheaWeightInfo<Runtime>;
-	type Public = <Signature as traits::Verify>::Signer;
-	type Signature = Signature;
-	type UnsignedPriority = TheaUnsignedPriority;
 }
 
 //Install Staking Pallet
@@ -1482,7 +1478,7 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
-		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>} = 35,
+		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 35,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
@@ -1572,6 +1568,50 @@ impl_runtime_apis! {
 		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
 			data.check_extrinsics(&block)
 		}
+	}
+
+	impl orderbook_primitives::ObApi<Block> for Runtime {
+		fn validator_set() -> orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>{
+			OCEX::validator_set()
+		}
+
+		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary{
+			OCEX::get_latest_snapshot()
+		}
+
+		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary>{
+			OCEX::get_snapshot_by_id(nonce)
+		}
+
+		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>{
+			OCEX::get_ingress_messages()
+		}
+
+		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary) -> Result<(),()> {
+			OCEX::submit_snapshot_api(summary)
+		}
+
+		fn pending_snapshot() -> Option<u64> {
+			OCEX::pending_snapshot()
+		}
+
+		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
+			OCEX::get_all_accounts_and_proxies()
+		}
+
+		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
+			OCEX::get_snapshot_generation_intervals()
+		}
+
+
+		fn get_allowlisted_assets() -> Vec<AssetId> {
+			OCEX::get_allowlisted_assets()
+		}
+
+		fn read_trading_pair_configs() -> Vec<(orderbook_primitives::types::TradingPair, polkadex_primitives::ocex::TradingPairConfig)> {
+			OCEX::read_trading_pair_configs()
+		}
+
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
