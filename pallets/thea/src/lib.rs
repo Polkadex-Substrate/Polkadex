@@ -15,47 +15,73 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![deny(unused_crate_dependencies)]
 
-// TODO[#614]: Thea Pallet Tests
-// #[cfg(test)]
-// mod mock;
-//
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod util;
+
+#[cfg(test)]
+mod mock;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
+#[cfg(test)]
+mod tests;
+
+pub mod weights;
+
+use core::default::Default;
+use frame_support::{
+	dispatch::fmt::Debug,
+	pallet_prelude::*,
+	traits::{Currency, ExistenceRequirement, ReservableCurrency},
+	PalletId,
+};
+use frame_system::pallet_prelude::*;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use sp_runtime::{
+	traits::{AccountIdConversion, Zero},
+	SaturatedConversion,
+};
+use sp_std::{
+	collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+	vec::Vec,
+};
+use thea_primitives::{
+	normal_deposit::Deposit,
+	parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
+	thea_types::OnSessionChange,
+	ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaExtrinsicSubmitted, TheaPalletMessages,
+	TokenType,
+};
+use thea_staking::SessionChanged;
+use xcm::{
+	latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation},
+	prelude::{Fungible, X1},
+};
+
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
+
+pub trait WeightInfo {
+	fn approve_deposit() -> Weight;
+	fn claim_deposit(_a: u32, _m: u32) -> Weight;
+	fn batch_withdrawal_complete() -> Weight;
+	fn withdraw() -> Weight;
+	fn set_withdrawal_fee() -> Weight;
+	fn thea_key_rotation_complete() -> Weight;
+	fn set_thea_key_complete() -> Weight;
+	fn thea_queued_queued_public_key() -> Weight;
+	fn thea_relayers_reset_rotation() -> Weight;
+}
 
 #[frame_support::pallet]
 pub mod pallet {
-	use sp_std::{
-		collections::{btree_map::BTreeMap, btree_set::BTreeSet},
-		vec::Vec,
-	};
+	use super::*;
 
-	use frame_support::{
-		dispatch::fmt::Debug,
-		pallet_prelude::*,
-		traits::{Currency, ExistenceRequirement, ReservableCurrency},
-		PalletId,
-	};
-	use frame_system::pallet_prelude::*;
-	use sp_runtime::{
-		traits::{AccountIdConversion, Zero},
-		SaturatedConversion,
-	};
-
-	use thea_primitives::{
-		normal_deposit::Deposit,
-		parachain_primitives::{AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw},
-		thea_types::OnSessionChange,
-		ApprovedWithdraw, AssetIdConverter, BLSPublicKey, TheaExtrinsicSubmitted,
-		TheaPalletMessages, TokenType,
-	};
-	use thea_staking::SessionChanged;
-	use xcm::{
-		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
-		prelude::{Fungible, X1},
-	};
-
-	use core::default::Default;
+	/// Identifier for linked network
 	pub type Network = u8;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
@@ -95,11 +121,11 @@ pub mod pallet {
 		frame_system::Config + asset_handler::pallet::Config + thea_staking::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Balances Pallet
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 		/// Asset Create/ Update Origin
-		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<PalletId>;
@@ -110,9 +136,12 @@ pub mod pallet {
 		type ParaId: Get<u32>;
 		/// Extrinsic Notifier for rewards
 		type ExtrinsicSubmittedNotifier: TheaExtrinsicSubmitted<Self::AccountId>;
+		/// Weights for Thea extrinsics
+		type Weights: WeightInfo;
 	}
 
 	#[pallet::pallet]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -324,6 +353,8 @@ pub mod pallet {
 		BoundedVectorNotPresent,
 		/// Thea Key Rotation is taking place
 		TheaKeyRotationInPlace,
+		/// Wrong Withdrawal Nonce provided in batch complete
+		WithdrawalNonceIncorrect,
 	}
 
 	// Hooks for Thea Pallet are defined here
@@ -373,7 +404,7 @@ pub mod pallet {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
 			// TODO: Benchmarking for Thea Pallet
-			1000 as Weight
+			Weight::default()
 		}
 	}
 
@@ -388,7 +419,8 @@ pub mod pallet {
 		/// * `bls_signature`: BLS Signature.
 		/// * `token_type`: Token Type.
 		/// * `payload`: Encoded Deposit Payload.
-		#[pallet::weight(1000)]
+		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::Weights::approve_deposit())]
 		pub fn approve_deposit(
 			origin: OriginFor<T>,
 			bit_map: u128,
@@ -408,18 +440,14 @@ pub mod pallet {
 		/// * `origin`: User
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
 		/// (it's used to parametrise the weight of this extrinsic)
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::Weights::claim_deposit(1, 1))]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 
 			if let Some(mut deposits) = <ApprovedDeposits<T>>::get(&user) {
-				let length: u32 = if deposits.len().saturated_into::<u32>() <= num_deposits {
-					deposits.len().saturated_into()
-				} else {
-					num_deposits
-				}
-				.saturated_into();
+				let lenght: u32 = deposits.len().saturated_into();
+				let length: u32 = if lenght <= num_deposits { lenght } else { num_deposits };
 
 				for _ in 0..length {
 					if let Some(deposit) = deposits.pop() {
@@ -439,6 +467,7 @@ pub mod pallet {
 					// If pending deposits are available, save it back
 					<ApprovedDeposits<T>>::insert(&user, deposits)
 				} else {
+					<ApprovedDeposits<T>>::remove(&user);
 					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
 				}
 			} else {
@@ -458,19 +487,43 @@ pub mod pallet {
 		/// * `tx_hash`: Vec<u8>
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::Weights::batch_withdrawal_complete())]
 		pub fn batch_withdrawal_complete(
 			origin: OriginFor<T>,
 			withdrawal_nonce: u32,
 			network: Network,
 			tx_hash: sp_core::H256,
-			_bit_map: u128,
-			_bls_signature: [u8; 96],
+			bit_map: u128,
+			bls_signature: [u8; 96],
 		) -> DispatchResult {
 			ensure_signed(origin)?;
+			let current_withdrawal_nonce = Self::withdrawal_nonces(network);
+			// Current Withdrawal Nonce and Received Withdrawal Nonce needs to be same
+			// We update the withdrawal nonce when we perform a `do_withdraw` and
+			// this extrinsic is to inform the chain the withdrawal has been
+			// executed correctly in the foreign chain
+			ensure!(
+				current_withdrawal_nonce == withdrawal_nonce,
+				Error::<T>::WithdrawalNonceIncorrect
+			);
 
-			// TODO: This will be refactored when work on withdrawal begins
+			// Fetch current active relayer set BLS Keys
+			let current_relayer_set = Self::get_relayers_key_vector(network);
+
+			// Call host function with current_active_relayer_set, signature, bit_map, verify nonce
+			ensure!(
+				thea_primitives::thea_ext::bls_verify(
+					&bls_signature,
+					bit_map,
+					&(tx_hash, network, withdrawal_nonce).encode(),
+					&current_relayer_set
+				),
+				Error::<T>::BLSSignatureVerificationFailed
+			);
+
+			// We remove the withdrawals from ReadyWithdrawals so that other withdrawals can be
+			// processed
 			<ReadyWithdrawls<T>>::take(network, withdrawal_nonce);
 			Self::deposit_event(Event::<T>::WithdrawalExecuted(withdrawal_nonce, network, tx_hash));
 			Ok(())
@@ -486,8 +539,8 @@ pub mod pallet {
 		/// * `beneficiary`: beneficiary of the withdraw
 		/// * `pay_for_remaining`: user is ready to pay for remaining pending withdrawal for quick
 		///   withdrawal
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::Weights::withdraw())]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -496,8 +549,6 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			// Put a soft limit of size of beneficiary vector to avoid spam
-			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
 			Ok(())
 		}
@@ -508,7 +559,8 @@ pub mod pallet {
 		///
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
-		#[pallet::weight(1000)]
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::Weights::set_withdrawal_fee())]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -529,8 +581,8 @@ pub mod pallet {
 		/// * `tx_hash`: Transaction hash of key update on foreign chain
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::Weights::thea_key_rotation_complete())]
 		pub fn thea_key_rotation_complete(
 			origin: OriginFor<T>,
 			network: Network,
@@ -588,8 +640,8 @@ pub mod pallet {
 		/// * `public_key`: New Public Key for thea (Raw Uncompressed)
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::Weights::set_thea_key_complete())]
 		pub fn set_thea_key_complete(
 			origin: OriginFor<T>,
 			network: Network,
@@ -620,7 +672,10 @@ pub mod pallet {
 			let current_round_index = <TheaSessionId<T>>::get(network);
 			<TheaSessionId<T>>::insert(network, current_round_index.saturating_add(1));
 			<TheaKeyRotation<T>>::insert(network, false);
-			Self::deposit_event(Event::TheaKeyUpdated(network, current_round_index - 1));
+			Self::deposit_event(Event::TheaKeyUpdated(
+				network,
+				current_round_index.saturating_sub(1),
+			));
 			T::ExtrinsicSubmittedNotifier::thea_extrinsic_submitted(
 				relayer,
 				bit_map,
@@ -638,8 +693,8 @@ pub mod pallet {
 		/// * `public_key`: Thea Public Key
 		/// * `bit_map`: Bitmap of Thea relayers
 		/// * `bls_signature`: BLS signature of relayers
-		// TODO: [Issue #606] Use benchmarks
-		#[pallet::weight(1000)]
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as Config>::Weights::thea_queued_queued_public_key())]
 		pub fn thea_queued_queued_public_key(
 			origin: OriginFor<T>,
 			network: Network,
@@ -692,7 +747,8 @@ pub mod pallet {
 		///
 		/// * `origin`: Any relayer
 		/// * `network`: Network id
-		#[pallet::weight(1000)]
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::Weights::thea_relayers_reset_rotation())]
 		pub fn thea_relayers_reset_rotation(
 			origin: OriginFor<T>,
 			network: Network,
@@ -729,7 +785,7 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
-			ensure!(beneficiary.len() <= 100, Error::<T>::BeneficiaryTooLong);
+			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			let network = if asset_id == T::PolkadexAssetId::get() {
 				1
 			} else {
@@ -778,7 +834,7 @@ pub mod pallet {
 				index: pending_withdrawals.len() as u32,
 			};
 
-			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
+			if pending_withdrawals.try_push(withdrawal).is_err() {
 				// This should not fail because of is_full check above
 			}
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
@@ -847,15 +903,9 @@ pub mod pallet {
 		}
 
 		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {
-			let recipient: [u8; 32] =
-				recipient.try_into().map_err(|_| Error::<T>::DepositNonceError)?; //TODO Handle error
-			Ok(MultiLocation {
-				parents: 1,
-				interior: Junctions::X1(Junction::AccountId32 {
-					network: NetworkId::Any,
-					id: recipient,
-				}),
-			})
+			let recipient: MultiLocation =
+				Decode::decode(&mut &recipient[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+			Ok(recipient)
 		}
 
 		pub fn do_deposit(

@@ -9,9 +9,9 @@ use polkadex_primitives::{AccountId, UNIT_BALANCE};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, WeakBoundedVec};
 pub const STACK_SIZE: usize = 8388608;
 
-fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	let events = frame_system::Pallet::<T>::events();
-	let system_event: <T as frame_system::Config>::Event = generic_event.into();
+	let system_event: <T as frame_system::Config>::RuntimeEvent = generic_event.into();
 	// compare to the last event record
 	let EventRecord { event, .. } = &events[events.len() - 1];
 	assert_eq!(event, &system_event);
@@ -73,19 +73,19 @@ fn amount_to_be_added_in_pallet_account(beneficiaries: Vec<(AccountId32, u128)>)
 
 fn add_existential_deposit() {
 	assert_ok!(Balances::set_balance(
-		Origin::root(),
+		RuntimeOrigin::root(),
 		get_alice_account_with_rewards().0,
 		1 * UNIT_BALANCE,
 		0
 	));
 	assert_ok!(Balances::set_balance(
-		Origin::root(),
+		RuntimeOrigin::root(),
 		get_neal_account_with_rewards().0,
 		1 * UNIT_BALANCE,
 		0
 	));
 	assert_ok!(Balances::set_balance(
-		Origin::root(),
+		RuntimeOrigin::root(),
 		get_bob_account_with_rewards().0,
 		1 * UNIT_BALANCE,
 		0
@@ -98,7 +98,7 @@ fn create_reward_cycle() {
 		let (start_block, end_block, initial_percentage, reward_id) =
 			get_parameters_for_reward_cycle();
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -121,7 +121,7 @@ fn create_reward_cycle_with_invalid_root() {
 			get_parameters_for_reward_cycle();
 		assert_noop!(
 			Rewards::create_reward_cycle(
-				Origin::none(),
+				RuntimeOrigin::none(),
 				start_block,
 				end_block,
 				initial_percentage,
@@ -139,7 +139,7 @@ fn create_reward_cycle_for_existing_id() {
 		let (start_block, end_block, initial_percentage, reward_id) =
 			get_parameters_for_reward_cycle();
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -147,7 +147,7 @@ fn create_reward_cycle_for_existing_id() {
 		));
 		assert_noop!(
 			Rewards::create_reward_cycle(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				start_block,
 				end_block,
 				initial_percentage,
@@ -165,7 +165,7 @@ fn create_reward_cycle_when_start_block_greater_than_end_block() {
 			get_parameters_for_reward_cycle();
 		assert_noop!(
 			Rewards::create_reward_cycle(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				end_block,
 				start_block,
 				initial_percentage,
@@ -181,11 +181,23 @@ fn create_reward_cycle_when_percentage_parameter_is_invalid() {
 	new_test_ext().execute_with(|| {
 		let (start_block, end_block, _, reward_id) = get_parameters_for_reward_cycle();
 		assert_noop!(
-			Rewards::create_reward_cycle(Origin::root(), start_block, end_block, 101, reward_id),
+			Rewards::create_reward_cycle(
+				RuntimeOrigin::root(),
+				start_block,
+				end_block,
+				101,
+				reward_id
+			),
 			Error::<Test>::InvalidInitialPercentage
 		);
 		assert_noop!(
-			Rewards::create_reward_cycle(Origin::root(), start_block, end_block, 0, reward_id),
+			Rewards::create_reward_cycle(
+				RuntimeOrigin::root(),
+				start_block,
+				end_block,
+				0,
+				reward_id
+			),
 			Error::<Test>::InvalidInitialPercentage
 		);
 	});
@@ -208,7 +220,7 @@ fn initialize_claim_rewards() {
 					alice_account = AccountId::new(arr);
 				}
 				assert_ok!(Rewards::create_reward_cycle(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					start_block,
 					end_block,
 					initial_percentage,
@@ -227,7 +239,7 @@ fn initialize_claim_rewards() {
 
 				//transfer balance to pallet account
 				assert_ok!(Balances::set_balance(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					pallet_id_account.clone(),
 					total_rewards_in_pdex,
 					0
@@ -242,14 +254,14 @@ fn initialize_claim_rewards() {
 
 				// unlock alice reward
 				assert_ok!(Rewards::initialize_claim_rewards(
-					Origin::signed(alice_account.clone()),
+					RuntimeOrigin::signed(alice_account.clone()),
 					reward_id
 				));
 
 				//try to unlock reward for alice again
 				assert_noop!(
 					Rewards::initialize_claim_rewards(
-						Origin::signed(alice_account.clone()),
+						RuntimeOrigin::signed(alice_account.clone()),
 						reward_id
 					),
 					Error::<Test>::RewardsAlreadyInitialized
@@ -297,7 +309,7 @@ fn initialize_claim_rewards_when_vesting_period_not_started() {
 					get_parameters_for_reward_cycle();
 
 				assert_ok!(Rewards::create_reward_cycle(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					start_block,
 					end_block,
 					initial_percentage,
@@ -316,7 +328,7 @@ fn initialize_claim_rewards_when_vesting_period_not_started() {
 
 				//transfer balance to pallet account
 				assert_ok!(Balances::set_balance(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					pallet_id_account.clone(),
 					total_rewards_in_pdex,
 					0
@@ -332,7 +344,7 @@ fn initialize_claim_rewards_when_vesting_period_not_started() {
 				// unlock alice reward when vesting period not started
 				assert_noop!(
 					Rewards::initialize_claim_rewards(
-						Origin::signed(get_alice_account_with_rewards().0.into()),
+						RuntimeOrigin::signed(get_alice_account_with_rewards().0.into()),
 						reward_id
 					),
 					Error::<Test>::RewardsCannotBeUnlockYet
@@ -353,11 +365,11 @@ fn initialize_claim_rewards_bad_origin() {
 			new_test_ext().execute_with(|| {
 				let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
 				assert_noop!(
-					Rewards::initialize_claim_rewards(Origin::root(), reward_id),
+					Rewards::initialize_claim_rewards(RuntimeOrigin::root(), reward_id),
 					BadOrigin
 				);
 				assert_noop!(
-					Rewards::initialize_claim_rewards(Origin::none(), reward_id),
+					Rewards::initialize_claim_rewards(RuntimeOrigin::none(), reward_id),
 					BadOrigin
 				);
 			});
@@ -378,7 +390,7 @@ fn initialize_claim_rewards_with_non_existing_reward_id() {
 				let (alice_account, _) = get_alice_account_with_rewards();
 				assert_noop!(
 					Rewards::initialize_claim_rewards(
-						Origin::signed(alice_account.clone().into()),
+						RuntimeOrigin::signed(alice_account.clone().into()),
 						reward_id
 					),
 					Error::<Test>::RewardIdNotRegister
@@ -400,7 +412,7 @@ fn initialize_claim_rewards_when_user_not_eligible_to_unlock() {
 				let (start_block, end_block, initial_percentage, reward_id) =
 					get_parameters_for_reward_cycle();
 				assert_ok!(Rewards::create_reward_cycle(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					start_block,
 					end_block,
 					initial_percentage,
@@ -410,7 +422,7 @@ fn initialize_claim_rewards_when_user_not_eligible_to_unlock() {
 				System::set_block_number(start_block);
 				assert_noop!(
 					Rewards::initialize_claim_rewards(
-						Origin::signed(bob_account.clone().into()),
+						RuntimeOrigin::signed(bob_account.clone().into()),
 						reward_id
 					),
 					Error::<Test>::UserNotEligible
@@ -426,7 +438,7 @@ fn initialize_claim_rewards_when_user_not_eligible_to_unlock() {
 pub fn claim_reward_for_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
-		assert_noop!(Rewards::claim(Origin::root(), reward_id), BadOrigin);
+		assert_noop!(Rewards::claim(RuntimeOrigin::root(), reward_id), BadOrigin);
 	});
 }
 
@@ -435,7 +447,10 @@ pub fn claim_reward_for_unregister_id() {
 	new_test_ext().execute_with(|| {
 		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
 		assert_noop!(
-			Rewards::claim(Origin::signed(get_alice_account_with_rewards().0.into()), reward_id),
+			Rewards::claim(
+				RuntimeOrigin::signed(get_alice_account_with_rewards().0.into()),
+				reward_id
+			),
 			Error::<Test>::RewardIdNotRegister
 		);
 	});
@@ -447,7 +462,7 @@ pub fn claim_reward_when_user_not_eligible() {
 		let (start_block, end_block, initial_percentage, reward_id) =
 			get_parameters_for_reward_cycle();
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -456,7 +471,7 @@ pub fn claim_reward_when_user_not_eligible() {
 		let (alice_account, _) = get_alice_account_with_rewards();
 
 		assert_noop!(
-			Rewards::claim(Origin::signed(alice_account.clone().into()), reward_id),
+			Rewards::claim(RuntimeOrigin::signed(alice_account.clone().into()), reward_id),
 			Error::<Test>::UserNotEligible
 		);
 	});
@@ -501,7 +516,7 @@ pub fn claim_rewards_at_start_block() {
 			get_parameters_for_reward_cycle();
 		//create reward cycle
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -565,7 +580,7 @@ pub fn claim_rewards_at_start_block() {
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			Rewards::get_pallet_account(),
 			total_rewards_in_pdex,
 			0
@@ -577,9 +592,9 @@ pub fn claim_rewards_at_start_block() {
 			get_rewards_claimable_at_start_block();
 
 		//increment to the block at which the rewards are unlocked
-		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(bob_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(neal_account.clone()), reward_id));
 
 		//assert locked balances
 		assert_locked_balance(&alice_account, alice_claimable, total_reward_for_alice_in_pdex);
@@ -596,7 +611,7 @@ pub fn claim_rewards_at_end_block() {
 			get_parameters_for_reward_cycle();
 		//create reward cycle
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -660,7 +675,7 @@ pub fn claim_rewards_at_end_block() {
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			Rewards::get_pallet_account(),
 			total_rewards_in_pdex,
 			0
@@ -669,9 +684,9 @@ pub fn claim_rewards_at_end_block() {
 		System::set_block_number(end_block);
 
 		//increment to the block at which the rewards are unlocked
-		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(bob_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(neal_account.clone()), reward_id));
 
 		//assert locked balances
 		assert_locked_balance(
@@ -700,7 +715,7 @@ pub fn claim_rewards_at_50_percentage_of_reward_period() {
 			get_parameters_for_reward_cycle();
 		//create reward cycle
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -764,7 +779,7 @@ pub fn claim_rewards_at_50_percentage_of_reward_period() {
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			Rewards::get_pallet_account(),
 			total_rewards_in_pdex,
 			0
@@ -777,9 +792,9 @@ pub fn claim_rewards_at_50_percentage_of_reward_period() {
 		);
 
 		//increment to the block at which the rewards are unlocked
-		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(bob_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(neal_account.clone()), reward_id));
 
 		let (alice_claimable, bob_claimable, neal_claimable) =
 			get_rewards_when_50_percentage_of_lock_amount_claimable();
@@ -799,7 +814,7 @@ pub fn claim_rewards_at_75_percentage_of_reward_period() {
 			get_parameters_for_reward_cycle();
 		//create reward cycle
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -863,7 +878,7 @@ pub fn claim_rewards_at_75_percentage_of_reward_period() {
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			Rewards::get_pallet_account(),
 			total_rewards_in_pdex,
 			0
@@ -873,9 +888,9 @@ pub fn claim_rewards_at_75_percentage_of_reward_period() {
 		System::set_block_number(require_block_to_claim_75_percentage_of_rewards);
 
 		//increment to the block at which the rewards are unlocked
-		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(bob_account.clone()), reward_id));
-		assert_ok!(Rewards::claim(Origin::signed(neal_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(bob_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(neal_account.clone()), reward_id));
 
 		let (alice_claimable, bob_claimable, neal_claimable) =
 			get_rewards_when_75_percentage_of_lock_amount_claimable();
@@ -894,7 +909,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 			get_parameters_for_reward_cycle();
 		//create reward cycle
 		assert_ok!(Rewards::create_reward_cycle(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			start_block,
 			end_block,
 			initial_percentage,
@@ -944,7 +959,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			Rewards::get_pallet_account(),
 			total_rewards_in_pdex,
 			0
@@ -954,7 +969,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 		System::set_block_number(block_number);
 
 		//increment to the block at which the rewards are unlocked
-		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id));
 		let (alice_claimable, _, _) = get_rewards_claimable_at_start_block();
 
 		assert_locked_balance(&alice_account, alice_claimable, total_reward_for_alice_in_pdex);
@@ -966,7 +981,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 			start_block.saturating_add(require_block_to_claim_50_percentage_of_rewards),
 		);
 
-		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id));
 		let (alice_claimable, _, _) = get_rewards_when_50_percentage_of_lock_amount_claimable();
 
 		//assert locked balances
@@ -974,7 +989,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 
 		//call claim at the end of cycle
 		System::set_block_number(end_block + 10);
-		assert_ok!(Rewards::claim(Origin::signed(alice_account.clone()), reward_id));
+		assert_ok!(Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id));
 		//assert locked balances
 		assert_locked_balance(
 			&alice_account,
@@ -985,7 +1000,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 		//re try to call claim at the end of cycle when all rewards claimed
 		System::set_block_number(end_block + 20);
 		assert_noop!(
-			Rewards::claim(Origin::signed(alice_account.clone()), reward_id),
+			Rewards::claim(RuntimeOrigin::signed(alice_account.clone()), reward_id),
 			Error::<Test>::AmountToLowToRedeem
 		);
 	})
