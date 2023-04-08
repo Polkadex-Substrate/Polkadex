@@ -1570,7 +1570,7 @@ construct_runtime!(
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44,
 		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 45,
 		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 46,
-		AssetsTransactionPayment: pallet_assets_transaction_payment::pallet::{Pallet, Call, Storage, Event<T>} = 45,
+		AssetsTransactionPayment: pallet_assets_transaction_payment::pallet::{Pallet, Call, Storage, Event<T>} = 47,
 	}
 );
 /// Digest item type.
@@ -1601,7 +1601,7 @@ pub type SignedExtra = (
 );
 /// Unchecked extrinsic type as expected by this runtime.
 // pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+//	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 pub type UncheckedExtrinsic = unchecked_extrinsic::UncheckedExtrinsic<Address, Call, SignedExtra>;
 /// The payload being signed in transactions.
 // pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;

@@ -29,13 +29,13 @@ use chainbridge::{BridgeChainId, ResourceId};
 use frame_support::{
 	dispatch::fmt::Debug,
 	fail, log,
-		pallet_prelude::*,
-		traits::{
-			fungibles::Transfer,
+	pallet_prelude::*,
+	traits::{
+		fungibles::Transfer,
 		tokens::{
-				fungibles::{Create, Inspect, Mutate},
-				DepositConsequence, WithdrawConsequence,
-			},
+			fungibles::{Create, Inspect, Mutate},
+			DepositConsequence, WithdrawConsequence,
+		},
 		Currency, ExistenceRequirement, ReservableCurrency,
 	},
 	PalletId,
@@ -862,6 +862,10 @@ pub mod pallet {
 			} else {
 				todo!()
 			}
+		}
+
+		fn asset_exists(asset: Self::AssetId) -> bool {
+			T::AssetManager::asset_exists(asset)
 		}
 	}
 
