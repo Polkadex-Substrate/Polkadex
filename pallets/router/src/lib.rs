@@ -24,7 +24,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		ensure, log,
-		pallet_prelude::{DispatchResult, DispatchResultWithPostInfo},
+		pallet_prelude::{DispatchResult, DispatchResultWithPostInfo, Weight},
 		require_transactional,
 		traits::{
 			fungibles::{Inspect, Mutate, Transfer},
@@ -56,7 +56,8 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
-		type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self, I>>
+			+ IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Router pallet id
 		#[pallet::constant]
@@ -274,8 +275,9 @@ pub mod pallet {
 		/// - `route`: the route user inputs
 		/// - `amount_in`: the amount of trading assets
 		/// - `min_amount_out`: the minimum a trader is willing to receive
-		#[pallet::weight(0)]
 		#[transactional]
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::default())]
 		pub fn swap_exact_tokens_for_tokens(
 			origin: OriginFor<T>,
 			route: Vec<AssetIdOf<T, I>>,
@@ -333,7 +335,8 @@ pub mod pallet {
 		/// - `route`: the route user inputs
 		/// - `amount_out`: the amount of trading assets
 		/// - `max_amount_in`: the maximum a trader is willing to input
-		#[pallet::weight(0)]
+		#[pallet::call_index(1)]
+		#[pallet::weight(Weight::default())]
 		#[transactional]
 		pub fn swap_tokens_for_exact_tokens(
 			origin: OriginFor<T>,

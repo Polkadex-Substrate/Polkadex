@@ -191,7 +191,6 @@ std = [
     "pallet-asset-handler-runtime-api/std",
     "pallet-assets-transaction-payment/std",
     "thea-staking/std",
-    "thea-primitives/std",
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",

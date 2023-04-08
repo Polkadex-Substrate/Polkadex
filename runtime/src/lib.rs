@@ -1332,7 +1332,6 @@ parameter_types! {
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
-	pub const NativeCurrencyId: u128 = 0;
 	pub const WithdrawalSize: u32 = 10;
 }
 
@@ -1355,10 +1354,9 @@ impl asset_handler::pallet::Config for Runtime {
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
-	type NativeCurrencyId = NativeCurrencyId;
+	type NativeCurrencyId = PolkadexAssetId;
 	type TreasuryPalletId = TreasuryPalletId;
 	type ParachainNetworkId = ParachainNetworkId;
-	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
 	type WeightInfo = asset_handler::weights::WeightInfo<Runtime>;
 }
@@ -1449,7 +1447,7 @@ parameter_types! {
 }
 
 impl pallet_amm::Config for Runtime {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Assets = AssetHandler;
 	type PalletId = SwapPalletId;
 	type LockAccountId = OneAccount;
@@ -1458,7 +1456,7 @@ impl pallet_amm::Config for Runtime {
 	type LpFee = DefaultLpFee;
 	type MinimumLiquidity = MinimumLiquidity;
 	type MaxLengthRoute = MaxLengthRoute;
-	type GetNativeCurrencyId = NativeCurrencyId;
+	type GetNativeCurrencyId = PolkadexAssetId;
 }
 
 //Install Router pallet
@@ -1467,12 +1465,12 @@ parameter_types! {
 }
 
 impl router::Config for Runtime {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type PalletId = RouterPalletId;
 	type AMM = Swap;
-	type Assets = AssetHandler;
-	type GetNativeCurrencyId = NativeCurrencyId;
 	type MaxLengthRoute = MaxLengthRoute;
+	type GetNativeCurrencyId = PolkadexAssetId;
+	type Assets = AssetHandler;
 }
 
 use sp_runtime::traits::Convert;

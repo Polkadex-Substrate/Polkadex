@@ -157,9 +157,9 @@ impl asset_handler::pallet::Config for Test {
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type NativeCurrencyId = PolkadexAssetId;
 	type TreasuryPalletId = ChainbridgePalletId;
 	type ParachainNetworkId = ParachainNetworkId;
-	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
 	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 }
