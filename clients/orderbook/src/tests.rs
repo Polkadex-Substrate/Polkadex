@@ -1,6 +1,6 @@
 //! This module contains code that defines test cases related to a offline storage of worker module.
 use primitive_types::H128;
-use std::{borrow::Cow, future::Future, sync::Arc};
+use std::{future::Future, sync::Arc};
 
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
@@ -15,7 +15,6 @@ use sc_network_test::{
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{blake2_128, Pair};
 use sp_keyring::AccountKeyring;
-use tokio::runtime::Runtime;
 use trie_db::{TrieDBMut, TrieDBMutBuilder};
 
 use bls_primitives::Pair as BLSPair;
@@ -196,7 +195,7 @@ where
 			key_store: None,
 			network: peer.network_service().clone(),
 			prometheus_registry: None,
-			protocol_name: Cow::from("blah"),
+			protocol_name: String::from("blah").into(),
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
@@ -238,7 +237,7 @@ where
 //         runtime: api,
 //         sync_oracle: peer.network_service().clone(),
 //         network: peer.network_service().clone(),
-//         protocol_name: Cow::from("blah"),
+//         protocol_name: String::from("blah").into(),
 //         is_validator,
 //         message_sender_link: rpc_receiver,
 //         metrics: None,
@@ -250,11 +249,10 @@ where
 //     (worker, rpc_sender)
 // }
 
-#[test]
-pub fn test_network() {
+#[tokio::test]
+async fn test_network() {
 	sp_tracing::try_init_simple();
 
-	let runtime = Runtime::new().unwrap();
 	let peers = &[(AccountKeyring::Alice, true), (AccountKeyring::Bob, true)];
 	let mut net = ObTestnet::new(2, 0);
 
@@ -264,7 +262,9 @@ pub fn test_network() {
 		.enumerate()
 		.map(|(id, (key, is_auth))| (id, key, api.clone(), *is_auth))
 		.collect();
-	runtime.spawn(initialize_orderbook(&mut net, ob_peers));
+	tokio::spawn(async move {
+		initialize_orderbook(&mut net, ob_peers).await;
+	});
 }
 
 #[tokio::test]
@@ -307,7 +307,7 @@ pub async fn test_single_worker() {
 		runtime: api,
 		sync_oracle: peer.network_service().clone(),
 		network: peer.network_service().clone(),
-		protocol_name: Cow::from("blah"),
+		protocol_name: String::from("blah").into(),
 		is_validator: true,
 		message_sender_link: rpc_receiver,
 		metrics: None,
@@ -387,7 +387,7 @@ pub async fn test_offline_storage() {
 		runtime: api,
 		sync_oracle: peer.network_service().clone(),
 		network: peer.network_service().clone(),
-		protocol_name: Cow::from("blah"),
+		protocol_name: String::from("blah").into(),
 		is_validator: true,
 		message_sender_link: rpc_receiver,
 		metrics: None,
@@ -473,7 +473,7 @@ pub async fn test_process_chunk() {
 		runtime: api,
 		network: peer.network_service().clone(),
 		sync_oracle: peer.network_service().clone(),
-		protocol_name: Cow::from("blah"),
+		protocol_name: String::from("blah").into(),
 		is_validator: true,
 		message_sender_link: rpc_receiver,
 		metrics: None,
@@ -533,7 +533,7 @@ pub async fn test_store_snapshot() {
 		runtime: api,
 		network: peer.network_service().clone(),
 		sync_oracle: peer.network_service().clone(),
-		protocol_name: Cow::from("blah"),
+		protocol_name: String::from("blah").into(),
 		is_validator: true,
 		message_sender_link: rpc_receiver,
 		metrics: None,
@@ -600,7 +600,7 @@ pub async fn test_load_snapshot() {
 		runtime: api,
 		network: peer.network_service().clone(),
 		sync_oracle: peer.network_service().clone(),
-		protocol_name: Cow::from("blah"),
+		protocol_name: String::from("blah").into(),
 		is_validator: true,
 		message_sender_link: rpc_receiver,
 		metrics: None,
@@ -670,7 +670,7 @@ pub async fn test_load_snapshot_with_invalid_summary() {
 		runtime: api,
 		network: peer.network_service().clone(),
 		sync_oracle: peer.network_service().clone(),
-		protocol_name: Cow::from("blah"),
+		protocol_name: String::from("blah").into(),
 		is_validator: true,
 		message_sender_link: rpc_receiver,
 		metrics: None,

@@ -16,10 +16,9 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
-
 use frame_support::{
 	dispatch::DispatchResult,
-	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction},
+	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},
 	traits::{fungibles::Mutate, Currency, ExistenceRequirement, Get, OneSessionHandler},
 	BoundedVec,
 };
@@ -36,9 +35,10 @@ pub use pallet::*;
 
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
+
+pub mod weights;
 
 use orderbook_primitives::{
 	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
@@ -51,8 +51,6 @@ use sp_runtime::traits::One;
 mod benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
 pub(crate) mod fixtures;
-pub mod weights;
-pub use weights::*;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -61,6 +59,27 @@ type BalanceOf<T> =
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const WITHDRAWAL_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
+
+pub trait OcexWeightInfo {
+	fn register_main_account(_b: u32) -> Weight;
+	fn add_proxy_account(x: u32) -> Weight;
+	fn close_trading_pair(_x: u32) -> Weight;
+	fn open_trading_pair(_x: u32) -> Weight;
+	fn register_trading_pair(_x: u32) -> Weight;
+	fn update_trading_pair(_x: u32) -> Weight;
+	fn deposit(_x: u32) -> Weight;
+	fn remove_proxy_account(x: u32) -> Weight;
+	fn submit_snapshot() -> Weight;
+	fn collect_fees(_x: u32) -> Weight;
+	fn set_exchange_state(_x: u32) -> Weight;
+	fn set_balances(_x: u32) -> Weight;
+	fn claim_withdraw(_x: u32) -> Weight;
+	fn allowlist_token(_x: u32) -> Weight;
+	fn remove_allowlisted_token(_x: u32) -> Weight;
+	fn set_snapshot() -> Weight;
+	fn change_pending_withdrawal_limit() -> Weight;
+	fn change_snapshot_interval_block() -> Weight;
+}
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -94,27 +113,6 @@ pub mod pallet {
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-
-	pub trait OcexWeightInfo {
-		fn register_main_account(_b: u32) -> Weight;
-		fn add_proxy_account(x: u32) -> Weight;
-		fn close_trading_pair(_x: u32) -> Weight;
-		fn open_trading_pair(_x: u32) -> Weight;
-		fn register_trading_pair(_x: u32) -> Weight;
-		fn update_trading_pair(_x: u32) -> Weight;
-		fn deposit(_x: u32) -> Weight;
-		fn remove_proxy_account(x: u32) -> Weight;
-		fn submit_snapshot() -> Weight;
-		fn collect_fees(_x: u32) -> Weight;
-		fn set_exchange_state(_x: u32) -> Weight;
-		fn set_balances(_x: u32) -> Weight;
-		fn claim_withdraw(_x: u32) -> Weight;
-		fn allowlist_token(_x: u32) -> Weight;
-		fn remove_allowlisted_token(_x: u32) -> Weight;
-		fn set_snapshot() -> Weight;
-		fn change_pending_withdrawal_limit() -> Weight;
-		fn change_snapshot_interval_block() -> Weight;
-	}
 
 	type WithdrawalsMap<T> = BoundedBTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -152,7 +150,7 @@ pub mod pallet {
 		frame_system::Config + timestamp::Config + SendTransactionTypes<Call<Self>>
 	{
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Address which holds the customer funds.
 		#[pallet::constant]
@@ -170,7 +168,7 @@ pub mod pallet {
 			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
-		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		type Public: Clone
 			+ PartialEq
 			+ IdentifyAccount<AccountId = Self::AccountId>
@@ -187,16 +185,16 @@ pub mod pallet {
 			+ parity_scale_codec::Codec
 			+ scale_info::TypeInfo;
 
-		/// Type representing the weight of this pallet
-		type WeightInfo: OcexWeightInfo;
-
 		// declared number of milliseconds per day and is used to determine
 		// enclave's report validity time.
 		// standard 24h in ms = 86_400_000
 		type MsPerDay: Get<Self::Moment>;
 
 		/// Governance Origin
-		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: OcexWeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -301,15 +299,16 @@ pub mod pallet {
 				OnChainEventsLimit,
 			>::default());
 
-			(1000000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(2 as Weight))
-				.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			Weight::default()
+				.saturating_add(T::DbWeight::get().reads(2))
+				.saturating_add(T::DbWeight::get().writes(2))
 		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Registers a new account in orderbook
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_main_account(1))]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
@@ -318,6 +317,7 @@ pub mod pallet {
 		}
 
 		/// Adds a proxy account to a pre-registered main acocunt
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account(1))]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
@@ -342,6 +342,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::close_trading_pair(1))]
 		pub fn close_trading_pair(
 			origin: OriginFor<T>,
@@ -371,6 +372,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::open_trading_pair(1))]
 		pub fn open_trading_pair(
 			origin: OriginFor<T>,
@@ -401,6 +403,7 @@ pub mod pallet {
 		}
 
 		/// Registers a new trading pair
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_trading_pair(1))]
 		pub fn register_trading_pair(
 			origin: OriginFor<T>,
@@ -532,6 +535,7 @@ pub mod pallet {
 		}
 
 		/// Updates the trading pair config
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_trading_pair(1))]
 		pub fn update_trading_pair(
 			origin: OriginFor<T>,
@@ -659,6 +663,7 @@ pub mod pallet {
 		}
 
 		/// Deposit Assets to Orderbook
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit(1))]
 		pub fn deposit(
 			origin: OriginFor<T>,
@@ -671,6 +676,7 @@ pub mod pallet {
 		}
 
 		/// Removes a proxy account from pre-registered main account
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_proxy_account(1))]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
@@ -699,6 +705,12 @@ pub mod pallet {
 			})
 		}
 
+		/// Sets snapshot id as current. Callable by governance only
+		///
+		/// # Parameters
+		/// * `origin` - signed member of T::GovernanceOrigin
+		/// * `new_snapshot_id` - u64 id of new *current* snapshot
+		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_snapshot())]
 		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u64) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -712,6 +724,7 @@ pub mod pallet {
 		/// * `origin`: Orderbook governance
 		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance
 		/// wants to set.
+		#[pallet::call_index(9)]
 		#[pallet::weight(<T as Config>::WeightInfo::change_pending_withdrawal_limit())]
 		pub fn change_pending_withdrawal_limit(
 			origin: OriginFor<T>,
@@ -728,6 +741,7 @@ pub mod pallet {
 		/// * `origin`: Orderbook governance
 		/// * `new_snapshot_interval_block`: The new block interval at which snapshot should  be
 		/// generated.
+		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::change_snapshot_interval_block())]
 		pub fn change_snapshot_interval_block(
 			origin: OriginFor<T>,
@@ -741,6 +755,7 @@ pub mod pallet {
 		/// Withdraws Fees Collected
 		///
 		/// params:  snapshot_number: u32
+		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::collect_fees(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
@@ -790,6 +805,7 @@ pub mod pallet {
 		///This extrinsic will pause/resume the exchange according to flag
 		/// If flag is set to false it will stop the exchange
 		/// If flag is set to true it will resume the exchange
+		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_exchange_state(1))]
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -806,7 +822,8 @@ pub mod pallet {
 		}
 
 		/// Sends the changes required in balances for list of users with a particular asset
-		#[pallet::weight(<T as Config>::WeightInfo::set_balances(change_in_balances.len().saturated_into()))]
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_balances(1))]
 		pub fn set_balances(
 			origin: OriginFor<T>,
 			change_in_balances: BoundedVec<
@@ -835,6 +852,7 @@ pub mod pallet {
 		///
 		/// params: snapshot_number: u32
 		/// account: AccountId
+		#[pallet::call_index(14)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_withdraw(1))]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
@@ -930,6 +948,7 @@ pub mod pallet {
 		}
 
 		/// Allowlist Token
+		#[pallet::call_index(15)]
 		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -943,6 +962,7 @@ pub mod pallet {
 		}
 
 		/// Remove Allowlisted Token
+		#[pallet::call_index(16)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -955,6 +975,7 @@ pub mod pallet {
 
 		/// Submit Snapshot Summary
 		/// TODO: Better documentation
+		#[pallet::call_index(17)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(origin: OriginFor<T>, summary: SnapshotSummary) -> DispatchResult {
 			ensure_none(origin)?;
@@ -1013,13 +1034,16 @@ pub mod pallet {
 					// TODO: We can't use ensure after storages are modified.
 					ensure!(
 						<OnChainEvents<T>>::try_mutate(|onchain_events| {
-							onchain_events.try_push(
-								polkadex_primitives::ocex::OnChainEvents::GetStorage(
+							if onchain_events
+								.try_push(polkadex_primitives::ocex::OnChainEvents::GetStorage(
 									polkadex_primitives::ocex::Pallet::OCEX,
 									polkadex_primitives::ocex::StorageItem::Withdrawal,
 									working_summary.snapshot_id,
-								),
-							)?;
+								))
+								.is_err()
+							{
+								return Err(())
+							}
 							Ok::<(), ()>(())
 						})
 						.is_ok(),
@@ -1041,6 +1065,7 @@ pub mod pallet {
 		}
 
 		/// Submit Snapshot Summary
+		#[pallet::call_index(18)]
 		#[pallet::weight(10000)]
 		pub fn whitelist_orderbook_operator(
 			origin: OriginFor<T>,

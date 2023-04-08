@@ -15,8 +15,9 @@
 
 use crate::pallet as thea;
 use core::marker::PhantomData;
-use frame_support::{parameter_types, PalletId};
+use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
+use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::{
 	curve::PiecewiseLinear,
@@ -24,7 +25,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 use std::collections::{BTreeMap, BTreeSet};
-use system::EnsureRoot;
 use thea_primitives::thea_types::OnSessionChange;
 use thea_staking::SessionChanged;
 
@@ -58,9 +58,8 @@ impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -68,8 +67,9 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
+	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
@@ -88,7 +88,7 @@ parameter_types! {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type MaxLocks = MaxLocks;
@@ -111,11 +111,14 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-	type Event = Event;
-	type Balance = Balance;
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = u128;
+	type RemoveItemsLimit = ();
 	type AssetId = u128;
+	type AssetIdParameter = parity_scale_codec::Compact<u128>;
 	type Currency = Balances;
-	type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<u64>>;
+	type ForceOrigin = EnsureRoot<u64>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -124,6 +127,7 @@ impl pallet_assets::Config for Test {
 	type StringLimit = StringLimit;
 	type Freezer = ();
 	type Extra = ();
+	type CallbackHandle = ();
 	type WeightInfo = ();
 }
 
@@ -135,9 +139,9 @@ parameter_types! {
 }
 
 impl chainbridge::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
-	type Proposal = Call;
+	type Proposal = RuntimeCall;
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
 	//type PalletId = ChainbridgePalletId;
@@ -149,15 +153,15 @@ parameter_types! {
 }
 
 impl asset_handler::pallet::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TreasuryPalletId = ChainbridgePalletId;
-	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 	type ParachainNetworkId = ParachainNetworkId;
 	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
+	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 }
 
 parameter_types! {
@@ -191,57 +195,58 @@ impl SessionChanged for MockPallet {
 }
 
 parameter_types! {
-	pub const SessionLength: u64 = 7000;
-	pub const UnbondingDelay: u32 = 10;
-	pub const MaxUnlockChunks: u32 = 10;
-	pub const CandidateBond: Balance = 1000_000_000_000;
-	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
-	pub const StakingDataPruneDelay: u32 = 6;
-	pub const ModerateSK: u8 = 5; // 5% of stake to slash
-	pub const SevereSK: u8 = 20; // 20% of stake to slash
-	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
-	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
-	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-}
-
-impl thea_staking::Config for Test {
-	type Event = Event;
-	type SessionLength = SessionLength;
-	type UnbondingDelay = UnbondingDelay;
-	type MaxUnlockChunks = MaxUnlockChunks;
-	type CandidateBond = CandidateBond;
-	type StakingReserveIdentifier = StakingReserveIdentifier;
-	type StakingDataPruneDelay = StakingDataPruneDelay;
-	type SessionChangeNotifier = MockPallet;
-	type ModerateSlashingCoeficient = ModerateSK;
-	type SevereSlashingCoeficient = SevereSK;
-	type ReportersRewardCoeficient = ReporterRewardKF;
-	type SlashingThreshold = SlashingTh;
-	type TreasuryPalletId = TreasuryPalletId;
-	type GovernanceOrigin = EnsureRoot<u64>;
-	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
-	type Currency = Balances;
-	type WeightInfo = thea_staking::weight::StakeWeightInfo<Test>;
-}
-
-parameter_types! {
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
 	pub const WithdrawalSize: u32 = 10;
 	pub const ParaId: u32 = 2040;
 }
 
 impl thea::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
-	type Weights = crate::weights::TheaWeightInfo<Test>;
+	type Weights = crate::weights::WeightInfo<Test>;
 }
 
+//Install Staking Pallet
+parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const SessionLength: u32 = 25;
+	pub const UnbondingDelay: u32 = 10;
+	pub const MaxUnlockChunks: u32 = 10;
+	pub const CandidateBond: Balance = 1_000_000_000_000;
+	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
+	pub const StakingDataPruneDelay: u32 = 6;
+	pub const IdealActiveValidators: u32 = 3;
+	pub const ModerateSK: u8 = 5; // 5% of stake to slash
+	pub const SevereSK: u8 = 20; // 20% of stake to slash
+	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
+	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
+	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+}
+
+impl thea_staking::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type SessionLength = SessionLength;
+	type UnbondingDelay = UnbondingDelay;
+	type MaxUnlockChunks = MaxUnlockChunks;
+	type CandidateBond = CandidateBond;
+	type StakingReserveIdentifier = StakingReserveIdentifier;
+	type ModerateSlashingCoeficient = ModerateSK;
+	type SevereSlashingCoeficient = SevereSK;
+	type ReportersRewardCoeficient = ReporterRewardKF;
+	type SlashingThreshold = SlashingTh;
+	type TreasuryPalletId = TreasuryPalletId;
+	type StakingDataPruneDelay = StakingDataPruneDelay;
+	type SessionChangeNotifier = Thea;
+	type GovernanceOrigin = EnsureRoot<u64>;
+	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
+	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
+}
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();

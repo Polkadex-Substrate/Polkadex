@@ -13,7 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 use crate::{
-	mock::{new_test_ext, Test, *},
+	mock::{new_test_ext, RuntimeOrigin as Origin, Test, *},
 	pallet::{ApprovedDeposit, *},
 	util::*,
 };
@@ -89,11 +89,11 @@ fn test_approve_deposit_with_right_inputs_return_ok() {
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_ok!(Thea::approve_deposit(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			bit_map_2,
 			sig.into(),
 			TokenType::Fungible(1_u8),
@@ -113,12 +113,12 @@ fn test_approve_deposit_returns_failed_to_decode() {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		let wrong_payload = [1; 32];
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -157,12 +157,12 @@ fn test_approve_deposits_with_wrong_multi_asset_returns_failed_to_handle_paracha
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -202,12 +202,12 @@ fn test_approve_deposits_with_wrong_signature_returns_bls_signature_verification
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				wrong_sig.into(),
 				TokenType::Fungible(1_u8),
@@ -248,12 +248,12 @@ fn test_approve_deposit_with_zero_amount_return_amount_cannot_be_zero() {
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -294,12 +294,12 @@ fn test_approve_deposit_with_wrong_nonce_return_deposit_nonce_error() {
 
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id)
 		));
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -340,7 +340,7 @@ fn test_approve_deposit_with_unregistered_asset_return_asset_not_registered() {
 
 		assert_noop!(
 			Thea::approve_deposit(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				bit_map_2,
 				sig.into(),
 				TokenType::Fungible(1_u8),
@@ -364,14 +364,14 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
 		};
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
-		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
+		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		// Mint Asset to Alice
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			1,
 			1_000_000_000_000,
 			0
@@ -386,7 +386,7 @@ fn test_withdraw_with_pay_remaining_false_returns_ok() {
 			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
 		);
 		assert_ok!(Thea::withdraw(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			generate_asset_id(asset_id.clone()),
 			1000u128,
 			beneficiary.encode().to_vec(),
@@ -419,10 +419,10 @@ fn test_withdraw_returns_proper_errors_and_ok() {
 			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
 		};
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
-		assert_ok!(Thea::set_withdrawal_fee(Origin::root(), 1, 0));
+		assert_ok!(Thea::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		let beneficiary: [u8; 32] = [1; 32];
 		let beneficiary: MultiLocation = MultiLocation::new(
 			1,
@@ -485,7 +485,7 @@ fn test_withdraw_returns_proper_errors_and_ok() {
 		<PendingWithdrawals<Test>>::insert(1, old_withdrawals);
 		// good orogin test
 		assert_ok!(Thea::withdraw(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			generate_asset_id(asset_id.clone()),
 			1000u128,
 			beneficiary.encode().to_vec(),
@@ -509,7 +509,7 @@ fn test_withdraw_with_wrong_benificiary_length() {
 	new_test_ext().execute_with(|| {
 		let beneficiary: [u8; 1001] = [1; 1001];
 		assert_noop!(
-			Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
+			Thea::withdraw(RuntimeOrigin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
 			Error::<Test>::BeneficiaryTooLong
 		);
 	})
@@ -520,7 +520,7 @@ fn test_withdraw_with_wrong_asset_id_returns_unable_find_network_for_asset_id() 
 	new_test_ext().execute_with(|| {
 		let beneficiary: [u8; 32] = [1; 32];
 		assert_noop!(
-			Thea::withdraw(Origin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
+			Thea::withdraw(RuntimeOrigin::signed(1), 1u128, 1000u128, beneficiary.to_vec(), false),
 			Error::<Test>::UnableFindNetworkForAssetId
 		);
 	})
@@ -536,12 +536,12 @@ fn test_withdraw_with_no_fee_config() {
 		);
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
 		assert_noop!(
 			Thea::withdraw(
-				Origin::signed(1),
+				RuntimeOrigin::signed(1),
 				generate_asset_id(asset_id),
 				1000u128,
 				beneficiary.encode().to_vec(),
@@ -571,7 +571,7 @@ fn transfer_native_asset() {
 		// Mint Asset to Alice
 		assert_ok!(Balances::set_balance(Origin::root(), 1, 1_000_000_000_000_000_000, 0));
 		assert_ok!(Thea::withdraw(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			asset_id.clone(),
 			10_000_000_000_000u128,
 			multi_location.encode().to_vec(),
@@ -596,12 +596,12 @@ fn test_withdrawal_returns_ok() {
 	new_test_ext().execute_with(|| {
 		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
 		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			Origin::signed(1),
+			RuntimeOrigin::signed(1),
 			Box::from(asset_id.clone())
 		));
 		let asset_id = generate_asset_id(asset_id);
 		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			1,
 			1_000_000_000_000,
 			0

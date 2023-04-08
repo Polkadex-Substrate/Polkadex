@@ -1,6 +1,5 @@
 use chrono::Utc;
 use std::{
-	borrow::Cow,
 	collections::{BTreeMap, HashMap},
 	marker::PhantomData,
 	sync::Arc,
@@ -66,7 +65,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
-	pub protocol_name: Cow<'static, str>,
+	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
 	// last successful block snapshot created
 	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,

@@ -121,11 +121,11 @@ pub mod pallet {
 		frame_system::Config + asset_handler::pallet::Config + thea_staking::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Balances Pallet
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 		/// Asset Create/ Update Origin
-		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<PalletId>;
@@ -404,7 +404,7 @@ pub mod pallet {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			<IngressMessages<T>>::put(Vec::<TheaPalletMessages>::new());
 			// TODO: Benchmarking for Thea Pallet
-			1000 as Weight
+			Weight::default()
 		}
 	}
 
@@ -834,7 +834,7 @@ pub mod pallet {
 				index: pending_withdrawals.len() as u32,
 			};
 
-			if let Err(()) = pending_withdrawals.try_push(withdrawal) {
+			if pending_withdrawals.try_push(withdrawal).is_err() {
 				// This should not fail because of is_full check above
 			}
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
