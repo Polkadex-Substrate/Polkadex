@@ -103,6 +103,11 @@ pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 # Thea
 thea = { path = "../pallets/thea", default-features = false }
 
+#swap
+pallet-amm = { path="../pallets/swap", default-features = false }
+#router for swap
+router= { path="../pallets/router", default-features=false }
+
 # Liquidity Pallet
 liquidity = { path = "../pallets/liquidity", default-features = false }
 
@@ -182,9 +187,12 @@ std = [
     "pallet-ocex-lmp/std",
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
+    "thea-primitives/std",
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
+    "pallet-amm/std",
+    "router/std",
     "thea-cross-chain-governance/std",
     "liquidity/std",
     "pallet-rewards/std"
