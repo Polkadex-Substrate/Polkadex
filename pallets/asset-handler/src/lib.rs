@@ -29,13 +29,13 @@ use chainbridge::{BridgeChainId, ResourceId};
 use frame_support::{
 	dispatch::fmt::Debug,
 	fail, log,
-		pallet_prelude::*,
-		traits::{
-			fungibles::Transfer,
+	pallet_prelude::*,
+	traits::{
+		fungibles::Transfer,
 		tokens::{
-				fungibles::{Create, Inspect, Mutate},
-				DepositConsequence, WithdrawConsequence,
-			},
+			fungibles::{Create, Inspect, Mutate},
+			DepositConsequence, WithdrawConsequence,
+		},
 		Currency, ExistenceRequirement, ReservableCurrency,
 	},
 	PalletId,
@@ -139,10 +139,6 @@ pub mod pallet {
 		/// Parachain Network Id
 		#[pallet::constant]
 		type ParachainNetworkId: Get<u8>;
-
-		/// Polkadex Asset
-		#[pallet::constant]
-		type PolkadexAssetId: Get<u128>;
 
 		/// PDEX Token Holder Account
 		type PDEXHolderAccount: Get<Self::AccountId>;
@@ -707,7 +703,7 @@ pub mod pallet {
 			who: T::AccountId,
 			amount: u128,
 		) -> Result<(), DispatchError> {
-			let polkadex_asset_id = T::PolkadexAssetId::get();
+			let polkadex_asset_id = T::NativeCurrencyId::get();
 			if polkadex_asset_id == asset_id {
 				Self::lock_pdex_asset(amount, who)
 			} else {
@@ -809,6 +805,10 @@ pub mod pallet {
 			}
 		}
 
+		fn active_issuance(asset: Self::AssetId) -> Self::Balance {
+			T::AssetManager::active_issuance(asset)
+		}
+
 		fn minimum_balance(asset: Self::AssetId) -> Self::Balance {
 			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::minimum_balance(asset.saturated_into()).saturated_into()
@@ -859,9 +859,16 @@ pub mod pallet {
 		) -> WithdrawConsequence<Self::Balance> {
 			if asset != T::NativeCurrencyId::get() {
 				T::AssetManager::can_withdraw(asset.saturated_into(), who, amount.saturated_into())
+			} else if T::Currency::free_balance(who) >= amount.saturated_into() {
+				WithdrawConsequence::Success
 			} else {
-				todo!()
+				// TODO: Need a better error mapping
+				WithdrawConsequence::UnknownAsset
 			}
+		}
+
+		fn asset_exists(asset: Self::AssetId) -> bool {
+			T::AssetManager::asset_exists(asset)
 		}
 	}
 
