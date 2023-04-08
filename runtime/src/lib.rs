@@ -29,9 +29,9 @@ use frame_support::{
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ConstU16, Currency, EitherOfDiverse, EnsureOrigin,
-		EqualPrivilegeOnly, Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem,
-		LockIdentifier, OnUnbalanced, U128CurrencyToVote,
+		fungibles::CreditOf, AsEnsureOriginWithArg, ConstU16, Currency, EitherOfDiverse,
+		EnsureOrigin, EqualPrivilegeOnly, Everything, Get, Imbalance, InstanceFilter,
+		KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, U128CurrencyToVote,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
@@ -1372,7 +1372,7 @@ impl HandleSwap<Runtime> for AlternateTokenSwapper {
 }
 
 impl pallet_assets_transaction_payment::pallet::Config for Runtime {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Fungibles = Assets;
 	type OnChargeAssetTransaction = pallet_assets_transaction_payment::payment::FungiblesAdapter<
 		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto>,
@@ -1380,7 +1380,6 @@ impl pallet_assets_transaction_payment::pallet::Config for Runtime {
 		DealWithFees,
 	>;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
-	type WeightInfo = pallet_assets_transaction_payment::weights::WeightInfo<Runtime>;
 }
 impl thea::pallet::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1600,10 +1599,11 @@ pub type SignedExtra = (
 /// Unchecked extrinsic type as expected by this runtime.
 // pub type UncheckedExtrinsic =
 //	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
-pub type UncheckedExtrinsic = unchecked_extrinsic::UncheckedExtrinsic<Address, Call, SignedExtra>;
+pub type UncheckedExtrinsic =
+	unchecked_extrinsic::UncheckedExtrinsic<Address, RuntimeCall, SignedExtra>;
 /// The payload being signed in transactions.
 // pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
-pub type SignedPayload = signed_payload::SignedPayload<Call, SignedExtra>;
+pub type SignedPayload = signed_payload::SignedPayload<RuntimeCall, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 /// Executive: handles dispatch to the various modules.

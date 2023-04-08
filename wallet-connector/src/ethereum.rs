@@ -8,15 +8,15 @@ use ethers_core::types::transaction::eip712::Eip712;
 use ethers_derive_eip712::*;
 use sp_runtime_interface::runtime_interface;
 
-#[cfg(feature = "std")]
 #[derive(Debug, Clone, Eip712, EthAbiType)]
 #[eip712(
 	name = "Polkadex Transaction",
 	version = "3",
 	chain_id = 1,
 	verifying_contract = "0x0000000000000000000000000000000000000001",
-	salt = "0x123"
+	salt = "polkadex"
 )]
+#[cfg(feature = "std")]
 pub struct EthereumSignerPayload {
 	pub transaction: String,
 }

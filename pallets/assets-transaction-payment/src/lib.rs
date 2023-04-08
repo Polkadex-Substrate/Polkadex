@@ -3,7 +3,6 @@
 #![allow(clippy::recursive_format_impl)]
 
 pub mod payment;
-pub mod weights;
 
 use crate::{
 	pallet::{AllowedAssets, Config, Event, Pallet},
@@ -95,15 +94,13 @@ pub mod pallet {
 		frame_system::Config + pallet_assets::Config + pallet_transaction_payment::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// The fungibles instance used to pay for transactions in assets.
 		type Fungibles: Balanced<Self::AccountId>;
 		/// The actual transaction charging logic that charges the fees.
 		type OnChargeAssetTransaction: OnChargeAssetTransaction<Self>;
 		/// Governance Origin
-		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
-		/// Type representing the weight of this pallet
-		type WeightInfo: PotpWeightInfo;
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
 
 	#[pallet::pallet]
@@ -154,7 +151,8 @@ pub mod pallet {
 		///
 		/// * `origin`: governance
 		/// * `asset`: asset id in which fees will be accepted
-		#[pallet::weight(<T as Config>::WeightInfo::allow_list_token_for_fees(1))]
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::default())]
 		pub fn allow_list_token_for_fees(
 			origin: OriginFor<T>,
 			asset: AssetIdOf<T>,
@@ -174,7 +172,8 @@ pub mod pallet {
 		///
 		/// * `origin`: governance
 		/// * `asset`: asset id in which fees should not be accepted anymore
-		#[pallet::weight(<T as Config>::WeightInfo::block_token_for_fees(1))]
+		#[pallet::call_index(1)]
+		#[pallet::weight(Weight::default())]
 		pub fn block_token_for_fees(origin: OriginFor<T>, asset: AssetIdOf<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<AllowedAssets<T>>::mutate(|allowed_assets| {
@@ -199,7 +198,7 @@ pub struct ChargeAssetTransactionPayment<T: Config> {
 
 impl<T: Config> ChargeAssetTransactionPayment<T>
 where
-	T::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
+	T::RuntimeCall: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	AssetBalanceOf<T>: Send + Sync + FixedPointOperand,
 	BalanceOf<T>: Send + Sync + FixedPointOperand + IsType<ChargeAssetBalanceOf<T>>,
 	ChargeAssetIdOf<T>: Send + Sync + Zero,
@@ -210,8 +209,8 @@ where
 	fn withdraw_fee(
 		&self,
 		who: &T::AccountId,
-		call: &T::Call,
-		info: &DispatchInfoOf<T::Call>,
+		call: &T::RuntimeCall,
+		info: &DispatchInfoOf<T::RuntimeCall>,
 		len: usize,
 	) -> Result<(BalanceOf<T>, InitialPayment<T>), TransactionValidityError> {
 		let fee = pallet_transaction_payment::Pallet::<T>::compute_fee(len as u32, info, self.tip);
@@ -252,7 +251,7 @@ impl<T: Config> sp_std::fmt::Debug for ChargeAssetTransactionPayment<T> {
 
 impl<T: Config> SignedExtension for ChargeAssetTransactionPayment<T>
 where
-	T::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
+	T::RuntimeCall: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
 	AssetBalanceOf<T>: Send + Sync + FixedPointOperand,
 	BalanceOf<T>: Send + Sync + From<u64> + FixedPointOperand + IsType<ChargeAssetBalanceOf<T>>,
 	ChargeAssetIdOf<T>: Send + Sync + Zero,
@@ -260,7 +259,7 @@ where
 {
 	const IDENTIFIER: &'static str = "AssetsTransactionPayment";
 	type AccountId = T::AccountId;
-	type Call = T::Call;
+	type Call = T::RuntimeCall;
 	type AdditionalSigned = u8;
 	type Pre = (
 		// tip

@@ -91,7 +91,6 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
-thea-primitives = { path = "../thea-primitives", default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false }
 chainbridge = { path = "../pallets/chainbridge", default-features = false }

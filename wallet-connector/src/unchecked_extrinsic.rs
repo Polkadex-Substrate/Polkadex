@@ -65,7 +65,7 @@ where
 	}
 }
 use crate::signature::CustomSignature;
-use frame_support::weights::{DispatchInfo, GetDispatchInfo};
+use frame_support::dispatch::{DispatchInfo, GetDispatchInfo};
 use polkadex_primitives::Signature;
 use sp_core::crypto::AccountId32;
 use sp_runtime::traits::Verify;
