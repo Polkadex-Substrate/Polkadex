@@ -2,10 +2,9 @@ use crate::{
 	mock::{new_test_ext, *},
 	ActiveMembers, Candidates, Error,
 };
-use frame_support::{assert_noop, assert_ok, metadata::StorageHasher::Identity};
+use frame_support::{assert_noop, assert_ok};
 use pallet_identity::{Data, IdentityInfo};
 use sp_runtime::{traits::ConstU32, BoundedBTreeMap, BoundedVec};
-use std::convert::identity;
 
 type PublicKey = BoundedVec<u8, ConstU32<1000>>;
 type KeysMap = BoundedBTreeMap<u8, PublicKey, ConstU32<20>>;
@@ -16,13 +15,16 @@ fn test_apply_for_candidature_returns_ok() {
 		let candidate = 1;
 		let key_map = get_keylist();
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			candidate,
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
-		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
+		assert_ok!(TheaGovernence::apply_for_candidature(
+			RuntimeOrigin::signed(candidate),
+			key_map
+		));
 	})
 }
 
@@ -34,7 +36,7 @@ fn test_apply_for_candidature_with_already_registered_member_returns_already_mem
 		<ActiveMembers<Test>>::insert(candidate, key_map.clone());
 		add_identity(candidate);
 		assert_noop!(
-			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
+			TheaGovernence::apply_for_candidature(RuntimeOrigin::signed(candidate), key_map),
 			Error::<Test>::AlreadyMember
 		);
 	})
@@ -48,7 +50,7 @@ fn test_apply_for_candidature_with_already_registered_candidate_returns_already_
 		<Candidates<Test>>::insert(candidate, key_map.clone());
 		add_identity(candidate);
 		assert_noop!(
-			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
+			TheaGovernence::apply_for_candidature(RuntimeOrigin::signed(candidate), key_map),
 			Error::<Test>::AlreadyApplied
 		);
 	})
@@ -60,9 +62,9 @@ fn test_apply_for_candidature_with_not_enough_balnce_returns_error() {
 		let key_map = get_keylist();
 		let candidate = 1;
 		add_identity(candidate);
-		assert_ok!(Balances::set_balance(Origin::root(), candidate, 0, 0));
+		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), candidate, 0, 0));
 		assert_noop!(
-			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
+			TheaGovernence::apply_for_candidature(RuntimeOrigin::signed(candidate), key_map),
 			pallet_balances::Error::<Test>::InsufficientBalance
 		);
 	})
@@ -75,15 +77,18 @@ fn test_approve_candidature_returns_ok() {
 		let key_map = get_keylist();
 		let general_council = 2;
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			candidate,
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
-		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
+		assert_ok!(TheaGovernence::apply_for_candidature(
+			RuntimeOrigin::signed(candidate),
+			key_map
+		));
 		assert_ok!(TheaGovernence::approve_candidature(
-			Origin::signed(general_council),
+			RuntimeOrigin::signed(general_council),
 			vec![candidate]
 		));
 	})
@@ -97,7 +102,10 @@ fn test_approve_candidate_with_already_registered_member_returns_already_member_
 		let key_map = get_keylist();
 		<ActiveMembers<Test>>::insert(candidate, key_map.clone());
 		assert_noop!(
-			TheaGovernence::approve_candidature(Origin::signed(general_council), vec![candidate]),
+			TheaGovernence::approve_candidature(
+				RuntimeOrigin::signed(general_council),
+				vec![candidate]
+			),
 			Error::<Test>::AlreadyMember
 		);
 	})
@@ -110,7 +118,7 @@ fn test_approve_candidate_with_wrong_candidate_returns_candidate_not_found_error
 		let general_council = 2;
 		assert_noop!(
 			TheaGovernence::approve_candidature(
-				Origin::signed(general_council),
+				RuntimeOrigin::signed(general_council),
 				vec![un_registered_candidate]
 			),
 			Error::<Test>::CandidateNotFound
@@ -125,19 +133,22 @@ fn test_add_new_keys_returns_ok() {
 		let key_map = get_keylist();
 		let general_council = 2;
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			candidate,
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
-		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
+		assert_ok!(TheaGovernence::apply_for_candidature(
+			RuntimeOrigin::signed(candidate),
+			key_map
+		));
 		assert_ok!(TheaGovernence::approve_candidature(
-			Origin::signed(general_council),
+			RuntimeOrigin::signed(general_council),
 			vec![candidate]
 		));
 		let new_keys = get_keylist_arg(2);
-		assert_ok!(TheaGovernence::add_new_keys(Origin::signed(candidate), new_keys));
+		assert_ok!(TheaGovernence::add_new_keys(RuntimeOrigin::signed(candidate), new_keys));
 	})
 }
 
@@ -147,7 +158,7 @@ fn test_add_new_keys_with_unregistered_member_returns_member_not_found() {
 		let unregistered_candidate = 1;
 		let key_map = get_keylist_arg(2);
 		assert_noop!(
-			TheaGovernence::add_new_keys(Origin::signed(unregistered_candidate), key_map),
+			TheaGovernence::add_new_keys(RuntimeOrigin::signed(unregistered_candidate), key_map),
 			Error::<Test>::MemberNotFound
 		);
 	})
@@ -159,7 +170,7 @@ fn test_remove_candidate_returns_ok() {
 		let candidate = 1;
 		let general_council = 2;
 		assert_ok!(TheaGovernence::remove_candidate(
-			Origin::signed(general_council),
+			RuntimeOrigin::signed(general_council),
 			vec![candidate]
 		));
 	})
@@ -173,16 +184,19 @@ fn test_approve_candidate_with_combo_of_right_and_wrong_candidates_returns_error
 		let general_council = 2;
 		let wrong_candidate = 10;
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			candidate,
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
 		add_identity(candidate);
-		assert_ok!(TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map));
+		assert_ok!(TheaGovernence::apply_for_candidature(
+			RuntimeOrigin::signed(candidate),
+			key_map
+		));
 		assert_noop!(
 			TheaGovernence::approve_candidature(
-				Origin::signed(general_council),
+				RuntimeOrigin::signed(general_council),
 				vec![candidate, wrong_candidate]
 			),
 			Error::<Test>::CandidateNotFound
@@ -197,23 +211,23 @@ fn test_apply_for_candidature_without_identity_returns_identity_not_found() {
 	new_test_ext().execute_with(|| {
 		let candidate = 1;
 		let key_map = get_keylist();
-		let general_council = 2;
+		let _general_council = 2;
 		assert_ok!(Balances::set_balance(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			candidate,
 			1 * 10_000_000_000_000_000u128,
 			0
 		));
 		assert_noop!(
-			TheaGovernence::apply_for_candidature(Origin::signed(candidate), key_map),
+			TheaGovernence::apply_for_candidature(RuntimeOrigin::signed(candidate), key_map),
 			Error::<Test>::IdentityNotFound
 		);
 	})
 }
 
 fn add_identity(id: u64) {
-	assert_ok!(Balances::set_balance(Origin::root(), id, 1 * 10_000_000_000_000_000u128, 0));
-	assert_ok!(IdentityPallet::set_identity(Origin::signed(id), Box::new(ten())));
+	assert_ok!(Balances::set_balance(RuntimeOrigin::root(), id, 1 * 10_000_000_000_000_000u128, 0));
+	assert_ok!(IdentityPallet::set_identity(RuntimeOrigin::signed(id), Box::new(ten())));
 }
 
 fn ten() -> IdentityInfo<MaxAdditionalFields> {

@@ -4,7 +4,7 @@ use frame_support::{
 	traits::{ConstU16, ConstU64},
 };
 use frame_system as system;
-use frame_system::EnsureSigned;
+
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -34,8 +34,8 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -43,7 +43,7 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -67,7 +67,7 @@ parameter_types! {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type MaxLocks = MaxLocks;
@@ -86,7 +86,7 @@ parameter_types! {
 }
 
 impl pallet_identity::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type BasicDeposit = BasicDeposit;
 	type FieldDeposit = FieldDeposit;
@@ -107,7 +107,7 @@ parameter_types! {
 }
 
 impl pallet_thea_governence::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type StakingAmount = StakingAmount;
 	type StakingReserveIdentifier = StakingReserveIdentifier;
 	type CouncilHandlerOrigin = frame_system::EnsureSigned<Self::AccountId>;

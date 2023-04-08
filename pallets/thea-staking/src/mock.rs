@@ -1,11 +1,11 @@
 use crate::pallet as thea_staking;
 use frame_support::{
 	parameter_types,
-	traits::{ConstU16, ConstU64},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU64},
 	PalletId,
 };
 use frame_system as system;
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::{
 	curve::PiecewiseLinear,
@@ -41,8 +41,8 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -50,7 +50,7 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -89,7 +89,7 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	type Balance = Balance;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
@@ -97,7 +97,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const SessionLength: u64 = 10;
+	pub const SessionLength: u64 = 7000;
 	pub const UnbondingDelay: u32 = 10;
 	pub const MaxUnlockChunks: u32 = 10;
 	pub const CandidateBond: Balance = 1000_000_000_000;
@@ -108,10 +108,11 @@ parameter_types! {
 	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+		pub const IdealActiveValidators: u32 = 3;
 }
 
 impl thea_staking::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type SessionLength = SessionLength;
 	type UnbondingDelay = UnbondingDelay;
 	type MaxUnlockChunks = MaxUnlockChunks;
@@ -127,6 +128,7 @@ impl thea_staking::Config for Test {
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
 }
 
 pub struct MockPallet(PhantomData<u32>);
@@ -134,10 +136,10 @@ pub struct MockPallet(PhantomData<u32>);
 impl SessionChanged for MockPallet {
 	type Network = Network;
 	type OnSessionChange = OnSessionChange<u64>;
-	fn on_new_session(map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+	fn on_new_session(_map: BTreeMap<Self::Network, Self::OnSessionChange>) {
 		// Do nothing lol
 	}
-	fn set_new_networks(networks: BTreeSet<Self::Network>) {
+	fn set_new_networks(_networks: BTreeSet<Self::Network>) {
 		// Do nothing lol
 	}
 }
@@ -150,9 +152,9 @@ parameter_types! {
 }
 
 impl chainbridge::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
-	type Proposal = Call;
+	type Proposal = RuntimeCall;
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
 }
@@ -163,15 +165,16 @@ parameter_types! {
 }
 
 impl asset_handler::pallet::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type NativeCurrencyId = ();
 	type TreasuryPalletId = ChainbridgePalletId;
-	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 	type ParachainNetworkId = ParachainNetworkId;
 	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
+	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 }
 
 parameter_types! {
@@ -205,10 +208,13 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
+	type RemoveItemsLimit = ();
 	type AssetId = u128;
+	type AssetIdParameter = parity_scale_codec::Compact<u128>;
 	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<Self::AccountId>>;
 	type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
@@ -218,7 +224,10 @@ impl pallet_assets::Config for Test {
 	type StringLimit = StringLimit;
 	type Freezer = ();
 	type Extra = ();
+	type CallbackHandle = ();
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 // Build genesis storage according to the mock runtime.
