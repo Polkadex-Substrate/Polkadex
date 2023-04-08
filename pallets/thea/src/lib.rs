@@ -786,7 +786,7 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
-			let network = if asset_id == T::PolkadexAssetId::get() {
+			let network = if asset_id == T::NativeCurrencyId::get() {
 				1
 			} else {
 				let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
@@ -879,7 +879,7 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: Vec<u8>,
 		) -> Result<Vec<u8>, DispatchError> {
-			let asset_identifier = if asset_id != T::PolkadexAssetId::get() {
+			let asset_identifier = if asset_id != T::NativeCurrencyId::get() {
 				let (_, _, asset_identifier) =
 					asset_handler::pallet::TheaAssets::<T>::get(asset_id);
 				let asset_identifier: ParachainAsset =

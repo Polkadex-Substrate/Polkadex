@@ -59,7 +59,8 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
-		type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self, I>>
+			+ IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Currency type for deposit/withdraw assets to/from amm
 		/// module
@@ -77,10 +78,10 @@ pub mod pallet {
 		// type AMMWeightInfo: WeightInfo;
 
 		/// Specify which origin is allowed to create new pools.
-		type CreatePoolOrigin: EnsureOrigin<Self::Origin>;
+		type CreatePoolOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Specify which origin is allowed to update fee receiver.
-		type ProtocolFeeUpdateOrigin: EnsureOrigin<Self::Origin>;
+		type ProtocolFeeUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Defines the fees taken out of each trade and sent back to the AMM pool,
 		/// typically 0.3%.
@@ -219,7 +220,8 @@ pub mod pallet {
 		/// - `pool`: Currency pool, in which liquidity will be added
 		/// - `liquidity_amounts`: Liquidity amounts to be added in pool
 		/// - `minimum_amounts`: specifying its "worst case" ratio when pool already exists
-		#[pallet::weight(0)]
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::default())]
 		#[transactional]
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
@@ -303,7 +305,8 @@ pub mod pallet {
 		///
 		/// - `pair`: Currency pool, in which liquidity will be removed
 		/// - `liquidity`: liquidity to be removed from user's liquidity
-		#[pallet::weight(0)]
+		#[pallet::call_index(1)]
+		#[pallet::weight(Weight::default())]
 		#[transactional]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
@@ -353,7 +356,8 @@ pub mod pallet {
 		/// - `liquidity_amounts`: Liquidity amounts to be added in pool
 		/// - `lptoken_receiver`: Allocate any liquidity tokens to lptoken_receiver
 		/// - `lp_token_id`: Liquidity pool share representative token
-		#[pallet::weight(0)]
+		#[pallet::call_index(2)]
+		#[pallet::weight(Weight::default())]
 		#[transactional]
 		pub fn create_pool(
 			origin: OriginFor<T>,
@@ -427,7 +431,8 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::call_index(3)]
+		#[pallet::weight(Weight::default())]
 		#[transactional]
 		pub fn update_protocol_fee(
 			origin: OriginFor<T>,
@@ -439,7 +444,8 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::call_index(4)]
+		#[pallet::weight(Weight::default())]
 		#[transactional]
 		pub fn update_protocol_fee_receiver(
 			origin: OriginFor<T>,

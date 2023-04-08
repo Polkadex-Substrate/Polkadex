@@ -162,7 +162,6 @@ impl asset_handler::Config for Test {
 	type NativeCurrencyId = ();
 	type TreasuryPalletId = ChainbridgePalletId;
 	type ParachainNetworkId = ParachainNetworkId;
-	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }

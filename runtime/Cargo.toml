@@ -187,7 +187,6 @@ std = [
     "pallet-ocex-lmp/std",
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
-    "thea-primitives/std",
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
