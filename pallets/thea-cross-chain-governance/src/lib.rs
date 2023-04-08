@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![deny(unused_crate_dependencies)]
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
@@ -29,14 +30,14 @@ pub mod pallet {
 		frame_system::Config + pallet_balances::Config + pallet_identity::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Stake required to apply for candidature
 		type StakingAmount: Get<polkadex_primitives::Balance>;
 		/// StakingReserveIdentifier
 		#[pallet::constant]
 		type StakingReserveIdentifier: Get<<Self as pallet_balances::Config>::ReserveIdentifier>;
 		/// CouncilHandlerOrigin
-		type CouncilHandlerOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type CouncilHandlerOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
 
 	#[pallet::storage]
@@ -93,7 +94,8 @@ pub mod pallet {
 		/// # Parameters
 		///
 		///  `keys_list`: List of keys to be added.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(0)]
 		pub fn apply_for_candidature(origin: OriginFor<T>, keys_list: KeysMap) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(
@@ -110,7 +112,8 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `new_keys`: List of candidates to be approved.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(1)]
 		pub fn approve_candidature(
 			origin: OriginFor<T>,
 			candidate: sp_std::vec::Vec<T::AccountId>,
@@ -126,7 +129,8 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `new_keys`: Key Map to be removed.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(2)]
 		pub fn add_new_keys(origin: OriginFor<T>, new_keys: KeysMap) -> DispatchResult {
 			let member = ensure_signed(origin)?;
 			Self::do_add_keys(&member, new_keys)?;
@@ -139,7 +143,8 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `candidate`: List of Candidates to be removed.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(3)]
 		pub fn remove_candidate(
 			origin: OriginFor<T>,
 			candidates: sp_std::vec::Vec<T::AccountId>,
