@@ -21,6 +21,9 @@ members = [
     "primitives/polkadex",
     "thea-primitives",
     "pallets/thea-staking",
+    "pallets/swap",
+    "pallets/support",
+    "pallets/router",
     "pallets/liquidity",
     "pallets/thea-cross-chain-governance",
     "misc/load-testing"

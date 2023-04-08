@@ -1325,6 +1325,7 @@ parameter_types! {
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const NativeCurrencyId: u128 = 0;
 	pub const WithdrawalSize: u32 = 10;
 }
 
@@ -1347,6 +1348,7 @@ impl asset_handler::pallet::Config for Runtime {
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type NativeCurrencyId = NativeCurrencyId;
 	type TreasuryPalletId = TreasuryPalletId;
 	type ParachainNetworkId = ParachainNetworkId;
 	type PolkadexAssetId = PolkadexAssetId;
@@ -1406,6 +1408,43 @@ parameter_types! {
 	pub const PostUnbondPoolsWindow: u32 = 4;
 	pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
 	pub const MaxPointsToBalance: u8 = 10;
+}
+
+//Install Swap pallet
+parameter_types! {
+	pub const SwapPalletId: PalletId = PalletId(*b"sw/accnt");
+	pub DefaultLpFee: Permill = Permill::from_rational(30u32, 10000u32);
+	pub OneAccount: AccountId = AccountId::from([1u8; 32]);
+	pub DefaultProtocolFee: Permill = Permill::from_rational(0u32, 10000u32);
+	pub const MinimumLiquidity: u128 = 1_000u128;
+	pub const MaxLengthRoute: u8 = 10;
+}
+
+impl pallet_amm::Config for Runtime {
+	type Event = Event;
+	type Assets = AssetHandler;
+	type PalletId = SwapPalletId;
+	type LockAccountId = OneAccount;
+	type CreatePoolOrigin = EnsureRootOrHalfCouncil;
+	type ProtocolFeeUpdateOrigin = EnsureRootOrHalfCouncil;
+	type LpFee = DefaultLpFee;
+	type MinimumLiquidity = MinimumLiquidity;
+	type MaxLengthRoute = MaxLengthRoute;
+	type GetNativeCurrencyId = NativeCurrencyId;
+}
+
+//Install Router pallet
+parameter_types! {
+	pub const RouterPalletId: PalletId = PalletId(*b"rw/accnt");
+}
+
+impl router::Config for Runtime {
+	type Event = Event;
+	type PalletId = RouterPalletId;
+	type AMM = Swap;
+	type Assets = AssetHandler;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type MaxLengthRoute = MaxLengthRoute;
 }
 
 use sp_runtime::traits::Convert;
@@ -1500,7 +1539,9 @@ construct_runtime!(
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
 		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 43,
-		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44,
+		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 45,
+		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 46,
 	}
 );
 /// Digest item type.
