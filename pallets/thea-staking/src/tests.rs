@@ -17,7 +17,11 @@ fn test_add_candidate_with_valid_inputs_returns_ok() {
 		let network_id: u8 = 0;
 		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
 		Balances::mint_into(&candidate, 10_000_000_000_000u128).unwrap();
-		assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
+		assert_ok!(TheaStaking::add_candidate(
+			RuntimeOrigin::signed(candidate),
+			network_id,
+			bls_key
+		));
 		assert_eq!(Balances::free_balance(&candidate), 9_000_000_000_000);
 		assert_eq!(Balances::reserved_balance(&candidate), 1_000_000_000_000);
 		let exposure = Exposure {
@@ -40,9 +44,13 @@ fn test_add_candidate_with_already_registered_candidate_returns_candidate_alread
 		let network_id: u8 = 0;
 		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
 		Balances::mint_into(&candidate, 10_000_000_000_000u128).unwrap();
-		assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
+		assert_ok!(TheaStaking::add_candidate(
+			RuntimeOrigin::signed(candidate),
+			network_id,
+			bls_key
+		));
 		assert_noop!(
-			TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key),
+			TheaStaking::add_candidate(RuntimeOrigin::signed(candidate), network_id, bls_key),
 			Error::<Test>::CandidateAlreadyRegistered
 		);
 	});
@@ -56,7 +64,7 @@ fn test_add_candidate_with_low_free_balance_returns_low_balance_error() {
 		let bls_key: BLSPublicKey = BLSPublicKey([1u8; 192]);
 		Balances::mint_into(&candidate, 10_000_000_000u128).unwrap();
 		assert_noop!(
-			TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key),
+			TheaStaking::add_candidate(RuntimeOrigin::signed(candidate), network_id, bls_key),
 			pallet_balances::Error::<Test>::InsufficientBalance
 		);
 	});
@@ -70,7 +78,7 @@ fn test_bound_with_valid_arguments_first_time_returns_ok() {
 		// Give some Balance to Nominator
 		let nominator = 2;
 		Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
+		assert_ok!(TheaStaking::bond(RuntimeOrigin::signed(nominator), 1_000_000_000_000u128, 1));
 		let individual_exposure = IndividualExposure {
 			who: nominator,
 			value: 1_000_000_000_000u128,
@@ -88,7 +96,7 @@ fn test_bound_with_low_nominators_balance_returns_staking_limits_error() {
 		insert_staking_limit();
 		let nominator = 2;
 		assert_noop!(
-			TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_00u128, 1),
+			TheaStaking::bond(RuntimeOrigin::signed(nominator), 1_000_000_000_00u128, 1),
 			Error::<Test>::StakingLimitsError
 		);
 	});
@@ -101,7 +109,7 @@ fn test_bound_with_low_nominators_balance_return_insufficient_balance() {
 		insert_staking_limit();
 		let nominator = 2;
 		assert_noop!(
-			TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1),
+			TheaStaking::bond(RuntimeOrigin::signed(nominator), 1_000_000_000_000u128, 1),
 			pallet_balances::Error::<Test>::InsufficientBalance
 		);
 	});
@@ -140,7 +148,7 @@ fn test_nominate_with_invalid_nominator_returns_staker_not_found() {
 		let nominator = 2;
 		let candidate = 1;
 		assert_noop!(
-			TheaStaking::nominate(Origin::signed(nominator), candidate),
+			TheaStaking::nominate(RuntimeOrigin::signed(nominator), candidate),
 			Error::<Test>::StakerNotFound
 		);
 	})
@@ -155,11 +163,11 @@ fn test_nominate_with_already_staked_relayer_returns_staker_already_nominating()
 		let (candidate, ..) = get_candidate();
 		let nominator = 2;
 		assert_noop!(
-			TheaStaking::nominate(Origin::signed(nominator), candidate),
+			TheaStaking::nominate(RuntimeOrigin::signed(nominator), candidate),
 			Error::<Test>::CandidateAlreadyNominated
 		);
 		assert_noop!(
-			TheaStaking::nominate(Origin::signed(nominator), 2),
+			TheaStaking::nominate(RuntimeOrigin::signed(nominator), 2),
 			Error::<Test>::StakerAlreadyNominating
 		);
 	})
@@ -176,7 +184,7 @@ fn test_nominate_with_wrong_candidate_returns_candidate_already_nominated() {
 		let (candidate, ..) = get_candidate();
 		let nominator = 2;
 		assert_noop!(
-			TheaStaking::nominate(Origin::signed(nominator), candidate),
+			TheaStaking::nominate(RuntimeOrigin::signed(nominator), candidate),
 			Error::<Test>::CandidateAlreadyNominated
 		);
 	});
@@ -190,8 +198,8 @@ fn test_bound_with_valid_arguments_second_time_returns_ok() {
 		// Give some Balance to Nominator
 		let nominator = 2;
 		Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
-		assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, 1));
+		assert_ok!(TheaStaking::bond(RuntimeOrigin::signed(nominator), 1_000_000_000_000u128, 1));
+		assert_ok!(TheaStaking::bond(RuntimeOrigin::signed(nominator), 1_000_000_000_000u128, 1));
 		let individual_exposure = IndividualExposure {
 			who: nominator,
 			value: 2_000_000_000_000u128,
@@ -210,7 +218,7 @@ fn test_unbond_with_valid_arguments_returns_ok() {
 		register_nominator();
 		let (candidate, network, bls_key) = get_candidate();
 		let nominator = 2;
-		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
+		assert_ok!(TheaStaking::unbond(RuntimeOrigin::signed(nominator), 1_00_000_000_000));
 		let mut stakers: BTreeSet<u64> = BTreeSet::new();
 		stakers.insert(nominator);
 		let relayer_exposure = Exposure {
@@ -231,7 +239,7 @@ fn test_unbond_with_unregistered_nominator_returns_staker_not_found_error() {
 		insert_staking_limit();
 		let nominator = 2u64;
 		assert_noop!(
-			TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000),
+			TheaStaking::unbond(RuntimeOrigin::signed(nominator), 1_000_000_000_000),
 			Error::<Test>::StakerNotFound
 		);
 	})
@@ -244,7 +252,7 @@ fn test_unbond_with_zero_nomination_returns_ok() {
 		insert_staking_limit();
 		register_nominator();
 		let nominator = 2u64;
-		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
+		assert_ok!(TheaStaking::unbond(RuntimeOrigin::signed(nominator), 1_00_000_000_000));
 		let unlocking_chunk = UnlockChunk { value: 1_00_000_000_000, era: 10 };
 		let nominator_exposure = IndividualExposure {
 			who: nominator,
@@ -268,7 +276,7 @@ fn test_withdraw_unbounded_with_returns_ok() {
 		let current_session = current_session.saturating_add(10);
 
 		CurrentIndex::<Test>::set(current_session);
-		assert_ok!(TheaStaking::withdraw_unbonded(Origin::signed(nominator)));
+		assert_ok!(TheaStaking::withdraw_unbonded(RuntimeOrigin::signed(nominator)));
 	})
 }
 
@@ -277,7 +285,7 @@ fn test_withdraw_unbouded_with_unregistered_nominator_returns_error() {
 	new_test_ext().execute_with(|| {
 		let nominator = 2u64;
 		assert_noop!(
-			TheaStaking::withdraw_unbonded(Origin::signed(nominator)),
+			TheaStaking::withdraw_unbonded(RuntimeOrigin::signed(nominator)),
 			Error::<Test>::CandidateNotFound
 		);
 	})
@@ -288,7 +296,7 @@ fn test_remove_candidate_with_right_arguments_returns_ok() {
 	new_test_ext().execute_with(|| {
 		register_candidate();
 		let (candidate, network, ..) = get_candidate();
-		assert_ok!(TheaStaking::remove_candidate(Origin::signed(candidate), network));
+		assert_ok!(TheaStaking::remove_candidate(RuntimeOrigin::signed(candidate), network));
 	})
 }
 
@@ -299,7 +307,7 @@ fn test_remove_candidate_with_wrong_netowork_id_returns_error() {
 		let (candidate, ..) = get_candidate();
 		let wrong_network_id = 5;
 		assert_noop!(
-			TheaStaking::remove_candidate(Origin::signed(candidate), wrong_network_id),
+			TheaStaking::remove_candidate(RuntimeOrigin::signed(candidate), wrong_network_id),
 			Error::<Test>::CandidateNotFound
 		);
 	})
@@ -310,7 +318,7 @@ fn test_remove_candidate_with_unregistered_nominator_returns_error() {
 	new_test_ext().execute_with(|| {
 		let (candidate, network_id, ..) = get_candidate();
 		assert_noop!(
-			TheaStaking::remove_candidate(Origin::signed(candidate), network_id),
+			TheaStaking::remove_candidate(RuntimeOrigin::signed(candidate), network_id),
 			Error::<Test>::CandidateNotFound
 		);
 	})
@@ -474,7 +482,7 @@ fn test_unbond_with_amount_more_than_staked_amount_returns_error() {
 		register_nominator();
 		let nominator = 2u64;
 		assert_noop!(
-			TheaStaking::unbond(Origin::signed(nominator), 1000_000_000_000_000),
+			TheaStaking::unbond(RuntimeOrigin::signed(nominator), 1000_000_000_000_000),
 			Error::<Test>::AmountIsGreaterThanBondedAmount
 		);
 	})
@@ -490,7 +498,7 @@ fn test_unbond_with_amount_equal_to_staked_amount_returns_ok() {
 		let candidate = 1u64;
 		let network_id = 0;
 		let bls_key = BLSPublicKey([1; 192]);
-		assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_000_000_000_000u128));
+		assert_ok!(TheaStaking::unbond(RuntimeOrigin::signed(nominator), 1_000_000_000_000u128));
 		let stakers: BTreeSet<u64> = BTreeSet::new();
 		let exposure = Exposure {
 			score: 1000,
@@ -529,7 +537,7 @@ fn test_reward_payout() {
 		TheaStaking::thea_extrinsic_submitted(1, 0, vec![]);
 		TheaStaking::on_initialize(SESSION_LENGTH.into());
 		let reward = EraRewardPayout::<Test>::get(3);
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(1), 3));
+		assert_ok!(TheaStaking::stakers_payout(RuntimeOrigin::signed(1), 3));
 		let reward_received = Balances::free_balance(1) - initial_balance;
 		assert!(reward_received <= reward);
 	})
@@ -545,13 +553,21 @@ fn test_reward_with_nominators() {
 		ActiveNetworks::<Test>::set(active_networks);
 		Balances::mint_into(&11, 2 * PDEX).unwrap();
 		assert_ok!(Balances::mint_into(&10, 1000000 * PDEX));
-		assert_ok!(TheaStaking::add_candidate(Origin::signed(11), 1, BLSPublicKey([0_u8; 192])));
+		assert_ok!(TheaStaking::add_candidate(
+			RuntimeOrigin::signed(11),
+			1,
+			BLSPublicKey([0_u8; 192])
+		));
 		let _alice_balances = Balances::free_balance(11);
 		Balances::mint_into(&21, 3 * PDEX).unwrap();
-		assert_ok!(TheaStaking::add_candidate(Origin::signed(21), 1, BLSPublicKey([0_u8; 192])));
+		assert_ok!(TheaStaking::add_candidate(
+			RuntimeOrigin::signed(21),
+			1,
+			BLSPublicKey([0_u8; 192])
+		));
 		let _bob_balances = Balances::free_balance(21);
 		Balances::mint_into(&101, 10000 * PDEX).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(101), 10000 * PDEX, 11));
+		assert_ok!(TheaStaking::bond(RuntimeOrigin::signed(101), 10000 * PDEX, 11));
 		let _nominator_balances = Balances::free_balance(101);
 		let _nominator_exposure = Stakers::<Test>::get(101).unwrap();
 		let alice_exposure = Candidates::<Test>::get(1, 11).unwrap();
@@ -572,8 +588,8 @@ fn test_reward_with_nominators() {
 
 		let reward = EraRewardPayout::<Test>::get(2);
 
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(11), 2));
-		assert_ok!(TheaStaking::stakers_payout(Origin::signed(21), 2));
+		assert_ok!(TheaStaking::stakers_payout(RuntimeOrigin::signed(11), 2));
+		assert_ok!(TheaStaking::stakers_payout(RuntimeOrigin::signed(21), 2));
 
 		let alice_balances = Balances::free_balance(11);
 		let nominator_balances = Balances::free_balance(101);
@@ -613,17 +629,19 @@ fn misbehavior_setup_as_alice_bob_and_neal_in_relayer_set() {
 	// Charles start balance
 	Balances::mint_into(&NEAL_ACCOUNT, START_BALANCE).unwrap();
 	// Alice candidate
-	TheaStaking::add_candidate(Origin::signed(ALICE_ACCOUNT), 1, BLSPublicKey([0_u8; 192]))
+	TheaStaking::add_candidate(RuntimeOrigin::signed(ALICE_ACCOUNT), 1, BLSPublicKey([0_u8; 192]))
 		.unwrap();
 	// Bob candidate
-	TheaStaking::add_candidate(Origin::signed(BOB_ACCOUNT), 1, BLSPublicKey([2_u8; 192])).unwrap();
+	TheaStaking::add_candidate(RuntimeOrigin::signed(BOB_ACCOUNT), 1, BLSPublicKey([2_u8; 192]))
+		.unwrap();
 	// Neal candidate
-	TheaStaking::add_candidate(Origin::signed(NEAL_ACCOUNT), 1, BLSPublicKey([3_u8; 192])).unwrap();
+	TheaStaking::add_candidate(RuntimeOrigin::signed(NEAL_ACCOUNT), 1, BLSPublicKey([3_u8; 192]))
+		.unwrap();
 	// Neal's Nominator 1
 	Balances::mint_into(&NEAL_ACCOUNT_NOMINATOR_1, 10000 * NEAL_ACCOUNT_NOMINATOR_1 as u128 * PDEX)
 		.unwrap();
 	assert_ok!(TheaStaking::bond(
-		Origin::signed(NEAL_ACCOUNT_NOMINATOR_1),
+		RuntimeOrigin::signed(NEAL_ACCOUNT_NOMINATOR_1),
 		10000 * NEAL_ACCOUNT_NOMINATOR_1 as u128 * PDEX,
 		NEAL_ACCOUNT
 	));
@@ -631,7 +649,7 @@ fn misbehavior_setup_as_alice_bob_and_neal_in_relayer_set() {
 	Balances::mint_into(&NEAL_ACCOUNT_NOMINATOR_2, 10000 * NEAL_ACCOUNT_NOMINATOR_2 as u128 * PDEX)
 		.unwrap();
 	assert_ok!(TheaStaking::bond(
-		Origin::signed(NEAL_ACCOUNT_NOMINATOR_2),
+		RuntimeOrigin::signed(NEAL_ACCOUNT_NOMINATOR_2),
 		10000 * NEAL_ACCOUNT_NOMINATOR_2 as u128 * PDEX,
 		NEAL_ACCOUNT
 	));
@@ -648,14 +666,14 @@ fn misbehavior_setup_three_candidates_two_nominators() {
 	// C start balance
 	Balances::mint_into(&3, START_BALANCE).unwrap();
 	// A candidate
-	TheaStaking::add_candidate(Origin::signed(1), 1, BLSPublicKey([0_u8; 192])).unwrap();
+	TheaStaking::add_candidate(RuntimeOrigin::signed(1), 1, BLSPublicKey([0_u8; 192])).unwrap();
 	// B candidate
-	TheaStaking::add_candidate(Origin::signed(2), 1, BLSPublicKey([2_u8; 192])).unwrap();
+	TheaStaking::add_candidate(RuntimeOrigin::signed(2), 1, BLSPublicKey([2_u8; 192])).unwrap();
 	// C candidate
-	TheaStaking::add_candidate(Origin::signed(3), 1, BLSPublicKey([3_u8; 192])).unwrap();
+	TheaStaking::add_candidate(RuntimeOrigin::signed(3), 1, BLSPublicKey([3_u8; 192])).unwrap();
 	for id in 10..=11 {
 		Balances::mint_into(&id, 10000 * id as u128 * PDEX).unwrap();
-		assert_ok!(TheaStaking::bond(Origin::signed(id), 10000 * id as u128 * PDEX, 3));
+		assert_ok!(TheaStaking::bond(RuntimeOrigin::signed(id), 10000 * id as u128 * PDEX, 3));
 	}
 }
 
@@ -664,13 +682,13 @@ fn test_reporting_misbehavior_works() {
 	new_test_ext().execute_with(|| {
 		misbehavior_setup_three_candidates_two_nominators();
 		// We fail as those are not in active set yet
-		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).is_err());
+		assert!(TheaStaking::report_offence(RuntimeOrigin::signed(1), 1, 3, OFFENCE).is_err());
 
 		//TheaStaking::on_initialize(SESSION_LENGTH.into());
 		TheaStaking::rotate_session();
 		TheaStaking::rotate_session();
 		// Now shold be ok
-		TheaStaking::report_offence(Origin::signed(1), 1, 3, OFFENCE).unwrap();
+		TheaStaking::report_offence(RuntimeOrigin::signed(1), 1, 3, OFFENCE).unwrap();
 	});
 }
 
@@ -687,7 +705,7 @@ fn test_slashing_misbehavior_works() {
 
 		// We fail as those are not in active set yet
 		assert!(TheaStaking::report_offence(
-			Origin::signed(ALICE_ACCOUNT),
+			RuntimeOrigin::signed(ALICE_ACCOUNT),
 			1,
 			NEAL_ACCOUNT,
 			OFFENCE
@@ -699,9 +717,10 @@ fn test_slashing_misbehavior_works() {
 		TheaStaking::rotate_session();
 
 		// Report Neal as offensive relayer
-		TheaStaking::report_offence(Origin::signed(ALICE_ACCOUNT), 1, NEAL_ACCOUNT, OFFENCE)
+		TheaStaking::report_offence(RuntimeOrigin::signed(ALICE_ACCOUNT), 1, NEAL_ACCOUNT, OFFENCE)
 			.unwrap();
-		TheaStaking::report_offence(Origin::signed(BOB_ACCOUNT), 1, NEAL_ACCOUNT, OFFENCE).unwrap();
+		TheaStaking::report_offence(RuntimeOrigin::signed(BOB_ACCOUNT), 1, NEAL_ACCOUNT, OFFENCE)
+			.unwrap();
 
 		//get alice and bob free balance
 		let alice_free_balance = Balances::free_balance(ALICE_ACCOUNT);
@@ -781,7 +800,7 @@ fn test_slashing_severe_misbehavior_works() {
 
 		// We fail as those are not in active set yet
 		assert!(TheaStaking::report_offence(
-			Origin::signed(ALICE_ACCOUNT),
+			RuntimeOrigin::signed(ALICE_ACCOUNT),
 			1,
 			NEAL_ACCOUNT,
 			SEVERE_OFFENCE
@@ -793,10 +812,20 @@ fn test_slashing_severe_misbehavior_works() {
 		TheaStaking::rotate_session();
 
 		// Report Neal as offensive relayer
-		TheaStaking::report_offence(Origin::signed(ALICE_ACCOUNT), 1, NEAL_ACCOUNT, SEVERE_OFFENCE)
-			.unwrap();
-		TheaStaking::report_offence(Origin::signed(BOB_ACCOUNT), 1, NEAL_ACCOUNT, SEVERE_OFFENCE)
-			.unwrap();
+		TheaStaking::report_offence(
+			RuntimeOrigin::signed(ALICE_ACCOUNT),
+			1,
+			NEAL_ACCOUNT,
+			SEVERE_OFFENCE,
+		)
+		.unwrap();
+		TheaStaking::report_offence(
+			RuntimeOrigin::signed(BOB_ACCOUNT),
+			1,
+			NEAL_ACCOUNT,
+			SEVERE_OFFENCE,
+		)
+		.unwrap();
 
 		//get alice and bob free balance
 		let alice_free_balance = Balances::free_balance(ALICE_ACCOUNT);
@@ -867,7 +896,9 @@ fn test_slashing_severe_misbehavior_works() {
 fn test_reports_under_threashold_no_slashing() {
 	new_test_ext().execute_with(|| {
 		misbehavior_setup_three_candidates_two_nominators();
-		assert!(TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).is_err());
+		assert!(
+			TheaStaking::report_offence(RuntimeOrigin::signed(1), 1, 3, SEVERE_OFFENCE).is_err()
+		);
 		// make sure treasury is empty
 		let ta = TreasuryPalletId::get().into_account_truncating();
 		let treasury = Balances::free_balance(&ta);
@@ -877,31 +908,39 @@ fn test_reports_under_threashold_no_slashing() {
 		assert!(TheaStaking::reported_offenders(&1, SEVERE_OFFENCE).is_none());
 		TheaStaking::rotate_session();
 		// Now shold be ok
-		TheaStaking::report_offence(Origin::signed(1), 1, 3, SEVERE_OFFENCE).unwrap();
+		TheaStaking::report_offence(RuntimeOrigin::signed(1), 1, 3, SEVERE_OFFENCE).unwrap();
 	});
 }
 
 fn unbonding() {
 	let nominator = 2u64;
-	assert_ok!(TheaStaking::unbond(Origin::signed(nominator), 1_00_000_000_000));
+	assert_ok!(TheaStaking::unbond(RuntimeOrigin::signed(nominator), 1_00_000_000_000));
 }
 
 fn register_nominator() {
 	let nominator = 2;
 	let (candidate, _, _) = get_candidate();
 	Balances::mint_into(&nominator, 10_000_000_000_000u128).unwrap();
-	assert_ok!(TheaStaking::bond(Origin::signed(nominator), 1_000_000_000_000u128, candidate));
+	assert_ok!(TheaStaking::bond(
+		RuntimeOrigin::signed(nominator),
+		1_000_000_000_000u128,
+		candidate
+	));
 }
 
 fn register_candidate() {
 	let (candidate, network_id, bls_key) = get_candidate();
 	Balances::mint_into(&candidate, 10_000_000_000_000u128).unwrap();
-	assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate), network_id, bls_key));
+	assert_ok!(TheaStaking::add_candidate(RuntimeOrigin::signed(candidate), network_id, bls_key));
 }
 
 fn register_new_candidate(candidate_id: u64, network_id: u8, bls_key: BLSPublicKey) {
 	Balances::mint_into(&candidate_id, 10_000_000_000_000u128).unwrap();
-	assert_ok!(TheaStaking::add_candidate(Origin::signed(candidate_id), network_id, bls_key));
+	assert_ok!(TheaStaking::add_candidate(
+		RuntimeOrigin::signed(candidate_id),
+		network_id,
+		bls_key
+	));
 }
 
 fn insert_staking_limit() {

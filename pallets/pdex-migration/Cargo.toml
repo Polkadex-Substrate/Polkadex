@@ -19,8 +19,6 @@ frame-system = { workspace = true, default-features = false }
 
 pallet-balances = { workspace = true, default-features = false }
 pallet-sudo = { workspace = true, default-features = false }
-
-sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 
 [dev-dependencies]
@@ -36,7 +34,6 @@ std = [
 	"frame-system/std",
 	"pallet-balances/std",
 	"pallet-sudo/std",
-	"sp-std/std",
 	"sp-runtime/std",
 ]
 runtime-benchmarks = [

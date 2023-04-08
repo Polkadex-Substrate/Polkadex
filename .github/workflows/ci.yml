@@ -50,12 +50,11 @@ jobs:
         run: |
           cat /etc/issue 
           apt update
-          apt install -y clang lldb lld gcc zip
+          apt install -y clang lldb lld gcc zip protobuf-compiler build-essential curl libssl-dev
       - name: Install latest nightly with wasm target
         uses: actions-rs/toolchain@v1
         with:
-          # TODO [Issue #654]: unpin version when issue will be resolved.
-          toolchain: nightly-2023-02-21
+          toolchain: nightly
           target: wasm32-unknown-unknown
           default: true
           components: rustfmt, clippy
