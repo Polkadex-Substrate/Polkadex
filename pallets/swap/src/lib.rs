@@ -39,6 +39,8 @@ use sp_runtime::{
 use sp_std::{cmp::min, result::Result, vec::Vec};
 use support::{ConvertToBigUint, Pool};
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 pub(crate) mod mock;
 #[cfg(test)]
