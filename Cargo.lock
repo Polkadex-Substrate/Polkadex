@@ -4927,6 +4927,8 @@ dependencies = [
 name = "pallet-amm"
 version = "1.9.5"
 dependencies = [
+ "asset-handler",
+ "chainbridge",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
