@@ -114,7 +114,7 @@ impl pallet_assets::Config for Test {
 	type AssetIdParameter = parity_scale_codec::Compact<u128>;
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<Self::AccountId>>;
-	type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -251,11 +251,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![
-			(ALICE, 100_000_000),
-			(BOB, 100_000_000),
-			(CHARLIE, 1000_000_000),
-			(EVE, 1000_000_000),
-			(FRANK, 1000_000_000),
+			(ALICE, 100_000_000_000_000),
+			(BOB, 100_000_000_000_000),
+			(CHARLIE, 1000_000_000_000_000),
+			(EVE, 1000_000_000_000_000),
+			(FRANK, 1000_000_000_000_000),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -266,6 +266,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		Assets::force_create(RuntimeOrigin::root(), DOT.into(), ALICE, true, 1).unwrap();
 		Assets::force_create(RuntimeOrigin::root(), SDOT.into(), ALICE, true, 1).unwrap();
 		Assets::force_create(RuntimeOrigin::root(), KSM.into(), ALICE, true, 1).unwrap();
+		Assets::force_create(RuntimeOrigin::root(), GLMR.into(), ALICE, true, 1).unwrap();
+		Assets::force_create(RuntimeOrigin::root(), PARA.into(), ALICE, true, 1).unwrap();
 		Assets::force_create(RuntimeOrigin::root(), SAMPLE_LP_TOKEN.into(), ALICE, true, 1)
 			.unwrap();
 		Assets::force_create(RuntimeOrigin::root(), SAMPLE_LP_TOKEN_2.into(), ALICE, true, 1)
