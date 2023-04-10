@@ -613,7 +613,7 @@ where
 	# Parameters
 	self - mutable reference to the current object.
 	summary - a reference to the SnapshotSummary to load.
-    # Returns
+	# Returns
 	A result indicating success or an error if one occurred.
 	 */
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
