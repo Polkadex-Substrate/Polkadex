@@ -30,6 +30,8 @@ use frame_support::{
 	transactional, Blake2_128Concat, PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use num_traits::{cast::ToPrimitive, CheckedDiv, CheckedMul};
+use polkadex_primitives::Balance;
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Saturating, Zero},
 	ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, SaturatedConversion,
@@ -37,10 +39,21 @@ use sp_runtime::{
 use sp_std::{cmp::min, result::Result, vec::Vec};
 use support::{ConvertToBigUint, Pool};
 
+#[cfg(test)]
+pub(crate) mod mock;
+#[cfg(test)]
+mod tests;
+
 pub use pallet::*;
 // pub use weights::WeightInfo;
 
-use num_traits::{cast::ToPrimitive, CheckedDiv, CheckedMul};
+pub trait WeightInfo {
+	fn add_liquidity() -> Weight;
+	fn remove_liquidity() -> Weight;
+	fn create_pool() -> Weight;
+	fn update_protocol_fee() -> Weight;
+	fn update_protocol_fee_receiver() -> Weight;
+}
 
 pub type Ratio = Permill;
 pub type CurrencyId = u128;
@@ -53,7 +66,6 @@ pub type BalanceOf<T, I = ()> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use polkadex_primitives::Balance;
 
 	pub type Amounts<T, I> = sp_std::vec::Vec<BalanceOf<T, I>>;
 
