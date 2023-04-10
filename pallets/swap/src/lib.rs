@@ -46,6 +46,8 @@ pub(crate) mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+
 pub use pallet::*;
 // pub use weights::WeightInfo;
 
@@ -96,6 +98,9 @@ pub mod pallet {
 
 		/// Specify which origin is allowed to update fee receiver.
 		type ProtocolFeeUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 
 		/// Defines the fees taken out of each trade and sent back to the AMM pool,
 		/// typically 0.3%.
@@ -235,7 +240,7 @@ pub mod pallet {
 		/// - `liquidity_amounts`: Liquidity amounts to be added in pool
 		/// - `minimum_amounts`: specifying its "worst case" ratio when pool already exists
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::add_liquidity())]
 		#[transactional]
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
@@ -320,7 +325,7 @@ pub mod pallet {
 		/// - `pair`: Currency pool, in which liquidity will be removed
 		/// - `liquidity`: liquidity to be removed from user's liquidity
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::remove_liquidity())]
 		#[transactional]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
@@ -371,7 +376,7 @@ pub mod pallet {
 		/// - `lptoken_receiver`: Allocate any liquidity tokens to lptoken_receiver
 		/// - `lp_token_id`: Liquidity pool share representative token
 		#[pallet::call_index(2)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::create_pool())]
 		#[transactional]
 		pub fn create_pool(
 			origin: OriginFor<T>,
@@ -446,7 +451,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::update_protocol_fee())]
 		#[transactional]
 		pub fn update_protocol_fee(
 			origin: OriginFor<T>,
@@ -459,7 +464,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(4)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::update_protocol_fee_receiver())]
 		#[transactional]
 		pub fn update_protocol_fee_receiver(
 			origin: OriginFor<T>,
