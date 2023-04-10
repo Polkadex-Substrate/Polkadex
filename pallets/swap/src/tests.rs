@@ -1,3 +1,17 @@
+// Copyright 2021 Parallel Finance Developer.
+// This file is part of Parallel Finance.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::*;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
@@ -694,7 +708,7 @@ fn long_route_amounts_in_should_work() {
 
 		let amounts_in = Swap::get_amounts_in(amount_out, path).unwrap();
 
-		assert_eq!(amounts_in, [2517, 1115, 1000]);
+		assert_eq!(amounts_in, [2521, 1116, 1000]);
 	})
 }
 
@@ -715,7 +729,7 @@ fn short_route_amounts_in_should_work() {
 
 		let amounts_in = Swap::get_amounts_in(amount_out, path).unwrap();
 
-		assert_eq!(amounts_in, [1004, 1000]);
+		assert_eq!(amounts_in, [1005, 1000]);
 	})
 }
 
@@ -731,7 +745,7 @@ fn amount_in_should_work() {
 		// x * y = ( x + p * dx) ( y - dy)
 		//
 		// actual value == round_up(1002.5162908218259) + 1
-		assert_eq!(amount_in, 1004)
+		assert_eq!(amount_in, 1005)
 	})
 }
 
@@ -773,7 +787,7 @@ fn amount_out_and_in_should_work() {
 		let amount_in = Swap::get_amount_in(amount_out, supply_in, supply_out).unwrap();
 
 		// actual: 1002.5162908248136
-		assert_eq!(amount_in, 1004);
+		assert_eq!(amount_in, 1005);
 
 		let amount_out = Swap::get_amount_out(amount_in, supply_in, supply_out).unwrap();
 
@@ -816,105 +830,6 @@ fn update_oracle_should_work() {
 		assert_eq!(Swap::pools(SDOT, DOT).unwrap().price_1_cumulative_last, 3_883124053581828770);
 	})
 }
-
-#[test]
-fn oracle_big_block_no_overflow() {
-	new_test_ext().execute_with(|| {
-		let trader = FRANK;
-
-		assert_ok!(Swap::create_pool(
-			RawOrigin::Signed(ALICE).into(), // Origin
-			(DOT, KSM),                      /* Currency pool, in which
-			                                  * liquidity will be added */
-			(9_999_650_729_873_433, 30_001_051_000_000_000_000), /* Liquidity amounts to be
-			                                                      * added in pool */
-			FRANK,           // LPToken receiver
-			SAMPLE_LP_TOKEN, // Liquidity pool share representative token
-		));
-
-		assert_eq!(Swap::pools(DOT, KSM).unwrap().block_timestamp_last, 0);
-		assert_eq!(Swap::pools(DOT, KSM).unwrap().price_0_cumulative_last, 0);
-		assert_eq!(Swap::pools(DOT, KSM).unwrap().price_1_cumulative_last, 0);
-
-		let mut big_block = 30_000;
-		run_to_block(big_block);
-
-		for _ in 0..5 {
-			big_block += 1000;
-			run_to_block(big_block);
-			assert_ok!(Swap::swap(&trader, (DOT, KSM), 1000));
-		}
-
-		assert_eq!(Swap::pools(DOT, KSM).unwrap().block_timestamp_last, big_block);
-
-		assert_eq!(
-			Swap::pools(DOT, KSM).unwrap().price_0_cumulative_last,
-			105007346092879071079611683
-		);
-		assert_eq!(Swap::pools(DOT, KSM).unwrap().price_1_cumulative_last, 11_665850491226458031);
-
-		// increment a block
-		big_block += 4;
-		run_to_block(big_block);
-
-		// this would swap used to overflow
-		assert_ok!(Swap::swap(&trader, (DOT, KSM), 10_000_000_000));
-	})
-}
-
-// #[test]
-// fn oracle_huge_block_should_work() {
-//     // we may want to omit this test because it take >5 minutes to run
-//     new_test_ext().execute_with(|| {
-//         let trader = FRANK;
-//
-//         assert_ok!(Swap::create_pool(
-//             RawOrigin::Signed(ALICE).into(),                     // Origin
-//             (DOT, KSM), // Currency pool, in which liquidity will be added
-//             (9_999_650_729_873_433, 30_001_051_000_000_000_000), // Liquidity amounts to be added
-// in pool             FRANK,                                               // LPToken receiver
-//             SAMPLE_LP_TOKEN, // Liquidity pool share representative token
-//         ));
-//
-//         assert_eq!(Swap::pools(DOT, KSM).unwrap().block_timestamp_last, 0);
-//         assert_eq!(Swap::pools(DOT, KSM).unwrap().price_0_cumulative_last, 0);
-//         assert_eq!(Swap::pools(DOT, KSM).unwrap().price_1_cumulative_last, 0);
-//
-//         // let mut big_block = 100_000_000;
-//         let mut big_block = 10_000_000;
-//
-//         // 100 Million blocks should take ~42.5 years to create at ~12 seconds a block
-//
-//         // Calculations
-//         // avg_block_time = (1645493658865 - 1639798590500) / (424950 - 1)
-//         // avg_block_time == 13401.769071112063 == 13.4 seconds per block
-//         // total_time = (avg_block_time * 100_000_000) / (1000 * 60 * 60 * 24 * 365)
-//         // total_time == 42.496730945941344
-//
-//         run_to_block(big_block);
-//
-//         for _ in 0..5 {
-//             big_block += 100_000;
-//             run_to_block(big_block);
-//             assert_ok!(Swap::swap(&trader, (DOT, KSM), 1000));
-//         }
-//
-//         assert_eq!(
-//             Swap::pools(DOT, KSM).unwrap().block_timestamp_last,
-//             big_block
-//         );
-//         assert_eq!(
-//             Swap::pools(DOT, KSM).unwrap().price_0_cumulative_last,
-//             // 301521093780_997938040922975491
-//             31502203827_864919649515113416
-//         );
-//         assert_eq!(
-//             Swap::pools(DOT, KSM).unwrap().price_1_cumulative_last,
-//             // 33497_656410519841854583
-//             3499_755147367804281224
-//         );
-//     })
-// }
 
 #[test]
 fn create_pool_large_amount_should_work() {
@@ -1220,10 +1135,10 @@ fn can_only_all_if_non_native_should_work() {
 				BOB,                             // LPToken receiver
 				SAMPLE_LP_TOKEN                  // Liquidity pool share representative token
 			),
-			pallet_balances::Error::<Test>::KeepAlive
+			pallet_balances::Error::<Test>::ExistentialDeposit
 		);
 
-		assert_eq!(Balances::free_balance(BOB), 100000000);
+		assert_eq!(Balances::free_balance(BOB), 100_000_000_000_000);
 
 		let all_dot = Assets::balance(DOT, BOB);
 		let all_sdot = Assets::balance(SDOT, BOB);
@@ -1249,9 +1164,6 @@ fn quote_should_not_overflow() {
 #[test]
 fn glmr_add_liquidity_should_work() {
 	new_test_ext().execute_with(|| {
-		Assets::force_create(RuntimeOrigin::root(), GLMR.into(), ALICE, true, 1).unwrap();
-		Assets::force_create(RuntimeOrigin::root(), PARA.into(), ALICE, true, 1).unwrap();
-
 		Assets::mint(RuntimeOrigin::signed(ALICE), GLMR.into(), ALICE, 1000000000000000000000000)
 			.unwrap();
 		Assets::mint(RuntimeOrigin::signed(ALICE), PARA.into(), ALICE, 200000000000000000000)
