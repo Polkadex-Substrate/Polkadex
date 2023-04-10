@@ -245,6 +245,7 @@ impl pallet_amm::Config for Test {
 	type MinimumLiquidity = MinimumLiquidity;
 	type MaxLengthRoute = MaxLengthRoute;
 	type GetNativeCurrencyId = PolkadexAssetId;
+	type WeightInfo = super::weights::WeightInfo<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
