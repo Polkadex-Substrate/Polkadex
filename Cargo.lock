@@ -9698,6 +9698,7 @@ version = "0.1.0"
 dependencies = [
  "bls-primitives",
  "parity-scale-codec",
+ "polkadex-primitives",
  "scale-info",
  "sp-api",
  "sp-application-crypto",

@@ -10,7 +10,10 @@ parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 sp-api  = { workspace = true, default-features = false }
 sp-application-crypto = {workspace = true, default-features = false}
-bls-primitives = {path = "../../primitives/bls-primitives", default-features = false}
+bls-primitives = {workspace= true, default-features = false}
+polkadex-primitives = {workspace = true, default-features = false}
+
+
 [features]
 default = ["std"]
 std = [
@@ -18,5 +21,6 @@ std = [
     "scale-info/std",
     "sp-api/std",
     "sp-application-crypto/std",
-    "bls-primitives/std"
+    "bls-primitives/std",
+    "polkadex-primitives/std"
 ]

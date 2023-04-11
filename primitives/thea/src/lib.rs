@@ -6,6 +6,9 @@ use parity_scale_codec::{Decode,Encode};
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
 use crate::crypto::AuthorityId;
+use polkadex_primitives::BlockNumber;
+use crate::types::Message;
+
 /// Orderbook cryptographic types
 ///
 /// This module basically introduces three crypto types:
@@ -90,6 +93,11 @@ sp_api::decl_runtime_apis! {
 	{
 		/// Return the current active Thea validator set
 		fn validator_set() -> ValidatorSet<AuthorityId>;
+
+		/// Next Set validator set
+		fn next_validator_set() -> ValidatorSet<AuthorityId>;
+		/// Returns the outgoing message for given network and blk
+		fn outgoing_messages(blk: BlockNumber, network: Network) -> Option<Message>;
 	}
 }
 
