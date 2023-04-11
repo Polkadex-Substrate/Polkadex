@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 
-// Copyright (C) 2020-2022 Polkadex oü.
+// Copyright (C) 2020-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -140,7 +140,6 @@ impl chainbridge::Config for Test {
 	type Proposal = RuntimeCall;
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
-	//type PalletId = ChainbridgePalletId;
 }
 
 impl asset_handler::pallet::Config for Test {
