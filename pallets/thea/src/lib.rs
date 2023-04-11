@@ -79,7 +79,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]
 	pub(super) type Authorities<T: Config> =
-		StorageValue<_, BoundedVec<T::TheaId, T::MaxAuthorities>, ValueQuery>;
+		StorageMap<_, Identity, Network, BoundedVec<T::TheaId, T::MaxAuthorities>, ValueQuery>;
 
 	/// The current validator set id
 	#[pallet::storage]
@@ -91,7 +91,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn next_authorities)]
 	pub(super) type NextAuthorities<T: Config> =
-		StorageValue<_, BoundedVec<T::TheaId, T::MaxAuthorities>, ValueQuery>;
+		StorageMap<_, Identity, Network, BoundedVec<T::TheaId, T::MaxAuthorities>, ValueQuery>;
 
 	/// Authority's network preference
 	#[pallet::storage]
@@ -100,7 +100,7 @@ pub mod pallet {
 		StorageMap<_, Identity, T::TheaId, Network, OptionQuery>;
 
 	/// Outgoing messages
-	/// first key: Blocknumber of polkadex solochain
+	/// first key: Block number of polkadex solochain
 	/// second key: receiving network
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_messages)]
@@ -159,8 +159,6 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::update_network_pref { authority, network, signature } =>
-					Self::validate_update_network_pref(authority, network, signature),
 				Call::incoming_message { bitmap, payload, signature } =>
 					Self::validate_incoming_message(bitmap, payload, signature),
 				_ => InvalidTransaction::Call.into(),
@@ -223,40 +221,12 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn active_validators() -> Vec<T::TheaId> {
-		<Authorities<T>>::get().to_vec()
-	}
-
-	pub fn next_validators() -> Vec<T::TheaId> {
-		<NextAuthorities<T>>::get().to_vec()
+	pub fn active_validators(network: Network) -> Vec<T::TheaId> {
+		<Authorities<T>>::get(network).to_vec()
 	}
 
 	pub fn authority_network_pref(authority: &T::TheaId) -> Option<Network> {
 		<NetworkPreference<T>>::get(authority)
-	}
-
-	fn validate_update_network_pref(
-		authority: &T::TheaId,
-		network: &Network,
-		signature: &T::Signature,
-	) -> TransactionValidity {
-		let queued = <NextAuthorities<T>>::get();
-		// They should be part of next authorities
-		if !queued.contains(authority) {
-			return InvalidTransaction::BadSigner.into()
-		}
-
-		// TODO: Add a nonce to network to prevent replay attack.
-		// verify signature
-		if !authority.verify(&network.encode(), &signature.clone().into()) {
-			return InvalidTransaction::BadSigner.into()
-		}
-
-		ValidTransaction::with_tag_prefix("thea")
-			.and_provides([authority])
-			.longevity(3)
-			.propagate(true)
-			.build()
 	}
 
 	fn validate_incoming_message(
@@ -274,8 +244,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Return the current active validator set.
-	pub fn validator_set() -> Option<ValidatorSet<T::TheaId>> {
-		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities();
+	pub fn validator_set(network: Network) -> Option<ValidatorSet<T::TheaId>> {
+		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities(network);
 		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();
 		ValidatorSet::<T::TheaId>::new(validators, id)
 	}
@@ -284,33 +254,45 @@ impl<T: Config> Pallet<T> {
 		new: BoundedVec<T::TheaId, T::MaxAuthorities>,
 		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,
 	) {
-		<Authorities<T>>::put(&new);
+		let group_by = |list: &BoundedVec<T::TheaId, T::MaxAuthorities>| -> sp_std::collections::btree_map::BTreeMap<
+			Network,
+			BoundedVec<T::TheaId, T::MaxAuthorities>,
+		> {
+			let mut map = sp_std::collections::btree_map::BTreeMap::new();
+			for auth in &new {
+				if let Some(network) = <NetworkPreference<T>>::get(auth) {
+					map.entry(network)
+						.and_modify(|list: &mut BoundedVec<T::TheaId, T::MaxAuthorities>| {
+							// Force push is fine as the subset of network will be less than
+							// or equal to max validators
+							list.force_push(auth.clone());
+						})
+						.or_insert(BoundedVec::truncate_from(sp_std::vec::Vec::from([
+							auth.clone()
+						])));
+				} else {
+					// TODO: Make it an offence to not provide network as part of next version
+				}
+			}
+			map
+		};
+
+		for (network, list) in &group_by(&new) {
+			<Authorities<T>>::insert(network, list);
+		}
 
 		let new_id = Self::validator_set_id() + 1u64;
 		<ValidatorSetId<T>>::put(new_id);
 
-		<NextAuthorities<T>>::put(&queued);
+		for (network, list) in &group_by(&queued) {
+			<NextAuthorities<T>>::insert(network, list);
+		}
 	}
 
-	fn initialize_authorities(authorities: &Vec<T::TheaId>) -> Result<(), ()> {
-		if authorities.is_empty() {
-			return Ok(())
-		}
-
-		if !<Authorities<T>>::get().is_empty() {
-			return Err(())
-		}
-
-		let bounded_authorities =
-			BoundedSlice::<T::TheaId, T::MaxAuthorities>::try_from(authorities.as_slice())
-				.map_err(|_| ())?;
-
+	fn initialize_authorities(_authorities: &Vec<T::TheaId>) -> Result<(), ()> {
+		// We don't the network pref of validator hence empty vector
 		let id = GENESIS_AUTHORITY_SET_ID;
-		<Authorities<T>>::put(bounded_authorities);
 		<ValidatorSetId<T>>::put(id);
-		// Like `pallet_session`, initialize the next validator set as well.
-		<NextAuthorities<T>>::put(bounded_authorities);
-
 		Ok(())
 	}
 }
@@ -323,6 +305,8 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
+			is_key_change: false,
+			validator_set_id: Self::validator_set_id(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);

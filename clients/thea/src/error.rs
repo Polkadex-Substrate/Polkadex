@@ -18,6 +18,10 @@ pub enum Error {
 	FailedToSubmitSnapshotToRuntime,
 	#[error("Signature verification Failed")]
 	SignatureVerificationFailed,
+	#[error("Network not configured for this validator, please use the rpc")]
+	NetworkNotConfigured,
+	#[error("BLS Signing failed")]
+	SigningFailed
 }
 
 impl From<parity_scale_codec::Error> for Error {
