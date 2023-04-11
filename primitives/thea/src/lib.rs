@@ -1,5 +1,8 @@
+pub mod parachain;
+
 use scale_info::{TypeInfo};
 use parity_scale_codec::{Decode,Encode};
+use sp_runtime::DispatchResult;
 
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
@@ -93,7 +96,7 @@ sp_api::decl_runtime_apis! {
 
 /// This is implemented by TheaExecutor by zK
 pub trait TheaIncomingExecutor {
-	fn execute_deposits(network: Network, deposits: Vec<u8>) -> Result<(),()>;
+	fn execute_deposits(network: Network, deposits: Vec<u8>) -> DispatchResult;
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {

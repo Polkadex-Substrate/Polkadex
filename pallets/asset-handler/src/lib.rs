@@ -48,7 +48,7 @@ use sp_runtime::{
 	BoundedBTreeSet, SaturatedConversion,
 };
 use sp_std::{vec, vec::Vec};
-use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
+use thea_primitives::parachain::{AssetType, ParachainAsset};
 use xcm::latest::AssetId;
 
 pub trait WeightInfo {
