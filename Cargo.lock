@@ -339,6 +339,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "thea-primitives",
  "xcm",
 ]
 
@@ -9693,6 +9694,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "thea-executor"
+version = "0.1.0"
+dependencies = [
+ "asset-handler",
+ "bls-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "rust_decimal",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "thea-primitives",
+ "xcm",
+]
+
+[[package]]
 name = "thea-primitives"
 version = "0.1.0"
 dependencies = [
@@ -9701,6 +9728,11 @@ dependencies = [
  "scale-info",
  "sp-api",
  "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "xcm",
 ]
 
 [[package]]
