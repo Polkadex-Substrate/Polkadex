@@ -57,8 +57,7 @@ impl From<Error> for JsonRpseeError {
 pub trait OrderbookApi {
 	/// Submits the validators network preference
 	#[method(name = "thea_submitNetworkPref")]
-	async fn submit_network_pref(&self,  network: Network) -> RpcResult<()>;
-
+	async fn submit_network_pref(&self, network: Network) -> RpcResult<()>;
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
@@ -69,21 +68,13 @@ pub struct OrderbookRpc {
 
 impl OrderbookRpc {
 	/// Creates a new Orderbook Rpc handler instance.
-	pub fn new(
-		_executor: SubscriptionTaskExecutor,
-		tx: UnboundedSender<Network>,
-	) -> Self {
-		Self {
-			tx,
-			_executor,
-		}
+	pub fn new(_executor: SubscriptionTaskExecutor, tx: UnboundedSender<Network>) -> Self {
+		Self { tx, _executor }
 	}
 }
 
 #[async_trait]
-impl OrderbookApiServer for OrderbookRpc
-
-{
+impl OrderbookApiServer for OrderbookRpc {
 	async fn submit_network_pref(&self, network: Network) -> RpcResult<()> {
 		let mut tx = self.tx.clone();
 		tx.send(network).await?;

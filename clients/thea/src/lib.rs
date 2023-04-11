@@ -21,6 +21,7 @@ mod worker;
 #[cfg(test)]
 mod tests;
 
+mod connector;
 mod types;
 
 pub(crate) mod thea_protocol_name {
