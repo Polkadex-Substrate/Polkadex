@@ -161,6 +161,8 @@ pub mod pallet {
 			match call {
 				Call::update_network_pref { authority, network, signature } =>
 					Self::validate_update_network_pref(authority, network, signature),
+				Call::incoming_message { bitmap, payload, signature } =>
+					Self::validate_incoming_message(bitmap, payload, signature),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -188,7 +190,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
-			bitmap: Vec<u128>,
+			_bitmap: Vec<u128>,
 			payload: Message,
 			_signature: T::Signature,
 		) -> DispatchResult {
@@ -221,6 +223,18 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	pub fn active_validators() -> Vec<T::TheaId> {
+		<Authorities<T>>::get().to_vec()
+	}
+
+	pub fn next_validators() -> Vec<T::TheaId> {
+		<NextAuthorities<T>>::get().to_vec()
+	}
+
+	pub fn authority_network_pref(authority: &T::TheaId) -> Option<Network> {
+		<NetworkPreference<T>>::get(authority)
+	}
+
 	fn validate_update_network_pref(
 		authority: &T::TheaId,
 		network: &Network,
@@ -238,6 +252,20 @@ impl<T: Config> Pallet<T> {
 
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides([authority])
+			.longevity(3)
+			.propagate(true)
+			.build()
+	}
+
+	fn validate_incoming_message(
+		bitmap: &Vec<u128>,
+		payload: &Message,
+		signature: &T::Signature,
+	) -> TransactionValidity {
+		// TODO: Implement aggregate signature verification using bls_primitives library.
+
+		ValidTransaction::with_tag_prefix("thea")
+			.and_provides([signature])
 			.longevity(3)
 			.propagate(true)
 			.build()
@@ -282,12 +310,6 @@ impl<T: Config> Pallet<T> {
 		<NextAuthorities<T>>::put(bounded_authorities);
 
 		Ok(())
-	}
-}
-
-impl<T: Config> IsMember<T::TheaId> for Pallet<T> {
-	fn is_member(authority_id: &T::TheaId) -> bool {
-		Self::authorities().iter().any(|id| id == authority_id)
 	}
 }
 
