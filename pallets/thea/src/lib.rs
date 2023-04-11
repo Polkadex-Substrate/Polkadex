@@ -22,13 +22,16 @@ use frame_support::{
 	log,
 	traits::{Get, OneSessionHandler},
 	BoundedSlice, BoundedVec, Parameter,
+	pallet_prelude::*
 };
+use frame_system::pallet_prelude::*;
 
 use sp_runtime::{
 	generic::DigestItem,
 	traits::{IsMember, Member},
 	RuntimeAppPublic,
 };
+use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction};
 use sp_std::prelude::*;
 
 use thea_primitives::{AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
@@ -38,16 +41,24 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
+		/// The overarching event type.
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
 		type TheaId: Member
 			+ Parameter
 			+ RuntimeAppPublic
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen;
+
+		/// Authority Signature
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
+		+ Member
+		+ Parameter
+		+ MaybeSerializeDeserialize
+		+ MaxEncodedLen;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -79,9 +90,70 @@ pub mod pallet {
 	#[pallet::getter(fn network_pref)]
 	pub(super) type NetworkPreference<T: Config> =
 		StorageMap<_, Identity, T::TheaId, Network, OptionQuery>;
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	pub enum Event<T: Config>{
+		NetworkUpdated{
+			authority: T::TheaId,
+			network: Network
+		}
+	}
+
+	#[pallet::error]
+	pub enum Error<T> {
+		/// Unknown Error
+		Unknown,
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::update_network_pref { authority, network, signature } => Self::validate_update_network_pref(authority,network,signature),
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		/// Updates the network preference of a thea validator
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::default())]
+		pub fn update_network_pref(origin: OriginFor<T>, authority: T::TheaId,
+								   network: Network, _signature: T::Signature)
+								   -> DispatchResult {
+			ensure_none(origin)?;
+			<NetworkPreference<T>>::insert(authority, network);
+			Ok(())
+		}
+	}
 }
 
+
 impl<T: Config> Pallet<T> {
+
+	fn validate_update_network_pref(authority: &T::TheaId, network: &Network, signature: &T::Signature) -> TransactionValidity {
+		let queued = <NextAuthorities<T>>::get();
+
+		if !queued.contains(authority){
+			return InvalidTransaction::BadSigner.into()
+		}
+
+		if !authority.verify(&network.encode(), &signature.clone().into()) {
+			return InvalidTransaction::BadSigner.into()
+		}
+
+		ValidTransaction::with_tag_prefix("thea")
+			.and_provides([authority])
+			.longevity(3)
+			.propagate(true)
+			.build()
+	}
+
 	/// Return the current active validator set.
 	pub fn validator_set() -> Option<ValidatorSet<T::TheaId>> {
 		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities();
