@@ -107,6 +107,6 @@ pub trait TheaIncomingExecutor {
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
-	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(),()>;
+	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>);
 }
 

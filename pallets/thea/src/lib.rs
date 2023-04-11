@@ -245,6 +245,8 @@ impl<T: Config> Pallet<T> {
 		if !queued.contains(authority) {
 			return InvalidTransaction::BadSigner.into()
 		}
+
+		// TODO: Add a nonce to network to prevent replay attack.
 		// verify signature
 		if !authority.verify(&network.encode(), &signature.clone().into()) {
 			return InvalidTransaction::BadSigner.into()
@@ -314,7 +316,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
+	fn execute_withdrawals(network: Network, data: Vec<u8>) {
 		let nonce = <OutgoingNonce<T>>::get(network);
 		let payload = Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
@@ -329,6 +331,5 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			payload.network,
 			payload,
 		);
-		Ok(())
 	}
 }
