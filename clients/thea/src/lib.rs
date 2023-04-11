@@ -1,14 +1,8 @@
 #![feature(unwrap_infallible)]
-extern crate core;
 
 use futures::channel::mpsc::UnboundedReceiver;
-use orderbook_primitives::ObApi;
-pub use orderbook_protocol_name::standard_name as protocol_standard_name;
-
-use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use prometheus::Registry;
-use reference_trie::RefHasher;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
@@ -16,28 +10,27 @@ use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
 use std::{marker::PhantomData, sync::Arc};
+use thea_primitives::{Network, TheaApi};
+pub use thea_protocol_name::standard_name as protocol_standard_name;
 
 mod error;
 mod gossip;
 mod metrics;
-mod utils;
 mod worker;
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-mod utils_tests;
-#[cfg(test)]
-mod worker_tests;
 
-pub(crate) mod orderbook_protocol_name {
+mod types;
+
+pub(crate) mod thea_protocol_name {
 	use sc_chain_spec::ChainSpec;
 
-	const NAME: &str = "/ob/1";
+	const NAME: &str = "/thea/1";
 
-	/// Name of the notifications protocol used by BEEFY.
+	/// Name of the notifications protocol used by Thea.
 	///
-	/// Must be registered towards the networking in order for BEEFY to properly function.
+	/// Must be registered towards the networking in order for Thea to properly function.
 	pub fn standard_name<Hash: AsRef<[u8]>>(
 		genesis_hash: &Hash,
 		chain_spec: &dyn ChainSpec,
@@ -53,7 +46,7 @@ pub(crate) mod orderbook_protocol_name {
 /// Returns the configuration value to put in
 /// [`sc_network::config::NetworkConfiguration::extra_sets`].
 /// For standard protocol name see [`orderbook_protocol_name::standard_name`].
-pub fn orderbook_peers_set_config(
+pub fn thea_peers_set_config(
 	protocol_name: sc_network::ProtocolName,
 ) -> sc_network_common::config::NonDefaultSetConfig {
 	let mut cfg = sc_network_common::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
@@ -89,12 +82,10 @@ where
 	// empty
 }
 
-use orderbook_primitives::types::ObMessage;
+use crate::types::GossipMessage;
+
 use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
-
-/// Alias type for the `MemoryDB` database lock reference.
-pub type DbRef = Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>;
 
 /// Orderbook gadget initialization parameters.
 pub struct ObParams<B, BE, C, N, R>
@@ -103,7 +94,7 @@ where
 	BE: Backend<B>,
 	R: ProvideRuntimeApi<B>,
 	C: Client<B, BE>,
-	R::Api: ObApi<B>,
+	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
 	/// Orderbook client
@@ -112,55 +103,41 @@ where
 	pub backend: Arc<BE>,
 	/// Client runtime
 	pub runtime: Arc<R>,
-	/// Local key store
-	pub key_store: Option<SyncCryptoStorePtr>,
 	/// Gossip network
 	pub network: N,
 	/// Prometheus metric registry
 	pub prometheus_registry: Option<Registry>,
-	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
+	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
 	pub protocol_name: sc_network::ProtocolName,
 	/// Boolean indicating if this node is a validator
 	pub is_validator: bool,
 	/// Submit message link
-	pub message_sender_link: UnboundedReceiver<ObMessage>,
-	// Links between the block importer, the background voter and the RPC layer.
-	// pub links: BeefyVoterLinks<B>,
+	pub message_sender_link: UnboundedReceiver<Network>,
 	pub marker: PhantomData<B>,
-	// last successful block snapshot created
-	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
-	// memory db
-	pub memory_db: DbRef,
-	// working state root
-	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
-/// Start the Orderbook gadget.
+/// Start the Thea gadget.
 ///
-/// This is a thin shim around running and awaiting a Orderbook worker.
-pub async fn start_orderbook_gadget<B, BE, C, N, R>(ob_params: ObParams<B, BE, C, N, R>)
+/// This is a thin shim around running and awaiting a Thea worker.
+pub async fn start_thea_gadget<B, BE, C, N, R>(ob_params: ObParams<B, BE, C, N, R>)
 where
 	B: Block,
 	BE: Backend<B>,
 	C: Client<B, BE>,
 	R: ProvideRuntimeApi<B>,
-	R::Api: ObApi<B>,
+	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
 {
 	let ObParams {
 		client,
 		backend,
 		runtime,
-		key_store: _,
 		network,
 		prometheus_registry,
 		protocol_name,
 		is_validator,
 		message_sender_link,
 		marker: _,
-		last_successful_block_number_snapshot_created,
-		memory_db,
-		working_state_root,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -190,9 +167,6 @@ where
 		message_sender_link,
 		metrics,
 		_marker: Default::default(),
-		last_successful_block_number_snapshot_created,
-		memory_db,
-		working_state_root,
 	};
 
 	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);

@@ -9699,21 +9699,14 @@ dependencies = [
  "bls-primitives",
  "chrono",
  "futures 0.3.26",
- "hash-db 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
  "hash256-std-hasher 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex",
  "log",
- "memory-db 0.31.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
  "mockall",
  "mockall_double",
- "orderbook-primitives",
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "polkadex-primitives",
- "primitive-types",
- "reference-trie",
- "reqwest",
- "rust_decimal",
  "sc-chain-spec",
  "sc-client-api",
  "sc-consensus",
@@ -9739,10 +9732,9 @@ dependencies = [
  "sp-tracing",
  "substrate-prometheus-endpoint",
  "testing_logger",
+ "thea-primitives",
  "thiserror",
  "tokio",
- "trie-db 0.26.0",
- "trie-root 0.17.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
 ]
 
 [[package]]
@@ -9764,11 +9756,9 @@ dependencies = [
  "futures 0.3.26",
  "jsonrpsee",
  "log",
- "memory-db 0.31.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "polkadex-primitives",
- "reference-trie",
  "rust_decimal",
  "sc-rpc",
  "sc-utils",
@@ -9782,7 +9772,6 @@ dependencies = [
  "thea-client",
  "thea-primitives",
  "thiserror",
- "trie-db 0.26.0",
 ]
 
 [[package]]
