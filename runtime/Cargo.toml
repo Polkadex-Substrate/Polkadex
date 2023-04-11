@@ -75,7 +75,6 @@ sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
-thea-staking = { default-features = false, path = "../pallets/thea-staking" }
 pallet-nomination-pools = { default-features = false, workspace = true }
 #end added
 
@@ -91,10 +90,10 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
+bls-primitives = {workspace = true, default-features = false}
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false }
 chainbridge = { path = "../pallets/chainbridge", default-features = false }
-thea-cross-chain-governance = { path = "../pallets/thea-cross-chain-governance", default-features = false }
 orderbook-primitives = { path = "../primitives/orderbook", default-features = false }
 
 # Orderbook 
@@ -125,6 +124,7 @@ substrate-wasm-builder = { workspace = true }
 default = ["std"]
 std = [
     "orderbook-primitives/std",
+    "bls-primitives/std",
     "parity-scale-codec/std",
     "scale-info/std",
     "log/std",
@@ -186,13 +186,11 @@ std = [
     "chainbridge/std",
     "pallet-ocex-lmp/std",
     "pallet-asset-handler-runtime-api/std",
-    "thea-staking/std",
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
     "pallet-amm/std",
     "router/std",
-    "thea-cross-chain-governance/std",
     "liquidity/std",
     "pallet-rewards/std"
 ]
@@ -211,7 +209,6 @@ runtime-benchmarks = [
     "pdex-migration/runtime-benchmarks",
     "pallet-rewards/runtime-benchmarks",
     "liquidity/runtime-benchmarks",
-    "thea-staking/runtime-benchmarks",
     "thea/runtime-benchmarks",
 ]
 try-runtime = [

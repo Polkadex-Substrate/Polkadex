@@ -13,19 +13,16 @@ members = [
     "pallets/asset-handler",
     "pallets/pdex-migration",
     "pallets/ocex",
-    "pallets/thea-staking",
     "pallets/rewards",
-    "pallets/thea",
     "primitives/orderbook",
     "primitives/bls-primitives",
     "primitives/polkadex",
-    "thea-primitives",
-    "pallets/thea-staking",
+    "primitives/thea",
+    "pallets/thea",
     "pallets/swap",
     "pallets/support",
     "pallets/router",
     "pallets/liquidity",
-    "pallets/thea-cross-chain-governance",
     "misc/load-testing"
 ]
 
@@ -39,6 +36,7 @@ static_assertions = "1.1.0"
 parity-scale-codec = { version = "3.1.5", default-features = false }
 rust_decimal = { git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", default-features = false }
 scale-info = { version = "2.1.2", default-features = false }
+bls-primitives = {path = "primitives/bls-primitives", default-features = false}
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }

@@ -339,7 +339,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "thea-primitives",
  "xcm",
 ]
 
@@ -4477,6 +4476,7 @@ name = "node-polkadex-runtime"
 version = "4.0.0"
 dependencies = [
  "asset-handler",
+ "bls-primitives",
  "chainbridge",
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -4551,8 +4551,6 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "thea",
- "thea-cross-chain-governance",
- "thea-staking",
 ]
 
 [[package]]
@@ -5931,7 +5929,6 @@ dependencies = [
  "frame-benchmarking",
  "node-polkadex-runtime",
  "sc-executor",
- "thea-primitives",
 ]
 
 [[package]]
@@ -9673,19 +9670,18 @@ dependencies = [
 
 [[package]]
 name = "thea"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
- "asset-handler",
- "blst",
- "chainbridge",
+ "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-assets",
  "pallet-balances",
- "pallet-staking",
- "pallet-staking-reward-curve",
+ "pallet-timestamp",
  "parity-scale-codec",
+ "polkadex-primitives",
+ "rust_decimal",
  "scale-info",
  "sp-application-crypto",
  "sp-core",
@@ -9694,67 +9690,17 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "thea-primitives",
- "thea-staking",
- "xcm",
-]
-
-[[package]]
-name = "thea-cross-chain-governance"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-balances",
- "pallet-identity",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
 name = "thea-primitives"
 version = "0.1.0"
 dependencies = [
- "blst",
- "frame-system",
+ "bls-primitives",
  "parity-scale-codec",
- "polkadex-primitives",
  "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-runtime-interface",
- "sp-std",
- "xcm",
-]
-
-[[package]]
-name = "thea-staking"
-version = "4.0.0-dev"
-dependencies = [
- "asset-handler",
- "chainbridge",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-assets",
- "pallet-balances",
- "pallet-staking",
- "pallet-staking-reward-curve",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "sp-std",
- "thea-primitives",
+ "sp-api",
+ "sp-application-crypto",
 ]
 
 [[package]]
