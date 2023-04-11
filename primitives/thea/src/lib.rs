@@ -89,7 +89,7 @@ pub type Network = u8;
 
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Orderbook.
-	pub trait ObApi
+	pub trait TheaApi
 	{
 		/// Return the current active Thea validator set
 		fn validator_set() -> ValidatorSet<AuthorityId>;

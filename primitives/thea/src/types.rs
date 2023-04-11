@@ -7,5 +7,9 @@ pub struct Message {
     pub block_no: u64,
     pub nonce: u64,
     pub data: Vec<u8>,
-    pub network: Network // going out to this network
+    pub network: Network, // going out to this network
+    pub is_key_change: bool
 }
+
+
+
