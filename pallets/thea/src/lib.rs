@@ -16,30 +16,34 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use parity_scale_codec::{Encode, MaxEncodedLen};
-
 use frame_support::{
 	log,
+	pallet_prelude::*,
 	traits::{Get, OneSessionHandler},
 	BoundedSlice, BoundedVec, Parameter,
-	pallet_prelude::*
 };
 use frame_system::pallet_prelude::*;
-
+use parity_scale_codec::{Encode, MaxEncodedLen};
 use sp_runtime::{
 	generic::DigestItem,
-	traits::{IsMember, Member},
-	RuntimeAppPublic,
+	traits::{BlockNumberProvider, IsMember, Member},
+	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
+	RuntimeAppPublic, SaturatedConversion,
 };
-use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction};
 use sp_std::prelude::*;
 
-use thea_primitives::{AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
-
 pub use pallet::*;
+use thea_primitives::{
+	types::Message, AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+};
+
+mod session;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::transactional;
+	use thea_primitives::{types::Message, TheaIncomingExecutor};
+
 	use super::*;
 
 	#[pallet::config]
@@ -55,16 +59,20 @@ pub mod pallet {
 
 		/// Authority Signature
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
-		+ Member
-		+ Parameter
-		+ MaybeSerializeDeserialize
-		+ MaxEncodedLen;
+			+ Member
+			+ Parameter
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
+
+		/// Something that executes the payload
+		type Executor: thea_primitives::TheaIncomingExecutor;
 	}
 
 	#[pallet::pallet]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(PhantomData<T>);
 
 	/// The current authorities set
@@ -91,19 +99,58 @@ pub mod pallet {
 	pub(super) type NetworkPreference<T: Config> =
 		StorageMap<_, Identity, T::TheaId, Network, OptionQuery>;
 
+	/// Outgoing messages
+	/// first key: Blocknumber of polkadex solochain
+	/// second key: receiving network
+	#[pallet::storage]
+	#[pallet::getter(fn outgoing_messages)]
+	pub(super) type OutgoingMessages<T: Config> =
+		StorageDoubleMap<_, Identity, T::BlockNumber, Identity, Network, Message, OptionQuery>;
+
+	/// Incoming messages
+	/// first key: origin network
+	/// second key: origin network blocknumber
+	#[pallet::storage]
+	#[pallet::getter(fn incoming_messages)]
+	pub(super) type IncomingMessages<T: Config> =
+		StorageDoubleMap<_, Identity, Network, Identity, T::BlockNumber, Message, OptionQuery>;
+
+	/// Last processed blocks of other networks
+	#[pallet::storage]
+	#[pallet::getter(fn last_processed_blk)]
+	pub(super) type LastProcessedBlock<T: Config> =
+		StorageMap<_, Identity, Network, T::BlockNumber, OptionQuery>;
+
+	/// Last processed nonce of other networks
+	#[pallet::storage]
+	#[pallet::getter(fn last_processed_nonce)]
+	pub(super) type LastProcessedNonce<T: Config> =
+		StorageMap<_, Identity, Network, u64, ValueQuery>;
+
+	/// Outgoing nonce's grouped by network
+	#[pallet::storage]
+	#[pallet::getter(fn outgoing_nonce)]
+	pub(super) type OutgoingNonce<T: Config> = StorageMap<_, Identity, Network, u64, ValueQuery>;
+
+	// /// Last processed message from Polkadex
+	// #[pallet::storage]
+	// #[pallet::getter(fn last_processed_polkadex_blk)]
+	// pub(super) type LastProcessedPolkadexBlk<T: Config> = StorageValue<_, u64, OptionQuery>;
+
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config>{
-		NetworkUpdated{
-			authority: T::TheaId,
-			network: Network
-		}
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		NetworkUpdated { authority: T::TheaId, network: Network },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Unknown Error
 		Unknown,
+		/// Error executing thea message
+		ErrorExecutingMessage,
+		/// Wrong nonce provided
+		MessageNonce,
 	}
 
 	#[pallet::validate_unsigned]
@@ -112,7 +159,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::update_network_pref { authority, network, signature } => Self::validate_update_network_pref(authority,network,signature),
+				Call::update_network_pref { authority, network, signature } =>
+					Self::validate_update_network_pref(authority, network, signature),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -123,26 +171,67 @@ pub mod pallet {
 		/// Updates the network preference of a thea validator
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::default())]
-		pub fn update_network_pref(origin: OriginFor<T>, authority: T::TheaId,
-								   network: Network, _signature: T::Signature)
-								   -> DispatchResult {
+		pub fn update_network_pref(
+			origin: OriginFor<T>,
+			authority: T::TheaId,
+			network: Network,
+			_signature: T::Signature,
+		) -> DispatchResult {
 			ensure_none(origin)?;
 			<NetworkPreference<T>>::insert(authority, network);
+			Ok(())
+		}
+
+		/// Handles the verified incoming message
+		#[pallet::call_index(1)]
+		#[pallet::weight(Weight::default())]
+		#[transactional]
+		pub fn incoming_message(
+			origin: OriginFor<T>,
+			bitmap: Vec<u128>,
+			payload: Message,
+			_signature: T::Signature,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+			// Signature is already verified in validate_unsigned, no need to do it again
+
+			let last_nonce = <LastProcessedNonce<T>>::get(payload.network);
+			if last_nonce != payload.nonce.saturating_add(1) {
+				return Err(Error::<T>::MessageNonce.into())
+			}
+
+			if let Err(()) = T::Executor::execute_deposits(payload.network, payload.data.clone()) {
+				return Err(Error::<T>::ErrorExecutingMessage.into())
+			}
+
+			<LastProcessedNonce<T>>::insert(payload.network, payload.nonce);
+			<LastProcessedBlock<T>>::insert(
+				payload.network,
+				payload.block_no.saturated_into::<T::BlockNumber>(),
+			);
+			// Save the incoming message for some time
+			<IncomingMessages<T>>::insert(
+				payload.network,
+				payload.block_no.saturated_into::<T::BlockNumber>(),
+				payload,
+			);
 			Ok(())
 		}
 	}
 }
 
-
 impl<T: Config> Pallet<T> {
-
-	fn validate_update_network_pref(authority: &T::TheaId, network: &Network, signature: &T::Signature) -> TransactionValidity {
+	fn validate_update_network_pref(
+		authority: &T::TheaId,
+		network: &Network,
+		signature: &T::Signature,
+	) -> TransactionValidity {
 		let queued = <NextAuthorities<T>>::get();
-
-		if !queued.contains(authority){
+		// They should be part of next authorities
+		if !queued.contains(authority) {
 			return InvalidTransaction::BadSigner.into()
 		}
-
+		// verify signature
 		if !authority.verify(&network.encode(), &signature.clone().into()) {
 			return InvalidTransaction::BadSigner.into()
 		}
@@ -196,59 +285,28 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
-	type Public = T::TheaId;
-}
-
-impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
-	type Key = T::TheaId;
-
-	fn on_genesis_session<'a, I: 'a>(validators: I)
-	where
-		I: Iterator<Item = (&'a T::AccountId, T::TheaId)>,
-	{
-		let authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
-		// we panic here as runtime maintainers can simply reconfigure genesis and restart the
-		// chain easily
-		Self::initialize_authorities(&authorities).expect("Authorities vec too big");
-	}
-
-	fn on_new_session<'a, I: 'a>(_changed: bool, validators: I, queued_validators: I)
-	where
-		I: Iterator<Item = (&'a T::AccountId, T::TheaId)>,
-	{
-		let next_authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
-		if next_authorities.len() as u32 > T::MaxAuthorities::get() {
-			log::error!(
-				target: "runtime::beefy",
-				"authorities list {:?} truncated to length {}",
-				next_authorities, T::MaxAuthorities::get(),
-			);
-		}
-		let bounded_next_authorities =
-			BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_authorities);
-
-		let next_queued_authorities = queued_validators.map(|(_, k)| k).collect::<Vec<_>>();
-		if next_queued_authorities.len() as u32 > T::MaxAuthorities::get() {
-			log::error!(
-				target: "runtime::beefy",
-				"queued authorities list {:?} truncated to length {}",
-				next_queued_authorities, T::MaxAuthorities::get(),
-			);
-		}
-		let bounded_next_queued_authorities =
-			BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_queued_authorities);
-
-		// Always issue a change on each `session`, even if validator set hasn't changed.
-		// We want to have at least one BEEFY mandatory block per session.
-		Self::change_authorities(bounded_next_authorities, bounded_next_queued_authorities);
-	}
-
-	fn on_disabled(i: u32) {}
-}
-
 impl<T: Config> IsMember<T::TheaId> for Pallet<T> {
 	fn is_member(authority_id: &T::TheaId) -> bool {
 		Self::authorities().iter().any(|id| id == authority_id)
+	}
+}
+
+impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
+	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
+		let nonce = <OutgoingNonce<T>>::get(network);
+		let payload = Message {
+			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
+			nonce: nonce.saturating_add(1),
+			data,
+			network,
+		};
+		// Update nonce
+		<OutgoingNonce<T>>::insert(network, payload.nonce);
+		<OutgoingMessages<T>>::insert(
+			payload.block_no.saturated_into::<T::BlockNumber>(),
+			payload.network,
+			payload,
+		);
+		Ok(())
 	}
 }

@@ -1,3 +1,5 @@
+pub mod types;
+
 use scale_info::{TypeInfo};
 use parity_scale_codec::{Decode,Encode};
 
@@ -99,7 +101,4 @@ pub trait TheaIncomingExecutor {
 pub trait TheaOutgoingExecutor {
 	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(),()>;
 }
-
-
-// Parachain User -> withdrawal(pdex) -> thea-executor -> Vec<u8> -> stored in parachain
 
