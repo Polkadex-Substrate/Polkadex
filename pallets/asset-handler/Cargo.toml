@@ -27,8 +27,6 @@ xcm = { workspace = true, default-features = false }
 
 chainbridge = { path = "../chainbridge", default-features = false }
 
-thea-primitives = { path = "../../thea-primitives", default-features = false }
-
 [dev-dependencies]
 pallet-assets = { workspace = true , default-features = false}
 pallet-balances = { workspace = true , default-features = false}
@@ -47,7 +45,6 @@ std = [
 	"sp-runtime/std",
 	"chainbridge/std",
 	"xcm/std",
-	"thea-primitives/std",
 	"pallet-assets/std",
 	"pallet-balances/std"
 ]

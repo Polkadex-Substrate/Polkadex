@@ -1355,57 +1355,8 @@ impl asset_handler::pallet::Config for Runtime {
 }
 
 impl thea::pallet::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
-	type TheaPalletId = TheaPalletId;
-	type WithdrawalSize = WithdrawalSize;
-	type ParaId = ParaId;
-	type ExtrinsicSubmittedNotifier = TheaStaking;
-	type Weights = thea::weights::WeightInfo<Runtime>;
-}
-
-//Install Staking Pallet
-parameter_types! {
-	pub const SessionLength: u32 = 25;
-	pub const UnbondingDelay: u32 = 10;
-	pub const MaxUnlockChunks: u32 = 10;
-	pub const CandidateBond: Balance = 1_000_000_000_000;
-	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
-	pub const StakingDataPruneDelay: u32 = 6;
-	pub const ModerateSK: u8 = 5; // 5% of stake to slash
-	pub const SevereSK: u8 = 20; // 20% of stake to slash
-	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
-	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
-	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-	pub const IdealActiveValidators: u32 = 3;
-}
-
-impl thea_staking::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type SessionLength = SessionLength;
-	type UnbondingDelay = UnbondingDelay;
-	type MaxUnlockChunks = MaxUnlockChunks;
-	type CandidateBond = CandidateBond;
-	type StakingReserveIdentifier = StakingReserveIdentifier;
-	type StakingDataPruneDelay = StakingDataPruneDelay;
-	type ModerateSlashingCoeficient = ModerateSK;
-	type SevereSlashingCoeficient = SevereSK;
-	type ReportersRewardCoeficient = ReporterRewardKF;
-	type SlashingThreshold = SlashingTh;
-	type SessionChangeNotifier = Thea;
-	type TreasuryPalletId = TreasuryPalletId;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
-	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
-	type Currency = Balances;
-	type ActiveValidators = IdealActiveValidators;
-}
-
-//Install Nomination Pool
-parameter_types! {
-	pub const PostUnbondPoolsWindow: u32 = 4;
-	pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
-	pub const MaxPointsToBalance: u8 = 10;
+	type TheaId = thea_primitives::AuthorityId;
+	type MaxAuthorities = MaxAuthorities;
 }
 
 //Install Swap pallet
@@ -1445,47 +1396,7 @@ impl router::Config for Runtime {
 	type Assets = AssetHandler;
 }
 
-use sp_runtime::traits::Convert;
-pub struct BalanceToU256;
-impl Convert<Balance, sp_core::U256> for BalanceToU256 {
-	fn convert(balance: Balance) -> sp_core::U256 {
-		sp_core::U256::from(balance)
-	}
-}
-pub struct U256ToBalance;
-impl Convert<sp_core::U256, Balance> for U256ToBalance {
-	fn convert(n: sp_core::U256) -> Balance {
-		n.try_into().unwrap_or(Balance::max_value())
-	}
-}
 
-impl pallet_nomination_pools::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-	type Currency = Balances;
-	type RewardCounter = FixedU128;
-	type PalletId = NominationPoolsPalletId;
-	type MaxPointsToBalance = MaxPointsToBalance;
-	type BalanceToU256 = BalanceToU256;
-	type U256ToBalance = U256ToBalance;
-	type Staking = thea_staking::Pallet<Self>;
-	type PostUnbondingPoolsWindow = PostUnbondPoolsWindow;
-	type MaxMetadataLen = ConstU32<256>;
-	type MaxUnbonding = ConstU32<8>;
-}
-
-parameter_types! {
-	pub const StakingAmount: u128 = 1_000_000_000_000_000u128;
-	pub const StakingReserveIdentifierForTheaGov: [u8; 8] = [2u8;8];
-
-}
-
-impl thea_cross_chain_governance::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type StakingAmount = StakingAmount;
-	type StakingReserveIdentifier = StakingReserveIdentifierForTheaGov;
-	type CouncilHandlerOrigin = EnsureRootOrHalfCouncil;
-}
 
 construct_runtime!(
 	pub enum Runtime where
@@ -1533,13 +1444,10 @@ construct_runtime!(
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
-		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
-		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
-		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
-		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 43,
-		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44,
-		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 45,
-		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 46,
+		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
+		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 42,
+		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 43,
 	}
 );
 /// Digest item type.

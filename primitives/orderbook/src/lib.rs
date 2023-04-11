@@ -26,7 +26,7 @@ pub mod constants;
 pub mod types;
 pub mod utils;
 
-/// Key type for BEEFY module.
+/// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
 
 /// Orderbook cryptographic types
@@ -117,22 +117,10 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 /// The index of an authority.
 pub type AuthorityIndex = u32;
 
-#[derive(Copy, Clone, Encode, Decode)]
-pub struct StidImportRequest {
-	pub from: u64,
-	pub to: u64,
-}
-
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
 pub struct Fees {
 	pub asset: AssetId,
 	pub amount: Decimal,
-}
-
-#[derive(Clone, Encode, Decode, Default)]
-#[cfg(feature = "std")]
-pub struct StidImportResponse {
-	pub messages: Vec<ObMessage>,
 }
 
 #[derive(Clone, Encode, Decode, Default, Debug, TypeInfo, PartialEq)]

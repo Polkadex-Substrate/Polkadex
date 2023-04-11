@@ -6,7 +6,6 @@ pub struct ExecutorDispatch;
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 	type ExtendHostFunctions = (
 		frame_benchmarking::benchmarking::HostFunctions,
-		thea_primitives::thea_ext::HostFunctions,
 		bls_primitives::crypto::bls_ext::HostFunctions,
 	);
 

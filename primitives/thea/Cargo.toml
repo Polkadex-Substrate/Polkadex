@@ -1,0 +1,22 @@
+[package]
+name = "thea-primitives"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+parity-scale-codec = { workspace = true, default-features = false }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+sp-api  = { workspace = true, default-features = false }
+sp-application-crypto = {workspace = true, default-features = false}
+bls-primitives = {path = "../../primitives/bls-primitives", default-features = false}
+[features]
+default = ["std"]
+std = [
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "sp-api/std",
+    "sp-application-crypto/std",
+    "bls-primitives/std"
+]
