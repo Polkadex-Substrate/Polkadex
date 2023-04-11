@@ -1396,8 +1396,6 @@ impl router::Config for Runtime {
 	type Assets = AssetHandler;
 }
 
-
-
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,

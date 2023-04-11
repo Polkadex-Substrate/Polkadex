@@ -13,9 +13,10 @@ sp-application-crypto = {workspace = true, default-features = false}
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
-bls-primitives = {path = "../../primitives/bls-primitives", default-features = false}
 xcm = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
+bls-primitives = {workspace= true, default-features = false}
+polkadex-primitives = {workspace = true, default-features = false}
 
 [features]
 default = ["std"]
@@ -29,5 +30,6 @@ std = [
     "sp-core/std",
     "sp-std/std",
     "xcm/std",
-    "sp-runtime/std"
+    "sp-runtime/std",
+    "polkadex-primitives/std"
 ]
