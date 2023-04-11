@@ -1,13 +1,12 @@
 pub mod types;
 
-use scale_info::{TypeInfo};
-use parity_scale_codec::{Decode,Encode};
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
-use crate::crypto::AuthorityId;
+use crate::{crypto::AuthorityId, types::Message};
 use polkadex_primitives::BlockNumber;
-use crate::types::Message;
 
 /// Orderbook cryptographic types
 ///
@@ -53,8 +52,8 @@ pub struct ValidatorSet<AuthorityId> {
 impl<AuthorityId> ValidatorSet<AuthorityId> {
 	/// Return a validator set with the given validators and set id.
 	pub fn new<I>(validators: I, id: ValidatorSetId) -> Option<Self>
-		where
-			I: IntoIterator<Item = AuthorityId>,
+	where
+		I: IntoIterator<Item = AuthorityId>,
 	{
 		let validators: Vec<AuthorityId> = validators.into_iter().collect();
 		if validators.is_empty() {
@@ -87,6 +86,8 @@ pub type AuthorityIndex = u32;
 /// Network type
 pub type Network = u8;
 
+pub const NATIVE_NETWORK: Network = 0;
+
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Orderbook.
 	pub trait TheaApi
@@ -100,15 +101,16 @@ sp_api::decl_runtime_apis! {
 		fn outgoing_messages(blk: BlockNumber, network: Network) -> Option<Message>;
 		/// Get Thea network associated with Validator
 		fn network(auth: AuthorityId) -> Option<Network>;
+		/// Incoming messages
+		fn incoming_messsage(message: Message, bitmap: Vec<u128>, signature: Signature) -> Result<(),()>;
 	}
 }
 
 /// This is implemented by TheaExecutor by zK
 pub trait TheaIncomingExecutor {
-	fn execute_deposits(network: Network, deposits: Vec<u8>) -> Result<(),()>;
+	fn execute_deposits(network: Network, deposits: Vec<u8>) -> Result<(), ()>;
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
 	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>);
 }
-

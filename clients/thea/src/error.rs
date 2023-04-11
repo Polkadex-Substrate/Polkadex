@@ -21,7 +21,9 @@ pub enum Error {
 	#[error("Network not configured for this validator, please use the rpc")]
 	NetworkNotConfigured,
 	#[error("BLS Signing failed")]
-	SigningFailed
+	SigningFailed,
+	BlockHashNotFound,
+	ErrorReadingTheaMessage,
 }
 
 impl From<parity_scale_codec::Error> for Error {
