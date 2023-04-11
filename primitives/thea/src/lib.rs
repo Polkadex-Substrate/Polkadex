@@ -1,12 +1,15 @@
 pub mod parachain;
-
-use scale_info::{TypeInfo};
-use parity_scale_codec::{Decode,Encode};
 use sp_runtime::DispatchResult;
+pub mod types;
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
-use crate::crypto::AuthorityId;
+use crate::{crypto::AuthorityId, types::Message};
+use polkadex_primitives::BlockNumber;
+use polkadex_primitives::Signature;
+
 /// Orderbook cryptographic types
 ///
 /// This module basically introduces three crypto types:
@@ -51,8 +54,8 @@ pub struct ValidatorSet<AuthorityId> {
 impl<AuthorityId> ValidatorSet<AuthorityId> {
 	/// Return a validator set with the given validators and set id.
 	pub fn new<I>(validators: I, id: ValidatorSetId) -> Option<Self>
-		where
-			I: IntoIterator<Item = AuthorityId>,
+	where
+		I: IntoIterator<Item = AuthorityId>,
 	{
 		let validators: Vec<AuthorityId> = validators.into_iter().collect();
 		if validators.is_empty() {
@@ -85,12 +88,23 @@ pub type AuthorityIndex = u32;
 /// Network type
 pub type Network = u8;
 
+pub const NATIVE_NETWORK: Network = 0;
+
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Orderbook.
-	pub trait ObApi
+	pub trait TheaApi
 	{
 		/// Return the current active Thea validator set
-		fn validator_set() -> ValidatorSet<AuthorityId>;
+		fn validator_set(network: Network) -> ValidatorSet<AuthorityId>;
+
+		/// Next Set validator set
+		fn next_validator_set(network: Network) -> ValidatorSet<AuthorityId>;
+		/// Returns the outgoing message for given network and blk
+		fn outgoing_messages(blk: BlockNumber, network: Network) -> Option<Message>;
+		/// Get Thea network associated with Validator
+		fn network(auth: AuthorityId) -> Option<Network>;
+		/// Incoming messages
+		fn incoming_messsage(message: Message, bitmap: Vec<u128>, signature: Signature) -> Result<(),()>;
 	}
 }
 
@@ -100,9 +114,5 @@ pub trait TheaIncomingExecutor {
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
-	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(),()>;
+	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>);
 }
-
-
-// Parachain User -> withdrawal(pdex) -> thea-executor -> Vec<u8> -> stored in parachain
-
