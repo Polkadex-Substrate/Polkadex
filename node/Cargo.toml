@@ -31,7 +31,9 @@ node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
 pallet-asset-handler-rpc = { path = "../pallets/asset-handler/rpc" }
 polkadex-client = { path = "../client"}
 orderbook = { path = "../clients/orderbook" }
+thea-client = { path = "../clients/thea" }
 orderbook-primitives = { path = "../primitives/orderbook" }
+thea-primitives = { path = "../primitives/thea" }
 orderbook-rpc = { path = "../clients/orderbook/rpc" }
 memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master"  }
 reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master"  }

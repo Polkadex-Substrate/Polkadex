@@ -9,12 +9,12 @@ edition = "2021"
 parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 sp-api  = { workspace = true, default-features = false }
+sp-std  = { workspace = true, default-features = false }
+sp-runtime  = { workspace = true, default-features = false }
 sp-application-crypto = {workspace = true, default-features = false}
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
-sp-std = { workspace = true, default-features = false }
 xcm = { workspace = true, default-features = false }
-sp-runtime = { workspace = true, default-features = false }
 bls-primitives = {workspace= true, default-features = false}
 polkadex-primitives = {workspace = true, default-features = false}
 
@@ -23,7 +23,9 @@ default = ["std"]
 std = [
     "parity-scale-codec/std",
     "scale-info/std",
+    "sp-runtime/std",
     "sp-api/std",
+    "sp-std/std",
     "sp-application-crypto/std",
     "bls-primitives/std",
     "sp-io/std",
