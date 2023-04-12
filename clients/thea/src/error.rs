@@ -6,7 +6,7 @@ use sp_api::ApiError;
 use std::fmt::Debug;
 use tokio::task::JoinError;
 
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
 	#[error("Backend: {0}")]
 	Backend(String),
@@ -14,16 +14,26 @@ pub enum Error {
 	Keystore(String),
 	#[error("Scale codec error")]
 	CodecError(parity_scale_codec::Error),
-	#[error("Failed to submit snapshot to runtime")]
-	FailedToSubmitSnapshotToRuntime,
+	#[error("Failed to submit incoming message to runtime")]
+	FailedToSubmitMessageToRuntime,
 	#[error("Signature verification Failed")]
 	SignatureVerificationFailed,
 	#[error("Network not configured for this validator, please use the rpc")]
 	NetworkNotConfigured,
 	#[error("BLS Signing failed")]
 	SigningFailed,
+	#[error("Block Hash not found")]
 	BlockHashNotFound,
+	#[error("Error while reading Thea Message")]
 	ErrorReadingTheaMessage,
+	#[error("Error from subxt: {0}")]
+	Subxt(subxt::Error),
+}
+
+impl From<subxt::Error> for Error {
+	fn from(value: subxt::Error) -> Self {
+		Self::Subxt(value)
+	}
 }
 
 impl From<parity_scale_codec::Error> for Error {
@@ -41,5 +51,11 @@ impl From<ApiError> for Error {
 impl From<JoinError> for Error {
 	fn from(value: JoinError) -> Self {
 		Self::Backend(value.to_string())
+	}
+}
+
+impl From<()> for Error {
+	fn from(value: ()) -> Self {
+		Self::FailedToSubmitMessageToRuntime
 	}
 }

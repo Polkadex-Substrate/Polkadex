@@ -1,55 +1,72 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
+use parity_scale_codec::Encode;
+use serde::Deserializer;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::{bounded::BoundedVec, ecdsa::Signature, sr25519, ConstU32, H256};
+use subxt::{dynamic::Value, OnlineClient, PolkadotConfig};
 
 use bls_primitives::Public;
-use parachain_polkadex_runtime::Runtime;
-use substrate_api_client::{Api, MultiAddress, PlainTipExtrinsicParams, WsRpcClient};
 use thea_primitives::types::Message;
 
 use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMessage};
 
 pub struct ParachainClient {
-	api: Arc<Api<sr25519::Pair, WsRpcClient, PlainTipExtrinsicParams<Runtime>, Runtime>>,
+	api: OnlineClient<PolkadotConfig>,
 }
+
+const PALLET_NAME: &str = "TheaHandler";
 
 #[async_trait]
 impl ForeignConnector for ParachainClient {
-	fn block_duration() -> Duration {
-		todo!()
+	fn block_duration(&self) -> Duration {
+		// Parachain block time is 12 second , but we check every 10s to prevent drift
+		Duration::from_secs(10)
 	}
 
 	async fn connect(url: String) -> Result<Self, Error> {
-		let polkadex_client = WsRpcClient::new(url.as_str());
-		let api = Arc::new(Api::<
-			sr25519::Pair,
-			WsRpcClient,
-			PlainTipExtrinsicParams<Runtime>,
-			Runtime,
-		>::new(polkadex_client)?);
+		let api = OnlineClient::<PolkadotConfig>::from_url(url).await?;
 		Ok(ParachainClient { api })
 	}
 
-	async fn read_events(&self, block_num: u64) -> Result<Message, Error> {
-		let block_hash: H256 = self
-			.api
-			.get_block_hash(Some(block_num.saturated_into()))?
-			.ok_or(Error::BlockHashNotFound)?;
+	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error> {
 		// Read thea messages from foreign chain
-		let incoming_message = self
+		let storage_address = subxt::dynamic::storage(
+			PALLET_NAME,
+			"OutgoingMessages",
+			vec![
+				// Something that encodes to an AccountId32 is what we need for the map key here:
+				Value::from_bytes(last_processed_nonce.encode()),
+			],
+		);
+
+		let encoded_bytes = self
 			.api
-			.get_storage_value::<Message>("", "OutgoingMessages", Some(block_hash))?
-			.ok_or(Error::ErrorReadingTheaMessage)?;
-		Ok(incoming_message)
+			.storage()
+			.at(None)
+			.await?
+			.fetch_or_default(&storage_address)
+			.await?
+			.into_encoded();
+
+		Ok(parity_scale_codec::Decode::decode(&mut &encoded_bytes[..])?)
 	}
 
 	async fn send_transaction(&self, message: GossipMessage) {
-		todo!()
-	}
+		let call = subxt::dynamic::tx(
+			PALLET_NAME,
+			"incoming_message",
+			vec![
+				// Bitmap
+				Value::from(message.bitmap.clone()),
+				// Payload
+				Value::from(message.payload.clone()),
+				// Signature
+				Value::from_bytes(message.aggregate_signature.encode()),
+			],
+		);
 
-	async fn last_finalized_block_number(&self) -> Result<u64, Error> {
-		todo!()
+		self.api.tx().create_unsigned(&call).unwrap().submit().await.unwrap();
 	}
 }

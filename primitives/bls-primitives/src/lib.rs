@@ -84,6 +84,14 @@ impl KeyStore {
 	}
 }
 
+
+impl Signature {
+	// Aggregates two signatures
+	pub fn add_signature(&self, signature: &Signature) -> Signature {
+		todo!()
+	}
+}
+
 type Seed = [u8; 32];
 
 /// An error when deriving a key.

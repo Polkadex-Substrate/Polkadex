@@ -37,6 +37,8 @@ pub mod crypto {
 /// Authority set id starts with zero at genesis
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
 
+pub const THEA_WORKER_PREFIX: &[u8; 18] = b"Thea Worker Prefix";
+
 /// A typedef for validator set id.
 pub type ValidatorSetId = u64;
 
@@ -102,7 +104,9 @@ sp_api::decl_runtime_apis! {
 		/// Get Thea network associated with Validator
 		fn network(auth: AuthorityId) -> Option<Network>;
 		/// Incoming messages
-		fn incoming_messsage(message: Message, bitmap: Vec<u128>, signature: Signature) -> Result<(),()>;
+		fn incoming_message(message: Message, bitmap: Vec<u128>, signature: Signature) -> Result<(),()>;
+		/// Get last processed nonce for a given network
+		fn get_last_processed_nonce(network: Network) -> u64;
 	}
 }
 

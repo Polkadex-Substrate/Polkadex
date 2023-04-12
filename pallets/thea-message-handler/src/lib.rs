@@ -96,7 +96,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_messages)]
 	pub(super) type OutgoingMessages<T: Config> =
-		StorageMap<_, Identity, T::BlockNumber, Message, OptionQuery>;
+		StorageMap<_, Identity, u64, Message, OptionQuery>;
 
 	/// Last processed nonce of this network
 	#[pallet::storage]
@@ -229,10 +229,11 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			network,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
+			validator_set_len: Self::authorities(network).len(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::put(payload.nonce);
-		<OutgoingMessages<T>>::insert(payload.block_no.saturated_into::<T::BlockNumber>(), payload);
+		<OutgoingMessages<T>>::insert(payload.nonce, payload);
 
 		Ok(())
 	}
