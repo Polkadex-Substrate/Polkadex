@@ -13,7 +13,7 @@ pub mod pallet {
 	use frame_support::PalletId;
 	use frame_support::traits::{Currency, ReservableCurrency};
 	use frame_system::pallet_prelude::*;
-	use thea_primitives::{Network, TheaIncomingExecutor};
+	use thea_primitives::{Network, TheaIncomingExecutor, TheaOutgoingExecutor};
 	use xcm::{
 		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation},
 		prelude::{Fungible, X1},
@@ -70,6 +70,8 @@ pub mod pallet {
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+		/// Something that executes the payload
+		type Executor: thea_primitives::TheaOutgoingExecutor;
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<PalletId>;
@@ -94,6 +96,12 @@ pub mod pallet {
 	pub(super) type WithdrawalNonces<T: Config> =
 	StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
 
+	/// Withdrawal nonces for each network
+	#[pallet::storage]
+	#[pallet::getter(fn last_processed_withdrawal_nonce)]
+	pub(super) type LastProcessedWithdrawalNonce<T: Config> =
+	StorageMap<_, Blake2_128Concat, Network, u32, ValueQuery>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn pending_withdrawals)]
 	pub(super) type PendingWithdrawals<T: Config> = StorageMap<
@@ -116,10 +124,10 @@ pub mod pallet {
 	pub(super) type ReadyWithdrawls<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		u8,
+		T::BlockNumber, //Block No
 		Blake2_128Concat,
-		u32,
-		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
+		(u8, u32), //(NetworkId, Withdrawal Nonce)
+		(u8, BoundedVec<ApprovedWithdraw, ConstU32<10>>),
 		ValueQuery,
 	>;
 
@@ -194,8 +202,18 @@ pub mod pallet {
 		BoundedVectorOverflow,
 		/// Bounded vector not present
 		BoundedVectorNotPresent
+	}
 
-
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(block_no: T::BlockNumber) -> Weight {
+			let pending_withdrawals= <ReadyWithdrawls<T>>::iter_prefix_values(block_no);
+			for (network_id, withdrawal) in pending_withdrawals {
+                T::Executor::execute_withdrawals(network_id, withdrawal.encode());
+			}
+			//TODO: Clean Storage
+			Weight::default()
+		}
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -295,9 +313,9 @@ pub mod pallet {
 				// If it is full then we move it to ready queue and update withdrawal nonce
 				let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 				<ReadyWithdrawls<T>>::insert(
-					network,
-					withdrawal_nonce,
-					pending_withdrawals.clone(),
+					<frame_system::Pallet<T>>::block_number(), //Block No
+					(network, withdrawal_nonce),
+					(network, pending_withdrawals.clone())
 				);
 				<WithdrawalNonces<T>>::insert(network, withdrawal_nonce.saturating_add(1));
 				Self::deposit_event(Event::<T>::WithdrawalReady(network, withdrawal_nonce));
@@ -388,7 +406,7 @@ pub mod pallet {
 				approved_deposit.network_id.saturated_into::<Network>(),
 				approved_deposit.deposit_nonce,
 			);
-			unimplemented!();
+			Ok(())
 		}
 
 		pub fn router(
