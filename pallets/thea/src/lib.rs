@@ -298,7 +298,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) {
+	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
 		let nonce = <OutgoingNonce<T>>::get(network);
 		let payload = Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
@@ -315,5 +315,6 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			payload.network,
 			payload,
 		);
+		Ok(())
 	}
 }
