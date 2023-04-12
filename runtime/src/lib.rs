@@ -92,6 +92,7 @@ use frame_support::weights::{
 	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee, WeightToFeeCoefficients,
 	WeightToFeePolynomial,
 };
+#[cfg(feature = "runtime-benchmarks")]
 use pallet_assets::BenchmarkHelper;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.

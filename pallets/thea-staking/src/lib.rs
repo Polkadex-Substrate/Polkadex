@@ -1254,7 +1254,7 @@ pub mod pallet {
 		// 	None
 		// }
 
-		fn stash_by_ctrl(controller: &Self::AccountId) -> Result<Self::AccountId, DispatchError> {
+		fn stash_by_ctrl(_controller: &Self::AccountId) -> Result<Self::AccountId, DispatchError> {
 			todo!()
 		}
 
@@ -1280,37 +1280,37 @@ pub mod pallet {
 			<CurrentIndex<T>>::get()
 		}
 
-		fn stake(who: &Self::AccountId) -> Result<Stake<Self>, DispatchError> {
+		fn stake(_who: &Self::AccountId) -> Result<Stake<Self>, DispatchError> {
 			todo!()
 		}
 
-		fn total_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
+		fn total_stake(_who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
 			todo!()
 		}
 
-		fn active_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
+		fn active_stake(_who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
 			todo!()
 		}
 
-		fn is_unbonding(who: &Self::AccountId) -> Result<bool, DispatchError> {
+		fn is_unbonding(_who: &Self::AccountId) -> Result<bool, DispatchError> {
 			todo!()
 		}
 
-		fn fully_unbond(who: &Self::AccountId) -> sp_runtime::DispatchResult {
+		fn fully_unbond(_who: &Self::AccountId) -> sp_runtime::DispatchResult {
 			todo!()
 		}
 
 		fn bond(
-			who: &Self::AccountId,
-			value: Self::Balance,
-			payee: &Self::AccountId,
+			_who: &Self::AccountId,
+			_value: Self::Balance,
+			_payee: &Self::AccountId,
 		) -> sp_runtime::DispatchResult {
 			todo!()
 		}
 
 		fn nominate(
-			who: &Self::AccountId,
-			validators: Vec<Self::AccountId>,
+			_who: &Self::AccountId,
+			_validators: Vec<Self::AccountId>,
 		) -> sp_runtime::DispatchResult {
 			todo!()
 		}
@@ -1331,17 +1331,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn bond_extra(stash: &Self::AccountId, extra: Self::Balance) -> DispatchResult {
+		fn bond_extra(_stash: &Self::AccountId, _extra: Self::Balance) -> DispatchResult {
 			todo!()
 		}
 
-		fn unbond(stash: &Self::AccountId, value: Self::Balance) -> sp_runtime::DispatchResult {
+		fn unbond(_stash: &Self::AccountId, _value: Self::Balance) -> sp_runtime::DispatchResult {
 			todo!()
 		}
 
 		fn withdraw_unbonded(
-			stash: Self::AccountId,
-			num_slashing_spans: u32,
+			_stash: Self::AccountId,
+			_num_slashing_spans: u32,
 		) -> Result<bool, DispatchError> {
 			todo!()
 		}
@@ -1354,11 +1354,11 @@ pub mod pallet {
 			todo!()
 		}
 
-		fn force_unstake(who: Self::AccountId) -> sp_runtime::DispatchResult {
+		fn force_unstake(_who: Self::AccountId) -> sp_runtime::DispatchResult {
 			todo!()
 		}
 
-		fn is_exposed_in_era(who: &Self::AccountId, era: &EraIndex) -> bool {
+		fn is_exposed_in_era(_who: &Self::AccountId, _era: &EraIndex) -> bool {
 			todo!()
 		}
 
