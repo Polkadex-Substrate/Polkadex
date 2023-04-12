@@ -170,7 +170,7 @@ where
 		_marker: Default::default(),
 	};
 
-	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
+	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params).await.unwrap();
 
 	worker.run().await
 }
