@@ -236,7 +236,7 @@ impl TryFrom<String> for OrderSide {
 		match value.as_str() {
 			"Bid" => Ok(OrderSide::Bid),
 			"Ask" => Ok(OrderSide::Ask),
-			_ => Err(anyhow::Error::msg(format!("Unknown side variant: {:?}", value))),
+			_ => Err(anyhow::Error::msg(format!("Unknown side variant: {value:?}"))),
 		}
 	}
 }
@@ -514,7 +514,7 @@ impl Order {
 		println!("self.filled_quantity: {:?}\ntemp: {:?}", self.filled_quantity, temp);
 		match temp.checked_div(self.filled_quantity) {
 			Some(quotient) => {
-				println!("Quotient: {:?}", quotient);
+				println!("Quotient: {quotient:?}");
 				self.avg_filled_price = quotient;
 				true
 			},

@@ -40,7 +40,7 @@ impl<Account: PartialEq + Clone, ProxyLimit: Get<u32>> AccountInfo<Account, Prox
 
 	// Adds a new proxy account
 	pub fn add_proxy(&mut self, proxy: Account) -> Result<(), Account> {
-		if let Err(()) = self.proxies.try_push(proxy.clone()) {
+		if self.proxies.try_push(proxy.clone()).is_err() {
 			return Err(proxy)
 		}
 		Ok(())

@@ -53,7 +53,7 @@ pub enum Error {
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
 	fn from(value: Box<TrieError<T, E>>) -> Self {
-		Self::TrieError(format!("{:?}", value))
+		Self::TrieError(format!("{value:?}"))
 	}
 }
 

@@ -46,7 +46,7 @@ pub(crate) mod orderbook_protocol_name {
 			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),
 			None => format!("/{}", hex::encode(genesis_hash)),
 		};
-		format!("{}{}", chain_prefix, NAME).into()
+		format!("{chain_prefix}{NAME}").into()
 	}
 }
 
