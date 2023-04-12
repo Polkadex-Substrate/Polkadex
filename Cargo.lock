@@ -9750,6 +9750,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "thea-message-handler"
+version = "0.1.0"
+dependencies = [
+ "bls-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "thea-primitives",
+]
+
+[[package]]
 name = "thea-primitives"
 version = "0.1.0"
 dependencies = [
