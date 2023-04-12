@@ -200,7 +200,7 @@ pub mod pallet {
 				return Err(Error::<T>::MessageNonce.into())
 			}
 
-			if let Err(()) = T::Executor::execute_deposits(payload.network, payload.data.clone()) {
+			if let Err(_) = T::Executor::execute_deposits(payload.network, payload.data.clone()) {
 				return Err(Error::<T>::ErrorExecutingMessage.into())
 			}
 

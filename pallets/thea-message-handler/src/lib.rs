@@ -164,7 +164,7 @@ pub mod pallet {
 
 			if !payload.is_key_change {
 				// Normal Thea message
-				if let Err(()) =
+				if let Err(_) =
 					T::Executor::execute_deposits(payload.network, payload.data.clone())
 				{
 					return Err(Error::<T>::ErrorExecutingMessage.into())
