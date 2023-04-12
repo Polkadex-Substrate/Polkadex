@@ -213,6 +213,7 @@ runtime-benchmarks = [
     "liquidity/runtime-benchmarks",
     "thea-staking/runtime-benchmarks",
     "thea/runtime-benchmarks",
+    "pallet-amm/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
