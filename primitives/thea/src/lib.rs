@@ -1,9 +1,10 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 pub mod parachain;
 use sp_runtime::DispatchResult;
 pub mod types;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-
+use sp_std::vec::Vec;
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
 use crate::{

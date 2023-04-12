@@ -101,6 +101,7 @@ pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 
 # Thea
 thea = { path = "../pallets/thea", default-features = false }
+thea-executor = { path = "../pallets/thea-executor", default-features = false }
 
 #swap
 pallet-amm = { path="../pallets/swap", default-features = false }
@@ -192,7 +193,8 @@ std = [
     "pallet-amm/std",
     "router/std",
     "liquidity/std",
-    "pallet-rewards/std"
+    "pallet-rewards/std",
+    "thea-executor/std"
 ]
 runtime-benchmarks = [
     #theirs

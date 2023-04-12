@@ -4601,6 +4601,7 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "thea",
+ "thea-executor",
 ]
 
 [[package]]

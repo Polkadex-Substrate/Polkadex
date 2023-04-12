@@ -1396,6 +1396,22 @@ impl router::Config for Runtime {
 	type Assets = AssetHandler;
 }
 
+parameter_types! {
+	pub const TheaPalletId: PalletId = PalletId(*b"th/accnt");
+	pub const WithdrawalSize: u32 = 10;
+	pub const ParaId: u32 = 2040;
+}
+
+impl thea_executor::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type Executor = Thea;
+	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
+	type ParaId = ParaId;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
