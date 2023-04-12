@@ -374,6 +374,7 @@ pub fn new_full_base(
 		.extra_sets
 		.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
 
+	// Orderbook
 	let orderbook_protocol_name = orderbook::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		config.chain_spec.as_ref(),
@@ -384,6 +385,16 @@ pub fn new_full_base(
 		.extra_sets
 		.push(orderbook::orderbook_peers_set_config(orderbook_protocol_name.clone()));
 
+	// Thea
+	let thea_protocol_name = thea_client::protocol_standard_name(
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		config.chain_spec.as_ref(),
+	);
+
+	config
+		.network
+		.extra_sets
+		.push(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
 		sc_finality_grandpa_warp_sync::request_response_config_for_chain(
@@ -582,11 +593,11 @@ pub fn new_full_base(
 
 	let config = orderbook::ObParams {
 		client: client.clone(),
-		backend,
+		backend: backend.clone(),
 		runtime: client.clone(),
 		key_store: None,
 		network: network.clone(),
-		prometheus_registry,
+		prometheus_registry: prometheus_registry.clone(),
 		protocol_name: orderbook_protocol_name,
 		marker: Default::default(),
 		is_validator: role.is_authority(),
@@ -601,6 +612,24 @@ pub fn new_full_base(
 		"orderbook",
 		None,
 		orderbook::start_orderbook_gadget(config),
+	);
+
+	let config = thea_client::TheaParams {
+		client: client.clone(),
+		backend,
+		runtime: client.clone(),
+		network: network.clone(),
+		prometheus_registry,
+		protocol_name: thea_protocol_name,
+		marker: Default::default(),
+		is_validator: role.is_authority(),
+	};
+
+	// Thea task
+	task_manager.spawn_handle().spawn_blocking(
+		"thea",
+		None,
+		thea_client::start_thea_gadget(config),
 	);
 
 	network_starter.start_network();

@@ -1,6 +1,7 @@
 #![feature(unwrap_infallible)]
 
 use futures::channel::mpsc::UnboundedReceiver;
+use parity_scale_codec::Codec;
 use parking_lot::RwLock;
 use prometheus::Registry;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
@@ -9,7 +10,7 @@ use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
-use std::{marker::PhantomData, sync::Arc};
+use std::{future::Future, marker::PhantomData, sync::Arc};
 use thea_primitives::{Network, TheaApi};
 pub use thea_protocol_name::standard_name as protocol_standard_name;
 
@@ -85,11 +86,12 @@ where
 
 use crate::types::GossipMessage;
 
+use crate::worker::ObWorker;
 use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
 
-/// Orderbook gadget initialization parameters.
-pub struct ObParams<B, BE, C, N, R>
+/// Thea gadget initialization parameters.
+pub struct TheaParams<B, BE, C, N, R>
 where
 	B: Block,
 	BE: Backend<B>,
@@ -112,15 +114,13 @@ where
 	pub protocol_name: sc_network::ProtocolName,
 	/// Boolean indicating if this node is a validator
 	pub is_validator: bool,
-	/// Submit message link
-	pub message_sender_link: UnboundedReceiver<Network>,
 	pub marker: PhantomData<B>,
 }
 
 /// Start the Thea gadget.
 ///
 /// This is a thin shim around running and awaiting a Thea worker.
-pub async fn start_thea_gadget<B, BE, C, N, R>(ob_params: ObParams<B, BE, C, N, R>)
+pub async fn start_thea_gadget<B, BE, C, N, R>(ob_params: TheaParams<B, BE, C, N, R>)
 where
 	B: Block,
 	BE: Backend<B>,
@@ -129,7 +129,7 @@ where
 	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
 {
-	let ObParams {
+	let TheaParams {
 		client,
 		backend,
 		runtime,
@@ -137,7 +137,6 @@ where
 		prometheus_registry,
 		protocol_name,
 		is_validator,
-		message_sender_link,
 		marker: _,
 	} = ob_params;
 
@@ -165,12 +164,16 @@ where
 		is_validator,
 		network,
 		protocol_name,
-		message_sender_link,
 		metrics,
 		_marker: Default::default(),
 	};
+	// TODO: Remove unwrap()
+	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params).await.unwrap();
 
-	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
+	// assert_send_sync(worker.run()).await TODO: IVan, please fix this, make run() Send + Sync.,
+	// use can use the assert_send_sync fn for testing
+}
 
-	worker.run().await
+async fn assert_send_sync(task: impl Future<Output = ()> + Send + Sync) {
+	task.await;
 }

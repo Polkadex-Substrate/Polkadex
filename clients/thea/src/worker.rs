@@ -1,12 +1,6 @@
-use std::{
-	collections::{BTreeMap, HashMap},
-	marker::PhantomData,
-	sync::Arc,
-	time::Duration,
-};
-
+use bls_primitives::Public;
 use chrono::Utc;
-use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
+use futures::{channel::mpsc::UnboundedReceiver, FutureExt, StreamExt};
 use log::{debug, error, info, trace, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
@@ -21,14 +15,19 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
-use tokio::time::Interval;
-
-use bls_primitives::Public;
+use std::{
+	collections::{BTreeMap, HashMap},
+	marker::PhantomData,
+	ops::AddAssign,
+	sync::Arc,
+	time::Duration,
+};
 use thea_primitives::{
 	crypto::AuthorityId,
-	types::{prepare_bitmap, Message},
-	Network, TheaApi, ValidatorSet, NATIVE_NETWORK,
+	types::{prepare_bitmap, return_set_bits, set_bit_field, Message},
+	AuthorityIndex, Network, TheaApi, ValidatorSet, NATIVE_NETWORK, THEA_WORKER_PREFIX,
 };
+use tokio::time::Interval;
 
 use crate::{
 	connector::{parachain::ParachainClient, traits::ForeignConnector},
@@ -36,7 +35,6 @@ use crate::{
 	gossip::{topic, GossipValidator},
 	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
-	traits::ForeignConnector,
 	types::GossipMessage,
 	Client,
 };
@@ -48,7 +46,6 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub sync_oracle: SO,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
-	pub message_sender_link: UnboundedReceiver<Network>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
@@ -69,10 +66,10 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	thea_network: Option<Network>,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
-	message_sender_link: UnboundedReceiver<Network>,
 	// Payload to gossip message mapping
 	message_cache: BTreeMap<Message, GossipMessage>,
-	foreign_chain: Arc<dyn ForeignConnector>,
+	foreign_chain: Arc<ParachainClient>,
+	last_finalized_blk: BlockId<B>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -101,7 +98,6 @@ where
 			sync_oracle,
 			metrics,
 			is_validator,
-			message_sender_link,
 			network,
 			protocol_name,
 			_marker,
@@ -111,7 +107,7 @@ where
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
-		let foreign_connector = ParachainClient::connect().await?;
+		let foreign_connector = ParachainClient::connect("ws://127.0.0.1:9945".to_string()).await?;
 
 		Ok(ObWorker {
 			client,
@@ -124,16 +120,10 @@ where
 			thea_network: None,
 			gossip_engine,
 			gossip_validator,
-			message_sender_link,
 			message_cache: Default::default(),
 			foreign_chain: Arc::new(foreign_connector),
+			last_finalized_blk: BlockId::number(Zero::zero()),
 		})
-	}
-
-	pub async fn update_network_pref(&mut self, network: Network) -> Result<(), Error> {
-		self.thea_network = Some(network);
-		// TODO: Store it in local storage too.
-		Ok(())
 	}
 
 	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
@@ -157,31 +147,125 @@ where
 		Ok(validator_key.unwrap())
 	}
 
+	pub async fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
+		let active = self
+			.runtime
+			.runtime_api()
+			.validator_set(&self.last_finalized_blk, message.network)?
+			.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
+
+		let signing_key = self.get_validator_key(&active.validators)?;
+		let signature = match bls_primitives::crypto::sign(&signing_key, &message.encode()) {
+			Some(sig) => sig,
+			None => {
+				error!(target:"orderbook","📒 Failed to thea message, not able to sign with validator key.");
+				return Err(Error::SigningFailed)
+			},
+		};
+
+		let bitmap = prepare_bitmap(&active.validators, &signing_key.into());
+
+		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature })
+	}
+
+	pub async fn check_message(&self, message: &GossipMessage) -> Result<bool, Error> {
+		// Check network
+		// based on network, use the connector or runtime_api() to index into OutgoingMessages
+		// storage Check if both messages are equal
+		todo!()
+	}
+
 	pub async fn process_gossip_message(
 		&mut self,
-		message: &GossipMessage,
+		incoming_message: &mut GossipMessage,
 		remote: Option<PeerId>,
 	) -> Result<(), Error> {
 		metric_inc!(self, thea_messages_recv);
-		metric_add!(self, thea_data_recv, message.encoded_size() as u64);
-		match self.message_cache.get(&message.payload) {
-			None => self.message_cache.insert(message.payload.clone(), message.clone()),
-			Some(message) => {
-				// TODO
-				// 1. incoming message has more signatories
-				// 2. Check if our signature is included or not
-				// 3. Aggregate the signature
-				// 4. if majority is achieved, send it to foreign/native chain
-				if message.payload.network == NATIVE_NETWORK {
-					self.runtime.runtime_api().incoming_message(
-						message.payload.clone(),
-						message.bitmap.clone(),
-						message.aggregate_signature,
-					)??;
-				} else {
-					self.foreign_chain.send_transaction(message.clone()).await;
+		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
+		let local_index = self.get_local_auth_index(incoming_message.payload.network).await?;
+		// Check incoming message in our cache.
+		match self.message_cache.get(&incoming_message.payload) {
+			None => {
+				// Check if the incoming message is valid based on our local node
+				match self.check_message(&incoming_message).await? {
+					false => {
+						// TODO: We will do offence handler later, simply ignore now
+						return Ok(())
+					},
+					true => {
+						// Sign the message
+						let gossip_message =
+							self.sign_message(incoming_message.payload.clone()).await?;
+
+						// Aggregate the signature and store it.
+						incoming_message.aggregate_signature = incoming_message
+							.aggregate_signature
+							.add_signature(&gossip_message.aggregate_signature);
+						// Set the bit based on our local index
+						set_bit_field(&mut incoming_message.bitmap, local_index.saturated_into());
+						if return_set_bits(&incoming_message.bitmap).len() >=
+							incoming_message.payload.threshold() as usize
+						{
+							// We got majority on this message
+							if incoming_message.payload.network == NATIVE_NETWORK {
+								self.runtime.runtime_api().incoming_message(
+									&self.last_finalized_blk,
+									incoming_message.payload.clone(),
+									incoming_message.bitmap.clone(),
+									incoming_message.aggregate_signature.into(),
+								)??;
+							} else {
+								self.foreign_chain.send_transaction(incoming_message.clone()).await;
+							}
+						} else {
+							// Cache it.
+							self.message_cache
+								.insert(incoming_message.payload.clone(), incoming_message.clone());
+						}
+					},
 				}
-				//  5. else, update the local state
+			},
+			Some(message) => {
+				// 1. incoming message has more signatories
+				let signed_auth_indexes = return_set_bits(&incoming_message.bitmap);
+				let signed_auth_indexes_local = return_set_bits(&message.bitmap);
+				// 2. Check if our signature is included or not
+				let did_we_sign_incoming_message =
+					signed_auth_indexes.contains(&local_index.saturated_into());
+
+				// There are two cases here,
+				if !did_we_sign_incoming_message {
+					// Let's add our signature to it
+					let gossip_message =
+						self.sign_message(incoming_message.payload.clone()).await?;
+
+					// Aggregate the signature and store it.
+					incoming_message.aggregate_signature = incoming_message
+						.aggregate_signature
+						.add_signature(&gossip_message.aggregate_signature);
+					// Set the bit based on our local index
+					set_bit_field(&mut incoming_message.bitmap, local_index.saturated_into());
+					if return_set_bits(&incoming_message.bitmap).len() >=
+						incoming_message.payload.threshold() as usize
+					{
+						// We got majority on this message
+						if incoming_message.payload.network == NATIVE_NETWORK {
+							self.runtime.runtime_api().incoming_message(
+								&self.last_finalized_blk,
+								incoming_message.payload.clone(),
+								incoming_message.bitmap.clone(),
+								incoming_message.aggregate_signature.into(),
+							)??;
+						} else {
+							self.foreign_chain.send_transaction(incoming_message.clone()).await;
+						}
+					} else {
+						// Cache it.
+						self.message_cache
+							.insert(incoming_message.payload.clone(), incoming_message.clone());
+						// TODO: Send it back to network.
+					}
+				}
 			},
 		}
 
@@ -195,7 +279,7 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		let at = BlockId::hash(header.hash());
-
+		self.last_finalized_blk = at;
 		// Proceed only if we are a validator
 		if !self.is_validator {
 			return Ok(())
@@ -209,7 +293,7 @@ where
 
 		if let Some(message) = self.runtime.runtime_api().outgoing_messages(
 			&at,
-			header.number().saturated_into(),
+			(*header.number()).saturated_into(),
 			network,
 		)? {
 			self.sign_and_submit_message(message).await?;
@@ -217,26 +301,28 @@ where
 		Ok(())
 	}
 
-	pub async fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
-		// Check if we are part of active network
-		let active = self.runtime.runtime_api().validator_set(&at, network)?;
+	pub async fn get_local_auth_index(&self, network: Network) -> Result<AuthorityIndex, Error> {
+		let active = self
+			.runtime
+			.runtime_api()
+			.validator_set(&self.last_finalized_blk, network)?
+			.ok_or(Error::ValidatorSetNotInitialized(network))?;
 
 		let signing_key = self.get_validator_key(&active.validators)?;
-		let signature = match bls_primitives::crypto::sign(&signing_key, &message.encode()) {
-			Some(sig) => sig,
-			None => {
-				error!(target:"orderbook","📒 Failed to thea message, not able to sign with validator key.");
-				return Err(Error::SigningFailed)
-			},
-		};
 
-		let bitmap = prepare_bitmap(&active.validators, &signing_key.into());
+		// Unwrap is fine since we already know we are in that list
+		let index = active
+			.validators
+			.iter()
+			.position(|x| x == &AuthorityId::from(signing_key))
+			.unwrap();
+		Ok(index.saturated_into())
+	}
 
-		// Gossip this message to every one
-		let gossip_message =
-			GossipMessage { payload: message.clone(), bitmap, aggregate_signature: signature };
-		self.gossip_engine.gossip_message(topic(), gossip_message.encode(), true);
-		self.process_gossip_message(&gossip_message, None)
+	pub async fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
+		let mut gossip_message = self.sign_message(message).await?;
+		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
+		self.process_gossip_message(&mut gossip_message, None).await
 	}
 
 	/// Wait for Orderbook runtime pallet to be available.
@@ -244,7 +330,7 @@ where
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		while let Some(notif) = finality_stream.next().await {
 			let at = BlockId::hash(notif.header.hash());
-			if self.runtime.runtime_api().validator_set(&at).ok().is_some() {
+			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
 				break
 			} else {
 				debug!(target: "orderbook", "📒 Waiting for thea pallet to become available...");
@@ -253,10 +339,32 @@ where
 	}
 
 	pub async fn try_process_foreign_chain_events(&mut self) -> Result<(), Error> {
-		// TODO: Provide the block number to use
-		// Get the next block events from foreign chain as Message
-		let message = self.foreign_chain.read_events().await?;
-		self.sign_and_submit_message(message).await
+		match self.thea_network.as_ref() {
+			None => {
+				log::error!(target:"thea", "Thea network not set on this validator!");
+				return Ok(())
+			},
+			Some(network) => {
+				// Get the next block events from foreign chain as Message
+				let mut best_outgoing_nonce: u64 = self
+					.runtime
+					.runtime_api()
+					.get_last_processed_nonce(&self.last_finalized_blk, *network)?;
+				best_outgoing_nonce.add_assign(1);
+				// Check if next best message is available for processing
+				match self.foreign_chain.read_events(best_outgoing_nonce).await? {
+					None => {},
+					Some(message) => {
+						// Don't do anything if we already know about the message
+						// It means Thea is already processing it.
+						if !self.message_cache.contains_key(&message) {
+							self.sign_and_submit_message(message).await?
+						}
+					},
+				}
+			},
+		}
+		Ok(())
 	}
 
 	/// Main loop for Orderbook worker.
@@ -272,6 +380,8 @@ where
 			info!(target: "orderbook", "📒 orderbook is not started waiting for blockhchain to sync completely");
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
+
+		// TODO: Check if validator has provided the network pref, elser, panic or log.
 
 		info!(target:"orderbook","📒 Starting event streams...");
 		let mut gossip_messages = Box::pin(
@@ -291,26 +401,19 @@ where
 
 		// Interval timer to read foreign chain events
 		let interval = tokio::time::interval(self.foreign_chain.block_duration());
+		// create a stream from the interval
+		let mut interval_stream = tokio_stream::wrappers::IntervalStream::new(interval).fuse();
 
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
 				gossip = gossip_messages.next() => {
-					if let Some((message,sender)) = gossip {
+					if let Some((mut message,sender)) = gossip {
 						// Gossip messages have already been verified to be valid by the gossip validator.
-						if let Err(err) = self.process_gossip_message(&message,sender).await {
+						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					} else {
-						return;
-					}
-				},
-				message = self.message_sender_link.next() => {
-					if let Some(message) = message {
-						if let Err(err) = self.update_network_pref(message).await {
-							debug!(target: "orderbook", "📒 {}", err);
-						}
-					}else{
 						return;
 					}
 				},
@@ -324,7 +427,7 @@ where
 						return
 					}
 				},
-				_ = interval.tick() => {
+				_ = interval_stream.next() => {
 					if let Err(err) = self.try_process_foreign_chain_events().await {
 							error!(target: "orderbook", "📒 Error during finalized block import{}", err);
 						}
