@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 use crate::{Network, ValidatorSetId};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;

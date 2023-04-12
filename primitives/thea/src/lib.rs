@@ -1,14 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
+pub mod parachain;
+use sp_runtime::DispatchResult;
 pub mod types;
-
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_application_crypto::ByteArray;
 use sp_std::vec::Vec;
-
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
+use sp_application_crypto::ByteArray;
 pub use crate::{
 	crypto::{AuthorityId, AuthoritySignature},
 	types::Message,
@@ -132,7 +131,7 @@ sp_api::decl_runtime_apis! {
 
 /// This is implemented by TheaExecutor by zK
 pub trait TheaIncomingExecutor {
-	fn execute_deposits(network: Network, deposits: Vec<u8>) -> Result<(), ()>;
+	fn execute_deposits(network: Network, deposits: Vec<u8>) -> DispatchResult;
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
@@ -140,7 +139,7 @@ pub trait TheaOutgoingExecutor {
 }
 
 impl TheaIncomingExecutor for () {
-	fn execute_deposits(network: Network, deposits: Vec<u8>) -> Result<(), ()> {
+	fn execute_deposits(network: Network, deposits: Vec<u8>) -> DispatchResult {
 		Ok(())
 	}
 }

@@ -1325,8 +1325,6 @@ parameter_types! {
 	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
-	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
-	pub const WithdrawalSize: u32 = 10;
 }
 
 impl chainbridge::Config for Runtime {
@@ -1340,7 +1338,6 @@ impl chainbridge::Config for Runtime {
 parameter_types! {
 	pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
 	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
-	pub const ParaId: u32 = 2040;
 }
 
 impl asset_handler::pallet::Config for Runtime {
@@ -1400,6 +1397,22 @@ impl router::Config for Runtime {
 	type Assets = AssetHandler;
 }
 
+parameter_types! {
+	pub const TheaPalletId: PalletId = PalletId(*b"th/accnt");
+	pub const WithdrawalSize: u32 = 10;
+	pub const ParaId: u32 = 2040;
+}
+
+impl thea_executor::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type Executor = Thea;
+	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
+	type ParaId = ParaId;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1450,6 +1463,7 @@ construct_runtime!(
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
 		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 42,
 		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 43,
+		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44
 	}
 );
 /// Digest item type.
