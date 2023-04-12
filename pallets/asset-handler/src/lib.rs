@@ -48,7 +48,7 @@ use sp_runtime::{
 	BoundedBTreeSet, SaturatedConversion,
 };
 use sp_std::{vec, vec::Vec};
-use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
+// use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
 use xcm::latest::AssetId;
 
 pub trait WeightInfo {
@@ -748,16 +748,18 @@ pub mod pallet {
 			asset: AssetId,
 		) -> Result<(u8, BoundedVec<u8, ConstU32<1000>>, usize), DispatchError> {
 			let network_id = T::ParachainNetworkId::get();
-			if let AssetId::Concrete(asset_location) = asset {
-				let asset_identifier =
-					ParachainAsset { location: asset_location, asset_type: AssetType::Fungible };
-				let asset_identifier = BoundedVec::try_from(asset_identifier.encode())
-					.map_err(|_| Error::<T>::IdentifierLengthMismatch)?;
-				let identifier_length = asset_identifier.len();
-				Ok((network_id, asset_identifier, identifier_length))
-			} else {
-				Err(Error::<T>::AssetIdAbstractNotHandled.into())
-			}
+			// TODO: ZK to fix this.
+			// if let AssetId::Concrete(asset_location) = asset {
+			// 	let asset_identifier =
+			// 		ParachainAsset { location: asset_location, asset_type: AssetType::Fungible };
+			// 	let asset_identifier = BoundedVec::try_from(asset_identifier.encode())
+			// 		.map_err(|_| Error::<T>::IdentifierLengthMismatch)?;
+			// 	let identifier_length = asset_identifier.len();
+			// 	Ok((network_id, asset_identifier, identifier_length))
+			// } else {
+			// 	Err(Error::<T>::AssetIdAbstractNotHandled.into())
+			// }
+			Err(Error::<T>::AssetIdAbstractNotHandled.into())
 		}
 
 		pub fn generate_asset_id_for_parachain(asset: AssetId) -> Result<u128, DispatchError> {

@@ -229,7 +229,9 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			network,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
-			validator_set_len: Self::authorities(network).len(),
+			validator_set_len: <Authorities<T>>::get(Self::validator_set_id())
+				.len()
+				.saturated_into(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::put(payload.nonce);

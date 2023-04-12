@@ -1,11 +1,17 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 pub mod types;
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
+use sp_std::vec::Vec;
 
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
-use crate::{crypto::{AuthorityId, Signature}, types::Message};
+pub use crate::{
+	crypto::{AuthorityId, AuthoritySignature},
+	types::Message,
+};
 use polkadex_primitives::BlockNumber;
 
 /// Orderbook cryptographic types
@@ -104,7 +110,7 @@ sp_api::decl_runtime_apis! {
 		/// Get Thea network associated with Validator
 		fn network(auth: AuthorityId) -> Option<Network>;
 		/// Incoming messages
-		fn incoming_message(message: Message, bitmap: Vec<u128>, signature: Signature) -> Result<(),()>;
+		fn incoming_message(message: Message, bitmap: Vec<u128>, signature: AuthoritySignature) -> Result<(),()>;
 		/// Get last processed nonce for a given network
 		fn get_last_processed_nonce(network: Network) -> u64;
 	}
@@ -117,4 +123,10 @@ pub trait TheaIncomingExecutor {
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
 	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(), ()>;
+}
+
+impl TheaIncomingExecutor for () {
+	fn execute_deposits(network: Network, deposits: Vec<u8>) -> Result<(), ()> {
+		Ok(())
+	}
 }

@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
 parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
@@ -14,7 +13,6 @@ frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
-rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
@@ -42,7 +40,6 @@ std = [
     "sp-runtime/std",
     "sp-std/std",
     "polkadex-primitives/std",
-    "rust_decimal/std",
     "pallet-timestamp/std",
     "sp-core/std",
 ]

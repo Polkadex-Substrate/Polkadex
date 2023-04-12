@@ -433,7 +433,7 @@ pub mod pallet {
 			ensure!(
 				min_order_price.saturated_into::<u128>() > 0 &&
 					max_order_price.saturated_into::<u128>() > 0 &&
-					min_order_qty.satxurated_into::<u128>() > 0 &&
+					min_order_qty.saturated_into::<u128>() > 0 &&
 					max_order_qty.saturated_into::<u128>() > 0 &&
 					price_tick_size.saturated_into::<u128>() > 0 &&
 					qty_step_size.saturated_into::<u128>() > 0,

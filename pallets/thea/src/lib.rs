@@ -58,11 +58,7 @@ pub mod pallet {
 			+ MaxEncodedLen;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
-			+ Member
-			+ Parameter
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -307,7 +303,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			network,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
-			validator_set_len: Self::authorities(network).len(),
+			validator_set_len: Self::authorities(network).len().saturated_into(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);

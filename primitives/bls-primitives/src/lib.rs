@@ -84,7 +84,6 @@ impl KeyStore {
 	}
 }
 
-
 impl Signature {
 	// Aggregates two signatures
 	pub fn add_signature(&self, signature: &Signature) -> Signature {

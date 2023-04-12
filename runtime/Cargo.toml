@@ -75,7 +75,6 @@ sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
-pallet-nomination-pools = { default-features = false, workspace = true }
 #end added
 
 # Used for the node template"s RPCs
@@ -90,7 +89,7 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
-bls-primitives = {workspace = true, default-features = false}
+thea-primitives = {workspace = true, default-features = false}
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 asset-handler = { path = "../pallets/asset-handler", default-features = false }
 chainbridge = { path = "../pallets/chainbridge", default-features = false }
@@ -124,7 +123,6 @@ substrate-wasm-builder = { workspace = true }
 default = ["std"]
 std = [
     "orderbook-primitives/std",
-    "bls-primitives/std",
     "parity-scale-codec/std",
     "scale-info/std",
     "log/std",
@@ -186,13 +184,13 @@ std = [
     "chainbridge/std",
     "pallet-ocex-lmp/std",
     "pallet-asset-handler-runtime-api/std",
-    "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
     "pallet-amm/std",
     "router/std",
     "liquidity/std",
-    "pallet-rewards/std"
+    "pallet-rewards/std",
+    "thea-primitives/std"
 ]
 runtime-benchmarks = [
     #theirs
