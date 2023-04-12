@@ -6,9 +6,11 @@ use scale_info::TypeInfo;
 
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
-use crate::{crypto::{AuthorityId, Signature}, types::Message};
+use crate::{
+	crypto::{AuthorityId, Signature},
+	types::Message,
+};
 use polkadex_primitives::BlockNumber;
-
 
 /// Orderbook cryptographic types
 ///
