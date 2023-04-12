@@ -25,6 +25,7 @@ members = [
     "pallets/support",
     "pallets/router",
     "pallets/liquidity",
+    "pallets/thea-executor",
     "misc/load-testing"
 ]
 
