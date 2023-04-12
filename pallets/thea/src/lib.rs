@@ -22,7 +22,7 @@ use frame_support::{
 	traits::{Get, OneSessionHandler},
 	BoundedSlice, BoundedVec, Parameter,
 };
-use frame_system::pallet_prelude::*;
+use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
 use parity_scale_codec::{Encode, MaxEncodedLen};
 use sp_runtime::{
 	generic::DigestItem,
@@ -33,8 +33,10 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 pub use pallet::*;
+use polkadex_primitives::BlockNumber;
 use thea_primitives::{
-	types::Message, AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+	types::Message, AuthorityIndex, AuthoritySignature, Network, ValidatorSet,
+	GENESIS_AUTHORITY_SET_ID,
 };
 
 mod session;
@@ -42,12 +44,13 @@ mod session;
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::transactional;
+	use frame_system::offchain::SendTransactionTypes;
 	use thea_primitives::{types::Message, TheaIncomingExecutor};
 
 	use super::*;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
@@ -127,11 +130,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_nonce)]
 	pub(super) type OutgoingNonce<T: Config> = StorageMap<_, Identity, Network, u64, ValueQuery>;
-
-	// /// Last processed message from Polkadex
-	// #[pallet::storage]
-	// #[pallet::getter(fn last_processed_polkadex_blk)]
-	// pub(super) type LastProcessedPolkadexBlk<T: Config> = StorageValue<_, u64, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -290,6 +288,27 @@ impl<T: Config> Pallet<T> {
 		let id = GENESIS_AUTHORITY_SET_ID;
 		<ValidatorSetId<T>>::put(id);
 		Ok(())
+	}
+
+	pub fn get_outgoing_messages(blk: T::BlockNumber, network: Network) -> Option<Message> {
+		<OutgoingMessages<T>>::get(blk, network)
+	}
+
+	pub fn network(auth: T::TheaId) -> Option<Network> {
+		<NetworkPreference<T>>::get(auth)
+	}
+
+	pub fn submit_incoming_message(
+		payload: Message,
+		bitmap: Vec<u128>,
+		signature: T::Signature,
+	) -> Result<(), ()> {
+		let call = Call::<T>::incoming_message { bitmap, payload, signature };
+		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+	}
+
+	pub fn get_last_processed_nonce(network: Network) -> u64 {
+		<LastProcessedNonce<T>>::get(network)
 	}
 }
 

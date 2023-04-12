@@ -486,6 +486,7 @@ impl_opaque_keys! {
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
 		pub orderbook: OCEX,
+		pub thea: Thea,
 	}
 }
 
@@ -1444,7 +1445,7 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
-		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
+		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 39,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
 		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 42,
@@ -1577,6 +1578,29 @@ impl_runtime_apis! {
 
 		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>{
 			OCEX::get_orderbook_operator_public_key()
+		}
+	}
+
+	impl thea_primitives::TheaApi<Block> for Runtime {
+		/// Return the current active Thea validator set
+		fn validator_set(network: thea_primitives::Network) -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
+			Thea::validator_set(network)
+		}
+		/// Returns the outgoing message for given network and blk
+		fn outgoing_messages(blk: BlockNumber, network: thea_primitives::Network) -> Option<thea_primitives::Message>{
+			Thea::get_outgoing_messages(blk.saturated_into(),network)
+		}
+		/// Get Thea network associated with Validator
+		fn network(auth: thea_primitives::AuthorityId) -> Option<thea_primitives::Network>{
+			Thea::network(auth)
+		}
+		/// Incoming messages
+		fn incoming_message(message: thea_primitives::Message, bitmap: Vec<u128>, signature: thea_primitives::AuthoritySignature) -> Result<(),()>{
+			Thea::submit_incoming_message(message,bitmap,signature)
+		}
+		/// Get last processed nonce for a given network
+		fn get_last_processed_nonce(network: thea_primitives::Network) -> u64{
+			Thea::get_last_processed_nonce(network)
 		}
 	}
 
