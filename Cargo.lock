@@ -6082,6 +6082,8 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "tempfile",
+ "thea-client",
+ "thea-primitives",
  "try-runtime-cli",
 ]
 
@@ -10331,31 +10333,6 @@ dependencies = [
  "sp-application-crypto 7.0.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
-]
-
-[[package]]
-name = "thea-rpc"
-version = "0.1.0"
-dependencies = [
- "futures 0.3.28",
- "jsonrpsee",
- "log",
- "parity-scale-codec",
- "parking_lot 0.12.1",
- "polkadex-primitives",
- "rust_decimal",
- "sc-rpc",
- "sc-utils",
- "serde",
- "serde_json",
- "sp-api",
- "sp-arithmetic 6.0.0",
- "sp-blockchain",
- "sp-core 7.0.0",
- "sp-runtime 7.0.0",
- "thea-client",
- "thea-primitives",
- "thiserror",
 ]
 
 [[package]]

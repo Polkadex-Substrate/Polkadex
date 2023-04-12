@@ -4,6 +4,7 @@ pub mod types;
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
+use sp_application_crypto::ByteArray;
 use sp_std::vec::Vec;
 
 /// Key type for Orderbook module.
@@ -38,6 +39,22 @@ pub mod crypto {
 
 	/// Signature for a Orderbook authority using BLS as its crypto.
 	pub type AuthoritySignature = Signature;
+}
+use sp_runtime::traits::IdentifyAccount;
+
+impl IdentifyAccount for AuthorityId {
+	type AccountId = Self;
+	fn into_account(self) -> Self {
+		self
+	}
+}
+
+#[cfg(feature = "std")]
+impl TryFrom<[u8; 96]> for crypto::AuthorityId {
+	type Error = ();
+	fn try_from(value: [u8; 96]) -> Result<Self, Self::Error> {
+		crypto::AuthorityId::from_slice(&value)
+	}
 }
 
 /// Authority set id starts with zero at genesis
@@ -101,10 +118,7 @@ sp_api::decl_runtime_apis! {
 	pub trait TheaApi
 	{
 		/// Return the current active Thea validator set
-		fn validator_set(network: Network) -> ValidatorSet<AuthorityId>;
-
-		/// Next Set validator set
-		fn next_validator_set(network: Network) -> ValidatorSet<AuthorityId>;
+		fn validator_set(network: Network) -> Option<ValidatorSet<AuthorityId>>;
 		/// Returns the outgoing message for given network and blk
 		fn outgoing_messages(blk: BlockNumber, network: Network) -> Option<Message>;
 		/// Get Thea network associated with Validator

@@ -37,10 +37,10 @@ impl ForeignConnector for ParachainClient {
 			"OutgoingMessages",
 			vec![
 				// Something that encodes to an AccountId32 is what we need for the map key here:
-				Value::from_bytes(last_processed_nonce.encode()),
+				Value::from_bytes(last_processed_nonce.saturating_add(1).encode()),
 			],
 		);
-
+		// TODO: Get last finalized block hash
 		let encoded_bytes = self
 			.api
 			.storage()

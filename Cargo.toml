@@ -9,7 +9,6 @@ members = [
     "clients/orderbook",
     "clients/orderbook/rpc",
     "clients/thea",
-    "clients/thea/rpc",
     "pallets/pdex-migration",
     "pallets/chainbridge",
     "pallets/asset-handler",

@@ -4,6 +4,7 @@
 
 use sp_api::ApiError;
 use std::fmt::Debug;
+use thea_primitives::Network;
 use tokio::task::JoinError;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,6 +29,8 @@ pub enum Error {
 	ErrorReadingTheaMessage,
 	#[error("Error from subxt: {0}")]
 	Subxt(subxt::Error),
+	#[error("Validator Set not initialized for netowrk: {0}")]
+	ValidatorSetNotInitialized(Network),
 }
 
 impl From<subxt::Error> for Error {

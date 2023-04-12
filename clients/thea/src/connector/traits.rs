@@ -4,7 +4,7 @@ use std::time::Duration;
 use thea_primitives::types::Message;
 
 #[async_trait]
-pub trait ForeignConnector {
+pub trait ForeignConnector: Send + Sync {
 	/// Block duration
 	fn block_duration(&self) -> Duration;
 	/// Initialize the connection to native blockchain

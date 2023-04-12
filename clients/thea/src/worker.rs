@@ -46,7 +46,6 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub sync_oracle: SO,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
-	pub message_sender_link: UnboundedReceiver<Network>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
@@ -67,7 +66,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	thea_network: Option<Network>,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
-	message_sender_link: UnboundedReceiver<Network>,
 	// Payload to gossip message mapping
 	message_cache: BTreeMap<Message, GossipMessage>,
 	foreign_chain: Arc<ParachainClient>,
@@ -100,7 +98,6 @@ where
 			sync_oracle,
 			metrics,
 			is_validator,
-			message_sender_link,
 			network,
 			protocol_name,
 			_marker,
@@ -111,16 +108,6 @@ where
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
 		let foreign_connector = ParachainClient::connect("ws://127.0.0.1:9945".to_string()).await?;
-		let mut thea_network = None;
-		// try to load thea network preference from local storage if any.
-		if let Some(mut offchain_storage) = backend.offchain_storage() {
-			// Load the network from offchain storage
-			if let Some(bytes) = offchain_storage.get(THEA_WORKER_PREFIX, b"NETWORK") {
-				if let Ok(thea_network_) = Network::decode(&mut &bytes[..]) {
-					thea_network = Some(thea_network_);
-				}
-			}
-		}
 
 		Ok(ObWorker {
 			client,
@@ -130,23 +117,13 @@ where
 			sync_oracle,
 			is_validator,
 			network: Arc::new(network),
-			thea_network,
+			thea_network: None,
 			gossip_engine,
 			gossip_validator,
-			message_sender_link,
 			message_cache: Default::default(),
 			foreign_chain: Arc::new(foreign_connector),
 			last_finalized_blk: BlockId::number(Zero::zero()),
 		})
-	}
-
-	pub async fn update_network_pref(&mut self, network: Network) -> Result<(), Error> {
-		self.thea_network = Some(network);
-		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			// Store it locally.
-			offchain_storage.set(THEA_WORKER_PREFIX, b"NETWORK", network.encode().as_ref())
-		}
-		Ok(())
 	}
 
 	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
@@ -174,7 +151,8 @@ where
 		let active = self
 			.runtime
 			.runtime_api()
-			.validator_set(&self.last_finalized_blk, message.network)?;
+			.validator_set(&self.last_finalized_blk, message.network)?
+			.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
 
 		let signing_key = self.get_validator_key(&active.validators)?;
 		let signature = match bls_primitives::crypto::sign(&signing_key, &message.encode()) {
@@ -191,6 +169,9 @@ where
 	}
 
 	pub async fn check_message(&self, message: &GossipMessage) -> Result<bool, Error> {
+		// Check network
+		// based on network, use the connector or runtime_api() to index into OutgoingMessages
+		// storage Check if both messages are equal
 		todo!()
 	}
 
@@ -202,6 +183,7 @@ where
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
 		let local_index = self.get_local_auth_index(incoming_message.payload.network).await?;
+		// Check incoming message in our cache.
 		match self.message_cache.get(&incoming_message.payload) {
 			None => {
 				// Check if the incoming message is valid based on our local node
@@ -281,6 +263,7 @@ where
 						// Cache it.
 						self.message_cache
 							.insert(incoming_message.payload.clone(), incoming_message.clone());
+						// TODO: Send it back to network.
 					}
 				}
 			},
@@ -319,7 +302,11 @@ where
 	}
 
 	pub async fn get_local_auth_index(&self, network: Network) -> Result<AuthorityIndex, Error> {
-		let active = self.runtime.runtime_api().validator_set(&self.last_finalized_blk, network)?;
+		let active = self
+			.runtime
+			.runtime_api()
+			.validator_set(&self.last_finalized_blk, network)?
+			.ok_or(Error::ValidatorSetNotInitialized(network))?;
 
 		let signing_key = self.get_validator_key(&active.validators)?;
 
@@ -394,6 +381,8 @@ where
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
 
+		// TODO: Check if validator has provided the network pref, elser, panic or log.
+
 		info!(target:"orderbook","📒 Starting event streams...");
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
@@ -425,15 +414,6 @@ where
 							debug!(target: "orderbook", "📒 {}", err);
 						}
 					} else {
-						return;
-					}
-				},
-				message = self.message_sender_link.next() => {
-					if let Some(message) = message {
-						if let Err(err) = self.update_network_pref(message).await {
-							debug!(target: "orderbook", "📒 {}", err);
-						}
-					}else{
 						return;
 					}
 				},
