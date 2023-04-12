@@ -61,7 +61,7 @@ impl ForeignConnector for ParachainClient {
 				// Bitmap
 				Value::from(message.bitmap.clone()),
 				// Payload
-				Value::from(message.payload.clone()),
+				Value::from_bytes(message.payload.encode()),
 				// Signature
 				Value::from_bytes(message.aggregate_signature.encode()),
 			],

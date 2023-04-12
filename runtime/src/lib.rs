@@ -1355,8 +1355,11 @@ impl asset_handler::pallet::Config for Runtime {
 }
 
 impl thea::pallet::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type TheaId = thea_primitives::AuthorityId;
+	type Signature = thea_primitives::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
+	type Executor = ();
 }
 
 //Install Swap pallet

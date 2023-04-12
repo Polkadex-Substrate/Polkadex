@@ -1,6 +1,7 @@
 use crate::{Config, Pallet};
 use frame_support::{log, traits::OneSessionHandler};
 use sp_core::{bounded::BoundedVec, Get};
+use sp_std::vec::Vec;
 
 impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
 	type Public = T::TheaId;

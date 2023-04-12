@@ -4577,7 +4577,6 @@ name = "node-polkadex-runtime"
 version = "4.0.0"
 dependencies = [
  "asset-handler",
- "bls-primitives",
  "chainbridge",
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -4611,7 +4610,6 @@ dependencies = [
  "pallet-indices",
  "pallet-membership",
  "pallet-multisig",
- "pallet-nomination-pools",
  "pallet-ocex-lmp",
  "pallet-offences",
  "pallet-preimage",
@@ -4652,6 +4650,7 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "thea",
+ "thea-primitives",
 ]
 
 [[package]]
@@ -5381,23 +5380,6 @@ dependencies = [
  "scale-info",
  "sp-io 7.0.0",
  "sp-runtime 7.0.0",
- "sp-std 5.0.0",
-]
-
-[[package]]
-name = "pallet-nomination-pools"
-version = "1.0.0"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.37#f38bd6671d460293c93062cc1e4fe9e9e490cb29"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core 7.0.0",
- "sp-io 7.0.0",
- "sp-runtime 7.0.0",
- "sp-staking",
  "sp-std 5.0.0",
 ]
 
@@ -10256,7 +10238,6 @@ dependencies = [
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
- "rust_decimal",
  "scale-info",
  "sp-application-crypto 7.0.0",
  "sp-core 7.0.0",
@@ -10346,9 +10327,10 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
- "scale-value",
  "sp-api",
  "sp-application-crypto 7.0.0",
+ "sp-runtime 7.0.0",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
