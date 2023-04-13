@@ -34,9 +34,9 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use thea_primitives::{
-	types::Message, AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
+	types::{return_set_bits, Message},
+	AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
 };
-use thea_primitives::types::return_set_bits;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -167,8 +167,7 @@ pub mod pallet {
 
 			if !payload.is_key_change {
 				// Normal Thea message
-				if let Err(_) =
-					T::Executor::execute_deposits(payload.network, payload.data.clone())
+				if let Err(_) = T::Executor::execute_deposits(payload.network, payload.data.clone())
 				{
 					return Err(Error::<T>::ErrorExecutingMessage.into())
 				}
