@@ -169,10 +169,22 @@ where
 	}
 
 	pub async fn check_message(&self, message: &GossipMessage) -> Result<bool, Error> {
-		// Check network
-		// based on network, use the connector or runtime_api() to index into OutgoingMessages
-		// storage Check if both messages are equal
-		todo!()
+		// Based on network use the corresponding api to check if the message if valid or not.
+		if message.payload.network == NATIVE_NETWORK {
+			self.foreign_chain.check_message(&message.payload).await
+		} else {
+			let result = self
+				.runtime
+				.runtime_api()
+				.outgoing_messages(
+					&self.last_finalized_blk,
+					message.payload.block_no.saturated_into(),
+					message.payload.network,
+				)?
+				.ok_or(Error::ErrorReadingTheaMessage)?;
+
+			Ok(result == message.payload)
+		}
 	}
 
 	pub async fn process_gossip_message(

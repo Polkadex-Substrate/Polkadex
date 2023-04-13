@@ -45,6 +45,8 @@ where
 	}
 
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
+		// verify the message with our message cache and foreign chain connector
+		//
 		todo!()
 	}
 

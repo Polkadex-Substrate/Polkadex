@@ -69,4 +69,31 @@ impl ForeignConnector for ParachainClient {
 
 		self.api.tx().create_unsigned(&call).unwrap().submit().await.unwrap();
 	}
+
+	async fn check_message(&self, message: &Message) -> Result<bool, Error> {
+		// Read thea messages from foreign chain
+		let storage_address = subxt::dynamic::storage(
+			PALLET_NAME,
+			"OutgoingMessages",
+			vec![
+				// Something that encodes to an AccountId32 is what we need for the map key here:
+				Value::from_bytes(message.nonce.encode()),
+			],
+		);
+		// TODO: Get last finalized block hash
+		let encoded_bytes = self
+			.api
+			.storage()
+			.at(None)
+			.await?
+			.fetch_or_default(&storage_address)
+			.await?
+			.into_encoded();
+
+		let message_option: Option<Message> =
+			parity_scale_codec::Decode::decode(&mut &encoded_bytes[..])?;
+		let message_from_chain = message_option.ok_or(Error::ErrorReadingTheaMessage)?;
+
+		Ok(message_from_chain == message.clone())
+	}
 }
