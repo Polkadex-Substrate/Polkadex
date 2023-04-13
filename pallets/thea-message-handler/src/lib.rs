@@ -36,6 +36,7 @@ pub use pallet::*;
 use thea_primitives::{
 	types::Message, AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
 };
+use thea_primitives::types::return_set_bits;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -54,14 +55,16 @@ pub mod pallet {
 			+ Parameter
 			+ RuntimeAppPublic
 			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ Into<bls_primitives::Public>;
 
 		/// Authority Signature
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
 			+ Member
 			+ Parameter
 			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ Into<bls_primitives::Signature>;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -202,10 +205,32 @@ impl<T: Config> Pallet<T> {
 		payload: &Message,
 		signature: &T::Signature,
 	) -> TransactionValidity {
-		// TODO: Implement aggregate signature verification using bls_primitives library.
-		// Check message nonce is in order
-		// Take the validator set in correct order
-		// Verify aggregate signature with bitmap
+		// Check if this message can be processed next by checking its nonce
+		let nonce = <IncomingNonce<T>>::get();
+		if payload.nonce != nonce.saturating_add(1) {
+			return Err(InvalidTransaction::Custom(1).into())
+		}
+
+		// Find who all signed this payload
+		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
+
+		// Create a vector of public keys of everyone who signed
+		let auths = <Authorities<T>>::get(payload.validator_set_id);
+		let mut signatories: Vec<bls_primitives::Public> = vec![];
+		for index in signed_auths_indexes {
+			match auths.get(index) {
+				None => return Err(InvalidTransaction::Custom(2).into()),
+				Some(auth) => signatories.push((*auth).clone().into()),
+			}
+		}
+		// Verify the aggregate signature.
+		if !bls_primitives::crypto::bls_ext::verify_aggregate(
+			&signatories[..],
+			&payload.encode(),
+			&(*signature).clone().into(),
+		) {
+			return Err(InvalidTransaction::BadSigner.into())
+		}
 
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides([signature])

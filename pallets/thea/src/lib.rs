@@ -35,8 +35,8 @@ use sp_std::prelude::*;
 pub use pallet::*;
 use polkadex_primitives::BlockNumber;
 use thea_primitives::{
-	types::Message, AuthorityIndex, AuthoritySignature, Network, ValidatorSet,
-	GENESIS_AUTHORITY_SET_ID,
+	types::{return_set_bits, Message},
+	AuthorityIndex, AuthoritySignature, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
 
 mod session;
@@ -58,10 +58,14 @@ pub mod pallet {
 			+ Parameter
 			+ RuntimeAppPublic
 			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ Into<bls_primitives::Public>;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
+			+ Member
+			+ Parameter
+			+ Into<bls_primitives::Signature>;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -228,7 +232,32 @@ impl<T: Config> Pallet<T> {
 		payload: &Message,
 		signature: &T::Signature,
 	) -> TransactionValidity {
-		// TODO: Implement aggregate signature verification using bls_primitives library.
+		// Check if this message can be processed next by checking its nonce
+		let nonce = <LastProcessedNonce<T>>::get(payload.network);
+		if payload.nonce != nonce.saturating_add(1) {
+			return Err(InvalidTransaction::Custom(1).into())
+		}
+
+		// Find who all signed this payload
+		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
+
+		// Create a vector of public keys of everyone who signed
+		let auths = <Authorities<T>>::get(payload.network);
+		let mut signatories: Vec<bls_primitives::Public> = vec![];
+		for index in signed_auths_indexes {
+			match auths.get(index) {
+				None => return Err(InvalidTransaction::Custom(2).into()),
+				Some(auth) => signatories.push((*auth).clone().into()),
+			}
+		}
+		// Verify the aggregate signature.
+		if !bls_primitives::crypto::bls_ext::verify_aggregate(
+			&signatories[..],
+			&payload.encode(),
+			&(*signature).clone().into(),
+		) {
+			return Err(InvalidTransaction::BadSigner.into())
+		}
 
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides([signature])
@@ -248,6 +277,10 @@ impl<T: Config> Pallet<T> {
 		new: BoundedVec<T::TheaId, T::MaxAuthorities>,
 		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,
 	) {
+		if new == queued {
+			// Don't do anything if there is not change in new and queued validators
+			return
+		}
 		let group_by = |list: &BoundedVec<T::TheaId, T::MaxAuthorities>| -> sp_std::collections::btree_map::BTreeMap<
 			Network,
 			BoundedVec<T::TheaId, T::MaxAuthorities>,
@@ -279,7 +312,26 @@ impl<T: Config> Pallet<T> {
 		<ValidatorSetId<T>>::put(new_id);
 
 		for (network, list) in &group_by(&queued) {
+			// Store the queued authorities
 			<NextAuthorities<T>>::insert(network, list);
+			// Generate the Thea payload to communicate with foreign chains
+			let nonce = <OutgoingNonce<T>>::get(network);
+			let payload = Message {
+				block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
+				nonce: nonce.saturating_add(1),
+				data: list.encode(),
+				network: *network,
+				is_key_change: true,
+				validator_set_id: new_id,
+				validator_set_len: Self::authorities(network).len().saturated_into(),
+			};
+			// Update nonce
+			<OutgoingNonce<T>>::insert(network, payload.nonce);
+			<OutgoingMessages<T>>::insert(
+				payload.block_no.saturated_into::<T::BlockNumber>(),
+				payload.network,
+				payload,
+			);
 		}
 	}
 
