@@ -123,10 +123,10 @@ where
 pub async fn start_thea_gadget<B, BE, C, N, R>(ob_params: TheaParams<B, BE, C, N, R>)
 where
 	B: Block,
-	BE: Backend<B>,
-	C: Client<B, BE>,
-	R: ProvideRuntimeApi<B>,
-	R::Api: TheaApi<B>,
+	BE: Backend<B> + 'static,
+	C: Client<B, BE> + 'static,
+	R: ProvideRuntimeApi<B> + Send + Sync + 'static,
+	R::Api: TheaApi<B> + Sync + Send + 'static,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
 {
 	let TheaParams {
@@ -170,10 +170,5 @@ where
 	// TODO: Remove unwrap()
 	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params).await.unwrap();
 
-	// assert_send_sync(worker.run()).await TODO: IVan, please fix this, make run() Send + Sync.,
-	// use can use the assert_send_sync fn for testing
-}
-
-async fn assert_send_sync(task: impl Future<Output = ()> + Send + Sync) {
-	task.await;
+	worker.run().await
 }

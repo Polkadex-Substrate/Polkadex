@@ -425,6 +425,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait-with-sync"
+version = "0.1.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3384e2b7d27f0c02fd4d3b94f8bb42564b2f860f149c83341edc512ce1ea4ee"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "asynchronous-codec"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10256,7 +10267,7 @@ dependencies = [
 name = "thea-client"
 version = "0.1.0"
 dependencies = [
- "async-trait",
+ "async-trait-with-sync",
  "bls-primitives",
  "chrono",
  "futures 0.3.28",

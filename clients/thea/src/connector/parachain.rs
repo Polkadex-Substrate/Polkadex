@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use async_trait::async_trait;
+use async_trait_with_sync::async_trait;
 use parity_scale_codec::Encode;
 use serde::Deserializer;
 use sp_arithmetic::traits::SaturatedConversion;
@@ -67,7 +67,16 @@ impl ForeignConnector for ParachainClient {
 			],
 		);
 
-		self.api.tx().create_unsigned(&call).unwrap().submit().await.unwrap();
+		self.api
+			.tx()
+			.create_unsigned(&call)
+			.unwrap()
+			.submit_and_watch()
+			.await
+			.unwrap()
+			.wait_for_in_block()
+			.await
+			.unwrap();
 	}
 
 	async fn check_message(&self, message: &Message) -> Result<bool, Error> {
