@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use async_trait_with_sync::async_trait;
+use async_trait::async_trait;
 use parity_scale_codec::Encode;
 use serde::Deserializer;
 use sp_arithmetic::traits::SaturatedConversion;

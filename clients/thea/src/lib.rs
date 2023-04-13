@@ -95,8 +95,8 @@ pub struct TheaParams<B, BE, C, N, R>
 where
 	B: Block,
 	BE: Backend<B>,
-	R: ProvideRuntimeApi<B> ,
 	C: Client<B, BE>,
+	R: ProvideRuntimeApi<B>,
 	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
@@ -123,10 +123,10 @@ where
 pub async fn start_thea_gadget<B, BE, C, N, R>(ob_params: TheaParams<B, BE, C, N, R>)
 where
 	B: Block,
-	BE: Backend<B> + 'static,
-	C: Client<B, BE> + 'static,
-	R: ProvideRuntimeApi<B> ,
-	R::Api: TheaApi<B> ,
+	BE: Backend<B>,
+	C: Client<B, BE>,
+	R: ProvideRuntimeApi<B>,
+	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
 {
 	let TheaParams {
@@ -168,7 +168,7 @@ where
 		_marker: Default::default(),
 	};
 	// TODO: Remove unwrap()
-	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params).await.unwrap();
+	let mut worker = ObWorker::<_, _, _, _, _, _>::new(worker_params).await.unwrap();
 
-	worker.run().await
+	futures::executor::block_on(worker.run())
 }
