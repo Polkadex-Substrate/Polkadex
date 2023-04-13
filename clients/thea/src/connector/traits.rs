@@ -15,4 +15,6 @@ pub trait ForeignConnector: Send + Sync {
 	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error>;
 	/// Sends transaction to blockchain, if failed, retry every second until its successful
 	async fn send_transaction(&self, message: GossipMessage);
+	/// Checks if the given message is valid or not based on our local node
+	async fn check_message(&self, message: &Message) -> Result<bool, Error>;
 }
