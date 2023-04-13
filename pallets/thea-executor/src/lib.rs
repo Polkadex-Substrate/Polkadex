@@ -16,7 +16,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::AccountIdConversion;
-	use sp_std::collections::btree_set::BTreeSet;
+	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 	use thea_primitives::{
 		parachain::{
 			ApprovedWithdraw, AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw,
@@ -27,7 +27,6 @@ pub mod pallet {
 		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation},
 		prelude::{Fungible, X1},
 	};
-	use sp_std::vec::Vec;
 
 	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
 	pub struct ApprovedDeposit<AccountId> {

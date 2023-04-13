@@ -7,12 +7,12 @@ use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
-use sp_application_crypto::ByteArray;
 pub use crate::{
 	crypto::{AuthorityId, AuthoritySignature},
 	types::Message,
 };
 use polkadex_primitives::BlockNumber;
+use sp_application_crypto::ByteArray;
 
 /// Orderbook cryptographic types
 ///
