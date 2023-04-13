@@ -95,7 +95,7 @@ pub struct TheaParams<B, BE, C, N, R>
 where
 	B: Block,
 	BE: Backend<B>,
-	R: ProvideRuntimeApi<B>,
+	R: ProvideRuntimeApi<B> ,
 	C: Client<B, BE>,
 	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
@@ -125,8 +125,8 @@ where
 	B: Block,
 	BE: Backend<B> + 'static,
 	C: Client<B, BE> + 'static,
-	R: ProvideRuntimeApi<B> + Send + Sync + 'static,
-	R::Api: TheaApi<B> + Sync + Send + 'static,
+	R: ProvideRuntimeApi<B> ,
+	R::Api: TheaApi<B> ,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
 {
 	let TheaParams {
