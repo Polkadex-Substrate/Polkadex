@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 
-// Copyright (C) 2020-2022 Polkadex oü.
+// Copyright (C) 2020-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -13,24 +13,20 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
-	OnFinalize, OnInitialize,
-};
-use frame_support::parameter_types;
+use crate::pallet as thea;
+use core::marker::PhantomData;
+use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::{
+	curve::PiecewiseLinear,
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-
-use crate::pallet as thea;
-
-use asset_handler::pallet::WithdrawalLimit;
-use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
-use sp_core::crypto::AccountId32;
-use sp_runtime::traits::AccountIdConversion;
+use std::collections::{BTreeMap, BTreeSet};
+use thea_primitives::thea_types::OnSessionChange;
+use thea_staking::SessionChanged;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -49,7 +45,7 @@ frame_support::construct_runtime!(
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
 		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
 		Thea: thea::{Pallet, Storage, Call, Event<T>},
-		TheaStaking: thea_staking::{Pallet, Storage, Call, Event<T>},
+		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -85,12 +81,8 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-pub const PDEX: Balance = 1_000_000_000_000;
-
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * PDEX;
 	pub const MaxLocks: u32 = 50;
-	pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Test {
@@ -165,10 +157,41 @@ impl asset_handler::pallet::Config for Test {
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type NativeCurrencyId = PolkadexAssetId;
 	type TreasuryPalletId = ChainbridgePalletId;
 	type ParachainNetworkId = ParachainNetworkId;
-	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
+	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
+}
+
+parameter_types! {
+	pub static ExistentialDeposit: Balance = 1;
+	pub const MaxReserves: u32 = 50;
+}
+
+pallet_staking_reward_curve::build! {
+	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+		min_inflation: 0_025_000,
+		max_inflation: 0_100_000,
+		// Before, we launch the products we want 50% of supply to be staked
+		ideal_stake: 0_500_000,
+		falloff: 0_050_000,
+		max_piece_count: 40,
+		test_precision: 0_005_000,
+	);
+}
+
+pub struct MockPallet(PhantomData<u32>);
+
+impl SessionChanged for MockPallet {
+	type Network = u8;
+	type OnSessionChange = OnSessionChange<u64>;
+	fn on_new_session(_map: BTreeMap<Self::Network, Self::OnSessionChange>) {
+		// Do nothing lol
+	}
+	fn set_new_networks(_networks: BTreeSet<Self::Network>) {
+		// Do nothing lol
+	}
 }
 
 parameter_types! {
@@ -185,7 +208,9 @@ impl thea::Config for Test {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
+	type Weights = crate::weights::WeightInfo<Test>;
 }
+
 //Install Staking Pallet
 parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
@@ -195,24 +220,13 @@ parameter_types! {
 	pub const CandidateBond: Balance = 1_000_000_000_000;
 	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
 	pub const StakingDataPruneDelay: u32 = 6;
+	pub const IdealActiveValidators: u32 = 3;
 	pub const ModerateSK: u8 = 5; // 5% of stake to slash
 	pub const SevereSK: u8 = 20; // 20% of stake to slash
 	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
-pallet_staking_reward_curve::build! {
-	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		// Before, we launch the products we want 50% of supply to be staked
-		ideal_stake: 0_500_000,
-		falloff: 0_050_000,
-		max_piece_count: 40,
-		test_precision: 0_005_000,
-	);
-}
-use sp_runtime::curve::PiecewiseLinear;
 
 impl thea_staking::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -231,9 +245,10 @@ impl thea_staking::Config for Test {
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
 }
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	t.into()
 }

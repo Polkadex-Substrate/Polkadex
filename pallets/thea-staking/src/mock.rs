@@ -108,6 +108,7 @@ parameter_types! {
 	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+		pub const IdealActiveValidators: u32 = 3;
 }
 
 impl thea_staking::Config for Test {
@@ -127,6 +128,7 @@ impl thea_staking::Config for Test {
 	type GovernanceOrigin = EnsureRoot<u64>;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
 }
 
 pub struct MockPallet(PhantomData<u32>);
@@ -167,10 +169,11 @@ impl asset_handler::pallet::Config for Test {
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type NativeCurrencyId = PolkadexAssetId;
 	type TreasuryPalletId = ChainbridgePalletId;
 	type ParachainNetworkId = ParachainNetworkId;
-	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
+	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
 }
 
 parameter_types! {
@@ -222,6 +225,8 @@ impl pallet_assets::Config for Test {
 	type Extra = ();
 	type CallbackHandle = ();
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 // Build genesis storage according to the mock runtime.

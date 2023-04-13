@@ -45,6 +45,8 @@ pub enum Error {
 	ProxyAlreadyRegistered,
 	#[error("Offchain storage not available")]
 	OffchainStorageNotAvailable,
+	#[error("Signature verification Failed")]
+	SignatureVerificationFailed,
 	#[error("Invalid trade found")]
 	InvalidTrade,
 	#[error("Unable to find trading pair config")]

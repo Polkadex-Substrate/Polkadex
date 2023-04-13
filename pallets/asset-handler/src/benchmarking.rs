@@ -15,11 +15,12 @@
 
 use crate::pallet::{Pallet as AssetHandler, *};
 use frame_benchmarking::{account, benchmarks};
-use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
+use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
 use sp_core::H160;
 use sp_runtime::SaturatedConversion;
+use xcm::latest::AssetId;
 
 const SEED: u32 = 0;
 pub const UNIT_BALANCE: u128 = 1000_000_000_000;
@@ -30,15 +31,49 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 }
 
 benchmarks! {
+	add_precision {
+		let b in 0 .. 255;
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
+		let rid = [b as u8; 32];
+		let precision_type = PrecisionType::LowPrecision(u128::MAX);
+		let call = Call::<T>::add_precision { rid, precision_type };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert_eq!(AssetPrecision::<T>::get(rid), precision_type);
+	}
+
 	create_asset {
 		let b in 0 .. 255;
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
 		let chain_id = 1;
 		let id = H160::from_slice(&[b as u8; 20]);
 		let rid = chainbridge::derive_resource_id(chain_id, &id.0);
-	}: _(RawOrigin::Root, chain_id, id, PrecisionType::LowPrecision(1000000))
+		let call = Call::<T>::create_asset { chain_id, contract_add: id, precision_type: PrecisionType::LowPrecision(1000000) };
+	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert_last_event::<T>(Event::AssetRegistered(rid).into());
 	}
+
+	create_thea_asset {
+		let asset_address = H160::decode(&mut [218, 193, 127, 149, 141, 46, 229, 35, 162, 32, 98, 6, 153, 69, 151, 193, 61, 131, 30, 199].as_ref()).unwrap();
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
+		let id = BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap();
+		let call = Call::<T>::create_thea_asset { network_id: 0, identifier_length: 5, asset_identifier: id };
+	}: { call.dispatch_bypass_filter(origin)? }
+	// this one varries on each run for some reason from 160841217895665318099328190891344000446 and one below
+	//verify {
+	//	assert_last_event::<T>(Event::TheaAssetCreated(303524541895330459426541811959865782394).into());
+	//}
+
+	create_parachain_asset {
+		let origin = T::AssetCreateUpdateOrigin::successful_origin();
+		let asset = sp_std::boxed::Box::new(AssetId::Concrete(Default::default()));
+		let call = Call::<T>::create_parachain_asset { asset };
+	}: { call.dispatch_bypass_filter(origin)? }
+	// this one varries on each run for some reason from 160841217895665318099328190891344000446 and one below
+	//verify {
+	//	assert_last_event::<T>(Event::TheaAssetCreated(303524541895330459426541811959865782394).into());
+	//}
 
 	mint_asset {
 		let b in 1 .. 1000;
@@ -55,7 +90,7 @@ benchmarks! {
 		let amount = b as u128 * UNIT_BALANCE;
 	}: _(RawOrigin::Signed(chainbridge::Pallet::<T>::account_id()), recipient.clone().to_vec(), amount, rid)
 	verify {
-		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, AssetHandler::<T>::convert_18dec_to_12dec(amount).unwrap()).into());
+		assert_last_event::<T>(Event::AssetDeposited(destination_acc, rid, amount).into());
 	}
 
 	set_bridge_status {

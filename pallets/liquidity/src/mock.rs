@@ -127,6 +127,7 @@ impl pallet_ocex_lmp::Config for Test {
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
+	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Test>;
 }
 
 //defined trait for Session Change
@@ -204,6 +205,7 @@ impl Config for Test {
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRoot<AccountId>;
 	type CallOcex = OCEX;
+	type WeightInfo = super::weights::WeightInfo<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

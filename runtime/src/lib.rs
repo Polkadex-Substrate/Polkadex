@@ -25,6 +25,7 @@
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
 	construct_runtime,
+	dispatch::DispatchClass,
 	pallet_prelude::ConstU32,
 	parameter_types,
 	traits::{
@@ -34,7 +35,7 @@ use frame_support::{
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
-		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient,
+		ConstantMultiplier, Weight,
 	},
 	PalletId, RuntimeDebug,
 };
@@ -62,7 +63,6 @@ use polkadex_primitives::AssetId;
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
-use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -89,11 +89,11 @@ use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
 use frame_support::weights::{
-	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee, WeightToFeeCoefficients,
-	WeightToFeePolynomial,
+	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee
 };
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_assets::BenchmarkHelper;
+
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -727,8 +727,8 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	// burn slashes
 	type RewardHandler = ();
 	type DataProvider = Staking;
-	type Fallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
-	type GovernanceFallback = onchain::BoundedExecution<OnChainSeqPhragmen>;
+	type Fallback = onchain::OnChainExecution<OnChainSeqPhragmen>;
+	type GovernanceFallback = onchain::OnChainExecution<OnChainSeqPhragmen>;
 	type Solver = SequentialPhragmen<
 		AccountId,
 		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
@@ -1155,12 +1155,12 @@ impl pallet_assets::Config for Runtime {
 	type CallbackHandle = ();
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = assetU128;
+	type BenchmarkHelper = AssetU128;
 }
 #[cfg(feature = "runtime-benchmarks")]
-pub struct assetU128;
+pub struct AssetU128;
 #[cfg(feature = "runtime-benchmarks")]
-impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for assetU128 {
+impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
 	fn create_asset_id_parameter(id: u32) -> parity_scale_codec::Compact<u128> {
 		parity_scale_codec::Compact::from(id as u128)
 	}
@@ -1289,6 +1289,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
 //Install rewards Pallet
@@ -1303,6 +1304,7 @@ impl pallet_rewards::Config for Runtime {
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type WeightInfo = pallet_rewards::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1317,6 +1319,7 @@ impl liquidity::Config for Runtime {
 	type Signature = Signature;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type CallOcex = OCEX;
+	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1347,10 +1350,11 @@ impl asset_handler::pallet::Config for Runtime {
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type NativeCurrencyId = PolkadexAssetId;
 	type TreasuryPalletId = TreasuryPalletId;
 	type ParachainNetworkId = ParachainNetworkId;
-	type PolkadexAssetId = PolkadexAssetId;
 	type PDEXHolderAccount = PDEXHolderAccount;
+	type WeightInfo = asset_handler::weights::WeightInfo<Runtime>;
 }
 
 impl thea::pallet::Config for Runtime {
@@ -1361,6 +1365,7 @@ impl thea::pallet::Config for Runtime {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type ExtrinsicSubmittedNotifier = TheaStaking;
+	type Weights = thea::weights::WeightInfo<Runtime>;
 }
 
 //Install Staking Pallet
@@ -1376,6 +1381,7 @@ parameter_types! {
 	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
 	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
 	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+	pub const IdealActiveValidators: u32 = 3;
 }
 
 impl thea_staking::Config for Runtime {
@@ -1395,6 +1401,7 @@ impl thea_staking::Config for Runtime {
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
 	type Currency = Balances;
+	type ActiveValidators = IdealActiveValidators;
 }
 
 //Install Nomination Pool
@@ -1402,6 +1409,44 @@ parameter_types! {
 	pub const PostUnbondPoolsWindow: u32 = 4;
 	pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
 	pub const MaxPointsToBalance: u8 = 10;
+}
+
+//Install Swap pallet
+parameter_types! {
+	pub const SwapPalletId: PalletId = PalletId(*b"sw/accnt");
+	pub DefaultLpFee: Permill = Permill::from_rational(30u32, 10000u32);
+	pub OneAccount: AccountId = AccountId::from([1u8; 32]);
+	pub DefaultProtocolFee: Permill = Permill::from_rational(0u32, 10000u32);
+	pub const MinimumLiquidity: u128 = 1_000u128;
+	pub const MaxLengthRoute: u8 = 10;
+}
+
+impl pallet_amm::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Assets = AssetHandler;
+	type PalletId = SwapPalletId;
+	type LockAccountId = OneAccount;
+	type CreatePoolOrigin = EnsureRootOrHalfCouncil;
+	type ProtocolFeeUpdateOrigin = EnsureRootOrHalfCouncil;
+	type LpFee = DefaultLpFee;
+	type MinimumLiquidity = MinimumLiquidity;
+	type MaxLengthRoute = MaxLengthRoute;
+	type GetNativeCurrencyId = PolkadexAssetId;
+	type WeightInfo = pallet_amm::weights::WeightInfo<Runtime>;
+}
+
+//Install Router pallet
+parameter_types! {
+	pub const RouterPalletId: PalletId = PalletId(*b"rw/accnt");
+}
+
+impl router::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type PalletId = RouterPalletId;
+	type AMM = Swap;
+	type MaxLengthRoute = MaxLengthRoute;
+	type GetNativeCurrencyId = PolkadexAssetId;
+	type Assets = AssetHandler;
 }
 
 use sp_runtime::traits::Convert;
@@ -1496,7 +1541,9 @@ construct_runtime!(
 		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
 		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 43,
-		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44,
+		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 45,
+		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 46,
 	}
 );
 /// Digest item type.
@@ -1622,6 +1669,10 @@ impl_runtime_apis! {
 			OCEX::read_trading_pair_configs()
 		}
 
+
+		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>{
+			OCEX::get_orderbook_operator_public_key()
+		}
 	}
 
 	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
@@ -1791,10 +1842,12 @@ impl_runtime_apis! {
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, thea_staking, TheaStaking);
+			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
+			list_benchmark!(list, extra, pallet_amm, Swap);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1826,10 +1879,12 @@ impl_runtime_apis! {
 
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, thea_staking, TheaStaking);
+			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
+			add_benchmark!(params, batches, pallet_amm, Swap);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

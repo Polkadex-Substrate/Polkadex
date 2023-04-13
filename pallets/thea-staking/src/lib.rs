@@ -155,6 +155,9 @@ pub mod pallet {
 
 		/// Native Currency handler
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+
+		/// Ideal number of active validators
+		type ActiveValidators: Get<u32>;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -548,6 +551,8 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		NotImplemented,
+		ChillNotAvailable,
 		/// Staking limits error
 		StakingLimitsError,
 		CandidateAlreadyRegistered,
@@ -1221,7 +1226,7 @@ pub mod pallet {
 		}
 	}
 
-	/// Staking Interface is required to Nomination Pools pallet to work
+	/// Staking Interface is required for Nomination Pools pallet to work
 	/// TODO: The staking interface is changed drastically in polkadot-v0.9.37, we need to
 	/// reimplement it.
 	impl<T: Config> StakingInterface for Pallet<T> {
@@ -1233,139 +1238,120 @@ pub mod pallet {
 		}
 
 		fn minimum_validator_bond() -> Self::Balance {
-			todo!()
+			T::CandidateBond::get()
 		}
 
-		// fn active_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
-		// 	if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
-		// 		return Some(individual_exposure.value)
-		// 	}
-		// 	None
-		// }
-
-		// fn total_stake(staker: &Self::AccountId) -> Option<Self::Balance> {
-		// 	if let Some(individual_exposure) = <Stakers<T>>::get(staker) {
-		// 		let mut total: BalanceOf<T> = individual_exposure.value;
-		// 		for chunk in individual_exposure.unlocking {
-		// 			total = total.saturating_add(chunk.value)
-		// 		}
-		// 		return Some(total)
-		// 	}
-		// 	None
-		// }
-
-		fn stash_by_ctrl(_controller: &Self::AccountId) -> Result<Self::AccountId, DispatchError> {
-			todo!()
+		// Note: Controller and Stash are same for thea staking
+		fn stash_by_ctrl(controller: &Self::AccountId) -> Result<Self::AccountId, DispatchError> {
+			Ok(controller.clone())
 		}
 
 		fn bonding_duration() -> EraIndex {
 			T::UnbondingDelay::get()
 		}
 
-		// fn unbond(stash: Self::AccountId, value: Self::Balance) -> DispatchResult {
-		// 	Pallet::<T>::do_unbond(stash, value)?;
-		// 	Ok(())
-		// }
-
-		// fn withdraw_unbonded(
-		// 	stash: Self::AccountId,
-		// 	_num_slashing_spans: u32,
-		// ) -> Result<bool, DispatchError> {
-		// 	// TODO: Figure out whether it is right to return false.
-		// 	Pallet::<T>::do_withdraw_unbonded(stash)?;
-		// 	Ok(false)
-		// }
-
 		fn current_era() -> EraIndex {
 			<CurrentIndex<T>>::get()
 		}
 
-		fn stake(_who: &Self::AccountId) -> Result<Stake<Self>, DispatchError> {
-			todo!()
+		fn stake(who: &Self::AccountId) -> Result<Stake<Self>, DispatchError> {
+			if let Some(individual_exposure) = <Stakers<T>>::get(who) {
+				let mut total: BalanceOf<T> = individual_exposure.value;
+				for chunk in individual_exposure.unlocking {
+					total = total.saturating_add(chunk.value)
+				}
+				return Ok(Stake { stash: who.clone(), total, active: individual_exposure.value })
+			}
+			Err(Error::<T>::CandidateNotFound.into())
 		}
 
-		fn total_stake(_who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
-			todo!()
+		fn total_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
+			if let Some(individual_exposure) = <Stakers<T>>::get(who) {
+				let mut total: BalanceOf<T> = individual_exposure.value;
+				for chunk in individual_exposure.unlocking {
+					total = total.saturating_add(chunk.value)
+				}
+				return Ok(total)
+			}
+			Err(Error::<T>::CandidateNotFound.into())
 		}
 
-		fn active_stake(_who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
-			todo!()
+		fn active_stake(who: &Self::AccountId) -> Result<Self::Balance, DispatchError> {
+			if let Some(individual_exposure) = <Stakers<T>>::get(who) {
+				let total: BalanceOf<T> = individual_exposure.value;
+				return Ok(total)
+			}
+			Err(Error::<T>::CandidateNotFound.into())
 		}
 
 		fn is_unbonding(_who: &Self::AccountId) -> Result<bool, DispatchError> {
-			todo!()
+			unimplemented!()
 		}
 
 		fn fully_unbond(_who: &Self::AccountId) -> sp_runtime::DispatchResult {
-			todo!()
+			unimplemented!()
 		}
 
 		fn bond(
-			_who: &Self::AccountId,
-			_value: Self::Balance,
-			_payee: &Self::AccountId,
+			who: &Self::AccountId,
+			value: Self::Balance,
+			payee: &Self::AccountId,
 		) -> sp_runtime::DispatchResult {
-			todo!()
-		}
-
-		fn nominate(
-			_who: &Self::AccountId,
-			_validators: Vec<Self::AccountId>,
-		) -> sp_runtime::DispatchResult {
-			todo!()
+			Self::do_bond(who.clone(), value)?;
+			Self::do_nominate(who.clone(), payee.clone())?;
+			Ok(())
 		}
 
 		/// NOTE: Thea staking doesnt have the concept of controller-stash pair.
 		/// So controller and stash should be same.
-		// fn nominate(
-		// 	controller: Self::AccountId,
-		// 	validators: Vec<Self::AccountId>,
-		// ) -> DispatchResult {
-		// 	ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
-		// 	Pallet::<T>::do_nominate(controller, validators[0].clone())?;
-		// 	Ok(())
-		// }
-
-		fn chill(_controller: &Self::AccountId) -> DispatchResult {
-			// There is no concept of chill in Thea Staking.
+		fn nominate(
+			who: &Self::AccountId,
+			validators: Vec<Self::AccountId>,
+		) -> sp_runtime::DispatchResult {
+			ensure!(validators.len() == 1, Error::<T>::OnlyOneRelayerCanBeNominated);
+			Pallet::<T>::do_nominate(who.clone(), validators[0].clone())?;
 			Ok(())
 		}
 
-		fn bond_extra(_stash: &Self::AccountId, _extra: Self::Balance) -> DispatchResult {
-			todo!()
+		fn chill(_controller: &Self::AccountId) -> DispatchResult {
+			// There is no concept of chill in Thea Staking.
+			Err(Error::<T>::ChillNotAvailable.into())
 		}
 
-		fn unbond(_stash: &Self::AccountId, _value: Self::Balance) -> sp_runtime::DispatchResult {
-			todo!()
+		fn bond_extra(stash: &Self::AccountId, extra: Self::Balance) -> DispatchResult {
+			Self::do_bond(stash.clone(), extra)
+		}
+
+		fn unbond(stash: &Self::AccountId, value: Self::Balance) -> sp_runtime::DispatchResult {
+			Pallet::<T>::do_unbond(stash.clone(), value)?;
+			Ok(())
 		}
 
 		fn withdraw_unbonded(
-			_stash: Self::AccountId,
+			stash: Self::AccountId,
 			_num_slashing_spans: u32,
 		) -> Result<bool, DispatchError> {
-			todo!()
+			// TODO: Figure out whether it is right to return false.
+			Pallet::<T>::do_withdraw_unbonded(stash)?;
+			Ok(false)
 		}
 
 		fn desired_validator_count() -> u32 {
-			todo!()
+			T::ActiveValidators::get()
 		}
 
 		fn election_ongoing() -> bool {
-			todo!()
+			// Since election is happening on session change's handler, it will not span across
+			// multiple blocks so it is safe to return false here.
+			false
 		}
 
 		fn force_unstake(_who: Self::AccountId) -> sp_runtime::DispatchResult {
-			todo!()
+			Err(Error::<T>::NotImplemented.into())
 		}
 
 		fn is_exposed_in_era(_who: &Self::AccountId, _era: &EraIndex) -> bool {
-			todo!()
+			unimplemented!()
 		}
-
-		// fn bond(who: &Self::AccountId, value: Self::Balance, payee: &Self::AccountId) ->
-		// sp_runtime::DispatchResult { 	ensure!(who == payee,
-		// Error::<T>::StashAndControllerMustBeSame); 	Pallet::<T>::do_bond(payee, value)?;
-		// 	Ok(())
-		// }
 	}
 }

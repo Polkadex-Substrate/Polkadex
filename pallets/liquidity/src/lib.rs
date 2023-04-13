@@ -17,8 +17,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
-use frame_support::{dispatch::DispatchResult, traits::Currency};
-use pallet_timestamp::{self as timestamp};
+use frame_support::{dispatch::DispatchResult, pallet_prelude::Weight, traits::Currency};
+use pallet_timestamp as timestamp;
 use sp_std::prelude::*;
 
 #[cfg(test)]
@@ -29,6 +29,8 @@ mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+
+pub mod weights;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -59,6 +61,12 @@ pub trait LiquidityModifier {
 	fn set_exchange_state_to_true() -> DispatchResult;
 	#[cfg(feature = "runtime-benchmarks")]
 	fn allowlist_and_create_token(account: Self::AccountId, token: u128) -> DispatchResult;
+}
+
+pub trait WeightInfo {
+	fn register_account(_a: u32) -> Weight;
+	fn deposit_to_orderbook(_a: u32, _i: u32, _z: u32) -> Weight;
+	fn withdraw_from_orderbook(_a: u32, _i: u32, _z: u32) -> Weight;
 }
 
 #[frame_support::pallet]
@@ -116,6 +124,9 @@ pub mod pallet {
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		type CallOcex: LiquidityModifier<AssetId = AssetId, AccountId = Self::AccountId>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and

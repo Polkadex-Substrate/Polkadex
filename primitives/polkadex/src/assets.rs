@@ -124,9 +124,8 @@ impl TryFrom<String> for AssetId {
 
 		match value.parse::<u128>() {
 			Ok(id) => Ok(AssetId::Asset(id)),
-			Err(_) => Err(anyhow::Error::msg::<String>(format!(
-				"Could not parse 'AssetId' from {value}"
-			))),
+			Err(_) =>
+				Err(anyhow::Error::msg::<String>(format!("Could not parse 'AssetId' from {value}"))),
 		}
 	}
 }

@@ -110,6 +110,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	latest_stid: u64,
 	// Map of trading pair configs
 	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
+	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -174,6 +175,7 @@ where
 			last_block_snapshot_generated,
 			latest_stid: 0,
 			trading_pair_configs: Default::default(),
+			orderbook_operator_public_key: None,
 		}
 	}
 
@@ -207,19 +209,19 @@ where
 		false
 	}
 
-    /**
+	/**
 
-    Processes a withdrawal request by deducting the requested amount from the corresponding account balance,
-    and enqueuing the withdrawal for further processing. Generates a snapshot if the maximum pending withdrawals threshold
-    has been reached.
+	Processes a withdrawal request by deducting the requested amount from the corresponding account balance,
+	and enqueuing the withdrawal for further processing. Generates a snapshot if the maximum pending withdrawals threshold
+	has been reached.
 
-    # Parameters
-    withdraw - The WithdrawalRequest object to process.
-    stid - The unique identifier for the snapshot.
+	# Parameters
+	withdraw - The WithdrawalRequest object to process.
+	stid - The unique identifier for the snapshot.
 
-    # Returns
-    A Result object that resolves to () on success, or an Error on failure.
-     */
+	# Returns
+	A Result object that resolves to () on success, or an Error on failure.
+	 */
 	pub fn process_withdraw(
 		&mut self,
 		withdraw: WithdrawalRequest,
@@ -260,16 +262,16 @@ where
 		Ok(())
 	}
 
-    /**
+	/**
 
-    Handles a block import by executing various register, deposit, proxy, and snapshot messages,
-    and updating the corresponding balances and account information in the trie.
+	Handles a block import by executing various register, deposit, proxy, and snapshot messages,
+	and updating the corresponding balances and account information in the trie.
 
-    # Parameters
-    num - The block number to import.
-    # Returns
-    A Result object that resolves to () on success, or an Error on failure.
-     */
+	# Parameters
+	num - The block number to import.
+	# Returns
+	A Result object that resolves to () on success, or an Error on failure.
+	 */
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
@@ -323,13 +325,13 @@ where
 
 	/**
 
-    Retrieves the BLS public key for the first available validator in the active set.
+	Retrieves the BLS public key for the first available validator in the active set.
 
-    # Parameters
-    active_set - The list of active validators.
-    # Returns
-    A Result object that resolves to a Public key on success, or an Error on failure.
-     */
+	# Parameters
+	active_set - The list of active validators.
+	# Returns
+	A Result object that resolves to a Public key on success, or an Error on failure.
+	 */
 	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
 		let available_bls_keys: Vec<Public> = bls_primitives::crypto::bls_ext::all();
 		info!(target:"orderbook","📒 Avaialble BLS keys: {:?}",available_bls_keys);
@@ -353,13 +355,13 @@ where
 
 	/**
 
-    Generates a snapshot of the current state of the orderbook and sends it to the runtime for finalization.
+	Generates a snapshot of the current state of the orderbook and sends it to the runtime for finalization.
 
-    # Parameters
-    stid - The identifier for the snapshot to be generated.
-    # Returns
-    A Result object that resolves to () on success, or an Error on failure.
-     */
+	# Parameters
+	stid - The identifier for the snapshot to be generated.
+	# Returns
+	A Result object that resolves to () on success, or an Error on failure.
+	 */
 	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
 		let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
 		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
@@ -408,13 +410,13 @@ where
 
 	/**
 
-    Processes an incoming message by taking the appropriate action depending on its type.
+	Processes an incoming message by taking the appropriate action depending on its type.
 
-    # Parameters
-    action - The message to be processed.
-    # Returns
-    A Result object that resolves to () on success, or an Error on failure.
-     */
+	# Parameters
+	action - The message to be processed.
+	# Returns
+	A Result object that resolves to () on success, or an Error on failure.
+	 */
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
@@ -492,14 +494,14 @@ where
 
 	/**
 
-    Loads the state from the given data and snapshot summary.
+	Loads the state from the given data and snapshot summary.
 
-    # Parameters
-    data - The data to load the state from.
-    summary - The snapshot summary containing the state change ID and other information.
-    # Returns
-    A Result object that resolves to () on success, or an Error on failure.
-     */
+	# Parameters
+	data - The data to load the state from.
+	summary - The snapshot summary containing the state change ID and other information.
+	# Returns
+	A Result object that resolves to () on success, or an Error on failure.
+	 */
 	pub fn load_state_from_data(
 		&mut self,
 		data: &[u8],
@@ -521,15 +523,23 @@ where
 
 	/**
 
-    This function processes a new user action and caches the message for synchronization.
+	This function processes a new user action and caches the message for synchronization.
 
-    # Parameters
-    self - mutable reference to the current object.
-    action - a reference to the ObMessage received.
-    # Returns
-    Result<(), Error> - A result indicating success or an error if one occurred.
-     */
+	# Parameters
+	self - mutable reference to the current object.
+	action - a reference to the ObMessage received.
+	# Returns
+	Result<(), Error> - A result indicating success or an error if one occurred.
+	 */
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
+		if let Some(expected_singer) = self.orderbook_operator_public_key {
+			if !action.verify(&expected_singer) {
+				return Err(Error::SignatureVerificationFailed)
+			}
+		} else {
+			warn!(target: "orderbook", "📒 Orderbook operator public key not set");
+			return Err(Error::SignatureVerificationFailed)
+		}
 		info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
 		// Cache the message
 		self.known_messages.insert(action.stid, action.clone());
@@ -551,16 +561,16 @@ where
 
 	/**
 
-    This function stores a snapshot of the current state of the order book.
+	This function stores a snapshot of the current state of the order book.
 
-    # Parameters
-    self - mutable reference to the current object.
-    state_change_id - the state change ID associated with the snapshot.
-    snapshot_id - the ID of the snapshot.
+	# Parameters
+	self - mutable reference to the current object.
+	state_change_id - the state change ID associated with the snapshot.
+	snapshot_id - the ID of the snapshot.
 
-    # Returns
-    Result<SnapshotSummary, Error> - A result containing a SnapshotSummary indicating success or an error if one occurred.
-     */
+	# Returns
+	Result<SnapshotSummary, Error> - A result containing a SnapshotSummary indicating success or an error if one occurred.
+	 */
 	pub fn store_snapshot(
 		&mut self,
 		state_change_id: u64,
@@ -615,15 +625,15 @@ where
 
 	/**
 
-    This function loads a snapshot of the order book state.
+	This function loads a snapshot of the order book state.
 
-    # Parameters
-    self - mutable reference to the current object.
-    summary - a reference to the SnapshotSummary to load.
+	# Parameters
+	self - mutable reference to the current object.
+	summary - a reference to the SnapshotSummary to load.
 
-    # Returns
-    A result indicating success or an error if one occurred.
-     */
+	# Returns
+	A result indicating success or an error if one occurred.
+	 */
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
 		if summary.snapshot_id == 0 {
 			// Nothing to do if we are on state_id 0
@@ -650,13 +660,13 @@ where
 
 	/**
 
-    This function checks and fills the gap in state change IDs in the order book.
+	This function checks and fills the gap in state change IDs in the order book.
 
-    # Parameters
-    self - mutable reference to the current object.
-    # Returns
-    Result<(), Error> - A result indicating success or an error if one occurred.
-     */
+	# Parameters
+	self - mutable reference to the current object.
+	# Returns
+	Result<(), Error> - A result indicating success or an error if one occurred.
+	 */
 	pub async fn check_stid_gap_fill(&mut self) -> Result<(), Error> {
 		let mut last_snapshot = self.last_snapshot.read().state_change_id.saturating_add(1);
 
@@ -687,14 +697,14 @@ where
 
 	/**
 
-    This function sends STID messages to a given peer.
+	This function sends STID messages to a given peer.
 
-    # Parameters
-    self - mutable reference to the current object.
-    from - a reference to the starting STID to send.
-    to - a reference to the ending STID to send.
-    peer - an optional PeerId to send the messages to.
-     */
+	# Parameters
+	self - mutable reference to the current object.
+	from - a reference to the starting STID to send.
+	to - a reference to the ending STID to send.
+	peer - an optional PeerId to send the messages to.
+	 */
 	pub fn want_stid(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
 		if let Some(peer) = peer {
 			let mut messages = vec![];
@@ -702,7 +712,7 @@ where
 				// We dont allow gossip messsages to be greater than 10MB
 				if messages.encoded_size() >= 10 * 1024 * 1024 {
 					// If we reach size limit, we send data in chunks of 10MB.
-					let message = GossipMessage::Stid(messages);
+					let message = GossipMessage::Stid(Box::new(messages));
 					self.gossip_engine.send_message(vec![peer], message.encode());
 					metric_inc!(self, ob_messages_sent);
 					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -714,7 +724,7 @@ where
 			}
 			// Send the final chunk if any
 			if !messages.is_empty() {
-				let message = GossipMessage::Stid(messages);
+				let message = GossipMessage::Stid(Box::new(messages));
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -724,14 +734,14 @@ where
 
 	/**
 
-    This function processes STID messages received via gossip and caches them.
+	 This function processes STID messages received via gossip and caches them.
 
-    # Parameters
-    self - mutable reference to the current object.
-    messages - a reference to a vector of ObMessage to process.
-    # Returns
-   Result<(), Error> - A result indicating success or an error if one occurred.
-    */
+	 # Parameters
+	 self - mutable reference to the current object.
+	 messages - a reference to a vector of ObMessage to process.
+	 # Returns
+	Result<(), Error> - A result indicating success or an error if one occurred.
+	 */
 	pub async fn got_stids_via_gossip(&mut self, messages: &Vec<ObMessage>) -> Result<(), Error> {
 		for message in messages {
 			// TODO: handle reputation change.
@@ -742,14 +752,14 @@ where
 
 	/**
 
-    This function responds to a want request by sending have messages containing chunks that are available.
+	This function responds to a want request by sending have messages containing chunks that are available.
 
-    # Parameters
-    self - mutable reference to the current object.
-    snapshot_id - a reference to the ID of the snapshot.
-    bitmap - a reference to a bitmap of the required chunks.
-    remote - an optional PeerId to respond to.
-     */
+	# Parameters
+	self - mutable reference to the current object.
+	snapshot_id - a reference to the ID of the snapshot.
+	bitmap - a reference to a bitmap of the required chunks.
+	remote - an optional PeerId to respond to.
+	 */
 	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		// Only respond if we are a fullnode
 		// TODO: Should we respond if we are also syncing???
@@ -792,14 +802,14 @@ where
 
 	/**
 
-    This function responds to a have message by sending a request_chunk message containing the chunks that are needed.
+	This function responds to a have message by sending a request_chunk message containing the chunks that are needed.
 
-    # Parameters
-    self - mutable reference to the current object.
-    snapshot_id - a reference to the ID of the snapshot.
-    bitmap - a reference to a bitmap of the available chunks.
-    remote - an optional PeerId to respond to.
-     */
+	# Parameters
+	self - mutable reference to the current object.
+	snapshot_id - a reference to the ID of the snapshot.
+	bitmap - a reference to a bitmap of the available chunks.
+	remote - an optional PeerId to respond to.
+	 */
 	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		if let Some(peer) = remote {
 			// Note: Set bits here are available for syncing
@@ -825,14 +835,14 @@ where
 
 	/**
 
-    This function responds to a request_chunk message by sending the requested chunk.
+	This function responds to a request_chunk message by sending the requested chunk.
 
-    # Parameters
-    self - mutable reference to the current object.
-    snapshot_id - a reference to the ID of the snapshot.
-    bitmap - a reference to a bitmap of the available chunks.
-    remote - an optional PeerId to respond to.
-     */
+	# Parameters
+	self - mutable reference to the current object.
+	snapshot_id - a reference to the ID of the snapshot.
+	bitmap - a reference to a bitmap of the available chunks.
+	remote - an optional PeerId to respond to.
+	 */
 	pub async fn request_chunk(
 		&mut self,
 		snapshot_id: &u64,
@@ -870,14 +880,14 @@ where
 
 	/**
 
-    This function processes a chunk of data received via gossip and stores it in off-chain storage. It also updates the sync status map accordingly.
+	This function processes a chunk of data received via gossip and stores it in off-chain storage. It also updates the sync status map accordingly.
 
-    # Parameters
-    self - mutable reference to the current object.
-    snapshot_id - a reference to the ID of the snapshot.
-    index - a reference to the index of the chunk being processed.
-    data - a reference to the chunk of data to process.
-    */
+	# Parameters
+	self - mutable reference to the current object.
+	snapshot_id - a reference to the ID of the snapshot.
+	index - a reference to the index of the chunk being processed.
+	data - a reference to the chunk of data to process.
+	*/
 	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &[u8]) {
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
 			let at = BlockId::Number(self.last_finalized_block.saturated_into());
@@ -917,15 +927,15 @@ where
 
 	/**
 
-    This function processes a gossip message by calling the appropriate sub-function based on the message type.
+	This function processes a gossip message by calling the appropriate sub-function based on the message type.
 
-    # Parameters
-    self - mutable reference to the current object.
-    message - a reference to the message to process.
-    remote - an optional PeerId to respond to.
-    # Returns
-    Result indicating success or an error if encountered.
-    */
+	# Parameters
+	self - mutable reference to the current object.
+	message - a reference to the message to process.
+	remote - an optional PeerId to respond to.
+	# Returns
+	Result indicating success or an error if encountered.
+	*/
 	pub async fn process_gossip_message(
 		&mut self,
 		message: &GossipMessage,
@@ -947,12 +957,12 @@ where
 	}
 
 	/**
-    Updates the storage with the genesis data. It gets all accounts and proxies for the last finalized block,
-    and registers them in the trie. The trie is then committed.
+	Updates the storage with the genesis data. It gets all accounts and proxies for the last finalized block,
+	and registers them in the trie. The trie is then committed.
 
-    # Returns
-    Result<(), Error> - Returns an Ok(()) if successful or an Err(Error) if there was an error.
-     */
+	# Returns
+	Result<(), Error> - Returns an Ok(()) if successful or an Err(Error) if there was an error.
+	 */
 	pub fn update_storage_with_genesis_data(&mut self) -> Result<(), Error> {
 		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
 			self.last_finalized_block.saturated_into(),
@@ -1004,6 +1014,12 @@ where
 
 			// Update the latest snapshot summary.
 			*self.last_snapshot.write() = latest_summary;
+			if let Some(orderbook_operator_public_key) =
+				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
+					self.last_finalized_block.saturated_into(),
+				))? {
+				self.orderbook_operator_public_key = Some(orderbook_operator_public_key);
+			}
 		}
 		// if we are syncing the check progress
 		if self.state_is_syncing {
@@ -1122,7 +1138,7 @@ where
 		Ok(())
 	}
 
-    /// Wait for Orderbook runtime pallet to be available.
+	/// Wait for Orderbook runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		while let Some(notif) = finality_stream.next().await {
@@ -1168,9 +1184,9 @@ where
 		Ok(())
 	}
 
-    /// Public method to get a mutable trie instance with the given mutable memory_db and
-    /// working_state_root
-    ///
+	/// Public method to get a mutable trie instance with the given mutable memory_db and
+	/// working_state_root
+	///
 	/// # Parameters:
 	/// - `memory_db`: a mutable reference to a MemoryDB instance
 	/// - `working_state_root`: a mutable reference to a 32-byte array of bytes representing the
