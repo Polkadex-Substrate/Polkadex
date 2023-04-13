@@ -175,6 +175,8 @@ pub mod pallet {
 		BoundedVectorOverflow,
 		/// Bounded vector not present
 		BoundedVectorNotPresent,
+		/// No Approved Deposit
+		NoApprovedDeposit
 	}
 
 	#[pallet::hooks]
@@ -204,6 +206,50 @@ pub mod pallet {
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
+			Ok(())
+		}
+
+		/// Manually claim an approved deposit
+		///
+		/// # Parameters
+		///
+		/// * `origin`: User
+		/// * `num_deposits`: Number of deposits to claim from available deposits,
+		/// (it's used to parametrise the weight of this extrinsic)
+		#[pallet::call_index(1)]
+		#[pallet::weight(Weight::default())]
+		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+
+			if let Some(mut deposits) = <ApprovedDeposits<T>>::get(&user) {
+				let lenght: u32 = deposits.len().saturated_into();
+				let length: u32 = if lenght <= num_deposits { lenght } else { num_deposits };
+
+				for _ in 0..length {
+					if let Some(deposit) = deposits.pop() {
+						if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
+							// Force push is fine as it will have the capacity.
+							deposits.force_push(deposit);
+							// Save it back on failure
+							<ApprovedDeposits<T>>::insert(&user, deposits.clone());
+							return Err(err)
+						}
+					} else {
+						break
+					}
+				}
+
+				if !deposits.is_empty() {
+					// If pending deposits are available, save it back
+					<ApprovedDeposits<T>>::insert(&user, deposits)
+				} else {
+					<ApprovedDeposits<T>>::remove(&user);
+					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
+				}
+			} else {
+				return Err(Error::<T>::NoApprovedDeposit.into())
+			}
+
 			Ok(())
 		}
 	}
@@ -428,6 +474,25 @@ pub mod pallet {
 			);
 			Ok(())
 		}
+
+		pub fn execute_deposit(
+			deposit: ApprovedDeposit<T::AccountId>,
+			recipient: &T::AccountId,
+		) -> Result<(), DispatchError> {
+			asset_handler::pallet::Pallet::<T>::mint_thea_asset(
+				deposit.asset_id,
+				recipient.clone(),
+				deposit.amount,
+			)?;
+			// Emit event
+			Self::deposit_event(Event::<T>::DepositClaimed(
+				recipient.clone(),
+				deposit.asset_id,
+				deposit.amount,
+				deposit.tx_hash,
+			));
+			Ok(())
+		}
 	}
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
@@ -436,6 +501,3 @@ pub mod pallet {
 		}
 	}
 }
-// TODO: Claim Deposit
-
-
