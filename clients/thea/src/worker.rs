@@ -78,7 +78,7 @@ where
 	BE: Backend<B>,
 	C: Client<B, BE>,
 	R: ProvideRuntimeApi<B>,
-	R::Api: TheaApi<B>,
+	R::Api: TheaApi<B> ,
 	SO: Send + Sync + Clone + 'static + SyncOracle,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
@@ -452,27 +452,4 @@ where
 			}
 		}
 	}
-}
-
-unsafe impl<B, BE, C, SO, N, R> Send for ObWorker<B, BE, C, SO, N, R>
-where
-	B: Block + Codec + 'static,
-	BE: Backend<B> + 'static,
-	C: Client<B, BE> + 'static,
-	R: ProvideRuntimeApi<B>,
-	R::Api: TheaApi<B>,
-	SO: Send + Sync + Clone + 'static + SyncOracle,
-	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
-{
-}
-unsafe impl<B, BE, C, SO, N, R> Sync for ObWorker<B, BE, C, SO, N, R>
-where
-	B: Block + Codec + 'static,
-	BE: Backend<B> + 'static,
-	C: Client<B, BE> + 'static,
-	R: ProvideRuntimeApi<B>,
-	R::Api: TheaApi<B>,
-	SO: Send + Sync + Clone + 'static + SyncOracle,
-	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
-{
 }
