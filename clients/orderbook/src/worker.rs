@@ -209,19 +209,18 @@ where
 		false
 	}
 
-	/**
 
-	Processes a withdrawal request by deducting the requested amount from the corresponding account balance,
-	and enqueuing the withdrawal for further processing. Generates a snapshot if the maximum pending withdrawals threshold
-	has been reached.
 
-	# Parameters
-	withdraw - The WithdrawalRequest object to process.
-	stid - The unique identifier for the snapshot.
-
-	# Returns
-	A Result object that resolves to () on success, or an Error on failure.
-	 */
+	/// Processes a withdrawal request by deducting the requested amount from the corresponding account balance,
+	/// and enqueuing the withdrawal for further processing. Generates a snapshot if the maximum pending withdrawals threshold
+	/// has been reached.
+    ///
+	/// # Parameters
+	/// withdraw - The WithdrawalRequest object to process.
+	/// stid - The unique identifier for the snapshot.
+    ///
+	/// # Returns
+	/// A Result object that resolves to () on success, or an Error on failure.
 	pub fn process_withdraw(
 		&mut self,
 		withdraw: WithdrawalRequest,
@@ -262,16 +261,13 @@ where
 		Ok(())
 	}
 
-	/**
-
-	Handles a block import by executing various register, deposit, proxy, and snapshot messages,
-	and updating the corresponding balances and account information in the trie.
-
-	# Parameters
-	num - The block number to import.
-	# Returns
-	A Result object that resolves to () on success, or an Error on failure.
-	 */
+	/// Handles a block import by executing various register, deposit, proxy, and snapshot messages,
+	/// and updating the corresponding balances and account information in the trie.
+    ///
+	/// # Parameters
+	/// num - The block number to import.
+	/// # Returns
+	/// A Result object that resolves to () on success, or an Error on failure.
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
@@ -323,15 +319,13 @@ where
 		Ok(())
 	}
 
-	/**
 
-	Retrieves the BLS public key for the first available validator in the active set.
-
-	# Parameters
-	active_set - The list of active validators.
-	# Returns
-	A Result object that resolves to a Public key on success, or an Error on failure.
-	 */
+	/// Retrieves the BLS public key for the first available validator in the active set.
+	///
+	/// # Parameters
+	/// active_set - The list of active validators.
+	/// # Returns
+	/// A Result object that resolves to a Public key on success, or an Error on failure.
 	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
 		let available_bls_keys: Vec<Public> = bls_primitives::crypto::bls_ext::all();
 		info!(target:"orderbook","📒 Avaialble BLS keys: {:?}",available_bls_keys);
@@ -353,15 +347,12 @@ where
 		Ok(validator_key.unwrap())
 	}
 
-	/**
-
-	Generates a snapshot of the current state of the orderbook and sends it to the runtime for finalization.
-
-	# Parameters
-	stid - The identifier for the snapshot to be generated.
-	# Returns
-	A Result object that resolves to () on success, or an Error on failure.
-	 */
+	/// Generates a snapshot of the current state of the orderbook and sends it to the runtime for finalization.
+	///
+	/// # Parameters
+	/// stid - The identifier for the snapshot to be generated.
+	/// # Returns
+	/// A Result object that resolves to () on success, or an Error on failure.
 	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
 		let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
 		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
@@ -408,15 +399,12 @@ where
 		Ok(())
 	}
 
-	/**
-
-	Processes an incoming message by taking the appropriate action depending on its type.
-
-	# Parameters
-	action - The message to be processed.
-	# Returns
-	A Result object that resolves to () on success, or an Error on failure.
-	 */
+	/// Processes an incoming message by taking the appropriate action depending on its type.
+	///
+	/// # Parameters
+	/// action - The message to be processed.
+	/// # Returns
+	/// A Result object that resolves to () on success, or an Error on failure.
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
@@ -492,16 +480,13 @@ where
 		Ok(())
 	}
 
-	/**
-
-	Loads the state from the given data and snapshot summary.
-
-	# Parameters
-	data - The data to load the state from.
-	summary - The snapshot summary containing the state change ID and other information.
-	# Returns
-	A Result object that resolves to () on success, or an Error on failure.
-	 */
+	/// Loads the state from the given data and snapshot summary.
+	///
+	/// # Parameters
+	/// data - The data to load the state from.
+	/// summary - The snapshot summary containing the state change ID and other information.
+	/// # Returns
+	/// A Result object that resolves to () on success, or an Error on failure.
 	pub fn load_state_from_data(
 		&mut self,
 		data: &[u8],
@@ -521,16 +506,13 @@ where
 		Ok(())
 	}
 
-	/**
-
-	This function processes a new user action and caches the message for synchronization.
-
-	# Parameters
-	self - mutable reference to the current object.
-	action - a reference to the ObMessage received.
-	# Returns
-	Result<(), Error> - A result indicating success or an error if one occurred.
-	 */
+	/// This function processes a new user action and caches the message for synchronization.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// action - a reference to the ObMessage received.
+	/// # Returns
+	/// Result<(), Error> - A result indicating success or an error if one occurred.
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		if let Some(expected_singer) = self.orderbook_operator_public_key {
 			if !action.verify(&expected_singer) {
@@ -559,18 +541,15 @@ where
 		return result
 	}
 
-	/**
-
-	This function stores a snapshot of the current state of the order book.
-
-	# Parameters
-	self - mutable reference to the current object.
-	state_change_id - the state change ID associated with the snapshot.
-	snapshot_id - the ID of the snapshot.
-
-	# Returns
-	Result<SnapshotSummary, Error> - A result containing a SnapshotSummary indicating success or an error if one occurred.
-	 */
+	/// This function stores a snapshot of the current state of the order book.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// state_change_id - the state change ID associated with the snapshot.
+	/// snapshot_id - the ID of the snapshot.
+	///
+	/// # Returns
+	/// Result<SnapshotSummary, Error> - A result containing a SnapshotSummary indicating success or an error if one occurred.
 	pub fn store_snapshot(
 		&mut self,
 		state_change_id: u64,
@@ -623,17 +602,14 @@ where
 		Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
 	}
 
-	/**
-
-	This function loads a snapshot of the order book state.
-
-	# Parameters
-	self - mutable reference to the current object.
-	summary - a reference to the SnapshotSummary to load.
-
-	# Returns
-	A result indicating success or an error if one occurred.
-	 */
+	/// This function loads a snapshot of the order book state.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// summary - a reference to the SnapshotSummary to load.
+	///
+	/// # Returns
+	/// A result indicating success or an error if one occurred.
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
 		if summary.snapshot_id == 0 {
 			// Nothing to do if we are on state_id 0
@@ -658,15 +634,12 @@ where
 		Ok(())
 	}
 
-	/**
-
-	This function checks and fills the gap in state change IDs in the order book.
-
-	# Parameters
-	self - mutable reference to the current object.
-	# Returns
-	Result<(), Error> - A result indicating success or an error if one occurred.
-	 */
+	/// This function checks and fills the gap in state change IDs in the order book.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// # Returns
+	/// Result<(), Error> - A result indicating success or an error if one occurred.
 	pub async fn check_stid_gap_fill(&mut self) -> Result<(), Error> {
 		let mut last_snapshot = self.last_snapshot.read().state_change_id.saturating_add(1);
 
@@ -695,16 +668,14 @@ where
 		Ok(())
 	}
 
-	/**
 
-	This function sends STID messages to a given peer.
-
-	# Parameters
-	self - mutable reference to the current object.
-	from - a reference to the starting STID to send.
-	to - a reference to the ending STID to send.
-	peer - an optional PeerId to send the messages to.
-	 */
+	/// This function sends STID messages to a given peer.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// from - a reference to the starting STID to send.
+	/// to - a reference to the ending STID to send.
+	/// peer - an optional PeerId to send the messages to.
 	pub fn want_stid(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
 		if let Some(peer) = peer {
 			let mut messages = vec![];
@@ -732,16 +703,13 @@ where
 		}
 	}
 
-	/**
-
-	 This function processes STID messages received via gossip and caches them.
-
-	 # Parameters
-	 self - mutable reference to the current object.
-	 messages - a reference to a vector of ObMessage to process.
-	 # Returns
-	Result<(), Error> - A result indicating success or an error if one occurred.
-	 */
+	/// This function processes STID messages received via gossip and caches them.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// messages - a reference to a vector of ObMessage to process.
+	/// # Returns
+	/// Result<(), Error> - A result indicating success or an error if one occurred.
 	pub async fn got_stids_via_gossip(&mut self, messages: &Vec<ObMessage>) -> Result<(), Error> {
 		for message in messages {
 			// TODO: handle reputation change.
@@ -750,16 +718,13 @@ where
 		self.check_stid_gap_fill().await
 	}
 
-	/**
-
-	This function responds to a want request by sending have messages containing chunks that are available.
-
-	# Parameters
-	self - mutable reference to the current object.
-	snapshot_id - a reference to the ID of the snapshot.
-	bitmap - a reference to a bitmap of the required chunks.
-	remote - an optional PeerId to respond to.
-	 */
+	/// This function responds to a want request by sending have messages containing chunks that are available.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// snapshot_id - a reference to the ID of the snapshot.
+	/// bitmap - a reference to a bitmap of the required chunks.
+	/// remote - an optional PeerId to respond to.
 	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		// Only respond if we are a fullnode
 		// TODO: Should we respond if we are also syncing???
@@ -800,16 +765,13 @@ where
 		}
 	}
 
-	/**
-
-	This function responds to a have message by sending a request_chunk message containing the chunks that are needed.
-
-	# Parameters
-	self - mutable reference to the current object.
-	snapshot_id - a reference to the ID of the snapshot.
-	bitmap - a reference to a bitmap of the available chunks.
-	remote - an optional PeerId to respond to.
-	 */
+	/// This function responds to a have message by sending a request_chunk message containing the chunks that are needed.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// snapshot_id - a reference to the ID of the snapshot.
+	/// bitmap - a reference to a bitmap of the available chunks.
+	/// remote - an optional PeerId to respond to.
 	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
 		if let Some(peer) = remote {
 			// Note: Set bits here are available for syncing
@@ -833,16 +795,13 @@ where
 		}
 	}
 
-	/**
-
-	This function responds to a request_chunk message by sending the requested chunk.
-
-	# Parameters
-	self - mutable reference to the current object.
-	snapshot_id - a reference to the ID of the snapshot.
-	bitmap - a reference to a bitmap of the available chunks.
-	remote - an optional PeerId to respond to.
-	 */
+	/// This function responds to a request_chunk message by sending the requested chunk.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// snapshot_id - a reference to the ID of the snapshot.
+	/// bitmap - a reference to a bitmap of the available chunks.
+	/// remote - an optional PeerId to respond to.
 	pub async fn request_chunk(
 		&mut self,
 		snapshot_id: &u64,
@@ -878,16 +837,13 @@ where
 		}
 	}
 
-	/**
-
-	This function processes a chunk of data received via gossip and stores it in off-chain storage. It also updates the sync status map accordingly.
-
-	# Parameters
-	self - mutable reference to the current object.
-	snapshot_id - a reference to the ID of the snapshot.
-	index - a reference to the index of the chunk being processed.
-	data - a reference to the chunk of data to process.
-	*/
+	/// This function processes a chunk of data received via gossip and stores it in off-chain storage. It also updates the sync status map accordingly.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// snapshot_id - a reference to the ID of the snapshot.
+	/// index - a reference to the index of the chunk being processed.
+	/// data - a reference to the chunk of data to process.
 	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &[u8]) {
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
 			let at = BlockId::Number(self.last_finalized_block.saturated_into());
@@ -925,17 +881,14 @@ where
 		self.sync_state_map.get(&key).unwrap().clone()
 	}
 
-	/**
-
-	This function processes a gossip message by calling the appropriate sub-function based on the message type.
-
-	# Parameters
-	self - mutable reference to the current object.
-	message - a reference to the message to process.
-	remote - an optional PeerId to respond to.
-	# Returns
-	Result indicating success or an error if encountered.
-	*/
+	/// This function processes a gossip message by calling the appropriate sub-function based on the message type.
+	///
+	/// # Parameters
+	/// self - mutable reference to the current object.
+	/// message - a reference to the message to process.
+	/// remote - an optional PeerId to respond to.
+	/// # Returns
+	/// Result indicating success or an error if encountered.
 	pub async fn process_gossip_message(
 		&mut self,
 		message: &GossipMessage,
@@ -956,13 +909,11 @@ where
 		Ok(())
 	}
 
-	/**
-	Updates the storage with the genesis data. It gets all accounts and proxies for the last finalized block,
-	and registers them in the trie. The trie is then committed.
-
-	# Returns
-	Result<(), Error> - Returns an Ok(()) if successful or an Err(Error) if there was an error.
-	 */
+	/// Updates the storage with the genesis data. It gets all accounts and proxies for the last finalized block,
+	/// and registers them in the trie. The trie is then committed.
+	///
+	/// # Returns
+	/// Result<(), Error> - Returns an Ok(()) if successful or an Err(Error) if there was an error.
 	pub fn update_storage_with_genesis_data(&mut self) -> Result<(), Error> {
 		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
 			self.last_finalized_block.saturated_into(),
