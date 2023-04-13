@@ -209,16 +209,14 @@ where
 		false
 	}
 
-
-
-	/// Processes a withdrawal request by deducting the requested amount from the corresponding account balance,
-	/// and enqueuing the withdrawal for further processing. Generates a snapshot if the maximum pending withdrawals threshold
-	/// has been reached.
-    ///
+	/// Processes a withdrawal request by deducting the requested amount from the corresponding
+	/// account balance, and enqueuing the withdrawal for further processing. Generates a snapshot
+	/// if the maximum pending withdrawals threshold has been reached.
+	///
 	/// # Parameters
 	/// withdraw - The WithdrawalRequest object to process.
 	/// stid - The unique identifier for the snapshot.
-    ///
+	///
 	/// # Returns
 	/// A Result object that resolves to () on success, or an Error on failure.
 	pub fn process_withdraw(
@@ -263,7 +261,7 @@ where
 
 	/// Handles a block import by executing various register, deposit, proxy, and snapshot messages,
 	/// and updating the corresponding balances and account information in the trie.
-    ///
+	///
 	/// # Parameters
 	/// num - The block number to import.
 	/// # Returns
@@ -319,7 +317,6 @@ where
 		Ok(())
 	}
 
-
 	/// Retrieves the BLS public key for the first available validator in the active set.
 	///
 	/// # Parameters
@@ -347,7 +344,8 @@ where
 		Ok(validator_key.unwrap())
 	}
 
-	/// Generates a snapshot of the current state of the orderbook and sends it to the runtime for finalization.
+	/// Generates a snapshot of the current state of the orderbook and sends it to the runtime for
+	/// finalization.
 	///
 	/// # Parameters
 	/// stid - The identifier for the snapshot to be generated.
@@ -549,7 +547,8 @@ where
 	/// snapshot_id - the ID of the snapshot.
 	///
 	/// # Returns
-	/// Result<SnapshotSummary, Error> - A result containing a SnapshotSummary indicating success or an error if one occurred.
+	/// Result<SnapshotSummary, Error> - A result containing a SnapshotSummary indicating success or
+	/// an error if one occurred.
 	pub fn store_snapshot(
 		&mut self,
 		state_change_id: u64,
@@ -668,7 +667,6 @@ where
 		Ok(())
 	}
 
-
 	/// This function sends STID messages to a given peer.
 	///
 	/// # Parameters
@@ -718,7 +716,8 @@ where
 		self.check_stid_gap_fill().await
 	}
 
-	/// This function responds to a want request by sending have messages containing chunks that are available.
+	/// This function responds to a want request by sending have messages containing chunks that are
+	/// available.
 	///
 	/// # Parameters
 	/// self - mutable reference to the current object.
@@ -765,7 +764,8 @@ where
 		}
 	}
 
-	/// This function responds to a have message by sending a request_chunk message containing the chunks that are needed.
+	/// This function responds to a have message by sending a request_chunk message containing the
+	/// chunks that are needed.
 	///
 	/// # Parameters
 	/// self - mutable reference to the current object.
@@ -837,7 +837,8 @@ where
 		}
 	}
 
-	/// This function processes a chunk of data received via gossip and stores it in off-chain storage. It also updates the sync status map accordingly.
+	/// This function processes a chunk of data received via gossip and stores it in off-chain
+	/// storage. It also updates the sync status map accordingly.
 	///
 	/// # Parameters
 	/// self - mutable reference to the current object.
@@ -881,7 +882,8 @@ where
 		self.sync_state_map.get(&key).unwrap().clone()
 	}
 
-	/// This function processes a gossip message by calling the appropriate sub-function based on the message type.
+	/// This function processes a gossip message by calling the appropriate sub-function based on
+	/// the message type.
 	///
 	/// # Parameters
 	/// self - mutable reference to the current object.
@@ -909,8 +911,8 @@ where
 		Ok(())
 	}
 
-	/// Updates the storage with the genesis data. It gets all accounts and proxies for the last finalized block,
-	/// and registers them in the trie. The trie is then committed.
+	/// Updates the storage with the genesis data. It gets all accounts and proxies for the last
+	/// finalized block, and registers them in the trie. The trie is then committed.
 	///
 	/// # Returns
 	/// Result<(), Error> - Returns an Ok(()) if successful or an Err(Error) if there was an error.

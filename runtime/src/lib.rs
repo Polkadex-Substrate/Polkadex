@@ -88,12 +88,9 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::weights::{
-	constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee
-};
+use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_assets::BenchmarkHelper;
-
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
