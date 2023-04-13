@@ -16,7 +16,6 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 hex-literal = { version = "0.3.1", optional = true }
 static_assertions = { workspace = true }
 log = { workspace = true, default-features = false }
-smallvec = { workspace = true }
 #pallets
 #added
 pallet-authorship = { default-features = false, workspace = true }
@@ -104,6 +103,11 @@ pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 # Thea
 thea = { path = "../pallets/thea", default-features = false }
 
+#swap
+pallet-amm = { path="../pallets/swap", default-features = false }
+#router for swap
+router= { path="../pallets/router", default-features=false }
+
 # Liquidity Pallet
 liquidity = { path = "../pallets/liquidity", default-features = false }
 
@@ -186,6 +190,8 @@ std = [
     "pallet-nomination-pools/std",
     "pallet-asset-handler-runtime-api/std",
     "thea/std",
+    "pallet-amm/std",
+    "router/std",
     "thea-cross-chain-governance/std",
     "liquidity/std",
     "pallet-rewards/std"
@@ -206,6 +212,8 @@ runtime-benchmarks = [
     "pallet-rewards/runtime-benchmarks",
     "liquidity/runtime-benchmarks",
     "thea-staking/runtime-benchmarks",
+    "thea/runtime-benchmarks",
+    "pallet-amm/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",

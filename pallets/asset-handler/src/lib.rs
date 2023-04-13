@@ -16,38 +16,58 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+pub mod weights;
+
+use chainbridge::{BridgeChainId, ResourceId};
+use frame_support::{
+	dispatch::fmt::Debug,
+	fail, log,
+	pallet_prelude::*,
+	traits::{
+		fungibles::Transfer,
+		tokens::{
+			fungibles::{Create, Inspect, Mutate},
+			DepositConsequence, WithdrawConsequence,
+		},
+		Currency, ExistenceRequirement, ReservableCurrency,
+	},
+	PalletId,
+};
+use frame_system::pallet_prelude::*;
+use sp_core::{H160, U256};
+use sp_io::hashing::keccak_256;
+use sp_runtime::{
+	traits::{One, Saturating, UniqueSaturatedInto},
+	BoundedBTreeSet, SaturatedConversion,
+};
+use sp_std::{vec, vec::Vec};
+use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
+use xcm::latest::AssetId;
+
+pub trait WeightInfo {
+	fn create_asset(_b: u32) -> Weight;
+	fn create_thea_asset() -> Weight;
+	fn create_parachain_asset() -> Weight;
+	fn mint_asset(_b: u32) -> Weight;
+	fn set_bridge_status() -> Weight;
+	fn set_block_delay() -> Weight;
+	fn update_fee(_m: u32, f: u32) -> Weight;
+	fn withdraw(_b: u32, c: u32) -> Weight;
+	fn allowlist_token(b: u32) -> Weight;
+	fn remove_allowlisted_token(b: u32) -> Weight;
+	fn add_precision(_b: u32) -> Weight;
+}
 
 #[frame_support::pallet]
 pub mod pallet {
-	use chainbridge::{BridgeChainId, ResourceId};
-	use frame_support::{
-		dispatch::fmt::Debug,
-		log,
-		pallet_prelude::*,
-		traits::{
-			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, ExistenceRequirement, ReservableCurrency,
-		},
-		PalletId,
-	};
-	use frame_system::pallet_prelude::*;
-	use sp_core::{H160, U256};
-	use sp_io::hashing::keccak_256;
-	use sp_runtime::{
-		traits::{One, Saturating, UniqueSaturatedInto},
-		BoundedBTreeSet, SaturatedConversion,
-	};
-	use sp_std::{vec, vec::Vec};
-	use thea_primitives::parachain_primitives::{AssetType, ParachainAsset};
-	use xcm::latest::AssetId;
+	use super::*;
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -102,10 +122,15 @@ pub mod pallet {
 		/// Asset Manager
 		type AssetManager: Create<<Self as frame_system::Config>::AccountId>
 			+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
-			+ Inspect<<Self as frame_system::Config>::AccountId>;
+			+ Inspect<<Self as frame_system::Config>::AccountId>
+			+ Transfer<<Self as frame_system::Config>::AccountId>;
 
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+
+		//PDEX asset id
+		#[pallet::constant]
+		type NativeCurrencyId: Get<u128>;
 
 		/// Treasury PalletId
 		#[pallet::constant]
@@ -115,12 +140,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type ParachainNetworkId: Get<u8>;
 
-		/// Polkadex Asset
-		#[pallet::constant]
-		type PolkadexAssetId: Get<u128>;
-
 		/// PDEX Token Holder Account
 		type PDEXHolderAccount: Get<Self::AccountId>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -234,6 +258,12 @@ pub mod pallet {
 		AssetNotRegistered,
 		// Identifier length provided is wrong
 		IdentifierLengthMismatch,
+		//when trying to burn PDEX asset
+		CannotBurnNativeAsset,
+		//when trying to mint PDEX asset
+		CannotMintNativeAsset,
+		//when cannot transfer PDEX asset
+		NativeAssetTransferFailed,
 		/// ReservedParachainNetworkId
 		ReservedParachainNetworkId,
 		/// AssetId Abstract Not Handled
@@ -286,8 +316,8 @@ pub mod pallet {
 		/// * `origin`: `Asset` owner
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_asset(1))]
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -323,8 +353,8 @@ pub mod pallet {
 		/// * `network_id`: Network ID of asset being Bridges
 		/// * `identifier_length`: Length of asset identifier length
 		/// * `asset_identifier`: Identifier for a given asset
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_thea_asset())]
 		pub fn create_thea_asset(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -363,8 +393,8 @@ pub mod pallet {
 		/// # Parameters
 		///
 		/// * `asset`: Parachain Asset
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_parachain_asset())]
 		pub fn create_parachain_asset(
 			origin: OriginFor<T>,
 			asset: sp_std::boxed::Box<AssetId>,
@@ -398,8 +428,8 @@ pub mod pallet {
 		/// * `amount`: Amount to be minted in Recipient's Account
 		/// * `rid`: Resource ID
 		#[allow(clippy::unnecessary_lazy_evaluations)]
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
 			destination_add: Vec<u8>,
@@ -431,8 +461,8 @@ pub mod pallet {
 		}
 
 		/// Set Bridge Status
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_bridge_status())]
 		pub fn set_bridge_status(origin: OriginFor<T>, status: bool) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeDeactivated<T>>::put(status);
@@ -441,8 +471,8 @@ pub mod pallet {
 		}
 
 		/// Set Block Delay
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_block_delay())]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
 			no_of_blocks: T::BlockNumber,
@@ -462,8 +492,8 @@ pub mod pallet {
 		/// * `contract_add`: Asset's actual address at native chain
 		/// * `amount`: Amount to be burned and transferred from Sender's Account
 		/// * `recipient`: recipient
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1, 1))]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -532,8 +562,8 @@ pub mod pallet {
 		/// * `chain_id`: Asset's native chain
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(7)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_fee(1, 1))]
 		pub fn update_fee(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -547,8 +577,8 @@ pub mod pallet {
 		}
 
 		/// Allowlists Token
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -561,8 +591,8 @@ pub mod pallet {
 		}
 
 		/// Remove allowlisted tokens
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(9)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -573,8 +603,8 @@ pub mod pallet {
 		}
 
 		/// Remove allowlisted tokens
-		#[pallet::weight(Weight::default().saturating_add(T::DbWeight::get().writes(1)))]
 		#[pallet::call_index(10)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_precision(1))]
 		pub fn add_precision(
 			origin: OriginFor<T>,
 			rid: ResourceId,
@@ -673,7 +703,7 @@ pub mod pallet {
 			who: T::AccountId,
 			amount: u128,
 		) -> Result<(), DispatchError> {
-			let polkadex_asset_id = T::PolkadexAssetId::get();
+			let polkadex_asset_id = T::NativeCurrencyId::get();
 			if polkadex_asset_id == asset_id {
 				Self::lock_pdex_asset(amount, who)
 			} else {
@@ -759,6 +789,176 @@ pub mod pallet {
 		pub fn mint_token(account: T::AccountId, rid: ResourceId, amount: u128) {
 			T::AssetManager::mint_into(Pallet::<T>::convert_asset_id(rid), &account, amount)
 				.unwrap();
+		}
+	}
+
+	impl<T: Config> Inspect<T::AccountId> for Pallet<T> {
+		type AssetId = u128;
+		type Balance = u128;
+
+		fn total_issuance(asset: Self::AssetId) -> Self::Balance {
+			// when asset is not polkadex
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::total_issuance(asset.saturated_into()).saturated_into()
+			} else {
+				T::Currency::total_issuance().saturated_into()
+			}
+		}
+
+		fn active_issuance(asset: Self::AssetId) -> Self::Balance {
+			T::AssetManager::active_issuance(asset)
+		}
+
+		fn minimum_balance(asset: Self::AssetId) -> Self::Balance {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::minimum_balance(asset.saturated_into()).saturated_into()
+			} else {
+				T::Currency::minimum_balance().saturated_into()
+			}
+		}
+
+		fn balance(asset: Self::AssetId, who: &T::AccountId) -> Self::Balance {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::balance(asset.saturated_into(), who).saturated_into()
+			} else {
+				T::Currency::total_balance(who).saturated_into()
+			}
+		}
+
+		fn reducible_balance(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			keep_alive: bool,
+		) -> Self::Balance {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::reducible_balance(asset.saturated_into(), who, keep_alive)
+					.saturated_into()
+			} else {
+				T::Currency::free_balance(who).saturated_into()
+			}
+		}
+
+		fn can_deposit(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+			mint: bool,
+		) -> DepositConsequence {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::can_deposit(asset, who, amount.saturated_into(), mint)
+			} else {
+				// balance of native asset can always be increased
+				DepositConsequence::Success
+			}
+		}
+
+		fn can_withdraw(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> WithdrawConsequence<Self::Balance> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::can_withdraw(asset.saturated_into(), who, amount.saturated_into())
+			} else if T::Currency::free_balance(who) >= amount.saturated_into() {
+				WithdrawConsequence::Success
+			} else {
+				// TODO: Need a better error mapping
+				WithdrawConsequence::UnknownAsset
+			}
+		}
+
+		fn asset_exists(asset: Self::AssetId) -> bool {
+			T::AssetManager::asset_exists(asset)
+		}
+	}
+
+	impl<T: Config> Transfer<T::AccountId> for Pallet<T> {
+		fn transfer(
+			asset: Self::AssetId,
+			source: &T::AccountId,
+			dest: &T::AccountId,
+			amount: Self::Balance,
+			keep_alive: bool,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::transfer(asset, source, dest, amount.saturated_into(), keep_alive)
+					.map(|x| x.saturated_into())
+			} else {
+				let existence_requirement = if keep_alive {
+					ExistenceRequirement::KeepAlive
+				} else {
+					ExistenceRequirement::AllowDeath
+				};
+				T::Currency::transfer(
+					source,
+					dest,
+					amount.saturated_into(),
+					existence_requirement,
+				)?;
+				Ok(amount)
+			}
+		}
+	}
+
+	impl<T: Config> Mutate<T::AccountId> for Pallet<T> {
+		fn mint_into(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> DispatchResult {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::mint_into(asset, who, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				fail!(Error::<T>::CannotMintNativeAsset)
+			}
+		}
+
+		fn burn_from(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::burn_from(asset, who, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				fail!(Error::<T>::CannotBurnNativeAsset)
+			}
+		}
+
+		fn slash(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::slash(asset, who, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				let (_, balance) = T::Currency::slash(who, amount.saturated_into());
+				Ok(balance.saturated_into())
+			}
+		}
+
+		fn teleport(
+			asset: Self::AssetId,
+			source: &T::AccountId,
+			dest: &T::AccountId,
+			amount: Self::Balance,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::teleport(asset, source, dest, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				T::Currency::transfer(
+					source,
+					dest,
+					amount.saturated_into(),
+					ExistenceRequirement::KeepAlive,
+				)?;
+				Ok(amount)
+			}
 		}
 	}
 }

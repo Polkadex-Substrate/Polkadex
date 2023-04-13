@@ -129,6 +129,7 @@ impl Config for Test {
 	type Signature = Signature;
 	type MsPerDay = MsPerDay;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
 parameter_types! {

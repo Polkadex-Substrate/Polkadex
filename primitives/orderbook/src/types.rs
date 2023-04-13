@@ -124,9 +124,9 @@ pub enum GossipMessage {
 	// (From,to, remote peer)
 	WantStid(u64, u64),
 	// Collection of Stids
-	Stid(Vec<ObMessage>),
+	Stid(Box<Vec<ObMessage>>),
 	// Single ObMessage
-	ObMessage(ObMessage),
+	ObMessage(Box<ObMessage>),
 	// Snapshot id, bitmap, remote peer
 	Want(u64, Vec<u128>),
 	// Snapshot id, bitmap, remote peer
@@ -145,6 +145,23 @@ pub enum GossipMessage {
 pub struct ObMessage {
 	pub stid: u64,
 	pub action: UserActions,
+	pub signature: sp_core::ecdsa::Signature,
+}
+
+#[cfg(feature = "std")]
+impl ObMessage {
+	pub fn verify(&self, public_key: &sp_core::ecdsa::Public) -> bool {
+		match self.signature.recover_prehashed(&self.sign_data()) {
+			None => false,
+			Some(recovered_pubk) => &recovered_pubk == public_key,
+		}
+	}
+
+	pub fn sign_data(&self) -> [u8; 32] {
+		let mut cloned_self = self.clone();
+		cloned_self.signature = sp_core::ecdsa::Signature::default();
+		sp_core::hashing::keccak_256(&cloned_self.encode())
+	}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -704,7 +721,11 @@ mod tests {
 
 	#[test]
 	pub fn test_ob_message() {
-		let msg = ObMessage { stid: 0, action: UserActions::BlockImport(1) };
+		let msg = ObMessage {
+			stid: 0,
+			action: UserActions::BlockImport(1),
+			signature: Default::default(),
+		};
 
 		println!("OBMessage: {:?}", serde_json::to_string(&msg).unwrap());
 	}
