@@ -169,6 +169,7 @@ where
 	}
 
 	pub async fn check_message(&self, message: &GossipMessage) -> Result<bool, Error> {
+		// TODO: Do signature check here.
 		// Based on network use the corresponding api to check if the message if valid or not.
 		if message.payload.network == NATIVE_NETWORK {
 			self.foreign_chain.check_message(&message.payload).await
@@ -451,4 +452,27 @@ where
 			}
 		}
 	}
+}
+
+unsafe impl<B, BE, C, SO, N, R> Send for ObWorker<B, BE, C, SO, N, R>
+where
+	B: Block + Codec + 'static,
+	BE: Backend<B> + 'static,
+	C: Client<B, BE> + 'static,
+	R: ProvideRuntimeApi<B>,
+	R::Api: TheaApi<B>,
+	SO: Send + Sync + Clone + 'static + SyncOracle,
+	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+{
+}
+unsafe impl<B, BE, C, SO, N, R> Sync for ObWorker<B, BE, C, SO, N, R>
+where
+	B: Block + Codec + 'static,
+	BE: Backend<B> + 'static,
+	C: Client<B, BE> + 'static,
+	R: ProvideRuntimeApi<B>,
+	R::Api: TheaApi<B>,
+	SO: Send + Sync + Clone + 'static + SyncOracle,
+	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+{
 }

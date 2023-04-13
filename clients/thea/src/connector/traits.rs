@@ -1,10 +1,10 @@
 use crate::{error::Error, types::GossipMessage};
-use async_trait::async_trait;
+use async_trait_with_sync::async_trait;
 use std::time::Duration;
 use thea_primitives::types::Message;
 
 #[async_trait]
-pub trait ForeignConnector: Send + Sync {
+pub trait ForeignConnector {
 	/// Block duration
 	fn block_duration(&self) -> Duration;
 	/// Initialize the connection to native blockchain
