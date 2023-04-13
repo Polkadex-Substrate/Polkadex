@@ -15,6 +15,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::Saturating;
 	use sp_runtime::traits::AccountIdConversion;
 	use sp_std::collections::btree_set::BTreeSet;
 	use thea_primitives::{
@@ -202,7 +203,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(block_no: T::BlockNumber) -> Weight {
-			let pending_withdrawals = <ReadyWithdrawls<T>>::iter_prefix_values(block_no);
+			let pending_withdrawals = <ReadyWithdrawls<T>>::iter_prefix_values(block_no.saturating_sub(1)); //TODO: Verify this
 			for (network_id, withdrawal) in pending_withdrawals {
 				T::Executor::execute_withdrawals(network_id, withdrawal.encode());
 			}
@@ -253,6 +254,7 @@ pub mod pallet {
 				network
 			};
 			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
+			//TODO: Remove nonce
 			let withdrawal_nonce = <WithdrawalNonces<T>>::get(network);
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 			// Ensure pending withdrawals have space for a new withdrawal
@@ -328,7 +330,7 @@ pub mod pallet {
 		) -> Result<Vec<u8>, DispatchError> {
 			match network_id {
 				1 => Self::handle_parachain_withdraw(asset_id, amount, recipient),
-				_ => unimplemented!(),
+				_ => Error::<T>::StorageOverflow, //TODO: Rename error
 			}
 		}
 
@@ -397,6 +399,7 @@ pub mod pallet {
 					return Err(Error::<T>::BoundedVectorOverflow.into())
 				}
 			}
+			// TODO: Remove Nonce
 			<DepositNonce<T>>::insert(
 				approved_deposit.network_id.saturated_into::<Network>(),
 				approved_deposit.deposit_nonce,
@@ -476,3 +479,7 @@ pub mod pallet {
 		}
 	}
 }
+// TODO: Remove unimpl to and todos
+// TODO: Claim Deposit
+// TODO: Remove Deposit and Withdrawal Nonce
+
