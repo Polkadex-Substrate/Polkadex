@@ -881,7 +881,7 @@ where
 			)?;
 
 			// Check if its genesis then update storage with genesis data
-			if latest_summary.snapshot_id.is_zero() && self.last_snapshot.read().snapshot_id.is_zero(){
+			if latest_summary.snapshot_id.is_zero() && self.latest_stid.is_zero() {
 				info!(target: "orderbook", "📒 Loading genesis data from runtime ....");
 				self.update_storage_with_genesis_data()?;
 				// Update the latest snapshot summary.
@@ -1018,10 +1018,14 @@ where
 			}
 		}
 
+		let mut known_stids = self.known_messages.keys().collect::<Vec<&u64>>();
+
+		known_stids.sort_unstable();
+
         info!(target:"engine", "Last processed Stid: {:?}, known keys: {:?}, next best stid: {:?}",
-            self.last_snapshot.read().state_change_id,
+            self.latest_stid,
             self.known_messages.len(),
-            self.known_messages.get(&0)
+           known_stids.get(0)
         );
 		Ok(())
 	}

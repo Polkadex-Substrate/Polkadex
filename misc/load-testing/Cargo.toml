@@ -9,3 +9,4 @@ edition = "2021"
 tokio = { version = "1.26.0", features = ["rt-multi-thread"] }
 jsonrpsee = { version = "0.16.2", features = ["ws-client"] }
 orderbook-primitives = { path = "../../primitives/orderbook" }
+sp-core = {workspace = true}
