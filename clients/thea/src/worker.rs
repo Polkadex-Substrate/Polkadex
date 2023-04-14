@@ -68,7 +68,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
 	message_cache: BTreeMap<Message, GossipMessage>,
-	foreign_chain: RwLock<ParachainClient>,
+	foreign_chain: Arc<Box<dyn ForeignConnector + Send + 'static>>,
 	last_finalized_blk: BlockId<B>,
 }
 
@@ -121,7 +121,7 @@ where
 			gossip_engine,
 			gossip_validator,
 			message_cache: Default::default(),
-			foreign_chain: RwLock::new(foreign_connector),
+			foreign_chain: Arc::new(Box::new(foreign_connector)),
 			last_finalized_blk: BlockId::number(Zero::zero()),
 		})
 	}
@@ -172,15 +172,15 @@ where
 		// TODO: Do signature check here.
 		// Based on network use the corresponding api to check if the message if valid or not.
 		if message.payload.network == NATIVE_NETWORK {
-			self.foreign_chain.read().check_message(&message.payload).await
+			self.foreign_chain.check_message(&message.payload).await
 		} else {
 			let result = self
 				.runtime
 				.runtime_api()
 				.outgoing_messages(
 					&self.last_finalized_blk,
-					message.payload.block_no.saturated_into(),
 					message.payload.network,
+					message.payload.nonce,
 				)?
 				.ok_or(Error::ErrorReadingTheaMessage)?;
 
@@ -228,10 +228,7 @@ where
 									incoming_message.aggregate_signature.into(),
 								)??;
 							} else {
-								self.foreign_chain
-									.read()
-									.send_transaction(incoming_message.clone())
-									.await;
+								self.foreign_chain.send_transaction(incoming_message.clone()).await;
 							}
 						} else {
 							// Cache it.
@@ -273,10 +270,7 @@ where
 								incoming_message.aggregate_signature.into(),
 							)??;
 						} else {
-							self.foreign_chain
-								.read()
-								.send_transaction(incoming_message.clone())
-								.await;
+							self.foreign_chain.send_transaction(incoming_message.clone()).await;
 						}
 					} else {
 						// Cache it.
@@ -310,11 +304,14 @@ where
 		}
 		let network = self.thea_network.unwrap();
 
-		if let Some(message) = self.runtime.runtime_api().outgoing_messages(
-			&at,
-			(*header.number()).saturated_into(),
-			network,
-		)? {
+		let next_nonce_to_process =
+			self.foreign_chain.last_processed_nonce_from_native().await?.saturating_add(1);
+
+		if let Some(message) =
+			self.runtime
+				.runtime_api()
+				.outgoing_messages(&at, network, next_nonce_to_process)?
+		{
 			self.sign_and_submit_message(message).await?;
 		}
 		Ok(())
@@ -371,12 +368,8 @@ where
 					.get_last_processed_nonce(&self.last_finalized_blk, *network)?;
 				best_outgoing_nonce.add_assign(1);
 
-				let mut events = None;
-				{
-					events = self.foreign_chain.read().read_events(best_outgoing_nonce).await?;
-				}
 				// Check if next best message is available for processing
-				match events {
+				match self.foreign_chain.read_events(best_outgoing_nonce).await? {
 					None => {},
 					Some(message) => {
 						// Don't do anything if we already know about the message
@@ -424,7 +417,7 @@ where
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 
 		// Interval timer to read foreign chain events
-		let interval = tokio::time::interval(self.foreign_chain.read().block_duration());
+		let interval = tokio::time::interval(self.foreign_chain.block_duration());
 		// create a stream from the interval
 		let mut interval_stream = tokio_stream::wrappers::IntervalStream::new(interval).fuse();
 
