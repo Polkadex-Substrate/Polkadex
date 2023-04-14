@@ -4017,7 +4017,10 @@ version = "0.1.0"
 dependencies = [
  "jsonrpsee",
  "orderbook-primitives",
+ "polkadex-primitives",
+ "serde_json",
  "sp-core",
+ "sp-keyring",
  "tokio",
 ]
 

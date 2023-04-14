@@ -199,8 +199,8 @@ where
 
 		// Check if a snapshot should be generated based on the pending withdrawals interval and
 		// block interval
-		if pending_withdrawals_interval > self.pending_withdrawals.len() as u64 ||
-			block_interval >
+		if pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
+			block_interval <
 				self.last_finalized_block
 					.saturating_sub(*self.last_block_snapshot_generated.read())
 		{
@@ -242,6 +242,7 @@ where
 		drop(working_state_root);
 		// Queue withdrawal
 		self.pending_withdrawals.push(withdraw.try_into()?);
+		info!(target:"orderbook","Queued withdrawal to pending list");
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(stid) {
@@ -869,7 +870,8 @@ where
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(self.latest_stid) {
-				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
+				log::error!(target:"orderbook", "Couldn't generate snapshot: {:?}",err);
+			}else{
 				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
 			}
 		}
