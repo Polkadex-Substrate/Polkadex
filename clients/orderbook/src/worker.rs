@@ -876,18 +876,18 @@ where
 
 		// We should not update latest summary if we are still syncing
 		if !self.state_is_syncing {
-			info!(target: "orderbook", "📒 Updating latest summary");
 			let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
 				&BlockId::Number(self.last_finalized_block.saturated_into()),
 			)?;
 
 			// Check if its genesis then update storage with genesis data
-			if latest_summary.snapshot_id.is_zero() {
+			if latest_summary.snapshot_id.is_zero() && self.last_snapshot.read().snapshot_id.is_zero(){
+				info!(target: "orderbook", "📒 Loading genesis data from runtime ....");
 				self.update_storage_with_genesis_data()?;
+				// Update the latest snapshot summary.
+				*self.last_snapshot.write() = latest_summary;
 			}
 
-			// Update the latest snapshot summary.
-			*self.last_snapshot.write() = latest_summary;
 			if let Some(orderbook_operator_public_key) =
 				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
 					self.last_finalized_block.saturated_into(),
