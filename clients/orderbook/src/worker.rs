@@ -1021,7 +1021,7 @@ where
         info!(target:"engine", "Last processed Stid: {:?}, known keys: {:?}, next best stid: {:?}",
             self.last_snapshot.read().state_change_id,
             self.known_messages.len(),
-            self.known_messages.get(0)
+            self.known_messages.get(&0)
         );
 		Ok(())
 	}
