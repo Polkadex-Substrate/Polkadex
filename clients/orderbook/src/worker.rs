@@ -188,8 +188,6 @@ where
 	/// # Returns
 	/// - bool: a boolean indicating whether a snapshot should be generated
 	pub fn should_generate_snapshot(&self) -> bool {
-		info!(target:"orderbook", "Checking if snapshot should be generated");
-
 		let at = BlockId::Number(self.last_finalized_block.saturated_into());
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
 		let (pending_withdrawals_interval, block_interval) = self
@@ -201,7 +199,7 @@ where
 		let last_accepted_stid: u64 = self
 			.runtime
 			.runtime_api()
-			.get_last_accepted_stid(&at)
+			.get_last_accepted_stid(&BlockId::Number(self.client.info().best_number))
 			.expect("Expecting OCEX APIs to be available");
 
 		// Check if a snapshot should be generated based on the pending withdrawals interval and
@@ -274,10 +272,9 @@ where
 			.runtime_api()
 			.ingress_messages(&BlockId::number(num.saturated_into()))
 			.expect("Expecting ingress messages api to be available");
-		let mut last_snapshot = None;
 
 		{
-			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages, LatestSnapshot
+			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
 			for message in messages {
 				match message {
 					IngressMessages::RegisterUser(main, proxy) =>
@@ -287,30 +284,11 @@ where
 					IngressMessages::AddProxy(main, proxy) => add_proxy(&mut trie, main, proxy)?,
 					IngressMessages::RemoveProxy(main, proxy) =>
 						remove_proxy(&mut trie, main, proxy)?,
-					IngressMessages::LatestSnapshot(
-						snapshot_id,
-						state_root,
-						state_change_id,
-						state_chunk_hashes,
-					) =>
-						last_snapshot = Some(SnapshotSummary {
-							snapshot_id,
-							state_root,
-							state_change_id,
-							state_chunk_hashes: state_chunk_hashes.to_vec(),
-							bitflags: vec![],
-							withdrawals: vec![],
-							aggregate_signature: None,
-						}),
 					_ => {},
 				}
 			}
 			// Commit the trie
 			trie.commit();
-		}
-		if let Some(last_snapshot) = last_snapshot {
-			info!(target:"engine", "Resetting last snapshot from blockchain: {:?}",last_snapshot);
-			*self.last_snapshot.write() = last_snapshot
 		}
 		Ok(())
 	}
@@ -338,18 +316,22 @@ where
 
 	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Generating snapshot");
-		let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
+		let at = BlockId::number(self.last_finalized_block.saturated_into());
+		let next_snapshot_id = self
+			.runtime
+			.runtime_api()
+			.get_latest_snapshot(&at)
+			.expect("Expected get_latest_snapshot to be available")
+			.snapshot_id
+			.saturating_add(1);
+
 		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
 		if !self.is_validator {
 			info!(target:"orderbook","📒 Not a validator, skipping snapshot signing.");
 			// We are done if we are not a validator
 			return Ok(())
 		}
-		let active_set = self
-			.runtime
-			.runtime_api()
-			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
-			.validators;
+		let active_set = self.runtime.runtime_api().validator_set(&at)?.validators;
 		let signing_key = self.get_validator_key(&active_set)?;
 		info!(target:"orderbook","Signing snapshot with: {:?}",hex::encode(signing_key.0));
 		let initial_summary = summary.sign_data();
