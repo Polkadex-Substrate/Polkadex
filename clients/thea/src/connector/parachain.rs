@@ -5,7 +5,7 @@ use parity_scale_codec::Encode;
 use serde::Deserializer;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::{bounded::BoundedVec, ecdsa::Signature, sr25519, ConstU32, H256};
-use subxt::{dynamic::Value, OnlineClient, PolkadotConfig};
+use subxt::{dynamic::Value, storage::DynamicStorageAddress, OnlineClient, PolkadotConfig};
 
 use bls_primitives::Public;
 use thea_primitives::types::Message;
@@ -104,5 +104,24 @@ impl ForeignConnector for ParachainClient {
 		let message_from_chain = message_option.ok_or(Error::ErrorReadingTheaMessage)?;
 
 		Ok(message_from_chain == message.clone())
+	}
+
+	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
+		// Read native network nonce from foreign chain
+		let storage_address: DynamicStorageAddress<Value> =
+			subxt::dynamic::storage(PALLET_NAME, "IncomingNonce", vec![]);
+		// TODO: Get last finalized block hash
+		let encoded_bytes = self
+			.api
+			.storage()
+			.at(None)
+			.await?
+			.fetch_or_default(&storage_address)
+			.await?
+			.into_encoded();
+
+		let message_option: u64 = parity_scale_codec::Decode::decode(&mut &encoded_bytes[..])?;
+
+		Ok(message_option)
 	}
 }

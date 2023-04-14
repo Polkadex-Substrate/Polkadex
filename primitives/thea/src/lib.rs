@@ -119,7 +119,7 @@ sp_api::decl_runtime_apis! {
 		/// Return the current active Thea validator set
 		fn validator_set(network: Network) -> Option<ValidatorSet<AuthorityId>>;
 		/// Returns the outgoing message for given network and blk
-		fn outgoing_messages(blk: BlockNumber, network: Network) -> Option<Message>;
+		fn outgoing_messages(network: Network, nonce: u64) -> Option<Message>;
 		/// Get Thea network associated with Validator
 		fn network(auth: AuthorityId) -> Option<Network>;
 		/// Incoming messages

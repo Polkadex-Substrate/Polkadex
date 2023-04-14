@@ -1601,8 +1601,8 @@ impl_runtime_apis! {
 			Thea::validator_set(network)
 		}
 		/// Returns the outgoing message for given network and blk
-		fn outgoing_messages(blk: BlockNumber, network: thea_primitives::Network) -> Option<thea_primitives::Message>{
-			Thea::get_outgoing_messages(blk.saturated_into(),network)
+		fn outgoing_messages(network: thea_primitives::Network, nonce: u64) -> Option<thea_primitives::Message>{
+			Thea::get_outgoing_messages(network, nonce)
 		}
 		/// Get Thea network associated with Validator
 		fn network(auth: thea_primitives::AuthorityId) -> Option<thea_primitives::Network>{

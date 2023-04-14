@@ -17,4 +17,6 @@ pub trait ForeignConnector: Send {
 	async fn send_transaction(&self, message: GossipMessage);
 	/// Checks if the given message is valid or not based on our local node
 	async fn check_message(&self, message: &Message) -> Result<bool, Error>;
+	/// Returns the last processed nonce from native chain
+	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error>;
 }
