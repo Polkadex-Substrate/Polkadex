@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
 };
@@ -135,8 +135,8 @@ pub struct StidImportResponse {
 	pub messages: Vec<ObMessage>,
 }
 
-#[derive(Clone, Encode, Decode, Default, Debug, TypeInfo, PartialEq)]
-pub struct SnapshotSummary {
+#[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq)]
+pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub snapshot_id: u64,
 	pub state_root: H256,
 	pub state_change_id: u64,
@@ -146,7 +146,21 @@ pub struct SnapshotSummary {
 	pub aggregate_signature: Option<bls_primitives::Signature>,
 }
 
-impl SnapshotSummary {
+impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
+	fn default() -> Self {
+		Self {
+			snapshot_id: 0,
+			state_root: Default::default(),
+			state_change_id: 0,
+			state_chunk_hashes: Vec::new(),
+			bitflags: Vec::new(),
+			withdrawals: Vec::new(),
+			aggregate_signature: None,
+		}
+	}
+}
+
+impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 	// Add a new signature to the snapshot summary
 	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
 		match bls_primitives::crypto::bls_ext::add_signature(
@@ -210,17 +224,17 @@ sp_api::decl_runtime_apis! {
 		fn validator_set() -> ValidatorSet<crypto::AuthorityId>;
 
 		/// Returns the latest Snapshot Summary
-		fn get_latest_snapshot() -> SnapshotSummary;
+		fn get_latest_snapshot() -> SnapshotSummary<AccountId>;
 
 		/// Returns the snapshot summary for given snapshot id
-		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary>;
+		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>>;
 
 		/// Return the ingress messages at the given block
 		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
 
 		/// Submits the snapshot to runtime
 		#[allow(clippy::result_unit_err)]
-		fn submit_snapshot(summary: SnapshotSummary) -> Result<(), ()>;
+		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()>;
 
 		/// Gets pending snapshot if any
 		fn pending_snapshot() -> Option<u64>;

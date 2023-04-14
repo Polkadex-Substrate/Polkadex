@@ -88,7 +88,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
-	pub last_snapshot: Arc<RwLock<SnapshotSummary>>,
+	pub last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
 	// Working state root,
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 	// Known state ids
@@ -468,7 +468,7 @@ where
 	pub fn load_state_from_data(
 		&mut self,
 		data: &[u8],
-		summary: &SnapshotSummary,
+		summary: &SnapshotSummary<AccountId>,
 	) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Loading state from snapshot data ({} bytes)", data.len());
 		match serde_json::from_slice::<SnapshotStore>(data) {
@@ -489,6 +489,12 @@ where
 	}
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
+		// Check if stid is newer or not
+		if action.stid <= self.latest_stid {
+			// Ignore stids we already know.
+			warn!(target:"orderbook","Ignoring old message: given: {:?}, latest stid: {:?}",action.stid,self.latest_stid);
+			return Ok(())
+		}
 		info!(target: "orderbook", "📒 Processing new user action: {:?}", action);
 		if let Some(expected_singer) = self.orderbook_operator_public_key {
 			if !action.verify(&expected_singer) {
@@ -522,7 +528,7 @@ where
 		&mut self,
 		state_change_id: u64,
 		snapshot_id: u64,
-	) -> Result<SnapshotSummary, Error> {
+	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
 			let store = SnapshotStore { map: self.memory_db.read().data().clone() };
@@ -572,7 +578,7 @@ where
 		Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
 	}
 
-	pub fn load_snapshot(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
+	pub fn load_snapshot(&mut self, summary: &SnapshotSummary<AccountId>) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Loading snapshot: {:?}", summary.snapshot_id);
 		if summary.snapshot_id == 0 {
 			// Nothing to do if we are on state_id 0
@@ -1054,7 +1060,10 @@ where
 		}
 	}
 
-	pub fn send_sync_requests(&mut self, summary: &SnapshotSummary) -> Result<(), Error> {
+	pub fn send_sync_requests(
+		&mut self,
+		summary: &SnapshotSummary<AccountId>,
+	) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Sending sync requests for snapshot: {:?}",summary.snapshot_id);
 		let offchain_storage =
 			self.backend.offchain_storage().ok_or(Error::OffchainStorageNotAvailable)?;

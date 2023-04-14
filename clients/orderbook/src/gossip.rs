@@ -1,6 +1,7 @@
 use orderbook_primitives::{types::ObMessage, SnapshotSummary};
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
+use polkadex_primitives::AccountId;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
@@ -28,7 +29,7 @@ where
 	B: Block,
 {
 	_topic: B::Hash,
-	last_snapshot: Arc<RwLock<SnapshotSummary>>,
+	last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 }
@@ -37,7 +38,7 @@ impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new(last_snapshot: Arc<RwLock<SnapshotSummary>>) -> GossipValidator<B> {
+	pub fn new(last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>) -> GossipValidator<B> {
 		GossipValidator {
 			_topic: topic::<B>(),
 			last_snapshot,
