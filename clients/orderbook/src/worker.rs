@@ -299,6 +299,7 @@ where
 			trie.commit();
 		}
 		if let Some(last_snapshot) = last_snapshot {
+            info!(target:"engine", "Resetting last snapshot from blockchain: {:?}",last_snapshot);
 			*self.last_snapshot.write() = last_snapshot
 		}
 		Ok(())
@@ -615,6 +616,7 @@ where
 		}
 		// We need to sub 1 since that last processed is one stid less than the not available
 		// when while loop is broken
+        info!(target:"orderbook","Setting last snapshot's stid to : {:?}",last_snapshot.saturating_sub(1));
 		self.last_snapshot.write().state_change_id = last_snapshot.saturating_sub(1);
 		Ok(())
 	}
@@ -1015,6 +1017,12 @@ where
 				}
 			}
 		}
+
+        info!(target:"engine", "Last processed Stid: {:?}, known keys: {:?}, next best stid: {:?}",
+            self.last_snapshot.read().state_change_id,
+            self.known_messages.len(),
+            self.known_messages.get(0)
+        );
 		Ok(())
 	}
 
