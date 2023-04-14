@@ -129,24 +129,23 @@ where
 	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	Client::Api: ObApi<Block>,
 {
-	/**
-	Asynchronously submits an ObMessage to a transaction, returning an RpcResult upon completion.
-	# Parameters:
-	message - The ObMessage to be sent.
-	# Returns
-	An RpcResult that resolves to () on success, or an error on failure.
-	 */
+	/// Asynchronously submits an ObMessage to a transaction, returning an RpcResult upon
+	/// completion.
+	///
+	/// # Parameters:
+	/// * `message` - The ObMessage to be sent.
+	/// # Returns
+	/// An RpcResult that resolves to () on success, or an error on failure.
 	async fn submit_action(&self, message: ObMessage) -> RpcResult<()> {
 		let mut tx = self.tx.clone();
 		tx.send(message).await?;
 		Ok(())
 	}
 
-	/**
-	Asynchronously retrieves the recovery state of the orderbook.
-	# Returns
-	An RpcResult that resolves to a Vec<u8> upon successful completion, or an error on failure.
-	 */
+	/// Asynchronously retrieves the recovery state of the orderbook.
+	///
+	/// # Returns
+	/// An RpcResult that resolves to a Vec<u8> upon successful completion, or an error on failure.
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
 		let last_finalized_block_guard = self.last_successful_block_number_snapshot_created.read();
 		let last_finalized_block = *last_finalized_block_guard;
