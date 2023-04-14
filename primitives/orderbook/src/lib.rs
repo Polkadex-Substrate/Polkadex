@@ -234,6 +234,9 @@ sp_api::decl_runtime_apis! {
 		/// Returns snapshot generation intervals
 		fn get_snapshot_generation_intervals() -> (u64,BlockNumber);
 
+		/// Returns last processed stid from last snapshot
+		fn get_last_accepted_stid() -> u64;
+
 		/// Get all allow listed assets
 		fn get_allowlisted_assets() -> Vec<AssetId>;
 

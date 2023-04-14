@@ -44,6 +44,7 @@ use crate::{
 	gossip::{topic, GossipValidator},
 	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
+	snapshot::SnapshotStore,
 	utils::*,
 	Client, DbRef,
 };
@@ -180,7 +181,7 @@ where
 	}
 
 	/// The function checks whether a snapshot of the blockchain should be generated based on the
-	/// pending withdrawals and block interval.
+	/// pending withdrawals and block interval and last stid
 	///
 	/// # Parameters
 	/// - &self: a reference to an instance of a struct implementing some trait
@@ -188,21 +189,29 @@ where
 	/// - bool: a boolean indicating whether a snapshot should be generated
 	pub fn should_generate_snapshot(&self) -> bool {
 		info!(target:"orderbook", "Checking if snapshot should be generated");
+
+		let at = BlockId::Number(self.last_finalized_block.saturated_into());
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
 		let (pending_withdrawals_interval, block_interval) = self
 			.runtime
 			.runtime_api()
-			.get_snapshot_generation_intervals(&BlockId::Number(
-				self.last_finalized_block.saturated_into(),
-			))
+			.get_snapshot_generation_intervals(&at)
 			.expect("Expecting snapshot generation interval api to be available");
+
+		let last_accepted_stid: u64 = self
+			.runtime
+			.runtime_api()
+			.get_last_accepted_stid(&at)
+			.expect("Expecting OCEX APIs to be available");
 
 		// Check if a snapshot should be generated based on the pending withdrawals interval and
 		// block interval
-		if pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
+		if (pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
 			block_interval <
 				self.last_finalized_block
-					.saturating_sub(*self.last_block_snapshot_generated.read())
+					.saturating_sub(*self.last_block_snapshot_generated.read())) &&
+			last_accepted_stid < self.latest_stid
+		// there is something new after last snapshot
 		{
 			info!(target:"orderbook", "Snapshot should be generated");
 			return true
@@ -300,7 +309,7 @@ where
 			trie.commit();
 		}
 		if let Some(last_snapshot) = last_snapshot {
-            info!(target:"engine", "Resetting last snapshot from blockchain: {:?}",last_snapshot);
+			info!(target:"engine", "Resetting last snapshot from blockchain: {:?}",last_snapshot);
 			*self.last_snapshot.write() = last_snapshot
 		}
 		Ok(())
@@ -462,12 +471,12 @@ where
 		summary: &SnapshotSummary,
 	) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Loading state from snapshot data ({} bytes)", data.len());
-		match serde_json::from_slice::<HashMap<[u8; 32], (Vec<u8>, i32)>>(data) {
-			Ok(data) => {
-				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} bytes)", data.len());
+		match serde_json::from_slice::<SnapshotStore>(data) {
+			Ok(store) => {
+				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} bytes)",  store.map.len());
 				let memory_db_write_lock = self.memory_db.write();
 				let mut memory_db = memory_db_write_lock.clone();
-				memory_db.load_from(data);
+				memory_db.load_from(store.map);
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 			},
@@ -516,9 +525,8 @@ where
 	) -> Result<SnapshotSummary, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			let memory_db_read_lock = self.memory_db.read();
-			let memory_db = memory_db_read_lock.clone();
-			return match serde_json::to_vec(memory_db.data()) {
+			let store = SnapshotStore { map: self.memory_db.read().data().clone() };
+			return match serde_json::to_vec(&store) {
 				Ok(data) => {
 					info!(target: "orderbook", "📒 Stored snapshot data ({} bytes)", data.len());
 					let mut state_chunk_hashes = vec![];
@@ -617,7 +625,7 @@ where
 		}
 		// We need to sub 1 since that last processed is one stid less than the not available
 		// when while loop is broken
-        info!(target:"orderbook","Setting last snapshot's stid to : {:?}",last_snapshot.saturating_sub(1));
+		info!(target:"orderbook","Setting last snapshot's stid to : {:?}",last_snapshot.saturating_sub(1));
 		self.last_snapshot.write().state_change_id = last_snapshot.saturating_sub(1);
 		Ok(())
 	}
@@ -871,7 +879,7 @@ where
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(self.latest_stid) {
 				log::error!(target:"orderbook", "Couldn't generate snapshot: {:?}",err);
-			}else{
+			} else {
 				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
 			}
 		}
@@ -1024,11 +1032,11 @@ where
 
 		known_stids.sort_unstable();
 
-        info!(target:"engine", "Last processed Stid: {:?}, known keys: {:?}, next best stid: {:?}",
-            self.latest_stid,
-            self.known_messages.len(),
-           known_stids.get(0)
-        );
+		info!(target:"engine", "Last processed Stid: {:?}, known keys: {:?}, next best stid: {:?}",
+			self.latest_stid,
+			self.known_messages.len(),
+		   known_stids.get(0)
+		);
 		Ok(())
 	}
 
