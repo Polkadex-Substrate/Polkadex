@@ -107,7 +107,7 @@ impl Get<u32> for AssetsLimit {
 pub struct SnapshotAccLimit;
 impl Get<u32> for SnapshotAccLimit {
 	fn get() -> u32 {
-		1000
+		20
 	}
 }
 #[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
@@ -115,7 +115,7 @@ impl Get<u32> for SnapshotAccLimit {
 pub struct WithdrawalLimit;
 impl Get<u32> for WithdrawalLimit {
 	fn get() -> u32 {
-		500
+		1
 	}
 }
 

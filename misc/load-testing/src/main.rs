@@ -27,7 +27,7 @@ async fn main() {
 	};
 
 	let mut message = ObMessage {
-		stid: 8,
+		stid: 2,
 		action: UserActions::Withdraw(WithdrawalRequest {
 			signature: Signature::from(proxy.sign(&payload.encode())),
 			payload,
@@ -36,6 +36,12 @@ async fn main() {
 		}),
 		signature: Default::default(),
 	};
+
+	// let mut message = ObMessage{
+	// 	stid: 1,
+	// 	action: UserActions::BlockImport(21),
+	// 	signature: Default::default(),
+	// };
 
 	message.signature = pair.sign_prehashed(&message.sign_data());
 

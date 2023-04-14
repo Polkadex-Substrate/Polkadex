@@ -46,6 +46,7 @@ use orderbook_primitives::{
 use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
+use sp_std::vec::Vec;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -87,11 +88,11 @@ pub trait OcexWeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
+	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use frame_support::{
 		pallet_prelude::*,
-		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
 			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
@@ -114,10 +115,9 @@ pub mod pallet {
 	};
 	use sp_std::vec::Vec;
 
-	type WithdrawalsMap<T> = BoundedBTreeMap<
+	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
-		BoundedVec<Withdrawal<<T as frame_system::Config>::AccountId>, WithdrawalLimit>,
-		SnapshotAccLimit,
+		Vec<Withdrawal<<T as frame_system::Config>::AccountId>>,
 	>;
 
 	pub struct AllowlistedTokenLimit;
@@ -294,10 +294,7 @@ pub mod pallet {
 				polkadex_primitives::ingress::IngressMessages<T::AccountId>,
 			>::new());
 
-			<OnChainEvents<T>>::put(BoundedVec::<
-				polkadex_primitives::ocex::OnChainEvents<T::AccountId>,
-				OnChainEventsLimit,
-			>::default());
+			<OnChainEvents<T>>::kill();
 
 			Weight::default()
 				.saturating_add(T::DbWeight::get().reads(2))
@@ -906,14 +903,7 @@ pub mod pallet {
 					}
 					// Not removing key from BtreeMap so that failed withdrawals can still be
 					// tracked
-					btree_map
-						.try_insert(
-							account.clone(),
-							failed_withdrawals
-								.try_into()
-								.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
-						)
-						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					btree_map.insert(account.clone(), failed_withdrawals);
 					Ok(())
 				} else {
 					// This allows us to ensure we do not have someone with an invalid account
@@ -926,20 +916,14 @@ pub mod pallet {
 					withdrawals: processed_withdrawals.clone(),
 				});
 				<OnChainEvents<T>>::mutate(|onchain_events| {
-					onchain_events
-						.try_push(
-							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-								snapshot_id,
-								account.clone(),
-								processed_withdrawals
-									.clone()
-									.try_into()
-									.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
-							),
-						)
-						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
-					Ok::<(), Error<T>>(())
-				})?;
+					onchain_events.push(
+						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+							snapshot_id,
+							account.clone(),
+							processed_withdrawals,
+						),
+					);
+				});
 				Ok(Pays::No.into())
 			} else {
 				// If someone withdraws nothing successfully - should pay for such transaction
@@ -977,7 +961,10 @@ pub mod pallet {
 		/// TODO: Better documentation
 		#[pallet::call_index(17)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
-		pub fn submit_snapshot(origin: OriginFor<T>, summary: SnapshotSummary) -> DispatchResult {
+		pub fn submit_snapshot(
+			origin: OriginFor<T>,
+			summary: SnapshotSummary<T::AccountId>,
+		) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 			ensure!(
@@ -1026,30 +1013,20 @@ pub mod pallet {
 						Some(result.maybe_cursor.unwrap().as_ref()),
 					);
 				}
+
+				let withdrawal_map =
+					Self::create_withdrawal_tree(working_summary.withdrawals.clone());
+				if !working_summary.withdrawals.is_empty() {
+					<OnChainEvents<T>>::mutate(|onchain_events| {
+						onchain_events.push(polkadex_primitives::ocex::OnChainEvents::GetStorage(
+							polkadex_primitives::ocex::Pallet::OCEX,
+							polkadex_primitives::ocex::StorageItem::Withdrawal,
+							working_summary.snapshot_id,
+						));
+					});
+				}
 				// Update the snapshot nonce and move the summary to snapshots storage
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
-				let withdrawal_map =
-					Self::create_withdrawal_tree(working_summary.withdrawals.clone())?;
-				if !working_summary.withdrawals.is_empty() {
-					// TODO: We can't use ensure after storages are modified.
-					ensure!(
-						<OnChainEvents<T>>::try_mutate(|onchain_events| {
-							if onchain_events
-								.try_push(polkadex_primitives::ocex::OnChainEvents::GetStorage(
-									polkadex_primitives::ocex::Pallet::OCEX,
-									polkadex_primitives::ocex::StorageItem::Withdrawal,
-									working_summary.snapshot_id,
-								))
-								.is_err()
-							{
-								return Err(())
-							}
-							Ok::<(), ()>(())
-						})
-						.is_ok(),
-						Error::<T>::OnchainEventsBoundedVecOverflow
-					);
-				}
 				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
 				// The unwrap below should not fail
 				<FeesCollected<T>>::insert(
@@ -1226,13 +1203,11 @@ pub mod pallet {
 		}
 
 		fn create_withdrawal_tree(
-			pending_withdrawals: Vec<Withdrawal<AccountId32>>,
-		) -> Result<WithdrawalsMap<T>, sp_runtime::DispatchError> {
-			let mut withdrawal_map: WithdrawalsMap<T> = BoundedBTreeMap::new();
+			pending_withdrawals: Vec<Withdrawal<T::AccountId>>,
+		) -> WithdrawalsMap<T> {
+			let mut withdrawal_map: WithdrawalsMap<T> = WithdrawalsMap::<T>::new();
 			for withdrawal in pending_withdrawals {
-				let recipient_account: T::AccountId =
-					T::AccountId::decode(&mut withdrawal.main_account.as_ref())
-						.map_err(|_| Error::<T>::AccountIdCannotBeDecoded)?;
+				let recipient_account: T::AccountId = withdrawal.main_account;
 				if let Some(pending_withdrawals) = withdrawal_map.get_mut(&recipient_account) {
 					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
 						main_account: recipient_account.clone(),
@@ -1240,29 +1215,20 @@ pub mod pallet {
 						asset: withdrawal.asset,
 						fees: withdrawal.fees,
 					};
-					pending_withdrawals
-						.try_push(new_withdrawal)
-						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					pending_withdrawals.push(new_withdrawal)
 				} else {
-					let mut pending_withdrawals: BoundedVec<
-						Withdrawal<<T as frame_system::Config>::AccountId>,
-						WithdrawalLimit,
-					> = BoundedVec::default();
+					let mut pending_withdrawals = Vec::new();
 					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
 						main_account: recipient_account.clone(),
 						amount: withdrawal.amount,
 						asset: withdrawal.asset,
 						fees: withdrawal.fees,
 					};
-					pending_withdrawals
-						.try_push(new_withdrawal.clone())
-						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
-					withdrawal_map
-						.try_insert(recipient_account, pending_withdrawals)
-						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					pending_withdrawals.push(new_withdrawal.clone());
+					withdrawal_map.insert(recipient_account, pending_withdrawals);
 				}
 			}
-			Ok(withdrawal_map)
+			withdrawal_map
 		}
 	}
 
@@ -1362,14 +1328,21 @@ pub mod pallet {
 	// Unprocessed Snapshots storage ( snapshot id, summary_hash ) => SnapshotSummary
 	#[pallet::storage]
 	#[pallet::getter(fn unprocessed_snapshots)]
-	pub(super) type UnprocessedSnapshots<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, u64, Identity, H256, SnapshotSummary, OptionQuery>;
+	pub(super) type UnprocessedSnapshots<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		u64,
+		Identity,
+		H256,
+		SnapshotSummary<T::AccountId>,
+		OptionQuery,
+	>;
 
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
 	pub(super) type Snapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, ValueQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
@@ -1421,11 +1394,8 @@ pub mod pallet {
 	// Queue for onchain events
 	#[pallet::storage]
 	#[pallet::getter(fn onchain_events)]
-	pub(super) type OnChainEvents<T: Config> = StorageValue<
-		_,
-		BoundedVec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>, OnChainEventsLimit>,
-		ValueQuery,
-	>;
+	pub(super) type OnChainEvents<T: Config> =
+		StorageValue<_, Vec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
 
 	// Total Assets present in orderbook
 	#[pallet::storage]
@@ -1435,13 +1405,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_authorities)]
-	pub(super) type Authorities<T: Config> =
-		StorageValue<_, BoundedVec<AuthorityId, OnChainEventsLimit>, ValueQuery>;
+	pub(super) type Authorities<T: Config> = StorageValue<_, Vec<AuthorityId>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_next_authorities)]
-	pub(super) type NextAuthorities<T: Config> =
-		StorageValue<_, BoundedVec<AuthorityId, OnChainEventsLimit>, ValueQuery>;
+	pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<AuthorityId>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_orderbook_operator_public_key)]
@@ -1455,7 +1423,9 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
-	pub fn validate_snapshot(snapshot_summary: &SnapshotSummary) -> TransactionValidity {
+	pub fn validate_snapshot(
+		snapshot_summary: &SnapshotSummary<T::AccountId>,
+	) -> TransactionValidity {
 		let valid_tx = |provide| {
 			ValidTransaction::with_tag_prefix("orderbook")
 				.and_provides([&provide])
@@ -1500,7 +1470,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	}
 
 	pub fn validator_set() -> ValidatorSet<AuthorityId> {
-		ValidatorSet { validators: <Authorities<T>>::get().into_inner() }
+		ValidatorSet { validators: <Authorities<T>>::get() }
 	}
 
 	pub fn get_ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>
@@ -1509,17 +1479,17 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	}
 
 	#[allow(clippy::result_unit_err)]
-	pub fn submit_snapshot_api(summary: SnapshotSummary) -> Result<(), ()> {
+	pub fn submit_snapshot_api(summary: SnapshotSummary<T::AccountId>) -> Result<(), ()> {
 		let call = Call::<T>::submit_snapshot { summary };
 		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
 	}
 
-	pub fn get_latest_snapshot() -> SnapshotSummary {
+	pub fn get_latest_snapshot() -> SnapshotSummary<T::AccountId> {
 		let last_nonce = <SnapshotNonce<T>>::get();
 		<Snapshots<T>>::get(last_nonce)
 	}
 
-	pub fn get_snapshot_by_id(nonce: u64) -> Option<SnapshotSummary> {
+	pub fn get_snapshot_by_id(nonce: u64) -> Option<SnapshotSummary<T::AccountId>> {
 		let summary = <Snapshots<T>>::get(nonce);
 
 		if summary == SnapshotSummary::default() {
@@ -1612,9 +1582,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
 	{
 		let authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
-		if let Ok(bounded_authorities) = BoundedVec::try_from(authorities) {
-			<Authorities<T>>::put(bounded_authorities);
-		};
+		<Authorities<T>>::put(authorities);
 	}
 
 	fn on_new_session<'a, I: 'a>(changed: bool, authorities: I, queued_authorities: I)
@@ -1623,24 +1591,17 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 	{
 		let next_authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
 		let next_queued_authorities = queued_authorities.map(|(_, k)| k).collect::<Vec<_>>();
-		if let (Ok(next_bounded_authorities), Ok(next_bounded_queued_authorities)) =
-			(BoundedVec::try_from(next_authorities), BoundedVec::try_from(next_queued_authorities))
-		{
-			if next_bounded_authorities != next_bounded_queued_authorities {
-				<NextAuthorities<T>>::put(next_bounded_queued_authorities);
-			}
-			if changed {
-				<Authorities<T>>::put(next_bounded_authorities);
-				// Check if there is a pending snapshot from outgoing authority set
-				let next_snapshot_id = <SnapshotNonce<T>>::get().saturating_add(1);
-				let unprocessed_snapshots_from_outgoing_set =
-					<UnprocessedSnapshots<T>>::iter_prefix(next_snapshot_id)
-						.collect::<Vec<(H256, SnapshotSummary)>>();
-				if !unprocessed_snapshots_from_outgoing_set.len().is_zero() {
-					// if yes, signal the new validators to process it again.
-					<PendingSnapshotFromPreviousSet<T>>::put(next_snapshot_id);
-				}
-			}
+
+		<Authorities<T>>::put(next_authorities);
+		<NextAuthorities<T>>::put(next_queued_authorities);
+		// Check if there is a pending snapshot from outgoing authority set
+		let next_snapshot_id = <SnapshotNonce<T>>::get().saturating_add(1);
+		let unprocessed_snapshots_from_outgoing_set =
+			<UnprocessedSnapshots<T>>::iter_prefix(next_snapshot_id)
+				.collect::<Vec<(H256, SnapshotSummary<T::AccountId>)>>();
+		if !unprocessed_snapshots_from_outgoing_set.len().is_zero() {
+			// if yes, signal the new validators to process it again.
+			<PendingSnapshotFromPreviousSet<T>>::put(next_snapshot_id);
 		}
 	}
 
