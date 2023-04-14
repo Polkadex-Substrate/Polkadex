@@ -23,6 +23,7 @@ mod metrics;
 mod utils;
 mod worker;
 
+mod snapshot;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
