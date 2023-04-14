@@ -4017,6 +4017,7 @@ version = "0.1.0"
 dependencies = [
  "jsonrpsee",
  "orderbook-primitives",
+ "sp-core",
  "tokio",
 ]
 
