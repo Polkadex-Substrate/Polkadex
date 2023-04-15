@@ -1678,6 +1678,14 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block,AccountId,Hash> for Runtime {
+		fn account_info(account_id : AccountId) ->  Vec<u128> {
+			Rewards::account_info(account_id);
+			// TODO: @Nakul will refactor this
+			vec![]
+		}
+	}
+
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
 			source: TransactionSource,
