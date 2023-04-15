@@ -4518,6 +4518,7 @@ dependencies = [
  "pallet-randomness-collective-flip",
  "pallet-recovery",
  "pallet-rewards",
+ "pallet-rewards-runtime-api",
  "pallet-scheduler",
  "pallet-session",
  "pallet-staking",
@@ -5434,6 +5435,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-rewards-rpc"
+version = "0.1.0"
+dependencies = [
+ "jsonrpsee",
+ "pallet-rewards-runtime-api",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-blockchain",
+ "sp-rpc",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-rewards-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "sp-api",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-scheduler"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.37#f38bd6671d460293c93062cc1e4fe9e9e490cb29"
@@ -5956,6 +5985,7 @@ dependencies = [
  "orderbook-rpc",
  "pallet-asset-handler-rpc",
  "pallet-im-online",
+ "pallet-rewards-rpc",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
@@ -8269,9 +8299,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.94"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c533a59c9d8a93a09c6ab31f0fd5e5f4dd1b8fc9434804029839884765d04ea"
+checksum = "057d394a50403bcac12672b2b18fb387ab6d289d957dab67dd201875391e52f1"
 dependencies = [
  "itoa",
  "ryu",
