@@ -1,32 +1,15 @@
+use crate::utils::*;
 use chrono::Utc;
-use std::{
-	collections::{BTreeMap, HashMap},
-	marker::PhantomData,
-	sync::Arc,
-	time::Duration,
-};
-
-use bls_primitives::Public;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, UserActions,
-		WithdrawalRequest,
-	},
-	utils::{prepare_bitmap, return_set_bits, set_bit_field},
-	ObApi, SnapshotSummary,
-};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
-use polkadex_primitives::{
-	ingress::IngressMessages, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
-};
+use primitive_types::H128;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sc_client_api::{Backend, FinalityNotification};
+use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
@@ -37,20 +20,41 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
+use std::{
+	collections::{BTreeMap, HashMap},
+	marker::PhantomData,
+	ops::Div,
+	sync::Arc,
+	time::Duration,
+};
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
+use bls_primitives::Public;
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
+		UserActions, WithdrawalRequest,
+	},
+	ObApi, SnapshotSummary,
+};
+use polkadex_primitives::{
+	ingress::IngressMessages,
+	ocex::TradingPairConfig,
+	utils::{prepare_bitmap, return_set_bits, set_bit_field},
+	withdrawal::Withdrawal,
+	AccountId, AssetId, BlockNumber,
+};
 
 use crate::{
 	error::Error,
 	gossip::{topic, GossipValidator},
+	keystore::OrderbookKeyStore,
 	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
 	snapshot::SnapshotStore,
-	utils::*,
 	Client, DbRef,
 };
-use orderbook_primitives::types::TradingPair;
-use polkadex_primitives::ocex::TradingPairConfig;
-use primitive_types::H128;
 
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
@@ -62,6 +66,8 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub sync_oracle: SO,
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
+	/// Local key store
+	pub keystore: Option<Arc<LocalKeystore>>,
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	/// Gossip network
 	pub network: N,
@@ -85,6 +91,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	sync_oracle: SO,
 	is_validator: bool,
 	_network: Arc<N>,
+	/// Local key store
+	pub keystore: OrderbookKeyStore,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
@@ -112,6 +120,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// Map of trading pair configs
 	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
 	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
+	// Our last snapshot waiting for approval
+	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -138,6 +148,7 @@ where
 			sync_oracle,
 			metrics,
 			is_validator,
+			keystore,
 			message_sender_link,
 			network,
 			protocol_name,
@@ -154,6 +165,8 @@ where
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
+		let keystore = OrderbookKeyStore::new(keystore);
+
 		ObWorker {
 			client,
 			backend,
@@ -161,6 +174,7 @@ where
 			sync_oracle,
 			is_validator,
 			_network: network,
+			keystore,
 			gossip_engine,
 			gossip_validator,
 			memory_db,
@@ -178,6 +192,7 @@ where
 			latest_stid,
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
+			pending_snapshot_summary: None,
 		}
 	}
 
@@ -294,27 +309,6 @@ where
 		Ok(())
 	}
 
-	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
-		let available_bls_keys: Vec<Public> = bls_primitives::crypto::bls_ext::all();
-		info!(target:"orderbook","📒 Avaialble BLS keys: {:?}",available_bls_keys);
-		info!(target:"orderbook","📒 Active BLS keys: {:?}",active_set);
-		// Get the first available key in the validator set.
-		let mut validator_key = None;
-		for key in available_bls_keys {
-			if active_set.contains(&orderbook_primitives::crypto::AuthorityId::from(key)) {
-				validator_key = Some(key);
-				break
-			}
-		}
-		if validator_key.is_none() {
-			info!(target:"orderbook","📒 No validator key found for snapshotting. Skipping snapshot signing.");
-			return Err(Error::Keystore(
-				"No validator key found for snapshotting. Skipping snapshot signing.".into(),
-			))
-		}
-		Ok(validator_key.unwrap())
-	}
-
 	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Generating snapshot");
 		let at = BlockId::number(self.last_finalized_block.saturated_into());
@@ -326,45 +320,47 @@ where
 			.snapshot_id
 			.saturating_add(1);
 
-		let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
+		if let Some(pending_snapshot) = self.pending_snapshot_summary.as_ref() {
+			if next_snapshot_id == pending_snapshot.snapshot_id {
+				// We don't need to do anything because we already submitted the snapshot.
+				return Ok(())
+			}
+		}
+		let active_set = self.runtime.runtime_api().validator_set(&at)?.validators;
+
+		let mut summary = self.store_snapshot(stid, next_snapshot_id, active_set.len())?;
 		if !self.is_validator {
 			info!(target:"orderbook","📒 Not a validator, skipping snapshot signing.");
 			// We are done if we are not a validator
 			return Ok(())
 		}
-		let active_set = self.runtime.runtime_api().validator_set(&at)?.validators;
-		let signing_key = self.get_validator_key(&active_set)?;
-		info!(target:"orderbook","Signing snapshot with: {:?}",hex::encode(signing_key.0));
-		let initial_summary = summary.sign_data();
-		let signature = match bls_primitives::crypto::sign(&signing_key, &summary.sign_data()) {
-			Some(sig) => sig,
-			None => {
-				error!(target:"orderbook","📒 Failed to sign snapshot, not able to sign with validator key.");
-				return Err(Error::SnapshotSigningFailed)
-			},
-		};
 
-		summary.aggregate_signature = Some(signature);
-		let bit_index = active_set.iter().position(|v| v == &signing_key.into()).unwrap();
+		let signing_key = self.keystore.get_local_key(&active_set)?;
+		info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
+		let initial_summary = summary.sign_data();
+
+		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
+		summary.aggregate_signature = Some(signature.clone().into());
+
+		let bit_index = active_set.iter().position(|v| v == &signing_key).unwrap();
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index as u16);
+		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
 		assert_eq!(initial_summary, summary.sign_data());
-		assert!(bls_primitives::crypto::bls_ext::verify(
-			&signing_key,
-			&initial_summary,
-			&signature,
-		));
+
+		assert!(self.keystore.verify(&signing_key, &signature, &initial_summary));
 		// send it to runtime
 		if self
 			.runtime
 			.runtime_api()
-			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
+			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary.clone())
 			.expect("Something went wrong with the submit_snapshot runtime api; qed.")
 			.is_err()
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 			return Err(Error::FailedToSubmitSnapshotToRuntime)
 		}
+		self.pending_snapshot_summary = Some(summary);
 		Ok(())
 	}
 
@@ -513,6 +509,7 @@ where
 		&mut self,
 		state_change_id: u64,
 		snapshot_id: u64,
+		active_validators_len: usize,
 	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
@@ -544,7 +541,7 @@ where
 						snapshot_id,
 						state_root: working_state_root.into(),
 						state_change_id,
-						bitflags: vec![],
+						bitflags: vec![0; active_validators_len.div(128).saturating_add(1)],
 						withdrawals,
 						aggregate_signature: None,
 						state_chunk_hashes,
@@ -664,13 +661,14 @@ where
 	}
 
 	// Expects the set bits in the bitmap to be missing chunks
-	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
+	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want snapshot: {:?} - {:?}", snapshot_id, bitmap);
 		// Only respond if we are a fullnode
 		// TODO: Should we respond if we are also syncing???
 		if !self.is_validator {
 			if let Some(peer) = remote {
 				let mut chunks_we_have = vec![];
+				let mut highest_index = 0;
 				let at = BlockId::Number(self.last_finalized_block.saturated_into());
 				if let Ok(Some(summary)) =
 					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
@@ -688,6 +686,7 @@ where
 								.is_some()
 							{
 								chunks_we_have.push(chunk_index);
+								highest_index = chunk_index.max(highest_index);
 							}
 						}
 					}
@@ -696,7 +695,11 @@ where
 				}
 
 				if !chunks_we_have.is_empty() {
-					let message = GossipMessage::Have(*snapshot_id, prepare_bitmap(chunks_we_have));
+					let message = GossipMessage::Have(
+						*snapshot_id,
+						prepare_bitmap(&chunks_we_have, highest_index)
+							.expect("Expected to create bitmap"),
+					);
 					self.gossip_engine.send_message(vec![peer], message.encode());
 					metric_inc!(self, ob_messages_sent);
 					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -705,23 +708,27 @@ where
 		}
 	}
 
-	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &[u128], remote: Option<PeerId>) {
+	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Have snapshot: {:?} - {:?}", snapshot_id, bitmap);
 		if let Some(peer) = remote {
 			// Note: Set bits here are available for syncing
-			let available_chunks: Vec<u16> = return_set_bits(bitmap);
+			let available_chunks: Vec<u16> = return_set_bits(&bitmap);
 			let mut want_chunks = vec![];
+			let mut highest_index = 0; // We need the highest index to prepare the bitmap
 			for index in available_chunks {
 				if let Some(chunk_status) = self.sync_state_map.get_mut(&index) {
 					if *chunk_status == StateSyncStatus::Unavailable {
 						want_chunks.push(index);
+						highest_index = index.max(highest_index);
 						*chunk_status = StateSyncStatus::InProgress(peer, Utc::now().timestamp());
 					}
 				}
 			}
 			if !want_chunks.is_empty() {
-				let message =
-					GossipMessage::RequestChunk(*snapshot_id, prepare_bitmap(want_chunks));
+				let message = GossipMessage::RequestChunk(
+					*snapshot_id,
+					prepare_bitmap(&want_chunks, highest_index).expect("Expected to create bitmap"),
+				);
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -732,7 +739,7 @@ where
 	pub async fn request_chunk(
 		&mut self,
 		snapshot_id: &u64,
-		bitmap: &[u128],
+		bitmap: &Vec<u128>,
 		remote: Option<PeerId>,
 	) {
 		info!(target: "orderbook", "📒 Request chunk: {:?} - {:?}", snapshot_id, bitmap);
@@ -911,12 +918,14 @@ where
 			let total = self.sync_state_map.len();
 			let last_summary = self.last_snapshot.read().clone();
 			let mut missing_indexes = vec![];
+			let mut highest_missing_index = 0;
 			for (chunk_index, status) in self.sync_state_map.iter_mut() {
 				match status {
 					StateSyncStatus::Unavailable => {
 						info!(target:"orderbook","Chunk: {:?} is unavailable",chunk_index);
 						unavailable = unavailable.saturating_add(1);
 						missing_indexes.push(*chunk_index);
+						highest_missing_index = (*chunk_index).max(highest_missing_index);
 					},
 					StateSyncStatus::InProgress(who, when) => {
 						info!(target:"orderbook","Chunk: {:?} is in progress with peer: {:?}",chunk_index,who);
@@ -924,6 +933,7 @@ where
 						// If the peer has not responded with data in one minute we ask again
 						if (Utc::now().timestamp() - *when) > 60 {
 							missing_indexes.push(*chunk_index);
+							highest_missing_index = (*chunk_index).max(highest_missing_index);
 							warn!(target:"orderbook","Peer: {:?} has not responded with chunk: {:?}, asking someone else", who, chunk_index);
 							*status = StateSyncStatus::Unavailable;
 						}
@@ -934,8 +944,11 @@ where
 			info!(target:"orderbook","📒 State chunks sync status: inprogress: {:?}, unavailable: {:?}, total: {:?}",inprogress,unavailable,total);
 			// If we have missing indexes, ask again to peers for these indexes
 			if !missing_indexes.is_empty() {
-				let message =
-					GossipMessage::Want(last_summary.snapshot_id, prepare_bitmap(missing_indexes));
+				let message = GossipMessage::Want(
+					last_summary.snapshot_id,
+					prepare_bitmap(&missing_indexes, highest_missing_index)
+						.expect("Expected to create bitmap"),
+				);
 				let fullnodes = self
 					.gossip_validator
 					.fullnodes
@@ -959,7 +972,7 @@ where
 					.runtime_api()
 					.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
 					.validators;
-				if let Ok(signing_key) = self.get_validator_key(&active_set) {
+				if let Ok(signing_key) = self.keystore.get_local_key(&active_set) {
 					// 2. Check if the pending snapshot from previous set
 					if let Some(pending_snaphot) = self.runtime.runtime_api().pending_snapshot(
 						&BlockId::number(self.last_finalized_block.saturated_into()),
@@ -982,22 +995,14 @@ where
 								info!(target:"orderbook","Found snapshot summary for snapshot_id: {:?}",pending_snaphot);
 								match SnapshotSummary::decode(&mut &data[..]) {
 									Ok(mut summary) => {
-										info!(target:"orderbook","Signing snapshot with: {:?}",hex::encode(signing_key.0));
-										let signature = match bls_primitives::crypto::sign(
-											&signing_key,
-											&summary.sign_data(),
-										) {
-											Some(sig) => sig,
-											None => {
-												error!(target:"orderbook","📒 Failed to sign snapshot, not able to sign with validator key.");
-												return Err(Error::SnapshotSigningFailed)
-											},
-										};
-
-										summary.aggregate_signature = Some(signature);
+										info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
+										let signature = self
+											.keystore
+											.sign(&signing_key, &summary.sign_data())?;
+										summary.aggregate_signature = Some(signature.into());
 										let bit_index = active_set
 											.iter()
-											.position(|v| v == &signing_key.into())
+											.position(|v| v == &signing_key)
 											.unwrap();
 										set_bit_field(&mut summary.bitflags, bit_index as u16);
 										// send it to runtime
@@ -1060,19 +1065,22 @@ where
 		// Check the chunks we need
 		// Store the missing chunk indexes
 		let mut missing_chunks = vec![];
+		let mut highest_chunk_index = 0;
 		for (index, chunk_hash) in summary.state_chunk_hashes.iter().enumerate() {
 			if offchain_storage
 				.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.encode().as_ref())
 				.is_none()
 			{
 				missing_chunks.push(index as u16);
+				highest_chunk_index = index.max(highest_chunk_index);
 				self.sync_state_map.insert(index as u16, StateSyncStatus::Unavailable);
 			} else {
 				self.sync_state_map.insert(index as u16, StateSyncStatus::Available);
 			}
 		}
 		// Prepare bitmap
-		let bitmap = prepare_bitmap(missing_chunks);
+		let bitmap = prepare_bitmap(&missing_chunks, highest_chunk_index as u16)
+			.expect("Expected to create bitmap");
 		// Gossip the sync requests to all connected fullnodes
 		let fullnodes = self
 			.gossip_validator
