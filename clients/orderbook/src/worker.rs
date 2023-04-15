@@ -108,7 +108,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// last block at which snapshot was generated
 	last_block_snapshot_generated: Arc<RwLock<BlockNumber>>,
 	// latest stid
-	latest_stid: u64,
+	latest_stid: Arc<RwLock<u64>>,
 	// Map of trading pair configs
 	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
 	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
@@ -148,8 +148,9 @@ where
 		} = worker_params;
 
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
+		let latest_stid = Arc::new(RwLock::new(0));
 		let network = Arc::new(network);
-		let gossip_validator = Arc::new(GossipValidator::new(last_snapshot.clone()));
+		let gossip_validator = Arc::new(GossipValidator::new(latest_stid.clone()));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
@@ -174,7 +175,7 @@ where
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
 			last_block_snapshot_generated,
-			latest_stid: 0,
+			latest_stid,
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
 		}
@@ -208,7 +209,7 @@ where
 			block_interval <
 				self.last_finalized_block
 					.saturating_sub(*self.last_block_snapshot_generated.read())) &&
-			last_accepted_stid < self.latest_stid
+			last_accepted_stid < *self.latest_stid.read()
 		// there is something new after last snapshot
 		{
 			info!(target:"orderbook", "Snapshot should be generated");
@@ -392,9 +393,11 @@ where
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 			UserActions::Snapshot => self.snapshot(action.stid)?,
 		}
-		self.latest_stid = action.stid;
+		*self.latest_stid.write() = action.stid;
 		// Multicast the message to other peers
-		self.gossip_engine.gossip_message(topic::<B>(), action.encode(), true);
+		let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
+		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
+		info!(target:"orderbook","Message with stid: {:?} gossiped to others",self.latest_stid.read());
 		Ok(())
 	}
 
@@ -472,9 +475,9 @@ where
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		// Check if stid is newer or not
-		if action.stid <= self.latest_stid {
+		if action.stid <= *self.latest_stid.read() {
 			// Ignore stids we already know.
-			warn!(target:"orderbook","Ignoring old message: given: {:?}, latest stid: {:?}",action.stid,self.latest_stid);
+			warn!(target:"orderbook","Ignoring old message: given: {:?}, latest stid: {:?}",action.stid,self.latest_stid.read());
 			return Ok(())
 		}
 		info!(target: "orderbook", "📒 Processing new user action: {:?}", action);
@@ -865,7 +868,11 @@ where
 		self.last_finalized_block = (*header.number()).saturated_into();
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
-			if let Err(err) = self.snapshot(self.latest_stid) {
+			let mut latest_stid = 0;
+			{
+				latest_stid = *self.latest_stid.read();
+			}
+			if let Err(err) = self.snapshot(latest_stid) {
 				log::error!(target:"orderbook", "Couldn't generate snapshot: {:?}",err);
 			} else {
 				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
@@ -879,7 +886,7 @@ where
 			)?;
 
 			// Check if its genesis then update storage with genesis data
-			if latest_summary.snapshot_id.is_zero() && self.latest_stid.is_zero() {
+			if latest_summary.snapshot_id.is_zero() && self.latest_stid.read().is_zero() {
 				info!(target: "orderbook", "📒 Loading genesis data from runtime ....");
 				self.update_storage_with_genesis_data()?;
 				// Update the latest snapshot summary.
@@ -1021,7 +1028,7 @@ where
 		known_stids.sort_unstable();
 
 		info!(target:"engine", "Last processed Stid: {:?}, known keys: {:?}, next best stid: {:?}",
-			self.latest_stid,
+			self.latest_stid.read(),
 			self.known_messages.len(),
 		   known_stids.get(0)
 		);

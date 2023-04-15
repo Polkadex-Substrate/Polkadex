@@ -7,7 +7,7 @@ use sp_core::{Encode, Pair};
 
 #[tokio::main]
 async fn main() {
-	let url = String::from("ws://localhost:9944");
+	let url = String::from("ws://localhost:9945");
 
 	let client = WsClientBuilder::default().build(&url).await.unwrap();
 
@@ -26,22 +26,19 @@ async fn main() {
 		timestamp: 0,
 	};
 
-	let mut message = ObMessage {
-		stid: 2,
-		action: UserActions::Withdraw(WithdrawalRequest {
-			signature: Signature::from(proxy.sign(&payload.encode())),
-			payload,
-			main: AccountId::from(main.public()),
-			proxy: AccountId::from(proxy.public()),
-		}),
-		signature: Default::default(),
-	};
-
-	// let mut message = ObMessage{
-	// 	stid: 1,
-	// 	action: UserActions::BlockImport(17),
+	// let mut message = ObMessage {
+	// 	stid: 2,
+	// 	action: UserActions::Withdraw(WithdrawalRequest {
+	// 		signature: Signature::from(proxy.sign(&payload.encode())),
+	// 		payload,
+	// 		main: AccountId::from(main.public()),
+	// 		proxy: AccountId::from(proxy.public()),
+	// 	}),
 	// 	signature: Default::default(),
 	// };
+
+	let mut message =
+		ObMessage { stid: 1, action: UserActions::BlockImport(8), signature: Default::default() };
 
 	message.signature = pair.sign_prehashed(&message.sign_data());
 

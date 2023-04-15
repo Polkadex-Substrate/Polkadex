@@ -1,4 +1,8 @@
-use orderbook_primitives::{types::ObMessage, SnapshotSummary};
+use log::info;
+use orderbook_primitives::{
+	types::{GossipMessage, ObMessage},
+	SnapshotSummary,
+};
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use polkadex_primitives::AccountId;
@@ -29,7 +33,7 @@ where
 	B: Block,
 {
 	_topic: B::Hash,
-	last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
+	latest_stid: Arc<RwLock<u64>>,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 }
@@ -38,23 +42,35 @@ impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new(last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>) -> GossipValidator<B> {
+	pub fn new(latest_stid: Arc<RwLock<u64>>) -> GossipValidator<B> {
 		GossipValidator {
 			_topic: topic::<B>(),
-			last_snapshot,
+			latest_stid,
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
 		}
 	}
 
-	pub fn validate_message(&self, message: &ObMessage) -> bool {
-		let last_snapshot = self.last_snapshot.read();
-		message.stid >= last_snapshot.state_change_id
+	pub fn validate_message(&self, message: &GossipMessage) -> bool {
+		info!(target:"orderbook","Validating message with stid: {:?}",message);
+		match message {
+			GossipMessage::ObMessage(msg) => {
+				let last_stid = *self.latest_stid.read();
+				msg.stid > last_stid
+			},
+			_ => true,
+		}
 	}
 
-	pub fn rebroadcast_check(&self, _message: &ObMessage) -> bool {
-		// TODO: When should we rebroadcast a message
-		true
+	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
+		info!(target:"orderbook","Rebroadcast check for : {:?}",message);
+		match message {
+			GossipMessage::ObMessage(msg) => {
+				let last_stid = *self.latest_stid.read();
+				msg.stid >= last_stid
+			},
+			_ => true,
+		}
 	}
 }
 
@@ -84,7 +100,7 @@ where
 		mut data: &[u8],
 	) -> ValidationResult<B::Hash> {
 		// Decode
-		if let Ok(ob_message) = ObMessage::decode(&mut data) {
+		if let Ok(ob_message) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
 			if self.validate_message(&ob_message) {
 				return ValidationResult::ProcessAndKeep(topic::<B>())
@@ -97,7 +113,7 @@ where
 	fn message_expired<'a>(&'a self) -> Box<dyn FnMut(B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_topic, mut data| {
 			// Decode
-			let msg = match ObMessage::decode(&mut data) {
+			let msg = match GossipMessage::decode(&mut data) {
 				Ok(msg) => msg,
 				Err(_) => return true,
 			};
@@ -111,7 +127,7 @@ where
 	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, _intent, _topic, mut data| {
 			// Decode
-			let msg = match ObMessage::decode(&mut data) {
+			let msg = match GossipMessage::decode(&mut data) {
 				Ok(vote) => vote,
 				Err(_) => return false,
 			};
