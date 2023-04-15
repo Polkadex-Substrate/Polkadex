@@ -1679,10 +1679,8 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block,AccountId,Hash> for Runtime {
-		fn account_info(account_id : AccountId) ->  Vec<u128> {
-			Rewards::account_info(account_id);
-			// TODO: @Nakul will refactor this
-			vec![]
+		fn account_info(account_id : AccountId) ->  polkadex_primitives::rewards::RewardsInfoByAccount<u128> {
+			Rewards::account_info(account_id)
 		}
 	}
 
