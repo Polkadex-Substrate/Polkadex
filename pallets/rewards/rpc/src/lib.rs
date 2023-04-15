@@ -19,6 +19,7 @@ pub trait PolkadexRewardsRpcApi<BlockHash, AccountId, Hash> {
 	fn account_info(
 		&self,
 		account_id: AccountId,
+		reward_id: u32,
 		at: Option<BlockHash>,
 	) -> RpcResult<String>;
 }
@@ -36,26 +37,29 @@ impl<Client, Block> PolkadexRewardsRpc<Client, Block> {
 
 #[async_trait]
 impl<Client, Block, AccountId, Hash>
-PolkadexRewardsRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
-for PolkadexRewardsRpc<Client, Block>
-	where
-		Block: BlockT,
-		Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-		Client::Api: PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
-		AccountId: Codec,
-		Hash: Codec,
+	PolkadexRewardsRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
+	for PolkadexRewardsRpc<Client, Block>
+where
+	Block: BlockT,
+	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
+	Client::Api: PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
+	AccountId: Codec,
+	Hash: Codec,
 {
 	fn account_info(
 		&self,
 		account_id: AccountId,
+		reward_id: u32,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(at.unwrap_or_else(||
-			self.client.info().best_hash));
+		let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-		let runtime_api_result = api.account_info(&at, account_id).map_err(runtime_error_into_rpc_err)?;
-		let json = serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
+		let runtime_api_result = api
+			.account_info(&at, account_id, reward_id)
+			.map_err(runtime_error_into_rpc_err)?;
+		let json =
+			serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
 		Ok(json)
 	}
 }
