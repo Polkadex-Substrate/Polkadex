@@ -20,7 +20,7 @@ pub trait PolkadexRewardsRpcApi<BlockHash, AccountId, Hash> {
 		&self,
 		account_id: AccountId,
 		at: Option<BlockHash>,
-	) -> RpcResult<Vec<String>>;
+	) -> RpcResult<String>;
 }
 
 pub struct PolkadexRewardsRpc<Client, Block> {
@@ -49,22 +49,14 @@ for PolkadexRewardsRpc<Client, Block>
 		&self,
 		account_id: AccountId,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> RpcResult<Vec<String>> {
-		// TODO: Refactor for Nakul
-		// let assets: RpcResult<Vec<_>> = assets
-		// 	.iter()
-		// 	.map(|asset_id| asset_id.parse::<u128>().map_err(runtime_error_into_rpc_err))
-		// 	.collect();
-		// let api = self.client.runtime_api();
-		// let at = BlockId::hash(at.unwrap_or_else(||
-		// 	// If the block hash is not supplied assume the best block.
-		// 	self.client.info().best_hash));
+	) -> RpcResult<String> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(at.unwrap_or_else(||
+			self.client.info().best_hash));
 
-		// let runtime_api_result = api.account_balances(&at, assets?, account_id);
-		// runtime_api_result
-		// 	.map(|balances| balances.iter().map(|balance| balance.to_string()).collect())
-		// 	.map_err(runtime_error_into_rpc_err)
-		Ok(vec![String::from("felix")])
+		let runtime_api_result = api.account_info(&at, account_id).map_err(runtime_error_into_rpc_err)?;
+		let json = serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
+		Ok(json)
 	}
 }
 

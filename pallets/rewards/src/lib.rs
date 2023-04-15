@@ -473,7 +473,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn account_info(account_id: T::AccountId)  {
+	pub fn account_info(account_id: T::AccountId) -> polkadex_primitives::rewards::RewardsInfoByAccount<u128> {
 		// assets
 		// 	.iter()
 		// 	.map(|asset| {
@@ -482,5 +482,6 @@ impl<T: Config> Pallet<T> {
 		// 	.collect()
 		// TODO: @Nakul do your shit here, define Return type, so that i can make changes in meta
 		//
+		Default::default()
 	}
 }

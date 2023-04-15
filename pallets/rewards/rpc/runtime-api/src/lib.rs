@@ -19,8 +19,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use parity_scale_codec::Codec;
 use sp_std::vec::Vec;
+use polkadex_primitives::rewards::RewardsInfoByAccount;
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexRewardsRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
-		fn account_info(account_id : AccountId) ->  Vec<u128>;
+		fn account_info(account_id : AccountId) ->  RewardsInfoByAccount<u128>;
 	}
 }
