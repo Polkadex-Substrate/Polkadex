@@ -472,4 +472,15 @@ impl<T: Config> Pallet<T> {
 		)?;
 		Ok(())
 	}
+
+	pub fn account_info(account_id: T::AccountId)  {
+		// assets
+		// 	.iter()
+		// 	.map(|asset| {
+		// 		<T as Config>::AssetManager::balance(*asset, &account_id).saturated_into()
+		// 	})
+		// 	.collect()
+		// TODO: @Nakul do your shit here, define Return type, so that i can make changes in meta
+		//
+	}
 }
