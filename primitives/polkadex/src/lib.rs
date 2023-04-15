@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 //! Low-level types used throughout the Substrate code.
-
+#![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod assets;
@@ -25,6 +25,7 @@ pub mod fees;
 pub mod ingress;
 pub mod misbehavior;
 pub mod ocex;
+pub mod utils;
 pub mod withdrawal;
 
 pub use frame_support::storage::bounded_vec::BoundedVec;

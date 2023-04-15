@@ -88,3 +88,9 @@ impl From<JoinError> for Error {
 		Self::Backend(value.to_string())
 	}
 }
+
+impl From<sc_keystore::Error> for Error {
+	fn from(value: sc_keystore::Error) -> Self {
+		Self::Keystore(value.to_string())
+	}
+}

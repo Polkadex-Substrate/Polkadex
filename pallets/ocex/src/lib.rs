@@ -1037,6 +1037,13 @@ pub mod pallet {
 				// Clear PendingSnapshotFromPreviousSet storage if its present
 				// because we are accepted this snapshot as there are not pending snapshots
 				<PendingSnapshotFromPreviousSet<T>>::kill();
+			} else {
+				// We still don't have enough signatures on this, so save it back.
+				<UnprocessedSnapshots<T>>::insert(
+					working_summary.snapshot_id,
+					summary_hash,
+					working_summary,
+				);
 			}
 			Ok(())
 		}
@@ -1446,9 +1453,10 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			Some(idx) => *idx,
 			None => return InvalidTransaction::BadSigner.into(),
 		};
+
 		let authority = match <Authorities<T>>::get().get(auth_idx as usize) {
 			Some(auth) => auth,
-			None => return InvalidTransaction::Custom(11).into(),
+			None => return InvalidTransaction::Custom(auth_idx as u8).into(),
 		}
 		.clone();
 

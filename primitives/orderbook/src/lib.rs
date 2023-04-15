@@ -1,8 +1,12 @@
+#![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
+	ocex::TradingPairConfig,
+	utils::{return_set_bits, set_bit_field},
+	withdrawal::Withdrawal,
+	AccountId, AssetId, BlockNumber,
 };
 use primitive_types::H128;
 use rust_decimal::Decimal;
@@ -15,16 +19,12 @@ use sp_std::vec::Vec;
 
 use bls_primitives::{Public, Signature};
 
+use crate::crypto::AuthorityId;
 #[cfg(feature = "std")]
 use crate::types::ObMessage;
-use crate::{
-	crypto::AuthorityId,
-	utils::{return_set_bits, set_bit_field},
-};
 
 pub mod constants;
 pub mod types;
-pub mod utils;
 
 /// Key type for BEEFY module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
