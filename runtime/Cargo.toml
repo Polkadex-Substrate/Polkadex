@@ -117,6 +117,7 @@ pallet-rewards = { path = "../pallets/rewards", default-features = false }
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
 pallet-asset-handler-runtime-api = { path = "../pallets/asset-handler/rpc/runtime-api", default-features = false }
+pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
