@@ -27,7 +27,7 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::{Get, Weight},
-	traits::{tokens::Balance, Currency, ExistenceRequirement, LockIdentifier},
+	traits::{Currency, ExistenceRequirement, LockIdentifier},
 };
 use pallet_timestamp as timestamp;
 use sp_runtime::{
