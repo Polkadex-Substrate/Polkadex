@@ -618,6 +618,7 @@ pub fn new_full_base(
 		client: client.clone(),
 		backend,
 		runtime: client.clone(),
+		keystore: keystore_container.local_keystore(),
 		network: network.clone(),
 		prometheus_registry,
 		protocol_name: thea_protocol_name,
