@@ -5,6 +5,7 @@ use parity_scale_codec::Codec;
 use parking_lot::RwLock;
 use prometheus::Registry;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
+use sc_keystore::LocalKeystore;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
@@ -23,6 +24,7 @@ mod worker;
 mod tests;
 
 mod connector;
+mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
@@ -106,6 +108,8 @@ where
 	pub backend: Arc<BE>,
 	/// Client runtime
 	pub runtime: Arc<R>,
+	/// Keystore
+	pub keystore: Option<Arc<LocalKeystore>>,
 	/// Gossip network
 	pub network: N,
 	/// Prometheus metric registry
@@ -133,6 +137,7 @@ where
 		client,
 		backend,
 		runtime,
+		keystore,
 		network,
 		prometheus_registry,
 		protocol_name,
@@ -160,6 +165,7 @@ where
 		client,
 		backend,
 		runtime,
+		keystore,
 		sync_oracle,
 		is_validator,
 		network,

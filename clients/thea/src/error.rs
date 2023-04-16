@@ -62,3 +62,9 @@ impl From<()> for Error {
 		Self::FailedToSubmitMessageToRuntime
 	}
 }
+
+impl From<sc_keystore::Error> for Error {
+	fn from(value: sc_keystore::Error) -> Self {
+		Self::Keystore(value.to_string())
+	}
+}

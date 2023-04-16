@@ -1,10 +1,10 @@
-use bls_primitives::Public;
 use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, FutureExt, StreamExt};
 use log::{debug, error, info, trace, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use sc_client_api::{Backend, FinalityNotification};
+use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
@@ -33,6 +33,7 @@ use crate::{
 	connector::{parachain::ParachainClient, traits::ForeignConnector},
 	error::Error,
 	gossip::{topic, GossipValidator},
+	keystore::TheaKeyStore,
 	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
 	types::GossipMessage,
@@ -51,6 +52,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
 	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
+	pub(crate) keystore: Option<Arc<LocalKeystore>>,
 }
 
 /// A Orderbook worker plays the Orderbook protocol
@@ -63,6 +65,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	metrics: Option<Metrics>,
 	is_validator: bool,
 	network: Arc<N>,
+	keystore: TheaKeyStore,
 	thea_network: Option<Network>,
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
@@ -95,6 +98,7 @@ where
 			client,
 			backend,
 			runtime,
+			keystore,
 			sync_oracle,
 			metrics,
 			is_validator,
@@ -117,6 +121,7 @@ where
 			sync_oracle,
 			is_validator,
 			network: Arc::new(network),
+			keystore: TheaKeyStore::new(keystore),
 			thea_network: None,
 			gossip_engine,
 			gossip_validator,
@@ -126,27 +131,6 @@ where
 		})
 	}
 
-	pub fn get_validator_key(&self, active_set: &Vec<AuthorityId>) -> Result<Public, Error> {
-		let available_bls_keys: Vec<Public> = bls_primitives::crypto::bls_ext::all();
-		info!(target:"orderbook","📒 Avaialble BLS keys: {:?}",available_bls_keys);
-		info!(target:"orderbook","📒 Active BLS keys: {:?}",active_set);
-		// Get the first available key in the validator set.
-		let mut validator_key = None;
-		for key in available_bls_keys {
-			if active_set.contains(&thea_primitives::crypto::AuthorityId::from(key)) {
-				validator_key = Some(key);
-				break
-			}
-		}
-		if validator_key.is_none() {
-			info!(target:"orderbook","📒 No validator key found for snapshotting. Skipping snapshot signing.");
-			return Err(Error::Keystore(
-				"No validator key found for snapshotting. Skipping snapshot signing.".into(),
-			))
-		}
-		Ok(validator_key.unwrap())
-	}
-
 	pub async fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
 		let active = self
 			.runtime
@@ -154,18 +138,12 @@ where
 			.validator_set(&self.last_finalized_blk, message.network)?
 			.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
 
-		let signing_key = self.get_validator_key(&active.validators)?;
-		let signature = match bls_primitives::crypto::sign(&signing_key, &message.encode()) {
-			Some(sig) => sig,
-			None => {
-				error!(target:"orderbook","📒 Failed to thea message, not able to sign with validator key.");
-				return Err(Error::SigningFailed)
-			},
-		};
+		let signing_key = self.keystore.get_local_key(&active.validators)?;
+		let signature = self.keystore.sign(&signing_key, &message.encode())?;
 
 		let bitmap = prepare_bitmap(&active.validators, &signing_key.into());
 
-		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature })
+		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
 
 	pub async fn check_message(&self, message: &GossipMessage) -> Result<bool, Error> {
@@ -324,14 +302,10 @@ where
 			.validator_set(&self.last_finalized_blk, network)?
 			.ok_or(Error::ValidatorSetNotInitialized(network))?;
 
-		let signing_key = self.get_validator_key(&active.validators)?;
+		let signing_key = self.keystore.get_local_key(&active.validators)?;
 
 		// Unwrap is fine since we already know we are in that list
-		let index = active
-			.validators
-			.iter()
-			.position(|x| x == &AuthorityId::from(signing_key))
-			.unwrap();
+		let index = active.validators.iter().position(|x| x == &signing_key).unwrap();
 		Ok(index.saturated_into())
 	}
 
