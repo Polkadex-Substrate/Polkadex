@@ -34,6 +34,8 @@ pub struct ObRecoveryState {
 	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
+	/// worker nonce
+	pub worker_nonce: u64,
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
