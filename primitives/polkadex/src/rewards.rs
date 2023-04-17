@@ -19,4 +19,3 @@ pub struct RewardsInfoByAccount<Balance: Default> {
 	/// the rewards are currently available for the account to claim.
 	pub claimable: Balance,
 }
-
