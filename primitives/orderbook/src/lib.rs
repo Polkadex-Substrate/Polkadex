@@ -194,6 +194,7 @@ impl SnapshotSummary {
 		let data = (
 			self.snapshot_id,
 			self.state_root,
+			self.state_change_id,
 			self.worker_nonce,
 			self.state_chunk_hashes.clone(),
 			self.withdrawals.clone(),
