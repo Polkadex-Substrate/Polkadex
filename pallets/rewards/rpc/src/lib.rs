@@ -15,7 +15,7 @@ const RUNTIME_ERROR: i32 = 1;
 
 #[rpc(client, server)]
 pub trait PolkadexRewardsRpcApi<BlockHash, AccountId, Hash> {
-	#[method(name = "rewards_accountinfo")]
+	#[method(name = "rewards_accountInfo")]
 	fn account_info(
 		&self,
 		account_id: AccountId,
