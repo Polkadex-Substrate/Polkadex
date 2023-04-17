@@ -431,7 +431,7 @@ impl Order {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
 		return match self.order_type {
-			OrderType::Limit =>
+			OrderType::LIMIT =>
 				is_market_same &&
 					self.price >= config.min_price &&
 					self.price <= config.max_price &&
@@ -439,7 +439,7 @@ impl Order {
 					self.qty <= config.max_qty &&
 					self.price.rem(config.price_tick_size).is_zero() &&
 					self.qty.rem(config.qty_step_size).is_zero(),
-			OrderType::Market =>
+			OrderType::MARKET =>
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
 					is_market_same &&
