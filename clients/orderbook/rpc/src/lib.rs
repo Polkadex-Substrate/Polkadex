@@ -206,7 +206,7 @@ where
 		}
 
 		ob_recovery_state.snapshot_id = last_snapshot_summary.snapshot_id;
-		ob_recovery_state.state_change_id = last_snapshot_summary.state_change_id;
+		ob_recovery_state.state_change_id = last_snapshot_summary.worker_nonce;
 
 		let serialize_ob_recovery_state = serde_json::to_vec(&ob_recovery_state)?;
 		Ok(serialize_ob_recovery_state)

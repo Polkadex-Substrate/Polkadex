@@ -1542,6 +1542,7 @@ fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitive
 	let mut snapshot = SnapshotSummary {
 		snapshot_id: 1,
 		state_root: Default::default(),
+		worker_nonce: 1,
 		state_change_id: 1,
 		state_chunk_hashes: vec![],
 		bitflags: vec![1, 2],
