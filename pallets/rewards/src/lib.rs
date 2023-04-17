@@ -472,6 +472,17 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Retrieves the rewards information associated with a given account and reward ID.
+	///
+	/// # Parameters
+	///
+	/// * `account_id`: The account ID for which the rewards information is to be fetched.
+	/// * `reward_id`: The specific reward ID to fetch the rewards information.
+	///
+	/// # Returns
+	///
+	/// A `RewardsInfoByAccount` structure containing the claimed, unclaimed, and claimable
+	/// rewards associated with the account and reward ID.
 	pub fn account_info(
 		account_id: T::AccountId,
 		reward_id: u32,
