@@ -309,29 +309,42 @@ where
 		net.peers[peer_id].data.peer_rpc_link = Some(sender);
 		net.peers[peer_id].data.is_validator = is_validator;
 
-		// Generate the crypto material with test keys,
-		// we have to use file based keystore,
-		// in memory keystore doesn't seem to work here
-		let keystore = LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap();
+		let mut keystore = None;
 
-		let (pair, seed) =
-			orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None)
+		if is_validator {
+			// Generate the crypto material with test keys,
+			// we have to use file based keystore,
+			// in memory keystore doesn't seem to work here
+			keystore = Some(Arc::new(
+				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
+			));
+			let (pair, seed) =
+				orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None)
+					.unwrap();
+			// Insert the key
+			keystore
+				.as_ref()
+				.unwrap()
+				.insert_unknown(
+					orderbook_primitives::KEY_TYPE,
+					&key.to_seed(),
+					pair.public().as_ref(),
+				)
+				.await
 				.unwrap();
-		// Insert the key
-		keystore
-			.insert_unknown(orderbook_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
-			.await
-			.unwrap();
-		// Check if the key is present or not
-		keystore.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public()).unwrap();
-
-		println!("Keystore initialized for:{:?}", pair.public());
+			// Check if the key is present or not
+			keystore
+				.as_ref()
+				.unwrap()
+				.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public())
+				.unwrap();
+		}
 
 		let ob_params = crate::ObParams {
 			client: net.peers[peer_id].client().as_client(),
 			backend: net.peers[peer_id].client().as_backend(),
 			runtime: api,
-			keystore: Some(Arc::new(keystore)),
+			keystore,
 			network: net.peers[peer_id].network_service().clone(),
 			prometheus_registry: None,
 			protocol_name: "/ob/1".into(),
