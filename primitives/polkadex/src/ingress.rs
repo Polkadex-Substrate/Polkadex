@@ -34,7 +34,7 @@ pub enum IngressMessages<AccountId> {
 	// Close Trading Pair
 	CloseTradingPair(TradingPairConfig),
 	// Latest snapshot (snapshot number, state_root, state_change_id, worker_nonce, state_hash)
-	LatestSnapshot(u64, H256, u64, u64,  BoundedVec<H128, StateHashesLimit>),
+	LatestSnapshot(u64, H256, u64, u64, BoundedVec<H128, StateHashesLimit>),
 	// Resetting the balances of Account
 	SetFreeReserveBalanceForAccounts(BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>),
 	// Changing the exchange state in order-book
