@@ -123,9 +123,9 @@ impl Trade {
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
 	// (From,to, remote peer)
-	WantStid(u64, u64),
-	// Collection of Stids
-	Stid(Box<Vec<ObMessage>>),
+	WantWorkerNonce(u64, u64),
+	// Collection of WorkerNonces
+	WorkerNonces(Box<Vec<ObMessage>>),
 	// Single ObMessage
 	ObMessage(Box<ObMessage>),
 	// Snapshot id, bitmap, remote peer
@@ -747,6 +747,7 @@ mod tests {
 	pub fn test_ob_message() {
 		let msg = ObMessage {
 			stid: 0,
+			worker_nonce: 0,
 			action: UserActions::BlockImport(1),
 			signature: Default::default(),
 		};

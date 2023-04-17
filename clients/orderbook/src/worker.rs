@@ -106,8 +106,9 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
     sync_state_map: BTreeMap<u16, StateSyncStatus>,
     // last block at which snapshot was generated
     last_block_snapshot_generated: Arc<RwLock<BlockNumber>>,
-    // latest stid
-    latest_stid: u64,
+    // latest worker nonce
+    latest_worker_nonce: u64,
+    latest_state_change_id: u64,
     // Map of trading pair configs
     trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
     orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
@@ -173,7 +174,8 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             last_finalized_block: 0,
             sync_state_map: Default::default(),
             last_block_snapshot_generated,
-            latest_stid: 0,
+            latest_worker_nonce: 0,
+            latest_state_change_id: 0,
             trading_pair_configs: Default::default(),
             orderbook_operator_public_key: None,
         }
@@ -214,7 +216,8 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
     pub fn process_withdraw(
         &mut self,
         withdraw: WithdrawalRequest,
-        stid: u64,
+        worker_nonce: u64,
+        state_change_id: u64,
     ) -> Result<(), Error> {
         info!("Processing withdrawal request: {:?}", withdraw);
         let mut memory_db = self.memory_db.write();
@@ -244,7 +247,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         self.pending_withdrawals.push(withdraw.try_into()?);
         // Check if snapshot should be generated or not
         if self.should_generate_snapshot() {
-            if let Err(err) = self.snapshot(stid) {
+            if let Err(err) = self.snapshot(worker_nonce, state_change_id) {
                 log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
                 *self.last_block_snapshot_generated.write() = self.last_finalized_block;
             }
@@ -281,11 +284,13 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                         snapshot_id,
                         state_root,
                         state_change_id,
+                        worker_nonce,
                         state_chunk_hashes,
                     ) =>
                         last_snapshot = Some(SnapshotSummary {
                             snapshot_id,
                             state_root,
+                            worker_nonce,
                             state_change_id,
                             state_chunk_hashes: state_chunk_hashes.to_vec(),
                             bitflags: vec![],
@@ -325,10 +330,10 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         Ok(validator_key.unwrap())
     }
 
-    pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
+    pub fn snapshot(&mut self, worker_nonce: u64, state_change_id: u64) -> Result<(), Error> {
         info!(target:"orderbook","📒 Generating snapshot");
         let next_snapshot_id = self.last_snapshot.read().snapshot_id + 1;
-        let mut summary = self.store_snapshot(stid, next_snapshot_id)?;
+        let mut summary = self.store_snapshot(worker_nonce, state_change_id, next_snapshot_id)?;
         if !self.is_validator {
             info!(target:"orderbook","📒 Not a validator, skipping snapshot signing.");
             // We are done if we are not a validator
@@ -395,11 +400,12 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                 // Commit the trie
                 trie.commit();
             }
-            UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.stid)?,
+            UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
             UserActions::BlockImport(num) => self.handle_blk_import(num)?,
-            UserActions::Snapshot => self.snapshot(action.stid)?,
+            UserActions::Snapshot => self.snapshot(action.worker_nonce, action.stid)?,
         }
-        self.latest_stid = action.stid;
+        self.latest_worker_nonce = action.worker_nonce;
+        self.latest_state_change_id = action.stid;
         // Multicast the message to other peers
         self.gossip_engine.gossip_message(topic::<B>(), action.encode(), true);
         Ok(())
@@ -408,19 +414,19 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
     // Checks if we need to sync the orderbook state before processing the messages.
     pub async fn check_state_sync(&mut self) -> Result<(), Error> {
         info!(target:"orderbook","📒 Checking state sync");
-        // X->Y sync: Ask peers to send the missed stid
+        // X->Y sync: Ask peers to send the missed worker_nonec
         if !self.known_messages.is_empty() {
             info!(target:"orderbook","📒 Known messages: {:?}", self.known_messages);
-            // Collect all known stids
-            let mut known_stids = self.known_messages.keys().collect::<Vec<&u64>>();
-            known_stids.sort_unstable(); // unstable is fine since we know stids are unique
-            // if the next best known stid is not available then ask others
-            if *known_stids[0] != self.last_snapshot.read().state_change_id.saturating_add(1) {
-                // Ask other peers to send us the requests stids.
-                info!(target:"orderbook","📒 Asking peers to send us the missed stids");
-                let message = GossipMessage::WantStid(
-                    self.last_snapshot.read().state_change_id,
-                    *known_stids[0],
+            // Collect all known worker nonces
+            let mut known_worker_nonces = self.known_messages.keys().collect::<Vec<&u64>>();
+            known_worker_nonces.sort_unstable(); // unstable is fine since we know  worker nonces are unique
+            // if the next best known  worker nonces is not available then ask others
+            if *known_worker_nonces[0] != self.last_snapshot.read().worker_nonce.saturating_add(1) {
+                // Ask other peers to send us the requests  worker nonces.
+                info!(target:"orderbook","📒 Asking peers to send us the missed  worker nonces");
+                let message = GossipMessage::WantWorkerNonce(
+                    self.last_snapshot.read().worker_nonce,
+                    *known_worker_nonces[0],
                 );
                 let mut peers = self
                     .gossip_validator
@@ -444,10 +450,10 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                 metric_inc!(self, ob_messages_sent);
                 metric_add!(self, ob_data_sent, message.encoded_size() as u64);
             } else {
-                info!(target: "orderbook", "📒 sync request not required, we know the next stid");
+                info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
             }
         } else {
-            info!(target: "orderbook", "📒 No new messages known after stid: {:?}",self.last_snapshot.read().state_change_id);
+            info!(target: "orderbook", "📒 No new messages known after worker_nonce: {:?}",self.last_snapshot.read().worker_nonce);
         }
         Ok(())
     }
@@ -469,7 +475,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             }
             Err(err) => {
                 error!(target: "orderbook", "📒 Error decoding snapshot data: {:?}", err);
-                return Err(Error::Backend(format!("Error decoding snapshot data: {:?}", err)))
+                return Err(Error::Backend(format!("Error decoding snapshot data: {:?}", err)));
             }
         }
         Ok(())
@@ -486,15 +492,16 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             warn!(target: "orderbook", "📒 Orderbook operator public key not set");
             return Err(Error::SignatureVerificationFailed);
         }
-        info!(target: "orderbook", "📒 Ob message recieved stid: {:?}",action.stid);
+        info!(target: "orderbook", "📒 Ob message recieved worker_nonce: {:?}",action.worker_nonce);
         // Cache the message
-        self.known_messages.insert(action.stid, action.clone());
+        self.known_messages.insert(action.worker_nonce, action.clone());
         if self.sync_oracle.is_major_syncing() | self.state_is_syncing {
-            info!(target: "orderbook", "📒 Ob message cached for sync to complete: stid: {:?}",action.stid);
+            info!(target: "orderbook", "📒 Ob message cached for sync to complete: worker_nonce: {:?}",action.worker_nonce);
             return Ok(());
         }
         self.check_state_sync().await?;
-        self.check_stid_gap_fill().await?;
+        self.check_worker_nonce_gap_fill().await?;
+        metric_set!(self, ob_worker_nonce, action.worker_nonce);
         Ok(())
     }
 
@@ -507,6 +514,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
 
     pub fn store_snapshot(
         &mut self,
+        worker_nonce: u64,
         state_change_id: u64,
         snapshot_id: u64,
     ) -> Result<SnapshotSummary, Error> {
@@ -539,6 +547,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
 
                     let summary = SnapshotSummary {
                         snapshot_id,
+                        worker_nonce,
                         state_root: working_state_root.into(),
                         state_change_id,
                         bitflags: vec![],
@@ -587,10 +596,10 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         Ok(())
     }
 
-    // Checks if we have all stids to drive the state and then drive it.
-    pub async fn check_stid_gap_fill(&mut self) -> Result<(), Error> {
-        info!(target: "orderbook", "📒 Checking for stid gap fill");
-        let mut last_snapshot = self.last_snapshot.read().state_change_id.saturating_add(1);
+    // Checks if we have all worker_nonces to drive the state and then drive it.
+    pub async fn check_worker_nonce_gap_fill(&mut self) -> Result<(), Error> {
+        info!(target: "orderbook", "📒 Checking for worker_nonce gap fill");
+        let mut last_snapshot = self.last_snapshot.read().worker_nonce.saturating_add(1);
 
         while let Some(action) = self.known_messages.remove(&last_snapshot) {
             if let Err(err) = self.handle_action(&action) {
@@ -601,62 +610,62 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                         error!(target:"orderbook","📒 Error processing action: {:?}",err);
                         // The node found an error during processing of the action. This means we
                         // need to snapshot and drop everything else
-                        self.snapshot(action.stid)?;
+                        self.snapshot(action.worker_nonce, action.stid)?;
                         // We forget about everything else from cache.
                         self.known_messages.clear();
                         break;
                     }
                 }
             }
-            metric_set!(self, ob_state_id, last_snapshot);
+            metric_set!(self, ob_snapshot_id, last_snapshot);
             last_snapshot = last_snapshot.saturating_add(1);
         }
-        // We need to sub 1 since that last processed is one stid less than the not available
+        // We need to sub 1 since that last processed is one worker_nonce less than the not available
         // when while loop is broken
-        self.last_snapshot.write().state_change_id = last_snapshot.saturating_sub(1);
+        self.last_snapshot.write().worker_nonce = last_snapshot.saturating_sub(1);
         Ok(())
     }
 
-    pub fn want_stid(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
-        info!(target: "orderbook", "📒 Want stid: {:?} - {:?}", from, to);
+    pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
+        info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
         if let Some(peer) = peer {
-            info!(target: "orderbook", "📒 Sending stid request to peer: {:?}", peer);
+            info!(target: "orderbook", "📒 Sending worker_nonce request to peer: {:?}", peer);
             let mut messages = vec![];
-            for stid in *from..=*to {
+            for worker_nonce in *from..=*to {
                 // We dont allow gossip messsages to be greater than 10MB
                 if messages.encoded_size() >= 10 * 1024 * 1024 {
                     // If we reach size limit, we send data in chunks of 10MB.
-                    info!(target: "orderbook", "📒 Sending stid chunk: {:?}", messages.len());
-                    let message = GossipMessage::Stid(Box::new(messages));
+                    info!(target: "orderbook", "📒 Sending worker_nonce chunk: {:?}", messages.len());
+                    let message = GossipMessage::WorkerNonces(Box::new(messages));
                     self.gossip_engine.send_message(vec![peer], message.encode());
                     metric_inc!(self, ob_messages_sent);
                     metric_add!(self, ob_data_sent, message.encoded_size() as u64);
                     messages = vec![] // Reset the buffer
                 }
-                if let Some(msg) = self.known_messages.get(&stid) {
+                if let Some(msg) = self.known_messages.get(&worker_nonce) {
                     info!(target: "orderbook", "📒 known_messages: {:?}", self.known_messages.len());
                     messages.push(msg.clone());
                 }
             }
             // Send the final chunk if any
             if !messages.is_empty() {
-                let message = GossipMessage::Stid(Box::new(messages));
+                let message = GossipMessage::WorkerNonces(Box::new(messages));
                 self.gossip_engine.send_message(vec![peer], message.encode());
                 metric_inc!(self, ob_messages_sent);
                 metric_add!(self, ob_data_sent, message.encoded_size() as u64);
             } else {
-                info!(target: "orderbook", "📒 No stids to send to peer: {:?}", peer)
+                info!(target: "orderbook", "📒 No worker_nonces to send to peer: {:?}", peer)
             }
         }
     }
 
-    pub async fn got_stids_via_gossip(&mut self, messages: &Vec<ObMessage>) -> Result<(), Error> {
-        info!(target: "orderbook", "📒 Got stids via gossip: {:?}", messages.len());
+    pub async fn got_worker_nonces_via_gossip(&mut self, messages: &Vec<ObMessage>) -> Result<(), Error> {
+        info!(target: "orderbook", "📒 Got worker_nonces via gossip: {:?}", messages.len());
         for message in messages {
             // TODO: handle reputation change.
-            self.known_messages.entry(message.stid).or_insert(message.clone());
+            self.known_messages.entry(message.worker_nonce).or_insert(message.clone());
         }
-        self.check_stid_gap_fill().await
+        self.check_worker_nonce_gap_fill().await
     }
 
     // Expects the set bits in the bitmap to be missing chunks
@@ -816,8 +825,8 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         metric_inc!(self, ob_messages_recv);
         metric_add!(self, ob_data_recv, message.encoded_size() as u64);
         match message {
-            GossipMessage::WantStid(from, to) => self.want_stid(from, to, remote),
-            GossipMessage::Stid(messages) => self.got_stids_via_gossip(messages).await?,
+            GossipMessage::WantWorkerNonce(from, to) => self.want_worker_nonce(from, to, remote),
+            GossipMessage::WorkerNonces(messages) => self.got_worker_nonces_via_gossip(messages).await?,
             GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
             GossipMessage::Want(snap_id, bitmap) => self.want(snap_id, bitmap, remote).await,
             GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote).await,
@@ -864,7 +873,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         self.last_finalized_block = (*header.number()).saturated_into();
         // Check if snapshot should be generated or not
         if self.should_generate_snapshot() {
-            if let Err(err) = self.snapshot(self.latest_stid) {
+            if let Err(err) = self.snapshot(self.latest_worker_nonce, self.latest_state_change_id) {
                 log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
                 *self.last_block_snapshot_generated.write() = self.last_finalized_block;
             }
@@ -1131,7 +1140,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             *self.last_snapshot.write() = latest_summary.clone();
         }
         // Lock, write and release
-        info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.state_change_id);
+        info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.worker_nonce);
         // Try to load the snapshot from the database
         if let Err(err) = self.load_snapshot(&latest_summary) {
             warn!(target:"orderbook","📒 Cannot load snapshot from database: {:?}",err);

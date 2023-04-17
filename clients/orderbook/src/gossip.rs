@@ -48,7 +48,7 @@ where
 
 	pub fn validate_message(&self, message: &ObMessage) -> bool {
 		let last_snapshot = self.last_snapshot.read();
-		message.stid >= last_snapshot.state_change_id
+		message.worker_nonce >= last_snapshot.worker_nonce
 	}
 
 	pub fn rebroadcast_check(&self, _message: &ObMessage) -> bool {
@@ -100,7 +100,7 @@ where
 				Ok(msg) => msg,
 				Err(_) => return true,
 			};
-			// If old stid then expire
+			// If old worker_nonce then expire
 			!self.validate_message(&msg)
 		})
 	}

@@ -8,6 +8,6 @@ async fn main() {
 	let client = WsClientBuilder::default().build(&url).await.unwrap();
 
 	let message =
-		ObMessage { stid: 1, action: UserActions::Snapshot, signature: Default::default() };
+		ObMessage { worker_nonce:1, stid: 1, action: UserActions::Snapshot, signature: Default::default() };
 	client.request("ob_submitAction", rpc_params![message]).await.unwrap()
 }
