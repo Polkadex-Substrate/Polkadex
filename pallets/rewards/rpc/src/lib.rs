@@ -40,7 +40,6 @@ pub struct PolkadexRewardsRpc<Client, Block> {
 	_marker: std::marker::PhantomData<Block>,
 }
 
-
 impl<Client, Block> PolkadexRewardsRpc<Client, Block> {
 	pub fn new(client: Arc<Client>) -> Self {
 		Self { client, _marker: Default::default() }
