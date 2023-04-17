@@ -1679,7 +1679,7 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block,AccountId,Hash> for Runtime {
-		fn account_info(account_id : AccountId, reward_id: u32) ->  polkadex_primitives::rewards::RewardsInfoByAccount<u128> {
+		fn account_info(account_id : AccountId, reward_id: u32) ->  Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, sp_runtime::DispatchError> {
 			Rewards::account_info(account_id,reward_id)
 		}
 	}

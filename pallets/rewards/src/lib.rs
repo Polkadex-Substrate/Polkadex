@@ -30,10 +30,7 @@ use frame_support::{
 	traits::{Currency, ExistenceRequirement, LockIdentifier},
 };
 use pallet_timestamp as timestamp;
-use sp_runtime::{
-	traits::{AccountIdConversion, UniqueSaturatedInto},
-	SaturatedConversion, Saturating,
-};
+use sp_runtime::{traits::{AccountIdConversion, UniqueSaturatedInto}, SaturatedConversion, Saturating};
 use sp_std::{cmp::min, prelude::*};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -486,7 +483,7 @@ impl<T: Config> Pallet<T> {
 	pub fn account_info(
 		account_id: T::AccountId,
 		reward_id: u32,
-	) -> polkadex_primitives::rewards::RewardsInfoByAccount<u128> {
+	) -> Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, sp_runtime::DispatchError> {
 		if let Some(user_reward_info) = <Distributor<T>>::get(reward_id, account_id) {
 			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 				let mut rewards_claimable: u128 = 0_u128.saturated_into();
@@ -522,9 +519,9 @@ impl<T: Config> Pallet<T> {
 						.saturated_into::<u128>(),
 					claimable: rewards_claimable,
 				};
-				return reward_info
+				return Ok(reward_info)
 			}
 		}
-		Default::default()
+		Err(Error::<T>::UserNotEligible.into())
 	}
 }
