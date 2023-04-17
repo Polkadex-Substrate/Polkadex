@@ -1,6 +1,7 @@
 pub mod sync;
 
 use crate::protocol_standard_name;
+use bls_primitives::BLS_DEV_PHRASE;
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::MemoryDB;
 use orderbook_primitives::{
@@ -213,7 +214,10 @@ pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	keys.iter()
 		.map(|key| {
 			let seed = key.to_seed();
-			bls_primitives::Pair::from_string(&seed, None).unwrap().public().into()
+			orderbook_primitives::crypto::Pair::from_string(&seed, None)
+				.unwrap()
+				.public()
+				.into()
 		})
 		.collect()
 }
@@ -305,10 +309,23 @@ where
 		net.peers[peer_id].data.peer_rpc_link = Some(sender);
 		net.peers[peer_id].data.is_validator = is_validator;
 
-		// Generate the crypto material with test keys
-		let keystore = LocalKeystore::in_memory();
+		// Generate the crypto material with test keys,
+		// we have to use file based keystore,
+		// in memory keystore doesn't seem to work here
+		let keystore = LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap();
 
-		keystore.insert_unknown(KEY_TYPE, &key.to_seed(), &key.public()).await.unwrap();
+		let (pair, seed) =
+			orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None)
+				.unwrap();
+		// Insert the key
+		keystore
+			.insert_unknown(orderbook_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
+			.await
+			.unwrap();
+		// Check if the key is present or not
+		keystore.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public()).unwrap();
+
+		println!("Keystore initialized for:{:?}", pair.public());
 
 		let ob_params = crate::ObParams {
 			client: net.peers[peer_id].client().as_client(),
@@ -338,12 +355,10 @@ where
 }
 
 pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut ObTestnet) {
-	let old_finalized = testnet.peers[0].client().info().finalized_number;
-	let block_hashes = testnet.peers[0]
-		.generate_blocks(count, BlockOrigin::File, |builder| builder.build().unwrap().block);
-
+	let old_finalized = testnet.peer(1).client().info().finalized_number;
+	testnet.peer(1).push_blocks(count, false);
 	// wait for blocks to propagate
 	testnet.run_until_sync().await; // It should be run_until_sync() for finality to work properly.
 
-	assert_eq!(old_finalized + count as u64, testnet.peers[0].client().info().finalized_number);
+	assert_eq!(old_finalized + count as u64, testnet.peer(1).client().info().finalized_number);
 }

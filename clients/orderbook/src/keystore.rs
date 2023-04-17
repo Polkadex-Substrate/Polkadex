@@ -25,7 +25,7 @@ impl OrderbookKeyStore {
 			Some(keystore) =>
 				for key in active {
 					if let Some(local_pair) =
-						keystore.key_pair::<orderbook_primitives::crypto::Pair>(&key)?
+						keystore.key_pair::<orderbook_primitives::crypto::Pair>(key)?
 					{
 						return Ok(local_pair.public())
 					}
