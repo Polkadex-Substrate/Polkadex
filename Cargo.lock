@@ -4816,6 +4816,7 @@ version = "0.1.0"
 dependencies = [
  "bls-primitives",
  "chrono",
+ "env_logger",
  "futures 0.3.28",
  "hash-db 0.15.2 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
  "hash256-std-hasher 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
