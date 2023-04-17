@@ -283,8 +283,8 @@ where
 					IngressMessages::LatestSnapshot(
 						snapshot_id,
 						state_root,
-						state_change_id,
 						worker_nonce,
+						state_change_id,
 						state_chunk_hashes,
 					) =>
 						last_snapshot = Some(SnapshotSummary {
