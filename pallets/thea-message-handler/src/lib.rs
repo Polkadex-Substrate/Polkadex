@@ -62,8 +62,6 @@ pub mod pallet {
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
 			+ Member
 			+ Parameter
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
 			+ Into<bls_primitives::Signature>;
 
 		/// The maximum number of authorities that can be added.
