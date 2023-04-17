@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 serde = { version = "1.0.136" }
 parity-scale-codec = { workspace = true, features = ["derive"] }
-jsonrpsee = { workspace = true, features = ["server", "macros"] }
+jsonrpsee = { workspace = true, features = ["client-core", "server", "macros"] }
 sp-rpc = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-api = { workspace = true }
