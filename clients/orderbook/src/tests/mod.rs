@@ -7,7 +7,7 @@ use orderbook_primitives::{
 	types::{ObMessage, TradingPair},
 	ObApi, SnapshotSummary, ValidatorSet, KEY_TYPE,
 };
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, BlockNumber,
 };
@@ -24,6 +24,8 @@ use sp_core::{crypto::AccountId32, ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 use std::{collections::HashMap, future::Future, sync::Arc};
+use sp_consensus::BlockOrigin;
+use crate::protocol_standard_name;
 
 #[derive(Clone, Default)]
 pub(crate) struct TestApi {
@@ -144,7 +146,7 @@ impl ObApi<Block> for RuntimeApi {
 	}
 
 	fn get_latest_snapshot() -> SnapshotSummary<AccountId> {
-		self.inner.snapshots.read().get(&*self.inner.latest_snapshot_nonce.read()).unwrap().clone()
+		self.inner.get_latest_snapshot()
 	}
 
 	/// Return the ingress messages at the given block
@@ -281,7 +283,7 @@ impl ObTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![],
+			notifications_protocols: vec!["/ob/1".into()],
 			is_authority: true,
 			..Default::default()
 		})
@@ -303,20 +305,19 @@ where
 		net.peers[peer_id].data.peer_rpc_link = Some(sender);
 		net.peers[peer_id].data.is_validator = is_validator;
 
-		let peer = &net.peers[peer_id];
 		// Generate the crypto material with test keys
 		let keystore = LocalKeystore::in_memory();
 
 		keystore.insert_unknown(KEY_TYPE, &key.to_seed(), &key.public()).await.unwrap();
 
 		let ob_params = crate::ObParams {
-			client: peer.client().as_client(),
-			backend: peer.client().as_backend(),
+			client: net.peers[peer_id].client().as_client(),
+			backend: net.peers[peer_id].client().as_backend(),
 			runtime: api,
 			keystore: Some(Arc::new(keystore)),
-			network: peer.network_service().clone(),
+			network: net.peers[peer_id].network_service().clone(),
 			prometheus_registry: None,
-			protocol_name: String::from("blah").into(),
+			protocol_name: "/ob/1".into(),
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
@@ -334,4 +335,19 @@ where
 	}
 
 	workers.for_each(|_| async move {})
+}
+
+
+pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut ObTestnet) {
+	let old_finalized = testnet.peers[0].client().info().finalized_number;
+	let block_hashes  = testnet.peers[0].generate_blocks(
+		count,
+		BlockOrigin::File,
+		| builder| builder.build().unwrap().block
+	);
+
+	// wait for blocks to propagate
+	testnet.run_until_sync().await; // It should be run_until_sync() for finality to work properly.
+
+	assert_eq!(old_finalized + count as u64, testnet.peers[0].client().info().finalized_number);
 }

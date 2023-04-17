@@ -1,11 +1,16 @@
-use crate::tests::{initialize_orderbook, make_ob_ids, ObTestnet, TestApi};
+use crate::tests::{generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi};
 use orderbook_primitives::crypto::AuthorityId;
+use sp_consensus::BlockOrigin;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 use std::sync::Arc;
+use std::time::Duration;
+use sc_network_test::TestNetFactory;
 
 #[tokio::test]
 pub async fn test_orderbook_sync() {
+	env_logger::init();
+
 	let (orderbook_operator, _) = sp_core::ecdsa::Pair::generate();
 	let mut testnet = ObTestnet::new(3, 0);
 	let peers = &[
@@ -35,5 +40,12 @@ pub async fn test_orderbook_sync() {
 		.map(|(id, (key, is_auth))| (id, key, validator_api.clone(), *is_auth))
 		.collect();
 
-	initialize_orderbook(&mut testnet, ob_peers).await;
+	let future = initialize_orderbook(&mut testnet, ob_peers).await;
+	tokio::spawn(future);
+	// Generate and finalize one block
+	generate_and_finalize_blocks(1,&mut testnet).await;
+	tokio::time::sleep(Duration::from_secs(1)).await;
+	// Generate and finalize one block
+	generate_and_finalize_blocks(1,&mut testnet).await;
+	tokio::time::sleep(Duration::from_secs(1)).await;
 }

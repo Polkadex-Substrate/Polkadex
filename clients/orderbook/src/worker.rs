@@ -1138,7 +1138,6 @@ where
 	pub(crate) async fn run(mut self) {
 		info!(target: "orderbook", "📒 Orderbook worker started");
 		self.wait_for_runtime_pallet().await;
-
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
 			info!(target: "orderbook", "📒 orderbook is not started waiting for blockhchain to sync completely");

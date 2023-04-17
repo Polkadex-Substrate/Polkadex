@@ -6,6 +6,7 @@ use futures::channel::mpsc::UnboundedReceiver;
 use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 
+use log::info;
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use prometheus::Registry;
