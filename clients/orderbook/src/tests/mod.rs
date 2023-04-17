@@ -280,7 +280,11 @@ impl ObTestnet {
 			net.add_authority_peer();
 		}
 		for _ in 0..n_full {
-			net.add_full_peer();
+			net.add_full_peer_with_config(FullPeerConfig {
+				notifications_protocols: vec!["/ob/1".into()],
+				is_authority: false,
+				..Default::default()
+			});
 		}
 		net
 	}
@@ -368,10 +372,14 @@ where
 }
 
 pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut ObTestnet) {
-	let old_finalized = testnet.peer(1).client().info().finalized_number;
-	testnet.peer(1).push_blocks(count, false);
+	let fullnode_index = testnet.peers().len() - 1; // Fullnodes are added at the end.
+	let old_finalized = testnet.peer(fullnode_index).client().info().finalized_number;
+	testnet.peer(fullnode_index).push_blocks(count, false);
 	// wait for blocks to propagate
 	testnet.run_until_sync().await; // It should be run_until_sync() for finality to work properly.
 
-	assert_eq!(old_finalized + count as u64, testnet.peer(1).client().info().finalized_number);
+	assert_eq!(
+		old_finalized + count as u64,
+		testnet.peer(fullnode_index).client().info().finalized_number
+	);
 }
