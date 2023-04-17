@@ -17,7 +17,7 @@ pub async fn test_orderbook_sync() {
 	env_logger::init();
 
 	let (orderbook_operator, _) = sp_core::ecdsa::Pair::generate();
-	let mut testnet = ObTestnet::new(3, 0);
+	let mut testnet = ObTestnet::new(3, 1);
 	let peers = &[
 		(AccountKeyring::Alice, true),
 		(AccountKeyring::Bob, true),
@@ -26,8 +26,6 @@ pub async fn test_orderbook_sync() {
 
 	let active: Vec<AuthorityId> =
 		make_ob_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
-
-	println!("Acive list: {:?}", active);
 
 	let validator_api = Arc::new(TestApi {
 		active,
