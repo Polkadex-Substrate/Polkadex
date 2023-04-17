@@ -1,11 +1,14 @@
-use crate::tests::{generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi};
+use crate::tests::{
+	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
+};
 use orderbook_primitives::crypto::AuthorityId;
+use sc_network_test::TestNetFactory;
 use sp_consensus::BlockOrigin;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
-use std::sync::Arc;
-use std::time::Duration;
-use sc_network_test::TestNetFactory;
+use std::{sync::Arc, time::Duration};
+use futures::SinkExt;
+use orderbook_primitives::types::{ObMessage, UserActions};
 
 #[tokio::test]
 pub async fn test_orderbook_sync() {
@@ -43,9 +46,23 @@ pub async fn test_orderbook_sync() {
 	let future = initialize_orderbook(&mut testnet, ob_peers).await;
 	tokio::spawn(future);
 	// Generate and finalize one block
-	generate_and_finalize_blocks(1,&mut testnet).await;
-	tokio::time::sleep(Duration::from_secs(1)).await;
+	generate_and_finalize_blocks(1, &mut testnet).await;
 	// Generate and finalize one block
-	generate_and_finalize_blocks(1,&mut testnet).await;
-	tokio::time::sleep(Duration::from_secs(1)).await;
+	generate_and_finalize_blocks(1, &mut testnet).await;
+	// Send the RPC with Ob message
+	let mut message = ObMessage{
+		stid: 1,
+		action: UserActions::BlockImport(1),
+		signature: Default::default(),
+	};
+	message.signature = orderbook_operator.sign(&message.sign_data());
+	testnet.peers[1].data.peer_rpc_link.as_ref().unwrap().send(message).await.unwrap();
+	testnet.run_until_sync().await;
+
+	// Generate and finalize one block
+	generate_and_finalize_blocks(5, &mut testnet).await;
+
+	testnet.run_until_idle().await;
+
+	tokio::time::sleep(Duration::from_secs(100)).await;
 }

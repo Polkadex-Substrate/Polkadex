@@ -1,5 +1,6 @@
 pub mod sync;
 
+use crate::protocol_standard_name;
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::MemoryDB;
 use orderbook_primitives::{
@@ -20,12 +21,11 @@ use sc_network_test::{
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
+use sp_consensus::BlockOrigin;
 use sp_core::{crypto::AccountId32, ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 use std::{collections::HashMap, future::Future, sync::Arc};
-use sp_consensus::BlockOrigin;
-use crate::protocol_standard_name;
 
 #[derive(Clone, Default)]
 pub(crate) struct TestApi {
@@ -337,14 +337,10 @@ where
 	workers.for_each(|_| async move {})
 }
 
-
 pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut ObTestnet) {
 	let old_finalized = testnet.peers[0].client().info().finalized_number;
-	let block_hashes  = testnet.peers[0].generate_blocks(
-		count,
-		BlockOrigin::File,
-		| builder| builder.build().unwrap().block
-	);
+	let block_hashes = testnet.peers[0]
+		.generate_blocks(count, BlockOrigin::File, |builder| builder.build().unwrap().block);
 
 	// wait for blocks to propagate
 	testnet.run_until_sync().await; // It should be run_until_sync() for finality to work properly.

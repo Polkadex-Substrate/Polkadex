@@ -470,6 +470,7 @@ where
 	}
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
+		info!(target:"orderbook","Received a new user action: {:?}",action);
 		// Check if stid is newer or not
 		if action.stid <= *self.latest_stid.read() {
 			// Ignore stids we already know.
