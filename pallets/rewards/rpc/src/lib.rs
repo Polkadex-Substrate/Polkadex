@@ -24,10 +24,22 @@ pub trait PolkadexRewardsRpcApi<BlockHash, AccountId, Hash> {
 	) -> RpcResult<String>;
 }
 
+/// A structure that represents the Polkadex Rewards RPC, which allows querying
+/// rewards-related information through remote procedure calls.
+///
+/// # Type Parameters
+///
+/// * `Client`: The client API used to interact with the Substrate runtime.
+/// * `Block`: The block type of the Substrate runtime.
 pub struct PolkadexRewardsRpc<Client, Block> {
+	/// An `Arc` reference to the client API for accessing runtime functionality.
 	client: Arc<Client>,
+
+	/// A marker for the `Block` type parameter, used to ensure the struct
+	/// is covariant with respect to the block type.
 	_marker: std::marker::PhantomData<Block>,
 }
+
 
 impl<Client, Block> PolkadexRewardsRpc<Client, Block> {
 	pub fn new(client: Arc<Client>) -> Self {
