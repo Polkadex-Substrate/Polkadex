@@ -20,19 +20,7 @@ pub const BLS_KEYSTORE_PATH: &str = "polkadex/.keystore/";
 pub trait BlsExt {
 	#[allow(clippy::result_unit_err)]
 	fn add_signature(agg_signature: &Signature, new: &Signature) -> Result<Signature, ()> {
-		let agg_signature = match crate::BLSSignature::from_bytes(agg_signature.0.as_ref()) {
-			Ok(sig) => sig,
-			Err(_) => return Err(()),
-		};
-		let new = match crate::BLSSignature::from_bytes(new.0.as_ref()) {
-			Ok(sig) => sig,
-			Err(_) => return Err(()),
-		};
-		let mut agg_signature = AggregateSignature::from_signature(&agg_signature);
-		if agg_signature.add_signature(&new, true).is_err() {
-			return Err(())
-		}
-		Ok(Signature::from(crate::BLSSignature::from_aggregate(&agg_signature)))
+		add_signature(agg_signature,new)
 	}
 
 	fn all() -> Vec<Public> {
@@ -81,6 +69,22 @@ pub trait BlsExt {
 	fn verify_aggregate(pubkey: &[Public], msg: &[u8], signature: &Signature) -> bool {
 		verify_aggregate_(pubkey, msg, signature)
 	}
+}
+
+pub fn add_signature_(sig1: &Signature, sig2: &Signature) -> Result<Signature,()> {
+	let agg_signature = match crate::BLSSignature::from_bytes(sig1.0.as_ref()) {
+		Ok(sig) => sig,
+		Err(_) => return Err(()),
+	};
+	let new = match crate::BLSSignature::from_bytes(sig2.0.as_ref()) {
+		Ok(sig) => sig,
+		Err(_) => return Err(()),
+	};
+	let mut agg_signature = AggregateSignature::from_signature(&agg_signature);
+	if agg_signature.add_signature(&new, true).is_err() {
+		return Err(())
+	}
+	Ok(Signature::from(crate::BLSSignature::from_aggregate(&agg_signature)))
 }
 
 #[cfg(feature = "std")]
