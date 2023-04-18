@@ -80,5 +80,5 @@ pub async fn test_withdrawal() {
 
 	tokio::spawn(future);
 	// Generate and finalize two block to start finality
-	generate_and_finalize_blocks(1, &mut testnet, 3).await;
+	generate_and_finalize_blocks(1, &mut testnet).await;
 }
