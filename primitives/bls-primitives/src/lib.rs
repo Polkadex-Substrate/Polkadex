@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod application_crypto;
+pub mod application_crypto;
 pub mod crypto;
 
 #[cfg(feature = "std")]
@@ -283,7 +283,7 @@ impl sp_core::crypto::Pair for Pair {
 		let secret = match SecretKey::key_gen(seed, &[]) {
 			Ok(secret) => secret,
 			Err(err) => {
-				println!("BLS err: {:?}", err);
+				println!("BLS err: {err:?}");
 				return Err(SecretStringError::InvalidSeed)
 			},
 		};
