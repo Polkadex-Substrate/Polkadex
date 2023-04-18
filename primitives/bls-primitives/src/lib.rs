@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod application_crypto;
+pub mod application_crypto;
 pub mod crypto;
 
 #[cfg(feature = "std")]
