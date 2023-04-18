@@ -5,9 +5,9 @@ use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
-use crate::{fees::FeeConfig, withdrawal::Withdrawal, WithdrawalLimit};
+use crate::{fees::FeeConfig, withdrawal::Withdrawal};
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -97,7 +97,7 @@ impl TradingPairConfig {
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OnChainEvents<AccountId> {
-	OrderBookWithdrawalClaimed(u64, AccountId, BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>),
+	OrderBookWithdrawalClaimed(u64, AccountId, Vec<Withdrawal<AccountId>>),
 	GetStorage(Pallet, StorageItem, u64),
 }
 
