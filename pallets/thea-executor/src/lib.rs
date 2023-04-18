@@ -257,6 +257,25 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Add Token Config
+		///
+		/// # Parameters
+		///
+		/// * `network_id`: Network Id.
+		/// * `fee`: Withdrawal Fee.
+		#[pallet::call_index(2)]
+		#[pallet::weight(Weight::default())]
+		pub fn set_withdrawal_fee(
+			origin: OriginFor<T>,
+			network_id: u8,
+			fee: u128,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<WithdrawalFees<T>>::insert(network_id, fee);
+			Self::deposit_event(Event::<T>::WithdrawalFeeSet(network_id, fee));
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
