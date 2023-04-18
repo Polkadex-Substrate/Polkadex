@@ -55,13 +55,13 @@ impl TestApi {
 		assert_eq!(last_nonce.saturating_add(1), message.nonce);
 
 		// Find who all signed this payload
-		let signed_auths_indexes: Vec<u16> = return_set_bits(&bitmap);
+		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
 
 		// Create a vector of public keys of everyone who signed
 		let auths = self.authorities.get(&message.network).unwrap().validators.clone();
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
 		for index in signed_auths_indexes {
-			signatories.push((*auths.get(index as usize).unwrap()).clone().into());
+			signatories.push((*auths.get(index).unwrap()).clone().into());
 		}
 
 		// Check signature
