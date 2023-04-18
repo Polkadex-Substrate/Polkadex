@@ -25,6 +25,7 @@ pub mod fees;
 pub mod ingress;
 pub mod misbehavior;
 pub mod ocex;
+pub mod rewards;
 pub mod utils;
 pub mod withdrawal;
 
