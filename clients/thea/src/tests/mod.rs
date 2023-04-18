@@ -14,6 +14,7 @@ use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 
+use crate::connector::traits::ForeignConnector;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
@@ -120,7 +121,7 @@ impl TheaApi<Block> for RuntimeApi {
 }
 
 /// Helper function to convert keyring types to AuthorityId
-pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
+pub(crate) fn make_thea_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	keys.iter()
 		.map(|key| {
 			let seed = key.to_seed();
@@ -135,11 +136,11 @@ pub struct PeerData {
 }
 
 #[derive(Default)]
-pub struct ObTestnet {
+pub struct TheaTestnet {
 	peers: Vec<Peer<PeerData, PeersClient>>,
 }
 
-impl TestNetFactory for ObTestnet {
+impl TestNetFactory for TheaTestnet {
 	type Verifier = PassThroughVerifier;
 	type BlockImport = PeersClient;
 	type PeerData = PeerData;
@@ -179,9 +180,9 @@ impl TestNetFactory for ObTestnet {
 	}
 }
 
-impl ObTestnet {
+impl TheaTestnet {
 	pub(crate) fn new(n_authority: usize, n_full: usize) -> Self {
-		let mut net = ObTestnet { peers: Vec::with_capacity(n_authority + n_full) };
+		let mut net = TheaTestnet { peers: Vec::with_capacity(n_authority + n_full) };
 		for _ in 0..n_authority {
 			net.add_authority_peer();
 		}
@@ -204,17 +205,18 @@ impl ObTestnet {
 	}
 }
 
-// Spawns Orderbook worker. Returns a future to spawn on the runtime.
-async fn initialize_orderbook<API>(
-	net: &mut ObTestnet,
-	peers: Vec<(usize, &AccountKeyring, Arc<API>, bool)>,
+// Spawns Thea worker. Returns a future to spawn on the runtime.
+async fn initialize_thea<API, FC>(
+	net: &mut TheaTestnet,
+	peers: Vec<(usize, &AccountKeyring, Arc<API>, bool, Arc<FC>)>,
 ) -> impl Future<Output = ()>
 where
 	API: ProvideRuntimeApi<Block> + Default + Sync + Send,
 	API::Api: TheaApi<Block>,
+	FC: ForeignConnector,
 {
 	let workers = FuturesUnordered::new();
-	for (peer_id, key, api, is_validator) in peers.into_iter() {
+	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
 		net.peers[peer_id].data.is_validator = is_validator;
 
 		let mut keystore = None;
@@ -243,22 +245,24 @@ where
 				.unwrap();
 		}
 
-		let thea_params = crate::TheaParams {
+		let worker_params = crate::worker::WorkerParams {
 			client: net.peers[peer_id].client().as_client(),
 			backend: net.peers[peer_id].client().as_backend(),
 			runtime: api,
+			sync_oracle: net.peers[peer_id].network_service().clone(),
 			keystore,
 			network: net.peers[peer_id].network_service().clone(),
-			prometheus_registry: None,
 			protocol_name: crate::thea_protocol_name::NAME.into(),
+			_marker: Default::default(),
 			is_validator,
-			marker: Default::default(),
+			metrics: None,
+			foreign_chain: connector,
 		};
-		let gadget = crate::start_thea_gadget::<_, _, _, _, _>(thea_params);
-
+		let gadget = crate::worker::ObWorker::new(worker_params).await;
+		let run_future = gadget.run();
 		fn assert_send<T: Send>(_: &T) {}
-		assert_send(&gadget);
-		workers.push(gadget);
+		assert_send(&run_future);
+		workers.push(run_future);
 	}
 
 	workers.for_each(|_| async move {})
@@ -266,7 +270,7 @@ where
 
 pub async fn generate_and_finalize_blocks(
 	count: usize,
-	testnet: &mut ObTestnet,
+	testnet: &mut TheaTestnet,
 	peer_index: usize,
 ) {
 	let old_finalized = testnet.peer(peer_index).client().info().finalized_number;
