@@ -18,8 +18,10 @@ use sp_runtime::{
 };
 use std::{
 	collections::{BTreeMap, HashMap},
+	future::Future,
 	marker::PhantomData,
 	ops::AddAssign,
+	pin::Pin,
 	sync::Arc,
 	time::Duration,
 };
@@ -131,37 +133,35 @@ where
 	}
 
 	pub fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
-		let active = self
-			.runtime
-			.runtime_api()
-			.validator_set(&self.last_finalized_blk, message.network)?
-			.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
+		// let active = self
+		// 	.runtime
+		// 	.runtime_api()
+		// 	.validator_set(&self.last_finalized_blk, message.network)?
+		// 	.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
 
-		let signing_key = self.keystore.get_local_key(&active.validators)?;
-		let signature = self.keystore.sign(&signing_key, &message.encode())?;
+		// let signing_key = self.keystore.get_local_key(&active.validators)?;
+		// let signature = self.keystore.sign(&signing_key, &message.encode())?;
+		//
+		// let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap();
+		//
+		// let mut bitmap: Vec<u128> =
+		// 	prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
 
-		let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap();
-
-		let mut bitmap: Vec<u128> =
-			prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
-
-		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
+		todo!()
+		// Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
 
-	pub async fn check_message(&self, message: &GossipMessage) -> Result<bool, Error> {
+	pub async fn check_message(&mut self, message: &GossipMessage) -> Result<bool, Error> {
 		// TODO: Do signature check here.
 		// Based on network use the corresponding api to check if the message if valid or not.
 		if message.payload.network == NATIVE_NETWORK {
 			self.foreign_chain.check_message(&message.payload).await
 		} else {
+			let finalized_blk = self.last_finalized_blk.clone();
 			let result = self
 				.runtime
 				.runtime_api()
-				.outgoing_messages(
-					&self.last_finalized_blk,
-					message.payload.network,
-					message.payload.nonce,
-				)?
+				.outgoing_messages(&finalized_blk, message.payload.network, message.payload.nonce)?
 				.ok_or(Error::ErrorReadingTheaMessage)?;
 
 			Ok(result == message.payload)
@@ -175,12 +175,14 @@ where
 	) -> Result<(), Error> {
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
-		let local_index = self.get_local_auth_index(incoming_message.payload.network).await?;
+		let local_index = self.get_local_auth_index(incoming_message.payload.network)?;
+		let option = self.message_cache.get(&incoming_message.payload).cloned();
 		// Check incoming message in our cache.
-		match self.message_cache.get(&incoming_message.payload) {
+		match option {
 			None => {
 				// Check if the incoming message is valid based on our local node
-				match self.check_message(&incoming_message).await? {
+				//		match  self.check_message(incoming_message).await? {
+				match self.check_message(incoming_message).await? {
 					false => {
 						// TODO: We will do offence handler later, simply ignore now
 						return Ok(())
@@ -195,6 +197,7 @@ where
 							.add_signature(&gossip_message.aggregate_signature);
 						// Set the bit based on our local index
 						set_bit_field(&mut incoming_message.bitmap, local_index.saturated_into());
+
 						if return_set_bits(&incoming_message.bitmap).len() >=
 							incoming_message.payload.threshold() as usize
 						{
@@ -282,23 +285,21 @@ where
 		}
 		let network = self.thea_network.unwrap();
 
-		// let next_nonce_to_process = self
-		// 	.foreign_chain
-		// 	.last_processed_nonce_from_native()
-		// 	.await?
-		// 	.saturating_add(1);
-		//
-		// if let Some(message) =
-		// 	self.runtime
-		// 		.runtime_api()
-		// 		.outgoing_messages(&at, network, next_nonce_to_process)?
-		// {
-		// 	self.sign_and_submit_message(message).await?;
-		// }
+		let next_nonce_to_process =
+			self.foreign_chain.last_processed_nonce_from_native().await?.saturating_add(1);
+
+		let message =
+			self.runtime
+				.runtime_api()
+				.outgoing_messages(&at, network, next_nonce_to_process)?;
+
+		if let Some(message) = message {
+			self.sign_and_submit_message(message).await?;
+		}
 		Ok(())
 	}
 
-	pub async fn get_local_auth_index(&self, network: Network) -> Result<AuthorityIndex, Error> {
+	pub fn get_local_auth_index(&self, network: Network) -> Result<AuthorityIndex, Error> {
 		let active = self
 			.runtime
 			.runtime_api()
@@ -405,7 +406,7 @@ where
 					if let Some((mut message,sender)) = gossip {
 						// Gossip messages have already been verified to be valid by the gossip validator.
 						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
-							debug!(target: "orderbook", "📒 {}", err);
+							debug!(target: "orderbook", "📒 {:?}", err);
 						}
 					} else {
 						return;
@@ -414,7 +415,7 @@ where
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
 						if let Err(err) = self.handle_finality_notification(&finality).await {
-							error!(target: "orderbook", "📒 Error during finalized block import{}", err);
+							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
 						}
 					}else {
 						error!(target:"orderbook","None finality recvd");
@@ -423,7 +424,7 @@ where
 				},
 				_ = interval_stream.next() => {
 					if let Err(err) = self.try_process_foreign_chain_events().await {
-							error!(target: "orderbook", "📒 Error during finalized block import{}", err);
+							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
 						}
 				},
 				_ = gossip_engine => {
@@ -433,13 +434,4 @@ where
 			}
 		}
 	}
-}
-
-unsafe impl<B: Block, BE, C, SO, N, R, FC: ForeignConnector> Send
-	for ObWorker<B, BE, C, SO, N, R, FC>
-{
-}
-unsafe impl<B: Block, BE, C, SO, N, R, FC: ForeignConnector> Sync
-	for ObWorker<B, BE, C, SO, N, R, FC>
-{
 }
