@@ -52,6 +52,7 @@ impl TestApi {
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),
 				state_change_id: 0,
@@ -118,11 +119,12 @@ impl TestApi {
 		self.operator_key
 	}
 
-	pub fn get_last_accepted_stid(&self) -> u64 {
+	pub fn get_last_accepted_worker_nonce(&self) -> u64 {
 		self.snapshots
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),
 				state_change_id: 0,
@@ -131,7 +133,7 @@ impl TestApi {
 				withdrawals: vec![],
 				aggregate_signature: None,
 			})
-			.state_change_id
+			.worker_nonce
 	}
 
 	pub fn read_trading_pair_configs(&self) -> Vec<(TradingPair, TradingPairConfig)> {
@@ -186,8 +188,8 @@ impl ObApi<Block> for RuntimeApi {
 
 
 		/// Returns last processed stid from last snapshot
-		fn get_last_accepted_stid() -> u64{
-			self.inner.get_last_accepted_stid()
+		fn get_last_accepted_worker_nonce() -> u64{
+			self.inner.get_last_accepted_worker_nonce()
 		}
 
 		/// Reads the current trading pair configs
