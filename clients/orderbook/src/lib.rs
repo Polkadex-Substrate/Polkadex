@@ -6,7 +6,6 @@ use futures::channel::mpsc::UnboundedReceiver;
 use orderbook_primitives::ObApi;
 pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 
-use log::info;
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use prometheus::Registry;
@@ -16,7 +15,6 @@ use sc_keystore::LocalKeystore;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
-use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
 use std::{marker::PhantomData, sync::Arc};
 
@@ -51,7 +49,7 @@ pub(crate) mod orderbook_protocol_name {
 			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),
 			None => format!("/{}", hex::encode(genesis_hash)),
 		};
-		format!("{}{}", chain_prefix, NAME).into()
+		format!("{chain_prefix}{NAME}").into()
 	}
 }
 

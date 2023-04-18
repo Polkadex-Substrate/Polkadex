@@ -259,7 +259,7 @@ impl TryFrom<String> for OrderSide {
 		match value.as_str() {
 			"Bid" => Ok(OrderSide::Bid),
 			"Ask" => Ok(OrderSide::Ask),
-			_ => Err(anyhow::Error::msg(format!("Unknown side variant: {:?}", value))),
+			_ => Err(anyhow::Error::msg(format!("Unknown side variant: {value:?}"))),
 		}
 	}
 }
@@ -432,7 +432,7 @@ impl Order {
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
-		return match self.order_type {
+		match self.order_type {
 			OrderType::LIMIT =>
 				is_market_same &&
 					self.price >= config.min_price &&
@@ -555,7 +555,7 @@ impl Order {
 		println!("self.filled_quantity: {:?}\ntemp: {:?}", self.filled_quantity, temp);
 		match temp.checked_div(self.filled_quantity) {
 			Some(quotient) => {
-				println!("Quotient: {:?}", quotient);
+				println!("Quotient: {quotient:?}");
 				self.avg_filled_price = quotient;
 				true
 			},

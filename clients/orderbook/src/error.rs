@@ -35,8 +35,8 @@ pub enum Error {
 	ProxyAccountNotFound,
 	#[error("Proxy not associated with main")]
 	ProxyNotAssociatedWithMain,
-	#[error("Error while snapshot signing")]
-	SnapshotSigningFailed,
+	// #[error("Error while snapshot signing")]
+	// SnapshotSigningFailed,
 	#[error("Failed to submit snapshot to runtime")]
 	FailedToSubmitSnapshotToRuntime,
 	#[error("Main account already registered")]
@@ -55,7 +55,7 @@ pub enum Error {
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
 	fn from(value: Box<TrieError<T, E>>) -> Self {
-		Self::TrieError(format!("{:?}", value))
+		Self::TrieError(format!("{value:?}"))
 	}
 }
 
