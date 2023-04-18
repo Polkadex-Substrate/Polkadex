@@ -29,6 +29,7 @@ jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies
 node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
 pallet-asset-handler-rpc = { path = "../pallets/asset-handler/rpc" }
+pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
 polkadex-client = { path = "../client"}
 orderbook = { path = "../clients/orderbook" }
 orderbook-primitives = { path = "../primitives/orderbook" }

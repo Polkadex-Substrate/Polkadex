@@ -81,6 +81,7 @@ pub struct GrandpaDeps<B> {
 	pub finality_provider: Arc<FinalityProofProvider<B, Block>>,
 }
 
+use pallet_rewards_rpc::PolkadexRewardsRpc;
 use parking_lot::RwLock;
 
 /// Full client dependencies.
@@ -133,7 +134,9 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 	C::Api: pallet_asset_handler_rpc::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
+	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
 {
+	use pallet_rewards_rpc::PolkadexRewardsRpcApiServer;
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
 	use sc_finality_grandpa_rpc::{Grandpa, GrandpaApiServer};
@@ -197,6 +200,7 @@ where
 
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
+	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
 	// Create Orderbook RPC
 	io.merge(

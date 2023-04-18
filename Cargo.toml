@@ -26,7 +26,9 @@ members = [
     "pallets/router",
     "pallets/liquidity",
     "pallets/thea-cross-chain-governance",
-    "misc/load-testing"
+    "misc/load-testing",
+    "pallets/rewards/rpc",
+    "pallets/rewards/rpc/runtime-api"
 ]
 
 [workspace.dependencies]
