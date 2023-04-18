@@ -7,7 +7,7 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
-use crate::{fees::FeeConfig, withdrawal::Withdrawal, WithdrawalLimit};
+use crate::{fees::FeeConfig, withdrawal::Withdrawal};
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

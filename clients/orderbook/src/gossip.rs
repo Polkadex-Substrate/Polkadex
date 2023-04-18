@@ -1,11 +1,7 @@
 use log::info;
-use orderbook_primitives::{
-	types::{GossipMessage, ObMessage},
-	SnapshotSummary,
-};
+use orderbook_primitives::types::GossipMessage;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
-use polkadex_primitives::AccountId;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};

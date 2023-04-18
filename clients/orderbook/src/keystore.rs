@@ -1,4 +1,4 @@
-use log::{error, warn};
+use log::warn;
 use std::sync::Arc;
 
 use crate::error::Error;
@@ -46,7 +46,7 @@ impl OrderbookKeyStore {
 				Err(Error::Keystore("Keystore not available in this context".to_string()))
 			},
 			Some(keystore) => {
-				match keystore.key_pair::<orderbook_primitives::crypto::Pair>(&public)? {
+				match keystore.key_pair::<orderbook_primitives::crypto::Pair>(public)? {
 					Some(local_pair) => Ok(local_pair.sign(message)),
 					None => {
 						warn!(target:"orderbook","No BLS key found");

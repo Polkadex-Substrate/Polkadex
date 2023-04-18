@@ -23,11 +23,11 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
-use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
+use polkadex_primitives::assets::AssetId;
 use sp_runtime::traits::Zero;
 
 use pallet_timestamp as timestamp;
-use sp_core::{crypto::AccountId32, H256};
+use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -106,7 +106,7 @@ pub mod pallet {
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
 		withdrawal::Withdrawal,
-		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
+		AssetsLimit, ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
@@ -871,7 +871,7 @@ pub mod pallet {
 			<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
 				// Get mutable reference to the withdrawals vector
 				if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
-					while withdrawal_vector.len() > 0 {
+					while !withdrawal_vector.is_empty() {
 						// Perform pop operation to ensure we do not leave any withdrawal left
 						// for a double spend
 						if let Some(withdrawal) = withdrawal_vector.pop() {
@@ -1593,7 +1593,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		<Authorities<T>>::put(authorities);
 	}
 
-	fn on_new_session<'a, I: 'a>(changed: bool, authorities: I, queued_authorities: I)
+	fn on_new_session<'a, I: 'a>(_changed: bool, authorities: I, queued_authorities: I)
 	where
 		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
 	{

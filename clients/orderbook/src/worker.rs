@@ -1,5 +1,5 @@
 use std::{
-	collections::{BTreeMap, BTreeSet, HashMap},
+	collections::{BTreeMap, BTreeSet},
 	marker::PhantomData,
 	ops::Div,
 	sync::Arc,
@@ -10,8 +10,22 @@ use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
+use orderbook_primitives::{
+	types::{
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
+		UserActions, WithdrawalRequest,
+	},
+	ObApi, SnapshotSummary,
+};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
+use polkadex_primitives::{
+	ingress::IngressMessages,
+	ocex::TradingPairConfig,
+	utils::{prepare_bitmap, return_set_bits, set_bit_field},
+	withdrawal::Withdrawal,
+	AccountId, AssetId, BlockNumber,
+};
 use primitive_types::H128;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
@@ -28,23 +42,6 @@ use sp_runtime::{
 	traits::{Block, Header, Zero},
 };
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
-
-use bls_primitives::Public;
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
-		UserActions, WithdrawalRequest,
-	},
-	ObApi, SnapshotSummary,
-};
-use polkadex_primitives::{
-	ingress::IngressMessages,
-	ocex::TradingPairConfig,
-	utils::{prepare_bitmap, return_set_bits, set_bit_field},
-	withdrawal::Withdrawal,
-	AccountId, AssetId, BlockNumber,
-};
 
 use crate::{
 	error::Error,
@@ -95,7 +92,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	/// Local key store
 	pub keystore: OrderbookKeyStore,
 	gossip_engine: GossipEngine<B>,
-	gossip_validator: Arc<GossipValidator<B>>,
+	// gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
 	pub last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
 	// Working state root,
@@ -177,7 +174,7 @@ where
 			fullnodes.clone(),
 		));
 		let gossip_engine =
-			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
+			GossipEngine::new(network.clone(), protocol_name, gossip_validator, None);
 
 		let keystore = OrderbookKeyStore::new(keystore);
 
@@ -190,7 +187,7 @@ where
 			_network: network,
 			keystore,
 			gossip_engine,
-			gossip_validator,
+			// gossip_validator,
 			memory_db,
 			message_sender_link,
 			state_is_syncing: false,
@@ -203,7 +200,7 @@ where
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
 			last_block_snapshot_generated,
-			latest_worker_nonce: latest_worker_nonce.clone(),
+			latest_worker_nonce,
 			latest_state_change_id: 0,
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
@@ -466,8 +463,8 @@ where
 				*self.last_snapshot.write() = summary_clone;
 			},
 			Err(err) => {
-				error!(target: "orderbook", "📒 Error decoding snapshot data: {:?}", err);
-				return Err(Error::Backend(format!("Error decoding snapshot data: {:?}", err)))
+				error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
+				return Err(Error::Backend(format!("Error decoding snapshot data: {err:?}")))
 			},
 		}
 		Ok(())
@@ -562,7 +559,7 @@ where
 					);
 					Ok(summary)
 				},
-				Err(err) => Err(Error::Backend(format!("Error serializing the data: {:?}", err))),
+				Err(err) => Err(Error::Backend(format!("Error serializing the data: {err:?}"))),
 			}
 		}
 		Err(Error::Backend("Offchain Storage not Found".parse().unwrap()))
@@ -723,7 +720,7 @@ where
 		info!(target: "orderbook", "📒 Have snapshot: {:?} - {:?}", snapshot_id, bitmap);
 		if let Some(peer) = remote {
 			// Note: Set bits here are available for syncing
-			let available_chunks: Vec<u16> = return_set_bits(&bitmap);
+			let available_chunks: Vec<u16> = return_set_bits(bitmap);
 			let mut want_chunks = vec![];
 			let mut highest_index = 0; // We need the highest index to prepare the bitmap for index in available_chunks {
 			for index in available_chunks {
@@ -888,10 +885,7 @@ where
 		self.last_finalized_block = (*header.number()).saturated_into();
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
-			let mut latest_worker_nonce = 0;
-			{
-				latest_worker_nonce = *self.latest_worker_nonce.read();
-			}
+			let latest_worker_nonce = *self.latest_worker_nonce.read();
 			if let Err(err) = self.snapshot(latest_worker_nonce, self.latest_state_change_id) {
 				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
 			} else {

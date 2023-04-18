@@ -5,7 +5,7 @@ fn bit_expression_value(bit_index: u16) -> u128 {
 	1 << (127 - (bit_index % 128))
 }
 
-pub fn set_bit_field(input: &mut Vec<u128>, bit_index: u16) -> bool {
+pub fn set_bit_field(input: &mut [u128], bit_index: u16) -> bool {
 	let element_pos = bit_index.div_floor(128) as usize;
 	if element_pos >= input.len() {
 		return false
@@ -14,7 +14,7 @@ pub fn set_bit_field(input: &mut Vec<u128>, bit_index: u16) -> bool {
 	true
 }
 
-pub fn return_set_bits(input: &Vec<u128>) -> Vec<u16> {
+pub fn return_set_bits(input: &[u128]) -> Vec<u16> {
 	let mut set_bits: Vec<u16> = Vec::new();
 	for (element_index, element) in input.iter().enumerate() {
 		for bit_index in 0..128u16 {
