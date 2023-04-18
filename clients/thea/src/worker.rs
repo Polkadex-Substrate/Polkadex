@@ -2,7 +2,7 @@ use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, FutureExt, StreamExt};
 use log::{debug, error, info, trace, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
@@ -40,7 +40,7 @@ use crate::{
 	Client,
 };
 
-pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
+pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	pub client: Arc<C>,
 	pub backend: Arc<BE>,
 	pub runtime: Arc<R>,
@@ -52,11 +52,12 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
 	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
+	pub foreign_chain: Arc<FC>,
 	pub(crate) keystore: Option<Arc<LocalKeystore>>,
 }
 
 /// A Orderbook worker plays the Orderbook protocol
-pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
+pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	// utilities
 	client: Arc<C>,
 	backend: Arc<BE>,
@@ -71,11 +72,11 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
 	message_cache: BTreeMap<Message, GossipMessage>,
-	foreign_chain: Arc<Box<dyn ForeignConnector + Send + 'static>>,
+	foreign_chain: Arc<FC>,
 	last_finalized_blk: BlockId<B>,
 }
 
-impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
+impl<B, BE, C, SO, N, R, FC> ObWorker<B, BE, C, SO, N, R, FC>
 where
 	B: Block + Codec,
 	BE: Backend<B>,
@@ -84,6 +85,7 @@ where
 	R::Api: TheaApi<B>,
 	SO: Send + Sync + Clone + 'static + SyncOracle,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	FC: ForeignConnector,
 {
 	/// Return a new BEEFY worker instance.
 	///
@@ -91,13 +93,12 @@ where
 	/// BEEFY pallet has been deployed on-chain.
 	///
 	/// The BEEFY pallet is needed in order to keep track of the BEEFY authority set.
-	pub(crate) async fn new(
-		worker_params: WorkerParams<B, BE, C, SO, N, R>,
-	) -> Result<Self, Error> {
+	pub(crate) async fn new(worker_params: WorkerParams<B, BE, C, SO, N, R, FC>) -> Self {
 		let WorkerParams {
 			client,
 			backend,
 			runtime,
+			foreign_chain,
 			keystore,
 			sync_oracle,
 			metrics,
@@ -111,9 +112,7 @@ where
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
-		let foreign_connector = ParachainClient::connect("ws://127.0.0.1:9945".to_string()).await?;
-
-		Ok(ObWorker {
+		ObWorker {
 			client,
 			backend,
 			runtime,
@@ -126,12 +125,12 @@ where
 			gossip_engine,
 			gossip_validator,
 			message_cache: Default::default(),
-			foreign_chain: Arc::new(Box::new(foreign_connector)),
+			foreign_chain,
 			last_finalized_blk: BlockId::number(Zero::zero()),
-		})
+		}
 	}
 
-	pub async fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
+	pub fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
 		let active = self
 			.runtime
 			.runtime_api()
@@ -141,10 +140,10 @@ where
 		let signing_key = self.keystore.get_local_key(&active.validators)?;
 		let signature = self.keystore.sign(&signing_key, &message.encode())?;
 
-		let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap() as u16;
+		let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap();
 
 		let mut bitmap: Vec<u128> =
-			prepare_bitmap(&vec![bit_index], active.validators.len() as u16).unwrap();
+			prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
 
 		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
@@ -153,7 +152,8 @@ where
 		// TODO: Do signature check here.
 		// Based on network use the corresponding api to check if the message if valid or not.
 		if message.payload.network == NATIVE_NETWORK {
-			self.foreign_chain.check_message(&message.payload).await
+			// self.foreign_chain.check_message(&message.payload).await
+			todo!()
 		} else {
 			let result = self
 				.runtime
@@ -188,8 +188,7 @@ where
 					},
 					true => {
 						// Sign the message
-						let gossip_message =
-							self.sign_message(incoming_message.payload.clone()).await?;
+						let gossip_message = self.sign_message(incoming_message.payload.clone())?;
 
 						// Aggregate the signature and store it.
 						incoming_message.aggregate_signature = incoming_message
@@ -209,7 +208,9 @@ where
 									incoming_message.aggregate_signature.into(),
 								)??;
 							} else {
-								self.foreign_chain.send_transaction(incoming_message.clone()).await;
+								// self.foreign_chain.send_transaction(incoming_message.clone()).
+								// await;
+								todo!()
 							}
 						} else {
 							// Cache it.
@@ -230,8 +231,7 @@ where
 				// There are two cases here,
 				if !did_we_sign_incoming_message {
 					// Let's add our signature to it
-					let gossip_message =
-						self.sign_message(incoming_message.payload.clone()).await?;
+					let gossip_message = self.sign_message(incoming_message.payload.clone())?;
 
 					// Aggregate the signature and store it.
 					incoming_message.aggregate_signature = incoming_message
@@ -251,7 +251,8 @@ where
 								incoming_message.aggregate_signature.into(),
 							)??;
 						} else {
-							self.foreign_chain.send_transaction(incoming_message.clone()).await;
+							// self.foreign_chain.send_transaction(incoming_message.clone()).await;
+							todo!()
 						}
 					} else {
 						// Cache it.
@@ -285,16 +286,19 @@ where
 		}
 		let network = self.thea_network.unwrap();
 
-		let next_nonce_to_process =
-			self.foreign_chain.last_processed_nonce_from_native().await?.saturating_add(1);
-
-		if let Some(message) =
-			self.runtime
-				.runtime_api()
-				.outgoing_messages(&at, network, next_nonce_to_process)?
-		{
-			self.sign_and_submit_message(message).await?;
-		}
+		// let next_nonce_to_process = self
+		// 	.foreign_chain
+		// 	.last_processed_nonce_from_native()
+		// 	.await?
+		// 	.saturating_add(1);
+		//
+		// if let Some(message) =
+		// 	self.runtime
+		// 		.runtime_api()
+		// 		.outgoing_messages(&at, network, next_nonce_to_process)?
+		// {
+		// 	self.sign_and_submit_message(message).await?;
+		// }
 		Ok(())
 	}
 
@@ -313,7 +317,7 @@ where
 	}
 
 	pub async fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
-		let mut gossip_message = self.sign_message(message).await?;
+		let mut gossip_message = self.sign_message(message)?;
 		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
 		self.process_gossip_message(&mut gossip_message, None).await
 	}
@@ -433,4 +437,13 @@ where
 			}
 		}
 	}
+}
+
+unsafe impl<B: Block, BE, C, SO, N, R, FC: ForeignConnector> Send
+	for ObWorker<B, BE, C, SO, N, R, FC>
+{
+}
+unsafe impl<B: Block, BE, C, SO, N, R, FC: ForeignConnector> Sync
+	for ObWorker<B, BE, C, SO, N, R, FC>
+{
 }

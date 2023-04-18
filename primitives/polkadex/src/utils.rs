@@ -1,11 +1,11 @@
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 
-fn bit_expression_value(bit_index: u16) -> u128 {
+fn bit_expression_value(bit_index: usize) -> u128 {
 	1 << (127 - (bit_index % 128))
 }
 
-pub fn set_bit_field(input: &mut [u128], bit_index: u16) -> bool {
+pub fn set_bit_field(input: &mut [u128], bit_index: usize) -> bool {
 	let element_pos = bit_index.div_floor(128) as usize;
 	if element_pos >= input.len() {
 		return false
@@ -14,12 +14,12 @@ pub fn set_bit_field(input: &mut [u128], bit_index: u16) -> bool {
 	true
 }
 
-pub fn return_set_bits(input: &[u128]) -> Vec<u16> {
-	let mut set_bits: Vec<u16> = Vec::new();
+pub fn return_set_bits(input: &[u128]) -> Vec<usize> {
+	let mut set_bits: Vec<usize> = Vec::new();
 	for (element_index, element) in input.iter().enumerate() {
-		for bit_index in 0..128u16 {
+		for bit_index in 0..128usize {
 			if (element & bit_expression_value(bit_index)) == bit_expression_value(bit_index) {
-				set_bits.push(bit_index.saturating_add((element_index * 128) as u16));
+				set_bits.push(bit_index.saturating_add(element_index * 128));
 			}
 		}
 	}
@@ -28,7 +28,7 @@ pub fn return_set_bits(input: &[u128]) -> Vec<u16> {
 }
 
 #[cfg(feature = "std")]
-pub fn prepare_bitmap(indexes: &Vec<u16>, max_indexes: u16) -> Option<Vec<u128>> {
+pub fn prepare_bitmap(indexes: &Vec<usize>, max_indexes: usize) -> Option<Vec<u128>> {
 	// Sanity check
 	for index in indexes {
 		if *index > max_indexes {
@@ -37,7 +37,7 @@ pub fn prepare_bitmap(indexes: &Vec<u16>, max_indexes: u16) -> Option<Vec<u128>>
 	}
 
 	let total = max_indexes.div_floor(128).saturating_add(1);
-	let mut bitmap = vec![0u128; total as usize];
+	let mut bitmap = vec![0u128; total];
 	for index in indexes {
 		if !set_bit_field(&mut bitmap, *index) {
 			return None

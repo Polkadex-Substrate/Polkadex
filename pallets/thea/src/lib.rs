@@ -33,10 +33,10 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 pub use pallet::*;
-use polkadex_primitives::BlockNumber;
+use polkadex_primitives::{utils::return_set_bits, BlockNumber};
 use thea_primitives::{
-	types::{return_set_bits, Message},
-	AuthorityIndex, AuthoritySignature, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+	types::Message, AuthorityIndex, AuthoritySignature, Network, ValidatorSet,
+	GENESIS_AUTHORITY_SET_ID,
 };
 
 mod session;
@@ -197,11 +197,7 @@ pub mod pallet {
 
 			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
 			// Save the incoming message for some time
-			<IncomingMessages<T>>::insert(
-				payload.network,
-				payload.nonce,
-				payload,
-			);
+			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
 			Ok(())
 		}
 	}
@@ -231,12 +227,12 @@ impl<T: Config> Pallet<T> {
 		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
 
 		// Create a vector of public keys of everyone who signed
-		let auths = <Authorities<T>>::get(payload.network);
+		let auths: Vec<T::TheaId> = <Authorities<T>>::get(payload.network).to_vec();
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
 		for index in signed_auths_indexes {
 			match auths.get(index) {
 				None => return Err(InvalidTransaction::Custom(2).into()),
-				Some(auth) => signatories.push((*auth).clone().into()),
+				Some(auth) => signatories.push(auth.clone().into()),
 			}
 		}
 		// Verify the aggregate signature.

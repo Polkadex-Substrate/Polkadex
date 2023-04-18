@@ -173,12 +173,12 @@ impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 		fees
 	}
 
-	pub fn add_auth_index(&mut self, index: u16) {
+	pub fn add_auth_index(&mut self, index: usize) {
 		set_bit_field(&mut self.bitflags, index);
 	}
 
 	// Get set indexes
-	pub fn signed_auth_indexes(&self) -> Vec<u16> {
+	pub fn signed_auth_indexes(&self) -> Vec<usize> {
 		return_set_bits(&self.bitflags)
 	}
 
