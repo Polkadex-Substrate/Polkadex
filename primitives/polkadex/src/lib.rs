@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 //! Low-level types used throughout the Substrate code.
-
+#![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod assets;
@@ -26,6 +26,7 @@ pub mod ingress;
 pub mod misbehavior;
 pub mod ocex;
 pub mod rewards;
+pub mod utils;
 pub mod withdrawal;
 
 pub use frame_support::storage::bounded_vec::BoundedVec;
@@ -108,7 +109,7 @@ impl Get<u32> for AssetsLimit {
 pub struct SnapshotAccLimit;
 impl Get<u32> for SnapshotAccLimit {
 	fn get() -> u32 {
-		1000
+		20
 	}
 }
 #[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
@@ -116,7 +117,7 @@ impl Get<u32> for SnapshotAccLimit {
 pub struct WithdrawalLimit;
 impl Get<u32> for WithdrawalLimit {
 	fn get() -> u32 {
-		500
+		1
 	}
 }
 

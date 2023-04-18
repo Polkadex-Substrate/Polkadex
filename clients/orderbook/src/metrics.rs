@@ -4,8 +4,10 @@ use prometheus::{register, Counter, Gauge, PrometheusError, Registry, U64};
 
 /// Orderbook metrics exposed through Prometheus
 pub struct Metrics {
-	/// Last processed state id
-	pub ob_state_id: Gauge<U64>,
+	/// Last processed snapshot id
+	pub ob_snapshot_id: Gauge<U64>,
+	/// Last processed worker nonce
+	pub ob_worker_nonce: Gauge<U64>,
 	/// Total number of ob messages sent by this node
 	pub ob_messages_sent: Counter<U64>,
 	/// Total number of ob messages recvd by this node
@@ -19,8 +21,12 @@ pub struct Metrics {
 impl Metrics {
 	pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
-			ob_state_id: register(
+			ob_snapshot_id: register(
 				Gauge::new("polkadex_ob_state_id", "Last processed state id by Orderbook")?,
+				registry,
+			)?,
+			ob_worker_nonce: register(
+				Gauge::new("polkadex_ob_worker_nonce", "Last processed worker nonce by Orderbook")?,
 				registry,
 			)?,
 			ob_messages_sent: register(
