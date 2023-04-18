@@ -33,10 +33,10 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 pub use pallet::*;
-use polkadex_primitives::BlockNumber;
+use polkadex_primitives::{utils::return_set_bits, BlockNumber};
 use thea_primitives::{
-	types::{return_set_bits, Message},
-	AuthorityIndex, AuthoritySignature, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+	types::Message, AuthorityIndex, AuthoritySignature, Network, ValidatorSet,
+	GENESIS_AUTHORITY_SET_ID,
 };
 
 mod session;
@@ -103,12 +103,12 @@ pub mod pallet {
 		StorageMap<_, Identity, T::TheaId, Network, OptionQuery>;
 
 	/// Outgoing messages
-	/// first key: Block number of polkadex solochain
-	/// second key: receiving network
+	/// first key: Network
+	/// second key: Message nonce
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_messages)]
 	pub(super) type OutgoingMessages<T: Config> =
-		StorageDoubleMap<_, Identity, T::BlockNumber, Identity, Network, Message, OptionQuery>;
+		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
 
 	/// Incoming messages
 	/// first key: origin network
@@ -116,19 +116,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn incoming_messages)]
 	pub(super) type IncomingMessages<T: Config> =
-		StorageDoubleMap<_, Identity, Network, Identity, T::BlockNumber, Message, OptionQuery>;
-
-	/// Last processed blocks of other networks
-	#[pallet::storage]
-	#[pallet::getter(fn last_processed_blk)]
-	pub(super) type LastProcessedBlock<T: Config> =
-		StorageMap<_, Identity, Network, T::BlockNumber, OptionQuery>;
+		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
 
 	/// Last processed nonce of other networks
 	#[pallet::storage]
 	#[pallet::getter(fn last_processed_nonce)]
-	pub(super) type LastProcessedNonce<T: Config> =
-		StorageMap<_, Identity, Network, u64, ValueQuery>;
+	pub(super) type IncomingNonce<T: Config> = StorageMap<_, Identity, Network, u64, ValueQuery>;
 
 	/// Outgoing nonce's grouped by network
 	#[pallet::storage]
@@ -193,8 +186,8 @@ pub mod pallet {
 			ensure_none(origin)?;
 			// Signature is already verified in validate_unsigned, no need to do it again
 
-			let last_nonce = <LastProcessedNonce<T>>::get(payload.network);
-			if last_nonce != payload.nonce.saturating_add(1) {
+			let last_nonce = <IncomingNonce<T>>::get(payload.network);
+			if last_nonce.saturating_add(1) != payload.nonce {
 				return Err(Error::<T>::MessageNonce.into())
 			}
 
@@ -202,17 +195,9 @@ pub mod pallet {
 				return Err(Error::<T>::ErrorExecutingMessage.into())
 			}
 
-			<LastProcessedNonce<T>>::insert(payload.network, payload.nonce);
-			<LastProcessedBlock<T>>::insert(
-				payload.network,
-				payload.block_no.saturated_into::<T::BlockNumber>(),
-			);
+			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
 			// Save the incoming message for some time
-			<IncomingMessages<T>>::insert(
-				payload.network,
-				payload.block_no.saturated_into::<T::BlockNumber>(),
-				payload,
-			);
+			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
 			Ok(())
 		}
 	}
@@ -233,7 +218,7 @@ impl<T: Config> Pallet<T> {
 		signature: &T::Signature,
 	) -> TransactionValidity {
 		// Check if this message can be processed next by checking its nonce
-		let nonce = <LastProcessedNonce<T>>::get(payload.network);
+		let nonce = <IncomingNonce<T>>::get(payload.network);
 		if payload.nonce != nonce.saturating_add(1) {
 			return Err(InvalidTransaction::Custom(1).into())
 		}
@@ -242,12 +227,12 @@ impl<T: Config> Pallet<T> {
 		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
 
 		// Create a vector of public keys of everyone who signed
-		let auths = <Authorities<T>>::get(payload.network);
+		let auths: Vec<T::TheaId> = <Authorities<T>>::get(payload.network).to_vec();
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
 		for index in signed_auths_indexes {
 			match auths.get(index) {
 				None => return Err(InvalidTransaction::Custom(2).into()),
-				Some(auth) => signatories.push((*auth).clone().into()),
+				Some(auth) => signatories.push(auth.clone().into()),
 			}
 		}
 		// Verify the aggregate signature.
@@ -264,6 +249,16 @@ impl<T: Config> Pallet<T> {
 			.longevity(3)
 			.propagate(true)
 			.build()
+	}
+
+	/// Return the current active validator set for all networks
+	pub fn full_validator_set() -> Option<ValidatorSet<T::TheaId>> {
+		let mut full_list = sp_std::vec::Vec::new();
+		for list in <Authorities<T>>::iter_values(){
+			full_list.append(&mut list.to_vec())
+		}
+		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();
+		ValidatorSet::<T::TheaId>::new(full_list, id)
 	}
 
 	/// Return the current active validator set.
@@ -327,11 +322,7 @@ impl<T: Config> Pallet<T> {
 			};
 			// Update nonce
 			<OutgoingNonce<T>>::insert(network, payload.nonce);
-			<OutgoingMessages<T>>::insert(
-				payload.block_no.saturated_into::<T::BlockNumber>(),
-				payload.network,
-				payload,
-			);
+			<OutgoingMessages<T>>::insert(payload.network, payload.nonce, payload);
 		}
 	}
 
@@ -342,8 +333,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn get_outgoing_messages(blk: T::BlockNumber, network: Network) -> Option<Message> {
-		<OutgoingMessages<T>>::get(blk, network)
+	pub fn get_outgoing_messages(network: Network, nonce: u64) -> Option<Message> {
+		<OutgoingMessages<T>>::get(network, nonce)
 	}
 
 	pub fn network(auth: T::TheaId) -> Option<Network> {
@@ -360,7 +351,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn get_last_processed_nonce(network: Network) -> u64 {
-		<LastProcessedNonce<T>>::get(network)
+		<IncomingNonce<T>>::get(network)
 	}
 }
 
@@ -378,11 +369,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);
-		<OutgoingMessages<T>>::insert(
-			payload.block_no.saturated_into::<T::BlockNumber>(),
-			payload.network,
-			payload,
-		);
+		<OutgoingMessages<T>>::insert(payload.network, payload.nonce, payload);
 		Ok(())
 	}
 }

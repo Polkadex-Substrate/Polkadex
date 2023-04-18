@@ -30,6 +30,8 @@ use frame_support::{
 	transactional, Blake2_128Concat, PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use num_traits::{cast::ToPrimitive, CheckedDiv, CheckedMul};
+use polkadex_primitives::Balance;
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedAdd, CheckedSub, One, Saturating, Zero},
 	ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, SaturatedConversion,
@@ -37,10 +39,25 @@ use sp_runtime::{
 use sp_std::{cmp::min, result::Result, vec::Vec};
 use support::{ConvertToBigUint, Pool};
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+#[cfg(test)]
+pub(crate) mod mock;
+#[cfg(test)]
+mod tests;
+
+pub mod weights;
+
 pub use pallet::*;
 // pub use weights::WeightInfo;
 
-use num_traits::{cast::ToPrimitive, CheckedDiv, CheckedMul};
+pub trait WeightInfo {
+	fn add_liquidity() -> Weight;
+	fn remove_liquidity() -> Weight;
+	fn create_pool() -> Weight;
+	fn update_protocol_fee() -> Weight;
+	fn update_protocol_fee_receiver() -> Weight;
+}
 
 pub type Ratio = Permill;
 pub type CurrencyId = u128;
@@ -53,7 +70,6 @@ pub type BalanceOf<T, I = ()> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use polkadex_primitives::Balance;
 
 	pub type Amounts<T, I> = sp_std::vec::Vec<BalanceOf<T, I>>;
 
@@ -82,6 +98,9 @@ pub mod pallet {
 
 		/// Specify which origin is allowed to update fee receiver.
 		type ProtocolFeeUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 
 		/// Defines the fees taken out of each trade and sent back to the AMM pool,
 		/// typically 0.3%.
@@ -221,7 +240,7 @@ pub mod pallet {
 		/// - `liquidity_amounts`: Liquidity amounts to be added in pool
 		/// - `minimum_amounts`: specifying its "worst case" ratio when pool already exists
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::add_liquidity())]
 		#[transactional]
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
@@ -306,7 +325,7 @@ pub mod pallet {
 		/// - `pair`: Currency pool, in which liquidity will be removed
 		/// - `liquidity`: liquidity to be removed from user's liquidity
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::remove_liquidity())]
 		#[transactional]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
@@ -357,7 +376,7 @@ pub mod pallet {
 		/// - `lptoken_receiver`: Allocate any liquidity tokens to lptoken_receiver
 		/// - `lp_token_id`: Liquidity pool share representative token
 		#[pallet::call_index(2)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::create_pool())]
 		#[transactional]
 		pub fn create_pool(
 			origin: OriginFor<T>,
@@ -432,7 +451,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::update_protocol_fee())]
 		#[transactional]
 		pub fn update_protocol_fee(
 			origin: OriginFor<T>,
@@ -445,7 +464,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(4)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(T::WeightInfo::update_protocol_fee_receiver())]
 		#[transactional]
 		pub fn update_protocol_fee_receiver(
 			origin: OriginFor<T>,

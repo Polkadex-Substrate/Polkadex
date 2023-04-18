@@ -2,9 +2,10 @@
 
 use futures::channel::mpsc::UnboundedReceiver;
 use parity_scale_codec::Codec;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use prometheus::Registry;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
+use sc_keystore::LocalKeystore;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
@@ -23,12 +24,13 @@ mod worker;
 mod tests;
 
 mod connector;
+mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
 	use sc_chain_spec::ChainSpec;
 
-	const NAME: &str = "/thea/1";
+	pub(crate) const NAME: &str = "/thea/1";
 
 	/// Name of the notifications protocol used by Thea.
 	///
@@ -86,7 +88,10 @@ where
 
 use crate::types::GossipMessage;
 
-use crate::worker::ObWorker;
+use crate::{
+	connector::{parachain::ParachainClient, traits::ForeignConnector},
+	worker::ObWorker,
+};
 use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
 
@@ -95,8 +100,8 @@ pub struct TheaParams<B, BE, C, N, R>
 where
 	B: Block,
 	BE: Backend<B>,
-	R: ProvideRuntimeApi<B>,
 	C: Client<B, BE>,
+	R: ProvideRuntimeApi<B>,
 	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
@@ -106,6 +111,8 @@ where
 	pub backend: Arc<BE>,
 	/// Client runtime
 	pub runtime: Arc<R>,
+	/// Keystore
+	pub keystore: Option<Arc<LocalKeystore>>,
 	/// Gossip network
 	pub network: N,
 	/// Prometheus metric registry
@@ -133,6 +140,7 @@ where
 		client,
 		backend,
 		runtime,
+		keystore,
 		network,
 		prometheus_registry,
 		protocol_name,
@@ -156,24 +164,25 @@ where
 			},
 		);
 
+	let foreign_connector = ParachainClient::connect("ws://127.0.0.1:9945".to_string())
+		.await
+		.expect("Expected to connect to local foreign node");
+
 	let worker_params = worker::WorkerParams {
 		client,
 		backend,
 		runtime,
+		keystore,
 		sync_oracle,
 		is_validator,
 		network,
 		protocol_name,
 		metrics,
 		_marker: Default::default(),
+		foreign_chain: Arc::new(foreign_connector),
 	};
-	// TODO: Remove unwrap()
-	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params).await.unwrap();
 
-	// assert_send_sync(worker.run()).await TODO: IVan, please fix this, make run() Send + Sync.,
-	// use can use the assert_send_sync fn for testing
-}
+	let mut worker = ObWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
 
-async fn assert_send_sync(task: impl Future<Output = ()> + Send + Sync) {
-	task.await;
+	worker.run().await
 }
