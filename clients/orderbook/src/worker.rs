@@ -1,4 +1,11 @@
-use crate::utils::*;
+use std::{
+	collections::{BTreeMap, BTreeSet, HashMap},
+	marker::PhantomData,
+	ops::Div,
+	sync::Arc,
+	time::Duration,
+};
+
 use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
@@ -19,13 +26,6 @@ use sp_core::{blake2_128, offchain::OffchainStorage};
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
-};
-use std::{
-	collections::{BTreeMap, BTreeSet, HashMap},
-	marker::PhantomData,
-	ops::Div,
-	sync::Arc,
-	time::Duration,
 };
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
@@ -49,9 +49,11 @@ use polkadex_primitives::{
 use crate::{
 	error::Error,
 	gossip::{topic, GossipValidator},
-	keystore::OrderbookKeyStore,metric_add, metric_inc, metric_set,
+	keystore::OrderbookKeyStore,
+	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
 	snapshot::SnapshotStore,
+	utils::*,
 	Client, DbRef,
 };
 
@@ -66,7 +68,8 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub metrics: Option<Metrics>,
 	pub is_validator: bool,
 	/// Local key store
-	pub keystore: Option<Arc<LocalKeystore>>,pub message_sender_link: UnboundedReceiver<ObMessage>,
+	pub keystore: Option<Arc<LocalKeystore>>,
+	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	/// Gossip network
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
@@ -90,7 +93,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	is_validator: bool,
 	_network: Arc<N>,
 	/// Local key store
-	pub keystore: OrderbookKeyStore,gossip_engine: GossipEngine<B>,
+	pub keystore: OrderbookKeyStore,
+	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Last processed state change id
 	pub last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
@@ -117,7 +121,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	latest_state_change_id: u64,
 	// Map of trading pair configs
 	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
-	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,// Our last snapshot waiting for approval
+	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
+	// Our last snapshot waiting for approval
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
 	// Validators we are connected to
 	validators: Arc<RwLock<BTreeSet<PeerId>>>,
@@ -149,7 +154,8 @@ where
 			sync_oracle,
 			metrics,
 			is_validator,
-			keystore,message_sender_link,
+			keystore,
+			message_sender_link,
 			network,
 			protocol_name,
 			_marker,
@@ -157,18 +163,19 @@ where
 			memory_db,
 			working_state_root,
 		} = worker_params;
-// Shared data
+		// Shared data
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
-        let latest_worker_nonce = Arc::new(RwLock::new(0));
+		let latest_worker_nonce = Arc::new(RwLock::new(0));
 		let network = Arc::new(network);
 		let validators = Arc::new(RwLock::new(BTreeSet::new()));
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
 
 		// Gossip Validator
 		let gossip_validator = Arc::new(GossipValidator::new(
-            latest_worker_nonce.clone(),
+			latest_worker_nonce.clone(),
 			validators.clone(),
-			fullnodes.clone(),));
+			fullnodes.clone(),
+		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
@@ -196,14 +203,14 @@ where
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
 			last_block_snapshot_generated,
-            latest_worker_nonce: latest_worker_nonce.clone(),
-            latest_state_change_id: 0,
+			latest_worker_nonce: latest_worker_nonce.clone(),
+			latest_state_change_id: 0,
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
 			pending_snapshot_summary: None,
 			validators,
 			fullnodes,
-        }
+		}
 	}
 
 	/// The function checks whether a snapshot of the blockchain should be generated based on the
@@ -219,21 +226,20 @@ where
 		let (pending_withdrawals_interval, block_interval) = self
 			.runtime
 			.runtime_api()
-			.get_snapshot_generation_intervals(&at
-			)
+			.get_snapshot_generation_intervals(&at)
 			.expect("Expecting snapshot generation interval api to be available");
 
-		let last_accepted_stid: u64 = self
+		let last_accepted_worker_nonce: u64 = self
 			.runtime
 			.runtime_api()
-			.get_last_accepted_stid(&BlockId::Number(self.client.info().best_number))
-			.expect("Expecting OCEX APIs to be available");// Check if a snapshot should be generated based on the pending withdrawals interval and
-		// block interval
+			.get_last_accepted_worker_nonce(&BlockId::Number(self.client.info().best_number))
+			.expect("Expecting OCEX APIs to be available"); // Check if a snapshot should be generated based on the pending withdrawals interval and
+												// block interval
 		if (pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
 			block_interval <
 				self.last_finalized_block
 					.saturating_sub(*self.last_block_snapshot_generated.read())) &&
-			last_accepted_stid < *self.latest_stid.read()
+			last_accepted_worker_nonce < *self.latest_worker_nonce.read()
 		// there is something new after last snapshot
 		{
 			info!(target:"orderbook", "Snapshot should be generated");
@@ -275,7 +281,7 @@ where
 		drop(working_state_root);
 		// Queue withdrawal
 		self.pending_withdrawals.push(withdraw.try_into()?);
-		info!(target:"orderbook","Queued withdrawal to pending list");// Check if snapshot should be generated or not
+		info!(target:"orderbook","Queued withdrawal to pending list"); // Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(worker_nonce, state_change_id) {
 				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max pending withdrawals: {:?}",err);
@@ -298,7 +304,6 @@ where
 			.ingress_messages(&BlockId::number(num.saturated_into()))
 			.expect("Expecting ingress messages api to be available");
 
-
 		{
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
 			for message in messages {
@@ -319,7 +324,7 @@ where
 		Ok(())
 	}
 
-	pub fn snapshot(&mut self, stid: u64) -> Result<(), Error> {
+	pub fn snapshot(&mut self, worker_nonce: u64, stid: u64) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Generating snapshot");
 		let at = BlockId::number(self.last_finalized_block.saturated_into());
 		let next_snapshot_id = self
@@ -338,7 +343,8 @@ where
 		}
 		let active_set = self.runtime.runtime_api().validator_set(&at)?.validators;
 
-		let mut summary = self.store_snapshot(stid, next_snapshot_id, active_set.len())?;
+		let mut summary =
+			self.store_snapshot(worker_nonce, stid, next_snapshot_id, active_set.len())?;
 		if !self.is_validator {
 			info!(target:"orderbook","📒 Not a validator, skipping snapshot signing.");
 			// We are done if we are not a validator
@@ -353,12 +359,10 @@ where
 		summary.aggregate_signature = Some(signature.clone().into());
 		let bit_index = active_set.iter().position(|v| v == &signing_key).unwrap();
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
-		set_bit_field(&mut summary.bitflags, bit_index as u16);info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
+		set_bit_field(&mut summary.bitflags, bit_index as u16);
+		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
 		assert_eq!(initial_summary, summary.sign_data());
-		assert!(self.keystore.verify(
-			&signing_key,
-			&signature, &initial_summary
-		));
+		assert!(self.keystore.verify(&signing_key, &signature, &initial_summary,));
 		// send it to runtime
 		if self
 			.runtime
@@ -369,7 +373,8 @@ where
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 			return Err(Error::FailedToSubmitSnapshotToRuntime)
-		}self.pending_snapshot_summary = Some(summary);
+		}
+		self.pending_snapshot_summary = Some(summary);
 		Ok(())
 	}
 
@@ -383,29 +388,30 @@ where
 				let mut working_state_root = self.working_state_root.write();
 				let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
-                for trade in trades {
-                    let config = self
-                        .trading_pair_configs
-                        .get(&trade.maker.pair)
-                        .ok_or(Error::TradingPairConfigNotFound)?
-                        .clone();
-                    process_trade(&mut trie, trade, config)?
-                }
-                // Commit the trie
-                trie.commit();
-            }
-            UserActions::Withdraw(withdraw) => self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
-            UserActions::BlockImport(num) => self.handle_blk_import(num)?,
-            UserActions::Snapshot => self.snapshot(action.worker_nonce,action.stid)?,
-        }
-        *self.latest_worker_nonce.write() = action.worker_nonce;
-        self.latest_state_change_id = action.stid;
-        // Multicast the message to other peers
-        let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
-        self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
-        info!(target:"orderbook","Message with stid: {:?} gossiped to others",self.latest_worker_nonce.read());
-        Ok(())
-    }
+				for trade in trades {
+					let config = self
+						.trading_pair_configs
+						.get(&trade.maker.pair)
+						.ok_or(Error::TradingPairConfigNotFound)?
+						.clone();
+					process_trade(&mut trie, trade, config)?
+				}
+				// Commit the trie
+				trie.commit();
+			},
+			UserActions::Withdraw(withdraw) =>
+				self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
+			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
+			UserActions::Snapshot => self.snapshot(action.worker_nonce, action.stid)?,
+		}
+		*self.latest_worker_nonce.write() = action.worker_nonce;
+		self.latest_state_change_id = action.stid;
+		// Multicast the message to other peers
+		let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
+		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
+		info!(target:"orderbook","Message with stid: {:?} gossiped to others",self.latest_worker_nonce.read());
+		Ok(())
+	}
 
 	// Checks if we need to sync the orderbook state before processing the messages.
 	pub async fn check_state_sync(&mut self) -> Result<(), Error> {
@@ -419,27 +425,17 @@ where
 									 // if the next best known  worker nonces is not available then ask others
 			if *known_worker_nonces[0] != self.last_snapshot.read().worker_nonce.saturating_add(1) {
 				// Ask other peers to send us the requests  worker nonces.
-                info!(target:"orderbook","📒 Asking peers to send us the missed \
+				info!(target:"orderbook","📒 Asking peers to send us the missed \
                 worker nonces: last processed nonce: {:?}, best known nonce: {:?} ",
                     self.last_snapshot.read().worker_nonce, known_worker_nonces[0]);
 				let message = GossipMessage::WantWorkerNonce(
 					self.last_snapshot.read().worker_nonce,
 					*known_worker_nonces[0],
 				);
-				let mut peers = self
-					.validators
-					.read()
-					.clone()
-					.iter()
-					.cloned()
-					.collect::<Vec<PeerId>>();
-				let mut fullnodes = self
-					.fullnodes
-					.read()
-					.clone()
-					.iter()
-					.cloned()
-					.collect::<Vec<PeerId>>();
+				let mut peers =
+					self.validators.read().clone().iter().cloned().collect::<Vec<PeerId>>();
+				let mut fullnodes =
+					self.fullnodes.read().clone().iter().cloned().collect::<Vec<PeerId>>();
 				peers.append(&mut fullnodes);
 				// TODO: Should we even send it out to everyone we know?
 				self.gossip_engine.send_message(peers, message.encode());
@@ -480,9 +476,9 @@ where
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","Received a new user action: {:?}",action);
 		// Check if stid is newer or not
-		if action.stid <= *self.latest_stid.read() {
+		if action.worker_nonce <= *self.latest_worker_nonce.read() {
 			// Ignore stids we already know.
-			warn!(target:"orderbook","Ignoring old message: given: {:?}, latest stid: {:?}",action.stid,self.latest_stid.read());
+			warn!(target:"orderbook","Ignoring old message: given: {:?}, latest stid: {:?}",action.worker_nonce,self.latest_worker_nonce.read());
 			return Ok(())
 		}
 		info!(target: "orderbook", "📒 Processing new user action: {:?}", action);
@@ -520,7 +516,7 @@ where
 		worker_nonce: u64,
 		state_change_id: u64,
 		snapshot_id: u64,
-	active_validators_len: usize,
+		active_validators_len: usize,
 	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
@@ -729,17 +725,22 @@ where
 			// Note: Set bits here are available for syncing
 			let available_chunks: Vec<u16> = return_set_bits(&bitmap);
 			let mut want_chunks = vec![];
-			let mut highest_index = 0; // We need the highest index to prepare the bitmapfor index in available_chunks {
+			let mut highest_index = 0; // We need the highest index to prepare the bitmap for index in available_chunks {
+			for index in available_chunks {
 				if let Some(chunk_status) = self.sync_state_map.get_mut(&index) {
 					if *chunk_status == StateSyncStatus::Unavailable {
 						want_chunks.push(index);
-						highest_index = index.max(highest_index);*chunk_status = StateSyncStatus::InProgress(peer, Utc::now().timestamp());
+						highest_index = index.max(highest_index);
+						*chunk_status = StateSyncStatus::InProgress(peer, Utc::now().timestamp());
 					}
 				}
 			}
+
 			if !want_chunks.is_empty() {
-				let message =
-					GossipMessage::RequestChunk(*snapshot_id, prepare_bitmap(&want_chunks, highest_index).expect("Expected to create bitmap"),);
+				let message = GossipMessage::RequestChunk(
+					*snapshot_id,
+					prepare_bitmap(&want_chunks, highest_index).expect("Expected to create bitmap"),
+				);
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -887,31 +888,31 @@ where
 		self.last_finalized_block = (*header.number()).saturated_into();
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
-            let mut latest_worker_nonce = 0;
-            {
-                latest_worker_nonce = *self.latest_worker_nonce.read();
-            }
+			let mut latest_worker_nonce = 0;
+			{
+				latest_worker_nonce = *self.latest_worker_nonce.read();
+			}
 			if let Err(err) = self.snapshot(latest_worker_nonce, self.latest_state_change_id) {
 				log::error!(target:"orderbook", "Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
-			}else{
-                *self.last_block_snapshot_generated.write() = self.last_finalized_block;
+			} else {
+				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
+			}
 		}
 
 		// We should not update latest summary if we are still syncing
 		if !self.state_is_syncing {
-
 			let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
 				&BlockId::Number(self.last_finalized_block.saturated_into()),
 			)?;
 
 			// Check if its genesis then update storage with genesis data
-			if latest_summary.snapshot_id.is_zero() &&
-				self.latest_stid.read().is_zero() {
-			info!(target: "orderbook", "📒 Loading genesis data from runtime ....");
+			if latest_summary.snapshot_id.is_zero() && self.latest_worker_nonce.read().is_zero() {
+				info!(target: "orderbook", "📒 Loading genesis data from runtime ....");
 				self.update_storage_with_genesis_data()?;
-			// Update the latest snapshot summary.
-			*self.last_snapshot.write() = latest_summary;
-			}if let Some(orderbook_operator_public_key) =
+				// Update the latest snapshot summary.
+				*self.last_snapshot.write() = latest_summary;
+			}
+			if let Some(orderbook_operator_public_key) =
 				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
 					self.last_finalized_block.saturated_into(),
 				))? {
@@ -929,13 +930,14 @@ where
 			let total = self.sync_state_map.len();
 			let last_summary = self.last_snapshot.read().clone();
 			let mut missing_indexes = vec![];
-			let mut highest_missing_index = 0;for (chunk_index, status) in self.sync_state_map.iter_mut() {
+			let mut highest_missing_index = 0;
+			for (chunk_index, status) in self.sync_state_map.iter_mut() {
 				match status {
 					StateSyncStatus::Unavailable => {
 						info!(target:"orderbook","Chunk: {:?} is unavailable",chunk_index);
 						unavailable = unavailable.saturating_add(1);
 						missing_indexes.push(*chunk_index);
-					highest_missing_index = (*chunk_index).max(highest_missing_index);
+						highest_missing_index = (*chunk_index).max(highest_missing_index);
 					},
 					StateSyncStatus::InProgress(who, when) => {
 						info!(target:"orderbook","Chunk: {:?} is in progress with peer: {:?}",chunk_index,who);
@@ -943,7 +945,8 @@ where
 						// If the peer has not responded with data in one minute we ask again
 						if (Utc::now().timestamp() - *when) > 60 {
 							missing_indexes.push(*chunk_index);
-							highest_missing_index = (*chunk_index).max(highest_missing_index);warn!(target:"orderbook","Peer: {:?} has not responded with chunk: {:?}, asking someone else", who, chunk_index);
+							highest_missing_index = (*chunk_index).max(highest_missing_index);
+							warn!(target:"orderbook","Peer: {:?} has not responded with chunk: {:?}, asking someone else", who, chunk_index);
 							*status = StateSyncStatus::Unavailable;
 						}
 					},
@@ -953,16 +956,13 @@ where
 			info!(target:"orderbook","📒 State chunks sync status: inprogress: {:?}, unavailable: {:?}, total: {:?}",inprogress,unavailable,total);
 			// If we have missing indexes, ask again to peers for these indexes
 			if !missing_indexes.is_empty() {
-				let message =
-					GossipMessage::Want(last_summary.snapshot_id, prepare_bitmap(&missing_indexes, highest_missing_index)
-						.expect("Expected to create bitmap"),);
+				let message = GossipMessage::Want(
+					last_summary.snapshot_id,
+					prepare_bitmap(&missing_indexes, highest_missing_index)
+						.expect("Expected to create bitmap"),
+				);
 				let fullnodes =
-					self.fullnodes
-					.read()
-					.clone()
-					.iter()
-					.cloned()
-					.collect::<Vec<PeerId>>();
+					self.fullnodes.read().clone().iter().cloned().collect::<Vec<PeerId>>();
 				self.gossip_engine.send_message(fullnodes, message.encode());
 			} else {
 				// We have all the data, state is synced,
@@ -1037,11 +1037,12 @@ where
 
 		known_stids.sort_unstable();
 
-		info!(target:"orderbook", "Last processed Stid: {:?}, cached messages: {:?}, next best stid: {:?}",
-			self.latest_stid.read(),
+		info!(target:"orderbook", "Last processed worker nonce: {:?}, cached messages: {:?}, next best worker nonce: {:?}",
+			self.latest_worker_nonce.read(),
 			self.known_messages.len(),
 		   known_stids.get(0)
-		);Ok(())
+		);
+		Ok(())
 	}
 
 	/// Wait for Orderbook runtime pallet to be available.
@@ -1069,12 +1070,14 @@ where
 		// Check the chunks we need
 		// Store the missing chunk indexes
 		let mut missing_chunks = vec![];
-		let mut highest_chunk_index = 0;for (index, chunk_hash) in summary.state_chunk_hashes.iter().enumerate() {
+		let mut highest_chunk_index = 0;
+		for (index, chunk_hash) in summary.state_chunk_hashes.iter().enumerate() {
 			if offchain_storage
 				.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.encode().as_ref())
 				.is_none()
 			{
-				missing_chunks.push(index as u16);highest_chunk_index = index.max(highest_chunk_index);
+				missing_chunks.push(index as u16);
+				highest_chunk_index = index.max(highest_chunk_index);
 				self.sync_state_map.insert(index as u16, StateSyncStatus::Unavailable);
 			} else {
 				self.sync_state_map.insert(index as u16, StateSyncStatus::Available);
@@ -1084,13 +1087,8 @@ where
 		let bitmap = prepare_bitmap(&missing_chunks, highest_chunk_index as u16)
 			.expect("Expected to create bitmap");
 		// Gossip the sync requests to all connected fullnodes
-		let fullnodes = self
-
-			.fullnodes
-			.read()
-			.clone()
-			.into_iter()
-			.collect::<Vec<PeerId>>();if fullnodes.is_empty() {
+		let fullnodes = self.fullnodes.read().clone().into_iter().collect::<Vec<PeerId>>();
+		if fullnodes.is_empty() {
 			warn!(target:"orderbook","No fullnode peers connected to request state sync");
 		}
 		info!(target:"orderbook","State sync request send to {:?} peers",fullnodes.len());

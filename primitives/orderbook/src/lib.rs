@@ -152,6 +152,7 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 		Self {
 			snapshot_id: 0,
 			state_root: Default::default(),
+			worker_nonce: 0,
 			state_change_id: 0,
 			state_chunk_hashes: Vec::new(),
 			bitflags: Vec::new(),
@@ -251,7 +252,7 @@ sp_api::decl_runtime_apis! {
 		fn get_snapshot_generation_intervals() -> (u64,BlockNumber);
 
 		/// Returns last processed stid from last snapshot
-		fn get_last_accepted_stid() -> u64;
+		fn get_last_accepted_worker_nonce() -> u64;
 
 		/// Get all allow listed assets
 		fn get_allowlisted_assets() -> Vec<AssetId>;
