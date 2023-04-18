@@ -1,8 +1,12 @@
+#![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
+	ocex::TradingPairConfig,
+	utils::{return_set_bits, set_bit_field},
+	withdrawal::Withdrawal,
+	AccountId, AssetId, BlockNumber,
 };
 use primitive_types::H128;
 use rust_decimal::Decimal;
@@ -15,16 +19,12 @@ use sp_std::vec::Vec;
 
 use bls_primitives::{Public, Signature};
 
+use crate::crypto::AuthorityId;
 #[cfg(feature = "std")]
 use crate::types::ObMessage;
-use crate::{
-	crypto::AuthorityId,
-	utils::{return_set_bits, set_bit_field},
-};
 
 pub mod constants;
 pub mod types;
-pub mod utils;
 
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
@@ -123,10 +123,11 @@ pub struct Fees {
 	pub amount: Decimal,
 }
 
-#[derive(Clone, Encode, Decode, Default, Debug, TypeInfo, PartialEq)]
-pub struct SnapshotSummary {
+#[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq)]
+pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub snapshot_id: u64,
 	pub state_root: H256,
+	pub worker_nonce: u64,
 	pub state_change_id: u64,
 	pub state_chunk_hashes: Vec<H128>,
 	pub bitflags: Vec<u128>,
@@ -134,7 +135,22 @@ pub struct SnapshotSummary {
 	pub aggregate_signature: Option<bls_primitives::Signature>,
 }
 
-impl SnapshotSummary {
+impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
+	fn default() -> Self {
+		Self {
+			snapshot_id: 0,
+			state_root: Default::default(),
+			worker_nonce: 0,
+			state_change_id: 0,
+			state_chunk_hashes: Vec::new(),
+			bitflags: Vec::new(),
+			withdrawals: Vec::new(),
+			aggregate_signature: None,
+		}
+	}
+}
+
+impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 	// Add a new signature to the snapshot summary
 	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
 		match bls_primitives::crypto::bls_ext::add_signature(
@@ -182,6 +198,7 @@ impl SnapshotSummary {
 			self.snapshot_id,
 			self.state_root,
 			self.state_change_id,
+			self.worker_nonce,
 			self.state_chunk_hashes.clone(),
 			self.withdrawals.clone(),
 		);
@@ -198,17 +215,17 @@ sp_api::decl_runtime_apis! {
 		fn validator_set() -> ValidatorSet<crypto::AuthorityId>;
 
 		/// Returns the latest Snapshot Summary
-		fn get_latest_snapshot() -> SnapshotSummary;
+		fn get_latest_snapshot() -> SnapshotSummary<AccountId>;
 
 		/// Returns the snapshot summary for given snapshot id
-		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary>;
+		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>>;
 
 		/// Return the ingress messages at the given block
 		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
 
 		/// Submits the snapshot to runtime
 		#[allow(clippy::result_unit_err)]
-		fn submit_snapshot(summary: SnapshotSummary) -> Result<(), ()>;
+		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()>;
 
 		/// Gets pending snapshot if any
 		fn pending_snapshot() -> Option<u64>;
@@ -221,6 +238,9 @@ sp_api::decl_runtime_apis! {
 
 		/// Returns snapshot generation intervals
 		fn get_snapshot_generation_intervals() -> (u64,BlockNumber);
+
+		/// Returns last processed stid from last snapshot
+		fn get_last_accepted_worker_nonce() -> u64;
 
 		/// Get all allow listed assets
 		fn get_allowlisted_assets() -> Vec<AssetId>;

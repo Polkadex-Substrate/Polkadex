@@ -184,6 +184,7 @@ pub fn new_partial(
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 		)?;
+
 	let client = Arc::new(client);
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
@@ -595,7 +596,7 @@ pub fn new_full_base(
 		client: client.clone(),
 		backend: backend.clone(),
 		runtime: client.clone(),
-		key_store: None,
+		keystore: keystore_container.local_keystore(),
 		network: network.clone(),
 		prometheus_registry: prometheus_registry.clone(),
 		protocol_name: orderbook_protocol_name,
