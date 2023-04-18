@@ -1601,6 +1601,10 @@ impl_runtime_apis! {
 	}
 
 	impl thea_primitives::TheaApi<Block> for Runtime {
+		/// Return the current active Thea validator set for all networks
+		fn full_validator_set() -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
+			Thea::full_validator_set()
+		}
 		/// Return the current active Thea validator set
 		fn validator_set(network: thea_primitives::Network) -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
 			Thea::validator_set(network)

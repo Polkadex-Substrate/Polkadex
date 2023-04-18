@@ -116,6 +116,8 @@ sp_api::decl_runtime_apis! {
 	/// APIs necessary for Orderbook.
 	pub trait TheaApi
 	{
+		/// Return the current active Thea validator set for all networks
+		fn full_validator_set() -> Option<ValidatorSet<AuthorityId>>;
 		/// Return the current active Thea validator set
 		fn validator_set(network: Network) -> Option<ValidatorSet<AuthorityId>>;
 		/// Returns the outgoing message for given network and blk

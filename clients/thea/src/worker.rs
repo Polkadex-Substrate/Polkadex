@@ -1,9 +1,18 @@
+use std::{
+	collections::{BTreeMap, HashMap},
+	future::Future,
+	marker::PhantomData,
+	ops::AddAssign,
+	pin::Pin,
+	sync::Arc,
+	time::Duration,
+};
+
 use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, FutureExt, StreamExt};
 use log::{debug, error, info, trace, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::{Mutex, RwLock};
-use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
@@ -16,20 +25,13 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
-use std::{
-	collections::{BTreeMap, HashMap},
-	future::Future,
-	marker::PhantomData,
-	ops::AddAssign,
-	pin::Pin,
-	sync::Arc,
-	time::Duration,
-};
+use tokio::time::Interval;
+
+use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use thea_primitives::{
 	crypto::AuthorityId, types::Message, AuthorityIndex, Network, TheaApi, ValidatorSet,
 	NATIVE_NETWORK, THEA_WORKER_PREFIX,
 };
-use tokio::time::Interval;
 
 use crate::{
 	connector::{parachain::ParachainClient, traits::ForeignConnector},
@@ -268,7 +270,7 @@ where
 		&mut self,
 		notification: &FinalityNotification<B>,
 	) -> Result<(), Error> {
-		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
+		info!(target: "thea", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		let at = BlockId::hash(header.hash());
 		self.last_finalized_blk = at;
@@ -278,8 +280,20 @@ where
 		}
 
 		if self.thea_network.is_none() {
-			log::error!(target:"thea","Thea network is not configured for this validator, please use the local rpc");
-			return Err(Error::NetworkNotConfigured)
+			let active = self
+				.runtime
+				.runtime_api()
+				.full_validator_set(&at)?
+				.expect("Expected to full validator set api run value");
+			let signing_key = self.keystore.get_local_key(active.validators())?;
+			let network = self.runtime.runtime_api().network(&at, signing_key)?;
+
+			if network.is_none() {
+				log::error!(target:"thea","Thea network is not configured for this validator, please use the local rpc");
+				return Err(Error::NetworkNotConfigured)
+			} else {
+				self.thea_network = network;
+			}
 		}
 		let network = self.thea_network.unwrap();
 
@@ -292,6 +306,7 @@ where
 				.outgoing_messages(&at, network, next_nonce_to_process)?;
 
 		if let Some(message) = message {
+			info!(target:"thea", "Processing new message from native chain: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
 			self.sign_and_submit_message(message).await?;
 		}
 		Ok(())
@@ -342,6 +357,8 @@ where
 					.runtime
 					.runtime_api()
 					.get_last_processed_nonce(&self.last_finalized_blk, *network)?;
+
+				info!(target:"thea","Checking new messages on network: {network:?}, last nonce: {best_outgoing_nonce:?}");
 				best_outgoing_nonce.add_assign(1);
 
 				// Check if next best message is available for processing
@@ -365,18 +382,18 @@ where
 	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
-		info!(target: "orderbook", "📒 Orderbook worker started");
+		info!(target: "thea", "Thea worker started");
 		self.wait_for_runtime_pallet().await;
 
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
-			info!(target: "orderbook", "📒 orderbook is not started waiting for blockhchain to sync completely");
+			info!(target: "thea", "Thea is not started waiting for blockhchain to sync completely");
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
 
 		// TODO: Check if validator has provided the network pref, elser, panic or log.
 
-		info!(target:"orderbook","📒 Starting event streams...");
+		info!(target:"thea"," Starting event streams...");
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
 				.messages_for(topic::<B>())

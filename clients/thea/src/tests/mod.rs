@@ -1,10 +1,9 @@
+use std::{collections::BTreeMap, future::Future, sync::Arc};
+
 use futures::{stream::FuturesUnordered, StreamExt};
 use parity_scale_codec::Encode;
 use parking_lot::RwLock;
 use sc_keystore::LocalKeystore;
-use std::{collections::BTreeMap, future::Future, sync::Arc};
-
-use polkadex_primitives::utils::return_set_bits;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
 	TestNetFactory,
@@ -14,10 +13,12 @@ use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 
-use crate::connector::traits::ForeignConnector;
+use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
+
+use crate::connector::traits::ForeignConnector;
 
 pub mod withdrawal;
 
@@ -34,6 +35,14 @@ pub(crate) struct TestApi {
 }
 
 impl TestApi {
+	fn full_validator_set(&self) -> Option<ValidatorSet<AuthorityId>> {
+		let mut full_list = vec![];
+		for list in self.authorities.values() {
+			full_list.append(&mut list.validators.clone())
+		}
+		ValidatorSet::new(full_list, self.validator_set_id)
+	}
+
 	fn validator_set(&self, network: Network) -> Option<ValidatorSet<AuthorityId>> {
 		self.authorities.get(&network).cloned()
 	}
@@ -97,6 +106,11 @@ impl ProvideRuntimeApi<Block> for TestApi {
 
 sp_api::mock_impl_runtime_apis! {
 impl TheaApi<Block> for RuntimeApi {
+		/// Return the current active Thea validator set for all networks
+		fn full_validator_set() -> Option<ValidatorSet<AuthorityId>>{
+			self.inner.full_validator_set()
+		}
+
    /// Return the current active Thea validator set
 		fn validator_set(network: Network) -> Option<ValidatorSet<AuthorityId>>{
 			self.inner.validator_set(network)
@@ -268,17 +282,11 @@ where
 	workers.for_each(|_| async move {})
 }
 
-pub async fn generate_and_finalize_blocks(
-	count: usize,
-	testnet: &mut TheaTestnet,
-) {
+pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut TheaTestnet) {
 	let old_finalized = testnet.peer(0).client().info().finalized_number;
 	testnet.peer(0).push_blocks(count, false);
 	// wait for blocks to propagate
 	testnet.run_until_sync().await; // It should be run_until_sync() for finality to work properly.
 
-	assert_eq!(
-		old_finalized + count as u64,
-		testnet.peer(0).client().info().finalized_number
-	);
+	assert_eq!(old_finalized + count as u64, testnet.peer(0).client().info().finalized_number);
 }

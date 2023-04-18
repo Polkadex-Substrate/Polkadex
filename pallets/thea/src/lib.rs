@@ -251,6 +251,16 @@ impl<T: Config> Pallet<T> {
 			.build()
 	}
 
+	/// Return the current active validator set for all networks
+	pub fn full_validator_set() -> Option<ValidatorSet<T::TheaId>> {
+		let mut full_list = sp_std::vec::Vec::new();
+		for list in <Authorities<T>>::iter_values(){
+			full_list.append(&mut list.to_vec())
+		}
+		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();
+		ValidatorSet::<T::TheaId>::new(full_list, id)
+	}
+
 	/// Return the current active validator set.
 	pub fn validator_set(network: Network) -> Option<ValidatorSet<T::TheaId>> {
 		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities(network);

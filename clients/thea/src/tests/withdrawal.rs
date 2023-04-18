@@ -6,24 +6,27 @@ use crate::{
 };
 use async_trait::async_trait;
 use parking_lot::RwLock;
+use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use subxt::ext::frame_metadata::StorageEntryModifier::Default;
 use thea_primitives::{AuthorityId, Message, ValidatorSet};
 
-pub struct DummyForeignConnector;
+pub struct DummyForeignConnector {
+	active: Vec<AuthorityId>,
+}
 
 #[async_trait]
 impl ForeignConnector for DummyForeignConnector {
 	fn block_duration(&self) -> Duration {
-		Duration::from_secs(10)
+		Duration::from_secs(1)
 	}
 
 	async fn connect(url: String) -> Result<Self, Error>
 	where
 		Self: Sized,
 	{
-		Ok(DummyForeignConnector)
+		Ok(DummyForeignConnector { active: vec![] })
 	}
 
 	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error> {
@@ -39,7 +42,7 @@ impl ForeignConnector for DummyForeignConnector {
 	}
 
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
-		todo!()
+		Ok(0)
 	}
 }
 
@@ -61,14 +64,18 @@ pub async fn test_withdrawal() {
 		authorities: BTreeMap::from([(0, ValidatorSet { set_id: 0, validators: active.clone() })]),
 		validator_set_id: 0,
 		next_authorities: BTreeMap::new(),
-		network_pref: BTreeMap::new(),
+		network_pref: BTreeMap::from([
+			(active[0].clone(), 0),
+			(active[1].clone(), 0),
+			(active[2].clone(), 0),
+		]),
 		outgoing_messages: BTreeMap::new(),
 		incoming_messages: Arc::new(RwLock::new(BTreeMap::new())),
 		incoming_nonce: Arc::new(RwLock::new(BTreeMap::new())),
 		outgoing_nonce: BTreeMap::new(),
 	});
 
-	let foreign_connector = Arc::new(DummyForeignConnector);
+	let foreign_connector = Arc::new(DummyForeignConnector { active });
 
 	let ob_peers = peers
 		.iter()
@@ -80,5 +87,10 @@ pub async fn test_withdrawal() {
 
 	tokio::spawn(future);
 	// Generate and finalize two block to start finality
-	generate_and_finalize_blocks(1, &mut testnet).await;
+	generate_and_finalize_blocks(3, &mut testnet).await;
+	testnet.run_until_sync().await;
+	generate_and_finalize_blocks(3, &mut testnet).await;
+	testnet.run_until_idle().await;
+
+	tokio::time::sleep(Duration::from_secs(5)).await
 }
