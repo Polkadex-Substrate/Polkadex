@@ -1629,11 +1629,11 @@ impl_runtime_apis! {
 			OCEX::validator_set()
 		}
 
-		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary{
+		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary<AccountId>{
 			OCEX::get_latest_snapshot()
 		}
 
-		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary>{
+		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary<AccountId>>{
 			OCEX::get_snapshot_by_id(nonce)
 		}
 
@@ -1641,7 +1641,7 @@ impl_runtime_apis! {
 			OCEX::get_ingress_messages()
 		}
 
-		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary) -> Result<(),()> {
+		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary<AccountId>) -> Result<(),()> {
 			OCEX::submit_snapshot_api(summary)
 		}
 
@@ -1655,6 +1655,10 @@ impl_runtime_apis! {
 
 		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
 			OCEX::get_snapshot_generation_intervals()
+		}
+
+		fn get_last_accepted_stid () -> u64 {
+			OCEX::get_last_accepted_stid()
 		}
 
 

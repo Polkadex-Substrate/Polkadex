@@ -1,9 +1,11 @@
-use crate::error::Error;
+use crate::{error::Error, DbRef};
+use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::types::AccountAsset;
 use parity_scale_codec::{Decode, Encode};
-use reference_trie::ExtensionLayout;
+use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sp_tracing::info;
+use std::collections::HashMap;
 use trie_db::{TrieDBMut, TrieMut};
 
 pub fn add_balance(
