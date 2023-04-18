@@ -37,8 +37,12 @@ async fn main() {
 	// 	signature: Default::default(),
 	// };
 
-	let mut message =
-		ObMessage { stid: 1, worker_nonce: 1, action: UserActions::BlockImport(270), signature: Default::default() };
+	let mut message = ObMessage {
+		stid: 1,
+		worker_nonce: 1,
+		action: UserActions::BlockImport(270),
+		signature: Default::default(),
+	};
 
 	message.signature = pair.sign_prehashed(&message.sign_data());
 
