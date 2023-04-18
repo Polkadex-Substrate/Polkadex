@@ -30,7 +30,7 @@ mod types;
 pub(crate) mod thea_protocol_name {
 	use sc_chain_spec::ChainSpec;
 
-	const NAME: &str = "/thea/1";
+	pub(crate) const NAME: &str = "/thea/1";
 
 	/// Name of the notifications protocol used by Thea.
 	///
