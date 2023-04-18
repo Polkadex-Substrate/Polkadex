@@ -3,6 +3,7 @@ use futures::{channel::mpsc::UnboundedReceiver, FutureExt, StreamExt};
 use log::{debug, error, info, trace, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
+use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
@@ -23,9 +24,8 @@ use std::{
 	time::Duration,
 };
 use thea_primitives::{
-	crypto::AuthorityId,
-	types::{prepare_bitmap, return_set_bits, set_bit_field, Message},
-	AuthorityIndex, Network, TheaApi, ValidatorSet, NATIVE_NETWORK, THEA_WORKER_PREFIX,
+	crypto::AuthorityId, types::Message, AuthorityIndex, Network, TheaApi, ValidatorSet,
+	NATIVE_NETWORK, THEA_WORKER_PREFIX,
 };
 use tokio::time::Interval;
 
@@ -141,7 +141,10 @@ where
 		let signing_key = self.keystore.get_local_key(&active.validators)?;
 		let signature = self.keystore.sign(&signing_key, &message.encode())?;
 
-		let bitmap = prepare_bitmap(&active.validators, &signing_key.into());
+		let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap() as u16;
+
+		let mut bitmap: Vec<u128> =
+			prepare_bitmap(&vec![bit_index], active.validators.len() as u16).unwrap();
 
 		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
