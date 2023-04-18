@@ -34,7 +34,7 @@ where
 {
 	_topic: B::Hash,
 	latest_stid: Arc<RwLock<u64>>,
-	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
+	pub(crate) validators: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 }
 
@@ -42,13 +42,12 @@ impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new(latest_stid: Arc<RwLock<u64>>) -> GossipValidator<B> {
-		GossipValidator {
-			_topic: topic::<B>(),
-			latest_stid,
-			peers: Arc::new(RwLock::new(BTreeSet::new())),
-			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
-		}
+	pub fn new(
+		latest_stid: Arc<RwLock<u64>>,
+		validators: Arc<RwLock<BTreeSet<PeerId>>>,
+		fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
+	) -> GossipValidator<B> {
+		GossipValidator { _topic: topic::<B>(), latest_stid, validators, fullnodes }
 	}
 
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
@@ -79,9 +78,10 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
+		info!(target:"orderbook","New peer connected: {:?}, role: {:?}",who,role);
 		match role {
 			ObservedRole::Authority => {
-				self.peers.write().insert(*who);
+				self.validators.write().insert(*who);
 			},
 			ObservedRole::Full => {
 				self.fullnodes.write().insert(*who);
@@ -90,7 +90,8 @@ where
 		};
 	}
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
-		self.peers.write().remove(who);
+		info!(target:"orderbook","New peer disconnected: {:?}",who);
+		self.validators.write().remove(who);
 		self.fullnodes.write().remove(who);
 	}
 	fn validate(

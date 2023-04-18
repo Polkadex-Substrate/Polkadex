@@ -21,7 +21,7 @@ use sp_runtime::{
 	traits::{Block, Header, Zero},
 };
 use std::{
-	collections::{BTreeMap, HashMap},
+	collections::{BTreeMap, BTreeSet, HashMap},
 	marker::PhantomData,
 	ops::Div,
 	sync::Arc,
@@ -122,6 +122,10 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 	// Our last snapshot waiting for approval
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
+	// Validators we are connected to
+	validators: Arc<RwLock<BTreeSet<PeerId>>>,
+	// Fullnodes we are connected to
+	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -157,11 +161,19 @@ where
 			memory_db,
 			working_state_root,
 		} = worker_params;
-
+		// Shared data
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
 		let latest_stid = Arc::new(RwLock::new(0));
 		let network = Arc::new(network);
-		let gossip_validator = Arc::new(GossipValidator::new(latest_stid.clone()));
+		let validators = Arc::new(RwLock::new(BTreeSet::new()));
+		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
+
+		// Gossip Validator
+		let gossip_validator = Arc::new(GossipValidator::new(
+			latest_stid.clone(),
+			validators.clone(),
+			fullnodes.clone(),
+		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
@@ -193,6 +205,8 @@ where
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
 			pending_snapshot_summary: None,
+			validators,
+			fullnodes,
 		}
 	}
 
@@ -416,22 +430,10 @@ where
 					self.last_snapshot.read().state_change_id,
 					*known_stids[0],
 				);
-				let mut peers = self
-					.gossip_validator
-					.peers
-					.read()
-					.clone()
-					.iter()
-					.cloned()
-					.collect::<Vec<PeerId>>();
-				let mut fullnodes = self
-					.gossip_validator
-					.fullnodes
-					.read()
-					.clone()
-					.iter()
-					.cloned()
-					.collect::<Vec<PeerId>>();
+				let mut peers =
+					self.validators.read().clone().iter().cloned().collect::<Vec<PeerId>>();
+				let mut fullnodes =
+					self.fullnodes.read().clone().iter().cloned().collect::<Vec<PeerId>>();
 				peers.append(&mut fullnodes);
 				// TODO: Should we even send it out to everyone we know?
 				self.gossip_engine.send_message(peers, message.encode());
@@ -950,14 +952,8 @@ where
 					prepare_bitmap(&missing_indexes, highest_missing_index)
 						.expect("Expected to create bitmap"),
 				);
-				let fullnodes = self
-					.gossip_validator
-					.fullnodes
-					.read()
-					.clone()
-					.iter()
-					.cloned()
-					.collect::<Vec<PeerId>>();
+				let fullnodes =
+					self.fullnodes.read().clone().iter().cloned().collect::<Vec<PeerId>>();
 				self.gossip_engine.send_message(fullnodes, message.encode());
 			} else {
 				// We have all the data, state is synced,
@@ -1033,7 +1029,7 @@ where
 
 		known_stids.sort_unstable();
 
-		info!(target:"engine", "Last processed Stid: {:?}, known keys: {:?}, next best stid: {:?}",
+		info!(target:"orderbook", "Last processed Stid: {:?}, cached messages: {:?}, next best stid: {:?}",
 			self.latest_stid.read(),
 			self.known_messages.len(),
 		   known_stids.get(0)
@@ -1082,14 +1078,13 @@ where
 		// Prepare bitmap
 		let bitmap = prepare_bitmap(&missing_chunks, highest_chunk_index as u16)
 			.expect("Expected to create bitmap");
+
 		// Gossip the sync requests to all connected fullnodes
-		let fullnodes = self
-			.gossip_validator
-			.fullnodes
-			.read()
-			.clone()
-			.into_iter()
-			.collect::<Vec<PeerId>>();
+		let fullnodes = self.fullnodes.read().clone().into_iter().collect::<Vec<PeerId>>();
+		if fullnodes.is_empty() {
+			warn!(target:"orderbook","No fullnode peers connected to request state sync");
+		}
+		info!(target:"orderbook","State sync request send to {:?} peers",fullnodes.len());
 		let message = GossipMessage::Want(summary.snapshot_id, bitmap);
 		self.gossip_engine.send_message(fullnodes, message.encode());
 		Ok(())
@@ -1141,7 +1136,7 @@ where
 		self.wait_for_runtime_pallet().await;
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
-			info!(target: "orderbook", "📒 orderbook is not started waiting for blockhchain to sync completely");
+			info!(target: "orderbook", "📒 orderbook is not started waiting for blockchain to sync completely");
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
 

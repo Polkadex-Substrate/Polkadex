@@ -1,26 +1,32 @@
-use crate::tests::{
-	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
-};
+use std::{sync::Arc, time::Duration};
+
 use futures::SinkExt;
 use memory_db::MemoryDB;
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{ObMessage, UserActions},
-};
 use parking_lot::RwLock;
+use primitive_types::H256;
+use sc_network::Multiaddr;
+use sc_network_common::service::{NetworkPeers, NetworkStateInfo};
 use sc_network_test::{FullPeerConfig, TestNetFactory};
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_consensus::BlockOrigin;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
-use std::{sync::Arc, time::Duration};
+
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{ObMessage, UserActions},
+};
+
+use crate::tests::{
+	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
+};
 
 #[tokio::test]
-pub async fn test_orderbook_sync() {
-	env_logger::init();
+pub async fn test_orderbook_snapshot() {
+	sp_tracing::try_init_simple();
 
 	let (orderbook_operator, _) = sp_core::ecdsa::Pair::generate();
-	let mut testnet = ObTestnet::new(3, 1);
+	let mut testnet = ObTestnet::new(3, 2);
 	let peers = &[
 		(AccountKeyring::Alice, true),
 		(AccountKeyring::Bob, true),
@@ -51,8 +57,8 @@ pub async fn test_orderbook_sync() {
 	let future = initialize_orderbook(&mut testnet, ob_peers).await;
 	tokio::spawn(future);
 	// Generate and finalize two block to start finality
-	generate_and_finalize_blocks(1, &mut testnet).await;
-	generate_and_finalize_blocks(1, &mut testnet).await;
+	generate_and_finalize_blocks(1, &mut testnet, 3).await;
+	generate_and_finalize_blocks(1, &mut testnet, 3).await;
 	// Send the RPC with Ob message
 	let mut message =
 		ObMessage { stid: 1, action: UserActions::BlockImport(1), signature: Default::default() };
@@ -68,19 +74,32 @@ pub async fn test_orderbook_sync() {
 	testnet.run_until_sync().await;
 
 	// Generate and finalize one block
-	generate_and_finalize_blocks(5, &mut testnet).await;
+	generate_and_finalize_blocks(5, &mut testnet, 3).await;
 
 	testnet.run_until_idle().await;
 	// We should have generated one snapshot by this point
 	assert_eq!(runtime.snapshots.read().len(), 1);
-	// Add a new full node, this is the fifth node
+	for peer in testnet.peers() {
+		let state_root = H256::from_slice(&*peer.data.working_state_root.read());
+		if peer.data.is_validator {
+			assert_eq!(state_root, runtime.get_latest_snapshot().state_root);
+		} else {
+			println!(
+				"Fullnode id: {:?}, root: {:?}",
+				peer.network_service().local_peer_id(),
+				state_root
+			);
+		}
+	}
+
+	// Add the new full node, this is the fifth node
 	testnet.add_full_peer_with_config(FullPeerConfig {
 		notifications_protocols: vec!["/ob/1".into()],
 		is_authority: false,
 		..Default::default()
 	});
-
-	let fifth_node_index = 4;
+	// Start the new node's worker
+	let fifth_node_index = testnet.peers().len() - 1;
 
 	let working_state_root = Arc::new(RwLock::new([0; 32]));
 
@@ -93,7 +112,7 @@ pub async fn test_orderbook_sync() {
 	let ob_params = crate::ObParams {
 		client: testnet.peers[fifth_node_index].client().as_client(),
 		backend: testnet.peers[fifth_node_index].client().as_backend(),
-		runtime,
+		runtime: runtime.clone(),
 		keystore: None,
 		network: testnet.peers[fifth_node_index].network_service().clone(),
 		prometheus_registry: None,
@@ -106,11 +125,27 @@ pub async fn test_orderbook_sync() {
 		memory_db: memory_db.clone(),
 		working_state_root: working_state_root.clone(),
 	};
+
 	let gadget = crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params);
+
+	testnet.run_until_connected().await;
+	println!(
+		"Num of peers connected: {:?}",
+		testnet.peers()[5].network_service().sync_num_connected()
+	);
 	// Start the worker.
 	tokio::spawn(gadget);
+	// Generate and finalize one block
+	generate_and_finalize_blocks(3, &mut testnet, 3).await;
 	// Let the testnet sync
 	testnet.run_until_sync().await;
 	// Let the network activity settle down.
 	testnet.run_until_idle().await;
+
+    // TODO: Fix this in the next release.
+    // The fullnodes are not recieving gossip in unit tests.
+	// let working_root = working_state_root.read();
+	// // Assert if the fullnode's working state root is updated.
+	// assert_eq!(sp_core::H256::from_slice(&*working_root),
+	// runtime.get_latest_snapshot().state_root)
 }

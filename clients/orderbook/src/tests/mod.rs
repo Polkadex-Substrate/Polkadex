@@ -3,7 +3,7 @@ pub mod sync;
 use crate::protocol_standard_name;
 use bls_primitives::BLS_DEV_PHRASE;
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
-use memory_db::MemoryDB;
+use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{ObMessage, TradingPair},
@@ -14,6 +14,7 @@ use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, BlockNumber,
 };
 use primitive_types::H256;
+use reference_trie::RefHasher;
 use sc_keystore::LocalKeystore;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
@@ -226,6 +227,9 @@ pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 pub struct PeerData {
 	is_validator: bool,
 	peer_rpc_link: Option<UnboundedSender<ObMessage>>,
+	working_state_root: Arc<RwLock<[u8; 32]>>,
+	memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 }
 
 #[derive(Default)]
@@ -262,7 +266,17 @@ impl TestNetFactory for ObTestnet {
 		Option<sc_consensus::import_queue::BoxJustificationImport<sc_network_test::Block>>,
 		Self::PeerData,
 	) {
-		(client.as_block_import(), None, PeerData { is_validator: false, peer_rpc_link: None })
+		(
+			client.as_block_import(),
+			None,
+			PeerData {
+				is_validator: false,
+				peer_rpc_link: None,
+				working_state_root: Arc::new(Default::default()),
+				memory_db: Arc::new(Default::default()),
+				last_successful_block_number_snapshot_created: Arc::new(Default::default()),
+			},
+		)
 	}
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
@@ -312,6 +326,10 @@ where
 		let (sender, receiver) = futures::channel::mpsc::unbounded();
 		net.peers[peer_id].data.peer_rpc_link = Some(sender);
 		net.peers[peer_id].data.is_validator = is_validator;
+		net.peers[peer_id].data.last_successful_block_number_snapshot_created =
+			Arc::new(RwLock::new(0_u32.saturated_into()));
+		net.peers[peer_id].data.memory_db = Arc::new(RwLock::new(MemoryDB::default()));
+		net.peers[peer_id].data.working_state_root = Arc::new(RwLock::new([0; 32]));
 
 		let mut keystore = None;
 
@@ -355,11 +373,12 @@ where
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
-			last_successful_block_number_snapshot_created: Arc::new(RwLock::new(
-				0_u32.saturated_into(),
-			)),
-			memory_db: Arc::new(RwLock::new(MemoryDB::default())),
-			working_state_root: Arc::new(RwLock::new([0; 32])),
+			last_successful_block_number_snapshot_created: net.peers[peer_id]
+				.data
+				.last_successful_block_number_snapshot_created
+				.clone(),
+			memory_db: net.peers[peer_id].data.memory_db.clone(),
+			working_state_root: net.peers[peer_id].data.working_state_root.clone(),
 		};
 		let gadget = crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params);
 
@@ -371,15 +390,18 @@ where
 	workers.for_each(|_| async move {})
 }
 
-pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut ObTestnet) {
-	let fullnode_index = testnet.peers().len() - 1; // Fullnodes are added at the end.
-	let old_finalized = testnet.peer(fullnode_index).client().info().finalized_number;
-	testnet.peer(fullnode_index).push_blocks(count, false);
+pub async fn generate_and_finalize_blocks(
+	count: usize,
+	testnet: &mut ObTestnet,
+	peer_index: usize,
+) {
+	let old_finalized = testnet.peer(peer_index).client().info().finalized_number;
+	testnet.peer(peer_index).push_blocks(count, false);
 	// wait for blocks to propagate
 	testnet.run_until_sync().await; // It should be run_until_sync() for finality to work properly.
 
 	assert_eq!(
 		old_finalized + count as u64,
-		testnet.peer(fullnode_index).client().info().finalized_number
+		testnet.peer(peer_index).client().info().finalized_number
 	);
 }
