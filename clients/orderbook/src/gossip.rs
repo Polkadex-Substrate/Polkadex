@@ -1,4 +1,5 @@
-use orderbook_primitives::{types::ObMessage, SnapshotSummary};
+use log::info;
+use orderbook_primitives::types::GossipMessage;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
@@ -28,8 +29,8 @@ where
 	B: Block,
 {
 	_topic: B::Hash,
-	last_snapshot: Arc<RwLock<SnapshotSummary>>,
-	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
+	latest_worker_nonce: Arc<RwLock<u64>>,
+	pub(crate) validators: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 }
 
@@ -37,23 +38,34 @@ impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new(last_snapshot: Arc<RwLock<SnapshotSummary>>) -> GossipValidator<B> {
-		GossipValidator {
-			_topic: topic::<B>(),
-			last_snapshot,
-			peers: Arc::new(RwLock::new(BTreeSet::new())),
-			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
+	pub fn new(
+		latest_worker_nonce: Arc<RwLock<u64>>,
+		validators: Arc<RwLock<BTreeSet<PeerId>>>,
+		fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
+	) -> GossipValidator<B> {
+		GossipValidator { _topic: topic::<B>(), latest_worker_nonce, validators, fullnodes }
+	}
+
+	pub fn validate_message(&self, message: &GossipMessage) -> bool {
+		info!(target:"orderbook","Validating message with stid: {:?}",message);
+		match message {
+			GossipMessage::ObMessage(msg) => {
+				let latest_worker_nonce = *self.latest_worker_nonce.read();
+				msg.worker_nonce > latest_worker_nonce
+			},
+			_ => true,
 		}
 	}
 
-	pub fn validate_message(&self, message: &ObMessage) -> bool {
-		let last_snapshot = self.last_snapshot.read();
-		message.stid >= last_snapshot.state_change_id
-	}
-
-	pub fn rebroadcast_check(&self, _message: &ObMessage) -> bool {
-		// TODO: When should we rebroadcast a message
-		true
+	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
+		info!(target:"orderbook","Rebroadcast check for : {:?}",message);
+		match message {
+			GossipMessage::ObMessage(msg) => {
+				let latest_worker_nonce = *self.latest_worker_nonce.read();
+				msg.worker_nonce >= latest_worker_nonce
+			},
+			_ => true,
+		}
 	}
 }
 
@@ -62,9 +74,10 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
+		info!(target:"orderbook","New peer connected: {:?}, role: {:?}",who,role);
 		match role {
 			ObservedRole::Authority => {
-				self.peers.write().insert(*who);
+				self.validators.write().insert(*who);
 			},
 			ObservedRole::Full => {
 				self.fullnodes.write().insert(*who);
@@ -73,7 +86,8 @@ where
 		};
 	}
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
-		self.peers.write().remove(who);
+		info!(target:"orderbook","New peer disconnected: {:?}",who);
+		self.validators.write().remove(who);
 		self.fullnodes.write().remove(who);
 	}
 	fn validate(
@@ -83,7 +97,7 @@ where
 		mut data: &[u8],
 	) -> ValidationResult<B::Hash> {
 		// Decode
-		if let Ok(ob_message) = ObMessage::decode(&mut data) {
+		if let Ok(ob_message) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
 			if self.validate_message(&ob_message) {
 				return ValidationResult::ProcessAndKeep(topic::<B>())
@@ -96,11 +110,11 @@ where
 	fn message_expired<'a>(&'a self) -> Box<dyn FnMut(B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_topic, mut data| {
 			// Decode
-			let msg = match ObMessage::decode(&mut data) {
+			let msg = match GossipMessage::decode(&mut data) {
 				Ok(msg) => msg,
 				Err(_) => return true,
 			};
-			// If old stid then expire
+			// If old worker_nonce then expire
 			!self.validate_message(&msg)
 		})
 	}
@@ -110,7 +124,7 @@ where
 	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, _intent, _topic, mut data| {
 			// Decode
-			let msg = match ObMessage::decode(&mut data) {
+			let msg = match GossipMessage::decode(&mut data) {
 				Ok(vote) => vote,
 				Err(_) => return false,
 			};
