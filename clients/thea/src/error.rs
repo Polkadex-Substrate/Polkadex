@@ -14,7 +14,7 @@ pub enum Error {
 	#[error("Keystore error: {0}")]
 	Keystore(String),
 	#[error("Scale codec error")]
-	CodecError(parity_scale_codec::Error),
+	CodecError(String),
 	#[error("Failed to submit incoming message to runtime")]
 	FailedToSubmitMessageToRuntime,
 	#[error("Signature verification Failed")]
@@ -28,20 +28,20 @@ pub enum Error {
 	#[error("Error while reading Thea Message")]
 	ErrorReadingTheaMessage,
 	#[error("Error from subxt: {0}")]
-	Subxt(subxt::Error),
+	Subxt(String),
 	#[error("Validator Set not initialized for netowrk: {0}")]
 	ValidatorSetNotInitialized(Network),
 }
 
 impl From<subxt::Error> for Error {
 	fn from(value: subxt::Error) -> Self {
-		Self::Subxt(value)
+		Self::Subxt(value.to_string())
 	}
 }
 
 impl From<parity_scale_codec::Error> for Error {
 	fn from(value: parity_scale_codec::Error) -> Self {
-		Self::CodecError(value)
+		Self::CodecError(value.to_string())
 	}
 }
 
@@ -60,5 +60,11 @@ impl From<JoinError> for Error {
 impl From<()> for Error {
 	fn from(value: ()) -> Self {
 		Self::FailedToSubmitMessageToRuntime
+	}
+}
+
+impl From<sc_keystore::Error> for Error {
+	fn from(value: sc_keystore::Error) -> Self {
+		Self::Keystore(value.to_string())
 	}
 }

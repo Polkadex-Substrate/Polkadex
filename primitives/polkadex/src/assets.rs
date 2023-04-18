@@ -102,7 +102,7 @@ impl<'de> Visitor<'de> for AssetId {
 					match u128::from_str_radix(&value, radix) {
 						Err(_) => Err(A::Error::invalid_type(
 							Unexpected::Unsigned(128),
-							&format!("Expected an u128 string: recv {:?}", value).as_str(),
+							&format!("Expected an u128 string: recv {value:?}").as_str(),
 						)),
 						Ok(id) => Ok(AssetId::Asset(id)),
 					}
@@ -124,10 +124,8 @@ impl TryFrom<String> for AssetId {
 
 		match value.parse::<u128>() {
 			Ok(id) => Ok(AssetId::Asset(id)),
-			Err(_) => Err(anyhow::Error::msg::<String>(format!(
-				"Could not parse 'AssetId' from {}",
-				value
-			))),
+			Err(_) =>
+				Err(anyhow::Error::msg::<String>(format!("Could not parse 'AssetId' from {value}"))),
 		}
 	}
 }
@@ -137,7 +135,7 @@ impl Display for AssetId {
 	fn fmt(&self, f: &mut Formatter<'_>) -> sp_std::fmt::Result {
 		match self {
 			AssetId::Polkadex => write!(f, "PDEX"),
-			AssetId::Asset(id) => write!(f, "{:?}", id),
+			AssetId::Asset(id) => write!(f, "{id:?}"),
 		}
 	}
 }

@@ -7,12 +7,12 @@ use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
-use sp_application_crypto::ByteArray;
 pub use crate::{
 	crypto::{AuthorityId, AuthoritySignature},
 	types::Message,
 };
 use polkadex_primitives::BlockNumber;
+use sp_application_crypto::ByteArray;
 
 /// Orderbook cryptographic types
 ///
@@ -116,10 +116,12 @@ sp_api::decl_runtime_apis! {
 	/// APIs necessary for Orderbook.
 	pub trait TheaApi
 	{
+		/// Return the current active Thea validator set for all networks
+		fn full_validator_set() -> Option<ValidatorSet<AuthorityId>>;
 		/// Return the current active Thea validator set
 		fn validator_set(network: Network) -> Option<ValidatorSet<AuthorityId>>;
 		/// Returns the outgoing message for given network and blk
-		fn outgoing_messages(blk: BlockNumber, network: Network) -> Option<Message>;
+		fn outgoing_messages(network: Network, nonce: u64) -> Option<Message>;
 		/// Get Thea network associated with Validator
 		fn network(auth: AuthorityId) -> Option<Network>;
 		/// Incoming messages

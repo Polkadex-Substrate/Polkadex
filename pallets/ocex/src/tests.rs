@@ -22,6 +22,7 @@ use polkadex_primitives::{
 	UNIT_BALANCE,
 };
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use sp_std::collections::btree_map::BTreeMap;
 
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
@@ -30,12 +31,9 @@ use frame_system::EventRecord;
 
 use polkadex_primitives::{AccountId, AssetsLimit, WithdrawalLimit};
 use rust_decimal::Decimal;
-use sp_core::Pair;
+use sp_core::{bounded::BoundedBTreeSet, Pair};
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
-use sp_runtime::{
-	AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin,
-	SaturatedConversion, TokenError,
-};
+use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -1526,7 +1524,9 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	});
 }
 
-fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitives::Public) {
+fn get_dummy_snapshot(
+	withdrawals_len: usize,
+) -> (SnapshotSummary<AccountId>, bls_primitives::Public) {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -1542,6 +1542,7 @@ fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitive
 	let mut snapshot = SnapshotSummary {
 		snapshot_id: 1,
 		state_root: Default::default(),
+		worker_nonce: 1,
 		state_change_id: 1,
 		state_chunk_hashes: vec![],
 		bitflags: vec![1, 2],
@@ -1558,7 +1559,7 @@ fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitive
 fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let (snapshot, _public) = get_dummy_snapshot(1);
-		assert_noop!(OCEX::validate_snapshot(&snapshot), InvalidTransaction::Custom(11));
+		assert_noop!(OCEX::validate_snapshot(&snapshot), InvalidTransaction::Custom(127));
 	});
 }
 
@@ -1569,23 +1570,15 @@ fn test_submit_snapshot() {
 	t.execute_with(|| {
 		let (mut snapshot, _public) = get_dummy_snapshot(1);
 		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
-		let mut withdrawal_map: BoundedBTreeMap<
-			AccountId,
-			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		> = BoundedBTreeMap::new();
+		let mut withdrawal_map = BTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
 			match withdrawal_map.get_mut(&withdrawal.main_account) {
 				None => {
 					withdrawal_map
-						.try_insert(
-							withdrawal.main_account.clone(),
-							BoundedVec::truncate_from(vec![withdrawal.clone()]),
-						)
-						.unwrap();
+						.insert(withdrawal.main_account.clone(), vec![withdrawal.clone()]);
 				},
 				Some(list) => {
-					list.try_push(withdrawal.clone()).unwrap();
+					list.push(withdrawal.clone());
 				},
 			}
 		}
@@ -1597,13 +1590,10 @@ fn test_submit_snapshot() {
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
-		let onchain_events: BoundedVec<
-			polkadex_primitives::ocex::OnChainEvents<AccountId>,
-			polkadex_primitives::OnChainEventsLimit,
-		> = bounded_vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(
+		let onchain_events = vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(
 			polkadex_primitives::ocex::Pallet::OCEX,
 			polkadex_primitives::ocex::StorageItem::Withdrawal,
-			1
+			1,
 		)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
@@ -1671,66 +1661,6 @@ fn test_withdrawal() {
 				bounded_vec![snapshot.withdrawals[0].clone()],
 			);
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
-	});
-}
-#[test]
-fn test_onchain_events_overflow() {
-	let account_id = create_account_id();
-	let custodian_account = OCEX::get_pallet_account();
-
-	let mut t = new_test_ext();
-	t.execute_with(|| {
-		mint_into_account(account_id.clone());
-		mint_into_account(custodian_account.clone());
-
-		// create 500 accounts
-		let mut withdrawals: Vec<Withdrawal<AccountId>> = vec![];
-
-		for x in 0..500 {
-			let main = create_account_id_500(x as u32);
-			withdrawals.push(Withdrawal {
-				main_account: main.clone(),
-				amount: Decimal::one(),
-				asset: AssetId::Polkadex,
-				fees: Default::default(),
-			});
-		}
-
-		let (mut snapshot, _public) = get_dummy_snapshot(1);
-		snapshot.withdrawals = withdrawals.clone();
-
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot));
-
-		// Perform withdraw for 499 accounts
-		for i in 0..499 {
-			assert_ok!(OCEX::claim_withdraw(
-				RuntimeOrigin::signed(withdrawals[i].main_account.clone().into()),
-				1,
-				withdrawals[i].main_account.clone()
-			));
-		}
-		println!("{:?}", OnChainEvents::<Test>::get());
-		assert_eq!(OnChainEvents::<Test>::get().len(), 500);
-		// last account
-		assert_noop!(
-			OCEX::claim_withdraw(
-				RuntimeOrigin::signed(withdrawals[499].main_account.clone().into()),
-				1,
-				withdrawals[499].main_account.clone()
-			),
-			Error::<Test>::WithdrawalBoundOverflow
-		);
-
-		// Cleanup Onchain events
-		<OCEX as OnInitialize<u64>>::on_initialize(0);
-		assert_eq!(OnChainEvents::<Test>::get().len(), 0);
-
-		// Perform withdraw now
-		assert_ok!(OCEX::claim_withdraw(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			1,
-			account_id.clone()
-		));
 	});
 }
 use orderbook_primitives::Fees;

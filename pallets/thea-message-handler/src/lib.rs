@@ -33,10 +33,10 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 pub use pallet::*;
+use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
 	types::Message, AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
 };
-use thea_primitives::types::return_set_bits;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -62,8 +62,6 @@ pub mod pallet {
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
 			+ Member
 			+ Parameter
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
 			+ Into<bls_primitives::Signature>;
 
 		/// The maximum number of authorities that can be added.
@@ -167,8 +165,7 @@ pub mod pallet {
 
 			if !payload.is_key_change {
 				// Normal Thea message
-				if let Err(_) =
-					T::Executor::execute_deposits(payload.network, payload.data.clone())
+				if let Err(_) = T::Executor::execute_deposits(payload.network, payload.data.clone())
 				{
 					return Err(Error::<T>::ErrorExecutingMessage.into())
 				}

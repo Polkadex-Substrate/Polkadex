@@ -1381,6 +1381,7 @@ impl pallet_amm::Config for Runtime {
 	type MinimumLiquidity = MinimumLiquidity;
 	type MaxLengthRoute = MaxLengthRoute;
 	type GetNativeCurrencyId = PolkadexAssetId;
+	type WeightInfo = pallet_amm::weights::WeightInfo<Runtime>;
 }
 
 //Install Router pallet
@@ -1552,11 +1553,11 @@ impl_runtime_apis! {
 			OCEX::validator_set()
 		}
 
-		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary{
+		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary<AccountId>{
 			OCEX::get_latest_snapshot()
 		}
 
-		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary>{
+		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary<AccountId>>{
 			OCEX::get_snapshot_by_id(nonce)
 		}
 
@@ -1564,7 +1565,7 @@ impl_runtime_apis! {
 			OCEX::get_ingress_messages()
 		}
 
-		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary) -> Result<(),()> {
+		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary<AccountId>) -> Result<(),()> {
 			OCEX::submit_snapshot_api(summary)
 		}
 
@@ -1578,6 +1579,10 @@ impl_runtime_apis! {
 
 		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
 			OCEX::get_snapshot_generation_intervals()
+		}
+
+		fn get_last_accepted_worker_nonce () -> u64 {
+			OCEX::get_last_accepted_worker_nonce()
 		}
 
 
@@ -1596,13 +1601,17 @@ impl_runtime_apis! {
 	}
 
 	impl thea_primitives::TheaApi<Block> for Runtime {
+		/// Return the current active Thea validator set for all networks
+		fn full_validator_set() -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
+			Thea::full_validator_set()
+		}
 		/// Return the current active Thea validator set
 		fn validator_set(network: thea_primitives::Network) -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
 			Thea::validator_set(network)
 		}
 		/// Returns the outgoing message for given network and blk
-		fn outgoing_messages(blk: BlockNumber, network: thea_primitives::Network) -> Option<thea_primitives::Message>{
-			Thea::get_outgoing_messages(blk.saturated_into(),network)
+		fn outgoing_messages(network: thea_primitives::Network, nonce: u64) -> Option<thea_primitives::Message>{
+			Thea::get_outgoing_messages(network, nonce)
 		}
 		/// Get Thea network associated with Validator
 		fn network(auth: thea_primitives::AuthorityId) -> Option<thea_primitives::Network>{
@@ -1784,12 +1793,11 @@ impl_runtime_apis! {
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
-			list_benchmark!(list, extra, thea_staking, TheaStaking);
-			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
+			list_benchmark!(list, extra, pallet_amm, Swap);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1820,12 +1828,11 @@ impl_runtime_apis! {
 			let params = (&config, &allowlist);
 
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
-			add_benchmark!(params, batches, thea_staking, TheaStaking);
-			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
+			add_benchmark!(params, batches, pallet_amm, Swap);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

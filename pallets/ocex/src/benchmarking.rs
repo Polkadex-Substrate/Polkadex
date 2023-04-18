@@ -343,9 +343,8 @@ benchmarks! {
 			main_account: main.clone(),
 			fees,
 		});
-		let withdrawals: BoundedVec<Withdrawal<T::AccountId>, WithdrawalLimit> = frame_support::BoundedVec::try_from(vec_withdrawals.clone()).unwrap();
-		let mut wm = BoundedBTreeMap::new();
-		wm.try_insert(main.clone(), withdrawals.clone()).unwrap();
+		let mut wm = sp_std::collections::btree_map::BTreeMap::new();
+		wm.insert(main.clone(), vec_withdrawals.clone()).unwrap();
 		<Withdrawals<T>>::insert(x as u64, wm);
 		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
 		Ocex::<T>::allowlist_token(governance.clone(), asset.clone())?;
