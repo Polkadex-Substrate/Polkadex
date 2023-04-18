@@ -1,4 +1,5 @@
 #![feature(unwrap_infallible)]
+#![feature(int_roundings)]
 extern crate core;
 
 use futures::channel::mpsc::UnboundedReceiver;
@@ -10,16 +11,18 @@ use parking_lot::RwLock;
 use prometheus::Registry;
 use reference_trie::RefHasher;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
+use sc_keystore::LocalKeystore;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
-use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
 use std::{marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
+mod keystore;
 mod metrics;
+mod snapshot;
 mod utils;
 mod worker;
 
@@ -46,7 +49,7 @@ pub(crate) mod orderbook_protocol_name {
 			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),
 			None => format!("/{}", hex::encode(genesis_hash)),
 		};
-		format!("{}{}", chain_prefix, NAME).into()
+		format!("{chain_prefix}{NAME}").into()
 	}
 }
 
@@ -113,7 +116,7 @@ where
 	/// Client runtime
 	pub runtime: Arc<R>,
 	/// Local key store
-	pub key_store: Option<SyncCryptoStorePtr>,
+	pub keystore: Option<Arc<LocalKeystore>>,
 	/// Gossip network
 	pub network: N,
 	/// Prometheus metric registry
@@ -151,7 +154,7 @@ where
 		client,
 		backend,
 		runtime,
-		key_store: _,
+		keystore,
 		network,
 		prometheus_registry,
 		protocol_name,
@@ -193,6 +196,7 @@ where
 		last_successful_block_number_snapshot_created,
 		memory_db,
 		working_state_root,
+		keystore,
 	};
 
 	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
