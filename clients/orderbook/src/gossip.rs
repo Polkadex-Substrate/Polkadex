@@ -33,7 +33,7 @@ where
 	B: Block,
 {
 	_topic: B::Hash,
-	latest_stid: Arc<RwLock<u64>>,
+	latest_worker_nonce: Arc<RwLock<u64>>,
 	pub(crate) validators: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 }
@@ -43,19 +43,19 @@ where
 	B: Block,
 {
 	pub fn new(
-		latest_stid: Arc<RwLock<u64>>,
+		latest_worker_nonce: Arc<RwLock<u64>>,
 		validators: Arc<RwLock<BTreeSet<PeerId>>>,
 		fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	) -> GossipValidator<B> {
-		GossipValidator { _topic: topic::<B>(), latest_stid, validators, fullnodes }
+		GossipValidator { _topic: topic::<B>(), latest_worker_nonce, validators, fullnodes }
 	}
 
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
 		info!(target:"orderbook","Validating message with stid: {:?}",message);
 		match message {
 			GossipMessage::ObMessage(msg) => {
-				let last_stid = *self.latest_stid.read();
-				msg.stid > last_stid
+				let latest_worker_nonce = *self.latest_worker_nonce.read();
+				msg.worker_nonce > latest_worker_nonce
 			},
 			_ => true,
 		}
@@ -65,8 +65,8 @@ where
 		info!(target:"orderbook","Rebroadcast check for : {:?}",message);
 		match message {
 			GossipMessage::ObMessage(msg) => {
-				let last_stid = *self.latest_stid.read();
-				msg.stid >= last_stid
+				let latest_worker_nonce = *self.latest_worker_nonce.read();
+				msg.worker_nonce >= latest_worker_nonce
 			},
 			_ => true,
 		}
@@ -118,7 +118,7 @@ where
 				Ok(msg) => msg,
 				Err(_) => return true,
 			};
-			// If old stid then expire
+			// If old worker_nonce then expire
 			!self.validate_message(&msg)
 		})
 	}

@@ -22,14 +22,14 @@ use std::{marker::PhantomData, sync::Arc};
 
 mod error;
 mod gossip;
+mod keystore;
 mod metrics;
+mod snapshot;
+mod utils;
 mod worker;
 
-mod keystore;
-mod snapshot;
 #[cfg(test)]
 mod tests;
-mod utils;
 #[cfg(test)]
 mod utils_tests;
 #[cfg(test)]

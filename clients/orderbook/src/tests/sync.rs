@@ -60,8 +60,12 @@ pub async fn test_orderbook_snapshot() {
 	generate_and_finalize_blocks(1, &mut testnet, 3).await;
 	generate_and_finalize_blocks(1, &mut testnet, 3).await;
 	// Send the RPC with Ob message
-	let mut message =
-		ObMessage { stid: 1, action: UserActions::BlockImport(1), signature: Default::default() };
+	let mut message = ObMessage {
+		worker_nonce: 1,
+		stid: 10,
+		action: UserActions::BlockImport(1),
+		signature: Default::default(),
+	};
 	message.signature = orderbook_operator.sign_prehashed(&message.sign_data());
 	testnet.peers[0]
 		.data
@@ -142,8 +146,8 @@ pub async fn test_orderbook_snapshot() {
 	// Let the network activity settle down.
 	testnet.run_until_idle().await;
 
-    // TODO: Fix this in the next release.
-    // The fullnodes are not recieving gossip in unit tests.
+	// TODO: Fix this in the next release.
+	// The fullnodes are not recieving gossip in unit tests.
 	// let working_root = working_state_root.read();
 	// // Assert if the fullnode's working state root is updated.
 	// assert_eq!(sp_core::H256::from_slice(&*working_root),

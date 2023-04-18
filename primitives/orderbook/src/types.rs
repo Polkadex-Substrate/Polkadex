@@ -34,6 +34,8 @@ pub struct ObRecoveryState {
 	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
+	/// worker nonce
+	pub worker_nonce: u64,
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -94,6 +96,7 @@ impl Trade {
 		}
 	}
 }
+
 #[cfg(feature = "std")]
 use chrono::Utc;
 #[cfg(feature = "std")]
@@ -111,10 +114,10 @@ impl Trade {
 	pub fn verify(&self, config: TradingPairConfig) -> bool {
 		// Verify signatures
 		self.maker.verify_signature() &
-		self.taker.verify_signature() &
-			// Verify pair configs
-		self.maker.verify_config(&config) &
-			self.taker.verify_config(&config)
+            self.taker.verify_signature() &
+            // Verify pair configs
+            self.maker.verify_config(&config) &
+            self.taker.verify_config(&config)
 	}
 }
 
@@ -122,9 +125,9 @@ impl Trade {
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
 	// (From,to, remote peer)
-	WantStid(u64, u64),
-	// Collection of Stids
-	Stid(Box<Vec<ObMessage>>),
+	WantWorkerNonce(u64, u64),
+	// Collection of WorkerNonces
+	WorkerNonces(Box<Vec<ObMessage>>),
 	// Single ObMessage
 	ObMessage(Box<ObMessage>),
 	// Snapshot id, bitmap, remote peer
@@ -144,6 +147,7 @@ pub enum GossipMessage {
 #[cfg(feature = "std")]
 pub struct ObMessage {
 	pub stid: u64,
+	pub worker_nonce: u64,
 	pub action: UserActions,
 	pub signature: sp_core::ecdsa::Signature,
 }
@@ -167,10 +171,12 @@ impl ObMessage {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg(feature = "std")]
 pub enum StateSyncStatus {
-	Unavailable, // We don't have this chunk yet
+	Unavailable,
+	// We don't have this chunk yet
 	// (Who is supposed to send us, when we requested)
-	InProgress(PeerId, i64), // We have asked a peer for this chunk and waiting
-	Available,               // We have this chunk
+	InProgress(PeerId, i64),
+	// We have asked a peer for this chunk and waiting
+	Available, // We have this chunk
 }
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -424,14 +430,32 @@ pub struct Order {
 #[cfg(feature = "std")]
 impl Order {
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
-		self.price >= config.min_price &&
-			self.price <= config.max_price &&
-			self.qty >= config.min_qty &&
-			self.qty <= config.max_qty &&
-			self.pair.base == config.base_asset &&
-			self.pair.quote == config.quote_asset &&
-			self.price.rem(config.price_tick_size).is_zero() &&
-			self.qty.rem(config.qty_step_size).is_zero()
+		let is_market_same =
+			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
+		return match self.order_type {
+			OrderType::LIMIT =>
+				is_market_same &&
+					self.price >= config.min_price &&
+					self.price <= config.max_price &&
+					self.qty >= config.min_qty &&
+					self.qty <= config.max_qty &&
+					self.price.rem(config.price_tick_size).is_zero() &&
+					self.qty.rem(config.qty_step_size).is_zero(),
+			OrderType::MARKET =>
+				if self.side == OrderSide::Ask {
+					// for ask order we are checking base order qty
+					is_market_same &&
+						self.qty >= config.min_qty &&
+						self.qty <= config.max_qty &&
+						self.qty.rem(config.qty_step_size).is_zero()
+				} else {
+					// for bid order we are checking quote order qty
+					is_market_same &&
+						self.quote_order_qty >= (config.min_qty * config.min_price) &&
+						self.quote_order_qty <= (config.max_qty * config.max_price) &&
+						self.quote_order_qty.rem(config.price_tick_size).is_zero()
+				},
+		}
 	}
 
 	pub fn verify_signature(&self) -> bool {
@@ -626,6 +650,7 @@ pub struct OrderPayload {
 	pub price: String,
 	pub timestamp: i64,
 }
+
 #[cfg(feature = "std")]
 impl From<Order> for OrderPayload {
 	fn from(value: Order) -> Self {
@@ -643,6 +668,7 @@ impl From<Order> for OrderPayload {
 		}
 	}
 }
+
 #[cfg(feature = "std")]
 impl TryFrom<OrderDetails> for Order {
 	type Error = anyhow::Error;
@@ -723,6 +749,7 @@ mod tests {
 	pub fn test_ob_message() {
 		let msg = ObMessage {
 			stid: 0,
+			worker_nonce: 0,
 			action: UserActions::BlockImport(1),
 			signature: Default::default(),
 		};
