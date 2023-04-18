@@ -79,7 +79,7 @@ pub trait BlsExt {
 	}
 
 	fn verify_aggregate(pubkey: &[Public], msg: &[u8], signature: &Signature) -> bool {
-		verify_aggregate_(pubkey,msg,signature)
+		verify_aggregate_(pubkey, msg, signature)
 	}
 }
 

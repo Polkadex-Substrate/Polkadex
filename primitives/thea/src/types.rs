@@ -22,3 +22,5 @@ impl Message {
 	}
 }
 
+#[cfg(not(feature = "std"))]
+use sp_std::vec::Vec;

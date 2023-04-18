@@ -2,7 +2,7 @@
 
 use futures::channel::mpsc::UnboundedReceiver;
 use parity_scale_codec::Codec;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use prometheus::Registry;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sc_keystore::LocalKeystore;
@@ -88,7 +88,10 @@ where
 
 use crate::types::GossipMessage;
 
-use crate::worker::ObWorker;
+use crate::{
+	connector::{parachain::ParachainClient, traits::ForeignConnector},
+	worker::ObWorker,
+};
 use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
 
@@ -161,6 +164,10 @@ where
 			},
 		);
 
+	let foreign_connector = ParachainClient::connect("ws://127.0.0.1:9945".to_string())
+		.await
+		.expect("Expected to connect to local foreign node");
+
 	let worker_params = worker::WorkerParams {
 		client,
 		backend,
@@ -172,9 +179,10 @@ where
 		protocol_name,
 		metrics,
 		_marker: Default::default(),
+		foreign_chain: Arc::new(foreign_connector),
 	};
-	// TODO: Remove unwrap()
-	let mut worker = ObWorker::<_, _, _, _, _, _>::new(worker_params).await.unwrap();
 
-	futures::executor::block_on(worker.run())
+	let mut worker = ObWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
+
+	worker.run().await
 }

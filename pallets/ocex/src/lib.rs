@@ -986,7 +986,7 @@ pub mod pallet {
 								Some(index) => *index,
 								None => return Err(Error::<T>::SignerIndexNotFound.into()),
 							};
-							stored_summary.add_auth_index(auth_index);
+							stored_summary.add_auth_index(auth_index.saturated_into());
 							stored_summary
 						} else {
 							return Err(Error::<T>::InvalidSnapshotState.into())

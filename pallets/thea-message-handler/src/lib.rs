@@ -33,9 +33,9 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 pub use pallet::*;
+use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
-	types::{return_set_bits, Message},
-	AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
+	types::Message, AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
 };
 
 #[frame_support::pallet]
