@@ -152,8 +152,7 @@ where
 		// TODO: Do signature check here.
 		// Based on network use the corresponding api to check if the message if valid or not.
 		if message.payload.network == NATIVE_NETWORK {
-			// self.foreign_chain.check_message(&message.payload).await
-			todo!()
+			self.foreign_chain.check_message(&message.payload).await
 		} else {
 			let result = self
 				.runtime
@@ -208,9 +207,7 @@ where
 									incoming_message.aggregate_signature.into(),
 								)??;
 							} else {
-								// self.foreign_chain.send_transaction(incoming_message.clone()).
-								// await;
-								todo!()
+								self.foreign_chain.send_transaction(incoming_message.clone()).await
 							}
 						} else {
 							// Cache it.
@@ -251,8 +248,7 @@ where
 								incoming_message.aggregate_signature.into(),
 							)??;
 						} else {
-							// self.foreign_chain.send_transaction(incoming_message.clone()).await;
-							todo!()
+							self.foreign_chain.send_transaction(incoming_message.clone()).await;
 						}
 					} else {
 						// Cache it.
