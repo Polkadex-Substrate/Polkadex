@@ -1,10 +1,12 @@
 use crate::types::GossipMessage;
+use log::error;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
+use sp_tracing::info;
 use std::{collections::BTreeSet, sync::Arc};
 
 /// Gossip engine messages topic
@@ -47,7 +49,7 @@ where
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
 		// verify the message with our message cache and foreign chain connector
 		//
-		todo!()
+		true
 	}
 
 	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
@@ -83,6 +85,7 @@ where
 		_sender: &PeerId,
 		mut data: &[u8],
 	) -> ValidationResult<B::Hash> {
+		info!(target:"thea", "Validating new gossip message");
 		// Decode
 		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
@@ -91,6 +94,7 @@ where
 			}
 			// TODO: When should be stop broadcasting this message
 		}
+		error!(target:"thea", "Unable to decode");
 		ValidationResult::Discard
 	}
 
@@ -101,6 +105,7 @@ where
 				Ok(msg) => msg,
 				Err(_) => return true,
 			};
+			info!(target:"thea", "Checking gossip message, expiry");
 			// If old stid then expire
 			!self.validate_message(&msg)
 		})
@@ -110,6 +115,7 @@ where
 		&'a self,
 	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, _intent, _topic, mut data| {
+			info!(target:"thea", "Rebroadcast check...");
 			// Decode
 			let msg = match GossipMessage::decode(&mut data) {
 				Ok(msg) => msg,
