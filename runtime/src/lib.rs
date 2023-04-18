@@ -1381,6 +1381,7 @@ impl pallet_amm::Config for Runtime {
 	type MinimumLiquidity = MinimumLiquidity;
 	type MaxLengthRoute = MaxLengthRoute;
 	type GetNativeCurrencyId = PolkadexAssetId;
+	type WeightInfo = pallet_amm::weights::WeightInfo<Runtime>;
 }
 
 //Install Router pallet
@@ -1788,6 +1789,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
+			list_benchmark!(list, extra, pallet_amm, Swap);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1822,6 +1824,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
+			add_benchmark!(params, batches, pallet_amm, Swap);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

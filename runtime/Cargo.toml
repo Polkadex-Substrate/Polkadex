@@ -210,6 +210,7 @@ runtime-benchmarks = [
     "pallet-rewards/runtime-benchmarks",
     "liquidity/runtime-benchmarks",
     "thea/runtime-benchmarks",
+    "pallet-amm/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-executive/try-runtime",
