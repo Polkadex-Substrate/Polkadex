@@ -15,6 +15,7 @@
 
 //! Tests for pallet-ocex.
 
+use sp_std::collections::btree_map::BTreeMap;
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
 use polkadex_primitives::{
@@ -30,10 +31,11 @@ use frame_system::EventRecord;
 
 use polkadex_primitives::{AccountId, AssetsLimit, WithdrawalLimit};
 use rust_decimal::Decimal;
+use sp_core::bounded::BoundedBTreeSet;
 use sp_core::Pair;
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
 use sp_runtime::{
-	AccountId32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchError::BadOrigin,
+	AccountId32, DispatchError::BadOrigin,
 	SaturatedConversion, TokenError,
 };
 
@@ -1526,7 +1528,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	});
 }
 
-fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary, bls_primitives::Public) {
+fn get_dummy_snapshot(withdrawals_len: usize) -> (SnapshotSummary<AccountId>, bls_primitives::Public) {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -1570,23 +1572,19 @@ fn test_submit_snapshot() {
 	t.execute_with(|| {
 		let (mut snapshot, _public) = get_dummy_snapshot(1);
 		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
-		let mut withdrawal_map: BoundedBTreeMap<
-			AccountId,
-			BoundedVec<Withdrawal<AccountId>, WithdrawalLimit>,
-			SnapshotAccLimit,
-		> = BoundedBTreeMap::new();
+		let mut withdrawal_map = BTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
 			match withdrawal_map.get_mut(&withdrawal.main_account) {
 				None => {
 					withdrawal_map
-						.try_insert(
+						.insert(
 							withdrawal.main_account.clone(),
-							BoundedVec::truncate_from(vec![withdrawal.clone()]),
+							vec![withdrawal.clone()],
 						)
 						.unwrap();
 				},
 				Some(list) => {
-					list.try_push(withdrawal.clone()).unwrap();
+					list.push(withdrawal.clone());
 				},
 			}
 		}
@@ -1598,10 +1596,7 @@ fn test_submit_snapshot() {
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
-		let onchain_events: BoundedVec<
-			polkadex_primitives::ocex::OnChainEvents<AccountId>,
-			polkadex_primitives::OnChainEventsLimit,
-		> = bounded_vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(
+		let onchain_events = vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(
 			polkadex_primitives::ocex::Pallet::OCEX,
 			polkadex_primitives::ocex::StorageItem::Withdrawal,
 			1
