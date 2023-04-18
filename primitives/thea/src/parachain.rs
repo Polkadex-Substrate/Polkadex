@@ -18,7 +18,7 @@ pub trait AssetIdConverter {
 	fn to_asset_id(&self) -> Self;
 }
 
-#[derive(Encode, Decode, Clone, Debug, TypeInfo)]
+#[derive(Encode, Decode, Clone, Debug, TypeInfo, PartialEq, Eq)]
 pub struct ApprovedWithdraw {
 	pub asset_id: u128,
 	pub amount: u128,

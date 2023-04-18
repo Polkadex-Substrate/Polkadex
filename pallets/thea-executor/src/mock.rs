@@ -39,7 +39,11 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
-		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>}
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+        Thea: thea::{Pallet, Call, Storage, Event<T>},
+        ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
+		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
+        TheaExecutor: thea_executor::{Pallet, Call, Storage, Event<T>}
 	}
 );
 
@@ -136,10 +140,65 @@ impl thea::Config for Test {
     type TheaId = thea_primitives::AuthorityId;
     type Signature = thea_primitives::AuthoritySignature;
     type MaxAuthorities = MaxAuthorities;
-    type Executor = ();
+    type Executor = TheaExecutor;
 }
 
-impl
+parameter_types! {
+	pub const ChainId: u8 = 1;
+	pub const ParachainNetworkId: u8 = 1;
+	pub const ProposalLifetime: u64 = 1000;
+	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
+}
+
+impl chainbridge::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
+    type Proposal = RuntimeCall;
+    type BridgeChainId = ChainId;
+    type ProposalLifetime = ProposalLifetime;
+    //type PalletId = ChainbridgePalletId;
+}
+
+parameter_types! {
+	pub const PolkadexAssetId: u128 = 1000;
+	pub const PDEXHolderAccount: u64 = 10u64;
+}
+
+impl asset_handler::pallet::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type AssetManager = Assets;
+    type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+    type NativeCurrencyId = PolkadexAssetId;
+    type TreasuryPalletId = ChainbridgePalletId;
+    type ParachainNetworkId = ParachainNetworkId;
+    type PDEXHolderAccount = PDEXHolderAccount;
+    type WeightInfo = asset_handler::weights::WeightInfo<Test>;
+}
+
+parameter_types! {
+	pub const TheaPalletId: PalletId = PalletId(*b"th/accnt");
+	pub const WithdrawalSize: u32 = 10;
+	pub const ParaId: u32 = 2040;
+}
+
+impl thea_executor::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type AssetCreateUpdateOrigin = EnsureRoot<Self::AccountId>;
+    type Executor = Thea;
+    type TheaPalletId = TheaPalletId;
+    type WithdrawalSize = WithdrawalSize;
+    type ParaId = ParaId;
+}
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+    where
+        RuntimeCall: From<C>,
+{
+    type Extrinsic = UncheckedExtrinsic;
+    type OverarchingCall = RuntimeCall;
+}
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
