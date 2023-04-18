@@ -1534,10 +1534,10 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	}
 
 	/// Returns the last processed stid from latest snapshot
-	pub fn get_last_accepted_stid() -> u64 {
+	pub fn get_last_accepted_worker_nonce() -> u64 {
 		let last_snapshot_nonce = <SnapshotNonce<T>>::get();
 		let last_snapshot = <Snapshots<T>>::get(last_snapshot_nonce);
-		last_snapshot.state_change_id
+		last_snapshot.worker_nonce
 	}
 
 	/// Returns the AccountId to hold user funds, note this account has no private keys and

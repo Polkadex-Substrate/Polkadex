@@ -1657,8 +1657,8 @@ impl_runtime_apis! {
 			OCEX::get_snapshot_generation_intervals()
 		}
 
-		fn get_last_accepted_stid () -> u64 {
-			OCEX::get_last_accepted_stid()
+		fn get_last_accepted_worker_nonce () -> u64 {
+			OCEX::get_last_accepted_worker_nonce()
 		}
 
 
