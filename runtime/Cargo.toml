@@ -189,7 +189,7 @@ std = [
     "pallet-asset-handler-runtime-api/std",
     "thea-staking/std",
     "pallet-nomination-pools/std",
-    "pallet-asset-handler-runtime-api/std",
+    "pallet-rewards-runtime-api/std",
     "thea/std",
     "pallet-amm/std",
     "router/std",
