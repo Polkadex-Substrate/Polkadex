@@ -79,24 +79,29 @@ pub trait BlsExt {
 	}
 
 	fn verify_aggregate(pubkey: &[Public], msg: &[u8], signature: &Signature) -> bool {
-		let mut pubkeys = vec![];
-		for key in pubkey {
-			let agg_pubkey = match PublicKey::uncompress(key.0.as_ref()) {
-				Ok(pubkey) => pubkey,
-				Err(_) => return false,
-			};
-			pubkeys.push(agg_pubkey);
-		}
-		let pubkeys_ref = pubkeys.iter().collect::<Vec<&PublicKey>>();
+		verify_aggregate_(pubkey,msg,signature)
+	}
+}
 
-		let agg_signature = match crate::BLSSignature::uncompress(signature.0.as_ref()) {
-			Ok(sig) => sig,
+#[cfg(feature = "std")]
+pub fn verify_aggregate_(pubkey: &[Public], msg: &[u8], signature: &Signature) -> bool {
+	let mut pubkeys = vec![];
+	for key in pubkey {
+		let agg_pubkey = match PublicKey::uncompress(key.0.as_ref()) {
+			Ok(pubkey) => pubkey,
 			Err(_) => return false,
 		};
-		// verify the signature
-		let err = agg_signature.fast_aggregate_verify(true, msg, DST.as_ref(), &pubkeys_ref);
-		err == BLST_ERROR::BLST_SUCCESS
+		pubkeys.push(agg_pubkey);
 	}
+	let pubkeys_ref = pubkeys.iter().collect::<Vec<&PublicKey>>();
+
+	let agg_signature = match crate::BLSSignature::uncompress(signature.0.as_ref()) {
+		Ok(sig) => sig,
+		Err(_) => return false,
+	};
+	// verify the signature
+	let err = agg_signature.fast_aggregate_verify(true, msg, DST.as_ref(), &pubkeys_ref);
+	err == BLST_ERROR::BLST_SUCCESS
 }
 
 #[cfg(feature = "std")]

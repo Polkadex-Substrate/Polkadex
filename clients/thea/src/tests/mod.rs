@@ -1,8 +1,10 @@
 use futures::{stream::FuturesUnordered, StreamExt};
+use parity_scale_codec::Encode;
 use parking_lot::RwLock;
 use sc_keystore::LocalKeystore;
 use std::{collections::BTreeMap, future::Future, sync::Arc};
 
+use polkadex_primitives::utils::return_set_bits;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
 	TestNetFactory,
@@ -51,6 +53,24 @@ impl TestApi {
 	) -> Result<(), ()> {
 		let last_nonce = self.incoming_nonce.read().get(&message.network).unwrap_or(&0).clone();
 		assert_eq!(last_nonce.saturating_add(1), message.nonce);
+
+		// Find who all signed this payload
+		let signed_auths_indexes: Vec<u16> = return_set_bits(&bitmap);
+
+		// Create a vector of public keys of everyone who signed
+		let auths = self.authorities.get(&message.network).unwrap().validators.clone();
+		let mut signatories: Vec<bls_primitives::Public> = vec![];
+		for index in signed_auths_indexes {
+			signatories.push((*auths.get(index as usize).unwrap()).clone().into());
+		}
+
+		// Check signature
+		assert!(bls_primitives::crypto::verify_aggregate_(
+			&signatories[..],
+			&message.encode(),
+			&signature.into(),
+		));
+
 		self.incoming_nonce.write().insert(message.network, message.nonce);
 		self.incoming_messages.write().insert((message.network, message.nonce), message);
 		Ok(())
