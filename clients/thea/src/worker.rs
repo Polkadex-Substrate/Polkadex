@@ -133,22 +133,21 @@ where
 	}
 
 	pub fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
-		// let active = self
-		// 	.runtime
-		// 	.runtime_api()
-		// 	.validator_set(&self.last_finalized_blk, message.network)?
-		// 	.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
+		let active = self
+			.runtime
+			.runtime_api()
+			.validator_set(&self.last_finalized_blk, message.network)?
+			.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
 
-		// let signing_key = self.keystore.get_local_key(&active.validators)?;
-		// let signature = self.keystore.sign(&signing_key, &message.encode())?;
-		//
-		// let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap();
-		//
-		// let mut bitmap: Vec<u128> =
-		// 	prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
+		let signing_key = self.keystore.get_local_key(&active.validators)?;
+		let signature = self.keystore.sign(&signing_key, &message.encode())?;
 
-		todo!()
-		// Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
+		let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap();
+
+		let mut bitmap: Vec<u128> =
+			prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
+
+		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
 
 	pub async fn check_message(&mut self, message: &GossipMessage) -> Result<bool, Error> {
@@ -181,7 +180,6 @@ where
 		match option {
 			None => {
 				// Check if the incoming message is valid based on our local node
-				//		match  self.check_message(incoming_message).await? {
 				match self.check_message(incoming_message).await? {
 					false => {
 						// TODO: We will do offence handler later, simply ignore now
