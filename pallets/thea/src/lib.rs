@@ -116,7 +116,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn incoming_messages)]
 	pub(super) type IncomingMessages<T: Config> =
-		StorageDoubleMap<_, Identity, Network, Identity, T::BlockNumber, Message, OptionQuery>;
+		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
 
 	/// Last processed nonce of other networks
 	#[pallet::storage]
@@ -187,7 +187,7 @@ pub mod pallet {
 			// Signature is already verified in validate_unsigned, no need to do it again
 
 			let last_nonce = <IncomingNonce<T>>::get(payload.network);
-			if last_nonce != payload.nonce.saturating_add(1) {
+			if last_nonce.saturating_add(1) != payload.nonce {
 				return Err(Error::<T>::MessageNonce.into())
 			}
 
@@ -199,7 +199,7 @@ pub mod pallet {
 			// Save the incoming message for some time
 			<IncomingMessages<T>>::insert(
 				payload.network,
-				payload.block_no.saturated_into::<T::BlockNumber>(),
+				payload.nonce,
 				payload,
 			);
 			Ok(())
