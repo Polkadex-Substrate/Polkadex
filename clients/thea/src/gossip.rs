@@ -9,7 +9,9 @@ use sp_runtime::traits::{Block, Hash, Header};
 use sp_tracing::info;
 use std::{collections::BTreeSet, sync::Arc};
 use std::collections::BTreeMap;
-use thea_primitives::Message;
+use sp_api::ProvideRuntimeApi;
+use thea_primitives::{Message, NATIVE_NETWORK, TheaApi};
+use crate::connector::traits::ForeignConnector;
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -34,7 +36,9 @@ where
 	_topic: B::Hash,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
-	cache: Arc<RwLock<BTreeMap<Message,GossipMessage>>>
+	cache: Arc<RwLock<BTreeMap<Message,GossipMessage>>>,
+	foreign_last_nonce: Arc<RwLock<u64>>, // Nonce of foreign message that was last processed in native
+	native_last_nonce: Arc<RwLock<u64>> // Nonce of native message that was last processed in foreign
 }
 
 impl<B> GossipValidator<B>
@@ -43,18 +47,28 @@ where
 {
 	pub fn new(
 		cache: Arc<RwLock<BTreeMap<Message,GossipMessage>>>,
+		foreign_last_nonce: Arc<RwLock<u64>>,
+		native_last_nonce: Arc<RwLock<u64>>
 	) -> GossipValidator<B> {
 		GossipValidator {
 			_topic: topic::<B>(),
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
 			cache,
+			foreign_last_nonce,
+			native_last_nonce,
 		}
 	}
 
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
 		// verify the message with our message cache and foreign chain connector
-		!self.cache.read().contains_key(&message.payload)
+		if message.payload.network == NATIVE_NETWORK {
+			// Message origin is foreign
+			self.foreign_last_nonce.read().lt(&message.payload.nonce)
+		}else{
+			// Message origin is native
+			self.native_last_nonce.read().lt(&message.payload.nonce)
+		}
 	}
 
 	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
