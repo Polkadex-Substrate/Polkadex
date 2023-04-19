@@ -9,7 +9,8 @@ pub struct Message {
 	pub block_no: u64,
 	pub nonce: u64,
 	pub data: Vec<u8>,
-	pub network: Network, // going out to this network
+	// Message originated from this network
+	pub network: Network,
 	pub is_key_change: bool,
 	// ValidatorSetId at which this message was executed.
 	pub validator_set_id: ValidatorSetId,

@@ -66,11 +66,11 @@ where
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
 		// verify the message with our message cache and foreign chain connector
 		if message.payload.network == NATIVE_NETWORK {
-			// Message origin is foreign
-			self.foreign_last_nonce.read().lt(&message.payload.nonce)
-		} else {
 			// Message origin is native
 			self.native_last_nonce.read().lt(&message.payload.nonce)
+		} else {
+			// Message origin is foreign
+			self.foreign_last_nonce.read().lt(&message.payload.nonce)
 		}
 	}
 
