@@ -173,10 +173,11 @@ where
 			self.foreign_chain.check_message(&message.payload).await
 		} else {
 			let finalized_blk = self.last_finalized_blk.clone();
+			let network = self.thea_network.unwrap();
 			let result = self
 				.runtime
 				.runtime_api()
-				.outgoing_messages(&finalized_blk, message.payload.network, message.payload.nonce)?
+				.outgoing_messages(&finalized_blk, network, message.payload.nonce)?
 				.ok_or(Error::ErrorReadingTheaMessage)?;
 
 			Ok(result == message.payload)
