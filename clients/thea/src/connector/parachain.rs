@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use parity_scale_codec::Encode;
-use subxt::{dynamic::Value, storage::DynamicStorageAddress, OnlineClient, PolkadotConfig};
+use subxt::{dynamic::Value, storage::DynamicAddress, OnlineClient, PolkadotConfig};
 use thea_primitives::types::Message;
 
 use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMessage};
@@ -39,7 +39,7 @@ impl ForeignConnector for ParachainClient {
 		let encoded_bytes = self
 			.api
 			.storage()
-			.at(None)
+			.at_latest()
 			.await?
 			.fetch_or_default(&storage_address)
 			.await?
@@ -88,7 +88,7 @@ impl ForeignConnector for ParachainClient {
 		let encoded_bytes = self
 			.api
 			.storage()
-			.at(None)
+			.at_latest()
 			.await?
 			.fetch_or_default(&storage_address)
 			.await?
@@ -103,13 +103,13 @@ impl ForeignConnector for ParachainClient {
 
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
 		// Read native network nonce from foreign chain
-		let storage_address: DynamicStorageAddress<Value> =
+		let storage_address: DynamicAddress<Value> =
 			subxt::dynamic::storage(PALLET_NAME, "IncomingNonce", vec![]);
 		// TODO: Get last finalized block hash
 		let encoded_bytes = self
 			.api
 			.storage()
-			.at(None)
+			.at_latest()
 			.await?
 			.fetch_or_default(&storage_address)
 			.await?
