@@ -350,7 +350,6 @@ where
 
 		let signing_key = self.keystore.get_local_key(&active_set)?;
 		info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
-		let initial_summary = summary.sign_data();
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
 		summary.aggregate_signature = Some(signature.clone().into());
@@ -358,8 +357,6 @@ where
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index);
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
-		assert_eq!(initial_summary, summary.sign_data());
-		assert!(self.keystore.verify(&signing_key, &signature, &initial_summary,));
 		// send it to runtime
 		if self
 			.runtime
