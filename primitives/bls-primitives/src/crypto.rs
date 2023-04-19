@@ -71,6 +71,7 @@ pub trait BlsExt {
 	}
 }
 
+#[cfg(feature = "std")]
 pub fn add_signature_(sig1: &Signature, sig2: &Signature) -> Result<Signature,()> {
 	let agg_signature = match crate::BLSSignature::from_bytes(sig1.0.as_ref()) {
 		Ok(sig) => sig,

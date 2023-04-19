@@ -121,7 +121,7 @@ where
 		let gossip_validator = Arc::new(GossipValidator::new(
 			message_cache.clone(),
 			foreign_nonce.clone(),
-			native_nonce.clone()
+			native_nonce.clone(),
 		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
@@ -233,7 +233,8 @@ where
 							}
 						} else {
 							// Cache it.
-							self.message_cache.write()
+							self.message_cache
+								.write()
 								.insert(incoming_message.payload.clone(), incoming_message.clone());
 						}
 					},
@@ -280,7 +281,8 @@ where
 						}
 					} else {
 						// Cache it.
-						self.message_cache.write()
+						self.message_cache
+							.write()
 							.insert(incoming_message.payload.clone(), incoming_message.clone());
 						// TODO: Send it back to network.
 					}
@@ -400,7 +402,7 @@ where
 
 				*self.last_native_nonce_processed.write() = last_nonce;
 
-				info!(target:"thea","Checking new messages on network: {network:?}, last nonce: {best_outgoing_nonce:?}");
+				info!(target:"thea","Checking new messages on network: {network:?}, last nonce from native: {best_outgoing_nonce:?}");
 				best_outgoing_nonce.add_assign(1);
 
 				// Check if next best message is available for processing

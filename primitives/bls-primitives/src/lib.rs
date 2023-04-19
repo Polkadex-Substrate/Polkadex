@@ -23,6 +23,7 @@ use sp_runtime_interface::pass_by::PassByInner;
 use substrate_bip39::seed_from_entropy;
 
 use sp_std::vec::Vec;
+#[cfg(feature = "std")]
 use crate::crypto::add_signature_;
 
 /// An identifier used to match public keys against bls keys
