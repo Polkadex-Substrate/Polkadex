@@ -21,7 +21,7 @@ tokio-stream = {version="0.1.12", features = ["time"]}
 thea-primitives = { path = "../../primitives/thea" }
 bls-primitives = { path = "../../primitives/bls-primitives" }
 polkadex-primitives = { path = "../../primitives/polkadex" }
-subxt = "0.27.1"
+subxt = { git = "https://github.com/Polkadex-Substrate/subxt.git", branch = "polkadot-v0.9.37", features = ["substrate-compat"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
 blst = { version = "0.3.10", default-features = false }
