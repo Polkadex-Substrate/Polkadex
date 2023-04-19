@@ -77,6 +77,8 @@ jobs:
         run: cargo build --features runtime-benchmarks
       - name: Normal Build
         run: RUSTFLAGS="-D warnings" cargo build
+      - name: Runtime build
+        run: cargo build -p node-polkadex-runtime
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
