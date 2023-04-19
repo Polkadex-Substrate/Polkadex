@@ -16,6 +16,7 @@ use parking_lot::{Mutex, RwLock};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
+use sc_network_common::service::NetworkPeers;
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
@@ -75,7 +76,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
-	message_cache: BTreeMap<Message, GossipMessage>,
+	message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
 	foreign_chain: Arc<FC>,
 	last_finalized_blk: BlockId<B>,
 }
@@ -112,7 +113,9 @@ where
 			_marker,
 		} = worker_params;
 
-		let gossip_validator = Arc::new(GossipValidator::new());
+		let message_cache = Arc::new(RwLock::new(BTreeMap::new()));
+
+		let gossip_validator = Arc::new(GossipValidator::new(message_cache.clone()));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
@@ -128,7 +131,7 @@ where
 			thea_network: None,
 			gossip_engine,
 			gossip_validator,
-			message_cache: Default::default(),
+			message_cache,
 			foreign_chain,
 			last_finalized_blk: BlockId::number(Zero::zero()),
 		}
@@ -179,7 +182,7 @@ where
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
 		let local_index = self.get_local_auth_index()?;
-		let option = self.message_cache.get(&incoming_message.payload).cloned();
+		let option = self.message_cache.read().get(&incoming_message.payload).cloned();
 		// Check incoming message in our cache.
 		match option {
 			None => {
@@ -221,7 +224,7 @@ where
 							}
 						} else {
 							// Cache it.
-							self.message_cache
+							self.message_cache.write()
 								.insert(incoming_message.payload.clone(), incoming_message.clone());
 						}
 					},
@@ -268,7 +271,7 @@ where
 						}
 					} else {
 						// Cache it.
-						self.message_cache
+						self.message_cache.write()
 							.insert(incoming_message.payload.clone(), incoming_message.clone());
 						// TODO: Send it back to network.
 					}
@@ -343,7 +346,7 @@ where
 	pub fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
 		let mut gossip_message = self.sign_message(message.clone())?;
 		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
-		self.message_cache.insert(message, gossip_message);
+		self.message_cache.write().insert(message, gossip_message);
 		Ok(())
 	}
 
@@ -382,7 +385,7 @@ where
 					Some(message) => {
 						// Don't do anything if we already know about the message
 						// It means Thea is already processing it.
-						if !self.message_cache.contains_key(&message) {
+						if !self.message_cache.read().contains_key(&message) {
 							info!(target:"thea", "Found new message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
 							self.sign_and_submit_message(message)?
 						}
@@ -433,6 +436,10 @@ where
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
+				_ = gossip_engine => {
+					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					return;
+				}
 				gossip = gossip_messages.next() => {
 					if let Some((mut message,sender)) = gossip {
 						info!(target:"thea","Got new message via gossip : nonce: {:?}, signed: {:?}, threshold: {:?}",
@@ -463,10 +470,6 @@ where
 							error!(target: "orderbook", "📒 Error fetching foreign chain events {:?}", err);
 						}
 				},
-				_ = gossip_engine => {
-					error!(target: "orderbook", "📒 Gossip engine has terminated.");
-					return;
-				}
 			}
 		}
 	}

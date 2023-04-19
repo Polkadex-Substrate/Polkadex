@@ -8,6 +8,8 @@ use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorCon
 use sp_runtime::traits::{Block, Hash, Header};
 use sp_tracing::info;
 use std::{collections::BTreeSet, sync::Arc};
+use std::collections::BTreeMap;
+use thea_primitives::Message;
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -32,29 +34,33 @@ where
 	_topic: B::Hash,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
+	cache: Arc<RwLock<BTreeMap<Message,GossipMessage>>>
 }
 
 impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new() -> GossipValidator<B> {
+	pub fn new(
+		cache: Arc<RwLock<BTreeMap<Message,GossipMessage>>>,
+	) -> GossipValidator<B> {
 		GossipValidator {
 			_topic: topic::<B>(),
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
+			cache,
 		}
 	}
 
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
 		// verify the message with our message cache and foreign chain connector
-		//
-		true
+		!self.cache.read().contains_key(&message.payload)
 	}
 
 	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
-		// TODO: When should we rebroadcast a message
-		true
+		// We rebroadcast it as long as its in our cache, if its not in our cache,
+		// then don't broadcast it, its removed from cache when the message is accepted.
+		self.cache.read().contains_key(&message.payload)
 	}
 }
 
@@ -63,6 +69,7 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
+		info!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
 		match role {
 			ObservedRole::Authority => {
 				self.peers.write().insert(*who);
@@ -75,6 +82,7 @@ where
 	}
 
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
+		info!(target:"thea", "New peer connected: id: {:?}",who);
 		self.peers.write().remove(who);
 		self.fullnodes.write().remove(who);
 	}
@@ -85,7 +93,6 @@ where
 		_sender: &PeerId,
 		mut data: &[u8],
 	) -> ValidationResult<B::Hash> {
-		info!(target:"thea", "Validating new gossip message");
 		// Decode
 		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
@@ -94,7 +101,6 @@ where
 			}
 			// TODO: When should be stop broadcasting this message
 		}
-		error!(target:"thea", "Unable to decode");
 		ValidationResult::Discard
 	}
 
@@ -105,7 +111,6 @@ where
 				Ok(msg) => msg,
 				Err(_) => return true,
 			};
-			info!(target:"thea", "Checking gossip message, expiry");
 			// If old stid then expire
 			!self.validate_message(&msg)
 		})
@@ -115,7 +120,6 @@ where
 		&'a self,
 	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, _intent, _topic, mut data| {
-			info!(target:"thea", "Rebroadcast check...");
 			// Decode
 			let msg = match GossipMessage::decode(&mut data) {
 				Ok(msg) => msg,

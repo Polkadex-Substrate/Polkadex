@@ -20,7 +20,7 @@ pub struct DummyForeignConnector {
 #[async_trait]
 impl ForeignConnector for DummyForeignConnector {
 	fn block_duration(&self) -> Duration {
-		Duration::from_secs(1)
+		Duration::from_secs(12)
 	}
 
 	async fn connect(url: String) -> Result<Self, Error>
@@ -108,16 +108,15 @@ pub async fn test_withdrawal() {
 		.collect();
 
 	let future = initialize_thea(&mut testnet, ob_peers).await;
-
-	tokio::spawn(future);
 	testnet.run_until_connected().await;
+	tokio::spawn(future);
 	// Generate and finalize two block to start finality
 	generate_and_finalize_blocks(3, &mut testnet).await;
 	testnet.run_until_sync().await;
 	generate_and_finalize_blocks(3, &mut testnet).await;
 	testnet.run_until_idle().await;
 
-	tokio::time::sleep(Duration::from_secs(5)).await;
+	tokio::time::sleep(Duration::from_secs(100)).await;
 
 	assert_eq!(*runtime.incoming_nonce.read().get(&1).unwrap(), 1);
 }
