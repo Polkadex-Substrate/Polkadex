@@ -5532,7 +5532,7 @@ dependencies = [
  "sp-api",
  "sp-blockchain",
  "sp-rpc",
- "sp-runtime",
+ "sp-runtime 7.0.0",
 ]
 
 [[package]]
@@ -5542,9 +5542,9 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "sp-api",
- "sp-core",
- "sp-runtime",
- "sp-std",
+ "sp-core 7.0.0",
+ "sp-runtime 7.0.0",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
