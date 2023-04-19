@@ -1357,7 +1357,7 @@ impl thea::pallet::Config for Runtime {
 	type TheaId = thea_primitives::AuthorityId;
 	type Signature = thea_primitives::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
-	type Executor = ();
+	type Executor = TheaExecutor;
 }
 
 //Install Swap pallet

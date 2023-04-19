@@ -6,7 +6,7 @@ fn bit_expression_value(bit_index: usize) -> u128 {
 }
 
 pub fn set_bit_field(input: &mut [u128], bit_index: usize) -> bool {
-	let element_pos = bit_index.div_floor(128) as usize;
+	let element_pos = bit_index.div_floor(128);
 	if element_pos >= input.len() {
 		return false
 	}
