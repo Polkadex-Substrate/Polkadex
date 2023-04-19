@@ -77,6 +77,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
 	message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	last_foreign_nonce_processed: Arc<RwLock<u64>>,
+	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
 	last_finalized_blk: BlockId<B>,
 }
@@ -114,8 +116,13 @@ where
 		} = worker_params;
 
 		let message_cache = Arc::new(RwLock::new(BTreeMap::new()));
-
-		let gossip_validator = Arc::new(GossipValidator::new(message_cache.clone()));
+		let foreign_nonce = Arc::new(RwLock::new(0));
+		let native_nonce = Arc::new(RwLock::new(0));
+		let gossip_validator = Arc::new(GossipValidator::new(
+			message_cache.clone(),
+			foreign_nonce.clone(),
+			native_nonce.clone()
+		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
@@ -132,6 +139,8 @@ where
 			gossip_engine,
 			gossip_validator,
 			message_cache,
+			last_foreign_nonce_processed: foreign_nonce,
+			last_native_nonce_processed: native_nonce,
 			foreign_chain,
 			last_finalized_blk: BlockId::number(Zero::zero()),
 		}
@@ -313,8 +322,17 @@ where
 		}
 		let network = self.thea_network.unwrap();
 
-		let next_nonce_to_process =
-			self.foreign_chain.last_processed_nonce_from_native().await?.saturating_add(1);
+		// Get the last processed foreign nonce from native
+		let mut best_incoming_nonce: u64 = self
+			.runtime
+			.runtime_api()
+			.get_last_processed_nonce(&self.last_finalized_blk, network)?;
+
+		*self.last_foreign_nonce_processed.write() = best_incoming_nonce;
+
+		let last_nonce = self.foreign_chain.last_processed_nonce_from_native().await?;
+
+		let next_nonce_to_process = last_nonce.saturating_add(1);
 
 		let message =
 			self.runtime
@@ -325,6 +343,7 @@ where
 			info!(target:"thea", "Processing new message from native chain: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
 			self.sign_and_submit_message(message)?;
 		}
+
 		Ok(())
 	}
 
@@ -375,6 +394,11 @@ where
 					.runtime
 					.runtime_api()
 					.get_last_processed_nonce(&self.last_finalized_blk, *network)?;
+
+				// Get the last processed native nonce from foreign
+				let last_nonce = self.foreign_chain.last_processed_nonce_from_native().await?;
+
+				*self.last_native_nonce_processed.write() = last_nonce;
 
 				info!(target:"thea","Checking new messages on network: {network:?}, last nonce: {best_outgoing_nonce:?}");
 				best_outgoing_nonce.add_assign(1);
