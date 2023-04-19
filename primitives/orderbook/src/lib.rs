@@ -148,6 +148,22 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 
 impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 	// Add a new signature to the snapshot summary
+
+	#[cfg(feature = "std")]
+	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
+		match bls_primitives::crypto::add_signature_(
+			&self.aggregate_signature.ok_or(signature)?,
+			&signature,
+		) {
+			Ok(signature) => {
+				self.aggregate_signature = Some(signature);
+				Ok(())
+			},
+			Err(_) => Err(signature),
+		}
+	}
+
+	#[cfg(not(feature = "std"))]
 	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
 		match bls_primitives::crypto::bls_ext::add_signature(
 			&self.aggregate_signature.ok_or(signature)?,
