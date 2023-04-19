@@ -21,8 +21,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::Saturating;
-	use sp_runtime::traits::AccountIdConversion;
+	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 	use thea_primitives::{
 		parachain::{
@@ -41,7 +40,7 @@ pub mod pallet {
 		pub amount: u128,
 		pub recipient: AccountId,
 		pub network_id: u8,
-		pub tx_hash: sp_core::H256
+		pub tx_hash: sp_core::H256,
 	}
 
 	impl<AccountId> ApprovedDeposit<AccountId> {
@@ -50,15 +49,9 @@ pub mod pallet {
 			amount: u128,
 			recipient: AccountId,
 			network_id: u8,
-			transaction_hash: sp_core::H256
+			transaction_hash: sp_core::H256,
 		) -> Self {
-			ApprovedDeposit {
-				asset_id,
-				amount,
-				recipient,
-				network_id,
-				tx_hash: transaction_hash
-			}
+			ApprovedDeposit { asset_id, amount, recipient, network_id, tx_hash: transaction_hash }
 		}
 	}
 
@@ -181,13 +174,15 @@ pub mod pallet {
 		/// Bounded vector not present
 		BoundedVectorNotPresent,
 		/// No Approved Deposit
-		NoApprovedDeposit
+		NoApprovedDeposit,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(block_no: T::BlockNumber) -> Weight {
-			let pending_withdrawals = <ReadyWithdrawls<T>>::iter_prefix_values(block_no.saturating_sub(T::BlockNumber::from(1u8)));
+			let pending_withdrawals = <ReadyWithdrawls<T>>::iter_prefix_values(
+				block_no.saturating_sub(T::BlockNumber::from(1u8)),
+			);
 			for (network_id, withdrawal) in pending_withdrawals {
 				T::Executor::execute_withdrawals(network_id, withdrawal.encode());
 			}
@@ -344,7 +339,7 @@ pub mod pallet {
 				user,
 				beneficiary,
 				asset_id,
-				amount
+				amount,
 			));
 			if pending_withdrawals.is_full() | pay_for_remaining {
 				// If it is full then we move it to ready queue and update withdrawal nonce
@@ -466,7 +461,7 @@ pub mod pallet {
 					amount,
 					recipient,
 					network_id,
-					parachain_deposit.transaction_hash
+					parachain_deposit.transaction_hash,
 				))
 			} else {
 				Err(Error::<T>::FailedToHandleParachainDeposit.into())
