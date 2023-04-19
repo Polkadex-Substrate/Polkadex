@@ -2,7 +2,7 @@ use log::warn;
 use std::sync::Arc;
 
 use crate::error::Error;
-use orderbook_primitives::crypto::{AuthorityId};
+use orderbook_primitives::crypto::AuthorityId;
 use sc_keystore::LocalKeystore;
 use sp_core::Pair;
 
