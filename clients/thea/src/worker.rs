@@ -16,6 +16,7 @@ use parking_lot::{Mutex, RwLock};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
+use sc_network_common::service::NetworkPeers;
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
@@ -75,7 +76,9 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
-	message_cache: BTreeMap<Message, GossipMessage>,
+	message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	last_foreign_nonce_processed: Arc<RwLock<u64>>,
+	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
 	last_finalized_blk: BlockId<B>,
 }
@@ -112,7 +115,14 @@ where
 			_marker,
 		} = worker_params;
 
-		let gossip_validator = Arc::new(GossipValidator::new());
+		let message_cache = Arc::new(RwLock::new(BTreeMap::new()));
+		let foreign_nonce = Arc::new(RwLock::new(0));
+		let native_nonce = Arc::new(RwLock::new(0));
+		let gossip_validator = Arc::new(GossipValidator::new(
+			message_cache.clone(),
+			foreign_nonce.clone(),
+			native_nonce.clone(),
+		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
 
@@ -128,22 +138,26 @@ where
 			thea_network: None,
 			gossip_engine,
 			gossip_validator,
-			message_cache: Default::default(),
+			message_cache,
+			last_foreign_nonce_processed: foreign_nonce,
+			last_native_nonce_processed: native_nonce,
 			foreign_chain,
 			last_finalized_blk: BlockId::number(Zero::zero()),
 		}
 	}
 
 	pub fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
+		let network = self.thea_network.expect("Expected the network to be defined here.");
+		info!(target:"thea", "Serving network: {:?}", network);
 		let active = self
 			.runtime
 			.runtime_api()
-			.validator_set(&self.last_finalized_blk, message.network)?
-			.ok_or(Error::ValidatorSetNotInitialized(message.network))?;
+			.validator_set(&self.last_finalized_blk, network)?
+			.ok_or(Error::ValidatorSetNotInitialized(network))?;
 
 		let signing_key = self.keystore.get_local_key(&active.validators)?;
 		let signature = self.keystore.sign(&signing_key, &message.encode())?;
-
+		info!(target:"thea", "Signature generated for thea");
 		let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap();
 
 		let mut bitmap: Vec<u128> =
@@ -176,14 +190,15 @@ where
 	) -> Result<(), Error> {
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
-		let local_index = self.get_local_auth_index(incoming_message.payload.network)?;
-		let option = self.message_cache.get(&incoming_message.payload).cloned();
+		let local_index = self.get_local_auth_index()?;
+		let option = self.message_cache.read().get(&incoming_message.payload).cloned();
 		// Check incoming message in our cache.
 		match option {
 			None => {
 				// Check if the incoming message is valid based on our local node
 				match self.check_message(incoming_message).await? {
 					false => {
+						error!(target:"thea", "Message check failed");
 						// TODO: We will do offence handler later, simply ignore now
 						return Ok(())
 					},
@@ -194,10 +209,14 @@ where
 						// Aggregate the signature and store it.
 						incoming_message.aggregate_signature = incoming_message
 							.aggregate_signature
-							.add_signature(&gossip_message.aggregate_signature);
+							.add_signature(&gossip_message.aggregate_signature)?;
 						// Set the bit based on our local index
 						set_bit_field(&mut incoming_message.bitmap, local_index.saturated_into());
-
+						info!(target:"thea","Message status: nonce: {:?}, signed: {:?}, threshold: {:?}",
+							incoming_message.payload.nonce,
+							return_set_bits(&incoming_message.bitmap).len(),
+							incoming_message.payload.threshold()
+						);
 						if return_set_bits(&incoming_message.bitmap).len() >=
 							incoming_message.payload.threshold() as usize
 						{
@@ -215,6 +234,7 @@ where
 						} else {
 							// Cache it.
 							self.message_cache
+								.write()
 								.insert(incoming_message.payload.clone(), incoming_message.clone());
 						}
 					},
@@ -236,12 +256,18 @@ where
 					// Aggregate the signature and store it.
 					incoming_message.aggregate_signature = incoming_message
 						.aggregate_signature
-						.add_signature(&gossip_message.aggregate_signature);
+						.add_signature(&gossip_message.aggregate_signature)?;
 					// Set the bit based on our local index
 					set_bit_field(&mut incoming_message.bitmap, local_index.saturated_into());
+					info!(target:"thea","Message status: nonce: {:?}, signed: {:?}, threshold: {:?}",
+						incoming_message.payload.nonce,
+						return_set_bits(&incoming_message.bitmap).len(),
+						incoming_message.payload.threshold()
+					);
 					if return_set_bits(&incoming_message.bitmap).len() >=
 						incoming_message.payload.threshold() as usize
 					{
+						info!(target:"thea","Got majority on message: nonce: {:?}, network: {:?}", message.payload.nonce, message.payload.network);
 						// We got majority on this message
 						if incoming_message.payload.network == NATIVE_NETWORK {
 							self.runtime.runtime_api().incoming_message(
@@ -256,6 +282,7 @@ where
 					} else {
 						// Cache it.
 						self.message_cache
+							.write()
 							.insert(incoming_message.payload.clone(), incoming_message.clone());
 						// TODO: Send it back to network.
 					}
@@ -297,8 +324,17 @@ where
 		}
 		let network = self.thea_network.unwrap();
 
-		let next_nonce_to_process =
-			self.foreign_chain.last_processed_nonce_from_native().await?.saturating_add(1);
+		// Get the last processed foreign nonce from native
+		let mut best_incoming_nonce: u64 = self
+			.runtime
+			.runtime_api()
+			.get_last_processed_nonce(&self.last_finalized_blk, network)?;
+
+		*self.last_foreign_nonce_processed.write() = best_incoming_nonce;
+
+		let last_nonce = self.foreign_chain.last_processed_nonce_from_native().await?;
+
+		let next_nonce_to_process = last_nonce.saturating_add(1);
 
 		let message =
 			self.runtime
@@ -307,12 +343,14 @@ where
 
 		if let Some(message) = message {
 			info!(target:"thea", "Processing new message from native chain: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
-			self.sign_and_submit_message(message).await?;
+			self.sign_and_submit_message(message)?;
 		}
+
 		Ok(())
 	}
 
-	pub fn get_local_auth_index(&self, network: Network) -> Result<AuthorityIndex, Error> {
+	pub fn get_local_auth_index(&self) -> Result<AuthorityIndex, Error> {
+		let network = self.thea_network.expect("Expected the thea network to be initialized");
 		let active = self
 			.runtime
 			.runtime_api()
@@ -326,10 +364,11 @@ where
 		Ok(index.saturated_into())
 	}
 
-	pub async fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
-		let mut gossip_message = self.sign_message(message)?;
+	pub fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
+		let mut gossip_message = self.sign_message(message.clone())?;
 		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
-		self.process_gossip_message(&mut gossip_message, None).await
+		self.message_cache.write().insert(message, gossip_message);
+		Ok(())
 	}
 
 	/// Wait for Orderbook runtime pallet to be available.
@@ -358,7 +397,12 @@ where
 					.runtime_api()
 					.get_last_processed_nonce(&self.last_finalized_blk, *network)?;
 
-				info!(target:"thea","Checking new messages on network: {network:?}, last nonce: {best_outgoing_nonce:?}");
+				// Get the last processed native nonce from foreign
+				let last_nonce = self.foreign_chain.last_processed_nonce_from_native().await?;
+
+				*self.last_native_nonce_processed.write() = last_nonce;
+
+				info!(target:"thea","Checking new messages on network: {network:?}, last nonce from native: {best_outgoing_nonce:?}");
 				best_outgoing_nonce.add_assign(1);
 
 				// Check if next best message is available for processing
@@ -367,8 +411,9 @@ where
 					Some(message) => {
 						// Don't do anything if we already know about the message
 						// It means Thea is already processing it.
-						if !self.message_cache.contains_key(&message) {
-							self.sign_and_submit_message(message).await?
+						if !self.message_cache.read().contains_key(&message) {
+							info!(target:"thea", "Found new message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
+							self.sign_and_submit_message(message)?
 						}
 					},
 				}
@@ -398,7 +443,7 @@ where
 			self.gossip_engine
 				.messages_for(topic::<B>())
 				.filter_map(|notification| async move {
-					trace!(target: "orderbook", "📒 Got gossip message: {:?}", notification);
+					info!(target: "thea", "📒 Got gossip message : {:?}", notification);
 					match GossipMessage::decode(&mut &notification.message[..]).ok() {
 						None => None,
 						Some(msg) => Some((msg, notification.sender)),
@@ -417,8 +462,17 @@ where
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
+				_ = gossip_engine => {
+					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					return;
+				}
 				gossip = gossip_messages.next() => {
 					if let Some((mut message,sender)) = gossip {
+						info!(target:"thea","Got new message via gossip : nonce: {:?}, signed: {:?}, threshold: {:?}",
+						message.payload.nonce,
+						return_set_bits(&message.bitmap).len(),
+						message.payload.threshold()
+					);
 						// Gossip messages have already been verified to be valid by the gossip validator.
 						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
 							debug!(target: "orderbook", "📒 {:?}", err);
@@ -439,13 +493,9 @@ where
 				},
 				_ = interval_stream.next() => {
 					if let Err(err) = self.try_process_foreign_chain_events().await {
-							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
+							error!(target: "orderbook", "📒 Error fetching foreign chain events {:?}", err);
 						}
 				},
-				_ = gossip_engine => {
-					error!(target: "orderbook", "📒 Gossip engine has terminated.");
-					return;
-				}
 			}
 		}
 	}
