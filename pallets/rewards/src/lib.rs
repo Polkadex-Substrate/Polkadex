@@ -32,9 +32,10 @@ use frame_support::{
 use pallet_timestamp as timestamp;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
-	SaturatedConversion,
+	SaturatedConversion, Saturating,
 };
-use sp_std::prelude::*;
+use sp_std::{cmp::min, prelude::*};
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -73,7 +74,6 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
-	use sp_std::cmp::min;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -260,7 +260,6 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
-
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 					if let Some(user_reward_info) = user_reward_info {
@@ -471,5 +470,62 @@ impl<T: Config> Pallet<T> {
 			ExistenceRequirement::KeepAlive,
 		)?;
 		Ok(())
+	}
+
+	/// Retrieves the rewards information associated with a given account and reward ID.
+	///
+	/// # Parameters
+	///
+	/// * `account_id`: The account ID for which the rewards information is to be fetched.
+	/// * `reward_id`: The specific reward ID to fetch the rewards information.
+	///
+	/// # Returns
+	///
+	/// A `RewardsInfoByAccount` structure containing the claimed, unclaimed, and claimable
+	/// rewards associated with the account and reward ID.
+	pub fn account_info(
+		account_id: T::AccountId,
+		reward_id: u32,
+	) -> Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, sp_runtime::DispatchError>
+	{
+		if let Some(user_reward_info) = <Distributor<T>>::get(reward_id, account_id) {
+			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
+				let mut rewards_claimable: u128 = 0_u128.saturated_into();
+
+				//if initial rewards are not claimed add it to claimable rewards
+				if !user_reward_info.is_initial_rewards_claimed {
+					rewards_claimable =
+						user_reward_info.initial_rewards_claimable.saturated_into::<u128>();
+				}
+
+				//calculate the number of blocks the user can claim rewards
+				let current_block_no: u128 =
+					<frame_system::Pallet<T>>::block_number().saturated_into();
+				let last_reward_claimed_block_no: u128 =
+					user_reward_info.last_block_rewards_claim.saturated_into();
+				let unclaimed_blocks: u128 =
+					min(current_block_no, reward_info.end_block.saturated_into::<u128>())
+						.saturating_sub(last_reward_claimed_block_no);
+
+				// add the unclaimed block rewards to claimable rewards
+				rewards_claimable = rewards_claimable.saturating_add(
+					user_reward_info
+						.factor
+						.saturated_into::<u128>()
+						.saturating_mul(unclaimed_blocks),
+				);
+
+				let reward_info = polkadex_primitives::rewards::RewardsInfoByAccount {
+					claimed: user_reward_info.claim_amount.saturated_into::<u128>(),
+					unclaimed: user_reward_info
+						.total_reward_amount
+						.saturating_sub(user_reward_info.claim_amount)
+						.saturated_into::<u128>(),
+					claimable: rewards_claimable,
+				};
+				return Ok(reward_info)
+			}
+		}
+		Err(Error::<T>::UserNotEligible.into())
 	}
 }

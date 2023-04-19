@@ -116,6 +116,7 @@ pallet-rewards = { path = "../pallets/rewards", default-features = false }
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
 pallet-asset-handler-runtime-api = { path = "../pallets/asset-handler/rpc/runtime-api", default-features = false }
+pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -185,7 +186,7 @@ std = [
     "chainbridge/std",
     "pallet-ocex-lmp/std",
     "pallet-asset-handler-runtime-api/std",
-    "pallet-asset-handler-runtime-api/std",
+    "pallet-rewards-runtime-api/std",
     "thea/std",
     "pallet-amm/std",
     "router/std",
