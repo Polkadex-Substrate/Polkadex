@@ -190,11 +190,7 @@ pub mod pallet {
 			if last_nonce.saturating_add(1) != payload.nonce {
 				return Err(Error::<T>::MessageNonce.into())
 			}
-
-			if let Err(_) = T::Executor::execute_deposits(payload.network, payload.data.clone()) {
-				return Err(Error::<T>::ErrorExecutingMessage.into())
-			}
-
+			T::Executor::execute_deposits(payload.network, payload.data.clone());
 			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
 			// Save the incoming message for some time
 			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);

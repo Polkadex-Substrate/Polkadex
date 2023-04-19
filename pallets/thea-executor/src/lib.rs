@@ -15,6 +15,8 @@ mod mock;
 pub mod pallet {
 	use super::*;
 	use frame_support::{
+		log,
+		log::log,
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
 		traits::{Currency, ExistenceRequirement, ReservableCurrency},
@@ -515,8 +517,10 @@ pub mod pallet {
 	}
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
-		fn execute_deposits(network: Network, deposits: Vec<u8>) -> DispatchResult {
-			Self::do_deposit(network, deposits)
+		fn execute_deposits(network: Network, deposits: Vec<u8>) {
+			if let Err(error) = Self::do_deposit(network, deposits) {
+				log::error!(target:"thea","Deposit Failed : {:?}", error);
+			}
 		}
 	}
 }

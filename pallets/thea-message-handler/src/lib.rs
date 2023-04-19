@@ -165,10 +165,7 @@ pub mod pallet {
 
 			if !payload.is_key_change {
 				// Normal Thea message
-				if let Err(_) = T::Executor::execute_deposits(payload.network, payload.data.clone())
-				{
-					return Err(Error::<T>::ErrorExecutingMessage.into())
-				}
+				T::Executor::execute_deposits(payload.network, payload.data.clone());
 			} else {
 				// Thea message related to key change
 				match ValidatorSet::decode(&mut &payload.data[..]) {

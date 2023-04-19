@@ -20,8 +20,6 @@ use sp_std::vec::Vec;
 use bls_primitives::{Public, Signature};
 
 use crate::crypto::AuthorityId;
-#[cfg(feature = "std")]
-use crate::types::ObMessage;
 
 pub mod constants;
 pub mod types;
