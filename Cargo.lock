@@ -10344,6 +10344,7 @@ version = "0.1.0"
 dependencies = [
  "asset-handler",
  "bls-primitives",
+ "chainbridge",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -10360,6 +10361,7 @@ dependencies = [
  "sp-keystore 0.13.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
+ "thea",
  "thea-primitives",
  "xcm",
 ]

@@ -29,6 +29,8 @@ pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
+thea = { path = "../thea", default-features = false }
+chainbridge = { path = "../chainbridge", default-feature = false }
 
 [features]
 default = ["std"]
@@ -46,8 +48,11 @@ std = [
     "rust_decimal/std",
     "pallet-timestamp/std",
     "sp-core/std",
-    "asset-handler/std"
+    "asset-handler/std",
+    "thea/std",
+    "chainbridge/std"
 ]
+
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",

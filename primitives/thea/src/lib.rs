@@ -1,6 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub mod parachain;
-use sp_runtime::DispatchResult;
 pub mod types;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -11,7 +10,6 @@ pub use crate::{
 	crypto::{AuthorityId, AuthoritySignature},
 	types::Message,
 };
-use polkadex_primitives::BlockNumber;
 use sp_application_crypto::ByteArray;
 
 /// Orderbook cryptographic types
@@ -133,7 +131,7 @@ sp_api::decl_runtime_apis! {
 
 /// This is implemented by TheaExecutor by zK
 pub trait TheaIncomingExecutor {
-	fn execute_deposits(network: Network, deposits: Vec<u8>) -> DispatchResult;
+	fn execute_deposits(network: Network, deposits: Vec<u8>);
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
@@ -141,7 +139,5 @@ pub trait TheaOutgoingExecutor {
 }
 
 impl TheaIncomingExecutor for () {
-	fn execute_deposits(network: Network, deposits: Vec<u8>) -> DispatchResult {
-		Ok(())
-	}
+	fn execute_deposits(network: Network, deposits: Vec<u8>) {}
 }
