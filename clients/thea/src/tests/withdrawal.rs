@@ -1,20 +1,32 @@
 use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
-	tests::{generate_and_finalize_blocks, initialize_thea, make_thea_ids, TestApi, TheaTestnet},
+	tests::{
+		create_workers_array, generate_and_finalize_blocks, initialize_thea, make_thea_ids,
+		TestApi, TheaTestnet,
+	},
 	types::GossipMessage,
 };
 use async_trait::async_trait;
+use futures::StreamExt;
 use log::info;
+use parity_scale_codec::Encode;
 use parking_lot::RwLock;
+use polkadex_primitives::utils::return_set_bits;
 use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
-use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use std::{
+	collections::{BTreeMap, HashMap},
+	sync::Arc,
+	time::Duration,
+};
 use subxt::ext::frame_metadata::StorageEntryModifier::Default;
-use thea_primitives::{AuthorityId, Message, ValidatorSet};
+use thea_primitives::{AuthorityId, Message, ValidatorSet, ValidatorSetId};
 
 pub struct DummyForeignConnector {
-	active: Vec<AuthorityId>,
+	authorities: HashMap<ValidatorSetId, Vec<AuthorityId>>,
+	incoming_nonce: Arc<RwLock<u64>>,
+	incoming_messages: Arc<RwLock<HashMap<u64, Message>>>,
 }
 
 #[async_trait]
@@ -27,46 +39,52 @@ impl ForeignConnector for DummyForeignConnector {
 	where
 		Self: Sized,
 	{
-		Ok(DummyForeignConnector { active: vec![] })
+		Ok(DummyForeignConnector {
+			authorities: HashMap::new(),
+			incoming_nonce: Arc::new(RwLock::new(0)),
+			incoming_messages: Arc::new(RwLock::new(HashMap::new())),
+		})
 	}
 
 	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error> {
-		assert_eq!(last_processed_nonce, 1);
-		Ok(Some(Message {
-			block_no: 10,
-			nonce: 1,
-			data: vec![1, 2, 3],
-			network: 0,
-			is_key_change: false,
-			validator_set_id: 0,
-			validator_set_len: self.active.len() as u64,
-		}))
+		Ok(None)
 	}
 
-	async fn send_transaction(&self, message: GossipMessage) {
-		todo!()
+	async fn send_transaction(&self, payload: GossipMessage) {
+		let message = payload.payload;
+		if message.nonce != 1 {
+			// Ignore the tx like the tx pool's validate incoming message
+			return
+		}
+
+		let signed_auths_indexes: Vec<usize> = return_set_bits(&payload.bitmap);
+		// Create a vector of public keys of everyone who signed
+		let auths = self.authorities.get(&message.validator_set_id).unwrap().clone();
+		let mut signatories: Vec<bls_primitives::Public> = vec![];
+		for index in signed_auths_indexes {
+			signatories.push((*auths.get(index).unwrap()).clone().into());
+		}
+
+		// Check signature
+		assert!(bls_primitives::crypto::verify_aggregate_(
+			&signatories[..],
+			&message.encode(),
+			&payload.aggregate_signature.into(),
+		));
+
+		*self.incoming_nonce.write() = message.nonce;
+		self.incoming_messages.write().insert(message.nonce, message);
 	}
 
 	async fn check_message(&self, message: &Message) -> Result<bool, Error> {
-		info!(target:"thea-test", "CHecking new message...");
-		Ok(message ==
-			&Message {
-				block_no: 10,
-				nonce: 1,
-				data: vec![1, 2, 3],
-				network: 0,
-				is_key_change: false,
-				validator_set_id: 0,
-				validator_set_len: self.active.len() as u64,
-			})
+		unimplemented!()
 	}
 
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
-		Ok(0)
+		Ok(*self.incoming_nonce.read())
 	}
 }
 
-#[ignore]
 #[tokio::test]
 pub async fn test_withdrawal() {
 	sp_tracing::try_init_simple();
@@ -82,6 +100,16 @@ pub async fn test_withdrawal() {
 	let active: Vec<AuthorityId> =
 		make_thea_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
 
+	let message = Message {
+		block_no: 10,
+		nonce: 1,
+		data: vec![1, 2, 3],
+		network: 0,
+		is_key_change: false,
+		validator_set_id: 0,
+		validator_set_len: 3,
+	};
+
 	let runtime = Arc::new(TestApi {
 		authorities: BTreeMap::from([(
 			network,
@@ -94,30 +122,63 @@ pub async fn test_withdrawal() {
 			(active[1].clone(), network),
 			(active[2].clone(), network),
 		]),
-		outgoing_messages: BTreeMap::new(),
+		outgoing_messages: BTreeMap::from([((network, 1), message.clone())]),
 		incoming_messages: Arc::new(RwLock::new(BTreeMap::new())),
 		incoming_nonce: Arc::new(RwLock::new(BTreeMap::new())),
-		outgoing_nonce: BTreeMap::new(),
+		outgoing_nonce: BTreeMap::from([(network, 1)]),
 	});
 
-	let foreign_connector = Arc::new(DummyForeignConnector { active });
+	let foreign_connector = Arc::new(DummyForeignConnector {
+		authorities: HashMap::from([(0, active)]),
+		incoming_nonce: Arc::new(RwLock::new(0)),
+		incoming_messages: Arc::new(RwLock::new(HashMap::new())),
+	});
 
-	let ob_peers = peers
+	let validators = peers
 		.iter()
 		.enumerate()
 		.map(|(id, (key, is_auth))| (id, key, runtime.clone(), *is_auth, foreign_connector.clone()))
 		.collect();
 
-	let future = initialize_thea(&mut testnet, ob_peers).await;
-	testnet.run_until_connected().await;
-	tokio::spawn(future);
-	// Generate and finalize two block to start finality
-	generate_and_finalize_blocks(3, &mut testnet).await;
-	testnet.run_until_sync().await;
-	generate_and_finalize_blocks(3, &mut testnet).await;
-	testnet.run_until_idle().await;
+	let mut workers = create_workers_array(&mut testnet, validators).await;
 
-	tokio::time::sleep(Duration::from_secs(100)).await;
+	// We have created two thea validator worker nodes - let the fun begin!
 
-	assert_eq!(*runtime.incoming_nonce.read().get(&1).unwrap(), 1);
+	generate_and_finalize_blocks(1, &mut testnet).await;
+
+	assert_eq!(workers.len(), 3);
+	//  Check for new message from foreign chain
+	let mut count = 1;
+	for (worker, finality_future) in &mut workers {
+		info!(target:"test", "Waiting for next finalized event; worker id: {count:?}");
+		let next_finalized_blk = finality_future.next().await.unwrap();
+		// Progress the worker's chain
+		worker.handle_finality_notification(&next_finalized_blk).await.unwrap();
+		// Progress the worker's foreign driver
+		worker.try_process_foreign_chain_events().await.unwrap();
+		assert_eq!(worker.message_cache.read().len(), 1);
+		count += 1;
+	}
+
+	// At this point, all workers generated their own message, signed and gossiped it.
+	// not if we artificially gossip these messages to each other.
+
+	// Get all the messages
+	let message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
+	let message1 = workers[1].0.message_cache.read().get(&message).cloned().unwrap();
+	let message2 = workers[2].0.message_cache.read().get(&message).cloned().unwrap();
+
+	// Send 1,2 to 0
+	workers[0].0.process_gossip_message(&mut message1.clone(), None).await.unwrap(); // We got majority here
+	assert_eq!(foreign_connector.incoming_messages.read().len(), 1);
+	assert_eq!(*foreign_connector.incoming_nonce.read(), 1);
+	// We can't assert_eq the full message as the signature is different due to aggregation
+	assert_eq!(foreign_connector.incoming_messages.read().get(&1).unwrap().data, message.data);
+	assert!(workers[0].0.message_cache.read().is_empty());
+	workers[0].0.process_gossip_message(&mut message2.clone(), None).await.unwrap();
+	assert!(workers[0].0.message_cache.read().is_empty());
+
+	// Check for new events and should return no new messages on foreign
+	workers[0].0.try_process_foreign_chain_events().await.unwrap();
+	assert!(workers[0].0.message_cache.read().is_empty());
 }
