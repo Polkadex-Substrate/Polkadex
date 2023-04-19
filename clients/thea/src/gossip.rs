@@ -1,11 +1,18 @@
-use crate::types::GossipMessage;
+use crate::{connector::traits::ForeignConnector, types::GossipMessage};
+use log::error;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
+use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::{Block, Hash, Header};
-use std::{collections::BTreeSet, sync::Arc};
+use sp_tracing::info;
+use std::{
+	collections::{BTreeMap, BTreeSet},
+	sync::Arc,
+};
+use thea_primitives::{Message, TheaApi, NATIVE_NETWORK};
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -30,29 +37,47 @@ where
 	_topic: B::Hash,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
+	cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	foreign_last_nonce: Arc<RwLock<u64>>, /* Nonce of foreign message that was last processed in
+	                                       * native */
+	native_last_nonce: Arc<RwLock<u64>>, /* Nonce of native message that was last processed in
+	                                      * foreign */
 }
 
 impl<B> GossipValidator<B>
 where
 	B: Block,
 {
-	pub fn new() -> GossipValidator<B> {
+	pub fn new(
+		cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+		foreign_last_nonce: Arc<RwLock<u64>>,
+		native_last_nonce: Arc<RwLock<u64>>,
+	) -> GossipValidator<B> {
 		GossipValidator {
 			_topic: topic::<B>(),
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
+			cache,
+			foreign_last_nonce,
+			native_last_nonce,
 		}
 	}
 
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
 		// verify the message with our message cache and foreign chain connector
-		//
-		todo!()
+		if message.payload.network == NATIVE_NETWORK {
+			// Message origin is foreign
+			self.foreign_last_nonce.read().lt(&message.payload.nonce)
+		} else {
+			// Message origin is native
+			self.native_last_nonce.read().lt(&message.payload.nonce)
+		}
 	}
 
 	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
-		// TODO: When should we rebroadcast a message
-		true
+		// We rebroadcast it as long as its in our cache, if its not in our cache,
+		// then don't broadcast it, its removed from cache when the message is accepted.
+		self.cache.read().contains_key(&message.payload)
 	}
 }
 
@@ -61,6 +86,7 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
+		info!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
 		match role {
 			ObservedRole::Authority => {
 				self.peers.write().insert(*who);
@@ -73,6 +99,7 @@ where
 	}
 
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
+		info!(target:"thea", "New peer connected: id: {:?}",who);
 		self.peers.write().remove(who);
 		self.fullnodes.write().remove(who);
 	}

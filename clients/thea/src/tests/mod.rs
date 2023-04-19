@@ -87,6 +87,7 @@ impl TestApi {
 	}
 
 	fn get_last_processed_nonce(&self, network: Network) -> u64 {
+		assert_ne!(network, 0); // don't ask for native network here.
 		*self.incoming_nonce.read().get(&network).unwrap_or(&0)
 	}
 }
@@ -187,7 +188,7 @@ impl TestNetFactory for TheaTestnet {
 	}
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![],
+			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
 			is_authority: false,
 			..Default::default()
 		})
@@ -283,10 +284,14 @@ where
 }
 
 pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut TheaTestnet) {
-	let old_finalized = testnet.peer(0).client().info().finalized_number;
-	testnet.peer(0).push_blocks(count, false);
+	let fullnode_id = testnet.peers().len() - 1;
+	let old_finalized = testnet.peer(fullnode_id).client().info().finalized_number;
+	testnet.peer(fullnode_id).push_blocks(count, false);
 	// wait for blocks to propagate
 	testnet.run_until_sync().await; // It should be run_until_sync() for finality to work properly.
 
-	assert_eq!(old_finalized + count as u64, testnet.peer(0).client().info().finalized_number);
+	assert_eq!(
+		old_finalized + count as u64,
+		testnet.peer(fullnode_id).client().info().finalized_number
+	);
 }
