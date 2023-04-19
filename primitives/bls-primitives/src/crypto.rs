@@ -20,7 +20,7 @@ pub const BLS_KEYSTORE_PATH: &str = "polkadex/.keystore/";
 pub trait BlsExt {
 	#[allow(clippy::result_unit_err)]
 	fn add_signature(agg_signature: &Signature, new: &Signature) -> Result<Signature, ()> {
-		add_signature(agg_signature,new)
+		add_signature(agg_signature, new)
 	}
 
 	fn all() -> Vec<Public> {
@@ -72,7 +72,7 @@ pub trait BlsExt {
 }
 
 #[cfg(feature = "std")]
-pub fn add_signature_(sig1: &Signature, sig2: &Signature) -> Result<Signature,()> {
+pub fn add_signature_(sig1: &Signature, sig2: &Signature) -> Result<Signature, ()> {
 	let agg_signature = match crate::BLSSignature::from_bytes(sig1.0.as_ref()) {
 		Ok(sig) => sig,
 		Err(_) => return Err(()),
