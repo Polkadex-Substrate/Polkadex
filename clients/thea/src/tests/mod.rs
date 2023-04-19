@@ -1,25 +1,30 @@
 use std::{collections::BTreeMap, future::Future, sync::Arc};
 
 use futures::{stream::FuturesUnordered, StreamExt};
-use parity_scale_codec::Encode;
+use parity_scale_codec::{Codec, Encode};
 use parking_lot::RwLock;
+use sc_client_api::Backend;
 use sc_keystore::LocalKeystore;
+use sc_network::NetworkService;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
-	TestNetFactory,
+	PeersFullClient, TestNetFactory,
 };
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_core::Pair;
+use sp_consensus::SyncOracle;
+use sp_core::{Pair, H256};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 
+use crate::Client;
 use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
 
-use crate::connector::traits::ForeignConnector;
+use crate::{connector::traits::ForeignConnector, worker::ObWorker};
 
+pub mod deposit;
 pub mod withdrawal;
 
 #[derive(Clone, Default)]
@@ -281,6 +286,76 @@ where
 	}
 
 	workers.for_each(|_| async move {})
+}
+
+use crate::GossipNetwork;
+
+async fn create_workers_array<R, FC>(
+	net: &mut TheaTestnet,
+	peers: Vec<(usize, &AccountKeyring, Arc<R>, bool, Arc<FC>)>,
+) -> Vec<
+	ObWorker<
+		Block,
+		substrate_test_runtime_client::Backend,
+		PeersFullClient,
+		Arc<NetworkService<Block, H256>>,
+		Arc<NetworkService<Block, H256>>,
+		R,
+		FC,
+	>,
+>
+where
+	R: ProvideRuntimeApi<Block> + Default + Sync + Send,
+	R::Api: TheaApi<Block>,
+	FC: ForeignConnector,
+{
+	let mut workers = Vec::new();
+	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
+		net.peers[peer_id].data.is_validator = is_validator;
+
+		let mut keystore = None;
+
+		if is_validator {
+			// Generate the crypto material with test keys,
+			// we have to use file based keystore,
+			// in memory keystore doesn't seem to work here
+			keystore = Some(Arc::new(
+				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
+			));
+			let (pair, seed) =
+				thea_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
+			// Insert the key
+			keystore
+				.as_ref()
+				.unwrap()
+				.insert_unknown(thea_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
+				.await
+				.unwrap();
+			// Check if the key is present or not
+			keystore
+				.as_ref()
+				.unwrap()
+				.key_pair::<thea_primitives::crypto::Pair>(&pair.public())
+				.unwrap();
+		}
+
+		let worker_params = crate::worker::WorkerParams {
+			client: net.peers[peer_id].client().as_client(),
+			backend: net.peers[peer_id].client().as_backend(),
+			runtime: api,
+			sync_oracle: net.peers[peer_id].network_service().clone(),
+			keystore,
+			network: net.peers[peer_id].network_service().clone(),
+			protocol_name: crate::thea_protocol_name::NAME.into(),
+			_marker: Default::default(),
+			is_validator,
+			metrics: None,
+			foreign_chain: connector,
+		};
+		let gadget = crate::worker::ObWorker::new(worker_params).await;
+		workers.push(gadget)
+	}
+	workers
 }
 
 pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut TheaTestnet) {

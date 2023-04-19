@@ -1,16 +1,14 @@
 use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
-	tests::{generate_and_finalize_blocks, initialize_thea, make_thea_ids, TestApi, TheaTestnet},
+	tests::{create_workers_array, make_thea_ids, TestApi, TheaTestnet},
 	types::GossipMessage,
 };
 use async_trait::async_trait;
 use log::info;
 use parking_lot::RwLock;
-use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
-use subxt::ext::frame_metadata::StorageEntryModifier::Default;
 use thea_primitives::{AuthorityId, Message, ValidatorSet};
 
 pub struct DummyForeignConnector {
@@ -44,11 +42,11 @@ impl ForeignConnector for DummyForeignConnector {
 	}
 
 	async fn send_transaction(&self, message: GossipMessage) {
-		todo!()
+		unimplemented!()
 	}
 
 	async fn check_message(&self, message: &Message) -> Result<bool, Error> {
-		info!(target:"thea-test", "CHecking new message...");
+		info!(target:"thea-test", "Checking new message...");
 		Ok(message ==
 			&Message {
 				block_no: 10,
@@ -66,12 +64,11 @@ impl ForeignConnector for DummyForeignConnector {
 	}
 }
 
-#[ignore]
 #[tokio::test]
-pub async fn test_withdrawal() {
+pub async fn test_foreign_deposit() {
 	sp_tracing::try_init_simple();
 
-	let mut testnet = TheaTestnet::new(3, 1);
+	let mut testnet = TheaTestnet::new(3, 0);
 	let network = 1;
 	let peers = &[
 		(AccountKeyring::Alice, true),
@@ -102,22 +99,13 @@ pub async fn test_withdrawal() {
 
 	let foreign_connector = Arc::new(DummyForeignConnector { active });
 
-	let ob_peers = peers
+	let validators = peers
 		.iter()
 		.enumerate()
 		.map(|(id, (key, is_auth))| (id, key, runtime.clone(), *is_auth, foreign_connector.clone()))
 		.collect();
 
-	let future = initialize_thea(&mut testnet, ob_peers).await;
-	testnet.run_until_connected().await;
-	tokio::spawn(future);
-	// Generate and finalize two block to start finality
-	generate_and_finalize_blocks(3, &mut testnet).await;
-	testnet.run_until_sync().await;
-	generate_and_finalize_blocks(3, &mut testnet).await;
-	testnet.run_until_idle().await;
+	let workers = create_workers_array(&mut testnet, validators).await;
 
-	tokio::time::sleep(Duration::from_secs(100)).await;
-
-	assert_eq!(*runtime.incoming_nonce.read().get(&1).unwrap(), 1);
+	// We have created two thea validator worker nodes - let the fun begin!
 }
