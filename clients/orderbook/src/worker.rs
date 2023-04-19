@@ -352,7 +352,7 @@ where
 		info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
-		summary.aggregate_signature = Some(signature.clone().into());
+		summary.aggregate_signature = Some(signature.into());
 		let bit_index = active_set.iter().position(|v| v == &signing_key).unwrap();
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index);
