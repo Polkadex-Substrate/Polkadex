@@ -2,9 +2,8 @@ use log::warn;
 use std::sync::Arc;
 
 use crate::error::Error;
-use orderbook_primitives::crypto::{AuthorityId, AuthoritySignature};
+use orderbook_primitives::crypto::{AuthorityId};
 use sc_keystore::LocalKeystore;
-use sp_application_crypto::RuntimeAppPublic;
 use sp_core::Pair;
 
 pub struct OrderbookKeyStore {
@@ -55,14 +54,5 @@ impl OrderbookKeyStore {
 				}
 			},
 		}
-	}
-
-	pub fn verify(
-		&self,
-		public_key: &AuthorityId,
-		signature: &AuthoritySignature,
-		message: &[u8; 32],
-	) -> bool {
-		public_key.verify(message, signature)
 	}
 }
