@@ -1,15 +1,19 @@
 use std::{collections::BTreeMap, future::Future, sync::Arc};
 
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{
+	stream::{Fuse, FuturesUnordered, Next},
+	StreamExt,
+};
 use parity_scale_codec::{Codec, Encode};
 use parking_lot::RwLock;
-use sc_client_api::Backend;
+use sc_client_api::{Backend, BlockchainEvents, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::NetworkService;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
 	PeersFullClient, TestNetFactory,
 };
+use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_consensus::SyncOracle;
 use sp_core::{Pair, H256};
@@ -67,7 +71,10 @@ impl TestApi {
 		signature: AuthoritySignature,
 	) -> Result<(), ()> {
 		let last_nonce = self.incoming_nonce.read().get(&message.network).unwrap_or(&0).clone();
-		assert_eq!(last_nonce.saturating_add(1), message.nonce);
+		if last_nonce.saturating_add(1) != message.nonce {
+			return Ok(()) // Don't throw error here to mimic the behaviour of transaction
+			  // pool which ignores the the transaction if the nonce is wrong.
+		}
 
 		// Find who all signed this payload
 		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
@@ -293,7 +300,7 @@ use crate::GossipNetwork;
 async fn create_workers_array<R, FC>(
 	net: &mut TheaTestnet,
 	peers: Vec<(usize, &AccountKeyring, Arc<R>, bool, Arc<FC>)>,
-) -> Vec<
+) -> Vec<(
 	ObWorker<
 		Block,
 		substrate_test_runtime_client::Backend,
@@ -303,7 +310,8 @@ async fn create_workers_array<R, FC>(
 		R,
 		FC,
 	>,
->
+	Fuse<TracingUnboundedReceiver<FinalityNotification<Block>>>,
+)>
 where
 	R: ProvideRuntimeApi<Block> + Default + Sync + Send,
 	R::Api: TheaApi<Block>,
@@ -353,7 +361,9 @@ where
 			foreign_chain: connector,
 		};
 		let gadget = crate::worker::ObWorker::new(worker_params).await;
-		workers.push(gadget)
+		let finality_stream_future =
+			net.peers[peer_id].client().as_client().finality_notification_stream().fuse();
+		workers.push((gadget, finality_stream_future))
 	}
 	workers
 }

@@ -64,7 +64,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector> 
 /// A Orderbook worker plays the Orderbook protocol
 pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	// utilities
-	client: Arc<C>,
+	pub(crate) client: Arc<C>,
 	backend: Arc<BE>,
 	runtime: Arc<R>,
 	sync_oracle: SO,
@@ -76,7 +76,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	gossip_engine: GossipEngine<B>,
 	gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
-	message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
@@ -169,7 +169,7 @@ where
 	pub async fn check_message(&mut self, message: &GossipMessage) -> Result<bool, Error> {
 		// TODO: Do signature check here.
 		// Based on network use the corresponding api to check if the message if valid or not.
-		if message.payload.network == NATIVE_NETWORK {
+		if message.payload.network != NATIVE_NETWORK {
 			self.foreign_chain.check_message(&message.payload).await
 		} else {
 			let finalized_blk = self.last_finalized_blk.clone();
@@ -222,15 +222,16 @@ where
 						{
 							// We got majority on this message
 							if incoming_message.payload.network == NATIVE_NETWORK {
+								self.foreign_chain.send_transaction(incoming_message.clone()).await;
+							} else {
 								self.runtime.runtime_api().incoming_message(
 									&self.last_finalized_blk,
 									incoming_message.payload.clone(),
 									incoming_message.bitmap.clone(),
 									incoming_message.aggregate_signature.into(),
 								)??;
-							} else {
-								self.foreign_chain.send_transaction(incoming_message.clone()).await
 							}
+							self.message_cache.write().remove(&incoming_message.payload);
 						} else {
 							// Cache it.
 							self.message_cache
@@ -270,15 +271,16 @@ where
 						info!(target:"thea","Got majority on message: nonce: {:?}, network: {:?}", message.payload.nonce, message.payload.network);
 						// We got majority on this message
 						if incoming_message.payload.network == NATIVE_NETWORK {
+							self.foreign_chain.send_transaction(incoming_message.clone()).await;
+						} else {
 							self.runtime.runtime_api().incoming_message(
 								&self.last_finalized_blk,
 								incoming_message.payload.clone(),
 								incoming_message.bitmap.clone(),
 								incoming_message.aggregate_signature.into(),
 							)??;
-						} else {
-							self.foreign_chain.send_transaction(incoming_message.clone()).await;
 						}
+						self.message_cache.write().remove(&incoming_message.payload);
 					} else {
 						// Cache it.
 						self.message_cache
