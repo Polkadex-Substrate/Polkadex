@@ -26,7 +26,10 @@ members = [
     "pallets/router",
     "pallets/liquidity",
     "pallets/thea-executor",
-    "misc/load-testing"
+    "pallets/thea-cross-chain-governance",
+    "pallets/rewards/rpc",
+    "pallets/rewards/rpc/runtime-api",
+    "misc/load-testing",
 ]
 
 [workspace.dependencies]
