@@ -254,7 +254,7 @@ impl<T: Config> Pallet<T> {
 	/// Return the current active validator set for all networks
 	pub fn full_validator_set() -> Option<ValidatorSet<T::TheaId>> {
 		let mut full_list = sp_std::vec::Vec::new();
-		for list in <Authorities<T>>::iter_values(){
+		for list in <Authorities<T>>::iter_values() {
 			full_list.append(&mut list.to_vec())
 		}
 		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();

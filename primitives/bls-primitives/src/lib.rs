@@ -22,9 +22,9 @@ use sp_runtime_interface::pass_by::PassByInner;
 #[cfg(feature = "std")]
 use substrate_bip39::seed_from_entropy;
 
-use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use crate::crypto::add_signature_;
+use sp_std::vec::Vec;
 
 /// An identifier used to match public keys against bls keys
 pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");
@@ -89,8 +89,8 @@ impl KeyStore {
 impl Signature {
 	// Aggregates two signatures
 	#[cfg(feature = "std")]
-	pub fn add_signature(&self, signature: &Signature) -> Result<Signature,()> {
-		add_signature_(&self,signature)
+	pub fn add_signature(&self, signature: &Signature) -> Result<Signature, ()> {
+		add_signature_(&self, signature)
 	}
 }
 
