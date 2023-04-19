@@ -72,19 +72,11 @@ pub trait BlsExt {
 }
 
 #[cfg(feature = "std")]
-pub fn add_signature_(sig1: &Signature, sig2: &Signature) -> Result<Signature, ()> {
-	let agg_signature = match crate::BLSSignature::from_bytes(sig1.0.as_ref()) {
-		Ok(sig) => sig,
-		Err(_) => return Err(()),
-	};
-	let new = match crate::BLSSignature::from_bytes(sig2.0.as_ref()) {
-		Ok(sig) => sig,
-		Err(_) => return Err(()),
-	};
+pub fn add_signature_(sig1: &Signature, sig2: &Signature) -> Result<Signature, BLST_ERROR> {
+	let agg_signature = crate::BLSSignature::from_bytes(sig1.0.as_ref())?;
+	let new = crate::BLSSignature::from_bytes(sig2.0.as_ref())?;
 	let mut agg_signature = AggregateSignature::from_signature(&agg_signature);
-	if agg_signature.add_signature(&new, true).is_err() {
-		return Err(())
-	}
+	agg_signature.add_signature(&new, true)?;
 	Ok(Signature::from(crate::BLSSignature::from_aggregate(&agg_signature)))
 }
 

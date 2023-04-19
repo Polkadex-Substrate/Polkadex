@@ -123,6 +123,7 @@ sp_api::decl_runtime_apis! {
 		/// Get Thea network associated with Validator
 		fn network(auth: AuthorityId) -> Option<Network>;
 		/// Incoming messages
+		#[allow(clippy::result_unit_err)]
 		fn incoming_message(message: Message, bitmap: Vec<u128>, signature: AuthoritySignature) -> Result<(),()>;
 		/// Get last processed nonce for a given network
 		fn get_last_processed_nonce(network: Network) -> u64;
@@ -135,9 +136,10 @@ pub trait TheaIncomingExecutor {
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
+	#[allow(clippy::result_unit_err)]
 	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(), ()>;
 }
 
 impl TheaIncomingExecutor for () {
-	fn execute_deposits(network: Network, deposits: Vec<u8>) {}
+	fn execute_deposits(_network: Network, _deposits: Vec<u8>) {}
 }

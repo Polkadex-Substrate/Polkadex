@@ -1,9 +1,8 @@
-use log::{error, warn};
+use log::warn;
 use std::sync::Arc;
 
 use crate::error::Error;
 use sc_keystore::LocalKeystore;
-use sp_application_crypto::RuntimeAppPublic;
 use sp_core::Pair;
 use thea_primitives::crypto::{AuthorityId, AuthoritySignature};
 
@@ -25,7 +24,7 @@ impl TheaKeyStore {
 			Some(keystore) =>
 				for key in active {
 					if let Some(local_pair) =
-						keystore.key_pair::<thea_primitives::crypto::Pair>(&key)?
+						keystore.key_pair::<thea_primitives::crypto::Pair>(key)?
 					{
 						return Ok(local_pair.public())
 					}
@@ -41,7 +40,7 @@ impl TheaKeyStore {
 				warn!(target:"thea","Keystore not available");
 				Err(Error::Keystore("Keystore not available in this context".to_string()))
 			},
-			Some(keystore) => match keystore.key_pair::<thea_primitives::crypto::Pair>(&public)? {
+			Some(keystore) => match keystore.key_pair::<thea_primitives::crypto::Pair>(public)? {
 				Some(local_pair) => Ok(local_pair.sign(message)),
 				None => {
 					warn!(target:"thea","No BLS key found");
@@ -49,14 +48,5 @@ impl TheaKeyStore {
 				},
 			},
 		}
-	}
-
-	pub fn verify(
-		&self,
-		public_key: &AuthorityId,
-		signature: &AuthoritySignature,
-		message: &[u8; 32],
-	) -> bool {
-		public_key.verify(message, signature)
 	}
 }

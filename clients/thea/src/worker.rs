@@ -1,45 +1,29 @@
-use std::{
-	collections::{BTreeMap, HashMap},
-	future::Future,
-	marker::PhantomData,
-	ops::AddAssign,
-	pin::Pin,
-	sync::Arc,
-	time::Duration,
-};
+use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
 
-use chrono::Utc;
-use futures::{channel::mpsc::UnboundedReceiver, FutureExt, StreamExt};
-use log::{debug, error, info, trace, warn};
+use futures::StreamExt;
+use log::{debug, error, info};
 use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
+use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
-use sc_network_common::service::NetworkPeers;
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_consensus::SyncOracle;
-use sp_core::{blake2_128, offchain::OffchainStorage};
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
-use tokio::time::Interval;
-
-use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
-use thea_primitives::{
-	crypto::AuthorityId, types::Message, AuthorityIndex, Network, TheaApi, ValidatorSet,
-	NATIVE_NETWORK, THEA_WORKER_PREFIX,
-};
+use thea_primitives::{types::Message, AuthorityIndex, Network, TheaApi, NATIVE_NETWORK};
 
 use crate::{
-	connector::{parachain::ParachainClient, traits::ForeignConnector},
+	connector::traits::ForeignConnector,
 	error::Error,
 	gossip::{topic, GossipValidator},
 	keystore::TheaKeyStore,
-	metric_add, metric_inc, metric_set,
+	metric_add, metric_inc,
 	metrics::Metrics,
 	types::GossipMessage,
 	Client,
@@ -65,16 +49,16 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector> 
 pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
 	// utilities
 	pub(crate) client: Arc<C>,
-	backend: Arc<BE>,
+	_backend: Arc<BE>,
 	runtime: Arc<R>,
 	sync_oracle: SO,
 	metrics: Option<Metrics>,
 	is_validator: bool,
-	network: Arc<N>,
+	_network: Arc<N>,
 	keystore: TheaKeyStore,
 	thea_network: Option<Network>,
 	gossip_engine: GossipEngine<B>,
-	gossip_validator: Arc<GossipValidator<B>>,
+	_gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
 	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
@@ -128,16 +112,16 @@ where
 
 		ObWorker {
 			client,
-			backend,
+			_backend: backend,
 			runtime,
 			metrics,
 			sync_oracle,
 			is_validator,
-			network: Arc::new(network),
+			_network: Arc::new(network),
 			keystore: TheaKeyStore::new(keystore),
 			thea_network: None,
 			gossip_engine,
-			gossip_validator,
+			_gossip_validator: gossip_validator,
 			message_cache,
 			last_foreign_nonce_processed: foreign_nonce,
 			last_native_nonce_processed: native_nonce,
@@ -160,8 +144,7 @@ where
 		info!(target:"thea", "Signature generated for thea");
 		let bit_index = active.validators.iter().position(|x| *x == signing_key).unwrap();
 
-		let mut bitmap: Vec<u128> =
-			prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
+		let bitmap: Vec<u128> = prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
 
 		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
@@ -172,7 +155,7 @@ where
 		if message.payload.network != NATIVE_NETWORK {
 			self.foreign_chain.check_message(&message.payload).await
 		} else {
-			let finalized_blk = self.last_finalized_blk.clone();
+			let finalized_blk = self.last_finalized_blk;
 			let network = self.thea_network.unwrap();
 			let result = self
 				.runtime
@@ -187,7 +170,7 @@ where
 	pub async fn process_gossip_message(
 		&mut self,
 		incoming_message: &mut GossipMessage,
-		remote: Option<PeerId>,
+		_: Option<PeerId>,
 	) -> Result<(), Error> {
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
@@ -245,7 +228,6 @@ where
 			Some(message) => {
 				// 1. incoming message has more signatories
 				let signed_auth_indexes = return_set_bits(&incoming_message.bitmap);
-				let signed_auth_indexes_local = return_set_bits(&message.bitmap);
 				// 2. Check if our signature is included or not
 				let did_we_sign_incoming_message =
 					signed_auth_indexes.contains(&local_index.saturated_into());
@@ -328,7 +310,7 @@ where
 		let network = self.thea_network.unwrap();
 
 		// Get the last processed foreign nonce from native
-		let mut best_incoming_nonce: u64 = self
+		let best_incoming_nonce: u64 = self
 			.runtime
 			.runtime_api()
 			.get_last_processed_nonce(&self.last_finalized_blk, network)?;
@@ -368,7 +350,7 @@ where
 	}
 
 	pub fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
-		let mut gossip_message = self.sign_message(message.clone())?;
+		let gossip_message = self.sign_message(message.clone())?;
 		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
 		self.message_cache.write().insert(message, gossip_message);
 		Ok(())
