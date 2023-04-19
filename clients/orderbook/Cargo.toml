@@ -17,6 +17,7 @@ serde = "1.0.152"
 serde_with = {version="2.3.2", features =["json"]}
 primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 serde_json = "1.0.94"
+blst = { version = "0.3.10", default-features = false }
 # Database stuff
 hash-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }

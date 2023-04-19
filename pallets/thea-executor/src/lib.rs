@@ -16,7 +16,6 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		log,
-		log::log,
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
 		traits::{Currency, ExistenceRequirement, ReservableCurrency},
@@ -186,7 +185,7 @@ pub mod pallet {
 				block_no.saturating_sub(T::BlockNumber::from(1u8)),
 			);
 			for (network_id, withdrawal) in pending_withdrawals {
-				T::Executor::execute_withdrawals(network_id, withdrawal.encode());
+				T::Executor::execute_withdrawals(network_id, withdrawal.encode()).unwrap() // TODO: @ZK fix this.;
 			}
 			//TODO: Clean Storage
 			Weight::default()
@@ -404,7 +403,7 @@ pub mod pallet {
 		}
 
 		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
-			let approved_deposit = Self::router(network, payload.clone())?;
+			let approved_deposit = Self::router(network, payload)?;
 			if <ApprovedDeposits<T>>::contains_key(&approved_deposit.recipient) {
 				<ApprovedDeposits<T>>::try_mutate(
 					approved_deposit.recipient.clone(),
@@ -457,7 +456,7 @@ pub mod pallet {
 				parachain_deposit.convert_multi_asset_to_asset_id_and_amount(),
 			) {
 				let network_id: u8 = asset_handler::pallet::Pallet::<T>::get_parachain_network_id();
-				Self::validation(asset, amount, network_id)?;
+				Self::validation(asset, amount)?;
 				Ok(ApprovedDeposit::new(
 					asset,
 					amount,
@@ -482,11 +481,7 @@ pub mod pallet {
 			}
 		}
 
-		pub fn validation(
-			asset_id: u128,
-			amount: u128,
-			network_id: u8,
-		) -> Result<(), DispatchError> {
+		pub fn validation(asset_id: u128, amount: u128) -> Result<(), DispatchError> {
 			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
 			// Ensure assets are registered
 			ensure!(

@@ -16,17 +16,11 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	log,
-	pallet_prelude::*,
-	traits::{Get, OneSessionHandler},
-	BoundedSlice, BoundedVec, Parameter,
-};
+use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 use parity_scale_codec::{Encode, MaxEncodedLen};
 use sp_runtime::{
-	generic::DigestItem,
-	traits::{BlockNumberProvider, IsMember, Member},
+	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	RuntimeAppPublic, SaturatedConversion,
 };
@@ -34,14 +28,11 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use polkadex_primitives::utils::return_set_bits;
-use thea_primitives::{
-	types::Message, AuthorityIndex, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
-};
+use thea_primitives::{types::Message, Network, ValidatorSet, NATIVE_NETWORK};
 
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::transactional;
-	use sp_runtime::Saturating;
 	use thea_primitives::{types::Message, TheaIncomingExecutor};
 
 	use super::*;
@@ -112,7 +103,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		TheaMessageQueued { message: Message },
+		TheaMessageExecuted { message: Message },
 	}
 
 	#[pallet::error]
@@ -182,6 +173,7 @@ pub mod pallet {
 					},
 				}
 			}
+			Self::deposit_event(Event::TheaMessageExecuted { message: payload.clone() });
 			// We are checking if the validator set is changed, then we update it here too
 			if current_set_id.saturating_add(1) == payload.validator_set_id {
 				<ValidatorSetId<T>>::put(current_set_id.saturating_add(1));
@@ -195,7 +187,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	fn validate_incoming_message(
-		bitmap: &Vec<u128>,
+		bitmap: &[u128],
 		payload: &Message,
 		signature: &T::Signature,
 	) -> TransactionValidity {
@@ -206,7 +198,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Find who all signed this payload
-		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
+		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
 
 		// Create a vector of public keys of everyone who signed
 		let auths = <Authorities<T>>::get(payload.validator_set_id);

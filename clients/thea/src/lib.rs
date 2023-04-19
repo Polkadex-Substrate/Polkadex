@@ -1,18 +1,13 @@
 #![feature(unwrap_infallible)]
-
-use futures::channel::mpsc::UnboundedReceiver;
-use parity_scale_codec::Codec;
-use parking_lot::{Mutex, RwLock};
 use prometheus::Registry;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sc_keystore::LocalKeystore;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
-use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
-use std::{future::Future, marker::PhantomData, sync::Arc};
-use thea_primitives::{Network, TheaApi};
+use std::{marker::PhantomData, sync::Arc};
+use thea_primitives::TheaApi;
 pub use thea_protocol_name::standard_name as protocol_standard_name;
 
 mod error;
@@ -40,10 +35,10 @@ pub(crate) mod thea_protocol_name {
 		chain_spec: &dyn ChainSpec,
 	) -> sc_network::ProtocolName {
 		let chain_prefix = match chain_spec.fork_id() {
-			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),
+			Some(fork_id) => format!("/{}/{fork_id}", hex::encode(genesis_hash)),
 			None => format!("/{}", hex::encode(genesis_hash)),
 		};
-		format!("{}{}", chain_prefix, NAME).into()
+		format!("{chain_prefix}{NAME}").into()
 	}
 }
 
@@ -86,13 +81,10 @@ where
 	// empty
 }
 
-use crate::types::GossipMessage;
-
 use crate::{
 	connector::{parachain::ParachainClient, traits::ForeignConnector},
 	worker::ObWorker,
 };
-use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
 
 /// Thea gadget initialization parameters.
@@ -182,7 +174,7 @@ where
 		foreign_chain: Arc::new(foreign_connector),
 	};
 
-	let mut worker = ObWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
+	let worker = ObWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
 
 	worker.run().await
 }

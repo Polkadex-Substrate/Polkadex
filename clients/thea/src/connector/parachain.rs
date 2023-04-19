@@ -1,14 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use async_trait::async_trait;
-use futures::TryFutureExt;
 use parity_scale_codec::Encode;
-use serde::Deserializer;
-use sp_arithmetic::traits::SaturatedConversion;
-use sp_core::{bounded::BoundedVec, ecdsa::Signature, sr25519, ConstU32, H256};
 use subxt::{dynamic::Value, storage::DynamicStorageAddress, OnlineClient, PolkadotConfig};
-
-use bls_primitives::Public;
 use thea_primitives::types::Message;
 
 use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMessage};

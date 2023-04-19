@@ -89,7 +89,7 @@ impl KeyStore {
 impl Signature {
 	// Aggregates two signatures
 	#[cfg(feature = "std")]
-	pub fn add_signature(&self, signature: &Signature) -> Result<Signature, ()> {
+	pub fn add_signature(self, signature: &Signature) -> Result<Signature, BLST_ERROR> {
 		add_signature_(&self, signature)
 	}
 }

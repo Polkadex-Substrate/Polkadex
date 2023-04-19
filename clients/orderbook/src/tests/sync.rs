@@ -81,7 +81,8 @@ pub async fn test_orderbook_snapshot() {
 	generate_and_finalize_blocks(5, &mut testnet, 3).await;
 
 	testnet.run_until_idle().await;
-	// We should have generated one snapshot by this point
+
+	/// We should have generated one snapshot by this point
 	assert_eq!(runtime.snapshots.read().len(), 1);
 	for peer in testnet.peers() {
 		let state_root = H256::from_slice(&*peer.data.working_state_root.read());
@@ -133,10 +134,6 @@ pub async fn test_orderbook_snapshot() {
 	let gadget = crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params);
 
 	testnet.run_until_connected().await;
-	println!(
-		"Num of peers connected: {:?}",
-		testnet.peers()[5].network_service().sync_num_connected()
-	);
 	// Start the worker.
 	tokio::spawn(gadget);
 	// Generate and finalize one block

@@ -53,5 +53,5 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		Self::change_authorities(bounded_next_authorities, bounded_next_queued_authorities);
 	}
 
-	fn on_disabled(i: u32) {}
+	fn on_disabled(_i: u32) {}
 }

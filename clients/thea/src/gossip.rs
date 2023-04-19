@@ -1,18 +1,16 @@
-use crate::{connector::traits::ForeignConnector, types::GossipMessage};
-use log::error;
+use crate::types::GossipMessage;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
-use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::{Block, Hash, Header};
 use sp_tracing::info;
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	sync::Arc,
 };
-use thea_primitives::{Message, TheaApi, NATIVE_NETWORK};
+use thea_primitives::{Message, NATIVE_NETWORK};
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash

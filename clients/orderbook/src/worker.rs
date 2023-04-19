@@ -722,7 +722,7 @@ where
 			let mut want_chunks = vec![];
 			let mut highest_index = 0; // We need the highest index to prepare the bitmap for index in available_chunks {
 			for index in available_chunks {
-				if let Some(chunk_status) = self.sync_state_map.get_mut(&index.into()) {
+				if let Some(chunk_status) = self.sync_state_map.get_mut(&index) {
 					if *chunk_status == StateSyncStatus::Unavailable {
 						want_chunks.push(index);
 						highest_index = index.max(highest_index);
@@ -819,11 +819,6 @@ where
 				}
 			}
 		}
-	}
-
-	#[cfg(test)]
-	pub fn get_sync_state_map_value(&self, key: u16) -> StateSyncStatus {
-		self.sync_state_map.get(&key).unwrap().clone()
 	}
 
 	pub async fn process_gossip_message(

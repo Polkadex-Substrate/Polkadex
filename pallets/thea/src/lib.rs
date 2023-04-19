@@ -16,28 +16,19 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	log,
-	pallet_prelude::*,
-	traits::{Get, OneSessionHandler},
-	BoundedSlice, BoundedVec, Parameter,
-};
+use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
 use parity_scale_codec::{Encode, MaxEncodedLen};
 use sp_runtime::{
-	generic::DigestItem,
-	traits::{BlockNumberProvider, IsMember, Member},
+	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
 
 pub use pallet::*;
-use polkadex_primitives::{utils::return_set_bits, BlockNumber};
-use thea_primitives::{
-	types::Message, AuthorityIndex, AuthoritySignature, Network, ValidatorSet,
-	GENESIS_AUTHORITY_SET_ID,
-};
+use polkadex_primitives::utils::return_set_bits;
+use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
 
 mod session;
 
@@ -169,7 +160,8 @@ pub mod pallet {
 			_signature: T::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			<NetworkPreference<T>>::insert(authority, network);
+			<NetworkPreference<T>>::insert(authority.clone(), network);
+			Self::deposit_event(Event::NetworkUpdated { authority, network });
 			Ok(())
 		}
 
@@ -209,7 +201,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_incoming_message(
-		bitmap: &Vec<u128>,
+		bitmap: &[u128],
 		payload: &Message,
 		signature: &T::Signature,
 	) -> TransactionValidity {
@@ -220,7 +212,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Find who all signed this payload
-		let signed_auths_indexes: Vec<usize> = return_set_bits(&bitmap);
+		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
 
 		// Create a vector of public keys of everyone who signed
 		let auths: Vec<T::TheaId> = <Authorities<T>>::get(payload.network).to_vec();
@@ -277,7 +269,7 @@ impl<T: Config> Pallet<T> {
 			BoundedVec<T::TheaId, T::MaxAuthorities>,
 		> {
 			let mut map = sp_std::collections::btree_map::BTreeMap::new();
-			for auth in &new {
+			for auth in list {
 				if let Some(network) = <NetworkPreference<T>>::get(auth) {
 					map.entry(network)
 						.and_modify(|list: &mut BoundedVec<T::TheaId, T::MaxAuthorities>| {
@@ -322,7 +314,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn initialize_authorities(_authorities: &Vec<T::TheaId>) -> Result<(), ()> {
+	fn initialize_authorities(_authorities: &[T::TheaId]) -> Result<(), ()> {
 		// We don't the network pref of validator hence empty vector
 		let id = GENESIS_AUTHORITY_SET_ID;
 		<ValidatorSetId<T>>::put(id);
@@ -337,6 +329,7 @@ impl<T: Config> Pallet<T> {
 		<NetworkPreference<T>>::get(auth)
 	}
 
+	#[allow(clippy::result_unit_err)]
 	pub fn submit_incoming_message(
 		payload: Message,
 		bitmap: Vec<u128>,

@@ -2,7 +2,6 @@ use crate::{error::Error, types::GossipMessage};
 use async_trait::async_trait;
 use std::time::Duration;
 use thea_primitives::types::Message;
-use tokio::sync::oneshot::Sender;
 
 #[async_trait]
 pub trait ForeignConnector: Send + Sync {

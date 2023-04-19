@@ -24,6 +24,7 @@ polkadex-primitives = { path = "../../primitives/polkadex" }
 subxt = "0.27.1"
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
+blst = { version = "0.3.10", default-features = false }
 
 
 sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
