@@ -49,6 +49,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 
 [dev-dependencies]
+substrate-test-runtime-client = {git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 mockall = "0.11.1"
 testing_logger = "0.1.1"
 mockall_double = "0.3.0"
