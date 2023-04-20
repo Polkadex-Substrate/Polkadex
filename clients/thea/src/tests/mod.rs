@@ -32,6 +32,7 @@ pub mod deposit;
 pub mod withdrawal;
 
 #[derive(Clone, Default)]
+// This is the mock of native runtime state
 pub(crate) struct TestApi {
 	authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
 	validator_set_id: ValidatorSetId,
