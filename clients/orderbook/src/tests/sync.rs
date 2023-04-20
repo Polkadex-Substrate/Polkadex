@@ -1,11 +1,11 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use futures::SinkExt;
 use memory_db::MemoryDB;
 use parking_lot::RwLock;
 use primitive_types::H256;
 
-use sc_network_common::service::{NetworkStateInfo};
+use sc_network_common::service::NetworkStateInfo;
 use sc_network_test::{FullPeerConfig, TestNetFactory};
 use sp_arithmetic::traits::SaturatedConversion;
 

@@ -1,6 +1,4 @@
-use crate::tests::{
-	generate_and_finalize_blocks, make_ob_ids, ObTestnet, TestApi,
-};
+use crate::tests::{generate_and_finalize_blocks, make_ob_ids, ObTestnet, TestApi};
 use futures::{future::BoxFuture, StreamExt};
 use memory_db::MemoryDB;
 use orderbook_primitives::{

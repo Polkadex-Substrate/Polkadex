@@ -4,7 +4,7 @@ use futures::{
 	stream::{Fuse, FuturesUnordered},
 	StreamExt,
 };
-use parity_scale_codec::{Encode};
+use parity_scale_codec::Encode;
 use parking_lot::RwLock;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
 use sc_keystore::LocalKeystore;
@@ -19,7 +19,6 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{Pair, H256};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
-
 
 use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
@@ -295,8 +294,6 @@ where
 
 	workers.for_each(|_| async move {})
 }
-
-
 
 async fn create_workers_array<R, FC>(
 	net: &mut TheaTestnet,
