@@ -1533,7 +1533,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {
 		let pending_withdrawals_interval =
 			<PendingWithdrawalsAllowedPerSnapshot<T>>::get().unwrap_or(20);
-		let block_interval = <SnapshotIntervalBlock<T>>::get().unwrap_or(5.saturated_into());
+		let block_interval = <SnapshotIntervalBlock<T>>::get().unwrap_or(5u32.saturated_into());
 		(pending_withdrawals_interval, block_interval)
 	}
 
