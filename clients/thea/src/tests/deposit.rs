@@ -74,6 +74,7 @@ impl ForeignConnector for DummyForeignConnector {
 }
 
 #[tokio::test]
+#[serial_test::serial]
 pub async fn test_foreign_deposit() {
 	sp_tracing::try_init_simple();
 
