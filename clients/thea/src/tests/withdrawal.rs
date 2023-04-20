@@ -2,8 +2,7 @@ use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
 	tests::{
-		create_workers_array, generate_and_finalize_blocks, make_thea_ids,
-		TestApi, TheaTestnet,
+		create_workers_array, generate_and_finalize_blocks, make_thea_ids, TestApi, TheaTestnet,
 	},
 	types::GossipMessage,
 };

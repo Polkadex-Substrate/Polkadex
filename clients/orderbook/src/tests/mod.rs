@@ -1,8 +1,6 @@
 pub mod rpc;
 pub mod sync;
 
-
-
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
@@ -10,7 +8,7 @@ use orderbook_primitives::{
 	types::{ObMessage, TradingPair},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
-use parking_lot::{RwLock};
+use parking_lot::RwLock;
 use polkadex_primitives::{
 	ingress::IngressMessages, ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId,
 	BlockNumber,
