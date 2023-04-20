@@ -4908,6 +4908,7 @@ dependencies = [
  "scale-info",
  "serde",
  "serde_json",
+ "serde_with",
  "sp-api",
  "sp-application-crypto",
  "sp-core",

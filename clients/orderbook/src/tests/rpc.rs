@@ -5,7 +5,7 @@ use futures::{future::BoxFuture, SinkExt, StreamExt};
 use memory_db::MemoryDB;
 use orderbook_primitives::{
 	crypto::AuthorityId,
-	types::{ObMessage, UserActions},
+	types::{AccountAsset, ObMessage, UserActions},
 };
 use orderbook_rpc::OrderbookRpc;
 use parking_lot::RwLock;
@@ -44,7 +44,10 @@ pub async fn test_orderbook_rpc() {
 		latest_snapshot_nonce: Arc::new(Default::default()),
 		snapshots: Arc::new(Default::default()),
 		unprocessed: Arc::new(Default::default()),
-		main_to_proxy_mapping: HashMap::new(),
+		main_to_proxy_mapping: HashMap::from([(
+			main.to_account_id(),
+			vec![proxy1.to_account_id(), proxy2.to_account_id()],
+		)]),
 		pending_snapshot: None,
 		operator_key: Some(orderbook_operator.public()),
 		trading_config: vec![],
@@ -153,9 +156,26 @@ pub async fn test_orderbook_rpc() {
 
 	let result: Vec<u8> = rpc_handle.get_orderbook_recovery_state_inner().await.unwrap();
 
-	let offchain_state: orderbook_primitives::types::ObRecoveryState =
+	let offchain_state: orderbook_primitives::recovery::ObRecoveryState =
 		serde_json::from_slice(&result).unwrap();
-    // Assert everything.
+	// Assert everything.
+
+	assert_eq!(offchain_state.worker_nonce, 0); // We didn't generate any snapshot yet.
+	assert_eq!(offchain_state.state_change_id, 0); // We didn't generate any snapshot yet.
+	assert_eq!(offchain_state.snapshot_id, 0); // We didn't generate any snapshot yet.
+	assert_eq!(offchain_state.account_ids.len(), 1);
+	assert_eq!(
+		offchain_state.account_ids.get(&main.to_account_id()).unwrap(),
+		&vec![proxy1.to_account_id(), proxy2.to_account_id()]
+	);
+	assert_eq!(
+		offchain_state
+			.balances
+			.get(&AccountAsset { main: main.to_account_id(), asset: AssetId::Polkadex })
+			.cloned()
+			.unwrap(),
+		Decimal::from_f64(1.456).unwrap()
+	);
 }
 
 #[derive(Clone)]

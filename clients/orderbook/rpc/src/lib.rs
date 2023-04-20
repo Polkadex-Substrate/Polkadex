@@ -14,8 +14,9 @@ use jsonrpsee::{
 use log::info;
 use orderbook::DbRef;
 use orderbook_primitives::{
-	types::{AccountAsset, ObMessage, ObRecoveryState},
+	types::{AccountAsset, ObMessage},
 	ObApi,
+	recovery::ObRecoveryState
 };
 use parking_lot::RwLock;
 use polkadex_primitives::BlockNumber;
@@ -142,7 +143,7 @@ impl<Runtime, Block> OrderbookRpc<Runtime, Block>
 			.get_all_accounts_and_proxies(&BlockId::number(last_finalized_block.saturated_into()))
 			.map_err(|err| JsonRpseeError::Custom(err.to_string() + "failed to get accounts"))?;
 
-		info!(target:"orderbook-rpc","Getting last finalized snapshot summary");
+		info!(target:"orderbook-rpc","main accounts found: {:?}, Getting last finalized snapshot summary",all_register_accounts.len());
 		// get snapshot summary
 		let last_snapshot_summary = self
 			.runtime
