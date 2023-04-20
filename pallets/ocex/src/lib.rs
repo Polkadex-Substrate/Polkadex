@@ -28,7 +28,10 @@ use sp_runtime::traits::Zero;
 
 use pallet_timestamp as timestamp;
 use sp_core::H256;
-use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
+use sp_runtime::{
+	traits::{AccountIdConversion, UniqueSaturatedInto},
+	SaturatedConversion,
+};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -1359,13 +1362,13 @@ pub mod pallet {
 	// Snapshot will be produced after snapshot interval block
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_interval_block)]
-	pub(super) type SnapshotIntervalBlock<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+	pub(super) type SnapshotIntervalBlock<T: Config> = StorageValue<_, T::BlockNumber, OptionQuery>;
 
 	// Snapshot will be produced after reaching pending withdrawals limit
 	#[pallet::storage]
 	#[pallet::getter(fn pending_withdrawals_allowed_per_snapshot)]
 	pub(super) type PendingWithdrawalsAllowedPerSnapshot<T: Config> =
-		StorageValue<_, u64, ValueQuery>;
+		StorageValue<_, u64, OptionQuery>;
 
 	// Exchange Operation State
 	#[pallet::storage]
@@ -1528,8 +1531,9 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	}
 
 	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {
-		let pending_withdrawals_interval = <PendingWithdrawalsAllowedPerSnapshot<T>>::get();
-		let block_interval = <SnapshotIntervalBlock<T>>::get();
+		let pending_withdrawals_interval =
+			<PendingWithdrawalsAllowedPerSnapshot<T>>::get().unwrap_or(20);
+		let block_interval = <SnapshotIntervalBlock<T>>::get().unwrap_or(5u32.saturated_into());
 		(pending_withdrawals_interval, block_interval)
 	}
 
