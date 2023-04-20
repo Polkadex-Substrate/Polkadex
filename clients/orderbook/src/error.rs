@@ -51,6 +51,8 @@ pub enum Error {
 	InvalidTrade,
 	#[error("Unable to find trading pair config")]
 	TradingPairConfigNotFound,
+	#[error("Error during BLS operation: {0}")]
+	BLSError(String),
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {
@@ -92,5 +94,11 @@ impl From<JoinError> for Error {
 impl From<sc_keystore::Error> for Error {
 	fn from(value: sc_keystore::Error) -> Self {
 		Self::Keystore(value.to_string())
+	}
+}
+
+impl From<blst::BLST_ERROR> for Error {
+	fn from(value: blst::BLST_ERROR) -> Self {
+		Self::BLSError(format!("{value:?}"))
 	}
 }

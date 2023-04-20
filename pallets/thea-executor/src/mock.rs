@@ -13,7 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::pallet as thea;
+use crate::pallet as thea_executor;
 use core::marker::PhantomData;
 use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
@@ -25,8 +25,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 use std::collections::{BTreeMap, BTreeSet};
-use thea_primitives::thea_types::OnSessionChange;
-use thea_staking::SessionChanged;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -42,10 +40,10 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+		Thea: thea::{Pallet, Call, Storage, Event<T>},
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
 		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
-		Thea: thea::{Pallet, Storage, Call, Event<T>},
-		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>},
+		TheaExecutor: thea_executor::{Pallet, Call, Storage, Event<T>}
 	}
 );
 
@@ -83,6 +81,8 @@ impl system::Config for Test {
 
 parameter_types! {
 	pub const MaxLocks: u32 = 50;
+	pub const MaxReserves: u32 = 50;
+	pub const ExistentialDeposit: u32 = 50;
 }
 
 impl pallet_balances::Config for Test {
@@ -132,6 +132,18 @@ impl pallet_assets::Config for Test {
 }
 
 parameter_types! {
+	pub const MaxAuthorities: u32 = 10;
+}
+
+impl thea::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type TheaId = thea_primitives::AuthorityId;
+	type Signature = thea_primitives::AuthoritySignature;
+	type MaxAuthorities = MaxAuthorities;
+	type Executor = TheaExecutor;
+}
+
+parameter_types! {
 	pub const ChainId: u8 = 1;
 	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: u64 = 1000;
@@ -165,88 +177,29 @@ impl asset_handler::pallet::Config for Test {
 }
 
 parameter_types! {
-	pub static ExistentialDeposit: Balance = 1;
-	pub const MaxReserves: u32 = 50;
-}
-
-pallet_staking_reward_curve::build! {
-	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		// Before, we launch the products we want 50% of supply to be staked
-		ideal_stake: 0_500_000,
-		falloff: 0_050_000,
-		max_piece_count: 40,
-		test_precision: 0_005_000,
-	);
-}
-
-pub struct MockPallet(PhantomData<u32>);
-
-impl SessionChanged for MockPallet {
-	type Network = u8;
-	type OnSessionChange = OnSessionChange<u64>;
-	fn on_new_session(_map: BTreeMap<Self::Network, Self::OnSessionChange>) {
-		// Do nothing lol
-	}
-	fn set_new_networks(_networks: BTreeSet<Self::Network>) {
-		// Do nothing lol
-	}
-}
-
-parameter_types! {
-	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
+	pub const TheaPalletId: PalletId = PalletId(*b"th/accnt");
 	pub const WithdrawalSize: u32 = 10;
 	pub const ParaId: u32 = 2040;
 }
 
-impl thea::Config for Test {
+impl thea_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
+	type AssetCreateUpdateOrigin = EnsureRoot<Self::AccountId>;
+	type Executor = Thea;
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
-	type ExtrinsicSubmittedNotifier = TheaStaking;
-	type Weights = crate::weights::WeightInfo<Test>;
 }
 
-//Install Staking Pallet
-parameter_types! {
-	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const SessionLength: u32 = 25;
-	pub const UnbondingDelay: u32 = 10;
-	pub const MaxUnlockChunks: u32 = 10;
-	pub const CandidateBond: Balance = 1_000_000_000_000;
-	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
-	pub const StakingDataPruneDelay: u32 = 6;
-	pub const IdealActiveValidators: u32 = 3;
-	pub const ModerateSK: u8 = 5; // 5% of stake to slash
-	pub const SevereSK: u8 = 20; // 20% of stake to slash
-	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
-	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
-	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type OverarchingCall = RuntimeCall;
 }
 
-impl thea_staking::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type SessionLength = SessionLength;
-	type UnbondingDelay = UnbondingDelay;
-	type MaxUnlockChunks = MaxUnlockChunks;
-	type CandidateBond = CandidateBond;
-	type StakingReserveIdentifier = StakingReserveIdentifier;
-	type ModerateSlashingCoeficient = ModerateSK;
-	type SevereSlashingCoeficient = SevereSK;
-	type ReportersRewardCoeficient = ReporterRewardKF;
-	type SlashingThreshold = SlashingTh;
-	type TreasuryPalletId = TreasuryPalletId;
-	type StakingDataPruneDelay = StakingDataPruneDelay;
-	type SessionChangeNotifier = Thea;
-	type GovernanceOrigin = EnsureRoot<u64>;
-	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
-	type Currency = Balances;
-	type ActiveValidators = IdealActiveValidators;
-}
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();

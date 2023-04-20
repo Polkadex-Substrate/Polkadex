@@ -1,5 +1,5 @@
 [package]
-name = "orderbook"
+name = "thea-client"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 hash256-std-hasher = { version = "0.15.2", default-features = false }
+async-trait = "0.1.68"
 hex = "0.4.2"
 log = "0.4"
 futures = "0.3"
@@ -14,24 +15,17 @@ thiserror = "1.0.39"
 chrono = "0.4.24"
 parking_lot = "0.12.1"
 serde = "1.0.152"
-serde_with = {version="2.3.2", features =["json"]}
-primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 serde_json = "1.0.94"
-blst = { version = "0.3.10", default-features = false }
-# Database stuff
-hash-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-trie-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-trie-root = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-reqwest = "0.11.14"
-tokio = {version="1.26.0", features = ["rt-multi-thread"]}
-orderbook-primitives = { path = "../../primitives/orderbook" }
+tokio = "1.26.0"
+tokio-stream = {version="0.1.12", features = ["time"]}
+thea-primitives = { path = "../../primitives/thea" }
 bls-primitives = { path = "../../primitives/bls-primitives" }
 polkadex-primitives = { path = "../../primitives/polkadex" }
-rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
+subxt = { git = "https://github.com/Polkadex-Substrate/subxt.git", branch = "polkadot-v0.9.37", features = ["substrate-compat"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
+blst = { version = "0.3.10", default-features = false }
+
 
 sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
@@ -56,7 +50,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 
 [dev-dependencies]
-env_logger = "0.10.0"
+substrate-test-runtime-client = {git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 mockall = "0.11.1"
 testing_logger = "0.1.1"
 mockall_double = "0.3.0"
