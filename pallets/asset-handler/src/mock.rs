@@ -26,7 +26,8 @@ use sp_runtime::{
 
 use crate::pallet as asset_handler;
 
-use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
+use frame_support::PalletId;
+use sp_runtime::traits::AccountIdConversion;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -56,8 +57,9 @@ impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
+	type DbWeight = ();
+	type Origin = Origin;
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -65,9 +67,8 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type BlockHashCount = BlockHashCount;
-	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
@@ -90,13 +91,13 @@ parameter_types! {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
-	type WeightInfo = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -113,13 +114,10 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type Balance = Balance;
-	type RemoveItemsLimit = ();
 	type AssetId = u128;
-	type AssetIdParameter = parity_scale_codec::Compact<u128>;
 	type Currency = Balances;
-	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<Self::AccountId>>;
 	type ForceOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
@@ -129,46 +127,37 @@ impl pallet_assets::Config for Test {
 	type StringLimit = StringLimit;
 	type Freezer = ();
 	type Extra = ();
-	type CallbackHandle = ();
 	type WeightInfo = ();
 }
 
 parameter_types! {
 	pub const ChainId: u8 = 1;
-	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: u64 = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
 }
 
 impl chainbridge::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
-	type Proposal = RuntimeCall;
+	type Proposal = Call;
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
 	//type PalletId = ChainbridgePalletId;
 }
 
-parameter_types! {
-	pub const PolkadexAssetId: u128 = 1000;
-	pub const PDEXHolderAccount: u64 = 10u64;
-}
-
 impl asset_handler::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type Currency = Balances;
 	type AssetManager = Assets;
 	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
-	type NativeCurrencyId = ();
 	type TreasuryPalletId = ChainbridgePalletId;
-	type ParachainNetworkId = ParachainNetworkId;
-	type PDEXHolderAccount = PDEXHolderAccount;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let _alice = 1u64;
+	let bridge_id: u64 = PalletId(*b"polka/bg").into_account_truncating();
 	let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_balances::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)

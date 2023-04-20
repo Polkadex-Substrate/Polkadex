@@ -1,6 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-#![deny(unused_crate_dependencies)]
+
+use frame_support::weights::Weight;
+pub mod weights;
+
+/// Weight functions needed for pdex_migration.
+pub trait WeightInfo {
+	fn set_migration_operational_status() -> Weight;
+	fn set_relayer_status() -> Weight;
+	fn mint() -> Weight;
+	fn unlock() -> Weight;
+	fn remove_minted_tokens() -> Weight;
+}
 
 #[cfg(test)]
 mod mock;
@@ -25,6 +36,8 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 
+	use crate::WeightInfo;
+
 	const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
 
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -46,13 +59,15 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	pub trait Config: frame_system::Config + pallet_balances::Config + pallet_sudo::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Max Number of relayers
 		#[pallet::constant]
 		type MaxRelayers: Get<u32>;
 		/// Lock Period
 		#[pallet::constant]
 		type LockPeriod: Get<<Self as frame_system::Config>::BlockNumber>;
+		/// Weight Info for PDEX migration
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -157,8 +172,7 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(Weight::default())]
-		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_migration_operational_status())]
 		pub fn set_migration_operational_status(
 			origin: OriginFor<T>,
 			status: bool,
@@ -168,8 +182,7 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
-		#[pallet::weight(Weight::default())]
-		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_relayer_status())]
 		pub fn set_relayer_status(
 			origin: OriginFor<T>,
 			relayer: T::AccountId,
@@ -181,8 +194,7 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
-		#[pallet::weight(Weight::default())]
-		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::mint())]
 		pub fn mint(
 			origin: OriginFor<T>,
 			beneficiary: T::AccountId,
@@ -204,8 +216,7 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(Weight::default())]
-		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::unlock())]
 		pub fn unlock(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let beneficiary = ensure_signed(origin)?;
 			if Self::operational() {
@@ -216,8 +227,7 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(Weight::default())]
-		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_minted_tokens())]
 		pub fn remove_minted_tokens(
 			origin: OriginFor<T>,
 			beneficiary: T::AccountId,

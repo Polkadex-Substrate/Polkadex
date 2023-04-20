@@ -20,17 +20,11 @@
 
 //! Service implementation. Specialized wrapper over substrate service.
 use crate::rpc as node_rpc;
-use futures::{
-	channel::mpsc::{unbounded, UnboundedReceiver},
-	prelude::*,
-};
-use memory_db::{HashKey, MemoryDB};
+use futures::prelude::*;
 use node_polkadex_runtime::RuntimeApi;
-use parking_lot::RwLock;
 use polkadex_client::ExecutorDispatch;
-use polkadex_primitives::{Block, BlockNumber};
-use reference_trie::RefHasher;
-use sc_client_api::BlockBackend;
+use polkadex_primitives::Block;
+use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
@@ -72,7 +66,7 @@ pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) -> u32 
 pub fn create_extrinsic(
 	client: &FullClient,
 	sender: sp_core::sr25519::Pair,
-	function: impl Into<node_polkadex_runtime::RuntimeCall>,
+	function: impl Into<node_polkadex_runtime::Call>,
 	nonce: Option<u32>,
 ) -> node_polkadex_runtime::UncheckedExtrinsic {
 	let function = function.into();
@@ -124,7 +118,6 @@ pub fn create_extrinsic(
 		extra,
 	)
 }
-use orderbook_primitives::types::ObMessage;
 use sc_network_common::service::NetworkEventStream;
 
 #[allow(clippy::type_complexity)]
@@ -149,17 +142,10 @@ pub fn new_partial(
 			),
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
-			UnboundedReceiver<ObMessage>,
-			Arc<RwLock<BlockNumber>>,
-			Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
-			Arc<RwLock<[u8; 32]>>,
 		),
 	>,
 	ServiceError,
 > {
-	let last_successful_block_no_snapshot_created = Arc::new(RwLock::new(0_u32.saturated_into()));
-	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
-	let working_state_root = Arc::new(RwLock::new([0; 32]));
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -184,7 +170,6 @@ pub fn new_partial(
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 		)?;
-
 	let client = Arc::new(client);
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
@@ -211,7 +196,7 @@ pub fn new_partial(
 	let justification_import = grandpa_block_import.clone();
 
 	let (block_import, babe_link) = sc_consensus_babe::block_import(
-		sc_consensus_babe::configuration(&*client)?,
+		sc_consensus_babe::Config::get(&*client)?,
 		grandpa_block_import,
 		client.clone(),
 	)?;
@@ -235,16 +220,15 @@ pub fn new_partial(
 			let uncles =
 				sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
 
-			Ok((slot, timestamp, uncles))
+			Ok((timestamp, slot, uncles))
 		},
 		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
+		sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
 	let import_setup = (block_import, grandpa_link, babe_link);
-
-	let (ob_messge_sink, ob_message_stream) = unbounded::<ObMessage>();
 
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, babe_link) = &import_setup;
@@ -267,10 +251,7 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.sync_keystore();
 		let chain_spec = config.chain_spec.cloned_box();
-		let last_successful_block_no_snapshot_created_cloned =
-			last_successful_block_no_snapshot_created.clone();
-		let memory_db_cloned = memory_db.clone();
-		let working_state_root_cloned = working_state_root.clone();
+
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),
@@ -290,11 +271,6 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
-				orderbook: ob_messge_sink.clone(),
-				last_successful_block_no_snapshot_created:
-					last_successful_block_no_snapshot_created_cloned.clone(),
-				memory_db: memory_db_cloned.clone(),
-				working_state_root: working_state_root_cloned.clone(),
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)
@@ -303,7 +279,6 @@ pub fn new_partial(
 		(rpc_extensions_builder, rpc_setup)
 	};
 
-	// here the struct should be passed back
 	Ok(sc_service::PartialComponents {
 		client,
 		backend,
@@ -312,16 +287,7 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (
-			Box::new(rpc_extensions_builder),
-			import_setup,
-			rpc_setup,
-			telemetry,
-			ob_message_stream,
-			last_successful_block_no_snapshot_created,
-			memory_db,
-			working_state_root,
-		),
+		other: (Box::new(rpc_extensions_builder), import_setup, rpc_setup, telemetry),
 	})
 }
 
@@ -348,23 +314,11 @@ pub fn new_full_base(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		// need to add all the parameters required here
-		other:
-			(
-				rpc_builder,
-				import_setup,
-				rpc_setup,
-				mut telemetry,
-				orderbook_stream,
-				last_successful_block_no_snapshot_created,
-				memory_db,
-				working_state_root,
-			),
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
-
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
@@ -375,27 +329,6 @@ pub fn new_full_base(
 		.extra_sets
 		.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
 
-	// Orderbook
-	let orderbook_protocol_name = orderbook::protocol_standard_name(
-		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
-		config.chain_spec.as_ref(),
-	);
-
-	config
-		.network
-		.extra_sets
-		.push(orderbook::orderbook_peers_set_config(orderbook_protocol_name.clone()));
-
-	// Thea
-	let thea_protocol_name = thea_client::protocol_standard_name(
-		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
-		config.chain_spec.as_ref(),
-	);
-
-	config
-		.network
-		.extra_sets
-		.push(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
 		sc_finality_grandpa_warp_sync::request_response_config_for_chain(
@@ -412,7 +345,7 @@ pub fn new_full_base(
 		Vec::default(),
 	));
 
-	let (network, system_rpc_tx, tx_handler_controller, network_starter) =
+	let (network, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
 			client: client.clone(),
@@ -442,14 +375,13 @@ pub fn new_full_base(
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend: backend.clone(),
+		backend,
 		client: client.clone(),
 		keystore: keystore_container.sync_keystore(),
 		network: network.clone(),
 		transaction_pool: transaction_pool.clone(),
 		task_manager: &mut task_manager,
 		system_rpc_tx,
-		tx_handler_controller,
 		telemetry: telemetry.as_mut(),
 		rpc_builder: Box::new(rpc_builder),
 	})?;
@@ -466,6 +398,9 @@ pub fn new_full_base(
 			prometheus_registry.as_ref(),
 			telemetry.as_ref().map(|x| x.handle()),
 		);
+
+		let can_author_with =
+			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
 		let client_clone = client.clone();
 		let slot_duration = babe_link.config().slot_duration();
@@ -493,18 +428,13 @@ pub fn new_full_base(
                             slot_duration,
                         );
 
-					let storage_proof =
-						sp_transaction_storage_proof::registration::new_data_provider(
-							&*client_clone,
-							&parent,
-						)?;
-
-					Ok((slot, timestamp, uncles, storage_proof))
+					Ok((timestamp, slot, uncles))
 				}
 			},
 			force_authoring,
 			backoff_authoring_blocks,
 			babe_link,
+			can_author_with,
 			block_proposal_slot_portion: SlotProportion::new(0.5),
 			max_block_proposal_slot_portion: None,
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
@@ -562,7 +492,7 @@ pub fn new_full_base(
 		observer_enabled: false,
 		keystore,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		local_role: role.clone(),
+		local_role: role,
 		protocol_name: grandpa_protocol_name,
 	};
 
@@ -579,7 +509,7 @@ pub fn new_full_base(
 			network: network.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry: prometheus_registry.clone(),
+			prometheus_registry,
 			shared_voter_state,
 		};
 
@@ -591,48 +521,6 @@ pub fn new_full_base(
 			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
-
-	let config = orderbook::ObParams {
-		client: client.clone(),
-		backend: backend.clone(),
-		runtime: client.clone(),
-		keystore: keystore_container.local_keystore(),
-		network: network.clone(),
-		prometheus_registry: prometheus_registry.clone(),
-		protocol_name: orderbook_protocol_name,
-		marker: Default::default(),
-		is_validator: role.is_authority(),
-		message_sender_link: orderbook_stream,
-		last_successful_block_number_snapshot_created: last_successful_block_no_snapshot_created,
-		memory_db,
-		working_state_root,
-	};
-
-	// Orderbook task
-	task_manager.spawn_handle().spawn_blocking(
-		"orderbook",
-		None,
-		orderbook::start_orderbook_gadget(config),
-	);
-
-	let config = thea_client::TheaParams {
-		client: client.clone(),
-		backend,
-		runtime: client.clone(),
-		keystore: keystore_container.local_keystore(),
-		network: network.clone(),
-		prometheus_registry,
-		protocol_name: thea_protocol_name,
-		marker: Default::default(),
-		is_validator: role.is_authority(),
-	};
-
-	// Thea task
-	task_manager.spawn_handle().spawn_blocking(
-		"thea",
-		None,
-		thea_client::start_thea_gadget(config),
-	);
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })
@@ -649,7 +537,7 @@ mod tests {
 	use codec::Encode;
 	use node_polkadex_runtime::{
 		constants::{currency::CENTS, time::SLOT_DURATION},
-		Address, BalancesCall, RuntimeCall, UncheckedExtrinsic,
+		Address, BalancesCall, Call, UncheckedExtrinsic,
 	};
 	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
@@ -723,8 +611,8 @@ mod tests {
 				Ok((node, setup_handles.unwrap()))
 			},
 			|service, &mut (ref mut block_import, ref babe_link)| {
-				let parent_hash = service.client().chain_info().best_hash;
-				let parent_header = service.client().header(parent_hash).unwrap().unwrap();
+				let parent_id = BlockId::number(service.client().chain_info().best_number);
+				let parent_header = service.client().header(&parent_id).unwrap().unwrap();
 				let parent_hash = parent_header.hash();
 				let parent_number = *parent_header.number();
 
@@ -761,7 +649,10 @@ mod tests {
 						.epoch_changes()
 						.shared_data()
 						.epoch_data(&epoch_descriptor, |slot| {
-							sc_consensus_babe::Epoch::genesis(babe_link.config(), slot)
+							sc_consensus_babe::Epoch::genesis(
+								babe_link.config().genesis_config(),
+								slot,
+							)
 						})
 						.unwrap();
 
@@ -775,16 +666,14 @@ mod tests {
 					slot += 1;
 				};
 
-				let inherent_data = futures::executor::block_on(
-					(
-						sp_timestamp::InherentDataProvider::new(
-							std::time::Duration::from_millis(SLOT_DURATION * slot).into(),
-						),
-						sp_consensus_babe::inherents::InherentDataProvider::new(slot.into()),
-					)
-						.create_inherent_data(),
+				let inherent_data = (
+					sp_timestamp::InherentDataProvider::new(
+						std::time::Duration::from_millis(SLOT_DURATION * slot).into(),
+					),
+					sp_consensus_babe::inherents::InherentDataProvider::new(slot.into()),
 				)
-				.expect("Creates inherent data");
+					.create_inherent_data()
+					.expect("Creates inherent data");
 
 				digest.push(<DigestItem as CompatibleDigestItem>::babe_pre_digest(babe_pre_digest));
 
@@ -840,10 +729,8 @@ mod tests {
 				};
 				let signer = charlie.clone();
 
-				let function = RuntimeCall::Balances(BalancesCall::transfer {
-					dest: to.into(),
-					value: amount,
-				});
+				let function =
+					Call::Balances(BalancesCall::transfer { dest: to.into(), value: amount });
 
 				let tip = 0;
 				let extra: node_polkadex_runtime::SignedExtra = (

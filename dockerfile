@@ -1,13 +1,12 @@
 FROM bitnami/git:latest AS builder
 
 RUN apt-get update && apt-get install --assume-yes curl build-essential cmake clang jq
-
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
   export PATH="$PATH:$HOME/.cargo/bin" && \
   rustup toolchain install nightly && \
   rustup target add wasm32-unknown-unknown --toolchain nightly && \
   rustup default nightly && \
-  git clone https://github.com/Polkadex-Substrate/Polkadex -b mainnet-release && \
+  git clone https://github.com/Polkadex-Substrate/Polkadex -b main-net-runtime && \
   cd Polkadex && \
   git checkout $(git describe --tags --abbrev=0) && \
   cargo build --release

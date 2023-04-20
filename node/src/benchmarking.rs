@@ -19,7 +19,7 @@
 //! Setup code for [`super::command`] which would otherwise bloat that module.
 //!
 //! Should only be used for benchmarking as it may break in other contexts.
-#![allow(dead_code, warnings)]
+
 use crate::service::{create_extrinsic, FullClient};
 
 use node_polkadex_runtime::{BalancesCall, SystemCall};
@@ -113,7 +113,8 @@ pub fn inherent_benchmark_data() -> Result<InherentData> {
 	let d = Duration::from_millis(0);
 	let timestamp = sp_timestamp::InherentDataProvider::new(d.into());
 
-	futures::executor::block_on(timestamp.provide_inherent_data(&mut inherent_data))
-		.map_err(|e| format!("creating inherent data: {:?}", e))?;
+	timestamp
+		.provide_inherent_data(&mut inherent_data)
+		.map_err(|e| format!("creating inherent data: {e:?}"))?;
 	Ok(inherent_data)
 }

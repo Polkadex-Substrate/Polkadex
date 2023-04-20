@@ -32,15 +32,15 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions for pdex_migration.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pdex_migration::WeightInfo for WeightInfo<T> {
 	// Storage: PDEXMigration Operational (r:0 w:1)
 	fn set_migration_operational_status() -> Weight {
-		(1_000_000 as Weight)
+		(1_727_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: PDEXMigration Relayers (r:0 w:1)
 	fn set_relayer_status() -> Weight {
-		(14_000_000 as Weight)
+		(13_231_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: PDEXMigration Operational (r:1 w:0)
@@ -50,7 +50,7 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	// Storage: Balances Locks (r:1 w:1)
 	// Storage: PDEXMigration LockedTokenHolders (r:0 w:1)
 	fn mint() -> Weight {
-		(70_000_000 as Weight)
+		(69_169_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
@@ -58,7 +58,7 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	// Storage: PDEXMigration LockedTokenHolders (r:1 w:1)
 	// Storage: Balances Locks (r:1 w:1)
 	fn unlock() -> Weight {
-		(30_000_000 as Weight)
+		(28_553_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
@@ -66,7 +66,7 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	// Storage: Balances Locks (r:1 w:1)
 	// Storage: PDEXMigration MintableTokens (r:1 w:1)
 	fn remove_minted_tokens() -> Weight {
-		(56_000_000 as Weight)
+		(54_981_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
