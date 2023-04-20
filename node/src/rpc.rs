@@ -30,11 +30,16 @@
 
 #![warn(missing_docs)]
 
+use futures::channel::mpsc::UnboundedSender;
 use std::sync::Arc;
 
 use jsonrpsee::RpcModule;
+use orderbook_primitives::{types::ObMessage, ObApi};
+use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
+use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
+use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use sc_client_api::AuxStore;
-use sc_consensus_babe::{Config, Epoch};
+use sc_consensus_babe::{BabeConfiguration, Epoch};
 use sc_consensus_epochs::SharedEpochChanges;
 use sc_finality_grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
@@ -49,13 +54,13 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
 
-use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
-use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use memory_db::{HashKey, MemoryDB};
+use reference_trie::RefHasher;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
 	/// BABE protocol config.
-	pub babe_config: Config,
+	pub babe_config: BabeConfiguration,
 	/// BABE pending epoch changes.
 	pub shared_epoch_changes: SharedEpochChanges<Block, Epoch>,
 	/// The keystore that manages the keys of the node.
@@ -76,6 +81,9 @@ pub struct GrandpaDeps<B> {
 	pub finality_provider: Arc<FinalityProofProvider<B, Block>>,
 }
 
+use pallet_rewards_rpc::PolkadexRewardsRpc;
+use parking_lot::RwLock;
+
 /// Full client dependencies.
 pub struct FullDeps<C, P, SC, B> {
 	/// The client instance to use.
@@ -92,6 +100,15 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
+	/// Channel for sending ob messages to worker
+	pub orderbook: UnboundedSender<ObMessage>,
+	/// last successful block number snapshot created
+	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
+	/// memory db
+	#[allow(clippy::type_complexity)]
+	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
+	/// working_state_root
+	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -111,12 +128,15 @@ where
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BabeApi<Block>,
 	C::Api: BlockBuilder<Block>,
+	C::Api: ObApi<Block>,
 	P: TransactionPool + 'static,
 	SC: SelectChain<Block> + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 	C::Api: pallet_asset_handler_rpc::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
+	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
 {
+	use pallet_rewards_rpc::PolkadexRewardsRpcApiServer;
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
 	use sc_finality_grandpa_rpc::{Grandpa, GrandpaApiServer};
@@ -126,7 +146,19 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa } = deps;
+	let FullDeps {
+		client,
+		pool,
+		select_chain,
+		chain_spec,
+		deny_unsafe,
+		babe,
+		grandpa,
+		orderbook,
+		last_successful_block_no_snapshot_created,
+		memory_db,
+		working_state_root,
+	} = deps;
 
 	let BabeDeps { keystore, babe_config, shared_epoch_changes } = babe;
 	let GrandpaDeps {
@@ -152,7 +184,7 @@ where
 	)?;
 	io.merge(
 		Grandpa::new(
-			subscription_executor,
+			subscription_executor.clone(),
 			shared_authority_set.clone(),
 			shared_voter_state,
 			justification_stream,
@@ -168,7 +200,20 @@ where
 
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
-	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
+	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
+	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	// Create Orderbook RPC
+	io.merge(
+		OrderbookRpc::new(
+			subscription_executor,
+			orderbook,
+			last_successful_block_no_snapshot_created,
+			memory_db,
+			working_state_root,
+			client,
+		)
+		.into_rpc(),
+	)?;
 
 	Ok(io)
 }

@@ -3,10 +3,10 @@ name: Continuous Integration
 on:
   pull_request: []
   push:
-    branches: [Develop, main-net-runtime, redux-ci-testing]
+    branches: [Develop, main-net-runtime]
 
 env:
-  RUNNER_INSTANCE_TYPE: c5.4xlarge
+  RUNNER_INSTANCE_TYPE: c5d.9xlarge
 
 jobs:
   start-runner:
@@ -50,7 +50,7 @@ jobs:
         run: |
           cat /etc/issue 
           apt update
-          apt install -y clang lldb lld gcc
+          apt install -y clang lldb lld gcc zip protobuf-compiler build-essential curl libssl-dev
       - name: Install latest nightly with wasm target
         uses: actions-rs/toolchain@v1
         with:
@@ -73,11 +73,12 @@ jobs:
           rustup -V
           cargo fmt -- --version
           cargo clippy -V
-      - name: Build Project
-        run: |
-          cargo clean
-          cargo build --release --features runtime-benchmarks
-          RUSTFLAGS="-D warnings" cargo build
+      - name: Build Project with runtime benchmarks
+        run: cargo build --features runtime-benchmarks
+      - name: Normal Build
+        run: RUSTFLAGS="-D warnings" cargo build
+      - name: Runtime build
+        run: cargo build -p node-polkadex-runtime
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
@@ -100,6 +101,17 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
+#      - name: Zip compiled binaries
+#        if: contains(github.ref, 'Develop')
+#        # Zipping is required since billing is based on the raw uploaded size.
+#        run: zip -r -j polkadex-node.zip ./target/release/polkadex-node
+#      - name: Upload zipped binaries as an artifact
+#        if: contains(github.ref, 'Develop')
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: polkadex-node
+#          path: ./polkadex-node.zip
+#          if-no-files-found: error
   stop-runner:
     name: Stop self-hosted EC2 runner
     needs:
