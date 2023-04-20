@@ -199,7 +199,7 @@ impl<T: Config> Pallet<T> {
 
 		// Find who all signed this payload
 		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
-
+		// TODO: Super majority check here.
 		// Create a vector of public keys of everyone who signed
 		let auths = <Authorities<T>>::get(payload.validator_set_id);
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
