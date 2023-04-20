@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, future::Future, sync::Arc};
 
 use futures::{
-	stream::{Fuse, FuturesUnordered, Next},
+	stream::{Fuse, FuturesUnordered},
 	StreamExt,
 };
-use parity_scale_codec::{Codec, Encode};
+use parity_scale_codec::{Encode};
 use parking_lot::RwLock;
-use sc_client_api::{Backend, BlockchainEvents, FinalityNotification};
+use sc_client_api::{BlockchainEvents, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::NetworkService;
 use sc_network_test::{
@@ -15,12 +15,12 @@ use sc_network_test::{
 };
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_consensus::SyncOracle;
+
 use sp_core::{Pair, H256};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 
-use crate::Client;
+
 use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
@@ -256,7 +256,7 @@ where
 			keystore = Some(Arc::new(
 				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
 			));
-			let (pair, seed) =
+			let (pair, _seed) =
 				thea_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
 			// Insert the key
 			keystore
@@ -296,7 +296,7 @@ where
 	workers.for_each(|_| async move {})
 }
 
-use crate::GossipNetwork;
+
 
 async fn create_workers_array<R, FC>(
 	net: &mut TheaTestnet,
@@ -331,7 +331,7 @@ where
 			keystore = Some(Arc::new(
 				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
 			));
-			let (pair, seed) =
+			let (pair, _seed) =
 				thea_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
 			// Insert the key
 			keystore
