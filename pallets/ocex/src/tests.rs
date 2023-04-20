@@ -18,8 +18,7 @@
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
 use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, SnapshotAccLimit,
-	UNIT_BALANCE,
+	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, UNIT_BALANCE,
 };
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -29,7 +28,7 @@ use sp_std::collections::btree_map::BTreeMap;
 use crate::mock::*;
 use frame_system::EventRecord;
 
-use polkadex_primitives::{AccountId, AssetsLimit, WithdrawalLimit};
+use polkadex_primitives::{AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{bounded::BoundedBTreeSet, Pair};
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};

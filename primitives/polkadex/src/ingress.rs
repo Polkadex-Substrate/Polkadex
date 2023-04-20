@@ -1,22 +1,15 @@
-use crate::{
-	ocex::{OCEXConfig, TradingPairConfig},
-	AssetId,
-};
+use crate::{ocex::TradingPairConfig, AssetId};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
-use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
-use sp_core::H256;
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum IngressMessages<AccountId> {
-	// Start Enclave
-	StartEnclave(OCEXConfig<AccountId>),
 	// Open Trading Pair
 	OpenTradingPair(TradingPairConfig),
 	// Update Trading Pair Config
@@ -29,12 +22,8 @@ pub enum IngressMessages<AccountId> {
 	AddProxy(AccountId, AccountId),
 	// Main Acc, Proxy Account
 	RemoveProxy(AccountId, AccountId),
-	// Enclave registration confirmation
-	EnclaveRegistered(AccountId),
 	// Close Trading Pair
 	CloseTradingPair(TradingPairConfig),
-	// Latest snapshot (snapshot number, state_root, worker_nonce, state_change_id, state_hash)
-	LatestSnapshot(u64, H256, u64, u64, BoundedVec<H128, StateHashesLimit>),
 	// Resetting the balances of Account
 	SetFreeReserveBalanceForAccounts(BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>),
 	// Changing the exchange state in order-book

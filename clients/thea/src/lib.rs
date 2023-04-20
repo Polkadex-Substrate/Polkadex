@@ -1,5 +1,6 @@
 #![feature(unwrap_infallible)]
 use prometheus::Registry;
+use sc_chain_spec::ChainType;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sc_keystore::LocalKeystore;
 use sp_api::ProvideRuntimeApi;
@@ -82,7 +83,10 @@ where
 }
 
 use crate::{
-	connector::{parachain::ParachainClient, traits::ForeignConnector},
+	connector::{
+		parachain::ParachainClient,
+		traits::{ForeignConnector, NoOpConnector},
+	},
 	worker::ObWorker,
 };
 use sc_network_gossip::Network as GossipNetwork;
@@ -114,6 +118,8 @@ where
 	/// Boolean indicating if this node is a validator
 	pub is_validator: bool,
 	pub marker: PhantomData<B>,
+	/// Defines the chain type our current deployment ( Dev or production )
+	pub chain_type: ChainType,
 }
 
 /// Start the Thea gadget.
@@ -138,6 +144,7 @@ where
 		protocol_name,
 		is_validator,
 		marker: _,
+		chain_type,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -156,9 +163,7 @@ where
 			},
 		);
 
-	let foreign_connector = ParachainClient::connect("ws://127.0.0.1:9945".to_string())
-		.await
-		.expect("Expected to connect to local foreign node");
+	let foreign_connector = get_connector(chain_type).await.connector;
 
 	let worker_params = worker::WorkerParams {
 		client,
@@ -171,10 +176,28 @@ where
 		protocol_name,
 		metrics,
 		_marker: Default::default(),
-		foreign_chain: Arc::new(foreign_connector),
+		foreign_chain: foreign_connector,
 	};
 
 	let worker = ObWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
 
 	worker.run().await
+}
+
+pub struct Connector {
+	connector: Arc<dyn ForeignConnector>,
+}
+
+pub async fn get_connector(chain_type: ChainType) -> Connector {
+	log::info!(target:"thea","Assigning connector based on chain type: {:?}",chain_type);
+	match chain_type {
+		ChainType::Development => Connector { connector: Arc::new(NoOpConnector) },
+		_ => Connector {
+			connector: Arc::new(
+				ParachainClient::connect("ws://127.0.0.1:9945".to_string())
+					.await
+					.expect("Expected to connect to local foreign node"),
+			),
+		},
+	}
 }

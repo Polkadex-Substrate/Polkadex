@@ -3,6 +3,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
+
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
@@ -47,12 +48,6 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 	pub fn remove_proxy(&mut self, proxy: &Account) {
 		self.proxies.retain(|item| item != proxy);
 	}
-}
-
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct OCEXConfig<AccountId> {
-	pub enclave_id: AccountId,
 }
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]

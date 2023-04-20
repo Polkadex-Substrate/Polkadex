@@ -396,7 +396,6 @@ where
 			UserActions::Withdraw(withdraw) =>
 				self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
-			UserActions::Snapshot => self.snapshot(action.worker_nonce, action.stid)?,
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
 		self.latest_state_change_id = action.stid;

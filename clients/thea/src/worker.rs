@@ -29,7 +29,7 @@ use crate::{
 	Client,
 };
 
-pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
+pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
 	pub client: Arc<C>,
 	pub backend: Arc<BE>,
 	pub runtime: Arc<R>,
@@ -46,7 +46,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector> 
 }
 
 /// A Orderbook worker plays the Orderbook protocol
-pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector> {
+pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
 	// utilities
 	pub(crate) client: Arc<C>,
 	_backend: Arc<BE>,
@@ -76,7 +76,7 @@ where
 	R::Api: TheaApi<B>,
 	SO: Send + Sync + Clone + 'static + SyncOracle,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
-	FC: ForeignConnector,
+	FC: ForeignConnector + ?Sized,
 {
 	/// Return a new BEEFY worker instance.
 	///
