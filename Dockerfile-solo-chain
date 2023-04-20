@@ -1,0 +1,21 @@
+FROM ubuntu:22.04
+
+ARG branch=mainnet-release
+
+RUN apt-get update && apt-get install -y git clang curl libssl-dev protobuf-compiler make build-essential
+RUN curl https://sh.rustup.rs -sSf  | sh -s -- -y
+ENV PATH=/root/.cargo/bin:$PATH
+RUN rustup toolchain install nightly
+
+COPY . .
+
+
+RUN git checkout  $branch
+RUN echo "Building branch: " && git rev-parse --abbrev-ref HEAD
+
+
+RUN cargo +nightly b --release
+
+EXPOSE 30333 9933 9944
+
+ENTRYPOINT ["./target/release/polkadex-node —dev"]
