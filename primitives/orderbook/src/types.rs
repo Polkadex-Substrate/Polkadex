@@ -1,12 +1,12 @@
 use crate::constants::*;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber, Signature,
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
-use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
+use sp_std::{cmp::Ordering};
 
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
@@ -19,24 +19,6 @@ use std::{
 };
 
 pub type OrderId = H256;
-
-/// A struct representing the recovery state of an Order Book.
-#[derive(Clone, Debug, Encode, Decode, Default)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct ObRecoveryState {
-	/// The snapshot ID of the order book recovery state.
-	pub snapshot_id: u64,
-	/// A `BTreeMap` that maps main account to a vector of proxy account.
-	pub account_ids: BTreeMap<AccountId, Vec<AccountId>>,
-	/// A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
-	pub balances: BTreeMap<AccountAsset, Decimal>,
-	/// The last block number that was processed by validator.
-	pub last_processed_block_number: BlockNumber,
-	/// State change id
-	pub state_change_id: u64,
-	/// worker nonce
-	pub worker_nonce: u64,
-}
 
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]

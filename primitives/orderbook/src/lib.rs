@@ -22,6 +22,9 @@ use sp_std::vec::Vec;
 pub mod constants;
 pub mod types;
 
+#[cfg(feature = "std")]
+pub mod recovery;
+
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
 

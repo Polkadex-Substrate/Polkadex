@@ -1242,8 +1242,8 @@ pub fn register_main(
 ) -> Result<(), Error> {
 	info!(target: "orderbook", "Registering main account: {:?}", main);
 	if trie.contains(&main.encode())? {
-		error!(target: "orderbook", "Main account already registered: {:?}", main);
-		return Err(Error::MainAlreadyRegistered)
+		warn!(target: "orderbook", "Main account already registered: {:?}", main);
+		return Ok(())
 	}
 	let account_info = AccountInfo { proxies: vec![proxy] };
 	trie.insert(&main.encode(), &account_info.encode())?;
@@ -1273,7 +1273,8 @@ pub fn add_proxy(
 			info!(target: "orderbook", "Main account found: {:?}", main);
 			let mut account_info = AccountInfo::decode(&mut &data[..])?;
 			if account_info.proxies.contains(&proxy) {
-				return Err(Error::ProxyAlreadyRegistered)
+				warn!(target: "orderbook", "Proxy account already registered: {:?}", proxy);
+				return Ok(())
 			}
 			account_info.proxies.push(proxy);
 			trie.insert(&main.encode(), &account_info.encode())?;
