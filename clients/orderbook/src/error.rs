@@ -39,10 +39,6 @@ pub enum Error {
 	// SnapshotSigningFailed,
 	#[error("Failed to submit snapshot to runtime")]
 	FailedToSubmitSnapshotToRuntime,
-	#[error("Main account already registered")]
-	MainAlreadyRegistered,
-	#[error("Proxy account already registered")]
-	ProxyAlreadyRegistered,
 	#[error("Offchain storage not available")]
 	OffchainStorageNotAvailable,
 	#[error("Signature verification Failed")]

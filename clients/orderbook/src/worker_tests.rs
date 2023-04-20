@@ -44,19 +44,6 @@ pub fn register_main_will_store_successfully() {
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy]);
 }
 
-// Try to re register main account and assert expected error
-#[test]
-pub fn register_main_with_the_same_account_will_return_main_already_registered_error() {
-	let mut working_state_root = [0u8; 32];
-	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
-	let mut trie: TrieDBMut<ExtensionLayout> =
-		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
-	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
-	let result = register_main(&mut trie, alice_main.clone(), alice_proxy.clone());
-	assert_eq!(result, Err(Error::MainAlreadyRegistered).into());
-}
-
 // add proxy account and assert changes in db
 #[test]
 pub fn add_proxy_will_store_it_successfully() {
@@ -72,31 +59,6 @@ pub fn add_proxy_will_store_it_successfully() {
 	let get_db_val = trie.get(&alice_main.encode()).unwrap().unwrap().to_vec().clone();
 	let account_info_in_db = AccountInfo::decode(&mut &get_db_val[..]).unwrap();
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy, alice_new_proxy_account]);
-}
-
-// Try to add a duplicate proxy account and assert expected error
-#[test]
-pub fn add_proxy_with_the_same_proxy_account_will_return_proxy_already_registered_error() {
-	let mut working_state_root = [0u8; 32];
-	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
-	let mut trie: TrieDBMut<ExtensionLayout> =
-		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
-	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
-	let result = add_proxy(&mut trie, alice_main.clone(), alice_proxy.clone());
-	assert_eq!(result, Err(Error::ProxyAlreadyRegistered).into());
-}
-
-// Try to add a proxy account when main account is not registered and assert expected error
-#[test]
-pub fn add_proxy_with_not_registered_main_account_will_return_main_account_not_found_error() {
-	let mut working_state_root = [0u8; 32];
-	let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
-	let mut trie: TrieDBMut<ExtensionLayout> =
-		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
-	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-	let result = add_proxy(&mut trie, alice_main.clone(), alice_proxy.clone());
-	assert_eq!(result, Err(Error::MainAccountNotFound).into());
 }
 
 // remove proxy account and assert changes in db

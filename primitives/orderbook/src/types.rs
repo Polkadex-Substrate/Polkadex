@@ -6,7 +6,7 @@ use polkadex_primitives::{
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
-use sp_std::{cmp::Ordering};
+use sp_std::cmp::Ordering;
 
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;

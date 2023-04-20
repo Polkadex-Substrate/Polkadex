@@ -86,6 +86,7 @@ impl ForeignConnector for DummyForeignConnector {
 }
 
 #[tokio::test]
+#[serial_test::serial]
 pub async fn test_withdrawal() {
 	sp_tracing::try_init_simple();
 

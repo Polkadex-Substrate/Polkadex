@@ -14,9 +14,9 @@ use jsonrpsee::{
 use log::info;
 use orderbook::DbRef;
 use orderbook_primitives::{
+	recovery::ObRecoveryState,
 	types::{AccountAsset, ObMessage},
 	ObApi,
-	recovery::ObRecoveryState
 };
 use parking_lot::RwLock;
 use polkadex_primitives::BlockNumber;
@@ -24,7 +24,6 @@ use reference_trie::ExtensionLayout;
 use rust_decimal::Decimal;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
@@ -102,10 +101,10 @@ pub struct OrderbookRpc<Runtime, Block> {
 }
 
 impl<Runtime, Block> OrderbookRpc<Runtime, Block>
-	where
-		Block: BlockT,
-		Runtime: Send + Sync + ProvideRuntimeApi<Block>,
-		Runtime::Api: ObApi<Block>,
+where
+	Block: BlockT,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block>,
+	Runtime::Api: ObApi<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
@@ -127,6 +126,7 @@ impl<Runtime, Block> OrderbookRpc<Runtime, Block>
 		}
 	}
 
+	/// Returns the serialized offchain state based on the last finalized snapshot summary
 	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<Vec<u8>> {
 		let last_finalized_block_guard = self.last_successful_block_number_snapshot_created.read();
 		let last_finalized_block = *last_finalized_block_guard;
@@ -171,9 +171,9 @@ impl<Runtime, Block> OrderbookRpc<Runtime, Block>
 
 		// Generate account info from existing DB
 		let insert_balance = |trie: &TrieDBMut<ExtensionLayout>,
-							  ob_recovery_state: &mut ObRecoveryState,
-							  account_asset: &AccountAsset|
-							  -> RpcResult<()> {
+		                      ob_recovery_state: &mut ObRecoveryState,
+		                      account_asset: &AccountAsset|
+		 -> RpcResult<()> {
 			if let Ok(data) = trie.get(&account_asset.encode()) {
 				if let Some(data) = data {
 					let account_balance = Decimal::decode(&mut &data[..]).map_err(|err| {
@@ -181,7 +181,7 @@ impl<Runtime, Block> OrderbookRpc<Runtime, Block>
 					})?;
 					ob_recovery_state.balances.insert(account_asset.clone(), account_balance);
 				}
-				// Ignored none case as account may not have balance for asset
+			// Ignored none case as account may not have balance for asset
 			} else {
 				info!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
 				return Err(JsonRpseeError::Custom(
