@@ -46,6 +46,8 @@ pub async fn test_orderbook_snapshot() {
 		operator_key: Some(orderbook_operator.public()),
 		trading_config: vec![],
 		withdrawals: Arc::new(Default::default()),
+		ingress_messages: vec![],
+		allowlisted_assets: vec![],
 	});
 
 	let ob_peers = peers

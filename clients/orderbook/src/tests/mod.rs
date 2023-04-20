@@ -1,3 +1,4 @@
+pub mod rpc;
 pub mod sync;
 
 use crate::protocol_standard_name;
@@ -11,7 +12,8 @@ use orderbook_primitives::{
 };
 use parking_lot::{Mutex, RwLock};
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, BlockNumber,
+	ingress::IngressMessages, ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId,
+	BlockNumber,
 };
 use primitive_types::H256;
 use reference_trie::RefHasher;
@@ -40,6 +42,8 @@ pub(crate) struct TestApi {
 	pub operator_key: Option<Public>,
 	pub trading_config: Vec<(TradingPair, TradingPairConfig)>,
 	pub withdrawals: Arc<RwLock<HashMap<u64, Vec<Withdrawal<AccountId>>>>>,
+	pub ingress_messages: Vec<IngressMessages<AccountId>>,
+	pub allowlisted_assets: Vec<AssetId>,
 }
 
 impl TestApi {
@@ -139,6 +143,14 @@ impl TestApi {
 	pub fn read_trading_pair_configs(&self) -> Vec<(TradingPair, TradingPairConfig)> {
 		self.trading_config.clone()
 	}
+
+	pub fn get_ingress_messages(&self) -> Vec<IngressMessages<AccountId>> {
+		self.ingress_messages.clone()
+	}
+
+	pub fn get_allowlisted_assets(&self) -> Vec<AssetId> {
+		self.allowlisted_assets.clone()
+	}
 }
 
 sp_api::mock_impl_runtime_apis! {
@@ -154,7 +166,7 @@ impl ObApi<Block> for RuntimeApi {
 	}
 
 	/// Return the ingress messages at the given block
-	fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { Vec::new() }
+	fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
 
 	/// Submits the snapshot to runtime
 	fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
@@ -195,6 +207,10 @@ impl ObApi<Block> for RuntimeApi {
 		/// Reads the current trading pair configs
 		fn read_trading_pair_configs() -> Vec<(TradingPair, TradingPairConfig)>{
 			self.inner.read_trading_pair_configs()
+		}
+		/// Returns the allowlisted asset ids
+		fn get_allowlisted_assets() -> Vec<AssetId> {
+			self.inner.get_allowlisted_assets()
 		}
 }
 }

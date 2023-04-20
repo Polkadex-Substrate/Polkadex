@@ -213,7 +213,8 @@ impl<T: Config> Pallet<T> {
 
 		// Find who all signed this payload
 		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
-
+		// TODO: Check if we have 2/3rd authorities signed on this.
+		// TODO: Make, <Authorities<T>> indexed by network as key1 and validator setid as key2
 		// Create a vector of public keys of everyone who signed
 		let auths: Vec<T::TheaId> = <Authorities<T>>::get(payload.network).to_vec();
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
