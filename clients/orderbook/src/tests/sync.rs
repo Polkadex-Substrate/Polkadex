@@ -1,14 +1,14 @@
-use std::{sync::Arc, time::Duration};
+use std::{sync::Arc};
 
 use futures::SinkExt;
 use memory_db::MemoryDB;
 use parking_lot::RwLock;
 use primitive_types::H256;
-use sc_network::Multiaddr;
-use sc_network_common::service::{NetworkPeers, NetworkStateInfo};
+
+use sc_network_common::service::{NetworkStateInfo};
 use sc_network_test::{FullPeerConfig, TestNetFactory};
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_consensus::BlockOrigin;
+
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 
@@ -114,7 +114,7 @@ pub async fn test_orderbook_snapshot() {
 		Arc::new(RwLock::new(0_u32.saturated_into()));
 
 	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
-	let (sender, receiver) = futures::channel::mpsc::unbounded();
+	let (_sender, receiver) = futures::channel::mpsc::unbounded();
 	// Now we add a new full node and see if it can catch up.
 	let ob_params = crate::ObParams {
 		client: testnet.peers[fifth_node_index].client().as_client(),

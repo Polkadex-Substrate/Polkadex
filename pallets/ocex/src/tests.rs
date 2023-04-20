@@ -16,10 +16,9 @@
 //! Tests for pallet-ocex.
 
 use crate::*;
-use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
+use frame_support::{assert_noop, assert_ok, bounded_vec};
 use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, SnapshotAccLimit,
-	UNIT_BALANCE,
+	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, UNIT_BALANCE,
 };
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -29,7 +28,7 @@ use sp_std::collections::btree_map::BTreeMap;
 use crate::mock::*;
 use frame_system::EventRecord;
 
-use polkadex_primitives::{AccountId, AssetsLimit, WithdrawalLimit};
+use polkadex_primitives::{AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{bounded::BoundedBTreeSet, Pair};
 use sp_keystore::{testing::KeyStore, SyncCryptoStore};
@@ -1842,21 +1841,6 @@ fn create_account_id() -> AccountId32 {
 		&keystore,
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair")
-	.try_into()
-	.expect("Unable to convert to AccountId32");
-
-	return account_id
-}
-fn create_account_id_500(uid: u32) -> AccountId32 {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = KeyStore::new();
-	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{}/hunter{}", PHRASE, uid)),
 	)
 	.expect("Unable to create sr25519 key pair")
 	.try_into()

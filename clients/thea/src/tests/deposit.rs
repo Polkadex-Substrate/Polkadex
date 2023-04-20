@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use log::info;
 use parking_lot::RwLock;
-use sc_client_api::BlockchainEvents;
+
 use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
@@ -26,7 +26,7 @@ impl ForeignConnector for DummyForeignConnector {
 		Duration::from_secs(12)
 	}
 
-	async fn connect(url: String) -> Result<Self, Error>
+	async fn connect(_url: String) -> Result<Self, Error>
 	where
 		Self: Sized,
 	{
@@ -50,7 +50,7 @@ impl ForeignConnector for DummyForeignConnector {
 		}
 	}
 
-	async fn send_transaction(&self, message: GossipMessage) {
+	async fn send_transaction(&self, _message: GossipMessage) {
 		unimplemented!()
 	}
 
@@ -147,7 +147,7 @@ pub async fn test_foreign_deposit() {
 	// not if we artificially gossip these messages to each other.
 
 	// Get all the messages
-	let message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
+	let _message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
 	let message1 = workers[1].0.message_cache.read().get(&message).cloned().unwrap();
 	let message2 = workers[2].0.message_cache.read().get(&message).cloned().unwrap();
 

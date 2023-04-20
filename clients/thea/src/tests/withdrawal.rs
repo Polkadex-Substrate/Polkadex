@@ -2,7 +2,7 @@ use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
 	tests::{
-		create_workers_array, generate_and_finalize_blocks, initialize_thea, make_thea_ids,
+		create_workers_array, generate_and_finalize_blocks, make_thea_ids,
 		TestApi, TheaTestnet,
 	},
 	types::GossipMessage,
@@ -20,7 +20,7 @@ use std::{
 	sync::Arc,
 	time::Duration,
 };
-use subxt::ext::frame_metadata::StorageEntryModifier::Default;
+
 use thea_primitives::{AuthorityId, Message, ValidatorSet, ValidatorSetId};
 
 pub struct DummyForeignConnector {
@@ -35,7 +35,7 @@ impl ForeignConnector for DummyForeignConnector {
 		Duration::from_secs(12)
 	}
 
-	async fn connect(url: String) -> Result<Self, Error>
+	async fn connect(_url: String) -> Result<Self, Error>
 	where
 		Self: Sized,
 	{
@@ -46,7 +46,7 @@ impl ForeignConnector for DummyForeignConnector {
 		})
 	}
 
-	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error> {
+	async fn read_events(&self, _last_processed_nonce: u64) -> Result<Option<Message>, Error> {
 		Ok(None)
 	}
 
@@ -76,7 +76,7 @@ impl ForeignConnector for DummyForeignConnector {
 		self.incoming_messages.write().insert(message.nonce, message);
 	}
 
-	async fn check_message(&self, message: &Message) -> Result<bool, Error> {
+	async fn check_message(&self, _message: &Message) -> Result<bool, Error> {
 		unimplemented!()
 	}
 
@@ -165,7 +165,7 @@ pub async fn test_withdrawal() {
 	// not if we artificially gossip these messages to each other.
 
 	// Get all the messages
-	let message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
+	let _message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
 	let message1 = workers[1].0.message_cache.read().get(&message).cloned().unwrap();
 	let message2 = workers[2].0.message_cache.read().get(&message).cloned().unwrap();
 

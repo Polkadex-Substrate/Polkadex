@@ -1,7 +1,7 @@
 use crate::tests::{
-	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
+	generate_and_finalize_blocks, make_ob_ids, ObTestnet, TestApi,
 };
-use futures::{future::BoxFuture, SinkExt, StreamExt};
+use futures::{future::BoxFuture, StreamExt};
 use memory_db::MemoryDB;
 use orderbook_primitives::{
 	crypto::AuthorityId,
@@ -80,7 +80,7 @@ pub async fn test_orderbook_rpc() {
 	// in memory keystore doesn't seem to work here
 	let keystore =
 		Some(Arc::new(LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap()));
-	let (pair, seed) =
+	let (pair, _seed) =
 		orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
 	// Insert the key
 	keystore
@@ -184,18 +184,18 @@ pub struct DummyTaskExecutor;
 impl sp_core::traits::SpawnNamed for DummyTaskExecutor {
 	fn spawn_blocking(
 		&self,
-		name: &'static str,
-		group: Option<&'static str>,
-		future: BoxFuture<'static, ()>,
+		_name: &'static str,
+		_group: Option<&'static str>,
+		_future: BoxFuture<'static, ()>,
 	) {
 		todo!()
 	}
 
 	fn spawn(
 		&self,
-		name: &'static str,
-		group: Option<&'static str>,
-		future: BoxFuture<'static, ()>,
+		_name: &'static str,
+		_group: Option<&'static str>,
+		_future: BoxFuture<'static, ()>,
 	) {
 		todo!()
 	}

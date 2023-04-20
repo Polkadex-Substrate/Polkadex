@@ -1,16 +1,16 @@
 pub mod rpc;
 pub mod sync;
 
-use crate::protocol_standard_name;
-use bls_primitives::BLS_DEV_PHRASE;
+
+
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{ObMessage, TradingPair},
-	ObApi, SnapshotSummary, ValidatorSet, KEY_TYPE,
+	ObApi, SnapshotSummary, ValidatorSet,
 };
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{RwLock};
 use polkadex_primitives::{
 	ingress::IngressMessages, ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId,
 	BlockNumber,
@@ -25,8 +25,8 @@ use sc_network_test::{
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_consensus::BlockOrigin;
-use sp_core::{crypto::AccountId32, ecdsa::Public, Pair};
+
+use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 use std::{collections::HashMap, future::Future, sync::Arc};
@@ -358,7 +358,7 @@ where
 			keystore = Some(Arc::new(
 				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
 			));
-			let (pair, seed) =
+			let (pair, _seed) =
 				orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None)
 					.unwrap();
 			// Insert the key
