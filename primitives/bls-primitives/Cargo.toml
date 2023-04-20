@@ -30,6 +30,7 @@ std = [
     "sp-runtime-interface/std",
     "sp-application-crypto/std",
     "sp-core/full_crypto",
+    "sp-core/std",
     "sp-std/std",
     "substrate-bip39",
     "tiny-bip39",

@@ -22,6 +22,8 @@ use sp_runtime_interface::pass_by::PassByInner;
 #[cfg(feature = "std")]
 use substrate_bip39::seed_from_entropy;
 
+#[cfg(feature = "std")]
+use crate::crypto::add_signature_;
 use sp_std::vec::Vec;
 
 /// An identifier used to match public keys against bls keys
@@ -81,6 +83,14 @@ impl KeyStore {
 
 	fn get_junctions(&self) -> Vec<DeriveJunction> {
 		self.junctions.clone()
+	}
+}
+
+impl Signature {
+	// Aggregates two signatures
+	#[cfg(feature = "std")]
+	pub fn add_signature(self, signature: &Signature) -> Result<Signature, BLST_ERROR> {
+		add_signature_(&self, signature)
 	}
 }
 

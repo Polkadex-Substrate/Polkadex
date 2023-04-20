@@ -110,7 +110,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	last_finalized_block: BlockNumber,
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
-	sync_state_map: BTreeMap<u16, StateSyncStatus>,
+	sync_state_map: BTreeMap<usize, StateSyncStatus>,
 	// last block at which snapshot was generated
 	last_block_snapshot_generated: Arc<RwLock<BlockNumber>>,
 	// latest worker nonce
@@ -350,16 +350,13 @@ where
 
 		let signing_key = self.keystore.get_local_key(&active_set)?;
 		info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
-		let initial_summary = summary.sign_data();
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
-		summary.aggregate_signature = Some(signature.clone().into());
+		summary.aggregate_signature = Some(signature.into());
 		let bit_index = active_set.iter().position(|v| v == &signing_key).unwrap();
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
-		set_bit_field(&mut summary.bitflags, bit_index as u16);
+		set_bit_field(&mut summary.bitflags, bit_index);
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
-		assert_eq!(initial_summary, summary.sign_data());
-		assert!(self.keystore.verify(&signing_key, &signature, &initial_summary,));
 		// send it to runtime
 		if self
 			.runtime
@@ -682,14 +679,12 @@ where
 					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 				{
 					if let Some(offchain_storage) = self.backend.offchain_storage() {
-						let required_indexes: Vec<u16> = return_set_bits(bitmap);
+						let required_indexes: Vec<usize> = return_set_bits(bitmap);
 						for chunk_index in required_indexes {
 							if offchain_storage
 								.get(
 									ORDERBOOK_STATE_CHUNK_PREFIX,
-									summary.state_chunk_hashes[chunk_index as usize]
-										.encode()
-										.as_ref(),
+									summary.state_chunk_hashes[chunk_index].encode().as_ref(),
 								)
 								.is_some()
 							{
@@ -720,7 +715,7 @@ where
 		info!(target: "orderbook", "📒 Have snapshot: {:?} - {:?}", snapshot_id, bitmap);
 		if let Some(peer) = remote {
 			// Note: Set bits here are available for syncing
-			let available_chunks: Vec<u16> = return_set_bits(bitmap);
+			let available_chunks: Vec<usize> = return_set_bits(bitmap);
 			let mut want_chunks = vec![];
 			let mut highest_index = 0; // We need the highest index to prepare the bitmap for index in available_chunks {
 			for index in available_chunks {
@@ -758,9 +753,9 @@ where
 				if let Ok(Some(summary)) =
 					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 				{
-					let chunk_indexes: Vec<u16> = return_set_bits(bitmap);
+					let chunk_indexes: Vec<usize> = return_set_bits(bitmap);
 					for index in chunk_indexes {
-						match summary.state_chunk_hashes.get(index as usize) {
+						match summary.state_chunk_hashes.get(index) {
 							None => {
 								log::warn!(target:"orderbook","Chunk hash not found for index: {:?}",index)
 							},
@@ -768,7 +763,8 @@ where
 								if let Some(data) = offchian_storage
 									.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
 								{
-									let message = GossipMessage::Chunk(*snapshot_id, index, data);
+									let message =
+										GossipMessage::Chunk(*snapshot_id, index as u16, data);
 									self.gossip_engine.send_message(vec![peer], message.encode());
 									metric_inc!(self, ob_messages_sent);
 									metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -789,14 +785,14 @@ where
 		}
 	}
 
-	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &u16, data: &[u8]) {
+	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &usize, data: &[u8]) {
 		info!(target: "orderbook", "📒 Chunk snapshot: {:?} - {:?} - {:?}", snapshot_id, index, data.len());
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
 			let at = BlockId::Number(self.last_finalized_block.saturated_into());
 			if let Ok(Some(summary)) =
 				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 			{
-				match summary.state_chunk_hashes.get(*index as usize) {
+				match summary.state_chunk_hashes.get(*index) {
 					None =>
 						warn!(target:"orderbook","Invalid index recvd, index > length of state chunk hashes"),
 					Some(expected_hash) => {
@@ -822,11 +818,6 @@ where
 		}
 	}
 
-	#[cfg(test)]
-	pub fn get_sync_state_map_value(&self, key: u16) -> StateSyncStatus {
-		self.sync_state_map.get(&key).unwrap().clone()
-	}
-
 	pub async fn process_gossip_message(
 		&mut self,
 		message: &GossipMessage,
@@ -844,7 +835,8 @@ where
 			GossipMessage::Have(snap_id, bitmap) => self.have(snap_id, bitmap, remote).await,
 			GossipMessage::RequestChunk(snap_id, bitmap) =>
 				self.request_chunk(snap_id, bitmap, remote).await,
-			GossipMessage::Chunk(snap_id, index, data) => self.process_chunk(snap_id, index, data),
+			GossipMessage::Chunk(snap_id, index, data) =>
+				self.process_chunk(snap_id, &(*index).into(), data),
 		}
 		Ok(())
 	}
@@ -1004,7 +996,7 @@ where
 											.iter()
 											.position(|v| v == &signing_key)
 											.unwrap();
-										set_bit_field(&mut summary.bitflags, bit_index as u16);
+										set_bit_field(&mut summary.bitflags, bit_index);
 										// send it to runtime
 										if self
                                             .runtime
@@ -1070,15 +1062,15 @@ where
 				.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.encode().as_ref())
 				.is_none()
 			{
-				missing_chunks.push(index as u16);
+				missing_chunks.push(index);
 				highest_chunk_index = index.max(highest_chunk_index);
-				self.sync_state_map.insert(index as u16, StateSyncStatus::Unavailable);
+				self.sync_state_map.insert(index, StateSyncStatus::Unavailable);
 			} else {
-				self.sync_state_map.insert(index as u16, StateSyncStatus::Available);
+				self.sync_state_map.insert(index, StateSyncStatus::Available);
 			}
 		}
 		// Prepare bitmap
-		let bitmap = prepare_bitmap(&missing_chunks, highest_chunk_index as u16)
+		let bitmap = prepare_bitmap(&missing_chunks, highest_chunk_index)
 			.expect("Expected to create bitmap");
 		// Gossip the sync requests to all connected fullnodes
 		let fullnodes = self.fullnodes.read().clone().into_iter().collect::<Vec<PeerId>>();

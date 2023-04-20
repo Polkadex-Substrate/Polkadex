@@ -79,7 +79,7 @@ use sp_runtime::{
 		OpaqueKeys, SaturatedConversion, StaticLookup,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, FixedU128, Perbill, Percent, Permill, Perquintill,
+	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
@@ -486,6 +486,7 @@ impl_opaque_keys! {
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
 		pub orderbook: OCEX,
+		pub thea: Thea,
 	}
 }
 
@@ -1324,8 +1325,6 @@ parameter_types! {
 	pub const ParachainNetworkId: u8 = 1;
 	pub const ProposalLifetime: BlockNumber = 1000;
 	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
-	pub const TheaPalletId: PalletId = PalletId(*b"THBRIDGE");
-	pub const WithdrawalSize: u32 = 10;
 }
 
 impl chainbridge::Config for Runtime {
@@ -1339,7 +1338,6 @@ impl chainbridge::Config for Runtime {
 parameter_types! {
 	pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
 	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
-	pub const ParaId: u32 = 2040;
 }
 
 impl asset_handler::pallet::Config for Runtime {
@@ -1356,56 +1354,10 @@ impl asset_handler::pallet::Config for Runtime {
 
 impl thea::pallet::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
-	type TheaPalletId = TheaPalletId;
-	type WithdrawalSize = WithdrawalSize;
-	type ParaId = ParaId;
-	type ExtrinsicSubmittedNotifier = TheaStaking;
-	type Weights = thea::weights::WeightInfo<Runtime>;
-}
-
-//Install Staking Pallet
-parameter_types! {
-	pub const SessionLength: u32 = 25;
-	pub const UnbondingDelay: u32 = 10;
-	pub const MaxUnlockChunks: u32 = 10;
-	pub const CandidateBond: Balance = 1_000_000_000_000;
-	pub const StakingReserveIdentifier: [u8; 8] = [1u8;8];
-	pub const StakingDataPruneDelay: u32 = 6;
-	pub const ModerateSK: u8 = 5; // 5% of stake to slash
-	pub const SevereSK: u8 = 20; // 20% of stake to slash
-	pub const ReporterRewardKF: u8 = 1; // 1% of total slashed goes to each reporter
-	pub const SlashingTh: u8 = 60; // 60% of threshold for slashing
-	pub const TheaRewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-	pub const IdealActiveValidators: u32 = 3;
-}
-
-impl thea_staking::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type SessionLength = SessionLength;
-	type UnbondingDelay = UnbondingDelay;
-	type MaxUnlockChunks = MaxUnlockChunks;
-	type CandidateBond = CandidateBond;
-	type StakingReserveIdentifier = StakingReserveIdentifier;
-	type StakingDataPruneDelay = StakingDataPruneDelay;
-	type ModerateSlashingCoeficient = ModerateSK;
-	type SevereSlashingCoeficient = SevereSK;
-	type ReportersRewardCoeficient = ReporterRewardKF;
-	type SlashingThreshold = SlashingTh;
-	type SessionChangeNotifier = Thea;
-	type TreasuryPalletId = TreasuryPalletId;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
-	type EraPayout = pallet_staking::ConvertCurve<TheaRewardCurve>;
-	type Currency = Balances;
-	type ActiveValidators = IdealActiveValidators;
-}
-
-//Install Nomination Pool
-parameter_types! {
-	pub const PostUnbondPoolsWindow: u32 = 4;
-	pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
-	pub const MaxPointsToBalance: u8 = 10;
+	type TheaId = thea_primitives::AuthorityId;
+	type Signature = thea_primitives::AuthoritySignature;
+	type MaxAuthorities = MaxAuthorities;
+	type Executor = TheaExecutor;
 }
 
 //Install Swap pallet
@@ -1446,46 +1398,20 @@ impl router::Config for Runtime {
 	type Assets = AssetHandler;
 }
 
-use sp_runtime::traits::Convert;
-pub struct BalanceToU256;
-impl Convert<Balance, sp_core::U256> for BalanceToU256 {
-	fn convert(balance: Balance) -> sp_core::U256 {
-		sp_core::U256::from(balance)
-	}
-}
-pub struct U256ToBalance;
-impl Convert<sp_core::U256, Balance> for U256ToBalance {
-	fn convert(n: sp_core::U256) -> Balance {
-		n.try_into().unwrap_or(Balance::max_value())
-	}
-}
-
-impl pallet_nomination_pools::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-	type Currency = Balances;
-	type RewardCounter = FixedU128;
-	type PalletId = NominationPoolsPalletId;
-	type MaxPointsToBalance = MaxPointsToBalance;
-	type BalanceToU256 = BalanceToU256;
-	type U256ToBalance = U256ToBalance;
-	type Staking = thea_staking::Pallet<Self>;
-	type PostUnbondingPoolsWindow = PostUnbondPoolsWindow;
-	type MaxMetadataLen = ConstU32<256>;
-	type MaxUnbonding = ConstU32<8>;
-}
-
 parameter_types! {
-	pub const StakingAmount: u128 = 1_000_000_000_000_000u128;
-	pub const StakingReserveIdentifierForTheaGov: [u8; 8] = [2u8;8];
-
+	pub const TheaPalletId: PalletId = PalletId(*b"th/accnt");
+	pub const WithdrawalSize: u32 = 10;
+	pub const ParaId: u32 = 2040;
 }
 
-impl thea_cross_chain_governance::Config for Runtime {
+impl thea_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type StakingAmount = StakingAmount;
-	type StakingReserveIdentifier = StakingReserveIdentifierForTheaGov;
-	type CouncilHandlerOrigin = EnsureRootOrHalfCouncil;
+	type Currency = Balances;
+	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
+	type Executor = Thea;
+	type TheaPalletId = TheaPalletId;
+	type WithdrawalSize = WithdrawalSize;
+	type ParaId = ParaId;
 }
 
 construct_runtime!(
@@ -1533,14 +1459,12 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
 		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>} = 37,
 		AssetHandler: asset_handler::pallet::{Pallet, Call, Storage, Event<T>} = 38,
-		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>} = 39,
-		TheaStaking: thea_staking::{Pallet, Call, Storage, Event<T>} = 40,
-		NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Event<T>} = 41,
-		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 42,
-		TheaGovernence: thea_cross_chain_governance::{Pallet, Call, Storage, Event<T>} = 43,
-		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 44,
-		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 45,
-		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 46,
+		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 39,
+		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
+		Swap: pallet_amm::pallet::{Pallet, Call, Storage, Event<T>} = 42,
+		Router: router::pallet::{Pallet, Call, Storage, Event<T>} = 43,
+		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44
 	}
 );
 /// Digest item type.
@@ -1673,6 +1597,33 @@ impl_runtime_apis! {
 
 		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>{
 			OCEX::get_orderbook_operator_public_key()
+		}
+	}
+
+	impl thea_primitives::TheaApi<Block> for Runtime {
+		/// Return the current active Thea validator set for all networks
+		fn full_validator_set() -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
+			Thea::full_validator_set()
+		}
+		/// Return the current active Thea validator set
+		fn validator_set(network: thea_primitives::Network) -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
+			Thea::validator_set(network)
+		}
+		/// Returns the outgoing message for given network and blk
+		fn outgoing_messages(network: thea_primitives::Network, nonce: u64) -> Option<thea_primitives::Message>{
+			Thea::get_outgoing_messages(network, nonce)
+		}
+		/// Get Thea network associated with Validator
+		fn network(auth: thea_primitives::AuthorityId) -> Option<thea_primitives::Network>{
+			Thea::network(auth)
+		}
+		/// Incoming messages
+		fn incoming_message(message: thea_primitives::Message, bitmap: Vec<u128>, signature: thea_primitives::AuthoritySignature) -> Result<(),()>{
+			Thea::submit_incoming_message(message,bitmap,signature)
+		}
+		/// Get last processed nonce for a given network
+		fn get_last_processed_nonce(network: thea_primitives::Network) -> u64{
+			Thea::get_last_processed_nonce(network)
 		}
 	}
 
@@ -1848,8 +1799,6 @@ impl_runtime_apis! {
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
-			list_benchmark!(list, extra, thea_staking, TheaStaking);
-			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
@@ -1885,8 +1834,6 @@ impl_runtime_apis! {
 			let params = (&config, &allowlist);
 
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
-			add_benchmark!(params, batches, thea_staking, TheaStaking);
-			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);

@@ -986,7 +986,7 @@ pub mod pallet {
 								Some(index) => *index,
 								None => return Err(Error::<T>::SignerIndexNotFound.into()),
 							};
-							stored_summary.add_auth_index(auth_index);
+							stored_summary.add_auth_index(auth_index.saturated_into());
 							stored_summary
 						} else {
 							return Err(Error::<T>::InvalidSnapshotState.into())
@@ -1454,9 +1454,9 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			None => return InvalidTransaction::BadSigner.into(),
 		};
 
-		let authority = match <Authorities<T>>::get().get(auth_idx as usize) {
+		let authority = match <Authorities<T>>::get().get(auth_idx) {
 			Some(auth) => auth,
-			None => return InvalidTransaction::Custom(auth_idx as u8).into(),
+			None => return InvalidTransaction::Custom(11).into(),
 		}
 		.clone();
 

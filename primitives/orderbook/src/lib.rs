@@ -1,6 +1,8 @@
 #![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use crate::crypto::AuthorityId;
+use bls_primitives::{Public, Signature};
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig,
@@ -17,16 +19,10 @@ use sp_core::H256;
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
 
-use bls_primitives::{Public, Signature};
-
-use crate::crypto::AuthorityId;
-#[cfg(feature = "std")]
-use crate::types::ObMessage;
-
 pub mod constants;
 pub mod types;
 
-/// Key type for BEEFY module.
+/// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
 
 /// Orderbook cryptographic types
@@ -117,22 +113,10 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 /// The index of an authority.
 pub type AuthorityIndex = u32;
 
-#[derive(Copy, Clone, Encode, Decode)]
-pub struct StidImportRequest {
-	pub from: u64,
-	pub to: u64,
-}
-
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
 pub struct Fees {
 	pub asset: AssetId,
 	pub amount: Decimal,
-}
-
-#[derive(Clone, Encode, Decode, Default)]
-#[cfg(feature = "std")]
-pub struct StidImportResponse {
-	pub messages: Vec<ObMessage>,
 }
 
 #[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq)]
@@ -164,6 +148,22 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 
 impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 	// Add a new signature to the snapshot summary
+
+	#[cfg(feature = "std")]
+	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
+		match bls_primitives::crypto::add_signature_(
+			&self.aggregate_signature.ok_or(signature)?,
+			&signature,
+		) {
+			Ok(signature) => {
+				self.aggregate_signature = Some(signature);
+				Ok(())
+			},
+			Err(_) => Err(signature),
+		}
+	}
+
+	#[cfg(not(feature = "std"))]
 	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
 		match bls_primitives::crypto::bls_ext::add_signature(
 			&self.aggregate_signature.ok_or(signature)?,
@@ -185,12 +185,12 @@ impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 		fees
 	}
 
-	pub fn add_auth_index(&mut self, index: u16) {
+	pub fn add_auth_index(&mut self, index: usize) {
 		set_bit_field(&mut self.bitflags, index);
 	}
 
 	// Get set indexes
-	pub fn signed_auth_indexes(&self) -> Vec<u16> {
+	pub fn signed_auth_indexes(&self) -> Vec<usize> {
 		return_set_bits(&self.bitflags)
 	}
 

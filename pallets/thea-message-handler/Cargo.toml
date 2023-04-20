@@ -1,5 +1,5 @@
 [package]
-name = "thea"
+name = "thea-message-handler"
 version = "0.1.0"
 edition = "2021"
 
@@ -42,6 +42,7 @@ std = [
     "polkadex-primitives/std",
     "pallet-timestamp/std",
     "sp-core/std",
+    "frame-benchmarking/std"
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",

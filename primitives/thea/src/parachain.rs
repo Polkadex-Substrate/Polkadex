@@ -1,15 +1,32 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::AssetIdConverter;
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::BoundedVec;
 use scale_info::TypeInfo;
+use sp_application_crypto::sp_core::bounded::BoundedVec;
 use sp_runtime::traits::ConstU32;
 use sp_std::{vec, vec::Vec};
 use xcm::{
 	latest::{AssetId, Fungibility, MultiAsset, MultiAssets, MultiLocation},
 	VersionedMultiAssets, VersionedMultiLocation,
 };
+
+pub trait AssetIdConverter {
+	/// Get Asset Id
+	fn get_asset_id(&self) -> Option<u128>;
+
+	/// To Asset Id
+	fn to_asset_id(&self) -> Self;
+}
+
+#[derive(Encode, Decode, Clone, Debug, TypeInfo, PartialEq, Eq)]
+pub struct ApprovedWithdraw {
+	pub asset_id: u128,
+	pub amount: u128,
+	pub network: u8,
+	pub beneficiary: Vec<u8>,
+	pub payload: Vec<u8>,
+	pub index: u32,
+}
 
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub enum AssetType {
