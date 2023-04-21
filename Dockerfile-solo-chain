@@ -11,8 +11,8 @@ RUN rustup install nightly-2023-01-24 --no-self-update
 
 
 #RUN rustup update nightly
-RUN rustup target add wasm32-unknown-unknown --toolchain nightly-2023-01-24 --no-self-update
-RUN rustup default 1.66.1
+RUN rustup target add wasm32-unknown-unknown --toolchain nightly-2023-01-24 
+#RUN rustup default 1.66.1
 RUN rustup show && rustup +nightly show
 
 COPY . .
