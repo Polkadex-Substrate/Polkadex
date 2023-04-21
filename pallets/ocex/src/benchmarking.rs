@@ -29,7 +29,7 @@ use frame_system::RawOrigin;
 use orderbook_primitives::Fees;
 use parity_scale_codec::Decode;
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, ProxyLimit, WithdrawalLimit, UNIT_BALANCE,
+	ocex::TradingPairConfig, withdrawal::Withdrawal, ProxyLimit, UNIT_BALANCE,
 };
 use rust_decimal::{prelude::*, Decimal};
 use sp_runtime::{traits::One, BoundedBTreeSet};
