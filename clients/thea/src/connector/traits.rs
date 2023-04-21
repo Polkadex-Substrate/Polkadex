@@ -20,3 +20,34 @@ pub trait ForeignConnector: Send + Sync {
 	/// Returns the last processed nonce from native chain
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error>; // TODO: This is not send
 }
+
+// ForeignConnector that does nothing, mainly used for starting node in development mode
+// for just testing runtime
+pub struct NoOpConnector;
+#[async_trait]
+impl ForeignConnector for NoOpConnector {
+	fn block_duration(&self) -> Duration {
+		Duration::from_secs(60)
+	}
+
+	async fn connect(_: String) -> Result<Self, Error>
+	where
+		Self: Sized,
+	{
+		Ok(NoOpConnector)
+	}
+
+	async fn read_events(&self, _: u64) -> Result<Option<Message>, Error> {
+		Ok(None)
+	}
+
+	async fn send_transaction(&self, _: GossipMessage) {}
+
+	async fn check_message(&self, _: &Message) -> Result<bool, Error> {
+		Ok(false)
+	}
+
+	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
+		Ok(0)
+	}
+}
