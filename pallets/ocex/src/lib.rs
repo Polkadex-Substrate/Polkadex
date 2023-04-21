@@ -1021,11 +1021,12 @@ pub mod pallet {
 					Self::create_withdrawal_tree(working_summary.withdrawals.clone());
 				if !working_summary.withdrawals.is_empty() {
 					<OnChainEvents<T>>::mutate(|onchain_events| {
-						onchain_events.push(polkadex_primitives::ocex::OnChainEvents::GetStorage(
-							polkadex_primitives::ocex::Pallet::OCEX,
-							polkadex_primitives::ocex::StorageItem::Withdrawal,
-							working_summary.snapshot_id,
-						));
+						onchain_events.push(
+							polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+								working_summary.snapshot_id,
+								working_summary.withdrawals.clone(),
+							),
+						);
 					});
 				}
 				// Update the snapshot nonce and move the summary to snapshots storage
