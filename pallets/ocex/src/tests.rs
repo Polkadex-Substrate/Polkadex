@@ -1589,11 +1589,11 @@ fn test_submit_snapshot() {
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
-		let onchain_events = vec![polkadex_primitives::ocex::OnChainEvents::GetStorage(
-			polkadex_primitives::ocex::Pallet::OCEX,
-			polkadex_primitives::ocex::StorageItem::Withdrawal,
-			1,
-		)];
+		let onchain_events =
+			vec![polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+				1,
+				snapshot.withdrawals.clone(),
+			)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
 		assert_eq!(Snapshots::<Test>::get(1).withdrawals, snapshot.withdrawals);

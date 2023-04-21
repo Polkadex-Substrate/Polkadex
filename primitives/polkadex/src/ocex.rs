@@ -93,17 +93,5 @@ impl TradingPairConfig {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OnChainEvents<AccountId> {
 	OrderBookWithdrawalClaimed(u64, AccountId, Vec<Withdrawal<AccountId>>),
-	GetStorage(Pallet, StorageItem, u64),
-}
-
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum Pallet {
-	OCEX,
-}
-
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum StorageItem {
-	Withdrawal,
+	OrderbookWithdrawalProcessed(u64, Vec<Withdrawal<AccountId>>),
 }
