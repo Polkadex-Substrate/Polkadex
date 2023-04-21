@@ -3,8 +3,8 @@ FROM ubuntu:22.04
 ARG branch=mainnet-release
 
 RUN apt-get update && apt-get install --assume-yes git curl build-essential cmake clang jq
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y 
-RUN   source "$HOME/.cargo/env" && \
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
+RUN . "$HOME/.cargo/env" && \
   rustup toolchain install nightly && \
   rustup target add wasm32-unknown-unknown --toolchain nightly && \
   rustup default nightly && rustup show && rustup +nightly show 
