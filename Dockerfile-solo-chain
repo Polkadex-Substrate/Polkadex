@@ -3,14 +3,15 @@ FROM ubuntu:22.04
 ARG branch=mainnet-release
 
 RUN apt-get update && apt-get install -y git clang curl libssl-dev protobuf-compiler make build-essential
-RUN curl https://sh.rustup.rs -sSf  | sh -s -- -y
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH=/root/.cargo/bin:$PATH
-RUN rustup default stable &&  rustup update
+RUN rustup install 1.66.1 
+RUN rustup install nightly-2023-01-24
 RUN rustup show && rustup +nightly show
 
 
 
-RUN rustup update nightly
+#RUN rustup update nightly
 RUN rustup target add wasm32-unknown-unknown --toolchain nightly
 COPY . .
 
