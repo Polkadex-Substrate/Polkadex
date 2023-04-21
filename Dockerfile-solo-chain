@@ -5,13 +5,13 @@ ARG branch=mainnet-release
 RUN apt-get update && apt-get install -y git clang curl libssl-dev protobuf-compiler make build-essential
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH=/root/.cargo/bin:$PATH
-RUN rustup install 1.66.1 
-RUN rustup install nightly-2023-01-24
+RUN rustup install 1.66.1 --no-self-update 
+RUN rustup install nightly-2023-01-24 --no-self-update
 
 
 
 #RUN rustup update nightly
-RUN rustup target add wasm32-unknown-unknown --toolchain nightly-2023-01-24
+RUN rustup target add wasm32-unknown-unknown --toolchain nightly-2023-01-24 --no-self-update
 RUN rustup default 1.66.1
 RUN rustup show && rustup +nightly show
 
