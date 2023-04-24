@@ -10,8 +10,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use log::info;
 use parking_lot::RwLock;
-
-use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use thea_primitives::{AuthorityId, Message, ValidatorSet};
@@ -104,7 +102,7 @@ pub async fn test_foreign_deposit() {
 			ValidatorSet { set_id: 0, validators: active.clone() },
 		)]),
 		validator_set_id: 0,
-		next_authorities: BTreeMap::new(),
+		_next_authorities: BTreeMap::new(),
 		network_pref: BTreeMap::from([
 			(active[0].clone(), network),
 			(active[1].clone(), network),
@@ -113,7 +111,7 @@ pub async fn test_foreign_deposit() {
 		outgoing_messages: BTreeMap::new(),
 		incoming_messages: Arc::new(RwLock::new(BTreeMap::new())),
 		incoming_nonce: Arc::new(RwLock::new(BTreeMap::new())),
-		outgoing_nonce: BTreeMap::new(),
+		_outgoing_nonce: BTreeMap::new(),
 	});
 
 	let foreign_connector = Arc::new(DummyForeignConnector { active });

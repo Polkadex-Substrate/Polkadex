@@ -1,46 +1,57 @@
-use std::{collections::BTreeMap, future::Future, sync::Arc};
-
+use crate::{connector::traits::ForeignConnector, types::GossipMessage, worker::ObWorker};
 use futures::{
 	stream::{Fuse, FuturesUnordered},
 	StreamExt,
 };
-use parity_scale_codec::Encode;
+use parity_scale_codec::{Decode, Encode};
 use parking_lot::RwLock;
+use polkadex_primitives::{utils::return_set_bits, AccountId};
 use sc_client_api::{BlockchainEvents, FinalityNotification};
+use sc_consensus::LongestChain;
+use sc_finality_grandpa::{
+	block_import, run_grandpa_voter, Config, GenesisAuthoritySetProvider, GrandpaParams, LinkHalf,
+	SharedVoterState,
+};
 use sc_keystore::LocalKeystore;
 use sc_network::NetworkService;
 use sc_network_test::{
-	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
+	Block, BlockImportAdapter, FullPeerConfig, Hash, PassThroughVerifier, Peer, PeersClient,
 	PeersFullClient, TestNetFactory,
 };
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_api::{ApiRef, ProvideRuntimeApi};
-
 use sp_core::{Pair, H256};
+use sp_finality_grandpa::{
+	AuthorityList, EquivocationProof, GrandpaApi, OpaqueKeyOwnershipProof, SetId,
+};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
-
-use polkadex_primitives::utils::return_set_bits;
+use std::{
+	collections::{BTreeMap, HashMap},
+	future::Future,
+	sync::{Arc, Mutex},
+};
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
 
-use crate::{connector::traits::ForeignConnector, worker::ObWorker};
-
 pub mod deposit;
+mod protocol;
 pub mod withdrawal;
+
+type GrandpaBlockNumber = u64;
 
 #[derive(Clone, Default)]
 // This is the mock of native runtime state
 pub(crate) struct TestApi {
 	authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
 	validator_set_id: ValidatorSetId,
-	next_authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
+	_next_authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
 	network_pref: BTreeMap<AuthorityId, Network>,
 	outgoing_messages: BTreeMap<(Network, u64), Message>,
 	incoming_messages: Arc<RwLock<BTreeMap<(Network, u64), Message>>>,
 	incoming_nonce: Arc<RwLock<BTreeMap<Network, u64>>>,
-	outgoing_nonce: BTreeMap<Network, u64>,
+	_outgoing_nonce: BTreeMap<Network, u64>,
 }
 
 impl TestApi {
@@ -118,33 +129,71 @@ impl ProvideRuntimeApi<Block> for TestApi {
 }
 
 sp_api::mock_impl_runtime_apis! {
-impl TheaApi<Block> for RuntimeApi {
+	impl TheaApi<Block> for RuntimeApi {
 		/// Return the current active Thea validator set for all networks
 		fn full_validator_set() -> Option<ValidatorSet<AuthorityId>>{
 			self.inner.full_validator_set()
 		}
 
-   /// Return the current active Thea validator set
+		   /// Return the current active Thea validator set
 		fn validator_set(network: Network) -> Option<ValidatorSet<AuthorityId>>{
 			self.inner.validator_set(network)
 		}
+
 		/// Returns the outgoing message for given network and blk
 		fn outgoing_messages(network: Network, nonce: u64) -> Option<Message>{
 			self.inner.outgoing_messages(network,nonce)
 		}
+
 		/// Get Thea network associated with Validator
 		fn network(auth: AuthorityId) -> Option<Network>{
 			self.inner.network(auth)
 		}
+
 		/// Incoming messages
 		fn incoming_message(message: Message, bitmap: Vec<u128>, signature: AuthoritySignature) -> Result<(),()>{
 			self.inner.incoming_message(message, bitmap, signature)
 		}
+
 		/// Get last processed nonce for a given network
 		fn get_last_processed_nonce(network: Network) -> u64{
 			self.inner.get_last_processed_nonce(network)
 		}
-}
+	}
+
+	impl GrandpaApi<Block> for RuntimeApi {
+		fn grandpa_authorities(&self) -> AuthorityList {
+			self
+				.inner.authorities
+				.get(&1)
+				.unwrap()
+				.validators
+				.into_iter()
+				.enumerate()
+				.map(|(i, a)| (
+					sp_finality_grandpa::AuthorityId::decode(&mut a.encode().as_ref()).unwrap(),
+					i as u64)
+				).collect()
+		}
+
+		fn current_set_id(&self) -> SetId {
+				0
+		}
+
+		fn submit_report_equivocation_unsigned_extrinsic(
+			_equivocation_proof: EquivocationProof<Hash, GrandpaBlockNumber>,
+			_key_owner_proof: OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			None
+		}
+
+		fn generate_key_ownership_proof(
+			_set_id: SetId,
+			_authority_id: sp_finality_grandpa::AuthorityId,
+		) -> Option<OpaqueKeyOwnershipProof> {
+			None
+		}
+	}
 }
 
 /// Helper function to convert keyring types to AuthorityId
@@ -164,7 +213,9 @@ pub struct PeerData {
 
 #[derive(Default)]
 pub struct TheaTestnet {
+	api: TestApi,
 	peers: Vec<Peer<PeerData, PeersClient>>,
+	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, GossipMessage>>>>,
 }
 
 impl TestNetFactory for TheaTestnet {
@@ -173,7 +224,7 @@ impl TestNetFactory for TheaTestnet {
 	type PeerData = PeerData;
 
 	fn make_verifier(&self, _: PeersClient, _: &Self::PeerData) -> Self::Verifier {
-		PassThroughVerifier::new(true) // we don't care about how blks are finalized
+		PassThroughVerifier::new(false)
 	}
 
 	fn peer(&mut self, i: usize) -> &mut Peer<PeerData, PeersClient> {
@@ -196,8 +247,14 @@ impl TestNetFactory for TheaTestnet {
 		Option<sc_consensus::import_queue::BoxJustificationImport<sc_network_test::Block>>,
 		Self::PeerData,
 	) {
-		(client.as_block_import(), None, PeerData { is_validator: false })
+		//(client.as_block_import(), None, PeerData { is_validator: false })
+		let (client, backend) = (client.as_client(), client.as_backend());
+		let (import, link) = block_import(client, &self.api, LongestChain::new(backend), None)
+			.expect("Could not create block import for fresh peer.");
+		let justification_import = Box::new(import.clone());
+		(BlockImportAdapter::new(import), Some(justification_import), Mutex::new(Some(link)))
 	}
+
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
 			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
@@ -208,8 +265,12 @@ impl TestNetFactory for TheaTestnet {
 }
 
 impl TheaTestnet {
-	pub(crate) fn new(n_authority: usize, n_full: usize) -> Self {
-		let mut net = TheaTestnet { peers: Vec::with_capacity(n_authority + n_full) };
+	pub(crate) fn new(n_authority: usize, n_full: usize, api: TestApi) -> Self {
+		let mut net = TheaTestnet {
+			api,
+			peers: Vec::with_capacity(n_authority + n_full),
+			worker_massages: HashMap::new(),
+		};
 		for _ in 0..n_authority {
 			net.add_authority_peer();
 		}
@@ -230,10 +291,14 @@ impl TheaTestnet {
 			..Default::default()
 		})
 	}
+
+	pub(crate) fn drop_validator(&mut self) {
+		drop(self.peers.remove(0))
+	}
 }
 
-// Spawns Thea worker. Returns a future to spawn on the runtime.
-async fn initialize_thea<API, FC>(
+/// Spawns Thea worker. Returns a future to spawn on the runtime.
+pub(crate) async fn initialize_thea<API, FC>(
 	net: &mut TheaTestnet,
 	peers: Vec<(usize, &AccountKeyring, Arc<API>, bool, Arc<FC>)>,
 ) -> impl Future<Output = ()>
@@ -286,6 +351,7 @@ where
 			foreign_chain: connector,
 		};
 		let gadget = crate::worker::ObWorker::new(worker_params).await;
+		net.worker_massages.insert(peer_id, gadget.message_cache.clone());
 		let run_future = gadget.run();
 		fn assert_send<T: Send>(_: &T) {}
 		assert_send(&run_future);
