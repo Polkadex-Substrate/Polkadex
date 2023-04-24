@@ -1,0 +1,40 @@
+[relaychain] 
+default_command = "/testnet-binaries/polkadot" 
+default_args = [ "-lparachain=debug" ] 
+ 
+chain = "rococo-local" 
+ 
+[[relaychain.nodes]] 
+name = "alice" 
+validator = true 
+ws_port = 9900 
+ 
+[[relaychain.nodes]] 
+name = "bob" 
+validator = true 
+ 
+[[relaychain.nodes]] 
+name = "charlie" 
+validator = true 
+ 
+[[relaychain.nodes]] 
+name = "dave" 
+validator = true 
+ 
+[[parachains]] 
+id = 1000 
+cumulus_based = true 
+ 
+[parachains.collator] 
+name = "parachain-A-1000-collator01" 
+command = "/testnet-binaries/parachain-polkadex-node" 
+ws_port = 9901
+ 
+[[parachains]] 
+id = 1001 
+cumulus_based = true 
+ 
+[parachains.collator] 
+name = "parachain-B-1001-collator01" 
+command = "/testnet-binaries/parachain-polkadex-node"
+ws_port = 9902
