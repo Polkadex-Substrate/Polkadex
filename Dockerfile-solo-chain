@@ -1,23 +1,25 @@
 FROM ubuntu:22.04
 
-ARG branch=mainnet-release
+#ARG branch=mainnet-release
 
-RUN apt-get update && apt-get install --assume-yes git curl build-essential cmake clang jq
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
-RUN . "$HOME/.cargo/env" && \
-  rustup toolchain install nightly && \
-  rustup target add wasm32-unknown-unknown --toolchain nightly && \
-  rustup default nightly && rustup show && rustup +nightly show 
   
 
-COPY . .
+RUN apt-get update && apt-get install --assume-yes git curl build-essential cmake clang jq
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+  export PATH="$PATH:$HOME/.cargo/bin" && \
+  rustup install 1.67 --no-self-update && \
+  rustup toolchain install nightly-2023-01-01 --no-self-update && \
+  rustup target add wasm32-unknown-unknown --toolchain nightly-2023-01-01 && \
+  rustup default nightly-2023-01-01 && \
+  git clone https://github.com/Polkadex-Substrate/Polkadex  && \
+  cd Polkadex && \ 
+  cargo  +nightly-2023-01-01 build --release
 
 
-RUN git checkout  $branch
-RUN echo "Building branch: " && git rev-parse --abbrev-ref HEAD
+#RUN git checkout  $branch
+#RUN echo "Building branch: " && git rev-parse --abbrev-ref HEAD
 
 
-RUN cargo +nightly b --release
 
 EXPOSE 30333 9933 9944
 
