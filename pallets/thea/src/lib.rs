@@ -36,6 +36,7 @@ mod session;
 pub mod pallet {
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
+
 	use thea_primitives::{types::Message, TheaIncomingExecutor};
 
 	use super::*;
@@ -318,10 +319,11 @@ impl<T: Config> Pallet<T> {
 	fn initialize_authorities(authorities: &[T::TheaId]) -> Result<(), ()> {
 		let id = GENESIS_AUTHORITY_SET_ID;
 		<ValidatorSetId<T>>::put(id);
-		if authorities.len() == 1 {
-			// This happens only in dev mode
-			<Authorities<T>>::insert(1, BoundedVec::truncate_from(authorities.to_vec()));
-			<NetworkPreference<T>>::insert(authorities[0].clone(), 1);
+
+		<Authorities<T>>::insert(1, BoundedVec::truncate_from(authorities.to_vec()));
+		for auth in authorities {
+			// Everyone is assigned to one on genesis.
+			<NetworkPreference<T>>::insert(auth.clone(), 1);
 		}
 		Ok(())
 	}
