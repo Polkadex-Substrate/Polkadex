@@ -12,20 +12,18 @@ use log::info;
 use parity_scale_codec::Encode;
 use parking_lot::RwLock;
 use polkadex_primitives::utils::return_set_bits;
-use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
 use std::{
 	collections::{BTreeMap, HashMap},
 	sync::Arc,
 	time::Duration,
 };
-
 use thea_primitives::{AuthorityId, Message, ValidatorSet, ValidatorSetId};
 
-pub struct DummyForeignConnector {
-	authorities: HashMap<ValidatorSetId, Vec<AuthorityId>>,
-	incoming_nonce: Arc<RwLock<u64>>,
-	incoming_messages: Arc<RwLock<HashMap<u64, Message>>>,
+pub(crate) struct DummyForeignConnector {
+	pub(crate) authorities: HashMap<ValidatorSetId, Vec<AuthorityId>>,
+	pub(crate) incoming_nonce: Arc<RwLock<u64>>,
+	pub(crate) incoming_messages: Arc<RwLock<HashMap<u64, Message>>>,
 }
 
 #[async_trait]
@@ -116,7 +114,7 @@ pub async fn test_withdrawal() {
 			ValidatorSet { set_id: 0, validators: active.clone() },
 		)]),
 		validator_set_id: 0,
-		next_authorities: BTreeMap::new(),
+		_next_authorities: BTreeMap::new(),
 		network_pref: BTreeMap::from([
 			(active[0].clone(), network),
 			(active[1].clone(), network),
@@ -125,7 +123,7 @@ pub async fn test_withdrawal() {
 		outgoing_messages: BTreeMap::from([((network, 1), message.clone())]),
 		incoming_messages: Arc::new(RwLock::new(BTreeMap::new())),
 		incoming_nonce: Arc::new(RwLock::new(BTreeMap::new())),
-		outgoing_nonce: BTreeMap::from([(network, 1)]),
+		_outgoing_nonce: BTreeMap::from([(network, 1)]),
 	});
 
 	let foreign_connector = Arc::new(DummyForeignConnector {
