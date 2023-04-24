@@ -315,10 +315,14 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn initialize_authorities(_authorities: &[T::TheaId]) -> Result<(), ()> {
-		// We don't the network pref of validator hence empty vector
+	fn initialize_authorities(authorities: &[T::TheaId]) -> Result<(), ()> {
 		let id = GENESIS_AUTHORITY_SET_ID;
 		<ValidatorSetId<T>>::put(id);
+		if authorities.len() == 1 {
+			// This happens only in dev mode
+			<Authorities<T>>::insert(1, BoundedVec::truncate_from(authorities.to_vec()));
+			<NetworkPreference<T>>::insert(authorities[0].clone(), 1);
+		}
 		Ok(())
 	}
 
