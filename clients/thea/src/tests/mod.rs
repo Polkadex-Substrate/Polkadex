@@ -40,6 +40,16 @@ mod protocol;
 pub mod withdrawal;
 
 type GrandpaBlockNumber = u64;
+type TestLinkHalf =
+	LinkHalf<Block, PeersFullClient, LongestChain<substrate_test_runtime_client::Backend, Block>>;
+type GrandpaPeerData = Mutex<Option<TestLinkHalf>>;
+type GrandpaBlockImport = sc_finality_grandpa::GrandpaBlockImport<
+	substrate_test_runtime_client::Backend,
+	Block,
+	PeersFullClient,
+	LongestChain<substrate_test_runtime_client::Backend, Block>,
+>;
+type GrandpaPeer = Peer<GrandpaPeerData, GrandpaBlockImport>;
 
 #[derive(Clone, Default)]
 // This is the mock of native runtime state
@@ -213,6 +223,7 @@ pub struct PeerData {
 
 #[derive(Default)]
 pub struct TheaTestnet {
+	pub(crate) grandpa_peers: Vec<GrandpaPeer>,
 	api: TestApi,
 	peers: Vec<Peer<PeerData, PeersClient>>,
 	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, GossipMessage>>>>,
@@ -221,24 +232,23 @@ pub struct TheaTestnet {
 impl TestNetFactory for TheaTestnet {
 	type Verifier = PassThroughVerifier;
 	type BlockImport = PeersClient;
-	type PeerData = PeerData;
+	type PeerData = GrandpaPeerData;
 
 	fn make_verifier(&self, _: PeersClient, _: &Self::PeerData) -> Self::Verifier {
 		PassThroughVerifier::new(false)
 	}
 
-	fn peer(&mut self, i: usize) -> &mut Peer<PeerData, PeersClient> {
-		&mut self.peers[i]
+	fn peer(&mut self, i: usize) -> &mut GrandpaPeer {
+		&mut self.grandpa_peers[i]
 	}
 
-	fn peers(&self) -> &Vec<Peer<PeerData, PeersClient>> {
-		&self.peers
+	fn peers(&self) -> &Vec<GrandpaPeer> {
+		&self.grandpa_peers
 	}
 
-	fn mut_peers<F: FnOnce(&mut Vec<Peer<PeerData, PeersClient>>)>(&mut self, closure: F) {
-		closure(&mut self.peers);
+	fn mut_peers<F: FnOnce(&mut Vec<GrandpaPeer>)>(&mut self, closure: F) {
+		closure(&mut self.grandpa_peers);
 	}
-
 	fn make_block_import(
 		&self,
 		client: PeersClient,
