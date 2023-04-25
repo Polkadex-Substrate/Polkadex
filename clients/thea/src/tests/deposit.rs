@@ -2,7 +2,8 @@ use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
 	tests::{
-		create_workers_array, generate_and_finalize_blocks, make_thea_ids, TestApi, TheaTestnet,
+		create_workers_array, generate_and_finalize_blocks, make_gradpa_ids, make_thea_ids,
+		TestApi, TheaTestnet,
 	},
 	types::GossipMessage,
 };
@@ -12,6 +13,7 @@ use log::info;
 use parking_lot::RwLock;
 use sp_keyring::AccountKeyring;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use substrate_test_runtime_client::Ed25519Keyring;
 use thea_primitives::{AuthorityId, Message, ValidatorSet};
 
 pub struct DummyForeignConnector {
@@ -76,7 +78,6 @@ impl ForeignConnector for DummyForeignConnector {
 pub async fn test_foreign_deposit() {
 	sp_tracing::try_init_simple();
 
-	let mut testnet = TheaTestnet::new(3, 1);
 	let network = 1;
 	let peers = &[
 		(AccountKeyring::Alice, true),
@@ -96,7 +97,11 @@ pub async fn test_foreign_deposit() {
 	let active: Vec<AuthorityId> =
 		make_thea_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
 
+	let grandpa_peers = &[Ed25519Keyring::Alice, Ed25519Keyring::Bob, Ed25519Keyring::Charlie];
+	let genesys_authorities = make_gradpa_ids(grandpa_peers);
+
 	let runtime = Arc::new(TestApi {
+		genesys_authorities,
 		authorities: BTreeMap::from([(
 			network,
 			ValidatorSet { set_id: 0, validators: active.clone() },
@@ -114,6 +119,7 @@ pub async fn test_foreign_deposit() {
 		_outgoing_nonce: BTreeMap::new(),
 	});
 
+	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
 	let foreign_connector = Arc::new(DummyForeignConnector { active });
 
 	let validators = peers
