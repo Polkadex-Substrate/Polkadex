@@ -20,10 +20,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod assets;
-pub mod egress;
 pub mod fees;
 pub mod ingress;
-pub mod misbehavior;
 pub mod ocex;
 pub mod rewards;
 pub mod utils;
@@ -101,31 +99,5 @@ pub struct AssetsLimit;
 impl Get<u32> for AssetsLimit {
 	fn get() -> u32 {
 		1000
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct SnapshotAccLimit;
-impl Get<u32> for SnapshotAccLimit {
-	fn get() -> u32 {
-		20
-	}
-}
-#[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct WithdrawalLimit;
-impl Get<u32> for WithdrawalLimit {
-	fn get() -> u32 {
-		1
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct OnChainEventsLimit;
-impl Get<u32> for OnChainEventsLimit {
-	fn get() -> u32 {
-		500
 	}
 }

@@ -3,6 +3,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
+
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
@@ -51,12 +52,6 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct OCEXConfig<AccountId> {
-	pub enclave_id: AccountId,
-}
-
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TradingPairConfig {
 	pub base_asset: AssetId,
 	pub quote_asset: AssetId,
@@ -98,17 +93,5 @@ impl TradingPairConfig {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OnChainEvents<AccountId> {
 	OrderBookWithdrawalClaimed(u64, AccountId, Vec<Withdrawal<AccountId>>),
-	GetStorage(Pallet, StorageItem, u64),
-}
-
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum Pallet {
-	OCEX,
-}
-
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum StorageItem {
-	Withdrawal,
+	OrderbookWithdrawalProcessed(u64, Vec<Withdrawal<AccountId>>),
 }

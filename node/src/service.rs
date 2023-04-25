@@ -440,6 +440,7 @@ pub fn new_full_base(
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 
+	let chain_type = config.chain_spec.chain_type();
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
 		backend: backend.clone(),
@@ -554,7 +555,7 @@ pub fn new_full_base(
 	let keystore =
 		if role.is_authority() { Some(keystore_container.sync_keystore()) } else { None };
 
-	let config = sc_finality_grandpa::Config {
+	let grandpa_config = sc_finality_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
 		gossip_duration: std::time::Duration::from_millis(333),
 		justification_period: 512,
@@ -574,7 +575,7 @@ pub fn new_full_base(
 		// been tested extensively yet and having most nodes in a network run it
 		// could lead to finality stalls.
 		let grandpa_config = sc_finality_grandpa::GrandpaParams {
-			config,
+			config: grandpa_config,
 			link: grandpa_link,
 			network: network.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
@@ -592,7 +593,7 @@ pub fn new_full_base(
 		);
 	}
 
-	let config = orderbook::ObParams {
+	let ob_config = orderbook::ObParams {
 		client: client.clone(),
 		backend: backend.clone(),
 		runtime: client.clone(),
@@ -612,10 +613,10 @@ pub fn new_full_base(
 	task_manager.spawn_handle().spawn_blocking(
 		"orderbook",
 		None,
-		orderbook::start_orderbook_gadget(config),
+		orderbook::start_orderbook_gadget(ob_config),
 	);
 
-	let config = thea_client::TheaParams {
+	let thea_config = thea_client::TheaParams {
 		client: client.clone(),
 		backend,
 		runtime: client.clone(),
@@ -625,13 +626,14 @@ pub fn new_full_base(
 		protocol_name: thea_protocol_name,
 		marker: Default::default(),
 		is_validator: role.is_authority(),
+		chain_type,
 	};
 
 	// Thea task
 	task_manager.spawn_handle().spawn_blocking(
 		"thea",
 		None,
-		thea_client::start_thea_gadget(config),
+		thea_client::start_thea_gadget(thea_config),
 	);
 
 	network_starter.start_network();

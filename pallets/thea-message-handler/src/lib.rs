@@ -135,6 +135,21 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Inserts a new authority set using sudo
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::default())]
+		#[transactional]
+		pub fn insert_authorities(
+			origin: OriginFor<T>,
+			authorities: BoundedVec<T::TheaId, T::MaxAuthorities>,
+			set_id: thea_primitives::ValidatorSetId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<Authorities<T>>::insert(set_id, authorities);
+			<ValidatorSetId<T>>::put(set_id);
+			Ok(())
+		}
+
 		/// Handles the verified incoming message
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::default())]
