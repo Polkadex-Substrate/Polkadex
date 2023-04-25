@@ -296,7 +296,7 @@ where
 				.runtime
 				.runtime_api()
 				.full_validator_set(&at)?
-				.expect("Expected to full validator set api run value");
+				.ok_or(Error::NoValidatorsFound)?;
 			let signing_key = self.keystore.get_local_key(active.validators())?;
 			let network = self.runtime.runtime_api().network(&at, signing_key)?;
 
