@@ -3,15 +3,12 @@ use futures::{
 	stream::{Fuse, FuturesUnordered},
 	StreamExt,
 };
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::Encode;
 use parking_lot::RwLock;
-use polkadex_primitives::{utils::return_set_bits, AccountId};
+use polkadex_primitives::utils::return_set_bits;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
 use sc_consensus::LongestChain;
-use sc_finality_grandpa::{
-	block_import, run_grandpa_voter, Config, GenesisAuthoritySetProvider, GrandpaParams, LinkHalf,
-	SharedVoterState,
-};
+use sc_finality_grandpa::{block_import, GenesisAuthoritySetProvider, LinkHalf};
 use sc_keystore::LocalKeystore;
 use sc_network::NetworkService;
 use sc_network_test::{
@@ -31,6 +28,7 @@ use std::{
 	future::Future,
 	sync::{Arc, Mutex},
 };
+use substrate_test_runtime_client::Ed25519Keyring;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
@@ -39,6 +37,7 @@ pub mod deposit;
 mod protocol;
 pub mod withdrawal;
 
+const GRANDPA_PROTOCOL_NAME: &str = "/grandpa/1";
 type GrandpaBlockNumber = u64;
 type TestLinkHalf =
 	LinkHalf<Block, PeersFullClient, LongestChain<substrate_test_runtime_client::Backend, Block>>;
@@ -54,6 +53,7 @@ type GrandpaPeer = Peer<GrandpaPeerData, GrandpaBlockImport>;
 #[derive(Clone, Default)]
 // This is the mock of native runtime state
 pub(crate) struct TestApi {
+	genesys_authorities: AuthorityList,
 	authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
 	validator_set_id: ValidatorSetId,
 	_next_authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
@@ -125,6 +125,12 @@ impl TestApi {
 	}
 }
 
+impl GenesisAuthoritySetProvider<Block> for TestApi {
+	fn get(&self) -> sp_blockchain::Result<AuthorityList> {
+		Ok(self.genesys_authorities.clone())
+	}
+}
+
 // compiler gets confused and warns us about unused inner
 #[allow(dead_code)]
 pub(crate) struct RuntimeApi {
@@ -173,17 +179,7 @@ sp_api::mock_impl_runtime_apis! {
 
 	impl GrandpaApi<Block> for RuntimeApi {
 		fn grandpa_authorities(&self) -> AuthorityList {
-			self
-				.inner.authorities
-				.get(&1)
-				.unwrap()
-				.validators
-				.into_iter()
-				.enumerate()
-				.map(|(i, a)| (
-					sp_finality_grandpa::AuthorityId::decode(&mut a.encode().as_ref()).unwrap(),
-					i as u64)
-				).collect()
+			self.inner.genesys_authorities.clone()
 		}
 
 		fn current_set_id(&self) -> SetId {
@@ -224,14 +220,14 @@ pub struct PeerData {
 #[derive(Default)]
 pub struct TheaTestnet {
 	pub(crate) grandpa_peers: Vec<GrandpaPeer>,
-	api: TestApi,
+	api: Arc<TestApi>,
 	peers: Vec<Peer<PeerData, PeersClient>>,
 	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, GossipMessage>>>>,
 }
 
 impl TestNetFactory for TheaTestnet {
 	type Verifier = PassThroughVerifier;
-	type BlockImport = PeersClient;
+	type BlockImport = GrandpaBlockImport;
 	type PeerData = GrandpaPeerData;
 
 	fn make_verifier(&self, _: PeersClient, _: &Self::PeerData) -> Self::Verifier {
@@ -259,15 +255,19 @@ impl TestNetFactory for TheaTestnet {
 	) {
 		//(client.as_block_import(), None, PeerData { is_validator: false })
 		let (client, backend) = (client.as_client(), client.as_backend());
-		let (import, link) = block_import(client, &self.api, LongestChain::new(backend), None)
-			.expect("Could not create block import for fresh peer.");
+		let (import, link) =
+			block_import(client, self.api.as_ref(), LongestChain::new(backend), None)
+				.expect("Could not create block import for fresh peer.");
 		let justification_import = Box::new(import.clone());
 		(BlockImportAdapter::new(import), Some(justification_import), Mutex::new(Some(link)))
 	}
 
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
+			notifications_protocols: vec![
+				GRANDPA_PROTOCOL_NAME.into(),
+				crate::thea_protocol_name::NAME.into(),
+			],
 			is_authority: false,
 			..Default::default()
 		})
@@ -275,8 +275,9 @@ impl TestNetFactory for TheaTestnet {
 }
 
 impl TheaTestnet {
-	pub(crate) fn new(n_authority: usize, n_full: usize, api: TestApi) -> Self {
+	pub(crate) fn new(n_authority: usize, n_full: usize, api: Arc<TestApi>) -> Self {
 		let mut net = TheaTestnet {
+			grandpa_peers: Vec::with_capacity(n_authority + n_full),
 			api,
 			peers: Vec::with_capacity(n_authority + n_full),
 			worker_massages: HashMap::new(),
@@ -285,18 +286,17 @@ impl TheaTestnet {
 			net.add_authority_peer();
 		}
 		for _ in 0..n_full {
-			net.add_full_peer_with_config(FullPeerConfig {
-				notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
-				is_authority: false,
-				..Default::default()
-			});
+			net.add_full_peer();
 		}
 		net
 	}
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
+			notifications_protocols: vec![
+				GRANDPA_PROTOCOL_NAME.into(),
+				crate::thea_protocol_name::NAME.into(),
+			],
 			is_authority: true,
 			..Default::default()
 		})
@@ -319,8 +319,6 @@ where
 {
 	let workers = FuturesUnordered::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		net.peers[peer_id].data.is_validator = is_validator;
-
 		let mut keystore = None;
 
 		if is_validator {
@@ -348,12 +346,12 @@ where
 		}
 
 		let worker_params = crate::worker::WorkerParams {
-			client: net.peers[peer_id].client().as_client(),
-			backend: net.peers[peer_id].client().as_backend(),
+			client: net.grandpa_peers[peer_id].client().as_client(),
+			backend: net.grandpa_peers[peer_id].client().as_backend(),
 			runtime: api,
-			sync_oracle: net.peers[peer_id].network_service().clone(),
+			sync_oracle: net.grandpa_peers[peer_id].network_service().clone(),
 			keystore,
-			network: net.peers[peer_id].network_service().clone(),
+			network: net.grandpa_peers[peer_id].network_service().clone(),
 			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,
@@ -393,8 +391,6 @@ where
 {
 	let mut workers = Vec::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		net.peers[peer_id].data.is_validator = is_validator;
-
 		let mut keystore = None;
 
 		if is_validator {
@@ -422,12 +418,12 @@ where
 		}
 
 		let worker_params = crate::worker::WorkerParams {
-			client: net.peers[peer_id].client().as_client(),
-			backend: net.peers[peer_id].client().as_backend(),
+			client: net.grandpa_peers[peer_id].client().as_client(),
+			backend: net.grandpa_peers[peer_id].client().as_backend(),
 			runtime: api,
-			sync_oracle: net.peers[peer_id].network_service().clone(),
+			sync_oracle: net.grandpa_peers[peer_id].network_service().clone(),
 			keystore,
-			network: net.peers[peer_id].network_service().clone(),
+			network: net.grandpa_peers[peer_id].network_service().clone(),
 			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,
@@ -435,8 +431,11 @@ where
 			foreign_chain: connector,
 		};
 		let gadget = crate::worker::ObWorker::new(worker_params).await;
-		let finality_stream_future =
-			net.peers[peer_id].client().as_client().finality_notification_stream().fuse();
+		let finality_stream_future = net.grandpa_peers[peer_id]
+			.client()
+			.as_client()
+			.finality_notification_stream()
+			.fuse();
 		workers.push((gadget, finality_stream_future))
 	}
 	workers
@@ -453,4 +452,8 @@ pub async fn generate_and_finalize_blocks(count: usize, testnet: &mut TheaTestne
 		old_finalized + count as u64,
 		testnet.peer(fullnode_id).client().info().finalized_number
 	);
+}
+
+pub(crate) fn make_gradpa_ids(keys: &[Ed25519Keyring]) -> AuthorityList {
+	keys.iter().map(|key| (*key).public().into()).map(|id| (id, 1)).collect()
 }

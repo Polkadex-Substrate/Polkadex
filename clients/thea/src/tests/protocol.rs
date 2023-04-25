@@ -1,12 +1,12 @@
 use super::*;
-use crate::tests::withdrawal::DummyForeignConnector;
+use crate::tests::{make_gradpa_ids, withdrawal::DummyForeignConnector};
 use std::collections::HashMap;
+use substrate_test_runtime_client::Ed25519Keyring;
 
 #[tokio::test]
 async fn dropped_one_validator_still_works() {
 	sp_tracing::try_init_simple();
 
-	let mut testnet = TheaTestnet::new(3, 1);
 	let network = 1;
 	let peers = &[
 		(AccountKeyring::Alice, true),
@@ -26,8 +26,11 @@ async fn dropped_one_validator_still_works() {
 		validator_set_id: 0,
 		validator_set_len: 3,
 	};
+	let grandpa_peers = &[Ed25519Keyring::Alice, Ed25519Keyring::Bob, Ed25519Keyring::Charlie];
+	let genesys_authorities = make_gradpa_ids(grandpa_peers);
 
 	let runtime = Arc::new(TestApi {
+		genesys_authorities,
 		authorities: BTreeMap::from([(
 			network,
 			ValidatorSet { set_id: 0, validators: active.clone() },
@@ -50,6 +53,8 @@ async fn dropped_one_validator_still_works() {
 		incoming_nonce: Arc::new(RwLock::new(0)),
 		incoming_messages: Arc::new(RwLock::new(HashMap::new())),
 	});
+
+	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
 
 	let validators = peers
 		.iter()
