@@ -1,5 +1,5 @@
 use super::*;
-use crate::tests::{make_gradpa_ids, withdrawal::DummyForeignConnector};
+use crate::tests::{make_gradpa_ids, three_grandpa_validators, withdrawal::DummyForeignConnector};
 use std::collections::HashMap;
 use substrate_test_runtime_client::Ed25519Keyring;
 
@@ -55,6 +55,8 @@ async fn dropped_one_validator_still_works() {
 	});
 
 	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
+	let (grandpa_handle, mut grandpa_net) =
+		three_grandpa_validators(runtime.clone(), grandpa_peers.as_ref());
 
 	let validators = peers
 		.iter()
@@ -68,11 +70,17 @@ async fn dropped_one_validator_still_works() {
 	testnet.drop_validator();
 
 	// add new block
-	generate_and_finalize_blocks(1, &mut testnet).await;
+	grandpa_net.peer(0).push_blocks(1, false);
+	grandpa_net.run_until_sync().await;
 
-	// validate finality
+	// validate finality on thea side
 	for i in 0..3 {
-		assert_eq!(testnet.peer(i).client().info().best_number, 1, "Peer #{} failed to sync", i);
+		assert_eq!(
+			grandpa_net.peer(i).client().info().best_number,
+			1,
+			"Peer #{} failed to sync",
+			i
+		);
 	}
 
 	// verify process message
@@ -82,4 +90,5 @@ async fn dropped_one_validator_still_works() {
 
 	// terminate
 	thea_handle.abort_handle().abort();
+	grandpa_handle.abort_handle().abort();
 }
