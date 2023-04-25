@@ -119,7 +119,7 @@ pub async fn test_foreign_deposit() {
 		_outgoing_nonce: BTreeMap::new(),
 	});
 
-	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
+	let mut testnet = TheaTestnet::new(3, 1);
 	let foreign_connector = Arc::new(DummyForeignConnector { active });
 
 	let validators = peers
