@@ -85,6 +85,15 @@ async fn dropped_one_validator_still_works() {
 
 	// verify process message
 	assert!(!testnet.worker_massages.is_empty());
+	let mut retry = 0;
+	loop {
+		if retry >= 12 || runtime.incoming_messages.read().is_empty() {
+			break;
+		}
+		tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+		retry += 1;
+	}
+	assert!(retry >= 12, "No incomming messages registered");
 
 	// terminate
 	thea_handle.abort_handle().abort();
