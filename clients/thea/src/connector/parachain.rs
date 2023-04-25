@@ -11,7 +11,8 @@ pub struct ParachainClient {
 	api: OnlineClient<PolkadotConfig>,
 }
 
-const PALLET_NAME: &str = "TheaHandler";
+// This should not be changed unless name at parachain-runtime/lib is changed.
+const PALLET_NAME: &str = "TheaMessageHandler";
 
 #[async_trait]
 impl ForeignConnector for ParachainClient {

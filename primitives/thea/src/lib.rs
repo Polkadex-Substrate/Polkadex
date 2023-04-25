@@ -1,6 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub mod parachain;
 pub mod types;
+#[cfg(test)]
+mod test;
+
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
