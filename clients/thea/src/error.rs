@@ -27,6 +27,8 @@ pub enum Error {
 	ValidatorSetNotInitialized(Network),
 	#[error("Error during BLS operation: {0}")]
 	BLSError(String),
+	#[error("No validators found on runtime")]
+	NoValidatorsFound,
 }
 
 impl From<subxt::Error> for Error {
