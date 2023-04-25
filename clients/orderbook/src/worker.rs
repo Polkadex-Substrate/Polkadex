@@ -54,6 +54,7 @@ use crate::{
 	Client, DbRef,
 };
 
+pub const ORDERBOOK_WORKER_NONCE_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
@@ -162,7 +163,19 @@ where
 		} = worker_params;
 		// Shared data
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
-		let latest_worker_nonce = Arc::new(RwLock::new(0));
+		// Read from offchain state for new worker nonce
+		let offchain_storage = backend.offchain_storage().expect("Unable to load offchain storage");
+		// if not found, set it to 0
+		let nonce: u64 = match offchain_storage
+			.get(ORDERBOOK_WORKER_NONCE_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX)
+		{
+			None => 0,
+			Some(encoded_nonce) => {
+				// Worker nonce stored using scale encoded fashion
+				Decode::decode(&mut &encoded_nonce[..]).unwrap_or(0)
+			},
+		};
+		let latest_worker_nonce = Arc::new(RwLock::new(nonce));
 		let network = Arc::new(network);
 		let validators = Arc::new(RwLock::new(BTreeSet::new()));
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
@@ -396,7 +409,6 @@ where
 			UserActions::Withdraw(withdraw) =>
 				self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
-			UserActions::Snapshot => self.snapshot(action.worker_nonce, action.stid)?,
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
 		self.latest_state_change_id = action.stid;
@@ -553,6 +565,12 @@ where
 						ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
 						&snapshot_id.encode(),
 						&summary.encode(),
+					);
+					// Store the last processed worker nonce too
+					offchain_storage.set(
+						ORDERBOOK_WORKER_NONCE_PREFIX,
+						ORDERBOOK_WORKER_NONCE_PREFIX,
+						&summary.worker_nonce.encode(),
 					);
 					Ok(summary)
 				},
