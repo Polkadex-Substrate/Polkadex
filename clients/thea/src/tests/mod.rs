@@ -8,9 +8,12 @@ use parking_lot::RwLock;
 use polkadex_primitives::utils::return_set_bits;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
 use sc_consensus::LongestChain;
-use sc_finality_grandpa::{block_import, GenesisAuthoritySetProvider, LinkHalf};
+use sc_finality_grandpa::{
+	block_import, run_grandpa_voter, Config, GenesisAuthoritySetProvider, GrandpaParams, LinkHalf,
+	SharedVoterState,
+};
 use sc_keystore::LocalKeystore;
-use sc_network::NetworkService;
+use sc_network::{config::Role, NetworkService};
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, Hash, PassThroughVerifier, Peer, PeersClient,
 	PeersFullClient, TestNetFactory,
@@ -22,11 +25,13 @@ use sp_finality_grandpa::{
 	AuthorityList, EquivocationProof, GrandpaApi, OpaqueKeyOwnershipProof, SetId,
 };
 use sp_keyring::AccountKeyring;
-use sp_keystore::CryptoStore;
+use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
+use sp_runtime::key_types::GRANDPA;
 use std::{
 	collections::{BTreeMap, HashMap},
 	future::Future,
 	sync::{Arc, Mutex},
+	time::Duration,
 };
 use substrate_test_runtime_client::Ed25519Keyring;
 use thea_primitives::{
@@ -37,6 +42,7 @@ pub mod deposit;
 mod protocol;
 pub mod withdrawal;
 
+const TEST_GOSSIP_DURATION: Duration = Duration::from_millis(500);
 const GRANDPA_PROTOCOL_NAME: &str = "/grandpa/1";
 type GrandpaBlockNumber = u64;
 type TestLinkHalf =
@@ -218,14 +224,37 @@ pub struct PeerData {
 }
 
 #[derive(Default)]
-pub struct TheaTestnet {
-	pub(crate) grandpa_peers: Vec<GrandpaPeer>,
+pub(crate) struct GrandpaTestnet {
+	pub(crate) peers: Vec<GrandpaPeer>,
 	api: Arc<TestApi>,
-	peers: Vec<Peer<PeerData, PeersClient>>,
-	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, GossipMessage>>>>,
 }
 
-impl TestNetFactory for TheaTestnet {
+impl GrandpaTestnet {
+	pub(crate) fn new(n_authority: usize, n_full: usize, api: Arc<TestApi>) -> Self {
+		let mut net = GrandpaTestnet { peers: Vec::with_capacity(n_authority + n_full), api };
+		for _ in 0..n_authority {
+			net.add_authority_peer();
+		}
+		for _ in 0..n_full {
+			net.add_full_peer();
+		}
+		net
+	}
+
+	pub(crate) fn add_authority_peer(&mut self) {
+		self.add_full_peer_with_config(FullPeerConfig {
+			notifications_protocols: vec![GRANDPA_PROTOCOL_NAME.into()],
+			is_authority: true,
+			..Default::default()
+		})
+	}
+
+	pub(crate) fn drop_validator(&mut self) {
+		drop(self.peers.remove(0))
+	}
+}
+
+impl TestNetFactory for GrandpaTestnet {
 	type Verifier = PassThroughVerifier;
 	type BlockImport = GrandpaBlockImport;
 	type PeerData = GrandpaPeerData;
@@ -235,15 +264,15 @@ impl TestNetFactory for TheaTestnet {
 	}
 
 	fn peer(&mut self, i: usize) -> &mut GrandpaPeer {
-		&mut self.grandpa_peers[i]
+		&mut self.peers[i]
 	}
 
 	fn peers(&self) -> &Vec<GrandpaPeer> {
-		&self.grandpa_peers
+		&self.peers
 	}
 
 	fn mut_peers<F: FnOnce(&mut Vec<GrandpaPeer>)>(&mut self, closure: F) {
-		closure(&mut self.grandpa_peers);
+		closure(&mut self.peers);
 	}
 	fn make_block_import(
 		&self,
@@ -264,21 +293,91 @@ impl TestNetFactory for TheaTestnet {
 
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				GRANDPA_PROTOCOL_NAME.into(),
-				crate::thea_protocol_name::NAME.into(),
-			],
+			notifications_protocols: vec![GRANDPA_PROTOCOL_NAME.into()],
 			is_authority: false,
 			..Default::default()
 		})
 	}
 }
 
+fn create_keystore(authority: Ed25519Keyring) -> (SyncCryptoStorePtr, tempfile::TempDir) {
+	let keystore_path = tempfile::tempdir().expect("Creates keystore path");
+	let keystore =
+		Arc::new(LocalKeystore::open(keystore_path.path(), None).expect("Creates keystore"));
+	SyncCryptoStore::ed25519_generate_new(&*keystore, GRANDPA, Some(&authority.to_seed()))
+		.expect("Creates authority key");
+
+	(keystore, keystore_path)
+}
+
+fn initialize_grandpa(
+	net: &mut GrandpaTestnet,
+	peers: &[Ed25519Keyring],
+) -> impl Future<Output = ()> {
+	let voters = FuturesUnordered::new();
+
+	// initializing grandpa gadget per peer
+	for (peer_id, key) in peers.iter().enumerate() {
+		let (keystore, _) = create_keystore(*key);
+
+		let (net_service, link) = {
+			// temporary needed for some reason
+			let link = net.peers[peer_id]
+				.data
+				.lock()
+				.unwrap()
+				.take()
+				.expect("link initialized at startup;config qed");
+			(net.peers[peer_id].network_service().clone(), link)
+		};
+
+		let grandpa_params = GrandpaParams {
+			config: Config {
+				gossip_duration: TEST_GOSSIP_DURATION,
+				justification_period: 32,
+				keystore: Some(keystore),
+				name: Some(format!("peer#{peer_id}")),
+				local_role: Role::Authority,
+				observer_enabled: true,
+				telemetry: None,
+				protocol_name: GRANDPA_PROTOCOL_NAME.into(),
+			},
+			link,
+			network: net_service,
+			voting_rule: (),
+			prometheus_registry: None,
+			shared_voter_state: SharedVoterState::empty(),
+			telemetry: None,
+		};
+		let voter =
+			run_grandpa_voter(grandpa_params).expect("all in order with client and network");
+
+		fn assert_send<T: Send>(_: &T) {}
+		assert_send(&voter);
+		voters.push(voter);
+	}
+
+	voters.for_each(|_| async move {})
+}
+
+pub(crate) fn three_grandpa_validators(
+	api: Arc<TestApi>,
+	peers: &[Ed25519Keyring],
+) -> (tokio::task::JoinHandle<()>, GrandpaTestnet) {
+	let mut net = GrandpaTestnet::new(3, 0, api);
+	let h = tokio::spawn(initialize_grandpa(&mut net, peers));
+	(h, net)
+}
+
+#[derive(Default)]
+pub struct TheaTestnet {
+	peers: Vec<Peer<PeerData, PeersClient>>,
+	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, GossipMessage>>>>,
+}
+
 impl TheaTestnet {
 	pub(crate) fn new(n_authority: usize, n_full: usize, api: Arc<TestApi>) -> Self {
 		let mut net = TheaTestnet {
-			grandpa_peers: Vec::with_capacity(n_authority + n_full),
-			api,
 			peers: Vec::with_capacity(n_authority + n_full),
 			worker_massages: HashMap::new(),
 		};
@@ -293,10 +392,7 @@ impl TheaTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				GRANDPA_PROTOCOL_NAME.into(),
-				crate::thea_protocol_name::NAME.into(),
-			],
+			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
 			is_authority: true,
 			..Default::default()
 		})
@@ -304,6 +400,46 @@ impl TheaTestnet {
 
 	pub(crate) fn drop_validator(&mut self) {
 		drop(self.peers.remove(0))
+	}
+}
+
+impl TestNetFactory for TheaTestnet {
+	type Verifier = PassThroughVerifier;
+	type BlockImport = PeersClient;
+	type PeerData = PeerData;
+
+	fn make_verifier(&self, _: PeersClient, _: &Self::PeerData) -> Self::Verifier {
+		PassThroughVerifier::new(true) // we don't care about how blks are finalized
+	}
+
+	fn peer(&mut self, i: usize) -> &mut Peer<PeerData, PeersClient> {
+		&mut self.peers[i]
+	}
+
+	fn peers(&self) -> &Vec<Peer<PeerData, PeersClient>> {
+		&self.peers
+	}
+
+	fn mut_peers<F: FnOnce(&mut Vec<Peer<PeerData, PeersClient>>)>(&mut self, closure: F) {
+		closure(&mut self.peers);
+	}
+
+	fn make_block_import(
+		&self,
+		client: PeersClient,
+	) -> (
+		BlockImportAdapter<Self::BlockImport>,
+		Option<sc_consensus::import_queue::BoxJustificationImport<sc_network_test::Block>>,
+		Self::PeerData,
+	) {
+		(client.as_block_import(), None, PeerData { is_validator: false })
+	}
+	fn add_full_peer(&mut self) {
+		self.add_full_peer_with_config(FullPeerConfig {
+			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
+			is_authority: false,
+			..Default::default()
+		})
 	}
 }
 
@@ -335,7 +471,6 @@ where
 				.as_ref()
 				.unwrap()
 				.insert_unknown(thea_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
-				.await
 				.unwrap();
 			// Check if the key is present or not
 			keystore
@@ -346,12 +481,12 @@ where
 		}
 
 		let worker_params = crate::worker::WorkerParams {
-			client: net.grandpa_peers[peer_id].client().as_client(),
-			backend: net.grandpa_peers[peer_id].client().as_backend(),
+			client: net.peers[peer_id].client().as_client(),
+			backend: net.peers[peer_id].client().as_backend(),
 			runtime: api,
-			sync_oracle: net.grandpa_peers[peer_id].network_service().clone(),
+			sync_oracle: net.peers[peer_id].network_service().clone(),
 			keystore,
-			network: net.grandpa_peers[peer_id].network_service().clone(),
+			network: net.peers[peer_id].network_service().clone(),
 			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,
@@ -407,7 +542,6 @@ where
 				.as_ref()
 				.unwrap()
 				.insert_unknown(thea_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
-				.await
 				.unwrap();
 			// Check if the key is present or not
 			keystore
@@ -418,12 +552,12 @@ where
 		}
 
 		let worker_params = crate::worker::WorkerParams {
-			client: net.grandpa_peers[peer_id].client().as_client(),
-			backend: net.grandpa_peers[peer_id].client().as_backend(),
+			client: net.peers[peer_id].client().as_client(),
+			backend: net.peers[peer_id].client().as_backend(),
 			runtime: api,
-			sync_oracle: net.grandpa_peers[peer_id].network_service().clone(),
+			sync_oracle: net.peers[peer_id].network_service().clone(),
 			keystore,
-			network: net.grandpa_peers[peer_id].network_service().clone(),
+			network: net.peers[peer_id].network_service().clone(),
 			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,
@@ -431,11 +565,8 @@ where
 			foreign_chain: connector,
 		};
 		let gadget = crate::worker::ObWorker::new(worker_params).await;
-		let finality_stream_future = net.grandpa_peers[peer_id]
-			.client()
-			.as_client()
-			.finality_notification_stream()
-			.fuse();
+		let finality_stream_future =
+			net.peers[peer_id].client().as_client().finality_notification_stream().fuse();
 		workers.push((gadget, finality_stream_future))
 	}
 	workers
