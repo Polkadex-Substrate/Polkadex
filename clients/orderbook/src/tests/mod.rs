@@ -1,5 +1,6 @@
 pub mod rpc;
 pub mod sync;
+mod gosssip;
 
 use crate::protocol_standard_name;
 use bls_primitives::BLS_DEV_PHRASE;
