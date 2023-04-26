@@ -94,7 +94,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
     pub keystore: OrderbookKeyStore,
     gossip_engine: GossipEngine<B>,
     // gossip_validator: Arc<GossipValidator<B>>,
-    // Last processed state change id
+    // Last processed SnapshotSummary
     pub last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
     // Working state root,
     pub working_state_root: Arc<RwLock<[u8; 32]>>,
@@ -607,8 +607,8 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         Ok(())
     }
 
-    /// Checks if we have all worker_nonces to drive the state and then drive it.
-    /// takes out the known messages and processes them in order.
+    /// go through the `known_messages` incrementally starting from the last snapshot's
+    /// worker_nonce and process the messages. if a message is not found, it means ?
     pub async fn check_worker_nonce_gap_fill(&mut self) -> Result<(), Error> {
         info!(target: "orderbook", "📒 Checking for worker_nonce gap fill");
         let mut last_snapshot = self.last_snapshot.read().worker_nonce.saturating_add(1);
