@@ -46,7 +46,17 @@ impl ForeignConnector for DummyForeignConnector {
 	}
 
 	async fn read_events(&self, _last_processed_nonce: u64) -> Result<Option<Message>, Error> {
-		Ok(None)
+		let message = Message {
+			block_no: 10,
+			nonce: 1,
+			data: vec![1, 2, 3],
+			network: 1,
+			is_key_change: false,
+			validator_set_id: 0,
+			validator_set_len: 3,
+		};
+
+		Ok(Some(message))
 	}
 
 	async fn send_transaction(&self, payload: GossipMessage) {

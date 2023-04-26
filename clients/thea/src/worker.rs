@@ -486,7 +486,7 @@ where
 						}
 				},
 			}
-			debug!(target: "thea", "Inner loop cycled {}", self.keystore.public_keys()[0].to_string());
+			debug!(target: "thea", "Inner loop cycled");
 		}
 	}
 }
