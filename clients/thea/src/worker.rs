@@ -206,7 +206,9 @@ where
 						{
 							// We got majority on this message
 							if incoming_message.payload.network == NATIVE_NETWORK {
-								self.foreign_chain.send_transaction(incoming_message.clone()).await;
+								self.foreign_chain
+									.send_transaction(incoming_message.clone())
+									.await?;
 							} else {
 								self.runtime.runtime_api().incoming_message(
 									&self.last_finalized_blk,
@@ -254,7 +256,7 @@ where
 						info!(target:"thea","Got majority on message: nonce: {:?}, network: {:?}", message.payload.nonce, message.payload.network);
 						// We got majority on this message
 						if incoming_message.payload.network == NATIVE_NETWORK {
-							self.foreign_chain.send_transaction(incoming_message.clone()).await;
+							self.foreign_chain.send_transaction(incoming_message.clone()).await?;
 						} else {
 							self.runtime.runtime_api().incoming_message(
 								&self.last_finalized_blk,
