@@ -639,6 +639,16 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         Ok(())
     }
 
+    /// Checks the local `known_messages` to see if we have any messages between the `from` and `to`
+    /// worker_nonce. If we do, we gossip the `WorkerNonces` message to the peer that requested it.
+    ///
+    /// # Arguments
+    /// * `from` - The worker_nonce to start from
+    /// * `to` - The worker_nonce to end at
+    /// * `peer` - The peer that requested the worker_nonces
+    ///
+    /// # Returns
+    /// * `()` - No return value
     pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
         info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
         if let Some(peer) = peer {
