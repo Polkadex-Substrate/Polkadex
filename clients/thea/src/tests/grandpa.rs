@@ -1,18 +1,18 @@
 use super::*;
 
 const TEST_GOSSIP_DURATION: Duration = Duration::from_millis(500);
-const GRANDPA_PROTOCOL_NAME: &str = "/grandpa/1";
+pub(crate) const GRANDPA_PROTOCOL_NAME: &str = "/grandpa/1";
 pub(crate) type GrandpaBlockNumber = u64;
-type TestLinkHalf =
+pub(crate) type TestLinkHalf =
 	LinkHalf<Block, PeersFullClient, LongestChain<substrate_test_runtime_client::Backend, Block>>;
-type GrandpaPeerData = Mutex<Option<TestLinkHalf>>;
-type GrandpaBlockImport = sc_finality_grandpa::GrandpaBlockImport<
+pub(crate) type GrandpaPeerData = Mutex<Option<TestLinkHalf>>;
+pub(crate) type GrandpaBlockImport = sc_finality_grandpa::GrandpaBlockImport<
 	substrate_test_runtime_client::Backend,
 	Block,
 	PeersFullClient,
 	LongestChain<substrate_test_runtime_client::Backend, Block>,
 >;
-type GrandpaPeer = Peer<GrandpaPeerData, GrandpaBlockImport>;
+pub(crate) type GrandpaPeer = Peer<GrandpaPeerData, GrandpaBlockImport>;
 
 #[derive(Default)]
 pub(crate) struct GrandpaTestnet {
@@ -41,6 +41,10 @@ impl GrandpaTestnet {
 			is_authority: true,
 			..Default::default()
 		})
+	}
+
+	pub(crate) fn drop_validator(&mut self) {
+		drop(self.peers.remove(0))
 	}
 }
 
@@ -103,8 +107,8 @@ fn create_keystore(authority: Ed25519Keyring) -> (SyncCryptoStorePtr, tempfile::
 	(keystore, keystore_path)
 }
 
-fn initialize_grandpa(
-	net: &mut GrandpaTestnet,
+pub(crate) fn initialize_grandpa(
+	net: &mut TheaTestnet,
 	peers: &[Ed25519Keyring],
 ) -> impl Future<Output = ()> {
 	let voters = FuturesUnordered::new();
@@ -151,15 +155,6 @@ fn initialize_grandpa(
 	}
 
 	voters.for_each(|_| async move {})
-}
-
-pub(crate) fn three_grandpa_validators(
-	api: Arc<TestApi>,
-	peers: &[Ed25519Keyring],
-) -> (tokio::task::JoinHandle<()>, GrandpaTestnet) {
-	let mut net = GrandpaTestnet::new(3, 0, api);
-	let h = tokio::spawn(initialize_grandpa(&mut net, peers));
-	(h, net)
 }
 
 pub(crate) fn make_gradpa_ids(keys: &[Ed25519Keyring]) -> AuthorityList {

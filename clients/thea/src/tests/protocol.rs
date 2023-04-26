@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
 	gossip::{topic, GossipValidator},
-	tests::{make_gradpa_ids, three_grandpa_validators, withdrawal::DummyForeignConnector},
+	tests::{make_gradpa_ids, withdrawal::DummyForeignConnector},
 };
 use sc_network_gossip::GossipEngine;
 use std::collections::HashMap;
@@ -58,11 +58,7 @@ async fn dropped_one_validator_still_works() {
 		incoming_messages: Arc::new(RwLock::new(HashMap::new())),
 	});
 
-	let mut testnet = TheaTestnet::new(3, 1);
-	let (grandpa_handle, mut grandpa_net) =
-		three_grandpa_validators(runtime.clone(), grandpa_peers.as_ref());
-
-	let networking = grandpa_net.peer(0).network_service().clone();
+	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
 
 	let validators = peers
 		.iter()
@@ -70,15 +66,15 @@ async fn dropped_one_validator_still_works() {
 		.map(|(id, (key, is_auth))| (id, key, runtime.clone(), *is_auth, foreign_connector.clone()))
 		.collect();
 
-	let thea_handle =
-		tokio::spawn(initialize_thea(&mut testnet, validators, networking.clone()).await);
-
-	// kill off one worker
-	testnet.drop_validator();
+	let grandpa_handle = tokio::spawn(initialize_grandpa(&mut testnet, grandpa_peers));
+	let networking = testnet.peer(0).network_service().clone();
+	let thea_handle = tokio::spawn(initialize_thea(&mut testnet, validators).await);
 
 	// add new block
-	grandpa_net.peer(0).push_blocks(1, false);
-	grandpa_net.run_until_sync().await;
+	testnet.peer(0).push_blocks(1, false);
+	testnet.run_until_sync().await;
+	// kill off one worker
+	testnet.drop_validator();
 
 	// push some message
 	let message_cache = Arc::new(RwLock::new(BTreeMap::new()));
@@ -111,12 +107,7 @@ async fn dropped_one_validator_still_works() {
 
 	// validate finality
 	for i in 0..3 {
-		assert_eq!(
-			grandpa_net.peer(i).client().info().best_number,
-			1,
-			"Peer #{} failed to sync",
-			i
-		);
+		assert_eq!(testnet.peer(i).client().info().best_number, 1, "Peer #{} failed to sync", i);
 	}
 
 	// verify process message
