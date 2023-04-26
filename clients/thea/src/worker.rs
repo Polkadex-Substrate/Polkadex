@@ -25,6 +25,7 @@ use crate::{
 	keystore::TheaKeyStore,
 	metric_add, metric_inc,
 	metrics::Metrics,
+	thea_protocol_name,
 	types::GossipMessage,
 	Client,
 };
@@ -38,17 +39,18 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector +
 	pub is_validator: bool,
 	/// Gossip network
 	pub network: N,
-	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
-	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
 	pub foreign_chain: Arc<FC>,
 	pub(crate) keystore: Option<Arc<LocalKeystore>>,
 }
 
 /// A thea worker plays the thea protocol
-pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
+pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
 	// utilities
 	pub(crate) client: Arc<C>,
+	pub(crate) thea_network: Option<Network>,
+	// Payload to gossip message mapping
+	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
 	_backend: Arc<BE>,
 	runtime: Arc<R>,
 	sync_oracle: SO,
@@ -56,18 +58,15 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Si
 	is_validator: bool,
 	_network: Arc<N>,
 	keystore: TheaKeyStore,
-	thea_network: Option<Network>,
 	gossip_engine: GossipEngine<B>,
 	_gossip_validator: Arc<GossipValidator<B>>,
-	// Payload to gossip message mapping
-	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
 	last_finalized_blk: BlockId<B>,
 }
 
-impl<B, BE, C, SO, N, R, FC> ObWorker<B, BE, C, SO, N, R, FC>
+impl<B, BE, C, SO, N, R, FC> TheaWorker<B, BE, C, SO, N, R, FC>
 where
 	B: Block + Codec,
 	BE: Backend<B>,
@@ -95,7 +94,6 @@ where
 			metrics,
 			is_validator,
 			network,
-			protocol_name,
 			_marker,
 		} = worker_params;
 
@@ -107,10 +105,14 @@ where
 			foreign_nonce.clone(),
 			native_nonce.clone(),
 		));
-		let gossip_engine =
-			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
+		let gossip_engine = GossipEngine::new(
+			network.clone(),
+			thea_protocol_name::standard_name(),
+			gossip_validator.clone(),
+			None,
+		);
 
-		ObWorker {
+		TheaWorker {
 			client,
 			_backend: backend,
 			runtime,
@@ -413,7 +415,7 @@ where
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "thea", "Thea worker started");
-		self.wait_for_runtime_pallet().await;
+		//self.wait_for_runtime_pallet().await;
 
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
@@ -437,9 +439,11 @@ where
 				.fuse(),
 		);
 		// finality events stream
+		debug!(target:"thea"," Starting finality streams...");
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 
 		// Interval timer to read foreign chain events
+		debug!(target:"thea"," Starting interval streams...");
 		let interval = tokio::time::interval(self.foreign_chain.block_duration());
 		// create a stream from the interval
 		let mut interval_stream = tokio_stream::wrappers::IntervalStream::new(interval).fuse();
@@ -450,7 +454,17 @@ where
 				_ = gossip_engine => {
 					error!(target: "thea", "📒 Gossip engine has terminated.");
 					return;
-				}
+				},
+				finality = finality_stream.next() => {
+					if let Some(finality) = finality {
+						if let Err(err) = self.handle_finality_notification(&finality).await {
+							error!(target: "thea", "📒 Error during finalized block import{:?}", err);
+						}
+					}else {
+						error!(target:"thea","None finality recvd");
+						return
+					}
+				},
 				gossip = gossip_messages.next() => {
 					if let Some((mut message,sender)) = gossip {
 						info!(target:"thea","Got new message via gossip : nonce: {:?}, signed: {:?}, threshold: {:?}",
@@ -466,22 +480,13 @@ where
 						return;
 					}
 				},
-				finality = finality_stream.next() => {
-					if let Some(finality) = finality {
-						if let Err(err) = self.handle_finality_notification(&finality).await {
-							error!(target: "thea", "📒 Error during finalized block import{:?}", err);
-						}
-					}else {
-						error!(target:"thea","None finality recvd");
-						return
-					}
-				},
 				_ = interval_stream.next() => {
 					if let Err(err) = self.try_process_foreign_chain_events().await {
 							error!(target: "thea", "📒 Error fetching foreign chain events {:?}", err);
 						}
 				},
 			}
+			debug!(target: "thea", "Inner loop cycled {}", self.keystore.public_keys()[0].to_string());
 		}
 	}
 }

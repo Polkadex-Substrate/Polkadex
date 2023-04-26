@@ -32,7 +32,7 @@ pub struct GossipValidator<B>
 where
 	B: Block,
 {
-	_topic: B::Hash,
+	topic: B::Hash,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
@@ -51,8 +51,9 @@ where
 		foreign_last_nonce: Arc<RwLock<u64>>,
 		native_last_nonce: Arc<RwLock<u64>>,
 	) -> GossipValidator<B> {
+		log::debug!(target: "thea", "Creating gossip validator");
 		GossipValidator {
-			_topic: topic::<B>(),
+			topic: topic::<B>(),
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
 			cache,
@@ -83,65 +84,13 @@ impl<B> Validator<B> for GossipValidator<B>
 where
 	B: Block,
 {
-	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
-		info!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
-		match role {
-			ObservedRole::Authority => {
-				self.peers.write().insert(*who);
-			},
-			ObservedRole::Full => {
-				self.fullnodes.write().insert(*who);
-			},
-			_ => {},
-		};
-	}
-
-	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
-		info!(target:"thea", "New peer connected: id: {:?}",who);
-		self.peers.write().remove(who);
-		self.fullnodes.write().remove(who);
-	}
-
 	fn validate(
 		&self,
 		_context: &mut dyn ValidatorContext<B>,
-		_sender: &PeerId,
-		mut data: &[u8],
+		sender: &PeerId,
+		_data: &[u8],
 	) -> ValidationResult<B::Hash> {
-		// Decode
-		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data) {
-			// Check if we processed this message
-			if self.validate_message(&thea_gossip_msg) {
-				return ValidationResult::ProcessAndKeep(topic::<B>())
-			}
-			// TODO: When should be stop broadcasting this message
-		}
-		ValidationResult::Discard
-	}
-
-	fn message_expired<'a>(&'a self) -> Box<dyn FnMut(B::Hash, &[u8]) -> bool + 'a> {
-		Box::new(move |_topic, mut data| {
-			// Decode
-			let msg = match GossipMessage::decode(&mut data) {
-				Ok(msg) => msg,
-				Err(_) => return true,
-			};
-			// If old stid then expire
-			!self.validate_message(&msg)
-		})
-	}
-
-	fn message_allowed<'a>(
-		&'a self,
-	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
-		Box::new(move |_who, _intent, _topic, mut data| {
-			// Decode
-			let msg = match GossipMessage::decode(&mut data) {
-				Ok(msg) => msg,
-				Err(_) => return false,
-			};
-			// Logic for rebroadcasting.
-			self.rebroadcast_check(&msg)
-		})
+		log::debug!(target: "thea", "Validator validating message from: {}", sender.to_base58());
+		ValidationResult::ProcessAndKeep(self.topic)
 	}
 }
