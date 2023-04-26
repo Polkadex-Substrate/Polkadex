@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use parity_scale_codec::{Decode, Encode};
-use sp_arithmetic::traits::Saturating;
-use subxt::{dynamic::Value, storage::DynamicAddress, subxt, OnlineClient, PolkadotConfig};
+use subxt::{OnlineClient, PolkadotConfig};
 use thea_primitives::types::Message;
 
 use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMessage};
 
-#[subxt::subxt(runtime_metadata_path = "../parachain-metadata/metadata.scale")]
+#[subxt::subxt(runtime_metadata_path = "../../parachain-metadata/metadata.scale")]
 mod parachain {}
 
 pub struct ParachainClient {

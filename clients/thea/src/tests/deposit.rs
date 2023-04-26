@@ -50,7 +50,7 @@ impl ForeignConnector for DummyForeignConnector {
 		}
 	}
 
-	async fn send_transaction(&self, message: GossipMessage) {
+	async fn send_transaction(&self, message: GossipMessage) -> Result<(), Error> {
 		unimplemented!()
 	}
 

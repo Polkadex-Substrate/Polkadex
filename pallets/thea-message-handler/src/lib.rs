@@ -84,7 +84,7 @@ pub mod pallet {
 		StorageValue<_, thea_primitives::ValidatorSetId, ValueQuery>;
 
 	/// Outgoing messages,
-	/// first key: Block number of foreign chain
+	/// first key: Nonce of the outgoing message
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_messages)]
 	pub(super) type OutgoingMessages<T: Config> =
