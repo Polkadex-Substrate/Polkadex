@@ -226,10 +226,10 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
     /// The function checks whether a snapshot of the blockchain should be generated based on the
     /// pending withdrawals and block intervaland last stid
     ///
-    /// # Parameters
-    /// - &self: a reference to an instance of a struct implementing some trait
+    /// # Arguments
+    /// * `&self`: a reference to an instance of a struct implementing some trait
     /// # Returns
-    /// - bool: a boolean indicating whether a snapshot should be generated
+    /// * `bool`: a boolean indicating whether a snapshot should be generated
     pub fn should_generate_snapshot(&self) -> bool {
         let at = BlockId::Number(self.last_finalized_block.saturated_into());
         // Get the snapshot generation intervals from the runtime API for the last finalized block
@@ -607,7 +607,8 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         Ok(())
     }
 
-    // Checks if we have all worker_nonces to drive the state and then drive it.
+    /// Checks if we have all worker_nonces to drive the state and then drive it.
+    /// takes out the known messages and processes them in order.
     pub async fn check_worker_nonce_gap_fill(&mut self) -> Result<(), Error> {
         info!(target: "orderbook", "📒 Checking for worker_nonce gap fill");
         let mut last_snapshot = self.last_snapshot.read().worker_nonce.saturating_add(1);
@@ -650,7 +651,15 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             }
         }
     }
-
+    /// Returns a list of gossip messages that contain the worker_nonces requested
+    /// from the `from` to the `to` worker_nonce.
+    /// The messages are limited to 10MB in size.
+    ///
+    /// # Arguments:
+    ///   * `from`: The first worker_nonce requested
+    ///   * `to`: The last worker_nonce requested
+    /// # returns:
+    ///   A list of gossip messages that contain the worker_nonces requested
     pub fn get_want_worker_nonce_messages(&self, from: &u64, to: &u64) -> Vec<Vec<u8>> {
         let mut gossip_messages = vec![];
         let mut messages = vec![];
@@ -676,7 +685,13 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         }
         return gossip_messages;
     }
-
+    /// Handles the worker_nonces received via gossip.
+    /// The worker_nonces are stored in the `known_messages` map.
+    ///
+    /// # Arguments
+    ///  * `messages`: The list of worker_nonces received via gossip
+    /// # returns:
+    /// Ok(()) if the worker_nonces are stored successfully
     pub async fn got_worker_nonces_via_gossip(
         &mut self,
         messages: &Vec<ObMessage>,
