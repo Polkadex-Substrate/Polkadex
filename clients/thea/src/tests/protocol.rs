@@ -1,11 +1,11 @@
 use super::*;
 use crate::{
+	gossip::{topic, GossipValidator},
 	tests::{make_gradpa_ids, three_grandpa_validators, withdrawal::DummyForeignConnector},
-	gossip::{GossipValidator, topic},
 };
+use sc_network_gossip::GossipEngine;
 use std::collections::HashMap;
 use substrate_test_runtime_client::Ed25519Keyring;
-use sc_network_gossip::GossipEngine;
 
 #[tokio::test]
 async fn dropped_one_validator_still_works() {
@@ -70,7 +70,8 @@ async fn dropped_one_validator_still_works() {
 		.map(|(id, (key, is_auth))| (id, key, runtime.clone(), *is_auth, foreign_connector.clone()))
 		.collect();
 
-	let thea_handle = tokio::spawn(initialize_thea(&mut testnet, validators, networking.clone()).await);
+	let thea_handle =
+		tokio::spawn(initialize_thea(&mut testnet, validators, networking.clone()).await);
 
 	// kill off one worker
 	testnet.drop_validator();
@@ -92,9 +93,9 @@ async fn dropped_one_validator_still_works() {
 		networking.clone(),
 		sc_network::ProtocolName::from(crate::thea_protocol_name::NAME),
 		gossip_validator,
-		None
+		None,
 	);
-	let message =  Message {
+	let message = Message {
 		block_no: 10,
 		nonce: 1,
 		data: vec![1, 2, 3],
@@ -104,7 +105,7 @@ async fn dropped_one_validator_still_works() {
 		validator_set_len: 3u64,
 	};
 	gossip_engine.gossip_message(topic::<Block>(), message.encode(), false);
-	
+
 	testnet.run_until_sync().await;
 	testnet.run_until_idle().await;
 
@@ -122,13 +123,13 @@ async fn dropped_one_validator_still_works() {
 	assert!(!testnet.worker_massages.is_empty());
 	let mut retry = 0;
 	loop {
-		if retry >= 12 || runtime.incoming_messages.read().is_empty() {
+		if retry >= 12 || !runtime.incoming_messages.read().is_empty() {
 			break
 		}
 		tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 		retry += 1;
 	}
-	assert!(retry >= 12, "No incomming messages registered");
+	assert!(retry < 12, "No incomming messages registered");
 
 	// terminate
 	thea_handle.abort_handle().abort();
