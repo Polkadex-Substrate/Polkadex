@@ -163,7 +163,7 @@ where
 			},
 		);
 
-	let foreign_connector = get_connector(chain_type).await.connector;
+	let foreign_connector = get_connector(chain_type, is_validator).await.connector;
 
 	let worker_params = worker::WorkerParams {
 		client,
@@ -188,8 +188,11 @@ pub struct Connector {
 	connector: Arc<dyn ForeignConnector>,
 }
 
-pub async fn get_connector(chain_type: ChainType) -> Connector {
+pub async fn get_connector(chain_type: ChainType, is_validator: bool) -> Connector {
 	log::info!(target:"thea","Assigning connector based on chain type: {:?}",chain_type);
+	if !is_validator {
+		return Connector { connector: Arc::new(NoOpConnector) };
+	}
 	match chain_type {
 		ChainType::Development => Connector { connector: Arc::new(NoOpConnector) },
 		_ => Connector {
