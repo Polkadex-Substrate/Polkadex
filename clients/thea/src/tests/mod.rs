@@ -1,4 +1,4 @@
-use crate::{connector::traits::ForeignConnector, types::GossipMessage, worker::ObWorker};
+use crate::{connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker};
 use futures::{
 	stream::{Fuse, FuturesUnordered},
 	StreamExt,
@@ -239,7 +239,7 @@ impl TheaTestnet {
 		self.add_full_peer_with_config(FullPeerConfig {
 			notifications_protocols: vec![
 				GRANDPA_PROTOCOL_NAME.into(),
-				crate::thea_protocol_name::NAME.into(),
+				crate::protocol_standard_name(),
 			],
 			is_authority: true,
 			..Default::default()
@@ -292,7 +292,7 @@ impl TestNetFactory for TheaTestnet {
 		self.add_full_peer_with_config(FullPeerConfig {
 			notifications_protocols: vec![
 				GRANDPA_PROTOCOL_NAME.into(),
-				crate::thea_protocol_name::NAME.into(),
+				crate::protocol_standard_name(),
 			],
 			is_authority: false,
 			..Default::default()
@@ -344,13 +344,13 @@ where
 			sync_oracle: net.peers[peer_id].network_service().clone(),
 			keystore,
 			network: net.peers[peer_id].network_service().clone(),
-			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,
 			metrics: None,
 			foreign_chain: connector,
 		};
-		let gadget = crate::worker::ObWorker::new(worker_params).await;
+		let mut gadget = crate::worker::TheaWorker::new(worker_params).await;
+		gadget.thea_network = Some(1);
 		net.worker_massages.insert(peer_id, gadget.message_cache.clone());
 		let run_future = gadget.run();
 		fn assert_send<T: Send>(_: &T) {}
@@ -365,7 +365,7 @@ async fn create_workers_array<R, FC>(
 	net: &mut TheaTestnet,
 	peers: Vec<(usize, &AccountKeyring, Arc<R>, bool, Arc<FC>)>,
 ) -> Vec<(
-	ObWorker<
+	TheaWorker<
 		Block,
 		substrate_test_runtime_client::Backend,
 		PeersFullClient,
@@ -415,13 +415,12 @@ where
 			sync_oracle: net.peers[peer_id].network_service().clone(),
 			keystore,
 			network: net.peers[peer_id].network_service().clone(),
-			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,
 			metrics: None,
 			foreign_chain: connector,
 		};
-		let gadget = crate::worker::ObWorker::new(worker_params).await;
+		let gadget = crate::worker::TheaWorker::new(worker_params).await;
 		let finality_stream_future =
 			net.peers[peer_id].client().as_client().finality_notification_stream().fuse();
 		workers.push((gadget, finality_stream_future))
