@@ -17,7 +17,7 @@ pub fn topic<B: Block>() -> B::Hash
 where
 	B: Block,
 {
-	<<B::Header as Header>::Hashing as Hash>::hash(b"thea")
+	<<B::Header as Header>::Hashing as Hash>::hash(b"/thea/1")
 }
 
 /// Thea gossip validator

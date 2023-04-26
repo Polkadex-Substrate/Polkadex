@@ -26,7 +26,7 @@ use sp_finality_grandpa::{
 };
 use sp_keyring::AccountKeyring;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-use sp_runtime::key_types::GRANDPA;
+use sp_runtime::{key_types::GRANDPA, traits::Block as BlockT};
 use std::{
 	collections::{BTreeMap, HashMap},
 	future::Future,
@@ -290,6 +290,7 @@ impl TestNetFactory for TheaTestnet {
 pub(crate) async fn initialize_thea<API, FC>(
 	net: &mut TheaTestnet,
 	peers: Vec<(usize, &AccountKeyring, Arc<API>, bool, Arc<FC>)>,
+	networking: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
 ) -> impl Future<Output = ()>
 where
 	API: ProvideRuntimeApi<Block> + Default + Sync + Send,
@@ -330,7 +331,7 @@ where
 			runtime: api,
 			sync_oracle: net.peers[peer_id].network_service().clone(),
 			keystore,
-			network: net.peers[peer_id].network_service().clone(),
+			network: networking.clone(),
 			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,
