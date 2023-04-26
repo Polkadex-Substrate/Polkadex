@@ -14,7 +14,7 @@ pub trait ForeignConnector: Send + Sync {
 	/// Read all interested events based on the last processed nonce of that network on Polkadex
 	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error>;
 	/// Sends transaction to blockchain, if failed, retry every second until its successful
-	async fn send_transaction(&self, message: GossipMessage);
+	async fn send_transaction(&self, message: GossipMessage) -> Result<(), Error>;
 	/// Checks if the given message is valid or not based on our local node
 	async fn check_message(&self, message: &Message) -> Result<bool, Error>;
 	/// Returns the last processed nonce from native chain
@@ -41,7 +41,9 @@ impl ForeignConnector for NoOpConnector {
 		Ok(None)
 	}
 
-	async fn send_transaction(&self, _: GossipMessage) {}
+	async fn send_transaction(&self, _: GossipMessage) -> Result<(), Error> {
+		Ok(())
+	}
 
 	async fn check_message(&self, _: &Message) -> Result<bool, Error> {
 		Ok(false)

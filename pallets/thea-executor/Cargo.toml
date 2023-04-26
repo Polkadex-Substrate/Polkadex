@@ -30,7 +30,7 @@ sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
 thea = { path = "../thea", default-features = false }
-chainbridge = { path = "../chainbridge", default-feature = false }
+chainbridge = { path = "../chainbridge", default-features = false }
 
 [features]
 default = ["std"]

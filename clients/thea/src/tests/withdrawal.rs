@@ -50,11 +50,11 @@ impl ForeignConnector for DummyForeignConnector {
 		Ok(None)
 	}
 
-	async fn send_transaction(&self, payload: GossipMessage) {
+	async fn send_transaction(&self, payload: GossipMessage) -> Result<(), Error> {
 		let message = payload.payload;
 		if message.nonce != 1 {
 			// Ignore the tx like the tx pool's validate incoming message
-			return
+			return Err(Error::Subxt("Nonce error".to_string()))
 		}
 
 		let signed_auths_indexes: Vec<usize> = return_set_bits(&payload.bitmap);
@@ -74,6 +74,7 @@ impl ForeignConnector for DummyForeignConnector {
 
 		*self.incoming_nonce.write() = message.nonce;
 		self.incoming_messages.write().insert(message.nonce, message);
+		Ok(())
 	}
 
 	async fn check_message(&self, message: &Message) -> Result<bool, Error> {
