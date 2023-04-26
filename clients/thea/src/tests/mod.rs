@@ -214,13 +214,15 @@ pub struct PeerData {
 
 #[derive(Default)]
 pub struct TheaTestnet {
-	peers: Vec<Peer<PeerData, PeersClient>>,
+	api: Arc<TestApi>,
+	peers: Vec<GrandpaPeer>,
 	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, GossipMessage>>>>,
 }
 
 impl TheaTestnet {
-	pub(crate) fn new(n_authority: usize, n_full: usize) -> Self {
+	pub(crate) fn new(n_authority: usize, n_full: usize, api: Arc<TestApi>) -> Self {
 		let mut net = TheaTestnet {
+			api,
 			peers: Vec::with_capacity(n_authority + n_full),
 			worker_massages: HashMap::new(),
 		};
@@ -235,7 +237,10 @@ impl TheaTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
+			notifications_protocols: vec![
+				GRANDPA_PROTOCOL_NAME.into(),
+				crate::thea_protocol_name::NAME.into(),
+			],
 			is_authority: true,
 			..Default::default()
 		})
@@ -248,25 +253,24 @@ impl TheaTestnet {
 
 impl TestNetFactory for TheaTestnet {
 	type Verifier = PassThroughVerifier;
-	type BlockImport = PeersClient;
-	type PeerData = PeerData;
+	type BlockImport = GrandpaBlockImport;
+	type PeerData = GrandpaPeerData;
 
 	fn make_verifier(&self, _: PeersClient, _: &Self::PeerData) -> Self::Verifier {
-		PassThroughVerifier::new(true) // we don't care about how blks are finalized
+		PassThroughVerifier::new(false)
 	}
 
-	fn peer(&mut self, i: usize) -> &mut Peer<PeerData, PeersClient> {
+	fn peer(&mut self, i: usize) -> &mut GrandpaPeer {
 		&mut self.peers[i]
 	}
 
-	fn peers(&self) -> &Vec<Peer<PeerData, PeersClient>> {
+	fn peers(&self) -> &Vec<GrandpaPeer> {
 		&self.peers
 	}
 
-	fn mut_peers<F: FnOnce(&mut Vec<Peer<PeerData, PeersClient>>)>(&mut self, closure: F) {
+	fn mut_peers<F: FnOnce(&mut Vec<GrandpaPeer>)>(&mut self, closure: F) {
 		closure(&mut self.peers);
 	}
-
 	fn make_block_import(
 		&self,
 		client: PeersClient,
@@ -275,11 +279,21 @@ impl TestNetFactory for TheaTestnet {
 		Option<sc_consensus::import_queue::BoxJustificationImport<sc_network_test::Block>>,
 		Self::PeerData,
 	) {
-		(client.as_block_import(), None, PeerData { is_validator: false })
+		//(client.as_block_import(), None, PeerData { is_validator: false })
+		let (client, backend) = (client.as_client(), client.as_backend());
+		let (import, link) =
+			block_import(client, self.api.as_ref(), LongestChain::new(backend), None)
+				.expect("Could not create block import for fresh peer.");
+		let justification_import = Box::new(import.clone());
+		(BlockImportAdapter::new(import), Some(justification_import), Mutex::new(Some(link)))
 	}
+
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::thea_protocol_name::NAME.into()],
+			notifications_protocols: vec![
+				GRANDPA_PROTOCOL_NAME.into(),
+				crate::thea_protocol_name::NAME.into(),
+			],
 			is_authority: false,
 			..Default::default()
 		})
@@ -290,7 +304,6 @@ impl TestNetFactory for TheaTestnet {
 pub(crate) async fn initialize_thea<API, FC>(
 	net: &mut TheaTestnet,
 	peers: Vec<(usize, &AccountKeyring, Arc<API>, bool, Arc<FC>)>,
-	networking: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
 ) -> impl Future<Output = ()>
 where
 	API: ProvideRuntimeApi<Block> + Default + Sync + Send,
@@ -299,7 +312,6 @@ where
 {
 	let workers = FuturesUnordered::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		net.peers[peer_id].data.is_validator = is_validator;
 		let mut keystore = None;
 
 		if is_validator {
@@ -331,7 +343,7 @@ where
 			runtime: api,
 			sync_oracle: net.peers[peer_id].network_service().clone(),
 			keystore,
-			network: networking.clone(),
+			network: net.peers[peer_id].network_service().clone(),
 			protocol_name: crate::thea_protocol_name::NAME.into(),
 			_marker: Default::default(),
 			is_validator,

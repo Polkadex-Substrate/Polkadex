@@ -131,7 +131,7 @@ pub async fn test_withdrawal() {
 		_outgoing_nonce: BTreeMap::from([(network, 1)]),
 	});
 
-	let mut testnet = TheaTestnet::new(3, 1);
+	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
 
 	let foreign_connector = Arc::new(DummyForeignConnector {
 		authorities: HashMap::from([(0, active)]),
