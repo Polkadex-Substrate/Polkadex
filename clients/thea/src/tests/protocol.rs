@@ -73,10 +73,19 @@ async fn dropped_one_validator_still_works() {
 	grandpa_net.peer(0).push_blocks(1, false);
 	grandpa_net.run_until_sync().await;
 
-	// validate finality on thea side
+	// validate finality
 	for i in 0..3 {
 		assert_eq!(
 			grandpa_net.peer(i).client().info().best_number,
+			1,
+			"Peer #{} failed to sync",
+			i
+		);
+	}
+	testnet.run_until_sync().await;
+	for i in 0..3 {
+		assert_eq!(
+			testnet.peer(i).client().info().best_number,
 			1,
 			"Peer #{} failed to sync",
 			i

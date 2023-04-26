@@ -45,7 +45,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector +
 	pub(crate) keystore: Option<Arc<LocalKeystore>>,
 }
 
-/// A Orderbook worker plays the Orderbook protocol
+/// A thea worker plays the thea protocol
 pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
 	// utilities
 	pub(crate) client: Arc<C>,
@@ -356,7 +356,7 @@ where
 		Ok(())
 	}
 
-	/// Wait for Orderbook runtime pallet to be available.
+	/// Wait for thea runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		while let Some(notif) = finality_stream.next().await {
@@ -364,7 +364,7 @@ where
 			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
 				break
 			} else {
-				debug!(target: "orderbook", "📒 Waiting for thea pallet to become available...");
+				debug!(target: "thea", "📒 Waiting for thea pallet to become available...");
 			}
 		}
 	}
@@ -407,9 +407,9 @@ where
 		Ok(())
 	}
 
-	/// Main loop for Orderbook worker.
+	/// Main loop for thea worker.
 	///
-	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
+	/// Wait for thea runtime pallet to be available, then start the main async loop
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "thea", "Thea worker started");
@@ -448,7 +448,7 @@ where
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
 				_ = gossip_engine => {
-					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					error!(target: "thea", "📒 Gossip engine has terminated.");
 					return;
 				}
 				gossip = gossip_messages.next() => {
@@ -460,7 +460,7 @@ where
 					);
 						// Gossip messages have already been verified to be valid by the gossip validator.
 						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
-							debug!(target: "orderbook", "📒 {:?}", err);
+							debug!(target: "thea", "📒 {:?}", err);
 						}
 					} else {
 						return;
@@ -469,16 +469,16 @@ where
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
 						if let Err(err) = self.handle_finality_notification(&finality).await {
-							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
+							error!(target: "thea", "📒 Error during finalized block import{:?}", err);
 						}
 					}else {
-						error!(target:"orderbook","None finality recvd");
+						error!(target:"thea","None finality recvd");
 						return
 					}
 				},
 				_ = interval_stream.next() => {
 					if let Err(err) = self.try_process_foreign_chain_events().await {
-							error!(target: "orderbook", "📒 Error fetching foreign chain events {:?}", err);
+							error!(target: "thea", "📒 Error fetching foreign chain events {:?}", err);
 						}
 				},
 			}
