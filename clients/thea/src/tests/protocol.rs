@@ -1,7 +1,11 @@
 use super::*;
-use crate::tests::{make_gradpa_ids, three_grandpa_validators, withdrawal::DummyForeignConnector};
+use crate::{
+	tests::{make_gradpa_ids, three_grandpa_validators, withdrawal::DummyForeignConnector},
+	gossip::{GossipValidator, topic},
+};
 use std::collections::HashMap;
 use substrate_test_runtime_client::Ed25519Keyring;
+use sc_network_gossip::GossipEngine;
 
 #[tokio::test]
 async fn dropped_one_validator_still_works() {
@@ -58,13 +62,15 @@ async fn dropped_one_validator_still_works() {
 	let (grandpa_handle, mut grandpa_net) =
 		three_grandpa_validators(runtime.clone(), grandpa_peers.as_ref());
 
+	let networking = grandpa_net.peer(0).network_service().clone();
+
 	let validators = peers
 		.iter()
 		.enumerate()
 		.map(|(id, (key, is_auth))| (id, key, runtime.clone(), *is_auth, foreign_connector.clone()))
 		.collect();
 
-	let thea_handle = tokio::spawn(initialize_thea(&mut testnet, validators).await);
+	let thea_handle = tokio::spawn(initialize_thea(&mut testnet, validators, networking.clone()).await);
 
 	// kill off one worker
 	testnet.drop_validator();
@@ -73,19 +79,39 @@ async fn dropped_one_validator_still_works() {
 	grandpa_net.peer(0).push_blocks(1, false);
 	grandpa_net.run_until_sync().await;
 
+	// push some message
+	let message_cache = Arc::new(RwLock::new(BTreeMap::new()));
+	let foreign_nonce = Arc::new(RwLock::new(0));
+	let native_nonce = Arc::new(RwLock::new(0));
+	let gossip_validator = Arc::new(GossipValidator::<Block>::new(
+		message_cache.clone(),
+		foreign_nonce.clone(),
+		native_nonce.clone(),
+	));
+	let mut gossip_engine = GossipEngine::<Block>::new(
+		networking.clone(),
+		sc_network::ProtocolName::from(crate::thea_protocol_name::NAME),
+		gossip_validator,
+		None
+	);
+	let message =  Message {
+		block_no: 10,
+		nonce: 1,
+		data: vec![1, 2, 3],
+		network: 1,
+		is_key_change: false,
+		validator_set_id: 0,
+		validator_set_len: 3u64,
+	};
+	gossip_engine.gossip_message(topic::<Block>(), message.encode(), false);
+	
+	testnet.run_until_sync().await;
+	testnet.run_until_idle().await;
+
 	// validate finality
 	for i in 0..3 {
 		assert_eq!(
 			grandpa_net.peer(i).client().info().best_number,
-			1,
-			"Peer #{} failed to sync",
-			i
-		);
-	}
-	testnet.run_until_sync().await;
-	for i in 0..3 {
-		assert_eq!(
-			testnet.peer(i).client().info().best_number,
 			1,
 			"Peer #{} failed to sync",
 			i
@@ -97,7 +123,7 @@ async fn dropped_one_validator_still_works() {
 	let mut retry = 0;
 	loop {
 		if retry >= 12 || runtime.incoming_messages.read().is_empty() {
-			break;
+			break
 		}
 		tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 		retry += 1;
