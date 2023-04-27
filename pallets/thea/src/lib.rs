@@ -226,11 +226,8 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 		// Verify the aggregate signature.
-		if !bls_primitives::crypto::bls_ext::verify_aggregate(
-			&signatories[..],
-			&payload.encode(),
-			&(*signature).clone().into(),
-		) {
+		let bls_signature: bls_primitives::Signature = signature.clone().into();
+		if !bls_signature.verify(&signatories, payload.encode().as_ref()) {
 			return Err(InvalidTransaction::BadSigner.into())
 		}
 

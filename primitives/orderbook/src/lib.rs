@@ -151,33 +151,11 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 
 impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 	// Add a new signature to the snapshot summary
-
-	#[cfg(feature = "std")]
 	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
-		match bls_primitives::crypto::add_signature_(
-			&self.aggregate_signature.ok_or(signature)?,
-			&signature,
-		) {
-			Ok(signature) => {
-				self.aggregate_signature = Some(signature);
-				Ok(())
-			},
-			Err(_) => Err(signature),
-		}
-	}
-
-	#[cfg(not(feature = "std"))]
-	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
-		match bls_primitives::crypto::bls_ext::add_signature(
-			&self.aggregate_signature.ok_or(signature)?,
-			&signature,
-		) {
-			Ok(signature) => {
-				self.aggregate_signature = Some(signature);
-				Ok(())
-			},
-			Err(_) => Err(signature),
-		}
+		let aggregate_signature = self.aggregate_signature.ok_or(signature)?;
+		self.aggregate_signature =
+			Some(aggregate_signature.add_signature(&signature).map_err(|_| signature)?);
+		Ok(())
 	}
 
 	pub fn get_fees(&self) -> Vec<Fees> {
@@ -202,8 +180,7 @@ impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 		let msg = self.sign_data();
 		match self.aggregate_signature {
 			None => false,
-			Some(sig) =>
-				bls_primitives::crypto::bls_ext::verify_aggregate(&public_keys, &msg, &sig),
+			Some(sig) => sig.verify(&public_keys, msg.as_ref()),
 		}
 	}
 
