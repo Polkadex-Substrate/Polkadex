@@ -172,6 +172,9 @@ where
 		incoming_message: &mut GossipMessage,
 		_: Option<PeerId>,
 	) -> Result<(), Error> {
+		if !self.is_validator {
+			return Ok(())
+		}
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
 		let local_index = self.get_local_auth_index()?;
@@ -372,6 +375,10 @@ where
 	}
 
 	pub async fn try_process_foreign_chain_events(&mut self) -> Result<(), Error> {
+		// Proceed only if we are a validator
+		if !self.is_validator {
+			return Ok(())
+		}
 		match self.thea_network.as_ref() {
 			None => {
 				log::error!(target:"thea", "Thea network not set on this validator!");
