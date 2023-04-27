@@ -66,11 +66,7 @@ impl ForeignConnector for DummyForeignConnector {
 		}
 
 		// Check signature
-		assert!(bls_primitives::crypto::verify_aggregate_(
-			&signatories[..],
-			&message.encode(),
-			&payload.aggregate_signature.into(),
-		));
+		assert!(payload.aggregate_signature.verify(&signatories, &message.encode()));
 
 		*self.incoming_nonce.write() = message.nonce;
 		self.incoming_messages.write().insert(message.nonce, message);

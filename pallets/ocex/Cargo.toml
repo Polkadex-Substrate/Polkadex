@@ -26,7 +26,6 @@ frame-benchmarking = { workspace = true, default-features = false, optional = tr
 sp-core = { workspace = true, default-features = false }
 liquidity = { path = "../liquidity", default-features = false }
 orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
-bls-primitives = { path = "../../primitives/bls-primitives", default-features = false }
 sp-application-crypto = { workspace = true }
 
 [dev-dependencies]
@@ -35,6 +34,7 @@ pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
+bls-primitives = { path = "../../primitives/bls-primitives", default-features = false }
 
 [features]
 default = ["std"]
