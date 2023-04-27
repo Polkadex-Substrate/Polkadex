@@ -2,7 +2,6 @@ use log::info;
 use orderbook_primitives::types::GossipMessage;
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::RwLock;
-use primitive_types::H256;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
@@ -84,7 +83,7 @@ where
 			},
 			msg => {
 				let msg_hash = sp_core::hashing::blake2_128(&msg.encode());
-				match self.message_cache.get(&msg_hash) {
+				match self.message_cache.get(&msg_hash).cloned() {
 					None => true,
 					Some(last_broadcasted) =>
 						Instant::now().sub(last_broadcasted) >= REBROADCAST_INTERVAL,
