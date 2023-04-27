@@ -1,8 +1,21 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod application_crypto;
-pub mod crypto;
 
+use ark_bls12_381::{
+	g1::Config as G1Config, Bls12_381, G1Affine, G1Projective, G2Affine, G2Projective,
+};
+use ark_ec::{
+	hashing::{
+		curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher, HashToCurve,
+		HashToCurveError,
+	},
+	pairing::Pairing,
+	short_weierstrass::Projective,
+	AffineRepr, CurveGroup,
+};
+use ark_ff::{field_hashers::DefaultFieldHasher, Zero};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 #[cfg(feature = "std")]
 use bip39::{Language, Mnemonic, MnemonicType};
 #[cfg(feature = "std")]
@@ -11,7 +24,9 @@ use blst::min_sig::{PublicKey, SecretKey, Signature as BLSSignature};
 use blst::BLST_ERROR;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
+use sha2::Sha256;
 use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive};
+use sp_std::ops::{Add, Neg};
 
 #[cfg(feature = "std")]
 use sp_core::crypto::SecretStringError;
@@ -22,21 +37,12 @@ use sp_runtime_interface::pass_by::PassByInner;
 #[cfg(feature = "std")]
 use substrate_bip39::seed_from_entropy;
 
-#[cfg(feature = "std")]
-use crate::crypto::add_signature_;
 use sp_std::vec::Vec;
 
 /// An identifier used to match public keys against bls keys
 pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");
 
 pub const DST: &str = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
-
-pub const BLS_DEV_PHRASE: &str =
-	"forget flee list will tissue myself viable sleep cover lake summer \
-flat artefact hurry bronze salt fiber fog emotion loyal broken coach arch plastic";
-
-pub const DEV_PHRASE: &str =
-	"bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 
 /// BLS Public Key
 #[cfg_attr(feature = "std", derive(Hash))]
@@ -62,53 +68,72 @@ pub struct Public(pub [u8; 96]);
 )]
 pub struct Signature(pub [u8; 48]);
 
-// KeyStore for Storing Seed and Junctions
-#[cfg_attr(feature = "std", derive(Hash))]
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug)]
-pub struct KeyStore {
-	seed: Seed,
-	#[cfg(feature = "std")]
-	junctions: Vec<DeriveJunction>,
-}
-
-#[cfg(feature = "std")]
-impl KeyStore {
-	fn new(seed: Seed, junctions: Vec<DeriveJunction>) -> Self {
-		Self { seed, junctions }
-	}
-
-	fn get_seed(&self) -> Seed {
-		self.seed
-	}
-
-	fn get_junctions(&self) -> Vec<DeriveJunction> {
-		self.junctions.clone()
-	}
-}
-
 impl Signature {
 	// Aggregates two signatures
-	#[cfg(feature = "std")]
-	pub fn add_signature(self, signature: &Signature) -> Result<Signature, BLST_ERROR> {
-		add_signature_(&self, signature)
+	pub fn add_signature(self, signature: &Signature) -> Result<Signature, Error> {
+		let sig1: G1Projective = G1Affine::deserialize_compressed(self.as_ref())?.into();
+		let sig2: G1Projective = G1Affine::deserialize_compressed(signature.as_ref())?.into();
+		let result: G1Projective = sig1.add(sig2);
+		let mut buffer = Vec::from([0u8; 48]);
+		result.serialize_compressed(buffer.as_mut_slice())?;
+		if buffer.len() == 48 {
+			Ok(Signature(buffer.try_into().unwrap()))
+		} else {
+			Err(Error::BLSSerilizationError(SerializationError::InvalidData))
+		}
+	}
+
+	pub fn verify(self, public_keys: &[Public], message: &[u8]) -> bool {
+		// Aggregate the public keys
+		let mut g2_points = Vec::new();
+		for public_key in public_keys {
+			match G2Projective::deserialize_compressed(public_key.as_ref()) {
+				Ok(point) => g2_points.push(point),
+				Err(_) => return false,
+			}
+		}
+		let aggregated_pubk: G2Projective = g2_points.into_iter().sum::<G2Projective>();
+		// hash to curve g1
+		let message = match hash_to_curve_g1(message) {
+			Ok(message) => message,
+			Err(_) => return false,
+		};
+		// Convert signature to a G1 point
+		let signature: G1Affine = match G1Affine::deserialize_compressed(self.as_ref()) {
+			Ok(signatyre) => signatyre,
+			Err(_) => return false,
+		};
+		// Compute the product of pairings
+		Bls12_381::multi_pairing(
+			[signature, message.into_affine()],
+			[G2Affine::generator().neg(), aggregated_pubk.into_affine()],
+		)
+		.is_zero()
 	}
 }
 
 type Seed = [u8; 32];
 
 /// An error when deriving a key.
-#[cfg(feature = "std")]
 #[derive(Debug)]
 pub enum Error {
 	/// Invalid Public key
 	InvalidPublicKey,
+	#[cfg(feature = "std")]
 	BLSError(BLST_ERROR),
 	InvalidSeed,
+	BLSSerilizationError(SerializationError),
 	InvalidJunctionForDerivation,
 	#[cfg(feature = "std")]
 	SerdeError(serde_json::Error),
 	#[cfg(feature = "std")]
 	IOError(std::io::Error),
+}
+
+impl From<SerializationError> for Error {
+	fn from(value: SerializationError) -> Self {
+		Self::BLSSerilizationError(value)
+	}
 }
 
 #[cfg(feature = "std")]
@@ -306,18 +331,7 @@ impl sp_core::crypto::Pair for Pair {
 	}
 
 	fn verify<M: AsRef<[u8]>>(sig: &Self::Signature, message: M, pubkey: &Self::Public) -> bool {
-		let pubkey = PublicKey::from_bytes(&pubkey.0).expect("Expected valid public key");
-		let signature =
-			BLSSignature::from_bytes(sig.0.as_ref()).expect("Expected valid BLS signature");
-
-		signature.verify(
-			true,
-			message.as_ref(),
-			DST.as_ref(),
-			&[], // TODO: wtf is this?
-			&pubkey,
-			true,
-		) == BLST_ERROR::BLST_SUCCESS
+		sig.verify(&[*pubkey], message.as_ref())
 	}
 
 	fn verify_weak<P: AsRef<[u8]>, M: AsRef<[u8]>>(sig: &[u8], message: M, pubkey: P) -> bool {
@@ -336,5 +350,49 @@ impl sp_core::crypto::Pair for Pair {
 
 	fn to_raw_vec(&self) -> Vec<u8> {
 		self.secret.to_bytes().to_vec()
+	}
+}
+
+pub fn hash_to_curve_g1(message: &[u8]) -> Result<G1Projective, HashToCurveError> {
+	let wb_to_curve_hasher = MapToCurveBasedHasher::<
+		Projective<G1Config>,
+		DefaultFieldHasher<Sha256, 128>,
+		WBMap<G1Config>,
+	>::new(DST.as_ref())?;
+	Ok(wb_to_curve_hasher.hash(message)?.into())
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::{hash_to_curve_g1, Public, Signature, DST};
+	use sp_application_crypto::RuntimePublic;
+	use sp_core::Pair;
+
+	#[test]
+	pub fn test_signature_works() {
+		let pair = blst::min_sig::SecretKey::key_gen(&[1u8; 32], &[]).unwrap();
+		let message = b"message";
+		let signature = pair.sign(message, DST.as_ref(), &[]);
+		let public_key = pair.sk_to_pk();
+
+		let new_signature: crate::Signature = Signature(signature.compress());
+		let new_public_key: crate::Public = Public(public_key.compress());
+
+		assert!(new_public_key.verify(&message, &new_signature));
+		assert!(!new_public_key.verify(b"fake", &new_signature))
+	}
+
+	#[test]
+	pub fn test_aggregate_signature_works() {
+		let pair1 = crate::Pair::generate().0;
+		let pair2 = crate::Pair::generate().0;
+		let message = b"message";
+
+		let sig1 = pair1.sign(message);
+		let sig2 = pair2.sign(message);
+
+		let aggregate_signature = sig1.add_signature(&sig2).unwrap();
+
+		assert!(aggregate_signature.verify(&[pair1.public(), pair2.public()], message))
 	}
 }

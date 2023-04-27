@@ -19,6 +19,7 @@ use sp_consensus::SyncOracle;
 use sp_core::{Pair, H256};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
+use sp_runtime::traits::AppVerify;
 
 use crate::Client;
 use polkadex_primitives::utils::return_set_bits;
@@ -87,12 +88,9 @@ impl TestApi {
 			signatories.push((*auths.get(index).unwrap()).clone().into());
 		}
 
+		let bls_signature: bls_primitives::Signature = signature.into();
 		// Check signature
-		assert!(bls_primitives::crypto::verify_aggregate_(
-			&signatories[..],
-			&message.encode(),
-			&signature.into(),
-		));
+		assert!(bls_signature.verify(&signatories, &message.encode()));
 
 		self.incoming_nonce.write().insert(message.network, message.nonce);
 		self.incoming_messages.write().insert((message.network, message.nonce), message);

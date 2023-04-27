@@ -2,7 +2,6 @@ pub mod rpc;
 pub mod sync;
 
 use crate::protocol_standard_name;
-use bls_primitives::BLS_DEV_PHRASE;
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
