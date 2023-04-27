@@ -1,5 +1,5 @@
 [relaychain] 
-default_command = "/testnet-binaries/polkadot" 
+default_command = "/data/polkadot" 
 default_args = [ "-lparachain=debug" ] 
  
 chain = "rococo-local" 
@@ -27,7 +27,7 @@ cumulus_based = true
  
 [parachains.collator] 
 name = "parachain-A-1000-collator01" 
-command = "/testnet-binaries/parachain-polkadex-node" 
+command = "/data/parachain-polkadex-node" 
 ws_port = 9901
  
 [[parachains]] 
@@ -36,5 +36,5 @@ cumulus_based = true
  
 [parachains.collator] 
 name = "parachain-B-1001-collator01" 
-command = "/testnet-binaries/parachain-polkadex-node"
+command = "/data/parachain-polkadex-node"
 ws_port = 9902

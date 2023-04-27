@@ -1,6 +1,6 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 As builder
 
-RUN apt-get update && apt-get install --assume-yes  protobuf-compiler git curl build-essential cmake clang jq
+RUN apt-get update && apt-get install --assume-yes  protobuf-compiler wget git curl build-essential cmake clang jq
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
   export PATH="$PATH:$HOME/.cargo/bin" && \
   rustup install 1.67 --no-self-update && \
@@ -13,18 +13,24 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
   cd .. && \ 
   git clone --depth 1 --branch release-v0.9.37 https://github.com/paritytech/polkadot.git && \ 
   cd polkadot && \
-  cargo  +nightly-2023-01-01 build --release && \
-  cd .. && mkdir testnet-binary && \
-  cp parachain/target/release/parachain-polkadex-node testnet-binary/ && \
-  cp polkadot/target/release/polkadot testnet-binary/ && \
- 
-COPY config.toml testnet-binary/ 
-RUN apt-get install --assume-yes wget 
-RUN cd testnet-binary && \ 
+  cargo  +nightly-2023-01-01 build --release 
+
+FROM ubuntu:22.04
+
+   
+RUN apt-get update && apt-get install --assume-yes wget 
+RUN mkdir /data && cd /data && \ 
    wget https://github.com/paritytech/zombienet/releases/download/v1.3.43/zombienet-linux-x64 -q && \
-   chmod +x zombienet-linux-x64 && \
-   pwd
+   chmod +x zombienet-linux-x64 
 
- EXPOSE 30333 9933 9944
+COPY --from=builder  /parachain/target/release/parachain-polkadex-node /data
+COPY --from=builder  /polkadot/target/release/polkadot /data 
+ 
+COPY  config.toml /data 
 
-ENTRYPOINT ["/testnet-binary/zombienet-linux-x64 spawn /testnet-binary/config.toml -p native"]
+EXPOSE 30333 9933 9944 9900 9901 9902
+RUN ls -lt /data
+
+VOLUME ["/data"]
+
+ENTRYPOINT ["/data/zombienet-linux-x64 spawn /data/config.toml -p native"]

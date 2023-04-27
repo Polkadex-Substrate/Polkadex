@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  solo-chain-dev:
+    build:
+      dockerfile: Dockerfile-solo-chain   
+    ports:
+        - "30333:30333"
+        - "9933:9933"
+        - "9944:9944"
+    command: --dev
+  solo-chain-bootnode1:
+    build:
+      dockerfile: Dockerfile-solo-chain  
+    ports:
+        - "10000:10000"
+        - "9068:9068"
+    command: --chain=/data/customSpecRaw.json  --validator --rpc-cors=all --rpc-port=9068 --ws-port=10000 --base-path="/data/bootnode" --ws-max-connections=600  --telemetry-url='wss://telemetry.polkadot.io/submit/ 0' --name="Bootnode" --node-key=1f64f01767da8258fcb986bd68d6dff93dfcd49d0fc753cea27cf37ce91c3684
+
+  solo-chain-validator1:
+    build:
+      dockerfile: Dockerfile-solo-chain  
+    ports:
+        - "10001:10001"
+        - "9069:9069"
+    command: --chain=/data/customSpecRaw.json --validator --rpc-cors=all --rpc-port=9069 --ws-port=10001 --base-path="/data/validator" --ws-max-connections=600  --telemetry-url='wss://telemetry.polkadot.io/submit/ 0'  --name="Validator1" --bootnodes=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t --node-key=d353c4b01db05aa66ddeab9d85c2fa2252368dd4961606e5985ed1e8f40dbc50 --pruning=archive
+
+  solo-chain-validator2:
+    build:
+      dockerfile: Dockerfile-solo-chain  
+    ports:
+        - "10002:10002"
+        - "9070:9070"
+    command: --chain=/data/customSpecRaw.json --validator --rpc-cors=all --rpc-port=9070 --ws-port=10002 --base-path="/data/validator" --ws-max-connections=600  --telemetry-url 'wss://telemetry.polkadot.io/submit/ 0' --name="Validator2" --bootnodes=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t --node-key=24f121a84149f784f9fe3f1e2fb04e8873191a510bc4b073a3a815d78a29cf2d
+
+  
+  para-chain-nod1:
+    build:
+      dockerfile: Dockerfile-para-chain
+    ports:
+        - "9901:9901"
+        - "9900:9900"
+        - "9902:9902"      

@@ -1,6 +1,6 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 As builder
 
-#ARG branch=mainnet-release
+ARG branch=mainnet-release
 
   
 
@@ -13,14 +13,18 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
   rustup default nightly-2023-01-01 && \
   git clone https://github.com/Polkadex-Substrate/Polkadex  && \
   cd Polkadex && \ 
+  git checkout $branch && \
   cargo  +nightly-2023-01-01 build --release
 
 
-#RUN git checkout  $branch
-#RUN echo "Building branch: " && git rev-parse --abbrev-ref HEAD
+FROM ubuntu:22.04
 
+RUN mkdir /data && mkdir /data/bootnode && mkdir /data/validator
 
+COPY --from=builder /Polkadex/target/release/polkadex-node /data
+COPY --from=builder /Polkadex/extras/customSpecRaw.json /data
 
-EXPOSE 30333 9933 9944
+VOLUME ["/data"]
 
-ENTRYPOINT ["./target/release/polkadex-node —dev"]
+EXPOSE 10000 9068 10001 9069 10002 9070 30333 9944 9933
+ENTRYPOINT ["/data/polkadex-node"]
