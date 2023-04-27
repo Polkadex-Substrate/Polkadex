@@ -94,7 +94,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	pub keystore: OrderbookKeyStore,
 	gossip_engine: GossipEngine<B>,
 	// gossip_validator: Arc<GossipValidator<B>>,
-	// Last processed state change id
+	// Last processed SnapshotSummary
 	pub last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
 	// Working state root,
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
@@ -119,7 +119,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	latest_state_change_id: u64,
 	// Map of trading pair configs
 	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
-	orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
+	pub(crate) orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 	// Our last snapshot waiting for approval
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
 	// Validators we are connected to
@@ -226,10 +226,10 @@ where
 	/// The function checks whether a snapshot of the blockchain should be generated based on the
 	/// pending withdrawals and block intervaland last stid
 	///
-	/// # Parameters
-	/// - &self: a reference to an instance of a struct implementing some trait
+	/// # Arguments
+	/// * `&self`: a reference to an instance of a struct implementing some trait
 	/// # Returns
-	/// - bool: a boolean indicating whether a snapshot should be generated
+	/// * `bool`: a boolean indicating whether a snapshot should be generated
 	pub fn should_generate_snapshot(&self) -> bool {
 		let at = BlockId::Number(self.last_finalized_block.saturated_into());
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
@@ -381,6 +381,8 @@ where
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 			return Err(Error::FailedToSubmitSnapshotToRuntime)
 		}
+		// Remove all worker nonces older than the last processed worker nonce
+		self.known_messages.retain(|k, _| *k > worker_nonce);
 		self.pending_snapshot_summary = Some(summary);
 		Ok(())
 	}
@@ -411,6 +413,7 @@ where
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
+		metric_set!(self, ob_snapshot_id, action.worker_nonce);
 		self.latest_state_change_id = action.stid;
 		// Multicast the message to other peers
 		let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
@@ -427,15 +430,17 @@ where
 			info!(target:"orderbook","📒 Known messages: {:?}", self.known_messages);
 			// Collect all known worker nonces
 			let mut known_worker_nonces = self.known_messages.keys().collect::<Vec<&u64>>();
+			// Retain only those that are greater than what we already processed
+			known_worker_nonces.retain(|x| **x > *self.latest_worker_nonce.read());
 			known_worker_nonces.sort_unstable(); // unstable is fine since we know  worker nonces are unique
 									 // if the next best known  worker nonces is not available then ask others
-			if *known_worker_nonces[0] != self.last_snapshot.read().worker_nonce.saturating_add(1) {
+			if *known_worker_nonces[0] != self.latest_worker_nonce.read().saturating_add(1) {
 				// Ask other peers to send us the requests  worker nonces.
 				info!(target:"orderbook","📒 Asking peers to send us the missed \
                 worker nonces: last processed nonce: {:?}, best known nonce: {:?} ",
-                    self.last_snapshot.read().worker_nonce, known_worker_nonces[0]);
+                    self.latest_worker_nonce.read(), known_worker_nonces[0]);
 				let message = GossipMessage::WantWorkerNonce(
-					self.last_snapshot.read().worker_nonce,
+					*self.latest_worker_nonce.read(),
 					*known_worker_nonces[0],
 				);
 				let mut peers =
@@ -451,7 +456,7 @@ where
 				info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
 			}
 		} else {
-			info!(target: "orderbook", "📒 No new messages known after worker_nonce: {:?}",self.last_snapshot.read().worker_nonce);
+			info!(target: "orderbook", "📒 No new messages known after worker_nonce: {:?}",self.latest_worker_nonce.read());
 		}
 		Ok(())
 	}
@@ -607,12 +612,12 @@ where
 		Ok(())
 	}
 
-	// Checks if we have all worker_nonces to drive the state and then drive it.
+	/// go through the `known_messages` incrementally starting from the last snapshot's
+	/// worker_nonce and process the messages. if a message is not found, it means ?
 	pub async fn check_worker_nonce_gap_fill(&mut self) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Checking for worker_nonce gap fill");
-		let mut last_snapshot = self.last_snapshot.read().worker_nonce.saturating_add(1);
-
-		while let Some(action) = self.known_messages.remove(&last_snapshot) {
+		let mut next_worker_nonce = self.latest_worker_nonce.read().saturating_add(1);
+		while let Some(action) = self.known_messages.get(&next_worker_nonce).cloned() {
 			if let Err(err) = self.handle_action(&action) {
 				match err {
 					Error::Keystore(_) =>
@@ -628,49 +633,74 @@ where
 					},
 				}
 			}
-			metric_set!(self, ob_snapshot_id, last_snapshot);
-			last_snapshot = last_snapshot.saturating_add(1);
+			next_worker_nonce = self.latest_worker_nonce.read().saturating_add(1);
 		}
-		// We need to sub 1 since that last processed is one worker_nonce less than the not
-		// available when while loop is broken
-		info!(target:"orderbook","Setting last snapshot's stid to : {:?}",last_snapshot.saturating_sub(1));
-		self.last_snapshot.write().worker_nonce = last_snapshot.saturating_sub(1);
 		Ok(())
 	}
 
+	/// Checks the local `known_messages` to see if we have any messages between the `from` and `to`
+	/// worker_nonce. If we do, we gossip the `WorkerNonces` message to the peer that requested it.
+	///
+	/// # Arguments
+	/// * `from` - The worker_nonce to start from
+	/// * `to` - The worker_nonce to end at
+	/// * `peer` - The peer that requested the worker_nonces
+	///
+	/// # Returns
+	/// * `()` - No return value
 	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
 		if let Some(peer) = peer {
 			info!(target: "orderbook", "📒 Sending worker_nonce request to peer: {:?}", peer);
-			let mut messages = vec![];
-			for worker_nonce in *from..=*to {
-				// We dont allow gossip messsages to be greater than 10MB
-				if messages.encoded_size() >= 10 * 1024 * 1024 {
-					// If we reach size limit, we send data in chunks of 10MB.
-					info!(target: "orderbook", "📒 Sending worker_nonce chunk: {:?}", messages.len());
-					let message = GossipMessage::WorkerNonces(Box::new(messages));
-					self.gossip_engine.send_message(vec![peer], message.encode());
-					metric_inc!(self, ob_messages_sent);
-					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
-					messages = vec![] // Reset the buffer
-				}
-				if let Some(msg) = self.known_messages.get(&worker_nonce) {
-					info!(target: "orderbook", "📒 known_messages: {:?}", self.known_messages.len());
-					messages.push(msg.clone());
-				}
-			}
-			// Send the final chunk if any
-			if !messages.is_empty() {
-				let message = GossipMessage::WorkerNonces(Box::new(messages));
+			let gossip_messages = self.get_want_worker_nonce_messages(from, to);
+			for message in &gossip_messages {
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
-			} else {
-				info!(target: "orderbook", "📒 No worker_nonces to send to peer: {:?}", peer)
 			}
 		}
 	}
-
+	/// Returns a list of gossip messages that contain the worker_nonces requested
+	/// from the `from` to the `to` worker_nonce.
+	/// The messages are limited to 10MB in size.
+	///
+	/// # Arguments:
+	///   * `from`: The first worker_nonce requested
+	///   * `to`: The last worker_nonce requested
+	/// # returns:
+	///   A list of gossip messages that contain the worker_nonces requested
+	pub fn get_want_worker_nonce_messages(&self, from: &u64, to: &u64) -> Vec<Vec<u8>> {
+		let mut gossip_messages = vec![];
+		let mut messages = vec![];
+		for worker_nonce in *from..=*to {
+			// We dont allow gossip messsages to be greater than 10MB
+			if messages.encoded_size() >= 10 * 1024 * 1024 {
+				// If we reach size limit, we send data in chunks of 10MB.
+				info!(target: "orderbook", "📒 Sending worker_nonce chunk: {:?}", messages.len());
+				let message = GossipMessage::WorkerNonces(Box::new(messages));
+				gossip_messages.push(message.encode());
+				messages = vec![] // Reset the buffer
+			}
+			info!(target:"test", "known messages length:{:?}", self.known_messages.len());
+			if let Some(msg) = self.known_messages.get(&worker_nonce) {
+				info!(target: "test", "📒 known_messages: {:?}", self.known_messages.len());
+				messages.push(msg.clone());
+			}
+		}
+		// Send the final chunk if any
+		if !messages.is_empty() {
+			let message = GossipMessage::WorkerNonces(Box::new(messages));
+			gossip_messages.push(message.encode());
+		}
+		gossip_messages
+	}
+	/// Handles the worker_nonces received via gossip.
+	/// The worker_nonces are stored in the `known_messages` map.
+	///
+	/// # Arguments
+	///  * `messages`: The list of worker_nonces received via gossip
+	/// # returns:
+	/// Ok(()) if the worker_nonces are stored successfully
 	pub async fn got_worker_nonces_via_gossip(
 		&mut self,
 		messages: &Vec<ObMessage>,

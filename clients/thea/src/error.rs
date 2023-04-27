@@ -67,8 +67,8 @@ impl From<sc_keystore::Error> for Error {
 	}
 }
 
-impl From<blst::BLST_ERROR> for Error {
-	fn from(value: blst::BLST_ERROR) -> Self {
+impl From<bls_primitives::Error> for Error {
+	fn from(value: bls_primitives::Error) -> Self {
 		Self::BLSError(format!("{value:?}"))
 	}
 }
