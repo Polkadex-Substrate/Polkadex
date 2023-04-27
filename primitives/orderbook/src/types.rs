@@ -106,7 +106,7 @@ impl Trade {
 #[cfg(feature = "std")]
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
-	// (From,to, remote peer)
+	// (From, to, remote peer)
 	WantWorkerNonce(u64, u64),
 	// Collection of WorkerNonces
 	WorkerNonces(Box<Vec<ObMessage>>),
