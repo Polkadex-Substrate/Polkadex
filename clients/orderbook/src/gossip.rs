@@ -1,12 +1,20 @@
 use log::info;
 use orderbook_primitives::types::GossipMessage;
-use parity_scale_codec::Decode;
+use parity_scale_codec::{Decode, Encode};
 use parking_lot::RwLock;
+use primitive_types::H256;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+	collections::{BTreeSet, HashMap},
+	ops::Sub,
+	sync::Arc,
+};
+use tokio::time::{Duration, Instant};
+
+pub const REBROADCAST_INTERVAL: Duration = Duration::from_secs(3);
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -32,6 +40,7 @@ where
 	latest_worker_nonce: Arc<RwLock<u64>>,
 	pub(crate) validators: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
+	pub(crate) message_cache: HashMap<[u8; 16], Instant>,
 }
 
 impl<B> GossipValidator<B>
@@ -43,7 +52,13 @@ where
 		validators: Arc<RwLock<BTreeSet<PeerId>>>,
 		fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	) -> GossipValidator<B> {
-		GossipValidator { _topic: topic::<B>(), latest_worker_nonce, validators, fullnodes }
+		GossipValidator {
+			_topic: topic::<B>(),
+			latest_worker_nonce,
+			validators,
+			fullnodes,
+			message_cache: Default::default(),
+		}
 	}
 
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
@@ -53,7 +68,10 @@ where
 				let latest_worker_nonce = *self.latest_worker_nonce.read();
 				msg.worker_nonce > latest_worker_nonce
 			},
-			_ => true,
+			msg => {
+				let msg_hash = sp_core::hashing::blake2_128(&msg.encode());
+				!self.message_cache.contains_key(&msg_hash)
+			},
 		}
 	}
 
@@ -64,7 +82,14 @@ where
 				let latest_worker_nonce = *self.latest_worker_nonce.read();
 				msg.worker_nonce >= latest_worker_nonce
 			},
-			_ => true,
+			msg => {
+				let msg_hash = sp_core::hashing::blake2_128(&msg.encode());
+				match self.message_cache.get(&msg_hash) {
+					None => true,
+					Some(last_broadcasted) =>
+						Instant::now().sub(last_broadcasted) >= REBROADCAST_INTERVAL,
+				}
+			},
 		}
 	}
 }
