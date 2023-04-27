@@ -197,7 +197,7 @@ pub async fn get_connector(chain_type: ChainType, is_validator: bool) -> Connect
 		ChainType::Development => Connector { connector: Arc::new(NoOpConnector) },
 		_ => Connector {
 			connector: Arc::new(
-				ParachainClient::connect("ws://127.0.0.1:9945".to_string())
+				ParachainClient::connect("ws://127.0.0.1:9902".to_string())
 					.await
 					.expect("Expected to connect to local foreign node"),
 			),
