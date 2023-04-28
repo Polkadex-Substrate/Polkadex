@@ -379,8 +379,6 @@ where
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
 			return Err(Error::FailedToSubmitSnapshotToRuntime)
 		}
-		// Remove all worker nonces older than the last processed worker nonce
-		self.known_messages.retain(|k, _| *k > worker_nonce);
 		self.pending_snapshot_summary = Some(summary);
 		Ok(())
 	}
@@ -945,6 +943,9 @@ where
 			} else {
 				// There is a valid snapshot from runtime, so update our state.
 				*self.last_snapshot.write() = latest_summary;
+				// Prune the known messages cache
+				// Remove all worker nonces older than the last processed worker nonce
+				self.known_messages.retain(|k, _| *k > latest_summary.worker_nonce);
 			}
 			if let Some(orderbook_operator_public_key) =
 				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
