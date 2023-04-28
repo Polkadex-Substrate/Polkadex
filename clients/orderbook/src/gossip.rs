@@ -1,4 +1,4 @@
-use log::info;
+use log::{info, trace};
 use orderbook_primitives::{types::GossipMessage, SnapshotSummary};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::RwLock;
@@ -187,11 +187,11 @@ where
 			let result = self.validate_message(&ob_message, *sender);
 			match result {
 				ValidationResult::ProcessAndKeep(_) =>
-					info!(target:"gossip","{ob_message:?} validation result: P&K"),
+					trace!(target:"ob-gossip","{ob_message:?} validation result: P&K"),
 				ValidationResult::ProcessAndDiscard(_) =>
-					info!(target:"gossip","{ob_message:?} validation result: P&D"),
+					trace!(target:"ob-gossip","{ob_message:?} validation result: P&D"),
 				ValidationResult::Discard =>
-					info!(target:"gossip","{ob_message:?} validation result: D"),
+					trace!(target:"ob-gossip","{ob_message:?} validation result: D"),
 			}
 			return result
 		}
@@ -206,7 +206,7 @@ where
 				Err(_) => return true,
 			};
 			let result = self.message_expired_check(&msg);
-			info!(target:"gossip","{msg:?} expiry check result: {result:?}");
+			trace!(target:"ob-gossip","{msg:?} expiry check result: {result:?}");
 			result
 		})
 	}
@@ -222,7 +222,7 @@ where
 			};
 			// Logic for rebroadcasting.
 			let result = self.rebroadcast_check(&msg, *who);
-			info!(target:"gossip","{msg:?} egress allowed check result: {result:?}");
+			trace!(target:"ob-gossip","{msg:?} egress allowed check result: {result:?}");
 			result
 		})
 	}
