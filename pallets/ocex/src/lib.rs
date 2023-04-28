@@ -113,7 +113,7 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
+		traits::{BlockNumberProvider, IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
@@ -289,14 +289,16 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		/// On idle, use the remaining weight to do clean up, remove all ingress messages that are
+		/// older than the block in the last accepted snapshot.
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			// TODO: We can do it after release, as an upgrade
+			remaining_weight
+		}
 		/// What to do at the end of each block.
 		///
 		/// Clean IngressMessages
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
-			<IngressMessages<T>>::put(Vec::<
-				polkadex_primitives::ingress::IngressMessages<T::AccountId>,
-			>::new());
-
 			<OnChainEvents<T>>::kill();
 
 			Weight::default()
@@ -328,8 +330,8 @@ pub mod pallet {
 					account_info.add_proxy(proxy.clone()).is_ok(),
 					Error::<T>::ProxyLimitExceeded
 				);
-
-				<IngressMessages<T>>::mutate(|ingress_messages| {
+				let current_blk = frame_system::Pallet::<T>::current_block_number();
+				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 					ingress_messages.push(polkadex_primitives::ingress::IngressMessages::AddProxy(
 						main_account.clone(),
 						proxy.clone(),
@@ -356,7 +358,8 @@ pub mod pallet {
 			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
 					trading_pair.operational_status = false;
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
 								trading_pair.clone(),
@@ -387,7 +390,8 @@ pub mod pallet {
 			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
 					trading_pair.operational_status = true;
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
 								trading_pair.clone(),
@@ -519,7 +523,8 @@ pub mod pallet {
 					};
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
 								trading_pair_info,
@@ -647,7 +652,8 @@ pub mod pallet {
 					};
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
 								trading_pair_info,
@@ -691,7 +697,8 @@ pub mod pallet {
 						.position(|account| *account == proxy)
 						.ok_or(Error::<T>::ProxyNotFound)?;
 					account_info.proxies.remove(proxy_positon);
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::RemoveProxy(
 								main_account.clone(),
@@ -810,9 +817,9 @@ pub mod pallet {
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
-
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			//SetExchangeState Ingress message store in queue
-			<IngressMessages<T>>::mutate(|ingress_messages| {
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
 					.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
 			});
@@ -836,9 +843,9 @@ pub mod pallet {
 
 			// Check if exchange is pause
 			ensure!(!Self::orderbook_operational_state(), Error::<T>::ExchangeOperational);
-
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			//Pass the vec as ingress message
-			<IngressMessages<T>>::mutate(|ingress_messages| {
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::SetFreeReserveBalanceForAccounts(
 						change_in_balances,
@@ -1151,8 +1158,8 @@ pub mod pallet {
 			} else {
 				return Err(Error::<T>::AmountOverflow.into())
 			}
-
-			<IngressMessages<T>>::mutate(|ingress_messages| {
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
 					asset,
@@ -1174,7 +1181,8 @@ pub mod pallet {
 			ensure!(account_info.add_proxy(proxy.clone()).is_ok(), Error::<T>::ProxyLimitExceeded);
 			<Accounts<T>>::insert(&main_account, account_info);
 
-			<IngressMessages<T>>::mutate(|ingress_messages| {
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
 					main_account.clone(),
 					proxy.clone(),
@@ -1199,7 +1207,8 @@ pub mod pallet {
 			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
 				.checked_div(Decimal::from(UNIT_BALANCE))
 				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-			<IngressMessages<T>>::mutate(|ingress_messages| {
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::DirectWithdrawal(
 						proxy_account,
@@ -1396,8 +1405,10 @@ pub mod pallet {
 	// Queue for enclave ingress messages
 	#[pallet::storage]
 	#[pallet::getter(fn ingress_messages)]
-	pub(super) type IngressMessages<T: Config> = StorageValue<
+	pub(super) type IngressMessages<T: Config> = StorageMap<
 		_,
+		Identity,
+		T::BlockNumber,
 		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
 		ValueQuery,
 	>;
@@ -1481,9 +1492,10 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		ValidatorSet { validators: <Authorities<T>>::get() }
 	}
 
-	pub fn get_ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>
-	{
-		<IngressMessages<T>>::get()
+	pub fn get_ingress_messages(
+		blk: T::BlockNumber,
+	) -> Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>> {
+		<IngressMessages<T>>::get(blk)
 	}
 
 	#[allow(clippy::result_unit_err)]
