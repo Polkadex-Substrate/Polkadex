@@ -128,6 +128,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub state_root: H256,
 	pub worker_nonce: u64,
 	pub state_change_id: u64,
+	pub last_processed_blk: BlockNumber,
 	pub state_chunk_hashes: Vec<H128>,
 	pub bitflags: Vec<u128>,
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
@@ -141,6 +142,7 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 			state_root: Default::default(),
 			worker_nonce: 0,
 			state_change_id: 0,
+			last_processed_blk: 0,
 			state_chunk_hashes: Vec::new(),
 			bitflags: Vec::new(),
 			withdrawals: Vec::new(),
@@ -213,7 +215,7 @@ sp_api::decl_runtime_apis! {
 		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>>;
 
 		/// Return the ingress messages at the given block
-		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
+		fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
 
 		/// Submits the snapshot to runtime
 		#[allow(clippy::result_unit_err)]

@@ -126,6 +126,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	validators: Arc<RwLock<BTreeSet<PeerId>>>,
 	// Fullnodes we are connected to
 	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
+	last_processed_block_in_offchain_state: BlockNumber,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -220,6 +221,7 @@ where
 			pending_snapshot_summary: None,
 			validators,
 			fullnodes,
+			last_processed_block_in_offchain_state: 0,
 		}
 	}
 
@@ -237,14 +239,15 @@ where
 			.runtime
 			.runtime_api()
 			.get_snapshot_generation_intervals(&at)
-			.expect("Expecting snapshot generation interval api to be available");
+			.expect("Expected the snapshot runtime api to be available, qed.");
 
 		let last_accepted_worker_nonce: u64 = self
 			.runtime
 			.runtime_api()
 			.get_last_accepted_worker_nonce(&BlockId::Number(self.client.info().best_number))
-			.expect("Expecting OCEX APIs to be available"); // Check if a snapshot should be generated based on the pending withdrawals interval and
-												// block interval
+			.expect("Expected the snapshot runtime api to be available, qed.");
+		// Check if a snapshot should be generated based on the pending withdrawals interval and
+		// block interval
 		if (pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
 			block_interval <
 				self.last_finalized_block
@@ -311,8 +314,7 @@ where
 		let messages = self
 			.runtime
 			.runtime_api()
-			.ingress_messages(&BlockId::number(num.saturated_into()))
-			.expect("Expecting ingress messages api to be available");
+			.ingress_messages(&BlockId::number(num.saturated_into()), num.saturated_into())?;
 
 		{
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
@@ -331,6 +333,7 @@ where
 			// Commit the trie
 			trie.commit();
 		}
+		self.last_processed_block_in_offchain_state = num;
 		Ok(())
 	}
 
@@ -340,8 +343,7 @@ where
 		let next_snapshot_id = self
 			.runtime
 			.runtime_api()
-			.get_latest_snapshot(&at)
-			.expect("Expected get_latest_snapshot to be available")
+			.get_latest_snapshot(&at)?
 			.snapshot_id
 			.saturating_add(1);
 
@@ -374,8 +376,7 @@ where
 		if self
 			.runtime
 			.runtime_api()
-			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary.clone())
-			.expect("Something went wrong with the submit_snapshot runtime api; qed.")
+			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary.clone())?
 			.is_err()
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
@@ -475,6 +476,9 @@ where
 				memory_db.load_from(store.map);
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
+				*self.latest_worker_nonce.write() = summary.worker_nonce;
+				self.latest_state_change_id = summary.state_change_id;
+				self.last_processed_block_in_offchain_state = summary.last_processed_blk;
 			},
 			Err(err) => {
 				error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
@@ -564,6 +568,7 @@ where
 						withdrawals,
 						aggregate_signature: None,
 						state_chunk_hashes,
+						last_processed_blk: self.last_processed_block_in_offchain_state,
 					};
 
 					offchain_storage.set(
@@ -1047,14 +1052,17 @@ where
 										set_bit_field(&mut summary.bitflags, bit_index);
 										// send it to runtime
 										if self
-                                            .runtime
-                                            .runtime_api()
-                                            .submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary)
-                                            .expect("Something went wrong with the submit_snapshot runtime api; qed.").is_err()
-                                        {
-                                            error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
-                                            return Err(Error::FailedToSubmitSnapshotToRuntime);
-                                        }
+											.runtime
+											.runtime_api()
+											.submit_snapshot(
+												&BlockId::number(self.last_finalized_block.into()),
+												summary,
+											)?
+											.is_err()
+										{
+											error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
+											return Err(Error::FailedToSubmitSnapshotToRuntime)
+										}
 									},
 									Err(err) => {
 										// This should never happen

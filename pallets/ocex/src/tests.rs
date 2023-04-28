@@ -76,7 +76,8 @@ fn test_register_main_account() {
 		);
 		let event: IngressMessages<AccountId32> =
 			IngressMessages::RegisterUser(account_id.clone(), account_id.clone());
-		assert_eq!(OCEX::ingress_messages()[1], event);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk)[1], event);
 	});
 }
 
@@ -214,7 +215,8 @@ fn test_add_proxy_account() {
 		);
 		let event: IngressMessages<AccountId32> =
 			IngressMessages::AddProxy(account_id.clone(), account_id.clone());
-		assert_eq!(OCEX::ingress_messages()[2], event);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk)[2], event);
 	});
 }
 
@@ -351,7 +353,8 @@ fn test_register_trading_pair() {
 		let trading_pair =
 			TradingPairs::<Test>::get(AssetId::Asset(10), AssetId::Asset(20)).unwrap();
 		let event: IngressMessages<AccountId32> = IngressMessages::OpenTradingPair(trading_pair);
-		assert_eq!(OCEX::ingress_messages()[1], event);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk)[1], event);
 	});
 }
 
@@ -679,7 +682,8 @@ fn test_update_trading_pair() {
 		let trading_pair =
 			TradingPairs::<Test>::get(AssetId::Asset(10), AssetId::Asset(20)).unwrap();
 		let event: IngressMessages<AccountId32> = IngressMessages::UpdateTradingPair(trading_pair);
-		assert_eq!(OCEX::ingress_messages()[3], event);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk)[3], event);
 	});
 }
 
@@ -970,7 +974,8 @@ fn test_deposit() {
 		);
 		let event: IngressMessages<AccountId32> =
 			IngressMessages::Deposit(account_id, AssetId::Polkadex, Decimal::new(10, 11));
-		assert_eq!(OCEX::ingress_messages()[2], event);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk)[2], event);
 	});
 }
 
@@ -1053,8 +1058,8 @@ fn test_open_trading_pair_both_assets_cannot_be_same() {
 			OCEX::open_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(10)),
 			Error::<Test>::BothAssetsCannotBeSame
 		);
-
-		assert_eq!(OCEX::ingress_messages().len(), 1);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk).len(), 1);
 	});
 }
 #[test]
@@ -1075,8 +1080,8 @@ fn test_open_trading_pair_trading_pair_not_found() {
 			OCEX::open_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(20)),
 			Error::<Test>::TradingPairNotFound
 		);
-
-		assert_eq!(OCEX::ingress_messages().len(), 1);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk).len(), 1);
 	});
 }
 
@@ -1131,7 +1136,8 @@ fn test_open_trading_pair() {
 			crate::Event::OpenTradingPair { pair: trading_pair.clone() }.into(),
 		);
 		let event: IngressMessages<AccountId32> = IngressMessages::OpenTradingPair(trading_pair);
-		assert_eq!(OCEX::ingress_messages()[1], event);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk)[1], event);
 	})
 }
 
@@ -1143,7 +1149,8 @@ fn test_close_trading_pair_both_assets_cannot_be_same() {
 			OCEX::close_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(10)),
 			Error::<Test>::BothAssetsCannotBeSame
 		);
-		assert_eq!(OCEX::ingress_messages().len(), 1);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk).len(), 1);
 	});
 }
 
@@ -1165,7 +1172,8 @@ fn test_close_trading_trading_pair_not_found() {
 			OCEX::close_trading_pair(RuntimeOrigin::root(), AssetId::Asset(10), AssetId::Asset(20)),
 			Error::<Test>::TradingPairNotFound
 		);
-		assert_eq!(OCEX::ingress_messages().len(), 1);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk).len(), 1);
 	});
 }
 
@@ -1220,7 +1228,8 @@ fn test_close_trading_pair() {
 			crate::Event::ShutdownTradingPair { pair: trading_pair.clone() }.into(),
 		);
 		let event: IngressMessages<AccountId32> = IngressMessages::CloseTradingPair(trading_pair);
-		assert_eq!(OCEX::ingress_messages()[2], event);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk)[2], event);
 	})
 }
 
@@ -1471,10 +1480,10 @@ fn withdrawal() {
 			100_u128.saturated_into(),
 			true
 		));
-
+		let blk = frame_system::Pallet::<Test>::current_block_number();
 		//assert ingress message
 		assert_eq!(
-			OCEX::ingress_messages()[2],
+			OCEX::ingress_messages(blk)[2],
 			IngressMessages::DirectWithdrawal(
 				alice_proxy_account,
 				AssetId::Polkadex,
@@ -1518,8 +1527,8 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot),
 			Error::<Test>::SnapshotNonceError
 		);
-
-		assert_eq!(OCEX::ingress_messages().len(), 0);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
+		assert_eq!(OCEX::ingress_messages(blk).len(), 0);
 	});
 }
 
@@ -1543,6 +1552,7 @@ fn get_dummy_snapshot(
 		state_root: Default::default(),
 		worker_nonce: 1,
 		state_change_id: 1,
+		last_processed_blk: 1,
 		state_chunk_hashes: vec![],
 		bitflags: vec![1, 2],
 		withdrawals,
@@ -1663,7 +1673,7 @@ fn test_withdrawal() {
 	});
 }
 use orderbook_primitives::Fees;
-use sp_runtime::traits::One;
+use sp_runtime::traits::{BlockNumberProvider, One};
 
 #[test]
 fn test_withdrawal_bad_origin() {
@@ -1756,8 +1766,9 @@ pub fn test_set_balances_when_exchange_is_pause() {
 			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()),
 			Ok(())
 		);
+		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(
-			OCEX::ingress_messages()[1],
+			OCEX::ingress_messages(blk)[1],
 			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice,)
 		);
 	});
