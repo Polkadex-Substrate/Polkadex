@@ -1561,8 +1561,8 @@ impl_runtime_apis! {
 			OCEX::get_snapshot_by_id(nonce)
 		}
 
-		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>{
-			OCEX::get_ingress_messages()
+		fn ingress_messages(blk: BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>{
+			OCEX::get_ingress_messages(blk)
 		}
 
 		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary<AccountId>) -> Result<(),()> {
