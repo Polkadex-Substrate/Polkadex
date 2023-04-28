@@ -122,8 +122,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	pub(crate) orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 	// Our last snapshot waiting for approval
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
-	// Validators we are connected to
-	validators: Arc<RwLock<BTreeSet<PeerId>>>,
 	// Fullnodes we are connected to
 	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	last_processed_block_in_offchain_state: BlockNumber,
@@ -178,14 +176,14 @@ where
 		};
 		let latest_worker_nonce = Arc::new(RwLock::new(nonce));
 		let network = Arc::new(network);
-		let validators = Arc::new(RwLock::new(BTreeSet::new()));
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
 
 		// Gossip Validator
 		let gossip_validator = Arc::new(GossipValidator::new(
 			latest_worker_nonce.clone(),
-			validators.clone(),
 			fullnodes.clone(),
+			is_validator,
+			last_snapshot.clone(),
 		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator, None);
@@ -219,7 +217,6 @@ where
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
 			pending_snapshot_summary: None,
-			validators,
 			fullnodes,
 			last_processed_block_in_offchain_state: 0,
 		}
@@ -444,13 +441,8 @@ where
 					*self.latest_worker_nonce.read(),
 					*known_worker_nonces[0],
 				);
-				let mut peers =
-					self.validators.read().clone().iter().cloned().collect::<Vec<PeerId>>();
-				let mut fullnodes =
-					self.fullnodes.read().clone().iter().cloned().collect::<Vec<PeerId>>();
-				peers.append(&mut fullnodes);
-				// TODO: Should we even send it out to everyone we know?
-				self.gossip_engine.send_message(peers, message.encode());
+
+				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 			} else {
