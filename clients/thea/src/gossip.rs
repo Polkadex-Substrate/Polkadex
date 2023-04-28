@@ -1,4 +1,5 @@
 use crate::types::GossipMessage;
+use log::trace;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
@@ -112,9 +113,9 @@ where
 		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
 			if self.validate_message(&thea_gossip_msg) {
+				trace!(target:"thea-gossip", "Validation successfull for message: {thea_gossip_msg:?}");
 				return ValidationResult::ProcessAndKeep(topic::<B>())
 			}
-			// TODO: When should be stop broadcasting this message
 		}
 		ValidationResult::Discard
 	}
@@ -127,7 +128,9 @@ where
 				Err(_) => return true,
 			};
 			// If old stid then expire
-			!self.validate_message(&msg)
+			let result = !self.validate_message(&msg);
+			trace!(target:"thea-gossip", "message: {msg:?} is expired: {result:?}");
+			result
 		})
 	}
 
@@ -141,7 +144,9 @@ where
 				Err(_) => return false,
 			};
 			// Logic for rebroadcasting.
-			self.rebroadcast_check(&msg)
+			let result = self.rebroadcast_check(&msg);
+			trace!(target:"thea-gossip", "message: {msg:?} can be rebroadcasted: {result:?}");
+			result
 		})
 	}
 }
