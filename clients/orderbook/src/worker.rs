@@ -942,6 +942,9 @@ where
 				self.update_storage_with_genesis_data()?;
 				// Update the latest snapshot summary.
 				*self.last_snapshot.write() = latest_summary;
+			} else {
+				// There is a valid snapshot from runtime, so update our state.
+				*self.last_snapshot.write() = latest_summary;
 			}
 			if let Some(orderbook_operator_public_key) =
 				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
