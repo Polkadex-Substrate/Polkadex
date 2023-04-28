@@ -1457,7 +1457,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		};
 		// Verify Nonce/state_change_id
 		let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
-		if !snapshot_summary.worker_nonce.eq(&(last_snapshot_serial_number + 1)) {
+		if !snapshot_summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)) {
 			return InvalidTransaction::Custom(10).into()
 		}
 
