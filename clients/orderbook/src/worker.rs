@@ -941,11 +941,12 @@ where
 				// Update the latest snapshot summary.
 				*self.last_snapshot.write() = latest_summary;
 			} else {
+				let last_worker_nonce = latest_summary.worker_nonce;
 				// There is a valid snapshot from runtime, so update our state.
 				*self.last_snapshot.write() = latest_summary;
 				// Prune the known messages cache
 				// Remove all worker nonces older than the last processed worker nonce
-				self.known_messages.retain(|k, _| *k > latest_summary.worker_nonce);
+				self.known_messages.retain(|k, _| *k > last_worker_nonce);
 			}
 			if let Some(orderbook_operator_public_key) =
 				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
