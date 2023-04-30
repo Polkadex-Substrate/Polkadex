@@ -1246,6 +1246,10 @@ where
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
+				_ = gossip_engine => {
+					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					return;
+				}
 				gossip = gossip_messages.next() => {
 					if let Some((message,sender)) = gossip {
 						// Gossip messages have already been verified to be valid by the gossip validator.
@@ -1253,15 +1257,6 @@ where
 							error!(target: "orderbook", "📒 {}", err);
 						}
 					} else {
-						return;
-					}
-				},
-				message = self.message_sender_link.next() => {
-					if let Some(message) = message {
-						if let Err(err) = self.process_new_user_action(&message).await {
-							error!(target: "orderbook", "📒 Error during user action import{:?}", err);
-						}
-					}else{
 						return;
 					}
 				},
@@ -1275,10 +1270,15 @@ where
 						return
 					}
 				},
-				_ = gossip_engine => {
-					error!(target: "orderbook", "📒 Gossip engine has terminated.");
-					return;
-				}
+				message = self.message_sender_link.next() => {
+					if let Some(message) = message {
+						if let Err(err) = self.process_new_user_action(&message).await {
+							error!(target: "orderbook", "📒 Error during user action import{:?}", err);
+						}
+					}else{
+						return;
+					}
+				},
 			}
 		}
 	}
