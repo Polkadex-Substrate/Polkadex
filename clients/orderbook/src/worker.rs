@@ -308,10 +308,10 @@ where
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 		// Get the ingress messsages for this block
-		let messages = self
-			.runtime
-			.runtime_api()
-			.ingress_messages(&BlockId::number(self.last_finalized_block), num.saturated_into())?;
+		let messages = self.runtime.runtime_api().ingress_messages(
+			&BlockId::number(self.last_finalized_block.saturated_into()),
+			num.saturated_into(),
+		)?;
 
 		{
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
