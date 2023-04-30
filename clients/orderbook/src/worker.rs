@@ -1195,6 +1195,14 @@ where
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
 
+		if let Ok(public_key) = self
+			.runtime
+			.runtime_api()
+			.get_orderbook_opearator_key(&BlockId::Number(self.client.info().finalized_number))
+		{
+			self.orderbook_operator_public_key = public_key;
+		}
+
 		// Get the latest summary from the runtime
 		let latest_summary = match self
 			.runtime
