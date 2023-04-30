@@ -1081,6 +1081,14 @@ where
 			self.known_messages.len(),
 		   known_stids.get(0)
 		);
+		if let Some(to) = known_stids.get(0) {
+			let from = *self.latest_worker_nonce.read();
+			// Send it only if we are missing any messages
+			if to.saturating_sub(from) > 1 {
+				let want_request = GossipMessage::WantWorkerNonce(from, **to);
+				self.gossip_engine.gossip_message(topic::<B>(), want_request.encode(), true);
+			}
+		}
 		Ok(())
 	}
 
