@@ -1269,16 +1269,6 @@ where
 					error!(target: "orderbook", "📒 Gossip engine has terminated.");
 					return;
 				}
-				gossip = gossip_messages.next() => {
-					if let Some((message,sender)) = gossip {
-						// Gossip messages have already been verified to be valid by the gossip validator.
-						if let Err(err) = self.process_gossip_message(&message,sender).await {
-							error!(target: "orderbook", "📒 {}", err);
-						}
-					} else {
-						return;
-					}
-				},
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
 						if let Err(err) = self.handle_finality_notification(&finality).await {
@@ -1287,6 +1277,16 @@ where
 					}else {
 						error!(target:"orderbook","None finality recvd");
 						return
+					}
+				},
+				gossip = gossip_messages.next() => {
+					if let Some((message,sender)) = gossip {
+						// Gossip messages have already been verified to be valid by the gossip validator.
+						if let Err(err) = self.process_gossip_message(&message,sender).await {
+							error!(target: "orderbook", "📒 {}", err);
+						}
+					} else {
+						return;
 					}
 				},
 				message = self.message_sender_link.next() => {
