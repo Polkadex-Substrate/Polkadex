@@ -423,7 +423,7 @@ where
 		info!(target:"orderbook","📒 Checking state sync");
 		// X->Y sync: Ask peers to send the missed worker_nonec
 		if !self.known_messages.is_empty() {
-			info!(target:"orderbook","📒 Known messages: {:?}", self.known_messages);
+			info!(target:"orderbook","📒 Known messages len: {:?}", self.known_messages.len());
 			// Collect all known worker nonces
 			let mut known_worker_nonces = self.known_messages.keys().collect::<Vec<&u64>>();
 			// Retain only those that are greater than what we already processed
