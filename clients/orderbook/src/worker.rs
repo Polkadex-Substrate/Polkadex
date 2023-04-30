@@ -311,7 +311,7 @@ where
 		let messages = self
 			.runtime
 			.runtime_api()
-			.ingress_messages(&BlockId::number(num.saturated_into()), num.saturated_into())?;
+			.ingress_messages(&BlockId::number(self.last_finalized_block), num.saturated_into())?;
 
 		{
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
