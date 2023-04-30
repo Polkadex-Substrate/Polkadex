@@ -1087,6 +1087,17 @@ where
 			if to.saturating_sub(from) > 1 {
 				let want_request = GossipMessage::WantWorkerNonce(from, **to);
 				self.gossip_engine.gossip_message(topic::<B>(), want_request.encode(), true);
+				info!(target:"orderbook","Sending periodic sync request for nonces between: from:{from:?} to: {to:?}");
+			} else if to.saturating_sub(from) == 1 && !self.is_validator {
+				// If we are a fullnode and we know all the stids
+				// then broadcast the next best nonce periodically
+				// Unwrap is fine because we know the message exists
+				let best_msg = GossipMessage::ObMessage(Box::new(
+					self.known_messages.get(to).cloned().unwrap(),
+				));
+				self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
+				self.gossip_engine.broadcast_topic(topic::<B>(), true);
+				info!(target:"orderbook","Sending periodic best message broadcast, nonce: {to:?}");
 			}
 		}
 		Ok(())
