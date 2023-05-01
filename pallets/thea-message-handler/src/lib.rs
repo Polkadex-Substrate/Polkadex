@@ -104,6 +104,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		TheaMessageExecuted { message: Message },
+		NonceError{ message: Message, nonce: u64 },
 	}
 
 	#[pallet::error]
@@ -167,6 +168,7 @@ pub mod pallet {
 
 			let last_nonce = <IncomingNonce<T>>::get();
 			if last_nonce.saturating_add(1) != payload.nonce {
+				Self::deposit_event(Event::NonceError { message: payload.clone(), nonce: last_nonce });
 				return Err(Error::<T>::MessageNonce.into())
 			}
 			let current_set_id = <ValidatorSetId<T>>::get();
