@@ -57,4 +57,11 @@ mod tests {
 		assert_eq!(map, vec![111655151645932933323919793063548944384u128]);
 		assert_eq!(return_set_bits(&map), input);
 	}
+
+	#[test]
+	pub fn test_bitmap_sample() {
+		let input = vec![42535295865117307932921825928971026432];
+		let set_bits: Vec<usize> = return_set_bits(&input);
+		println!("Set bits: {:?}", set_bits);
+	}
 }

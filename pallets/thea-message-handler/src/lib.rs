@@ -241,10 +241,6 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
-		// Only native networks are allowed in foreign chains
-		if network != NATIVE_NETWORK {
-			return Err(())
-		}
 		let nonce = <OutgoingNonce<T>>::get();
 		let payload = Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
