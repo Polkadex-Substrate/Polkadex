@@ -28,7 +28,7 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use polkadex_primitives::utils::return_set_bits;
-use thea_primitives::{types::Message, Network, ValidatorSet, NATIVE_NETWORK};
+use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -118,6 +118,8 @@ pub mod pallet {
 		ErrorDecodingValidatorSet,
 		/// Invalid Validator Set id
 		InvalidValidatorSetId,
+		/// Validator set is empty
+		ValidatorSetEmpty
 	}
 
 	#[pallet::validate_unsigned]
@@ -164,7 +166,7 @@ pub mod pallet {
 			// Signature is already verified in validate_unsigned, no need to do it again
 
 			let last_nonce = <IncomingNonce<T>>::get();
-			if last_nonce != payload.nonce.saturating_add(1) {
+			if last_nonce.saturating_add(1) != payload.nonce {
 				return Err(Error::<T>::MessageNonce.into())
 			}
 			let current_set_id = <ValidatorSetId<T>>::get();
@@ -240,10 +242,11 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
-		// Only native networks are allowed in foreign chains
-		if network != NATIVE_NETWORK {
-			return Err(())
+	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
+		let authorities_len = <Authorities<T>>::get(Self::validator_set_id())
+			.len();
+		if authorities_len == 0 {
+			return Err(Error::<T>::ValidatorSetEmpty.into())
 		}
 		let nonce = <OutgoingNonce<T>>::get();
 		let payload = Message {
@@ -253,9 +256,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			network,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
-			validator_set_len: <Authorities<T>>::get(Self::validator_set_id())
-				.len()
-				.saturated_into(),
+			validator_set_len: authorities_len.saturated_into(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::put(payload.nonce);

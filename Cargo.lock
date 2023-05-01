@@ -10270,6 +10270,7 @@ name = "thea-primitives"
 version = "0.1.0"
 dependencies = [
  "bls-primitives",
+ "frame-support",
  "hex",
  "parity-scale-codec",
  "polkadex-primitives",

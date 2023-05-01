@@ -6,7 +6,6 @@ use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
-use sp_tracing::info;
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	sync::Arc,
@@ -85,7 +84,7 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
-		info!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
+		trace!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
 		match role {
 			ObservedRole::Authority => {
 				self.peers.write().insert(*who);
@@ -98,7 +97,7 @@ where
 	}
 
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
-		info!(target:"thea", "New peer connected: id: {:?}",who);
+		trace!(target:"thea", "New peer connected: id: {:?}",who);
 		self.peers.write().remove(who);
 		self.fullnodes.write().remove(who);
 	}
@@ -113,8 +112,10 @@ where
 		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
 			if self.validate_message(&thea_gossip_msg) {
-				trace!(target:"thea-gossip", "Validation successfull for message: {thea_gossip_msg:?}");
+				trace!(target:"thea-gossip", "Validation successfully for message: {thea_gossip_msg:?}");
 				return ValidationResult::ProcessAndKeep(topic::<B>())
+			}else{
+				trace!(target:"thea-gossip", "Validation failed for message: {thea_gossip_msg:?}");
 			}
 		}
 		ValidationResult::Discard
