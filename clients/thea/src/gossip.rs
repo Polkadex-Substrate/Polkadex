@@ -1,5 +1,5 @@
 use crate::types::GossipMessage;
-use log::info;
+use log::trace;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
@@ -84,7 +84,7 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
-		info!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
+		trace!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
 		match role {
 			ObservedRole::Authority => {
 				self.peers.write().insert(*who);
@@ -97,7 +97,7 @@ where
 	}
 
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
-		info!(target:"thea", "New peer connected: id: {:?}",who);
+		trace!(target:"thea", "New peer connected: id: {:?}",who);
 		self.peers.write().remove(who);
 		self.fullnodes.write().remove(who);
 	}
@@ -130,7 +130,7 @@ where
 			};
 			// If old stid then expire
 			let result = !self.validate_message(&msg);
-			info!(target:"thea-gossip", "message: {msg:?} is expired: {result:?}");
+			trace!(target:"thea-gossip", "message: {msg:?} is expired: {result:?}");
 			result
 		})
 	}
@@ -146,7 +146,7 @@ where
 			};
 			// Logic for rebroadcasting.
 			let result = self.rebroadcast_check(&msg);
-			info!(target:"thea-gossip", "message: {msg:?} can be rebroadcasted: {result:?}");
+			trace!(target:"thea-gossip", "message: {msg:?} can be rebroadcasted: {result:?}");
 			result
 		})
 	}
