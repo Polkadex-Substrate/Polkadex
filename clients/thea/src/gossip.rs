@@ -112,10 +112,10 @@ where
 		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
 			if self.validate_message(&thea_gossip_msg) {
-				info!(target:"thea-gossip", "Validation successfully for message: {thea_gossip_msg:?}");
+				trace!(target:"thea-gossip", "Validation successfully for message: {thea_gossip_msg:?}");
 				return ValidationResult::ProcessAndKeep(topic::<B>())
 			}else{
-				info!(target:"thea-gossip", "Validation failed for message: {thea_gossip_msg:?}");
+				trace!(target:"thea-gossip", "Validation failed for message: {thea_gossip_msg:?}");
 			}
 		}
 		ValidationResult::Discard
