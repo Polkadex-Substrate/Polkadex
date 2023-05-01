@@ -46,7 +46,7 @@ impl ForeignConnector for ParachainClient {
 			Decode::decode(&mut &message.payload.encode()[..])?,
 			Decode::decode(&mut &message.aggregate_signature.encode()[..])?,
 		);
-
+		info!(target:"thea", "Tx created: {:?}",call);
 		let tx_result = self.api
 			.tx()
 			.create_unsigned(&call)?
