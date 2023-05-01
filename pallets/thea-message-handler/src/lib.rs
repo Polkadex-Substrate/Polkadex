@@ -166,7 +166,7 @@ pub mod pallet {
 			// Signature is already verified in validate_unsigned, no need to do it again
 
 			let last_nonce = <IncomingNonce<T>>::get();
-			if last_nonce != payload.nonce.saturating_add(1) {
+			if last_nonce.saturating_add(1) != payload.nonce {
 				return Err(Error::<T>::MessageNonce.into())
 			}
 			let current_set_id = <ValidatorSetId<T>>::get();
