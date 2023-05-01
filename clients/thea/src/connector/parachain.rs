@@ -54,7 +54,8 @@ impl ForeignConnector for ParachainClient {
 			.await?
 			.wait_for_in_block()
 			.await?
-			.wait_for_success().await?;
+			.wait_for_success()
+			.await?;
 
 		info!(target:"thea", "Tx included: {:?}",tx_result.block_hash());
 		Ok(())

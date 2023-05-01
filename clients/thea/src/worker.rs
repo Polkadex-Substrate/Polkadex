@@ -505,7 +505,7 @@ where
 					);
 						// Gossip messages have already been verified to be valid by the gossip validator.
 						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
-							debug!(target: "orderbook", "📒 {:?}", err);
+							error!(target: "orderbook", "📒 {:?}", err);
 						}
 					} else {
 						return;
