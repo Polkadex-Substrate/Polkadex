@@ -28,7 +28,7 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use polkadex_primitives::utils::return_set_bits;
-use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK};
 
 mod session;
 
@@ -375,7 +375,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 			nonce: nonce.saturating_add(1),
 			data,
-			network,
+			network: NATIVE_NETWORK,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
 			validator_set_len: auth_len.saturated_into(),
