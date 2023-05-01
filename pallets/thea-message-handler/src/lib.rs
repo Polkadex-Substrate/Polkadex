@@ -118,6 +118,8 @@ pub mod pallet {
 		ErrorDecodingValidatorSet,
 		/// Invalid Validator Set id
 		InvalidValidatorSetId,
+		/// Validator set is empty
+		ValidatorSetEmpty
 	}
 
 	#[pallet::validate_unsigned]
@@ -240,7 +242,12 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
+	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), DispatchResult> {
+		let authorities_len = <Authorities<T>>::get(Self::validator_set_id())
+			.len();
+		if authorities_len == 0 {
+			return Err(Error::<T>::ValidatorSetEmpty.into())
+		}
 		let nonce = <OutgoingNonce<T>>::get();
 		let payload = Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
@@ -249,9 +256,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			network,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
-			validator_set_len: <Authorities<T>>::get(Self::validator_set_id())
-				.len()
-				.saturated_into(),
+			validator_set_len: authorities_len.saturated_into(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::put(payload.nonce);

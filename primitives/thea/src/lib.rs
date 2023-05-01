@@ -139,8 +139,7 @@ pub trait TheaIncomingExecutor {
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
-	#[allow(clippy::result_unit_err)]
-	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(), ()>;
+	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(), frame_support::dispatch::DispatchResult>;
 }
 
 impl TheaIncomingExecutor for () {
