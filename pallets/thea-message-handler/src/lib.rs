@@ -28,7 +28,7 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use polkadex_primitives::utils::return_set_bits;
-use thea_primitives::{types::Message, Network, ValidatorSet, NATIVE_NETWORK};
+use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -242,7 +242,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), DispatchResult> {
+	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
 		let authorities_len = <Authorities<T>>::get(Self::validator_set_id())
 			.len();
 		if authorities_len == 0 {
