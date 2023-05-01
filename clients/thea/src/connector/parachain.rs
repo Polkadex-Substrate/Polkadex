@@ -47,13 +47,16 @@ impl ForeignConnector for ParachainClient {
 			Decode::decode(&mut &message.aggregate_signature.encode()[..])?,
 		);
 
-		self.api
+		let tx_result = self.api
 			.tx()
 			.create_unsigned(&call)?
 			.submit_and_watch()
 			.await?
 			.wait_for_in_block()
-			.await?;
+			.await?
+			.wait_for_success().await?;
+
+		info!(target:"thea", "Tx included: {:?}",tx_result.block_hash());
 		Ok(())
 	}
 
