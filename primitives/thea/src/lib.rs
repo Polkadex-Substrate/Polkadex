@@ -14,6 +14,7 @@ pub use crate::{
 	types::Message,
 };
 use sp_application_crypto::ByteArray;
+use sp_runtime::DispatchResult;
 
 /// Orderbook cryptographic types
 ///
@@ -139,7 +140,7 @@ pub trait TheaIncomingExecutor {
 }
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
-	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> Result<(), frame_support::dispatch::DispatchResult>;
+	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> DispatchResult;
 }
 
 impl TheaIncomingExecutor for () {
