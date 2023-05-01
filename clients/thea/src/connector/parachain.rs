@@ -26,11 +26,11 @@ impl ForeignConnector for ParachainClient {
 		Ok(ParachainClient { api })
 	}
 
-	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error> {
+	async fn read_events(&self, nonce: u64) -> Result<Option<Message>, Error> {
 		// Read thea messages from foreign chain
 		let storage_address = parachain::storage()
 			.thea_message_handler()
-			.outgoing_messages(last_processed_nonce.saturating_add(1));
+			.outgoing_messages(nonce);
 		// TODO: Get last finalized block hash
 		let encoded_bytes =
 			self.api.storage().at_latest().await?.fetch(&storage_address).await?.encode();
