@@ -382,7 +382,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);
-		<OutgoingMessages<T>>::insert(payload.network, payload.nonce, payload);
+		<OutgoingMessages<T>>::insert(network, payload.nonce, payload);
 		Ok(())
 	}
 }
