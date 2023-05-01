@@ -221,6 +221,7 @@ where
 									.send_transaction(incoming_message.clone())
 									.await?;
 							} else {
+								info!(target:"thea", "Sending message to native runtime");
 								self.runtime.runtime_api().incoming_message(
 									&self.last_finalized_blk,
 									incoming_message.payload.clone(),
@@ -271,6 +272,7 @@ where
 						if incoming_message.payload.network == NATIVE_NETWORK {
 							self.foreign_chain.send_transaction(incoming_message.clone()).await?;
 						} else {
+							info!(target:"thea", "Sending message to native runtime");
 							self.runtime.runtime_api().incoming_message(
 								&self.last_finalized_blk,
 								incoming_message.payload.clone(),

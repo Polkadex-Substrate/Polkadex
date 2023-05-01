@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use log::info;
 use parity_scale_codec::{Decode, Encode};
 use subxt::{OnlineClient, PolkadotConfig};
 use thea_primitives::types::Message;
@@ -39,6 +40,7 @@ impl ForeignConnector for ParachainClient {
 	}
 
 	async fn send_transaction(&self, message: GossipMessage) -> Result<(), Error> {
+		info!(target:"thea", "Sending message to foreign runtime");
 		let call = parachain::tx().thea_message_handler().incoming_message(
 			message.bitmap,
 			Decode::decode(&mut &message.payload.encode()[..])?,
