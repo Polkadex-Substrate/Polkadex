@@ -217,16 +217,16 @@ where
 							// We got majority on this message
 							info!(target:"thea", "Got majority, sending message to destination");
 							if incoming_message.payload.network == NATIVE_NETWORK {
-								self.foreign_chain
-									.send_transaction(incoming_message.clone())
-									.await?;
-							} else {
 								self.runtime.runtime_api().incoming_message(
 									&self.last_finalized_blk,
 									incoming_message.payload.clone(),
 									incoming_message.bitmap.clone(),
 									incoming_message.aggregate_signature.into(),
 								)??;
+							} else {
+								self.foreign_chain
+									.send_transaction(incoming_message.clone())
+									.await?;
 							}
 							self.message_cache.write().remove(&incoming_message.payload);
 						} else {
@@ -269,14 +269,14 @@ where
 						info!(target:"thea","Got majority on message: nonce: {:?}, network: {:?}", message.payload.nonce, message.payload.network);
 						// We got majority on this message
 						if incoming_message.payload.network == NATIVE_NETWORK {
-							self.foreign_chain.send_transaction(incoming_message.clone()).await?;
-						} else {
 							self.runtime.runtime_api().incoming_message(
 								&self.last_finalized_blk,
 								incoming_message.payload.clone(),
 								incoming_message.bitmap.clone(),
 								incoming_message.aggregate_signature.into(),
 							)??;
+						} else {
+							self.foreign_chain.send_transaction(incoming_message.clone()).await?;
 						}
 						self.message_cache.write().remove(&incoming_message.payload);
 					} else {
