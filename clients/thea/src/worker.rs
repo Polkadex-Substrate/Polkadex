@@ -330,13 +330,13 @@ where
 		}
 		let network = self.thea_network.unwrap();
 
-		// Get the last processed foreign nonce from native
-		let best_incoming_nonce: u64 = self
+		// Update the last processed foreign nonce from native
+		let last_foreign_nonce_processed: u64 = self
 			.runtime
 			.runtime_api()
 			.get_last_processed_nonce(&self.last_finalized_blk, network)?;
 
-		*self.last_foreign_nonce_processed.write() = best_incoming_nonce;
+		*self.last_foreign_nonce_processed.write() = last_foreign_nonce_processed;
 
 		let last_nonce = self.foreign_chain.last_processed_nonce_from_native().await?;
 
@@ -349,7 +349,14 @@ where
 
 		if let Some(message) = message {
 			info!(target:"thea", "Processing new message from native chain: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
-			self.sign_and_submit_message(message)?;
+			// Don't do anything if we already know about the message
+			// It means Thea is already processing it.
+			if !self.message_cache.read().contains_key(&message) {
+				info!(target:"thea", "Found new native message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
+				self.sign_and_submit_message(message)?
+			} else {
+				info!(target:"thea","We already processed this message, so ignoring...")
+			}
 		}
 
 		Ok(())
