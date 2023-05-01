@@ -318,9 +318,9 @@ impl<T: Config> Pallet<T> {
 				block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 				nonce: nonce.saturating_add(1),
 				data: list.encode(),
-				network: *network,
+				network: NATIVE_NETWORK,
 				is_key_change: true,
-				validator_set_id: new_id,
+				validator_set_id: Self::validator_set_id(),
 				validator_set_len: Self::authorities(network).len().saturated_into(),
 			};
 			// Update nonce
