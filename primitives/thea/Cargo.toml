@@ -11,6 +11,7 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 sp-api  = { workspace = true, default-features = false }
 sp-std  = { workspace = true, default-features = false }
 sp-runtime  = { workspace = true, default-features = false }
+frame-support  = { workspace = true, default-features = false }
 sp-application-crypto = {workspace = true, default-features = false}
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }

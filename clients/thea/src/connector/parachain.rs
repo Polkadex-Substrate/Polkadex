@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use log::info;
 use parity_scale_codec::{Decode, Encode};
 use subxt::{OnlineClient, PolkadotConfig};
 use thea_primitives::types::Message;
@@ -26,11 +27,11 @@ impl ForeignConnector for ParachainClient {
 		Ok(ParachainClient { api })
 	}
 
-	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error> {
+	async fn read_events(&self, nonce: u64) -> Result<Option<Message>, Error> {
 		// Read thea messages from foreign chain
 		let storage_address = parachain::storage()
 			.thea_message_handler()
-			.outgoing_messages(last_processed_nonce.saturating_add(1));
+			.outgoing_messages(nonce);
 		// TODO: Get last finalized block hash
 		let encoded_bytes =
 			self.api.storage().at_latest().await?.fetch(&storage_address).await?.encode();
@@ -39,19 +40,24 @@ impl ForeignConnector for ParachainClient {
 	}
 
 	async fn send_transaction(&self, message: GossipMessage) -> Result<(), Error> {
+		info!(target:"thea", "Sending message to foreign runtime");
 		let call = parachain::tx().thea_message_handler().incoming_message(
 			message.bitmap,
 			Decode::decode(&mut &message.payload.encode()[..])?,
 			Decode::decode(&mut &message.aggregate_signature.encode()[..])?,
 		);
-
-		self.api
+		info!(target:"thea", "Tx created: {:?}",call);
+		let tx_result = self.api
 			.tx()
 			.create_unsigned(&call)?
 			.submit_and_watch()
 			.await?
 			.wait_for_in_block()
+			.await?
+			.wait_for_success()
 			.await?;
+
+		info!(target:"thea", "Tx included: {:?}",tx_result.block_hash());
 		Ok(())
 	}
 

@@ -28,7 +28,7 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use polkadex_primitives::utils::return_set_bits;
-use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK};
 
 mod session;
 
@@ -37,7 +37,7 @@ pub mod pallet {
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
 
-	use thea_primitives::{types::Message, TheaIncomingExecutor};
+	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
 
 	use super::*;
 
@@ -134,6 +134,8 @@ pub mod pallet {
 		ErrorExecutingMessage,
 		/// Wrong nonce provided
 		MessageNonce,
+		/// No validators for this network
+		NoValidatorsFound(Network)
 	}
 
 	#[pallet::validate_unsigned]
@@ -187,6 +189,20 @@ pub mod pallet {
 			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
 			// Save the incoming message for some time
 			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
+			Ok(())
+		}
+
+		/// Send some arbitary data to the given network
+		#[pallet::call_index(2)]
+		#[pallet::weight(Weight::default())]
+		#[transactional]
+		pub fn send_thea_message(
+			origin: OriginFor<T>,
+			data: Vec<u8>,
+			network: Network
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			Self::execute_withdrawals(network,data)?;
 			Ok(())
 		}
 	}
@@ -302,9 +318,9 @@ impl<T: Config> Pallet<T> {
 				block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 				nonce: nonce.saturating_add(1),
 				data: list.encode(),
-				network: *network,
+				network: NATIVE_NETWORK,
 				is_key_change: true,
-				validator_set_id: new_id,
+				validator_set_id: Self::validator_set_id(),
 				validator_set_len: Self::authorities(network).len().saturated_into(),
 			};
 			// Update nonce
@@ -349,20 +365,24 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
+	fn execute_withdrawals(network: Network, data: Vec<u8>) ->  DispatchResult {
+		let auth_len = Self::authorities(network).len();
+		if auth_len == 0 {
+			return Err(Error::<T>::NoValidatorsFound(network).into())
+		}
 		let nonce = <OutgoingNonce<T>>::get(network);
 		let payload = Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 			nonce: nonce.saturating_add(1),
 			data,
-			network,
+			network: NATIVE_NETWORK,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
-			validator_set_len: Self::authorities(network).len().saturated_into(),
+			validator_set_len: auth_len.saturated_into(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);
-		<OutgoingMessages<T>>::insert(payload.network, payload.nonce, payload);
+		<OutgoingMessages<T>>::insert(network, payload.nonce, payload);
 		Ok(())
 	}
 }

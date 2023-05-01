@@ -146,6 +146,8 @@ where
 
 		let bitmap: Vec<u128> = prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
 
+		info!(target:"thea","Bitmap generated for message with nonce: {:?}, bitmap: {:?}",message.nonce, bitmap);
+
 		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
 
@@ -178,6 +180,7 @@ where
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
 		let local_index = self.get_local_auth_index()?;
+		info!(target:"thea","Local validator index: {:?}",local_index);
 		let option = self.message_cache.read().get(&incoming_message.payload).cloned();
 		// Check incoming message in our cache.
 		match option {
@@ -187,9 +190,12 @@ where
 					false => {
 						error!(target:"thea", "Message check failed");
 						// TODO: We will do offence handler later, simply ignore now
+						// TODO: What if the local foreign node is not synced yet, blockchains have
+						// eventual consistency.
 						return Ok(())
 					},
 					true => {
+						info!(target:"thea", "Message with nonce: {:?} is valid",incoming_message.payload.nonce);
 						// Sign the message
 						let gossip_message = self.sign_message(incoming_message.payload.clone())?;
 
@@ -197,6 +203,7 @@ where
 						incoming_message.aggregate_signature = incoming_message
 							.aggregate_signature
 							.add_signature(&gossip_message.aggregate_signature)?;
+						info!(target:"thea", "Signature is aggragated");
 						// Set the bit based on our local index
 						set_bit_field(&mut incoming_message.bitmap, local_index.saturated_into());
 						info!(target:"thea","Message status: nonce: {:?}, signed: {:?}, threshold: {:?}",
@@ -208,11 +215,13 @@ where
 							incoming_message.payload.threshold() as usize
 						{
 							// We got majority on this message
+							info!(target:"thea", "Got majority, sending message to destination");
 							if incoming_message.payload.network == NATIVE_NETWORK {
 								self.foreign_chain
 									.send_transaction(incoming_message.clone())
 									.await?;
 							} else {
+								info!(target:"thea", "Sending message to native runtime");
 								self.runtime.runtime_api().incoming_message(
 									&self.last_finalized_blk,
 									incoming_message.payload.clone(),
@@ -223,6 +232,7 @@ where
 							self.message_cache.write().remove(&incoming_message.payload);
 						} else {
 							// Cache it.
+							info!(target:"thea", "No majority, caching the message");
 							self.message_cache
 								.write()
 								.insert(incoming_message.payload.clone(), incoming_message.clone());
@@ -231,6 +241,7 @@ where
 				}
 			},
 			Some(message) => {
+				info!(target:"thea", "Message with nonce: {:?} is already known to us",incoming_message.payload.nonce);
 				// 1. incoming message has more signatories
 				let signed_auth_indexes = return_set_bits(&incoming_message.bitmap);
 				// 2. Check if our signature is included or not
@@ -261,6 +272,7 @@ where
 						if incoming_message.payload.network == NATIVE_NETWORK {
 							self.foreign_chain.send_transaction(incoming_message.clone()).await?;
 						} else {
+							info!(target:"thea", "Sending message to native runtime");
 							self.runtime.runtime_api().incoming_message(
 								&self.last_finalized_blk,
 								incoming_message.payload.clone(),
@@ -271,11 +283,15 @@ where
 						self.message_cache.write().remove(&incoming_message.payload);
 					} else {
 						// Cache it.
+						info!(target:"thea", "No majority, caching the message");
 						self.message_cache
 							.write()
 							.insert(incoming_message.payload.clone(), incoming_message.clone());
 						// TODO: Send it back to network.
 					}
+				} else {
+					error!(target:"thea", "if we have it cache, then we should also sign it,\
+					 this should never happen!")
 				}
 			},
 		}
@@ -314,13 +330,13 @@ where
 		}
 		let network = self.thea_network.unwrap();
 
-		// Get the last processed foreign nonce from native
-		let best_incoming_nonce: u64 = self
+		// Update the last processed foreign nonce from native
+		let last_foreign_nonce_processed: u64 = self
 			.runtime
 			.runtime_api()
 			.get_last_processed_nonce(&self.last_finalized_blk, network)?;
 
-		*self.last_foreign_nonce_processed.write() = best_incoming_nonce;
+		*self.last_foreign_nonce_processed.write() = last_foreign_nonce_processed;
 
 		let last_nonce = self.foreign_chain.last_processed_nonce_from_native().await?;
 
@@ -333,7 +349,14 @@ where
 
 		if let Some(message) = message {
 			info!(target:"thea", "Processing new message from native chain: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
-			self.sign_and_submit_message(message)?;
+			// Don't do anything if we already know about the message
+			// It means Thea is already processing it.
+			if !self.message_cache.read().contains_key(&message) {
+				info!(target:"thea", "Found new native message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
+				self.sign_and_submit_message(message)?
+			} else {
+				info!(target:"thea","We already processed this message, so ignoring...")
+			}
 		}
 
 		Ok(())
@@ -356,6 +379,7 @@ where
 
 	pub fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
 		let gossip_message = self.sign_message(message.clone())?;
+		info!(target:"thea","Message with nonce: {:?} with network: {:?}, is signed",message.nonce, message.network);
 		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
 		self.message_cache.write().insert(message, gossip_message);
 		Ok(())
@@ -401,13 +425,17 @@ where
 
 				// Check if next best message is available for processing
 				match self.foreign_chain.read_events(best_outgoing_nonce).await? {
-					None => {},
+					None =>
+						info!(target:"thea","No messages found for nonce: {:?}",best_outgoing_nonce),
 					Some(message) => {
+						info!(target:"thea","Found message for nonce: {:?}",best_outgoing_nonce);
 						// Don't do anything if we already know about the message
 						// It means Thea is already processing it.
 						if !self.message_cache.read().contains_key(&message) {
 							info!(target:"thea", "Found new message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
 							self.sign_and_submit_message(message)?
+						} else {
+							info!(target:"thea","We already processed this message, so ignoring...")
 						}
 					},
 				}
@@ -429,8 +457,6 @@ where
 			info!(target: "thea", "Thea is not started waiting for blockhchain to sync completely");
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
-
-		// TODO: Check if validator has provided the network pref, elser, panic or log.
 
 		info!(target:"thea"," Starting event streams...");
 		let mut gossip_messages = Box::pin(
@@ -460,6 +486,16 @@ where
 					error!(target: "orderbook", "📒 Gossip engine has terminated.");
 					return;
 				}
+				finality = finality_stream.next() => {
+					if let Some(finality) = finality {
+						if let Err(err) = self.handle_finality_notification(&finality).await {
+							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
+						}
+					}else {
+						error!(target:"orderbook","None finality recvd");
+						return
+					}
+				},
 				gossip = gossip_messages.next() => {
 					if let Some((mut message,sender)) = gossip {
 						info!(target:"thea","Got new message via gossip : nonce: {:?}, signed: {:?}, threshold: {:?}",
@@ -469,20 +505,10 @@ where
 					);
 						// Gossip messages have already been verified to be valid by the gossip validator.
 						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
-							debug!(target: "orderbook", "📒 {:?}", err);
+							error!(target: "orderbook", "📒 {:?}", err);
 						}
 					} else {
 						return;
-					}
-				},
-				finality = finality_stream.next() => {
-					if let Some(finality) = finality {
-						if let Err(err) = self.handle_finality_notification(&finality).await {
-							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
-						}
-					}else {
-						error!(target:"orderbook","None finality recvd");
-						return
 					}
 				},
 				_ = interval_stream.next() => {
