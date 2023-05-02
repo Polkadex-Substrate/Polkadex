@@ -86,7 +86,7 @@ pub trait OrderbookApi {
 	/// # Return
 	/// - RpcResult<Vec<u8>>: a Result containing serialized `ObRecoveryState`.
 	#[method(name = "ob_getObRecoverState")]
-	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>>;
+	async fn get_orderbook_recovery_state(&self) -> RpcResult<String>;
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
@@ -127,7 +127,7 @@ where
 	}
 
 	/// Returns the serialized offchain state based on the last finalized snapshot summary
-	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<Vec<u8>> {
+	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<String> {
 		let last_finalized_block_guard = self.last_successful_block_number_snapshot_created.read();
 		let last_finalized_block = *last_finalized_block_guard;
 
@@ -203,7 +203,7 @@ where
 		ob_recovery_state.state_change_id = last_snapshot_summary.state_change_id;
 		ob_recovery_state.worker_nonce = last_snapshot_summary.worker_nonce;
 		info!(target:"orderbook-rpc","Serializing Orderbook snapshot state");
-		let serialize_ob_recovery_state = serde_json::to_vec(&ob_recovery_state)?;
+		let serialize_ob_recovery_state = serde_json::to_string(&ob_recovery_state)?;
 		info!(target:"orderbook-rpc","Orderbook snapshot state exported");
 		Ok(serialize_ob_recovery_state)
 	}
