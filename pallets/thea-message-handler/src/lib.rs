@@ -32,10 +32,10 @@ use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::transactional;
-	use thea_primitives::{types::Message, TheaIncomingExecutor};
-
 	use super::*;
+	use frame_support::transactional;
+	use sp_std::vec;
+	use thea_primitives::{types::Message, TheaIncomingExecutor};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -119,7 +119,7 @@ pub mod pallet {
 		/// Invalid Validator Set id
 		InvalidValidatorSetId,
 		/// Validator set is empty
-		ValidatorSetEmpty
+		ValidatorSetEmpty,
 	}
 
 	#[pallet::validate_unsigned]
@@ -243,8 +243,7 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
-		let authorities_len = <Authorities<T>>::get(Self::validator_set_id())
-			.len();
+		let authorities_len = <Authorities<T>>::get(Self::validator_set_id()).len();
 		if authorities_len == 0 {
 			return Err(Error::<T>::ValidatorSetEmpty.into())
 		}
