@@ -313,6 +313,9 @@ where
 			num.saturated_into(),
 		)?;
 
+		// Update trading pair configs
+		self.load_trading_pair_configs(num)?;
+
 		{
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
 			for message in messages {
@@ -1178,12 +1181,12 @@ where
 	}
 
 	/// Loads the latest trading pair configs from runtime
-	pub fn load_trading_pair_configs(&mut self) -> Result<(), Error> {
+	pub fn load_trading_pair_configs(&mut self, blk_num: BlockNumber) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Loading trading pair configs from runtime...");
 		let tradingpairs = self
 			.runtime
 			.runtime_api()
-			.read_trading_pair_configs(&BlockId::Number(self.client.info().finalized_number))?;
+			.read_trading_pair_configs(&BlockId::Number(blk_num))?;
 
 		for (pair, config) in tradingpairs {
 			self.trading_pair_configs.insert(pair, config);
@@ -1242,7 +1245,7 @@ where
 			self.state_is_syncing = true;
 		}
 
-		if let Err(err) = self.load_trading_pair_configs() {
+		if let Err(err) = self.load_trading_pair_configs(self.client.info().finalized_number) {
 			error!(target:"orderbook","Error while loading trading pair configs: {:?}",err);
 			return
 		}
