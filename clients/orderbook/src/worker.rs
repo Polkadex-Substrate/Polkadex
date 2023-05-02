@@ -303,6 +303,8 @@ where
 
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		info!("Handling block import: {:?}", num);
+		// Update trading pair configs
+		self.load_trading_pair_configs(num)?;
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
@@ -312,9 +314,6 @@ where
 			&BlockId::number(self.last_finalized_block.saturated_into()),
 			num.saturated_into(),
 		)?;
-
-		// Update trading pair configs
-		self.load_trading_pair_configs(num)?;
 
 		{
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
@@ -1186,7 +1185,7 @@ where
 		let tradingpairs = self
 			.runtime
 			.runtime_api()
-			.read_trading_pair_configs(&BlockId::Number(blk_num))?;
+			.read_trading_pair_configs(&BlockId::Number(blk_num.saturated_into()))?;
 
 		for (pair, config) in tradingpairs {
 			self.trading_pair_configs.insert(pair, config);
@@ -1245,7 +1244,7 @@ where
 			self.state_is_syncing = true;
 		}
 
-		if let Err(err) = self.load_trading_pair_configs(self.client.info().finalized_number) {
+		if let Err(err) = self.load_trading_pair_configs(self.client.info().finalized_number.saturated_into()) {
 			error!(target:"orderbook","Error while loading trading pair configs: {:?}",err);
 			return
 		}
