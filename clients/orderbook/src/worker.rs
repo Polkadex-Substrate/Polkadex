@@ -1244,7 +1244,9 @@ where
 			self.state_is_syncing = true;
 		}
 
-		if let Err(err) = self.load_trading_pair_configs(self.client.info().finalized_number.saturated_into()) {
+		if let Err(err) =
+			self.load_trading_pair_configs(self.client.info().finalized_number.saturated_into())
+		{
 			error!(target:"orderbook","Error while loading trading pair configs: {:?}",err);
 			return
 		}
