@@ -34,7 +34,7 @@ use thea_primitives::{types::Message, Network, ValidatorSet};
 pub mod pallet {
 	use super::*;
 	use frame_support::transactional;
-	use sp_std::vec;
+	use sp_std::vec::Vec;
 	use thea_primitives::{types::Message, TheaIncomingExecutor};
 
 	#[pallet::config]
