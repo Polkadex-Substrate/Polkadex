@@ -127,8 +127,6 @@ pub async fn test_orderbook_snapshot() {
 		is_validator: false,
 		message_sender_link: receiver,
 		marker: Default::default(),
-		last_successful_block_number_snapshot_created:
-			last_successful_block_number_snapshot_created.clone(),
 		memory_db: memory_db.clone(),
 		working_state_root: working_state_root.clone(),
 	};
@@ -144,6 +142,9 @@ pub async fn test_orderbook_snapshot() {
 	testnet.run_until_sync().await;
 	// Let the network activity settle down.
 	testnet.run_until_idle().await;
+
+	assert_ne!(0,memory_db.read().data().len());
+
 
 	// TODO: Fix this in the next release.
 	// The fullnodes are not recieving gossip in unit tests.

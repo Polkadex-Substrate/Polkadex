@@ -525,6 +525,9 @@ where
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
 			let store = SnapshotStore { map: self.memory_db.read().data().clone() };
+			if store.map.is_empty() {
+				return Err(Error::StateEmpty)
+			}
 			info!(target: "orderbook", "📒 snapshot contains {:?} keys ", store.map.len());
 			return match serde_json::to_vec(&store) {
 				Ok(data) => {

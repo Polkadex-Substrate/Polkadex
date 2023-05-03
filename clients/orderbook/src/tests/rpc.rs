@@ -120,10 +120,6 @@ pub async fn test_orderbook_rpc() {
 		message_sender_link: receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_number_snapshot_created: testnet.peers[peer_id]
-			.data
-			.last_successful_block_number_snapshot_created
-			.clone(),
 		memory_db: testnet.peers[peer_id].data.memory_db.clone(),
 		working_state_root: testnet.peers[peer_id].data.working_state_root.clone(),
 		keystore,

@@ -49,6 +49,8 @@ pub enum Error {
 	TradingPairConfigNotFound,
 	#[error("Error during BLS operation: {0}")]
 	BLSError(String),
+	#[error("Snapshot State is empty")]
+	StateEmpty
 }
 
 impl<T: MaybeDebug, E: MaybeDebug> From<Box<TrieError<T, E>>> for Error {

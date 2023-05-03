@@ -393,10 +393,6 @@ where
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
-			last_successful_block_number_snapshot_created: net.peers[peer_id]
-				.data
-				.last_successful_block_number_snapshot_created
-				.clone(),
 			memory_db: net.peers[peer_id].data.memory_db.clone(),
 			working_state_root: net.peers[peer_id].data.working_state_root.clone(),
 		};

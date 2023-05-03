@@ -96,8 +96,6 @@ pub async fn test_orderbook_gossip() {
 		is_validator: false,
 		message_sender_link: receiver,
 		_marker: Default::default(),
-		last_successful_block_number_snapshot_created:
-			last_successful_block_number_snapshot_created.clone(),
 		memory_db: memory_db.clone(),
 		working_state_root: working_state_root.clone(),
 		metrics: None,
