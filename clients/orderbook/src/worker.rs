@@ -1247,6 +1247,7 @@ where
 		{
 			*self.last_snapshot.write() = latest_summary.clone();
 		}
+		info!(target:"orderbook","📒 lastest worker nonce: {:?}",self.latest_worker_nonce.read());
 		// Lock, write and release
 		info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.worker_nonce);
 		// Try to load the snapshot from the database
