@@ -224,7 +224,7 @@ where
 		Ok(())
 	}
 
-	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
+	async fn get_orderbook_recovery_state(&self) -> RpcResult<String> {
 		self.get_orderbook_recovery_state_inner().await
 	}
 }
