@@ -625,12 +625,13 @@ where
 						// We need to revert everything after the last successful snapshot
 						// Clear the working state
 						self.memory_db.write().clear();
+						info!(target:"orderbook","Working state cleared.");
 						// We forget about everything else from cache.
 						self.known_messages.clear();
-						let latest_summary = self.runtime
-							.runtime_api()
-							.get_latest_snapshot(
-								&BlockId::Number(self.last_finalized_block))?;
+						info!(target:"orderbook","OB messages cache cleared.");
+						let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
+							&BlockId::Number(self.last_finalized_block.saturated_into()),
+						)?;
 						self.load_snapshot(&latest_summary)?;
 						return Ok(())
 					},

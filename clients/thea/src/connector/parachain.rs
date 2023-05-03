@@ -29,9 +29,7 @@ impl ForeignConnector for ParachainClient {
 
 	async fn read_events(&self, nonce: u64) -> Result<Option<Message>, Error> {
 		// Read thea messages from foreign chain
-		let storage_address = parachain::storage()
-			.thea_message_handler()
-			.outgoing_messages(nonce);
+		let storage_address = parachain::storage().thea_message_handler().outgoing_messages(nonce);
 		// TODO: Get last finalized block hash
 		let encoded_bytes =
 			self.api.storage().at_latest().await?.fetch(&storage_address).await?.encode();
@@ -47,7 +45,8 @@ impl ForeignConnector for ParachainClient {
 			Decode::decode(&mut &message.aggregate_signature.encode()[..])?,
 		);
 		info!(target:"thea", "Tx created: {:?}",call);
-		let tx_result = self.api
+		let tx_result = self
+			.api
 			.tx()
 			.create_unsigned(&call)?
 			.submit_and_watch()
