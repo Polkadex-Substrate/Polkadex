@@ -143,7 +143,6 @@ where
 
 		info!(target:"orderbook-rpc","main accounts found: {:?}, Getting last finalized snapshot summary",all_register_accounts.len());
 
-		info!(target:"orderbook-rpc","Getting allowlisted asset ids");
 		// Get all allow listed AssetIds
 		let allowlisted_asset_ids = self
 			.runtime
@@ -154,7 +153,7 @@ where
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;
-
+		info!(target:"orderbook-rpc","{:?} assets found", allowlisted_asset_ids.len());
 		// Create existing DB, it will fail if root does not exist
 		let trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
@@ -168,7 +167,8 @@ where
 		 -> RpcResult<()> {
 			if let Ok(data) = trie.get(&account_asset.encode()) {
 				if let Some(data) = data {
-					let account_balance = Decimal::decode(&mut &data[..]).map_err(|err| {
+					let account_balance = Decimal::decode(&mut &data[..])
+						.map_err(|err| {
 						JsonRpseeError::Custom(err.to_string() + "failed to decode decimal")
 					})?;
 					ob_recovery_state.balances.insert(account_asset.clone(), account_balance);

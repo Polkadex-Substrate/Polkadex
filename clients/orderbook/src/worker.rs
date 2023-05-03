@@ -1452,6 +1452,7 @@ pub fn deposit(
 			trie.insert(&account_asset.encode(), &balance.encode())?;
 		},
 		None => {
+			info!(target: "orderbook", "Asset added to account: {:?}", account_asset);
 			trie.insert(&account_asset.encode(), &amount.encode())?;
 		},
 	}
