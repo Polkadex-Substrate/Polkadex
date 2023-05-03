@@ -227,6 +227,11 @@ where
 	/// # Returns
 	/// * `bool`: a boolean indicating whether a snapshot should be generated
 	pub fn should_generate_snapshot(&self) -> bool {
+		// If state is empty don't do anything
+		if self.memory_db.read().data().is_empty() {
+			info!(target:"orderbook","State is empty, not snapshotting");
+			return false
+		}
 		let at = BlockId::Number(self.last_finalized_block.saturated_into());
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
 		let (pending_withdrawals_interval, block_interval) = self
@@ -240,6 +245,7 @@ where
 			.runtime_api()
 			.get_last_accepted_worker_nonce(&BlockId::Number(self.client.info().best_number))
 			.expect("Expected the snapshot runtime api to be available, qed.");
+
 		// Check if a snapshot should be generated based on the pending withdrawals interval and
 		// block interval
 		if (pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
