@@ -38,7 +38,7 @@ use orderbook_primitives::{types::ObMessage, ObApi};
 use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
 use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-use sc_client_api::AuxStore;
+use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::{BabeConfiguration, Epoch};
 use sc_consensus_epochs::SharedEpochChanges;
 use sc_finality_grandpa::{
@@ -135,6 +135,8 @@ where
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 	C::Api: pallet_asset_handler_rpc::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
+	C: BlockchainEvents<Block>,
+
 {
 	use pallet_rewards_rpc::PolkadexRewardsRpcApiServer;
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
@@ -210,8 +212,7 @@ where
 			last_successful_block_no_snapshot_created,
 			memory_db,
 			working_state_root,
-			client.clone(),
-			client
+			client,
 		)
 		.into_rpc(),
 	)?;
