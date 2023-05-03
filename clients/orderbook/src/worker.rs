@@ -1260,6 +1260,8 @@ where
 			self.state_is_syncing = true;
 		}
 
+		info!(target:"orderbook","📒 lastest worker nonce: {:?}",self.latest_worker_nonce.read());
+
 		if let Err(err) =
 			self.load_trading_pair_configs(self.client.info().finalized_number.saturated_into())
 		{
