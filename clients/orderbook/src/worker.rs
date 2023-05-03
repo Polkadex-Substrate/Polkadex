@@ -73,8 +73,6 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
 	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
-	// last successful block snapshot created
-	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	// memory db
 	pub memory_db: DbRef,
 	// working state root
@@ -156,7 +154,6 @@ where
 			network,
 			protocol_name,
 			_marker,
-			last_successful_block_number_snapshot_created: last_block_snapshot_generated,
 			memory_db,
 			working_state_root,
 		} = worker_params;
@@ -211,7 +208,7 @@ where
 			pending_withdrawals: vec![],
 			last_finalized_block: 0,
 			sync_state_map: Default::default(),
-			last_block_snapshot_generated,
+			last_block_snapshot_generated: Arc::new(RwLock::new(0)),
 			latest_worker_nonce,
 			latest_state_change_id: 0,
 			trading_pair_configs: Default::default(),
