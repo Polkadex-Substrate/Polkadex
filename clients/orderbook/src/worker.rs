@@ -159,19 +159,7 @@ where
 		} = worker_params;
 		// Shared data
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
-		// Read from offchain state for new worker nonce
-		let offchain_storage = backend.offchain_storage().expect("Unable to load offchain storage");
-		// if not found, set it to 0
-		let nonce: u64 = match offchain_storage
-			.get(ORDERBOOK_WORKER_NONCE_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX)
-		{
-			None => 0,
-			Some(encoded_nonce) => {
-				// Worker nonce stored using scale encoded fashion
-				Decode::decode(&mut &encoded_nonce[..]).unwrap_or(0)
-			},
-		};
-		let latest_worker_nonce = Arc::new(RwLock::new(nonce));
+		let latest_worker_nonce = Arc::new(RwLock::new(0));
 		let network = Arc::new(network);
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
 
@@ -1249,7 +1237,7 @@ where
 		}
 		info!(target:"orderbook","📒 lastest worker nonce: {:?}",self.latest_worker_nonce.read());
 		// Lock, write and release
-		info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.worker_nonce);
+		info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.state_change_id);
 		// Try to load the snapshot from the database
 		if let Err(err) = self.load_snapshot(&latest_summary) {
 			warn!(target:"orderbook","📒 Cannot load snapshot from database: {:?}",err);
