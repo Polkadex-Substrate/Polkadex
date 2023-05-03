@@ -27,6 +27,7 @@ sp-core = { workspace = true, default-features = false }
 liquidity = { path = "../liquidity", default-features = false }
 orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
+log = {version ="0.4", default-features = false}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -53,6 +54,7 @@ std = [
     "pallet-timestamp/std",
     "liquidity/std",
     "sp-core/std",
+    "log/std"
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",

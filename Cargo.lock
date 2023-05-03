@@ -5516,6 +5516,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "liquidity",
+ "log",
  "orderbook-primitives",
  "pallet-assets",
  "pallet-balances",
