@@ -621,12 +621,18 @@ where
 						error!(target:"orderbook","📒 BLS session key not found: {:?}",err),
 					_ => {
 						error!(target:"orderbook","📒 Error processing action: {:?}",err);
-						// The node found an error during processing of the action. This means we
-						// need to snapshot and drop everything else
-						self.snapshot(action.worker_nonce, action.stid)?;
+						// The node found an error during processing of the action. This means
+						// We need to revert everything after the last successful snapshot
+						// Clear the working state
+						self.memory_db.write().clear();
 						// We forget about everything else from cache.
 						self.known_messages.clear();
-						break
+						let latest_summary = self.runtime
+							.runtime_api()
+							.get_latest_snapshot(
+								&BlockId::Number(self.last_finalized_block))?;
+						self.load_snapshot(&latest_summary)?;
+						return Ok(())
 					},
 				}
 			}
