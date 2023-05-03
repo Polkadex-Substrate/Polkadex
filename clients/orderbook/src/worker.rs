@@ -459,7 +459,7 @@ where
 		info!(target: "orderbook", "📒 Loading state from snapshot data ({} bytes)", data.len());
 		match serde_json::from_slice::<SnapshotStore>(data) {
 			Ok(store) => {
-				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} bytes)",  store.map.len());
+				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
 				let memory_db_write_lock = self.memory_db.write();
 				let mut memory_db = memory_db_write_lock.clone();
 				memory_db.load_from(store.map);
@@ -525,6 +525,7 @@ where
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
 			let store = SnapshotStore { map: self.memory_db.read().data().clone() };
+			info!(target: "orderbook", "📒 snapshot contains {:?} keys ", store.map.len());
 			return match serde_json::to_vec(&store) {
 				Ok(data) => {
 					info!(target: "orderbook", "📒 Stored snapshot data ({} bytes)", data.len());
@@ -588,15 +589,17 @@ where
 		if let Some(offchain_storage) = self.backend.offchain_storage() {
 			let mut data = Vec::new();
 			for chunk_hash in &summary.state_chunk_hashes {
-				if let Some(mut chunk) =
-					offchain_storage.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref())
-				{
-					let computed_hash = H128::from(blake2_128(&chunk));
-					if computed_hash != *chunk_hash {
-						warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,chunk_hash);
-						return Err(Error::StateHashMisMatch)
-					}
-					data.append(&mut chunk);
+				match offchain_storage.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref()) {
+					None =>
+						error!(target:"orderbook","Unable to find chunk from offchain state: {:?}",chunk_hash),
+					Some(mut chunk) => {
+						let computed_hash = H128::from(blake2_128(&chunk));
+						if computed_hash != *chunk_hash {
+							warn!(target:"orderbook","📒 orderbook state hash mismatch: computed: {:?}, expected: {:?}",computed_hash,chunk_hash);
+							return Err(Error::StateHashMisMatch)
+						}
+						data.append(&mut chunk);
+					},
 				}
 			}
 			self.load_state_from_data(&data, summary)?;
