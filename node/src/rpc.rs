@@ -210,7 +210,8 @@ where
 			last_successful_block_no_snapshot_created,
 			memory_db,
 			working_state_root,
-			client,
+			client.clone(),
+			client
 		)
 		.into_rpc(),
 	)?;

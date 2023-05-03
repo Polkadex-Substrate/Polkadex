@@ -12,7 +12,7 @@ use jsonrpsee::{
 	types::{error::CallError, ErrorObject},
 };
 use log::info;
-use orderbook::DbRef;
+use orderbook::{Client, DbRef};
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
 	types::{AccountAsset, ObMessage},
@@ -26,6 +26,7 @@ use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
+use sp_blockchain::Backend;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 #[derive(Debug, thiserror::Error)]
@@ -90,21 +91,25 @@ pub trait OrderbookApi {
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
-pub struct OrderbookRpc<Runtime, Block> {
+pub struct OrderbookRpc<Runtime, Block, C, BE> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
 	last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	memory_db: DbRef,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	runtime: Arc<Runtime>,
+	client: Arc<C>,
 	_marker: std::marker::PhantomData<Block>,
+	_marker1: std::marker::PhantomData<BE>,
 }
 
-impl<Runtime, Block> OrderbookRpc<Runtime, Block>
+impl<Runtime, Block, C, BE> OrderbookRpc<Runtime, Block, C, BE>
 where
 	Block: BlockT,
 	Runtime: Send + Sync + ProvideRuntimeApi<Block>,
 	Runtime::Api: ObApi<Block>,
+	BE: Backend<Block>,
+	C: Client<Block, BE>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
@@ -114,6 +119,7 @@ where
 		memory_db: DbRef,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		runtime: Arc<Runtime>,
+		client: Arc<C>
 	) -> Self {
 		Self {
 			tx,
@@ -122,7 +128,9 @@ where
 			memory_db,
 			working_state_root,
 			runtime,
+			client,
 			_marker: Default::default(),
+			_marker1: Default::default(),
 		}
 	}
 
@@ -148,7 +156,7 @@ where
 		let last_snapshot_summary = self
 			.runtime
 			.runtime_api()
-			.get_latest_snapshot(&BlockId::number(last_finalized_block.saturated_into()))
+			.get_latest_snapshot(&BlockId::number(self.client.info().finalized_number))
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
 			})?;
