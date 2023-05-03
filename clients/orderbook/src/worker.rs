@@ -534,7 +534,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             return match serde_json::to_vec(&store) {
                 Ok(data) => {
                     info!(target: "orderbook", "📒 Stored snapshot data ({} bytes)", data.len());
-                    info!(target: "orderbook", "📒 Stored snapshot data ({} hash)",  H128::from(blake2_128(data)));
+                    info!(target: "orderbook", "📒 Stored snapshot data ({} hash)",  H128::from(blake2_128(&data)));
 
                     let mut state_chunk_hashes = vec![];
                     // Slice the data into chunks of 10 MB
