@@ -159,19 +159,7 @@ where
 		} = worker_params;
 		// Shared data
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
-		// Read from offchain state for new worker nonce
-		let offchain_storage = backend.offchain_storage().expect("Unable to load offchain storage");
-		// if not found, set it to 0
-		let nonce: u64 = match offchain_storage
-			.get(ORDERBOOK_WORKER_NONCE_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX)
-		{
-			None => 0,
-			Some(encoded_nonce) => {
-				// Worker nonce stored using scale encoded fashion
-				Decode::decode(&mut &encoded_nonce[..]).unwrap_or(0)
-			},
-		};
-		let latest_worker_nonce = Arc::new(RwLock::new(nonce));
+		let latest_worker_nonce = Arc::new(RwLock::new(0));
 		let network = Arc::new(network);
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
 
@@ -306,15 +294,13 @@ where
 
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		info!("Handling block import: {:?}", num);
-		// Update trading pair configs
-		self.load_trading_pair_configs(num)?;
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 
 		// Get the ingress messsages for this block
 		let messages = self.runtime.runtime_api().ingress_messages(
-			&BlockId::number(self.last_finalized_block.saturated_into()),
+			&BlockId::number(self.client.info().finalized_number),
 			num.saturated_into(),
 		)?;
 
@@ -329,6 +315,14 @@ where
 					IngressMessages::AddProxy(main, proxy) => add_proxy(&mut trie, main, proxy)?,
 					IngressMessages::RemoveProxy(main, proxy) =>
 						remove_proxy(&mut trie, main, proxy)?,
+					IngressMessages::OpenTradingPair(config) | IngressMessages::UpdateTradingPair(config) => {
+						let trading_pair = TradingPair::from(config.quote_asset,config.base_asset);
+						self.trading_pair_configs.insert(trading_pair,config);
+					},
+					IngressMessages::CloseTradingPair(config) => {
+						let trading_pair = TradingPair::from(config.quote_asset,config.base_asset);
+						self.trading_pair_configs.remove(&trading_pair);
+					}
 					_ => {},
 				}
 			}
@@ -1247,8 +1241,9 @@ where
 		{
 			*self.last_snapshot.write() = latest_summary.clone();
 		}
+		info!(target:"orderbook","📒 lastest worker nonce: {:?}",self.latest_worker_nonce.read());
 		// Lock, write and release
-		info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.worker_nonce);
+		info!(target:"orderbook","📒 Latest Snapshot state id: {:?}",latest_summary.state_change_id);
 		// Try to load the snapshot from the database
 		if let Err(err) = self.load_snapshot(&latest_summary) {
 			warn!(target:"orderbook","📒 Cannot load snapshot from database: {:?}",err);
@@ -1259,6 +1254,8 @@ where
 			}
 			self.state_is_syncing = true;
 		}
+
+		info!(target:"orderbook","📒 lastest worker nonce: {:?}",self.latest_worker_nonce.read());
 
 		if let Err(err) =
 			self.load_trading_pair_configs(self.client.info().finalized_number.saturated_into())

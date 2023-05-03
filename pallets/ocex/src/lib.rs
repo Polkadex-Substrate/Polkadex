@@ -1455,8 +1455,12 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 				.propagate(true)
 				.build()
 		};
+
+
 		// Verify Nonce/state_change_id
 		let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
+		log::info!("Last nonce: {last_snapshot_serial_number:?}, snapshot nonce: {:?}",snapshot_summary
+			.snapshot_id);
 		if !snapshot_summary
 			.snapshot_id
 			.eq(&(last_snapshot_serial_number.saturating_add(1)))
