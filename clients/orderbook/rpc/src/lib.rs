@@ -12,21 +12,20 @@ use jsonrpsee::{
 	types::{error::CallError, ErrorObject},
 };
 use log::info;
-use orderbook::{ DbRef};
+use orderbook::DbRef;
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
 	types::{AccountAsset, ObMessage},
 	ObApi,
 };
 use parking_lot::RwLock;
-use polkadex_primitives::BlockNumber;
 use reference_trie::ExtensionLayout;
 use rust_decimal::Decimal;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
+use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
-use sp_blockchain::HeaderBackend;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 #[derive(Debug, thiserror::Error)]
@@ -94,7 +93,6 @@ pub trait OrderbookApi {
 pub struct OrderbookRpc<Runtime, Block> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
-	last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	memory_db: DbRef,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	runtime: Arc<Runtime>,
@@ -111,26 +109,23 @@ where
 	pub fn new(
 		_executor: SubscriptionTaskExecutor,
 		tx: UnboundedSender<ObMessage>,
-		last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 		memory_db: DbRef,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		runtime: Arc<Runtime>,
 	) -> Self {
-		Self {
-			tx,
-			_executor,
-			last_successful_block_number_snapshot_created,
-			memory_db,
-			working_state_root,
-			runtime,
-			_marker: Default::default(),
-		}
+		Self { tx, _executor, memory_db, working_state_root, runtime, _marker: Default::default() }
 	}
 
 	/// Returns the serialized offchain state based on the last finalized snapshot summary
 	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<String> {
-		let last_finalized_block_guard = self.last_successful_block_number_snapshot_created.read();
-		let last_finalized_block = *last_finalized_block_guard;
+		// get snapshot summary
+		let last_snapshot_summary = self
+			.runtime
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::number(self.runtime.info().finalized_number))
+			.map_err(|err| {
+				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
+			})?;
 
 		let memory_db_guard = self.memory_db.read();
 		let mut memory_db = memory_db_guard.clone();
@@ -141,25 +136,21 @@ where
 		let all_register_accounts = self
 			.runtime
 			.runtime_api()
-			.get_all_accounts_and_proxies(&BlockId::number(last_finalized_block.saturated_into()))
+			.get_all_accounts_and_proxies(&BlockId::number(
+				last_snapshot_summary.last_processed_blk.saturated_into(),
+			))
 			.map_err(|err| JsonRpseeError::Custom(err.to_string() + "failed to get accounts"))?;
 
 		info!(target:"orderbook-rpc","main accounts found: {:?}, Getting last finalized snapshot summary",all_register_accounts.len());
-		// get snapshot summary
-		let last_snapshot_summary = self
-			.runtime
-			.runtime_api()
-			.get_latest_snapshot(&BlockId::number(self.runtime.info().finalized_number))
-			.map_err(|err| {
-				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
-			})?;
 
 		info!(target:"orderbook-rpc","Getting allowlisted asset ids");
 		// Get all allow listed AssetIds
 		let allowlisted_asset_ids = self
 			.runtime
 			.runtime_api()
-			.get_allowlisted_assets(&BlockId::number(last_finalized_block.saturated_into()))
+			.get_allowlisted_assets(&BlockId::number(
+				last_snapshot_summary.last_processed_blk.saturated_into(),
+			))
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;

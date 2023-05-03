@@ -28,7 +28,7 @@ use memory_db::{HashKey, MemoryDB};
 use node_polkadex_runtime::RuntimeApi;
 use parking_lot::RwLock;
 use polkadex_client::ExecutorDispatch;
-use polkadex_primitives::{Block, BlockNumber};
+use polkadex_primitives::Block;
 use reference_trie::RefHasher;
 use sc_client_api::BlockBackend;
 use sc_executor::NativeElseWasmExecutor;
@@ -150,14 +150,12 @@ pub fn new_partial(
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
 			UnboundedReceiver<ObMessage>,
-			Arc<RwLock<BlockNumber>>,
 			Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
 			Arc<RwLock<[u8; 32]>>,
 		),
 	>,
 	ServiceError,
 > {
-	let last_successful_block_no_snapshot_created = Arc::new(RwLock::new(0_u32.saturated_into()));
 	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
 	let working_state_root = Arc::new(RwLock::new([0; 32]));
 	let telemetry = config
@@ -267,8 +265,6 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.sync_keystore();
 		let chain_spec = config.chain_spec.cloned_box();
-		let last_successful_block_no_snapshot_created_cloned =
-			last_successful_block_no_snapshot_created.clone();
 		let memory_db_cloned = memory_db.clone();
 		let working_state_root_cloned = working_state_root.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
@@ -291,8 +287,6 @@ pub fn new_partial(
 					finality_provider: finality_proof_provider.clone(),
 				},
 				orderbook: ob_messge_sink.clone(),
-				last_successful_block_no_snapshot_created:
-					last_successful_block_no_snapshot_created_cloned.clone(),
 				memory_db: memory_db_cloned.clone(),
 				working_state_root: working_state_root_cloned.clone(),
 			};
@@ -318,7 +312,6 @@ pub fn new_partial(
 			rpc_setup,
 			telemetry,
 			ob_message_stream,
-			last_successful_block_no_snapshot_created,
 			memory_db,
 			working_state_root,
 		),
@@ -356,7 +349,6 @@ pub fn new_full_base(
 				rpc_setup,
 				mut telemetry,
 				orderbook_stream,
-				last_successful_block_no_snapshot_created,
 				memory_db,
 				working_state_root,
 			),
@@ -604,7 +596,6 @@ pub fn new_full_base(
 		marker: Default::default(),
 		is_validator: role.is_authority(),
 		message_sender_link: orderbook_stream,
-		last_successful_block_number_snapshot_created: last_successful_block_no_snapshot_created,
 		memory_db,
 		working_state_root,
 	};
