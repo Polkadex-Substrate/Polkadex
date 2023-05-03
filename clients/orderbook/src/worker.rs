@@ -300,7 +300,7 @@ where
 
 		// Get the ingress messsages for this block
 		let messages = self.runtime.runtime_api().ingress_messages(
-			&BlockId::number(self.last_finalized_block.saturated_into()),
+			&BlockId::number(self.client.info().finalized_number),
 			num.saturated_into(),
 		)?;
 
