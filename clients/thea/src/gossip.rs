@@ -114,7 +114,7 @@ where
 			if self.validate_message(&thea_gossip_msg) {
 				trace!(target:"thea-gossip", "Validation successfully for message: {thea_gossip_msg:?}");
 				return ValidationResult::ProcessAndKeep(topic::<B>())
-			}else{
+			} else {
 				trace!(target:"thea-gossip", "Validation failed for message: {thea_gossip_msg:?}");
 			}
 		}

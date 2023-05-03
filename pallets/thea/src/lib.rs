@@ -28,7 +28,9 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use polkadex_primitives::utils::return_set_bits;
-use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK};
+use thea_primitives::{
+	types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
+};
 
 mod session;
 
@@ -135,7 +137,7 @@ pub mod pallet {
 		/// Wrong nonce provided
 		MessageNonce,
 		/// No validators for this network
-		NoValidatorsFound(Network)
+		NoValidatorsFound(Network),
 	}
 
 	#[pallet::validate_unsigned]
@@ -199,10 +201,10 @@ pub mod pallet {
 		pub fn send_thea_message(
 			origin: OriginFor<T>,
 			data: Vec<u8>,
-			network: Network
+			network: Network,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			Self::execute_withdrawals(network,data)?;
+			Self::execute_withdrawals(network, data)?;
 			Ok(())
 		}
 	}
@@ -365,7 +367,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) ->  DispatchResult {
+	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
 		let auth_len = Self::authorities(network).len();
 		if auth_len == 0 {
 			return Err(Error::<T>::NoValidatorsFound(network).into())
