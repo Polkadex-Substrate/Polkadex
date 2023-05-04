@@ -435,7 +435,8 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                 // Ask other peers to send us the requests  worker nonces.
                 info!(target:"orderbook","📒 Asking peers to send us the missed \
                 worker nonces: last processed nonce: {:?}, best known nonce: {:?} ",
-                    self.latest_worker_nonce.read(), known_worker_nonces[0]);
+                    self.latest_worker_nonce.read(),  [0]);
+
                 let message = GossipMessage::WantWorkerNonce(
                     *self.latest_worker_nonce.read(),
                     *known_worker_nonces[0],
@@ -469,6 +470,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                 *self.latest_worker_nonce.write() = summary.worker_nonce;
                 self.latest_state_change_id = summary.state_change_id;
                 self.last_processed_block_in_offchain_state = summary.last_processed_blk;
+                *self.working_state_root.write() = summary.state_root.0;
             }
             Err(err) => {
                 error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
@@ -499,7 +501,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         info!(target: "orderbook", "📒 Ob message recieved worker_nonce: {:?}",action.worker_nonce);
         // Cache the message
         self.known_messages.insert(action.worker_nonce, action.clone());
-        if self.sync_oracle.is_major_syncing() | self.state_is_syncing {
+        if self.sync_oracle.is_major_syncing() || self.state_is_syncing {
             info!(target: "orderbook", "📒 Ob message cached for sync to complete: worker_nonce: {:?}",action.worker_nonce);
             return Ok(());
         }
