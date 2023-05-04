@@ -446,6 +446,7 @@ impl Order {
 
 	pub fn verify_signature(&self) -> bool {
 		let payload: OrderPayload = self.clone().into();
+		println!("Verifying signature: Payload recreated \n {:?}",payload);
 		self.signature.verify(&payload.encode()[..], &self.user)
 	}
 }
