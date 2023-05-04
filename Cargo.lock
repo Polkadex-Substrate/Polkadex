@@ -4176,6 +4176,7 @@ dependencies = [
 name = "load-testing"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "jsonrpsee",
  "orderbook-primitives",
  "polkadex-primitives",
