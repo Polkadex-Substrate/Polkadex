@@ -21,4 +21,5 @@ pub struct Withdraw {
 	pub asset_id: u128,
 	pub amount: u128,
 	pub destination: VersionedMultiLocation,
+	pub is_blocked: bool
 }
