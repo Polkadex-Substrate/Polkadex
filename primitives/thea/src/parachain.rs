@@ -9,7 +9,7 @@ use polkadex_primitives::AccountId;
 
 /// Deposit is relative to solochain
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
-pub struct Deposit {
+pub struct Deposit<AccountId> {
 	pub recipient: AccountId,
 	pub asset_id: u128,
 	pub amount: u128,
