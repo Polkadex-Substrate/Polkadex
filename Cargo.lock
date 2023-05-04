@@ -506,8 +506,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std 5.0.0",
- "thea-primitives",
- "xcm",
 ]
 
 [[package]]
