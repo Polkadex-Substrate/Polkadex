@@ -607,25 +607,25 @@ pub fn new_full_base(
 		orderbook::start_orderbook_gadget(ob_config),
 	);
 
-	let thea_config = thea_client::TheaParams {
-		client: client.clone(),
-		backend,
-		runtime: client.clone(),
-		keystore: keystore_container.local_keystore(),
-		network: network.clone(),
-		prometheus_registry,
-		protocol_name: thea_protocol_name,
-		marker: Default::default(),
-		is_validator: role.is_authority(),
-		chain_type,
-	};
+	//let thea_config = thea_client::TheaParams {
+	//	client: client.clone(),
+	//	backend,
+	//	runtime: client.clone(),
+	//	keystore: keystore_container.local_keystore(),
+	//	network: network.clone(),
+	//	prometheus_registry,
+	//	protocol_name: thea_protocol_name,
+	//	marker: Default::default(),
+	//	is_validator: role.is_authority(),
+	//	chain_type,
+	//};
 
-	// Thea task
-	task_manager.spawn_handle().spawn_blocking(
-		"thea",
-		None,
-		thea_client::start_thea_gadget(thea_config),
-	);
+	//// Thea task
+	//task_manager.spawn_handle().spawn_blocking(
+	//	"thea",
+	//	None,
+	//	thea_client::start_thea_gadget(thea_config),
+	//);
 
 	network_starter.start_network();
 	Ok(NewFullBase { task_manager, client, network, transaction_pool })
