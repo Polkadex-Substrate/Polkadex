@@ -3,6 +3,7 @@ use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
+use log::info;
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -94,11 +95,15 @@ impl Trade {
 
 	// Verifies the contents of a trade
 	pub fn verify(&self, config: TradingPairConfig) -> bool {
+
+		info!(target:"orderbook","maker: {:?}, taker: {:?}, maker_config: {:?}, taker_config: {:?}",
+			self.maker.verify_signature(),self.taker.verify_signature(),
+			self.maker.verify_config(&config),self.taker.verify_config(&config));
 		// Verify signatures
-		self.maker.verify_signature() &
-            self.taker.verify_signature() &
+		self.maker.verify_signature() &&
+            self.taker.verify_signature() &&
             // Verify pair configs
-            self.maker.verify_config(&config) &
+            self.maker.verify_config(&config) &&
             self.taker.verify_config(&config)
 	}
 }
