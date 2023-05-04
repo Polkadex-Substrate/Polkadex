@@ -1334,9 +1334,10 @@ impl chainbridge::Config for Runtime {
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
 }
+use polkadex_primitives::POLKADEX_NATIVE_ASSET_ID;
 
 parameter_types! {
-	pub const PolkadexAssetId: u128 = 1000; //TODO: Chnage Polkddex Asset ID
+	pub const PolkadexAssetId: u128 = POLKADEX_NATIVE_ASSET_ID; //TODO: Chnage Polkddex Asset ID
 	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
 }
 
