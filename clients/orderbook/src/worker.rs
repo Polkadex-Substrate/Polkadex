@@ -435,7 +435,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                 // Ask other peers to send us the requests  worker nonces.
                 info!(target:"orderbook","📒 Asking peers to send us the missed \
                 worker nonces: last processed nonce: {:?}, best known nonce: {:?} ",
-                    self.latest_worker_nonce.read(),  [0]);
+                    self.latest_worker_nonce.read(),  known_worker_nonces[0]);
 
                 let message = GossipMessage::WantWorkerNonce(
                     *self.latest_worker_nonce.read(),
