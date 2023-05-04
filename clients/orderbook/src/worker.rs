@@ -526,7 +526,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
         if let Some(mut offchain_storage) = self.backend.offchain_storage() {
             let store = SnapshotStore { map: self.memory_db.read().data().clone() };
-			info!(target: "orderbook", "📒snapshot store data ({:?})", store);
+            info!(target: "orderbook", "📒snapshot store data ({:?})", store);
             if store.map.is_empty() {
                 return Err(Error::StateEmpty);
             }
@@ -949,7 +949,15 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
                 &BlockId::Number(self.last_finalized_block.saturated_into()),
             )?;
-
+            // Clear the pending snapshot when its accepted
+            if let Some(pending_summary) = self.pending_snapshot_summary.clone() {
+                // the latest snapshot is the accepted snapshot
+                if pending_summary.sign_data() == latest_summary.sign_data() {
+                    self.pending_snapshot_summary = None;
+                } else {
+                    // TODO: How to detect snapshot summary rejection.
+                }
+            }
             // Check if its genesis then update storage with genesis data
             if latest_summary.snapshot_id.is_zero() && self.latest_worker_nonce.read().is_zero() {
                 info!(target: "orderbook", "📒 Loading genesis data from runtime ....");
@@ -963,15 +971,6 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                 // Prune the known messages cache
                 // Remove all worker nonces older than the last processed worker nonce
                 self.known_messages.retain(|k, _| *k > last_worker_nonce);
-                // Clear the pending snapshot when its accepted
-                if let Some(pending_summary) = self.pending_snapshot_summary.clone(){
-                    // the latest snapshot is the accepted snapshot
-                    if pending_summary.sign_data() == latest_summary.sign_data() {
-                        self.pending_snapshot_summary = None;
-                    }else{
-                        // TODO: How to detect snapshot summary rejection.
-                    }
-                }
             }
             if let Some(orderbook_operator_public_key) =
                 self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
