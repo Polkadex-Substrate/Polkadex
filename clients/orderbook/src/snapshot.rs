@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{json::JsonString, serde_as};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 
 /// This is a dummy struct used to serialize memory db
 /// We cannot serialize the hashmap below because of non-string type in key.

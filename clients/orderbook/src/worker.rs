@@ -464,7 +464,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
             Ok(store) => {
                 info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
                 let mut memory_db = self.memory_db.write();
-                memory_db.load_from(store.map);
+                memory_db.load_from(store.map.into_iter().collect());
                 let summary_clone = summary.clone();
                 *self.last_snapshot.write() = summary_clone;
                 *self.latest_worker_nonce.write() = summary.worker_nonce;
@@ -528,7 +528,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
         if let Some(mut offchain_storage) = self.backend.offchain_storage() {
 
-            let store = SnapshotStore { map: self.memory_db.read().data().into_iter().cloned().collect() };
+            let store = SnapshotStore { map: self.memory_db.read().data().clone().into_iter().collect() };
             info!(target: "orderbook", "📒snapshot store data ({:?})", store);
             if store.map.is_empty() {
                 return Err(Error::StateEmpty);
