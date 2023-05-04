@@ -527,7 +527,8 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
     ) -> Result<SnapshotSummary<AccountId>, Error> {
         info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
         if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-            let store = SnapshotStore { map: self.memory_db.read().data().clone() };
+
+            let store = SnapshotStore { map: self.memory_db.read().data().into_iter().cloned().collect() };
             info!(target: "orderbook", "📒snapshot store data ({:?})", store);
             if store.map.is_empty() {
                 return Err(Error::StateEmpty);
@@ -1454,7 +1455,7 @@ pub fn deposit(
     if !trie.contains(&main.encode())? {
         return Err(Error::MainAccountNotFound);
     }
-    let account_asset = AccountAsset { main, asset };
+    let account_asset = AccountAsset { main,     asset };
     match trie.get(&account_asset.encode())? {
         Some(data) => {
             info!(target: "orderbook", "Account asset found: {:?}", account_asset);
