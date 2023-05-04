@@ -347,6 +347,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         if let Some(pending_snapshot) = self.pending_snapshot_summary.as_ref() {
             if next_snapshot_id == pending_snapshot.snapshot_id {
                 // We don't need to do anything because we already submitted the snapshot.
+                log::warn!(target:"orderbook","Previous snapshot is not finalized, skipping...");
                 return Ok(());
             }
         }
@@ -461,8 +462,7 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
         match serde_json::from_slice::<SnapshotStore>(data) {
             Ok(store) => {
                 info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
-                let memory_db_write_lock = self.memory_db.write();
-                let mut memory_db = memory_db_write_lock.clone();
+                let mut memory_db = self.memory_db.write();
                 memory_db.load_from(store.map);
                 let summary_clone = summary.clone();
                 *self.last_snapshot.write() = summary_clone;
