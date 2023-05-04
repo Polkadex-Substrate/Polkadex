@@ -963,6 +963,15 @@ impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
                 // Prune the known messages cache
                 // Remove all worker nonces older than the last processed worker nonce
                 self.known_messages.retain(|k, _| *k > last_worker_nonce);
+                // Clear the pending snapshot when its accepted
+                if let Some(pending_summary) = self.pending_snapshot_summary.clone(){
+                    // the latest snapshot is the accepted snapshot
+                    if pending_summary.sign_data() == latest_summary.sign_data() {
+                        self.pending_snapshot_summary = None;
+                    }else{
+                        // TODO: How to detect snapshot summary rejection.
+                    }
+                }
             }
             if let Some(orderbook_operator_public_key) =
                 self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
