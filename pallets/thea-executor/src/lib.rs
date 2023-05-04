@@ -179,6 +179,7 @@ pub mod pallet {
 			network: Network
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+			// TODO: Check if beneficiary can decode to the correct type based on the given network.
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network)?;
 			Ok(())
 		}
