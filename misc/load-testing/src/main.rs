@@ -38,16 +38,19 @@ async fn main() -> anyhow::Result<()> {
 	// 	signature: Default::default(),
 	// };
 
-	let mut message = ObMessage {
-		stid: 1,
-		worker_nonce: 1,
-		action: UserActions::BlockImport(2930),
-		signature: Default::default(),
-	};
+	for i in 1..5000 {
+		//		println!("Sending {i} block");
+		let mut message = ObMessage {
+			stid: 1,
+			worker_nonce: i,
+			action: UserActions::BlockImport(i as u32),
+			signature: Default::default(),
+		};
 
-	message.signature = pair.sign_prehashed(&message.sign_data());
+		message.signature = pair.sign_prehashed(&message.sign_data());
 
-	let _response = client.request("ob_submitAction", rpc_params![message]).await?;
+		let _response = client.request("ob_submitAction", rpc_params![message]).await?;
+	}
 
 	//let result: Vec<u8> = client.request("ob_getObRecoverState", rpc_params![]).await.unwrap();
 	//let result: ObRecoveryState = serde_json::from_slice(&result).unwrap();
