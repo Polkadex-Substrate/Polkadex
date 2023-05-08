@@ -1,11 +1,11 @@
 use crate::types::GossipMessage;
+use log::trace;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
-use sp_tracing::info;
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	sync::Arc,
@@ -84,13 +84,71 @@ impl<B> Validator<B> for GossipValidator<B>
 where
 	B: Block,
 {
+	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
+		trace!(target:"thea", "New peer connected: id: {:?} role: {:?}",who,role);
+		match role {
+			ObservedRole::Authority => {
+				self.peers.write().insert(*who);
+			},
+			ObservedRole::Full => {
+				self.fullnodes.write().insert(*who);
+			},
+			_ => {},
+		};
+	}
+
+	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
+		trace!(target:"thea", "New peer connected: id: {:?}",who);
+		self.peers.write().remove(who);
+		self.fullnodes.write().remove(who);
+	}
+
 	fn validate(
 		&self,
 		_context: &mut dyn ValidatorContext<B>,
 		sender: &PeerId,
-		_data: &[u8],
+		data: &[u8],
 	) -> ValidationResult<B::Hash> {
-		log::debug!(target: "thea", "Validator validating message from: {}", sender.to_base58());
-		ValidationResult::ProcessAndKeep(self.topic)
+		// Decode
+		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data.as_ref()) {
+			// Check if we processed this message
+			if self.validate_message(&thea_gossip_msg) {
+				trace!(target:"thea-gossip", "Validation successfully for message: {thea_gossip_msg:?}");
+				return ValidationResult::ProcessAndKeep(topic::<B>())
+			} else {
+				trace!(target:"thea-gossip", "Validation failed for message: {thea_gossip_msg:?}");
+			}
+		}
+		ValidationResult::Discard
+	}
+
+	fn message_expired<'a>(&'a self) -> Box<dyn FnMut(B::Hash, &[u8]) -> bool + 'a> {
+		Box::new(move |_topic, mut data| {
+			// Decode
+			let msg = match GossipMessage::decode(&mut data) {
+				Ok(msg) => msg,
+				Err(_) => return true,
+			};
+			// If old stid then expire
+			let result = !self.validate_message(&msg);
+			trace!(target:"thea-gossip", "message: {msg:?} is expired: {result:?}");
+			result
+		})
+	}
+
+	fn message_allowed<'a>(
+		&'a self,
+	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
+		Box::new(move |_who, _intent, _topic, mut data| {
+			// Decode
+			let msg = match GossipMessage::decode(&mut data) {
+				Ok(msg) => msg,
+				Err(_) => return false,
+			};
+			// Logic for rebroadcasting.
+			let result = self.rebroadcast_check(&msg);
+			trace!(target:"thea-gossip", "message: {msg:?} can be rebroadcasted: {result:?}");
+			result
+		})
 	}
 }

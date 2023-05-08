@@ -28,14 +28,14 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 use polkadex_primitives::utils::return_set_bits;
-use thea_primitives::{types::Message, Network, ValidatorSet, NATIVE_NETWORK};
+use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::transactional;
-	use thea_primitives::{types::Message, TheaIncomingExecutor};
-
 	use super::*;
+	use frame_support::transactional;
+	use sp_std::vec;
+	use thea_primitives::{types::Message, TheaIncomingExecutor};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -84,7 +84,7 @@ pub mod pallet {
 		StorageValue<_, thea_primitives::ValidatorSetId, ValueQuery>;
 
 	/// Outgoing messages,
-	/// first key: Block number of foreign chain
+	/// first key: Nonce of the outgoing message
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_messages)]
 	pub(super) type OutgoingMessages<T: Config> =
@@ -118,6 +118,8 @@ pub mod pallet {
 		ErrorDecodingValidatorSet,
 		/// Invalid Validator Set id
 		InvalidValidatorSetId,
+		/// Validator set is empty
+		ValidatorSetEmpty,
 	}
 
 	#[pallet::validate_unsigned]
@@ -164,7 +166,7 @@ pub mod pallet {
 			// Signature is already verified in validate_unsigned, no need to do it again
 
 			let last_nonce = <IncomingNonce<T>>::get();
-			if last_nonce != payload.nonce.saturating_add(1) {
+			if last_nonce.saturating_add(1) != payload.nonce {
 				return Err(Error::<T>::MessageNonce.into())
 			}
 			let current_set_id = <ValidatorSetId<T>>::get();
@@ -224,12 +226,10 @@ impl<T: Config> Pallet<T> {
 				Some(auth) => signatories.push((*auth).clone().into()),
 			}
 		}
+
 		// Verify the aggregate signature.
-		if !bls_primitives::crypto::bls_ext::verify_aggregate(
-			&signatories[..],
-			&payload.encode(),
-			&(*signature).clone().into(),
-		) {
+		let bls_signature: bls_primitives::Signature = signature.clone().into();
+		if !bls_signature.verify(&signatories, payload.encode().as_ref()) {
 			return Err(InvalidTransaction::BadSigner.into())
 		}
 
@@ -242,10 +242,10 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
-	fn execute_withdrawals(network: Network, data: Vec<u8>) -> Result<(), ()> {
-		// Only native networks are allowed in foreign chains
-		if network != NATIVE_NETWORK {
-			return Err(())
+	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
+		let authorities_len = <Authorities<T>>::get(Self::validator_set_id()).len();
+		if authorities_len == 0 {
+			return Err(Error::<T>::ValidatorSetEmpty.into())
 		}
 		let nonce = <OutgoingNonce<T>>::get();
 		let payload = Message {
@@ -255,9 +255,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			network,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
-			validator_set_len: <Authorities<T>>::get(Self::validator_set_id())
-				.len()
-				.saturated_into(),
+			validator_set_len: authorities_len.saturated_into(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::put(payload.nonce);

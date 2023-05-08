@@ -128,6 +128,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub state_root: H256,
 	pub worker_nonce: u64,
 	pub state_change_id: u64,
+	pub last_processed_blk: BlockNumber,
 	pub state_chunk_hashes: Vec<H128>,
 	pub bitflags: Vec<u128>,
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
@@ -141,6 +142,7 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 			state_root: Default::default(),
 			worker_nonce: 0,
 			state_change_id: 0,
+			last_processed_blk: 0,
 			state_chunk_hashes: Vec::new(),
 			bitflags: Vec::new(),
 			withdrawals: Vec::new(),
@@ -151,33 +153,11 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 
 impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 	// Add a new signature to the snapshot summary
-
-	#[cfg(feature = "std")]
 	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
-		match bls_primitives::crypto::add_signature_(
-			&self.aggregate_signature.ok_or(signature)?,
-			&signature,
-		) {
-			Ok(signature) => {
-				self.aggregate_signature = Some(signature);
-				Ok(())
-			},
-			Err(_) => Err(signature),
-		}
-	}
-
-	#[cfg(not(feature = "std"))]
-	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
-		match bls_primitives::crypto::bls_ext::add_signature(
-			&self.aggregate_signature.ok_or(signature)?,
-			&signature,
-		) {
-			Ok(signature) => {
-				self.aggregate_signature = Some(signature);
-				Ok(())
-			},
-			Err(_) => Err(signature),
-		}
+		let aggregate_signature = self.aggregate_signature.ok_or(signature)?;
+		self.aggregate_signature =
+			Some(aggregate_signature.add_signature(&signature).map_err(|_| signature)?);
+		Ok(())
 	}
 
 	pub fn get_fees(&self) -> Vec<Fees> {
@@ -202,8 +182,7 @@ impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 		let msg = self.sign_data();
 		match self.aggregate_signature {
 			None => false,
-			Some(sig) =>
-				bls_primitives::crypto::bls_ext::verify_aggregate(&public_keys, &msg, &sig),
+			Some(sig) => sig.verify(&public_keys, msg.as_ref()),
 		}
 	}
 
@@ -236,7 +215,7 @@ sp_api::decl_runtime_apis! {
 		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>>;
 
 		/// Return the ingress messages at the given block
-		fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
+		fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
 
 		/// Submits the snapshot to runtime
 		#[allow(clippy::result_unit_err)]

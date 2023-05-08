@@ -1,6 +1,11 @@
+mod gosssip;
 pub mod rpc;
 pub mod sync;
 
+<<<<<<< HEAD
+=======
+use crate::protocol_standard_name;
+>>>>>>> 6239ee4c2045ef3d07b796f56b63e13f065a1241
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
@@ -58,6 +63,7 @@ impl TestApi {
 				snapshot_id: 0,
 				state_root: Default::default(),
 				state_change_id: 0,
+				last_processed_blk: 0,
 				state_chunk_hashes: vec![],
 				bitflags: vec![],
 				withdrawals: vec![],
@@ -130,6 +136,7 @@ impl TestApi {
 				snapshot_id: 0,
 				state_root: Default::default(),
 				state_change_id: 0,
+				last_processed_blk: 0,
 				state_chunk_hashes: vec![],
 				bitflags: vec![],
 				withdrawals: vec![],
@@ -164,7 +171,7 @@ impl ObApi<Block> for RuntimeApi {
 	}
 
 	/// Return the ingress messages at the given block
-	fn ingress_messages() -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
+	fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
 
 	/// Submits the snapshot to runtime
 	fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
