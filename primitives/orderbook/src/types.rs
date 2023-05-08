@@ -106,21 +106,21 @@ impl Trade {
 #[cfg(feature = "std")]
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
-	// (From,to, remote peer)
+	/// (From, to)
 	WantWorkerNonce(u64, u64),
-	// Collection of WorkerNonces
+	/// Collection of WorkerNonces
 	WorkerNonces(Box<Vec<ObMessage>>),
-	// Single ObMessage
+	/// Single ObMessage
 	ObMessage(Box<ObMessage>),
-	// Snapshot id, bitmap, remote peer
+	/// Snapshot id, bitmap, remote peer
 	Want(u64, Vec<u128>),
-	// Snapshot id, bitmap, remote peer
+	/// Snapshot id, bitmap, remote peer
 	Have(u64, Vec<u128>),
-	// Request
-	// (snapshot id, chunk indexes requested as bitmap, remote peer)
+	/// Request
+	/// (snapshot id, chunk indexes requested as bitmap)
 	RequestChunk(u64, Vec<u128>),
-	// Chunks of snapshot data
-	// ( snapshot id, index of chunk, data )
+	/// Chunks of snapshot data
+	/// ( snapshot id, index of chunk, data )
 	Chunk(u64, u16, Vec<u8>),
 }
 
@@ -189,6 +189,8 @@ impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
 			fees: Default::default(),
+			stid: 0,
+			worker_nonce: 0,
 		})
 	}
 }

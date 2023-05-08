@@ -93,7 +93,6 @@ where
 }
 
 use orderbook_primitives::types::ObMessage;
-use polkadex_primitives::BlockNumber;
 use sc_network_gossip::Network as GossipNetwork;
 
 /// Alias type for the `MemoryDB` database lock reference.
@@ -130,8 +129,6 @@ where
 	// Links between the block importer, the background voter and the RPC layer.
 	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
-	// last successful block snapshot created
-	pub last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	// memory db
 	pub memory_db: DbRef,
 	// working state root
@@ -161,7 +158,6 @@ where
 		is_validator,
 		message_sender_link,
 		marker: _,
-		last_successful_block_number_snapshot_created,
 		memory_db,
 		working_state_root,
 	} = ob_params;
@@ -193,7 +189,6 @@ where
 		message_sender_link,
 		metrics,
 		_marker: Default::default(),
-		last_successful_block_number_snapshot_created,
 		memory_db,
 		working_state_root,
 		keystore,

@@ -38,7 +38,7 @@ use orderbook_primitives::{types::ObMessage, ObApi};
 use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
 use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-use sc_client_api::AuxStore;
+use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::{BabeConfiguration, Epoch};
 use sc_consensus_epochs::SharedEpochChanges;
 use sc_finality_grandpa::{
@@ -102,8 +102,6 @@ pub struct FullDeps<C, P, SC, B> {
 	pub grandpa: GrandpaDeps<B>,
 	/// Channel for sending ob messages to worker
 	pub orderbook: UnboundedSender<ObMessage>,
-	/// last successful block number snapshot created
-	pub last_successful_block_no_snapshot_created: Arc<RwLock<BlockNumber>>,
 	/// memory db
 	#[allow(clippy::type_complexity)]
 	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
@@ -135,6 +133,7 @@ where
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 	C::Api: pallet_asset_handler_rpc::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
+	C: BlockchainEvents<Block>,
 {
 	use pallet_rewards_rpc::PolkadexRewardsRpcApiServer;
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
@@ -155,7 +154,6 @@ where
 		babe,
 		grandpa,
 		orderbook,
-		last_successful_block_no_snapshot_created,
 		memory_db,
 		working_state_root,
 	} = deps;
@@ -204,15 +202,8 @@ where
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
 	// Create Orderbook RPC
 	io.merge(
-		OrderbookRpc::new(
-			subscription_executor,
-			orderbook,
-			last_successful_block_no_snapshot_created,
-			memory_db,
-			working_state_root,
-			client,
-		)
-		.into_rpc(),
+		OrderbookRpc::new(subscription_executor, orderbook, memory_db, working_state_root, client)
+			.into_rpc(),
 	)?;
 
 	Ok(io)

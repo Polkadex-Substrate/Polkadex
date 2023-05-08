@@ -19,11 +19,11 @@ use orderbook_primitives::{
 	ObApi,
 };
 use parking_lot::RwLock;
-use polkadex_primitives::BlockNumber;
 use reference_trie::ExtensionLayout;
 use rust_decimal::Decimal;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
+use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
@@ -84,16 +84,15 @@ pub trait OrderbookApi {
 	/// - self: a reference to the current object
 	///
 	/// # Return
-	/// - RpcResult<Vec<u8>>: a Result containing serialized `ObRecoveryState`.
+	/// - RpcResult<String>: a Result containing serialized `ObRecoveryState`.
 	#[method(name = "ob_getObRecoverState")]
-	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>>;
+	async fn get_orderbook_recovery_state(&self) -> RpcResult<String>;
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
 pub struct OrderbookRpc<Runtime, Block> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
-	last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 	memory_db: DbRef,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	runtime: Arc<Runtime>,
@@ -103,33 +102,30 @@ pub struct OrderbookRpc<Runtime, Block> {
 impl<Runtime, Block> OrderbookRpc<Runtime, Block>
 where
 	Block: BlockT,
-	Runtime: Send + Sync + ProvideRuntimeApi<Block>,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	Runtime::Api: ObApi<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
 		_executor: SubscriptionTaskExecutor,
 		tx: UnboundedSender<ObMessage>,
-		last_successful_block_number_snapshot_created: Arc<RwLock<BlockNumber>>,
 		memory_db: DbRef,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		runtime: Arc<Runtime>,
 	) -> Self {
-		Self {
-			tx,
-			_executor,
-			last_successful_block_number_snapshot_created,
-			memory_db,
-			working_state_root,
-			runtime,
-			_marker: Default::default(),
-		}
+		Self { tx, _executor, memory_db, working_state_root, runtime, _marker: Default::default() }
 	}
 
 	/// Returns the serialized offchain state based on the last finalized snapshot summary
-	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<Vec<u8>> {
-		let last_finalized_block_guard = self.last_successful_block_number_snapshot_created.read();
-		let last_finalized_block = *last_finalized_block_guard;
+	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<String> {
+		// get snapshot summary
+		let last_snapshot_summary = self
+			.runtime
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::number(self.runtime.info().finalized_number))
+			.map_err(|err| {
+				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
+			})?;
 
 		let memory_db_guard = self.memory_db.read();
 		let mut memory_db = memory_db_guard.clone();
@@ -140,25 +136,21 @@ where
 		let all_register_accounts = self
 			.runtime
 			.runtime_api()
-			.get_all_accounts_and_proxies(&BlockId::number(last_finalized_block.saturated_into()))
+			.get_all_accounts_and_proxies(&BlockId::number(
+				last_snapshot_summary.last_processed_blk.saturated_into(),
+			))
 			.map_err(|err| JsonRpseeError::Custom(err.to_string() + "failed to get accounts"))?;
 
 		info!(target:"orderbook-rpc","main accounts found: {:?}, Getting last finalized snapshot summary",all_register_accounts.len());
-		// get snapshot summary
-		let last_snapshot_summary = self
-			.runtime
-			.runtime_api()
-			.get_latest_snapshot(&BlockId::number(last_finalized_block.saturated_into()))
-			.map_err(|err| {
-				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
-			})?;
 
 		info!(target:"orderbook-rpc","Getting allowlisted asset ids");
 		// Get all allow listed AssetIds
 		let allowlisted_asset_ids = self
 			.runtime
 			.runtime_api()
-			.get_allowlisted_assets(&BlockId::number(last_finalized_block.saturated_into()))
+			.get_allowlisted_assets(&BlockId::number(
+				last_snapshot_summary.last_processed_blk.saturated_into(),
+			))
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;
@@ -202,8 +194,10 @@ where
 		ob_recovery_state.snapshot_id = last_snapshot_summary.snapshot_id;
 		ob_recovery_state.state_change_id = last_snapshot_summary.state_change_id;
 		ob_recovery_state.worker_nonce = last_snapshot_summary.worker_nonce;
+		ob_recovery_state.last_processed_block_number = last_snapshot_summary.last_processed_blk;
+
 		info!(target:"orderbook-rpc","Serializing Orderbook snapshot state");
-		let serialize_ob_recovery_state = serde_json::to_vec(&ob_recovery_state)?;
+		let serialize_ob_recovery_state = serde_json::to_string(&ob_recovery_state)?;
 		info!(target:"orderbook-rpc","Orderbook snapshot state exported");
 		Ok(serialize_ob_recovery_state)
 	}
@@ -213,7 +207,7 @@ where
 impl<Runtime, Block> OrderbookApiServer for OrderbookRpc<Runtime, Block>
 where
 	Block: BlockT,
-	Runtime: Send + Sync + 'static + ProvideRuntimeApi<Block>,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block> + HeaderBackend<Block> + 'static,
 	Runtime::Api: ObApi<Block>,
 {
 	async fn submit_action(&self, message: ObMessage) -> RpcResult<()> {
@@ -222,7 +216,7 @@ where
 		Ok(())
 	}
 
-	async fn get_orderbook_recovery_state(&self) -> RpcResult<Vec<u8>> {
+	async fn get_orderbook_recovery_state(&self) -> RpcResult<String> {
 		self.get_orderbook_recovery_state_inner().await
 	}
 }

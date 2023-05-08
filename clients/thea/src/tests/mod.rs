@@ -1,4 +1,6 @@
-use crate::{connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker};
+use crate::{
+	connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker, Client,
+};
 use futures::{
 	stream::{Fuse, FuturesUnordered},
 	StreamExt,
@@ -26,7 +28,10 @@ use sp_finality_grandpa::{
 };
 use sp_keyring::AccountKeyring;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-use sp_runtime::{key_types::GRANDPA, traits::Block as BlockT};
+use sp_runtime::{
+	key_types::GRANDPA,
+	traits::{AppVerify, Block as BlockT},
+};
 use std::{
 	collections::{BTreeMap, HashMap},
 	future::Future,
@@ -102,12 +107,9 @@ impl TestApi {
 			signatories.push((*auths.get(index).unwrap()).clone().into());
 		}
 
+		let bls_signature: bls_primitives::Signature = signature.into();
 		// Check signature
-		assert!(bls_primitives::crypto::verify_aggregate_(
-			&signatories[..],
-			&message.encode(),
-			&signature.into(),
-		));
+		assert!(bls_signature.verify(&signatories, &message.encode()));
 
 		self.incoming_nonce.write().insert(message.network, message.nonce);
 		self.incoming_messages.write().insert((message.network, message.nonce), message);
