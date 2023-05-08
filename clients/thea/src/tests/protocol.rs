@@ -92,7 +92,7 @@ async fn dropped_one_validator_still_works() {
 		None,
 	);
 	let message = Message {
-		block_no: 10,
+		block_no: 1,
 		nonce: 1,
 		data: vec![1, 2, 3],
 		network: 1,
@@ -112,6 +112,7 @@ async fn dropped_one_validator_still_works() {
 
 	// verify process message
 	assert!(!testnet.worker_massages.is_empty());
+	assert_eq!(testnet.worker_massages.len(), 3);
 	let mut retry = 0;
 	loop {
 		if retry >= 12 || !runtime.incoming_messages.read().is_empty() {

@@ -493,10 +493,10 @@ where
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
 						if let Err(err) = self.handle_finality_notification(&finality).await {
-							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
+							error!(target: "thea", "📒 Error during finalized block import{:?}", err);
 						}
 					}else {
-						error!(target:"orderbook","None finality recvd");
+						error!(target:"thea","None finality recvd");
 						return
 					}
 				},
