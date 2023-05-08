@@ -118,7 +118,7 @@ async fn dropped_one_validator_still_works() {
 		if retry >= 12 || !runtime.incoming_messages.read().is_empty() {
 			break
 		}
-		tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+		tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 		retry += 1;
 	}
 	assert!(retry < 12, "No incomming messages registered");
