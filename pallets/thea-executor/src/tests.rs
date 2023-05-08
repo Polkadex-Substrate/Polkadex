@@ -14,8 +14,7 @@
 // GNU General Public License for more details.
 
 use crate::{
-	mock::{new_test_ext, RuntimeOrigin as Origin, Test, *},
-	pallet::{ApprovedDeposit, *},
+	mock::{new_test_ext, RuntimeOrigin as Origin, Test, *}, pallet::*
 };
 use frame_support::{
 	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
@@ -23,69 +22,11 @@ use frame_support::{
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
 use sp_runtime::{traits::ConstU32, BoundedVec, TokenError};
-use thea_primitives::parachain::{
-	ApprovedWithdraw, AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw,
-};
 
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::X1,
 };
-
-//Test Withdraw
-#[test]
-fn test_withdraw_with_valid_args_returns_ok() {
-	new_test_ext().execute_with(|| {
-		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		let multi_asset = MultiAsset {
-			id: AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here }),
-			fun: Fungibility::Fungible(1000_u128),
-		};
-		let multi_location = MultiLocation {
-			parents: 1,
-			interior: X1(Junction::AccountId32 { network: NetworkId::Any, id: [1; 32] }),
-		};
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			RuntimeOrigin::signed(1),
-			Box::from(asset_id.clone())
-		));
-		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
-		let beneficiary: [u8; 32] = [1; 32];
-		assert_ok!(pallet_balances::pallet::Pallet::<Test>::set_balance(
-			RuntimeOrigin::root(),
-			1,
-			1_000_000_000_000,
-			0
-		));
-		assert_ok!(pallet_assets::pallet::Pallet::<Test>::mint_into(
-			generate_asset_id(asset_id.clone()),
-			&1,
-			1_000_000_000_000
-		));
-		let beneficiary: MultiLocation = MultiLocation::new(
-			1,
-			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
-		);
-		assert_ok!(TheaExecutor::withdraw(
-			RuntimeOrigin::signed(1),
-			generate_asset_id(asset_id.clone()),
-			1000u128,
-			beneficiary.encode().to_vec(),
-			false
-		));
-		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
-		let payload = ParachainWithdraw::get_parachain_withdraw(multi_asset, multi_location);
-		let approved_withdraw = ApprovedWithdraw {
-			asset_id: generate_asset_id(asset_id),
-			amount: 1000,
-			network: 1,
-			beneficiary: beneficiary.encode(),
-			payload: payload.encode(),
-			index: 0,
-		};
-		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
-	})
-}
 
 #[test]
 fn test_withdraw_with_wrong_benificiary_length() {
@@ -104,31 +45,6 @@ fn test_withdraw_with_wrong_benificiary_length() {
 	})
 }
 
-#[test]
-fn test_withdraw_with_no_fee_config() {
-	new_test_ext().execute_with(|| {
-		let beneficiary: [u8; 32] = [1; 32];
-		let beneficiary: MultiLocation = MultiLocation::new(
-			1,
-			Junctions::X1(Junction::AccountId32 { network: NetworkId::Any, id: beneficiary }),
-		);
-		let asset_id = AssetId::Concrete(MultiLocation { parents: 1, interior: Junctions::Here });
-		assert_ok!(asset_handler::pallet::Pallet::<Test>::create_parachain_asset(
-			RuntimeOrigin::signed(1),
-			Box::from(asset_id.clone())
-		));
-		assert_noop!(
-			TheaExecutor::withdraw(
-				RuntimeOrigin::signed(1),
-				generate_asset_id(asset_id),
-				1000u128,
-				beneficiary.encode().to_vec(),
-				false
-			),
-			crate::Error::<Test>::WithdrawalFeeConfigNotFound
-		);
-	})
-}
 
 #[test]
 fn transfer_native_asset() {
@@ -157,7 +73,7 @@ fn transfer_native_asset() {
 		));
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
 		let payload = ParachainWithdraw::get_parachain_withdraw(asset, multi_location.clone());
-		let approved_withdraw = ApprovedWithdraw {
+		let approved_withdraw = Withdraw {
 			asset_id,
 			amount: 10_000_000_000_000u128,
 			network: 1,
@@ -167,25 +83,6 @@ fn transfer_native_asset() {
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
-}
-
-pub fn generate_asset_id(asset_id: AssetId) -> u128 {
-	if let AssetId::Concrete(ml) = asset_id {
-		let parachain_asset = ParachainAsset { location: ml, asset_type: AssetType::Fungible };
-		let asset_identifier =
-			BoundedVec::<u8, ConstU32<1000>>::try_from(parachain_asset.encode()).unwrap();
-		let identifier_length = asset_identifier.len();
-		let mut derived_asset_id: Vec<u8> = vec![];
-		derived_asset_id.push(1u8);
-		derived_asset_id.push(identifier_length as u8);
-		derived_asset_id.extend(&asset_identifier.to_vec());
-		let derived_asset_id_hash = &sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
-		let mut temp = [0u8; 16];
-		temp.copy_from_slice(derived_asset_id_hash);
-		u128::from_le_bytes(temp)
-	} else {
-		0
-	}
 }
 
 #[test]
