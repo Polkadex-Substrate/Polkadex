@@ -2,10 +2,6 @@ mod gosssip;
 pub mod rpc;
 pub mod sync;
 
-<<<<<<< HEAD
-=======
-use crate::protocol_standard_name;
->>>>>>> 6239ee4c2045ef3d07b796f56b63e13f065a1241
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
@@ -396,10 +392,6 @@ where
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
-			last_successful_block_number_snapshot_created: net.peers[peer_id]
-				.data
-				.last_successful_block_number_snapshot_created
-				.clone(),
 			memory_db: net.peers[peer_id].data.memory_db.clone(),
 			working_state_root: net.peers[peer_id].data.working_state_root.clone(),
 		};
