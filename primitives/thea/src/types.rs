@@ -32,7 +32,7 @@ pub struct Deposit<AccountId> {
 	pub recipient: AccountId,
 	pub asset_id: u128,
 	pub amount: u128,
-	pub extra: Vec<u8>
+	pub extra: Vec<u8>,
 }
 
 /// Withdraw is relative to solochain
@@ -42,5 +42,5 @@ pub struct Withdraw {
 	pub amount: u128,
 	pub destination: Vec<u8>,
 	pub is_blocked: bool,
-	pub extra: Vec<u8>
+	pub extra: Vec<u8>,
 }

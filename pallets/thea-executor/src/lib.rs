@@ -23,11 +23,9 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
-	use sp_std::{vec::Vec};
-	use thea_primitives::{
-		Network, TheaIncomingExecutor, TheaOutgoingExecutor,
-	};
-	
+	use sp_std::vec::Vec;
+	use thea_primitives::{Network, TheaIncomingExecutor, TheaOutgoingExecutor};
+
 	use thea_primitives::types::{Deposit, Withdraw};
 
 	#[pallet::pallet]
@@ -58,13 +56,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn pending_withdrawals)]
-	pub(super) type PendingWithdrawals<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		Network,
-		Vec<Withdraw>,
-		ValueQuery,
-	>;
+	pub(super) type PendingWithdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<Withdraw>, ValueQuery>;
 
 	/// Withdrawal Fees for each network
 	#[pallet::storage]
@@ -87,13 +80,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_approved_deposits)]
-	pub(super) type ApprovedDeposits<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		Vec<Deposit<T::AccountId>>,
-		ValueQuery,
-	>;
+	pub(super) type ApprovedDeposits<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Deposit<T::AccountId>>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
@@ -155,7 +143,7 @@ pub mod pallet {
 			);
 			for (network_id, withdrawal) in pending_withdrawals {
 				// This is fine as this trait is not supposed to fail
-				if T::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err(){
+				if T::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err() {
 					log::error!("Error while executing withdrawals...");
 				}
 			}
@@ -176,7 +164,7 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
-			network: Network
+			network: Network,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			// TODO: Check if beneficiary can decode to the correct type based on the given network.
@@ -196,7 +184,7 @@ pub mod pallet {
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 
-			let mut deposits =  <ApprovedDeposits<T>>::get(&user);
+			let mut deposits = <ApprovedDeposits<T>>::get(&user);
 			let length: u32 = deposits.len().saturated_into();
 			let length: u32 = if length <= num_deposits { length } else { num_deposits };
 
@@ -254,11 +242,11 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
-			network: Network
+			network: Network,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 
-			let withdraw = Withdraw{
+			let withdraw = Withdraw {
 				asset_id,
 				amount,
 				destination: beneficiary.clone(),
@@ -267,10 +255,13 @@ pub mod pallet {
 			};
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 
-			ensure!(pending_withdrawals.len() < T::WithdrawalSize::get() as usize, Error::<T>::WithdrawalNotAllowed);
+			ensure!(
+				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
+				Error::<T>::WithdrawalNotAllowed
+			);
 
-			let mut total_fees = <WithdrawalFees<T>>::get(network)
-				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
+			let mut total_fees =
+				<WithdrawalFees<T>>::get(network).ok_or(Error::<T>::WithdrawalFeeConfigNotFound)?;
 
 			if pay_for_remaining {
 				// User is ready to pay for remaining pending withdrawal for quick withdrawal
@@ -301,7 +292,8 @@ pub mod pallet {
 				asset_id,
 				amount,
 			));
-			if (pending_withdrawals.len() >= T::WithdrawalSize::get() as usize) || pay_for_remaining {
+			if (pending_withdrawals.len() >= T::WithdrawalSize::get() as usize) || pay_for_remaining
+			{
 				// If it is full then we move it to ready queue and update withdrawal nonce
 				<ReadyWithdrawals<T>>::insert(
 					<frame_system::Pallet<T>>::block_number(), //Block No
@@ -315,11 +307,11 @@ pub mod pallet {
 			Ok(())
 		}
 
-
 		pub fn do_deposit(payload: Vec<u8>) -> Result<(), DispatchError> {
-			let deposits: Vec<Deposit<T::AccountId>> = Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+			let deposits: Vec<Deposit<T::AccountId>> =
+				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
-				<ApprovedDeposits<T>>::mutate(&deposit.recipient, | pending_deposits | {
+				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
 					pending_deposits.push(deposit.clone())
 				})
 			}
@@ -347,7 +339,7 @@ pub mod pallet {
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
 		fn execute_deposits(_: Network, deposits: Vec<u8>) {
-			if let Err(error) = Self::do_deposit( deposits) {
+			if let Err(error) = Self::do_deposit(deposits) {
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
 			}
 		}
