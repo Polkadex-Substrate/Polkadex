@@ -106,7 +106,7 @@ where
 	fn validate(
 		&self,
 		_context: &mut dyn ValidatorContext<B>,
-		sender: &PeerId,
+		_sender: &PeerId,
 		data: &[u8],
 	) -> ValidationResult<B::Hash> {
 		// Decode

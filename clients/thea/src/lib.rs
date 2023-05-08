@@ -24,7 +24,7 @@ mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
-	use sc_chain_spec::ChainSpec;
+	
 
 	pub(crate) const NAME: &str = "/thea/1";
 
