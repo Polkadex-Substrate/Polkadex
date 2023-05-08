@@ -13,16 +13,13 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::{
-	mock::{new_test_ext, RuntimeOrigin as Origin, Test, *}, pallet::*
-};
-use frame_support::{
-	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
-};
+use crate::mock::{new_test_ext, RuntimeOrigin as Origin, Test, *};
+use frame_support::{assert_err, assert_noop, assert_ok};
 use parity_scale_codec::Encode;
-use sp_core::{H160, H256};
+use sp_core::H160;
 use sp_runtime::{traits::ConstU32, BoundedVec, TokenError};
 
+use thea_primitives::{parachain::ParachainDeposit, types::Withdraw};
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::X1,
@@ -44,7 +41,6 @@ fn test_withdraw_with_wrong_benificiary_length() {
 		);
 	})
 }
-
 
 #[test]
 fn transfer_native_asset() {
