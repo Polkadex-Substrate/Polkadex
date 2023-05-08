@@ -1,5 +1,5 @@
 use crate::{
-	connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker, Client,
+	connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker,
 };
 use futures::{
 	stream::{Fuse, FuturesUnordered},
