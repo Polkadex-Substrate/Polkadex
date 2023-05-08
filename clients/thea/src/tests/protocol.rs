@@ -74,7 +74,7 @@ async fn dropped_one_validator_still_works() {
 	testnet.peer(0).push_blocks(1, false);
 	testnet.run_until_sync().await;
 	// kill off one worker
-	//testnet.drop_validator();
+	testnet.drop_validator();
 
 	// push some message
 	let message_cache = Arc::new(RwLock::new(BTreeMap::new()));
@@ -106,7 +106,7 @@ async fn dropped_one_validator_still_works() {
 	testnet.run_until_idle().await;
 
 	// validate finality
-	for i in 0..3 {
+	for i in 0..2 {
 		assert_eq!(testnet.peer(i).client().info().best_number, 1, "Peer #{} failed to sync", i);
 	}
 
