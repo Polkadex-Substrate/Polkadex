@@ -1227,24 +1227,12 @@ pub mod pallet {
 		) -> WithdrawalsMap<T> {
 			let mut withdrawal_map: WithdrawalsMap<T> = WithdrawalsMap::<T>::new();
 			for withdrawal in pending_withdrawals {
-				let recipient_account: T::AccountId = withdrawal.main_account;
+				let recipient_account: T::AccountId = withdrawal.main_account.clone();
 				if let Some(pending_withdrawals) = withdrawal_map.get_mut(&recipient_account) {
-					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
-						main_account: recipient_account.clone(),
-						amount: withdrawal.amount,
-						asset: withdrawal.asset,
-						fees: withdrawal.fees,
-					};
-					pending_withdrawals.push(new_withdrawal)
+					pending_withdrawals.push(withdrawal)
 				} else {
 					let mut pending_withdrawals = Vec::new();
-					let new_withdrawal: Withdrawal<T::AccountId> = Withdrawal {
-						main_account: recipient_account.clone(),
-						amount: withdrawal.amount,
-						asset: withdrawal.asset,
-						fees: withdrawal.fees,
-					};
-					pending_withdrawals.push(new_withdrawal.clone());
+					pending_withdrawals.push(withdrawal);
 					withdrawal_map.insert(recipient_account, pending_withdrawals);
 				}
 			}
