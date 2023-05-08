@@ -611,7 +611,6 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(<TheaAssets<T>>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
 			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
-
 			T::AssetManager::mint_into(asset_id, &recipient, amount)?;
 			Ok(())
 		}
