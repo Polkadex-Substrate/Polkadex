@@ -1859,21 +1859,6 @@ fn create_account_id() -> AccountId32 {
 
 	return account_id
 }
-fn create_account_id_500(uid: u32) -> AccountId32 {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = KeyStore::new();
-	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{}/hunter{}", PHRASE, uid)),
-	)
-	.expect("Unable to create sr25519 key pair")
-	.try_into()
-	.expect("Unable to convert to AccountId32");
-
-	return account_id
-}
 
 fn create_proxy_account() -> AccountId32 {
 	const PHRASE: &str =
