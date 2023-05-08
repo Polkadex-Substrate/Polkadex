@@ -668,7 +668,6 @@ pub mod pallet {
 			u128::from_le_bytes(temp)
 		}
 
-
 		#[cfg(feature = "runtime-benchmarks")]
 		pub fn register_asset(rid: ResourceId) {
 			T::AssetManager::create(
