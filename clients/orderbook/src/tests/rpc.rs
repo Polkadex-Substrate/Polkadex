@@ -11,7 +11,6 @@ use polkadex_primitives::{ingress::IngressMessages, AssetId};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use sc_client_api::BlockchainEvents;
 use sc_keystore::LocalKeystore;
-use sc_network_test::TestNetFactory;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
@@ -99,10 +98,6 @@ pub async fn test_orderbook_rpc() {
 	let rpc_handle = OrderbookRpc::new(
 		Arc::new(DummyTaskExecutor),
 		sender,
-		testnet.peers[peer_id]
-			.data
-			.last_successful_block_number_snapshot_created
-			.clone(),
 		testnet.peers[peer_id].data.memory_db.clone(),
 		testnet.peers[peer_id].data.working_state_root.clone(),
 		runtime.clone(),
@@ -118,10 +113,6 @@ pub async fn test_orderbook_rpc() {
 		message_sender_link: receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_number_snapshot_created: testnet.peers[peer_id]
-			.data
-			.last_successful_block_number_snapshot_created
-			.clone(),
 		memory_db: testnet.peers[peer_id].data.memory_db.clone(),
 		working_state_root: testnet.peers[peer_id].data.working_state_root.clone(),
 		keystore,
