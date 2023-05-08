@@ -14,41 +14,38 @@
 // GNU General Public License for more details.
 
 use crate::{
-	mock::{new_test_ext, RuntimeOrigin as Origin, Test, *}, pallet::*
+	mock::{new_test_ext, Assets, RuntimeOrigin as Origin, Test, *},
+	PendingWithdrawals,
 };
-use frame_support::{
-	assert_err, assert_noop, assert_ok, error::BadOrigin, traits::fungibles::Mutate,
-};
+use asset_handler::pallet::TheaAssets;
+use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Mutate};
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
-use sp_runtime::{traits::ConstU32, BoundedVec, TokenError, SaturatedConversion};
-
+use sp_runtime::{traits::ConstU32, BoundedVec, SaturatedConversion, TokenError};
+use thea_primitives::types::{Deposit, Withdraw};
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::X1,
 };
-use thea_primitives::types::{Deposit, Withdraw};
-use asset_handler::pallet::TheaAssets;
 
 #[test]
 fn test_withdraw_returns_ok() {
-   new_test_ext().execute_with(|| {
-	   // Insert authority
-	   let beneficiary: [u8; 1001] = [1; 1001];
-	   assert_noop!(
+	new_test_ext().execute_with(|| {
+		// Insert authority
+		let beneficiary: [u8; 1001] = [1; 1001];
+		assert_noop!(
 			TheaExecutor::withdraw(
 				RuntimeOrigin::signed(1),
 				1u128,
 				1000u128,
 				beneficiary.to_vec(),
 				false,
-			   1
+				1
 			),
 			crate::Error::<Test>::BeneficiaryTooLong
 		);
-   })
+	})
 }
-use crate::mock::Assets;
 
 #[test]
 fn test_transfer_native_asset() {
@@ -57,10 +54,25 @@ fn test_transfer_native_asset() {
 		let asset_id = 1000u128;
 		let admin = 1u64;
 		let user = 2u64;
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), admin, 1_000_000_000_000_000_000, 0));
-		assert_ok!(Assets::create(RuntimeOrigin::signed(admin), parity_scale_codec::Compact(asset_id), admin,1u128));
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			admin,
+			1_000_000_000_000_000_000,
+			0
+		));
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
 		// Set balance for User
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), user, 1_000_000_000_000_000_000, 0));
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			user,
+			1_000_000_000_000_000_000,
+			0
+		));
 		assert_ok!(Assets::mint_into(asset_id, &user, 1_000_000_000_000_000_000));
 		// Set withdrawal Fee
 		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
@@ -68,7 +80,7 @@ fn test_transfer_native_asset() {
 			RuntimeOrigin::signed(1),
 			asset_id.clone(),
 			10_000_000_000_000u128,
-			vec![1;32],
+			vec![1; 32],
 			false,
 			1
 		));
@@ -77,9 +89,9 @@ fn test_transfer_native_asset() {
 		let approved_withdraw = Withdraw {
 			asset_id,
 			amount: 10_000_000_000_000u128,
-			destination: vec![1;32],
+			destination: vec![1; 32],
 			is_blocked: false,
-			extra: vec![]
+			extra: vec![],
 		};
 		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
 	})
@@ -91,14 +103,20 @@ fn test_deposit_with_valid_args_returns_ok() {
 		let asset_id = 1000u128;
 		let admin = 1u64;
 		let recipient = 2u64;
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), admin, 1_000_000_000_000_000_000, 0));
-		assert_ok!(Assets::create(RuntimeOrigin::signed(admin), parity_scale_codec::Compact(asset_id), admin,1u128));
-        let deposit = Deposit {
-			recipient: recipient,
-			asset_id: asset_id,
-			amount: 1_000_000_000_000_000_000u128,
-			extra: vec![]
-		};
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			admin,
+			1_000_000_000_000_000_000,
+			0
+		));
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		let deposit =
+			Deposit { recipient, asset_id, amount: 1_000_000_000_000_000_000u128, extra: vec![] };
 		assert_ok!(TheaExecutor::do_deposit(vec![deposit].encode()));
 	})
 }
@@ -109,16 +127,27 @@ fn test_claim_deposit_returns_ok() {
 		let asset_id = 2000u128;
 		let admin = 1u64;
 		let recipient = 2u64;
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), admin, 1_000_000_000_000_000_000, 0));
-		assert_ok!(Assets::create(RuntimeOrigin::signed(admin), parity_scale_codec::Compact(asset_id), admin,1u128));
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), recipient, 1_000_000_000_000_000_000, 0));
-		let deposit = Deposit {
-			recipient: recipient,
-			asset_id: asset_id,
-			amount: 1_000_000_000_000_000_000u128,
-			extra: vec![]
-		};
-		<TheaAssets<Test>>::insert(asset_id, (0,0, BoundedVec::default()));
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			admin,
+			1_000_000_000_000_000_000,
+			0
+		));
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			recipient,
+			1_000_000_000_000_000_000,
+			0
+		));
+		let deposit =
+			Deposit { recipient, asset_id, amount: 1_000_000_000_000_000_000u128, extra: vec![] };
+		<TheaAssets<Test>>::insert(asset_id, (0, 0, BoundedVec::default()));
 		assert_ok!(TheaExecutor::do_deposit(vec![deposit].encode()));
 		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1));
 	})
@@ -130,16 +159,30 @@ fn test_claim_deposit_returns_asset_not_registered() {
 		let asset_id = 2000u128;
 		let admin = 1u64;
 		let recipient = 2u64;
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), admin, 1_000_000_000_000_000_000, 0));
-		assert_ok!(Assets::create(RuntimeOrigin::signed(admin), parity_scale_codec::Compact(asset_id), admin,1u128));
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), recipient, 1_000_000_000_000_000_000, 0));
-		let deposit = Deposit {
-			recipient: recipient,
-			asset_id: asset_id,
-			amount: 1_000_000_000_000_000_000u128,
-			extra: vec![]
-		};
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			admin,
+			1_000_000_000_000_000_000,
+			0
+		));
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			recipient,
+			1_000_000_000_000_000_000,
+			0
+		));
+		let deposit =
+			Deposit { recipient, asset_id, amount: 1_000_000_000_000_000_000u128, extra: vec![] };
 		assert_ok!(TheaExecutor::do_deposit(vec![deposit].encode()));
-		assert_err!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1), asset_handler::pallet::Error::<Test>::AssetNotRegistered);
+		assert_err!(
+			TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1),
+			asset_handler::pallet::Error::<Test>::AssetNotRegistered
+		);
 	})
 }
