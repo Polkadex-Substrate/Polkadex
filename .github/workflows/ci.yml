@@ -60,14 +60,14 @@ jobs:
           components: rustfmt, clippy
       - name: Checkout to the current branch
         uses: actions/checkout@v3
-#      - name: Cache Rust Dependencies
-#        uses: actions/cache@v3
-#        with:
-#          path: |
-#            ~/.cargo/registry
-#            ~/.cargo/git
-#            target
-#          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Rust Dependecies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Check versions info
         run: |
           rustup -V
