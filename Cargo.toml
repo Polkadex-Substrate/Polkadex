@@ -41,8 +41,8 @@ static_assertions = "1.1.0"
 parity-scale-codec = { version = "3.1.5", default-features = false }
 rust_decimal = { git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", default-features = false }
 scale-info = { version = "2.1.2", default-features = false }
-bls-primitives = {path = "primitives/bls-primitives", default-features = false}
-thea-primitives = {path = "primitives/thea", default-features = false}
+bls-primitives = { path = "primitives/bls-primitives", default-features = false }
+thea-primitives = { path = "primitives/thea", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
@@ -145,7 +145,7 @@ sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/substrate", bra
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 pallet-nomination-pools = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
-grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false, package="sp-finality-grandpa" }
+grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false, package = "sp-finality-grandpa" }
 polkadex-primitives = { path = "primitives/polkadex", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37", default-features = false }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37", default-features = false }
