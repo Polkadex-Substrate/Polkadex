@@ -23,38 +23,10 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
-	use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
-	use thea_primitives::{
-		parachain::{
-			ApprovedWithdraw, AssetType, ParachainAsset, ParachainDeposit, ParachainWithdraw,
-		},
-		Network, TheaIncomingExecutor, TheaOutgoingExecutor,
-	};
-	use xcm::{
-		latest::{AssetId, Junction, Junctions, MultiAsset, MultiLocation},
-		prelude::{Fungible, X1},
-	};
+	use sp_std::vec::Vec;
+	use thea_primitives::{Network, TheaIncomingExecutor, TheaOutgoingExecutor};
 
-	#[derive(Encode, Decode, Clone, Copy, Debug, MaxEncodedLen, TypeInfo)]
-	pub struct ApprovedDeposit<AccountId> {
-		pub asset_id: u128,
-		pub amount: u128,
-		pub recipient: AccountId,
-		pub network_id: u8,
-		pub tx_hash: sp_core::H256,
-	}
-
-	impl<AccountId> ApprovedDeposit<AccountId> {
-		fn new(
-			asset_id: u128,
-			amount: u128,
-			recipient: AccountId,
-			network_id: u8,
-			transaction_hash: sp_core::H256,
-		) -> Self {
-			ApprovedDeposit { asset_id, amount, recipient, network_id, tx_hash: transaction_hash }
-		}
-	}
+	use thea_primitives::types::{Deposit, Withdraw};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (super) trait Store)]
@@ -84,13 +56,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn pending_withdrawals)]
-	pub(super) type PendingWithdrawals<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		Network,
-		BoundedVec<ApprovedWithdraw, ConstU32<10>>,
-		ValueQuery,
-	>;
+	pub(super) type PendingWithdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, Network, Vec<Withdraw>, ValueQuery>;
 
 	/// Withdrawal Fees for each network
 	#[pallet::storage]
@@ -98,43 +65,33 @@ pub mod pallet {
 	pub(super) type WithdrawalFees<T: Config> =
 		StorageMap<_, Blake2_128Concat, Network, u128, OptionQuery>;
 
-	/// Withdrawal batches ready for sigining
+	/// Withdrawal batches ready for signing
 	#[pallet::storage]
 	#[pallet::getter(fn ready_withdrawals)]
-	pub(super) type ReadyWithdrawls<T: Config> = StorageDoubleMap<
+	pub(super) type ReadyWithdrawals<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::BlockNumber,
 		Blake2_128Concat,
 		Network,
-		(Network, BoundedVec<ApprovedWithdraw, ConstU32<10>>),
+		Vec<Withdraw>,
 		ValueQuery,
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn accounts_with_pending_deposits)]
-	pub(super) type AccountWithPendingDeposits<T: Config> =
-		StorageValue<_, BTreeSet<T::AccountId>, ValueQuery>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn get_approved_deposits)]
-	pub(super) type ApprovedDeposits<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>>,
-		OptionQuery,
-	>;
+	pub(super) type ApprovedDeposits<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Deposit<T::AccountId>>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Deposit Approved event ( recipient, asset_id, amount, tx_hash(foreign chain))
-		DepositApproved(u8, T::AccountId, u128, u128, sp_core::H256),
+		/// Deposit Approved event ( recipient, asset_id, amount))
+		DepositApproved(u8, T::AccountId, u128, u128),
 		/// Deposit claimed event ( recipient, number of deposits claimed )
-		DepositClaimed(T::AccountId, u128, u128, sp_core::H256),
+		DepositClaimed(T::AccountId, u128, u128),
 		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount )
 		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128),
 		/// Withdrawal Ready (Network id )
@@ -181,11 +138,14 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(block_no: T::BlockNumber) -> Weight {
-			let pending_withdrawals = <ReadyWithdrawls<T>>::iter_prefix_values(
+			let pending_withdrawals = <ReadyWithdrawals<T>>::iter_prefix(
 				block_no.saturating_sub(T::BlockNumber::from(1u8)),
 			);
 			for (network_id, withdrawal) in pending_withdrawals {
-				T::Executor::execute_withdrawals(network_id, withdrawal.encode()).unwrap() // TODO: @ZK fix this.;
+				// This is fine as this trait is not supposed to fail
+				if T::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err() {
+					log::error!("Error while executing withdrawals...");
+				}
 			}
 			//TODO: Clean Storage
 			Weight::default()
@@ -204,9 +164,11 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
+			network: Network,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining)?;
+			// TODO: Check if beneficiary can decode to the correct type based on the given network.
+			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network)?;
 			Ok(())
 		}
 
@@ -222,33 +184,28 @@ pub mod pallet {
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 
-			if let Some(mut deposits) = <ApprovedDeposits<T>>::get(&user) {
-				let lenght: u32 = deposits.len().saturated_into();
-				let length: u32 = if lenght <= num_deposits { lenght } else { num_deposits };
+			let mut deposits = <ApprovedDeposits<T>>::get(&user);
+			let length: u32 = deposits.len().saturated_into();
+			let length: u32 = if length <= num_deposits { length } else { num_deposits };
 
-				for _ in 0..length {
-					if let Some(deposit) = deposits.pop() {
-						if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
-							// Force push is fine as it will have the capacity.
-							deposits.force_push(deposit);
-							// Save it back on failure
-							<ApprovedDeposits<T>>::insert(&user, deposits.clone());
-							return Err(err)
-						}
-					} else {
-						break
+			for _ in 0..length {
+				if let Some(deposit) = deposits.pop() {
+					if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
+						deposits.push(deposit);
+						// Save it back on failure
+						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
+						return Err(err)
 					}
-				}
-
-				if !deposits.is_empty() {
-					// If pending deposits are available, save it back
-					<ApprovedDeposits<T>>::insert(&user, deposits)
 				} else {
-					<ApprovedDeposits<T>>::remove(&user);
-					<AccountWithPendingDeposits<T>>::mutate(|accounts| accounts.remove(&user));
+					break
 				}
+			}
+
+			if !deposits.is_empty() {
+				// If pending deposits are available, save it back
+				<ApprovedDeposits<T>>::insert(&user, deposits)
 			} else {
-				return Err(Error::<T>::NoApprovedDeposit.into())
+				<ApprovedDeposits<T>>::remove(&user);
 			}
 
 			Ok(())
@@ -285,23 +242,26 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
+			network: Network,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
-			let network = if asset_id == T::NativeCurrencyId::get() {
-				1
-			} else {
-				let (network, ..) = asset_handler::pallet::Pallet::<T>::get_thea_assets(asset_id);
-				network
-			};
-			let payload = Self::withdrawal_router(network, asset_id, amount, beneficiary.clone())?;
-			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
-			// Ensure pending withdrawals have space for a new withdrawal
-			ensure!(!pending_withdrawals.is_full(), Error::<T>::WithdrawalNotAllowed);
 
-			#[allow(clippy::unnecessary_lazy_evaluations)]
-			// TODO: This will be refactored when work on withdrawal so not fixing clippy suggestion
-			let mut total_fees = <WithdrawalFees<T>>::get(network)
-				.ok_or_else(|| Error::<T>::WithdrawalFeeConfigNotFound)?;
+			let withdraw = Withdraw {
+				asset_id,
+				amount,
+				destination: beneficiary.clone(),
+				is_blocked: false,
+				extra: Vec::new(),
+			};
+			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
+
+			ensure!(
+				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
+				Error::<T>::WithdrawalNotAllowed
+			);
+
+			let mut total_fees =
+				<WithdrawalFees<T>>::get(network).ok_or(Error::<T>::WithdrawalFeeConfigNotFound)?;
 
 			if pay_for_remaining {
 				// User is ready to pay for remaining pending withdrawal for quick withdrawal
@@ -320,21 +280,11 @@ pub mod pallet {
 				ExistenceRequirement::KeepAlive,
 			)?;
 
-			// TODO[#610]: Update Thea Staking pallet about fees collected
 			// Handle assets
 			asset_handler::pallet::Pallet::<T>::handle_asset(asset_id, user.clone(), amount)?;
-			let withdrawal = ApprovedWithdraw {
-				asset_id,
-				amount: amount.saturated_into(),
-				network: network.saturated_into(),
-				beneficiary: beneficiary.clone(),
-				payload,
-				index: pending_withdrawals.len() as u32,
-			};
 
-			if pending_withdrawals.try_push(withdrawal).is_err() {
-				// This should not fail because of is_full check above
-			}
+			pending_withdrawals.push(withdraw);
+
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
 				network,
 				user,
@@ -342,157 +292,34 @@ pub mod pallet {
 				asset_id,
 				amount,
 			));
-			if pending_withdrawals.is_full() | pay_for_remaining {
+			if (pending_withdrawals.len() >= T::WithdrawalSize::get() as usize) || pay_for_remaining
+			{
 				// If it is full then we move it to ready queue and update withdrawal nonce
-				<ReadyWithdrawls<T>>::insert(
+				<ReadyWithdrawals<T>>::insert(
 					<frame_system::Pallet<T>>::block_number(), //Block No
 					network,
-					(network, pending_withdrawals.clone()),
+					pending_withdrawals.clone(),
 				);
 				Self::deposit_event(Event::<T>::WithdrawalReady(network));
-				pending_withdrawals = BoundedVec::default();
+				pending_withdrawals = Vec::default();
 			}
 			<PendingWithdrawals<T>>::insert(network, pending_withdrawals);
 			Ok(())
 		}
 
-		pub fn withdrawal_router(
-			network_id: u8,
-			asset_id: u128,
-			amount: u128,
-			recipient: Vec<u8>,
-		) -> Result<Vec<u8>, DispatchError> {
-			match network_id {
-				1 => Self::handle_parachain_withdraw(asset_id, amount, recipient),
-				_ => Err(Error::<T>::TokenTypeNotHandled.into()),
-			}
-		}
-
-		pub fn handle_parachain_withdraw(
-			asset_id: u128,
-			amount: u128,
-			beneficiary: Vec<u8>,
-		) -> Result<Vec<u8>, DispatchError> {
-			let asset_identifier = if asset_id != T::NativeCurrencyId::get() {
-				let (_, _, asset_identifier) =
-					asset_handler::pallet::TheaAssets::<T>::get(asset_id);
-				let asset_identifier: ParachainAsset =
-					Decode::decode(&mut &asset_identifier.to_vec()[..])
-						.map_err(|_| Error::<T>::FailedToDecode)?;
-				asset_identifier
-			} else {
-				let para_id = T::ParaId::get();
-				let asset_location = MultiLocation {
-					parents: 1,
-					interior: Junctions::X1(Junction::Parachain(para_id)),
-				};
-				ParachainAsset { location: asset_location, asset_type: AssetType::Fungible }
-			};
-			let asset_id = AssetId::Concrete(asset_identifier.location);
-			let asset_and_amount = MultiAsset { id: asset_id, fun: Fungible(amount) };
-			let recipient: MultiLocation = Self::get_recipient(beneficiary)?;
-			let parachain_withdraw =
-				ParachainWithdraw::get_parachain_withdraw(asset_and_amount, recipient);
-			Ok(parachain_withdraw.encode())
-		}
-
-		pub fn get_recipient(recipient: Vec<u8>) -> Result<MultiLocation, DispatchError> {
-			let recipient: MultiLocation =
-				Decode::decode(&mut &recipient[..]).map_err(|_| Error::<T>::FailedToDecode)?;
-			Ok(recipient)
-		}
-
-		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
-			let approved_deposit = Self::router(network, payload)?;
-			if <ApprovedDeposits<T>>::contains_key(&approved_deposit.recipient) {
-				<ApprovedDeposits<T>>::try_mutate(
-					approved_deposit.recipient.clone(),
-					|bounded_vec| {
-						if let Some(inner_bounded_vec) = bounded_vec {
-							inner_bounded_vec
-								.try_push(approved_deposit.clone())
-								.map_err(|_| Error::<T>::BoundedVectorOverflow)?;
-							Ok::<(), Error<T>>(())
-						} else {
-							Err(Error::<T>::BoundedVectorNotPresent)
-						}
-					},
-				)?;
-			} else {
-				let mut my_vec: BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>> =
-					Default::default();
-				if let Ok(()) = my_vec.try_push(approved_deposit.clone()) {
-					<ApprovedDeposits<T>>::insert::<
-						T::AccountId,
-						BoundedVec<ApprovedDeposit<T::AccountId>, ConstU32<100>>,
-					>(approved_deposit.recipient.clone(), my_vec);
-					<AccountWithPendingDeposits<T>>::mutate(|accounts| {
-						accounts.insert(approved_deposit.recipient.clone())
-					});
-				} else {
-					return Err(Error::<T>::BoundedVectorOverflow.into())
-				}
-			}
-			Ok(())
-		}
-
-		pub fn router(
-			network_id: Network,
-			payload: Vec<u8>,
-		) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
-			match network_id {
-				1 => Self::handle_parachain_deposit(payload),
-				_ => Err(Error::<T>::TokenTypeNotHandled.into()),
-			}
-		}
-
-		pub fn handle_parachain_deposit(
-			payload: Vec<u8>,
-		) -> Result<ApprovedDeposit<T::AccountId>, DispatchError> {
-			let parachain_deposit: ParachainDeposit =
+		pub fn do_deposit(payload: Vec<u8>) -> Result<(), DispatchError> {
+			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
-			if let (Some(recipient), Some((asset, amount))) = (
-				Self::convert_multi_location_to_recipient_address(&parachain_deposit.recipient),
-				parachain_deposit.convert_multi_asset_to_asset_id_and_amount(),
-			) {
-				let network_id: u8 = asset_handler::pallet::Pallet::<T>::get_parachain_network_id();
-				Self::validation(asset, amount)?;
-				Ok(ApprovedDeposit::new(
-					asset,
-					amount,
-					recipient,
-					network_id,
-					parachain_deposit.transaction_hash,
-				))
-			} else {
-				Err(Error::<T>::FailedToHandleParachainDeposit.into())
+			for deposit in deposits {
+				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
+					pending_deposits.push(deposit.clone())
+				})
 			}
-		}
-
-		pub fn convert_multi_location_to_recipient_address(
-			recipient_address: &MultiLocation,
-		) -> Option<T::AccountId> {
-			match recipient_address {
-				MultiLocation {
-					parents: _,
-					interior: X1(Junction::AccountId32 { network: _, id }),
-				} => T::AccountId::decode(&mut &id[..]).ok(),
-				_ => None,
-			}
-		}
-
-		pub fn validation(asset_id: u128, amount: u128) -> Result<(), DispatchError> {
-			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
-			// Ensure assets are registered
-			ensure!(
-				asset_handler::pallet::TheaAssets::<T>::contains_key(asset_id),
-				Error::<T>::AssetNotRegistered
-			);
 			Ok(())
 		}
 
 		pub fn execute_deposit(
-			deposit: ApprovedDeposit<T::AccountId>,
+			deposit: Deposit<T::AccountId>,
 			recipient: &T::AccountId,
 		) -> Result<(), DispatchError> {
 			asset_handler::pallet::Pallet::<T>::mint_thea_asset(
@@ -505,15 +332,14 @@ pub mod pallet {
 				recipient.clone(),
 				deposit.asset_id,
 				deposit.amount,
-				deposit.tx_hash,
 			));
 			Ok(())
 		}
 	}
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
-		fn execute_deposits(network: Network, deposits: Vec<u8>) {
-			if let Err(error) = Self::do_deposit(network, deposits) {
+		fn execute_deposits(_: Network, deposits: Vec<u8>) {
+			if let Err(error) = Self::do_deposit(deposits) {
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
 			}
 		}
