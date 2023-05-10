@@ -60,8 +60,8 @@ jobs:
           components: rustfmt, clippy
       - name: Checkout to the current branch
         uses: actions/checkout@v3
-      - name: Cache Rust Dependecies
-        uses: actions/cache@v2
+      - name: Cache Rust Dependencies
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
