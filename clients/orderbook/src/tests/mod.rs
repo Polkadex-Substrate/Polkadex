@@ -155,37 +155,37 @@ impl TestApi {
 }
 
 sp_api::mock_impl_runtime_apis! {
-impl ObApi<Block> for RuntimeApi {
-	/// Return the current active Orderbook validator set
-	fn validator_set() -> ValidatorSet<AuthorityId>
-	{
-		self.inner.validator_set()
-	}
+	impl ObApi<Block> for RuntimeApi {
+		/// Return the current active Orderbook validator set
+		fn validator_set() -> ValidatorSet<AuthorityId>
+		{
+			self.inner.validator_set()
+		}
 
-	fn get_latest_snapshot() -> SnapshotSummary<AccountId> {
-		self.inner.get_latest_snapshot()
-	}
+		fn get_latest_snapshot() -> SnapshotSummary<AccountId> {
+			self.inner.get_latest_snapshot()
+		}
 
-	/// Return the ingress messages at the given block
-	fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
+		/// Return the ingress messages at the given block
+		fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
 
-	/// Submits the snapshot to runtime
-	fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
+		/// Submits the snapshot to runtime
+		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
 			self.inner.submit_snapshot(summary)
 		}
 
-	/// Get Snapshot By Id
-	fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>> {
+		/// Get Snapshot By Id
+		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>> {
 			self.inner.snapshots.read().get(&id).cloned()
 		}
 
-	/// Returns all main account and corresponding proxies at this point in time
-	fn get_all_accounts_and_proxies() -> Vec<(AccountId, Vec<AccountId>)> {
+		/// Returns all main account and corresponding proxies at this point in time
+		fn get_all_accounts_and_proxies() -> Vec<(AccountId, Vec<AccountId>)> {
 			self.inner.get_all_accounts_and_proxies()
 		}
 
-	/// Returns snapshot generation intervals
-	fn get_snapshot_generation_intervals() -> (u64, BlockNumber) {
+		/// Returns snapshot generation intervals
+		fn get_snapshot_generation_intervals() -> (u64, BlockNumber) {
 			self.inner.get_snapshot_generation_intervals()
 		}
 
@@ -213,7 +213,7 @@ impl ObApi<Block> for RuntimeApi {
 		fn get_allowlisted_assets() -> Vec<AssetId> {
 			self.inner.get_allowlisted_assets()
 		}
-}
+	}
 }
 
 // compiler gets confused and warns us about unused inner

@@ -1,4 +1,4 @@
-use crate::{error::Error};
+use crate::error::Error;
 use log::warn;
 use sc_keystore::LocalKeystore;
 use sp_core::Pair;

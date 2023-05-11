@@ -1,6 +1,4 @@
-use crate::{
-	connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker,
-};
+use crate::{connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker};
 use futures::{
 	stream::{Fuse, FuturesUnordered},
 	StreamExt,
@@ -28,10 +26,7 @@ use sp_finality_grandpa::{
 };
 use sp_keyring::AccountKeyring;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-use sp_runtime::{
-	key_types::GRANDPA,
-	traits::{AppVerify, Block as BlockT},
-};
+use sp_runtime::key_types::GRANDPA;
 use std::{
 	collections::{BTreeMap, HashMap},
 	future::Future,
@@ -211,7 +206,7 @@ pub(crate) fn make_thea_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 
 #[derive(Default)]
 pub struct PeerData {
-	is_validator: bool,
+	_is_validator: bool,
 }
 
 #[derive(Default)]
