@@ -24,7 +24,6 @@ mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
-	
 
 	pub(crate) const NAME: &str = "/thea/1";
 

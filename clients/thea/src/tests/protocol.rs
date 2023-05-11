@@ -122,6 +122,11 @@ async fn dropped_one_validator_still_works() {
 		retry += 1;
 	}
 	assert!(retry < 12, "No incomming messages registered");
+	// signing done and submitted
+	assert!(
+		!foreign_connector.incoming_messages.read().is_empty(),
+		"No signature submitted to foreign chain"
+	);
 
 	// terminate
 	thea_handle.abort_handle().abort();
