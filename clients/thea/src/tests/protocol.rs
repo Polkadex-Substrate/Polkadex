@@ -202,9 +202,11 @@ async fn validator_set_change_mid_messaging_works_test() {
 
 	// rotate id
 
-	// send message with old id
+	// send foreign message with old id
 
-	// verify still works
+	// verify local parsing still works
+
+	// verify key and id updated on foreign chain
 
 	// terminate
 	thea_handle.abort_handle().abort();
