@@ -29,6 +29,7 @@ members = [
     "pallets/rewards/rpc",
     "pallets/rewards/rpc/runtime-api",
     "misc/load-testing",
+    "scripts/bls_gen"
 ]
 
 [workspace.dependencies]
