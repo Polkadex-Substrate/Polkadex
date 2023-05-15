@@ -1,0 +1,10 @@
+ {
+    "jsonrpc":"2.0",
+    "id":171,
+    "method":"author_insertKey",
+    "params": [
+        "babe",
+        "owner word vocal dose decline sunset battle example forget excite gentle waste//171//babe",
+        "0x04dc95ce35fb31d46114fc0b96ac5db28d2e24db55393660660b7218c50a2f25"
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "jsonrpc":"2.0",
+    "id":107,
+    "method":"author_insertKey",
+    "params": [
+        "gran",
+        "owner word vocal dose decline sunset battle example forget excite gentle waste//107//grandpa",
+        "0xa468168d72a46b4c2d312f5a6dba40c31b1949bfa1963a34167a69ea35a73f7f"
+    ]
+}
