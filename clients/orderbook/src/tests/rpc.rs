@@ -101,6 +101,7 @@ pub async fn test_orderbook_rpc() {
 		testnet.peers[peer_id].data.memory_db.clone(),
 		testnet.peers[peer_id].data.working_state_root.clone(),
 		runtime.clone(),
+		testnet.peers[peer_id].client().as_client().clone(),
 	);
 	let worker_params = crate::worker::WorkerParams {
 		client: testnet.peers[peer_id].client().as_client(),
@@ -143,10 +144,10 @@ pub async fn test_orderbook_rpc() {
 
 	worker.process_new_user_action(&message).await.unwrap();
 
-	let result: Vec<u8> = rpc_handle.get_orderbook_recovery_state_inner().await.unwrap();
+	let result: String = rpc_handle.get_orderbook_recovery_state_inner().await.unwrap();
 
 	let offchain_state: orderbook_primitives::recovery::ObRecoveryState =
-		serde_json::from_slice(&result).unwrap();
+		serde_json::from_str(&result).unwrap();
 	// Assert everything.
 
 	assert_eq!(offchain_state.worker_nonce, 0); // We didn't generate any snapshot yet.

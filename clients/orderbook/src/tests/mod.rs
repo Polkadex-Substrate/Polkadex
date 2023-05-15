@@ -29,6 +29,8 @@ use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 use std::{collections::HashMap, future::Future, sync::Arc};
+use sp_blockchain::{BlockStatus, HeaderBackend, Info};
+use sp_runtime::traits::{Header, NumberFor};
 
 #[derive(Clone, Default)]
 pub(crate) struct TestApi {

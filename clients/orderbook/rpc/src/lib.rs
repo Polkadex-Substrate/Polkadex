@@ -207,11 +207,12 @@ where
 }
 
 #[async_trait]
-impl<Runtime, Block> OrderbookApiServer for OrderbookRpc<Runtime, Block>
+impl<Runtime, Block, Client> OrderbookApiServer for OrderbookRpc<Runtime, Block, Client>
 where
 	Block: BlockT,
-	Runtime: Send + Sync + ProvideRuntimeApi<Block> + HeaderBackend<Block> + 'static,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block> + 'static,
 	Runtime::Api: ObApi<Block>,
+	Client: Send+ Sync+ HeaderBackend<Block> + 'static
 {
 	async fn submit_action(&self, message: ObMessage) -> RpcResult<()> {
 		let mut tx = self.tx.clone();
