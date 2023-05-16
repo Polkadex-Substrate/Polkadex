@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use log::info;
 use parity_scale_codec::{Decode, Encode};
 use subxt::{OnlineClient, PolkadotConfig};
-use thea_primitives::types::Message;
+use thea_primitives::{types::Message, AuthorityId};
 
 use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMessage};
 
@@ -84,5 +84,25 @@ impl ForeignConnector for ParachainClient {
 		let nonce =
 			self.api.storage().at_latest().await?.fetch_or_default(&storage_address).await?;
 		Ok(nonce)
+	}
+
+	async fn check_thea_authority_initialization(&self) -> Result<bool, Error> {
+		// Read the validator set
+		let runtime_api_call = parachain::apis().thea_parachain_api().get_current_authorities();
+
+		// Submit the call and get back a result.
+		let auths: Vec<AuthorityId> = self
+			.api
+			.runtime_api()
+			.at_latest()
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while calling runtime api: {:?}",err);
+				err
+			})?
+			.call(runtime_api_call)
+			.await;
+
+		Ok(!auths.is_empty())
 	}
 }

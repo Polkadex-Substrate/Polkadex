@@ -139,7 +139,7 @@ pub mod pallet {
 		/// No validators for this network
 		NoValidatorsFound(Network),
 		/// Cannot update with older nonce
-		NonceIsAlreadyProcessed
+		NonceIsAlreadyProcessed,
 	}
 
 	#[pallet::validate_unsigned]
@@ -223,9 +223,9 @@ pub mod pallet {
 			let last_nonce = <IncomingNonce<T>>::get(network);
 			// Nonce can only be changed forwards, already processed nonces should not be changed.
 			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into());
+				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
 			}
-			<IncomingNonce<T>>::insert(network,nonce);
+			<IncomingNonce<T>>::insert(network, nonce);
 			Ok(())
 		}
 	}
