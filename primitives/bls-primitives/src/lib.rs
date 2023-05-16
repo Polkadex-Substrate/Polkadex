@@ -293,10 +293,7 @@ impl sp_core::crypto::Pair for Pair {
 		path: Iter,
 		seed: Option<Self::Seed>,
 	) -> Result<(Self, Option<Self::Seed>), Self::DeriveError> {
-		if seed.is_none() {
-			return Err(Error::InvalidSeed)
-		}
-		let mut master_key = SecretKey::key_gen(&seed.unwrap(), &[])?;
+		let mut master_key = self.secret.clone();
 		for junction in path {
 			let index_bytes = [
 				junction.inner()[0],
