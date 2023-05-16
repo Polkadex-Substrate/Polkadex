@@ -38,10 +38,10 @@ use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
 
-pub mod deposit;
+//pub mod deposit;
 mod grandpa;
-mod protocol;
-pub mod withdrawal;
+//mod protocol;
+//pub mod withdrawal;
 
 pub(crate) use grandpa::*;
 
