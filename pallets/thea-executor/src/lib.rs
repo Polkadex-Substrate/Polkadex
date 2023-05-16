@@ -25,6 +25,7 @@ pub mod pallet {
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{Network, TheaIncomingExecutor, TheaOutgoingExecutor};
+	use xcm::VersionedMultiLocation;
 
 	use thea_primitives::types::{Deposit, Withdraw};
 
@@ -88,8 +89,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Deposit Approved event ( recipient, asset_id, amount))
-		DepositApproved(u8, T::AccountId, u128, u128),
+		/// Deposit Approved event ( Network, recipient, asset_id, amount))
+		DepositApproved(Network, T::AccountId, u128, u128),
 		/// Deposit claimed event ( recipient, number of deposits claimed )
 		DepositClaimed(T::AccountId, u128, u128),
 		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount )
@@ -133,6 +134,8 @@ pub mod pallet {
 		BoundedVectorNotPresent,
 		/// No Approved Deposit
 		NoApprovedDeposit,
+		/// Wrong network
+		WrongNetwork,
 	}
 
 	#[pallet::hooks]
@@ -154,7 +157,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
+		/// An example dispatch able that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::default())]
@@ -167,7 +170,7 @@ pub mod pallet {
 			network: Network,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			// TODO: Check if beneficiary can decode to the correct type based on the given network.
+			// Assumes the foreign chain can decode the given vector bytes as recipient
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network)?;
 			Ok(())
 		}
@@ -229,6 +232,29 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::WithdrawalFeeSet(network_id, fee));
 			Ok(())
 		}
+
+		/// Withdraws to parachain networks in Polkadot
+		#[pallet::call_index(3)]
+		#[pallet::weight(Weight::default())]
+		pub fn parachain_withdraw(
+			origin: OriginFor<T>,
+			asset_id: u128,
+			amount: u128,
+			beneficiary: VersionedMultiLocation,
+			pay_for_remaining: bool,
+		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let network = 1;
+			Self::do_withdraw(
+				user,
+				asset_id,
+				amount,
+				beneficiary.encode(),
+				pay_for_remaining,
+				network,
+			)?;
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -245,6 +271,7 @@ pub mod pallet {
 			network: Network,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
+			ensure!(network != 0, Error::<T>::WrongNetwork);
 
 			let withdraw = Withdraw {
 				asset_id,
@@ -307,13 +334,19 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn do_deposit(payload: Vec<u8>) -> Result<(), DispatchError> {
+		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
 				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
 					pending_deposits.push(deposit.clone())
-				})
+				});
+				Self::deposit_event(Event::<T>::DepositApproved(
+					network,
+					deposit.recipient,
+					deposit.asset_id,
+					deposit.amount,
+				))
 			}
 			Ok(())
 		}
@@ -338,8 +371,8 @@ pub mod pallet {
 	}
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
-		fn execute_deposits(_: Network, deposits: Vec<u8>) {
-			if let Err(error) = Self::do_deposit(deposits) {
+		fn execute_deposits(network: Network, deposits: Vec<u8>) {
+			if let Err(error) = Self::do_deposit(network, deposits) {
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
 			}
 		}
