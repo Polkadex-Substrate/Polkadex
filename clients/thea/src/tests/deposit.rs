@@ -2,7 +2,8 @@ use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
 	tests::{
-		create_workers_array, generate_and_finalize_blocks, make_thea_ids, TestApi, TheaTestnet,
+		create_workers_array, generate_and_finalize_blocks, make_gradpa_ids, make_thea_ids,
+		TestApi, TheaTestnet,
 	},
 	types::GossipMessage,
 };
@@ -10,10 +11,9 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use log::info;
 use parking_lot::RwLock;
-use sc_client_api::BlockchainEvents;
-use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use substrate_test_runtime_client::Ed25519Keyring;
 use thea_primitives::{AuthorityId, Message, ValidatorSet};
 
 pub struct DummyForeignConnector {
@@ -26,7 +26,7 @@ impl ForeignConnector for DummyForeignConnector {
 		Duration::from_secs(12)
 	}
 
-	async fn connect(url: String) -> Result<Self, Error>
+	async fn connect(_url: String) -> Result<Self, Error>
 	where
 		Self: Sized,
 	{
@@ -50,7 +50,7 @@ impl ForeignConnector for DummyForeignConnector {
 		}
 	}
 
-	async fn send_transaction(&self, message: GossipMessage) -> Result<(), Error> {
+	async fn send_transaction(&self, _message: GossipMessage) -> Result<(), Error> {
 		unimplemented!()
 	}
 
@@ -78,7 +78,6 @@ impl ForeignConnector for DummyForeignConnector {
 pub async fn test_foreign_deposit() {
 	sp_tracing::try_init_simple();
 
-	let mut testnet = TheaTestnet::new(3, 1);
 	let network = 1;
 	let peers = &[
 		(AccountKeyring::Alice, true),
@@ -98,13 +97,17 @@ pub async fn test_foreign_deposit() {
 	let active: Vec<AuthorityId> =
 		make_thea_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
 
+	let grandpa_peers = &[Ed25519Keyring::Alice, Ed25519Keyring::Bob, Ed25519Keyring::Charlie];
+	let genesys_authorities = make_gradpa_ids(grandpa_peers);
+
 	let runtime = Arc::new(TestApi {
+		genesys_authorities,
 		authorities: BTreeMap::from([(
 			network,
 			ValidatorSet { set_id: 0, validators: active.clone() },
 		)]),
 		validator_set_id: 0,
-		next_authorities: BTreeMap::new(),
+		_next_authorities: BTreeMap::new(),
 		network_pref: BTreeMap::from([
 			(active[0].clone(), network),
 			(active[1].clone(), network),
@@ -113,9 +116,10 @@ pub async fn test_foreign_deposit() {
 		outgoing_messages: BTreeMap::new(),
 		incoming_messages: Arc::new(RwLock::new(BTreeMap::new())),
 		incoming_nonce: Arc::new(RwLock::new(BTreeMap::new())),
-		outgoing_nonce: BTreeMap::new(),
+		_outgoing_nonce: BTreeMap::new(),
 	});
 
+	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
 	let foreign_connector = Arc::new(DummyForeignConnector { active });
 
 	let validators = peers
@@ -147,7 +151,7 @@ pub async fn test_foreign_deposit() {
 	// not if we artificially gossip these messages to each other.
 
 	// Get all the messages
-	let message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
+	let _message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
 	let message1 = workers[1].0.message_cache.read().get(&message).cloned().unwrap();
 	let message2 = workers[2].0.message_cache.read().get(&message).cloned().unwrap();
 

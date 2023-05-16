@@ -1,25 +1,19 @@
-use std::{sync::Arc, time::Duration};
-
+use crate::tests::{
+	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
+};
 use futures::SinkExt;
 use memory_db::MemoryDB;
-use parking_lot::RwLock;
-use primitive_types::H256;
-use sc_network::Multiaddr;
-use sc_network_common::service::{NetworkPeers, NetworkStateInfo};
-use sc_network_test::{FullPeerConfig, TestNetFactory};
-use sp_arithmetic::traits::SaturatedConversion;
-use sp_consensus::BlockOrigin;
-use sp_core::Pair;
-use sp_keyring::AccountKeyring;
-
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{ObMessage, UserActions},
 };
-
-use crate::tests::{
-	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
-};
+use parking_lot::RwLock;
+use primitive_types::H256;
+use sc_network_common::service::NetworkStateInfo;
+use sc_network_test::{FullPeerConfig, TestNetFactory};
+use sp_core::Pair;
+use sp_keyring::AccountKeyring;
+use std::sync::Arc;
 
 #[tokio::test]
 pub async fn test_orderbook_snapshot() {
@@ -84,7 +78,7 @@ pub async fn test_orderbook_snapshot() {
 
 	testnet.run_until_idle().await;
 
-	/// We should have generated one snapshot by this point
+	// We should have generated one snapshot by this point
 	assert_eq!(runtime.snapshots.read().len(), 1);
 	for peer in testnet.peers() {
 		let state_root = H256::from_slice(&*peer.data.working_state_root.read());
@@ -110,11 +104,8 @@ pub async fn test_orderbook_snapshot() {
 
 	let working_state_root = Arc::new(RwLock::new([0; 32]));
 
-	let last_successful_block_number_snapshot_created =
-		Arc::new(RwLock::new(0_u32.saturated_into()));
-
 	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
-	let (sender, receiver) = futures::channel::mpsc::unbounded();
+	let (_sender, receiver) = futures::channel::mpsc::unbounded();
 	// Now we add a new full node and see if it can catch up.
 	let ob_params = crate::ObParams {
 		client: testnet.peers[fifth_node_index].client().as_client(),
@@ -127,8 +118,6 @@ pub async fn test_orderbook_snapshot() {
 		is_validator: false,
 		message_sender_link: receiver,
 		marker: Default::default(),
-		last_successful_block_number_snapshot_created:
-			last_successful_block_number_snapshot_created.clone(),
 		memory_db: memory_db.clone(),
 		working_state_root: working_state_root.clone(),
 	};
