@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 bls-primitives = { path = "../../primitives/bls-primitives/", features = ["std"] }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+anyhow = "*"
+hex = "*"

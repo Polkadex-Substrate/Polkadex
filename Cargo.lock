@@ -839,7 +839,9 @@ dependencies = [
 name = "bls_gen"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bls-primitives",
+ "hex",
  "sp-core",
 ]
 

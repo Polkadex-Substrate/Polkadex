@@ -1,0 +1,11 @@
+{
+    "jsonrpc":"2.0",
+    "id":23,
+    "method":"author_insertKey",
+    "params": [
+        "orbk",
+        "owner word vocal dose decline sunset battle example forget excite gentle waste//23//orderbook",
+        "b6c2f2a7ea1cb965db6c1a706734fe28b547266a7bd5de1b1e1ac63f525eaf9a09f048100acfbabdda72d253118dd6d206da503c87dea3f348ebc01b1ff431a03f738708a7eff2857a21889757f0bba6fe5053e467eca471c2e564307ae40225
+a64537a139b1eb6cfbbba5617eecad6c7142f8f60cbd7e995dec1b1eaced2dc0e5934fb798c11c9cb70146da3b7e2d0a172d5cce2841a5a653fa12997ebdb7c5cf2146ceb9d009c44e438a7da633ad77efde1d322db4ae4dd56ff7e427566fcf"
+    ]
+}
