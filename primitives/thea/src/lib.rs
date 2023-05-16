@@ -115,7 +115,7 @@ pub type Network = u8;
 
 pub const NATIVE_NETWORK: Network = 0;
 
-pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60 ;
+pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60;
 
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Thea.

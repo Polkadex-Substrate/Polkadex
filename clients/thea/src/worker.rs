@@ -16,8 +16,11 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
+use thea_primitives::{
+	types::Message, AuthorityIndex, Network, TheaApi, MESSAGE_CACHE_DURATION_IN_SECS,
+	NATIVE_NETWORK,
+};
 use tokio::time::Instant;
-use thea_primitives::{types::Message, AuthorityIndex, Network, TheaApi, NATIVE_NETWORK, MESSAGE_CACHE_DURATION_IN_SECS};
 
 use crate::{
 	connector::traits::ForeignConnector,
@@ -370,7 +373,9 @@ where
 			} else {
 				let mut cache = self.message_cache.write();
 				if let Some((last, _)) = cache.get(&message).cloned() {
-					if Instant::now().duration_since(last) > Duration::from_secs(MESSAGE_CACHE_DURATION_IN_SECS) {
+					if Instant::now().duration_since(last) >
+						Duration::from_secs(MESSAGE_CACHE_DURATION_IN_SECS)
+					{
 						cache.remove(&message);
 						info!(target:"thea","Thea message expired: {:?}",message);
 					} else {
@@ -402,7 +407,7 @@ where
 		let gossip_message = self.sign_message(message.clone())?;
 		info!(target:"thea","Message with nonce: {:?} with network: {:?}, is signed",message.nonce, message.network);
 		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
-		self.message_cache.write().insert(message, (Instant::now(),gossip_message));
+		self.message_cache.write().insert(message, (Instant::now(), gossip_message));
 		Ok(())
 	}
 
@@ -465,7 +470,9 @@ where
 						} else {
 							let mut cache = self.message_cache.write();
 							if let Some((last, _)) = cache.get(&message).cloned() {
-								if Instant::now().duration_since(last) > Duration::from_secs(MESSAGE_CACHE_DURATION_IN_SECS) {
+								if Instant::now().duration_since(last) >
+									Duration::from_secs(MESSAGE_CACHE_DURATION_IN_SECS)
+								{
 									cache.remove(&message);
 									info!(target:"thea","Thea message expired: {:?}",message);
 								} else {
