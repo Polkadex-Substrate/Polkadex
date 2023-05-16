@@ -16,9 +16,6 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
-use thea_primitives::{
-	types::Message, AuthorityIndex, Network, TheaApi, MESSAGE_CACHE_DURATION, NATIVE_NETWORK,
-};
 use tokio::time::Instant;
 use thea_primitives::{types::Message, AuthorityIndex, Network, TheaApi, NATIVE_NETWORK, MESSAGE_CACHE_DURATION_IN_SECS};
 
