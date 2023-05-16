@@ -87,21 +87,43 @@ impl ForeignConnector for ParachainClient {
 	}
 
 	async fn check_thea_authority_initialization(&self) -> Result<bool, Error> {
-		// Read the validator set
-		let runtime_api_call = parachain::apis().thea_parachain_api().get_current_authorities();
-
-		// Submit the call and get back a result.
-		let auths: Vec<AuthorityId> = self
+		// Get current validator set id
+		let storage_address = parachain::storage().thea_message_handler().validator_set_id();
+		// TODO: Get last finalized block hash
+		let set_id = self
 			.api
-			.runtime_api()
+			.storage()
 			.at_latest()
 			.await
 			.map_err(|err| {
-				log::error!(target:"parachain","Error while calling runtime api: {:?}",err);
+				log::error!(target:"parachain","Error while fetching current set id: {:?}",err);
 				err
 			})?
-			.call(runtime_api_call)
-			.await;
+			.fetch_or_default(&storage_address)
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while fetching current set id: {:?}",err);
+				err
+			})?;
+
+		// Get validator set
+		let storage_address = parachain::storage().thea_message_handler().authorities(set_id);
+		// TODO: Get last finalized block hash
+		let auths: Vec<AuthorityId> = self
+			.api
+			.storage()
+			.at_latest()
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while fetching auth set: {:?}",err);
+				err
+			})?
+			.fetch_or_default(&storage_address)
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while fetching auth set {:?}",err);
+				err
+			})?;
 
 		Ok(!auths.is_empty())
 	}
