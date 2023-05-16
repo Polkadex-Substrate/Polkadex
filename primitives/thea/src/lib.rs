@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-pub mod parachain;
+
 #[cfg(test)]
 mod test;
 pub mod types;
