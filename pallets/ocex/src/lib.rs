@@ -1231,8 +1231,7 @@ pub mod pallet {
 				if let Some(pending_withdrawals) = withdrawal_map.get_mut(&recipient_account) {
 					pending_withdrawals.push(withdrawal)
 				} else {
-					let mut pending_withdrawals = Vec::new();
-					pending_withdrawals.push(withdrawal);
+					let pending_withdrawals = sp_std::vec![withdrawal];
 					withdrawal_map.insert(recipient_account, pending_withdrawals);
 				}
 			}

@@ -85,4 +85,46 @@ impl ForeignConnector for ParachainClient {
 			self.api.storage().at_latest().await?.fetch_or_default(&storage_address).await?;
 		Ok(nonce)
 	}
+
+	async fn check_thea_authority_initialization(&self) -> Result<bool, Error> {
+		// Get current validator set id
+		let storage_address = parachain::storage().thea_message_handler().validator_set_id();
+		// TODO: Get last finalized block hash
+		let set_id = self
+			.api
+			.storage()
+			.at_latest()
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while fetching current set id: {:?}",err);
+				err
+			})?
+			.fetch_or_default(&storage_address)
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while fetching current set id: {:?}",err);
+				err
+			})?;
+
+		// Get validator set
+		let storage_address = parachain::storage().thea_message_handler().authorities(set_id);
+		// TODO: Get last finalized block hash
+		let auths = self
+			.api
+			.storage()
+			.at_latest()
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while fetching auth set: {:?}",err);
+				err
+			})?
+			.fetch_or_default(&storage_address)
+			.await
+			.map_err(|err| {
+				log::error!(target:"parachain","Error while fetching auth set {:?}",err);
+				err
+			})?;
+
+		Ok(!auths.0.is_empty())
+	}
 }

@@ -379,15 +379,8 @@ pub fn new_full_base(
 		.push(orderbook::orderbook_peers_set_config(orderbook_protocol_name.clone()));
 
 	// Thea
-	let thea_protocol_name = thea_client::protocol_standard_name(
-		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
-		config.chain_spec.as_ref(),
-	);
+	config.network.extra_sets.push(thea_client::thea_peers_set_config());
 
-	config
-		.network
-		.extra_sets
-		.push(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
 		sc_finality_grandpa_warp_sync::request_response_config_for_chain(
@@ -614,7 +607,6 @@ pub fn new_full_base(
 		keystore: keystore_container.local_keystore(),
 		network: network.clone(),
 		prometheus_registry,
-		protocol_name: thea_protocol_name,
 		marker: Default::default(),
 		is_validator: role.is_authority(),
 		chain_type,

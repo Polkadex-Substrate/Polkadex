@@ -18,7 +18,9 @@ pub trait ForeignConnector: Send + Sync {
 	/// Checks if the given message is valid or not based on our local node
 	async fn check_message(&self, message: &Message) -> Result<bool, Error>;
 	/// Returns the last processed nonce from native chain
-	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error>; // TODO: This is not send
+	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error>;
+	/// Check if the foreign chain is initialized with thea validators
+	async fn check_thea_authority_initialization(&self) -> Result<bool, Error>;
 }
 
 // ForeignConnector that does nothing, mainly used for starting node in development mode
@@ -51,5 +53,9 @@ impl ForeignConnector for NoOpConnector {
 
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
 		Ok(0)
+	}
+
+	async fn check_thea_authority_initialization(&self) -> Result<bool, Error> {
+		Ok(false)
 	}
 }

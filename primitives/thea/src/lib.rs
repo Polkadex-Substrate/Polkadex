@@ -1,5 +1,6 @@
+#![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
-pub mod parachain;
+
 #[cfg(test)]
 mod test;
 pub mod types;
@@ -114,8 +115,10 @@ pub type Network = u8;
 
 pub const NATIVE_NETWORK: Network = 0;
 
+pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60;
+
 sp_api::decl_runtime_apis! {
-	/// APIs necessary for Orderbook.
+	/// APIs necessary for Thea.
 	pub trait TheaApi
 	{
 		/// Return the current active Thea validator set for all networks
