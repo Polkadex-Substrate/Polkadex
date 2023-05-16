@@ -90,20 +90,22 @@ pub trait OrderbookApi {
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
-pub struct OrderbookRpc<Runtime, Block> {
+pub struct OrderbookRpc<Runtime, Block, Client> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
 	memory_db: DbRef,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	runtime: Arc<Runtime>,
+	client: Arc<Client>,
 	_marker: std::marker::PhantomData<Block>,
 }
 
-impl<Runtime, Block> OrderbookRpc<Runtime, Block>
+impl<Runtime, Block, Client> OrderbookRpc<Runtime, Block, Client>
 where
 	Block: BlockT,
-	Runtime: Send + Sync + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block>,
 	Runtime::Api: ObApi<Block>,
+	Client: Send + Sync + HeaderBackend<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
@@ -112,8 +114,17 @@ where
 		memory_db: DbRef,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		runtime: Arc<Runtime>,
+		client: Arc<Client>,
 	) -> Self {
-		Self { tx, _executor, memory_db, working_state_root, runtime, _marker: Default::default() }
+		Self {
+			tx,
+			_executor,
+			memory_db,
+			working_state_root,
+			runtime,
+			client,
+			_marker: Default::default(),
+		}
 	}
 
 	/// Returns the serialized offchain state based on the last finalized snapshot summary
@@ -122,7 +133,7 @@ where
 		let last_snapshot_summary = self
 			.runtime
 			.runtime_api()
-			.get_latest_snapshot(&BlockId::number(self.runtime.info().finalized_number))
+			.get_latest_snapshot(&BlockId::number(self.client.info().finalized_number))
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
 			})?;
@@ -204,11 +215,12 @@ where
 }
 
 #[async_trait]
-impl<Runtime, Block> OrderbookApiServer for OrderbookRpc<Runtime, Block>
+impl<Runtime, Block, Client> OrderbookApiServer for OrderbookRpc<Runtime, Block, Client>
 where
 	Block: BlockT,
-	Runtime: Send + Sync + ProvideRuntimeApi<Block> + HeaderBackend<Block> + 'static,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block> + 'static,
 	Runtime::Api: ObApi<Block>,
+	Client: Send + Sync + HeaderBackend<Block> + 'static,
 {
 	async fn submit_action(&self, message: ObMessage) -> RpcResult<()> {
 		let mut tx = self.tx.clone();

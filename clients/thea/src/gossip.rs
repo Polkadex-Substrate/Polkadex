@@ -18,7 +18,7 @@ pub fn topic<B: Block>() -> B::Hash
 where
 	B: Block,
 {
-	<<B::Header as Header>::Hashing as Hash>::hash(b"thea")
+	<<B::Header as Header>::Hashing as Hash>::hash(b"/thea/1")
 }
 
 /// Thea gossip validator
@@ -29,11 +29,7 @@ where
 /// rejected/expired.
 ///
 ///All messaging is handled in a single Orderbook global topic.
-pub struct GossipValidator<B>
-where
-	B: Block,
-{
-	_topic: B::Hash,
+pub struct GossipValidator {
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
@@ -43,17 +39,14 @@ where
 	                                      * foreign */
 }
 
-impl<B> GossipValidator<B>
-where
-	B: Block,
-{
+impl GossipValidator {
 	pub fn new(
 		cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 		foreign_last_nonce: Arc<RwLock<u64>>,
 		native_last_nonce: Arc<RwLock<u64>>,
-	) -> GossipValidator<B> {
+	) -> GossipValidator {
+		log::debug!(target: "thea", "Creating gossip validator");
 		GossipValidator {
-			_topic: topic::<B>(),
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
 			cache,
@@ -80,7 +73,7 @@ where
 	}
 }
 
-impl<B> Validator<B> for GossipValidator<B>
+impl<B> Validator<B> for GossipValidator
 where
 	B: Block,
 {

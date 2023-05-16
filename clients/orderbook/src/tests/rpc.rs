@@ -1,7 +1,5 @@
-use crate::tests::{
-	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
-};
-use futures::{future::BoxFuture, SinkExt, StreamExt};
+use crate::tests::{generate_and_finalize_blocks, make_ob_ids, ObTestnet, TestApi};
+use futures::{future::BoxFuture, StreamExt};
 use memory_db::MemoryDB;
 use orderbook_primitives::{
 	crypto::AuthorityId,
@@ -13,7 +11,6 @@ use polkadex_primitives::{ingress::IngressMessages, AssetId};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use sc_client_api::BlockchainEvents;
 use sc_keystore::LocalKeystore;
-use sc_network_test::TestNetFactory;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
@@ -80,7 +77,7 @@ pub async fn test_orderbook_rpc() {
 	// in memory keystore doesn't seem to work here
 	let keystore =
 		Some(Arc::new(LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap()));
-	let (pair, seed) =
+	let (pair, _seed) =
 		orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
 	// Insert the key
 	keystore
@@ -101,13 +98,10 @@ pub async fn test_orderbook_rpc() {
 	let rpc_handle = OrderbookRpc::new(
 		Arc::new(DummyTaskExecutor),
 		sender,
-		testnet.peers[peer_id]
-			.data
-			.last_successful_block_number_snapshot_created
-			.clone(),
 		testnet.peers[peer_id].data.memory_db.clone(),
 		testnet.peers[peer_id].data.working_state_root.clone(),
 		runtime.clone(),
+		testnet.peers[peer_id].client().as_client().clone(),
 	);
 	let worker_params = crate::worker::WorkerParams {
 		client: testnet.peers[peer_id].client().as_client(),
@@ -120,10 +114,6 @@ pub async fn test_orderbook_rpc() {
 		message_sender_link: receiver,
 		metrics: None,
 		_marker: Default::default(),
-		last_successful_block_number_snapshot_created: testnet.peers[peer_id]
-			.data
-			.last_successful_block_number_snapshot_created
-			.clone(),
 		memory_db: testnet.peers[peer_id].data.memory_db.clone(),
 		working_state_root: testnet.peers[peer_id].data.working_state_root.clone(),
 		keystore,
@@ -154,10 +144,10 @@ pub async fn test_orderbook_rpc() {
 
 	worker.process_new_user_action(&message).await.unwrap();
 
-	let result: Vec<u8> = rpc_handle.get_orderbook_recovery_state_inner().await.unwrap();
+	let result: String = rpc_handle.get_orderbook_recovery_state_inner().await.unwrap();
 
 	let offchain_state: orderbook_primitives::recovery::ObRecoveryState =
-		serde_json::from_slice(&result).unwrap();
+		serde_json::from_str(&result).unwrap();
 	// Assert everything.
 
 	assert_eq!(offchain_state.worker_nonce, 0); // We didn't generate any snapshot yet.
@@ -184,18 +174,18 @@ pub struct DummyTaskExecutor;
 impl sp_core::traits::SpawnNamed for DummyTaskExecutor {
 	fn spawn_blocking(
 		&self,
-		name: &'static str,
-		group: Option<&'static str>,
-		future: BoxFuture<'static, ()>,
+		_name: &'static str,
+		_group: Option<&'static str>,
+		_future: BoxFuture<'static, ()>,
 	) {
 		todo!()
 	}
 
 	fn spawn(
 		&self,
-		name: &'static str,
-		group: Option<&'static str>,
-		future: BoxFuture<'static, ()>,
+		_name: &'static str,
+		_group: Option<&'static str>,
+		_future: BoxFuture<'static, ()>,
 	) {
 		todo!()
 	}
