@@ -109,6 +109,8 @@ where
 	pub marker: PhantomData<B>,
 	/// Defines the chain type our current deployment ( Dev or production )
 	pub chain_type: ChainType,
+	/// Foreign Chain URL
+	pub foreign_chain_url: String,
 }
 
 /// Start the Thea gadget.
@@ -133,6 +135,7 @@ where
 		is_validator,
 		marker: _,
 		chain_type,
+		foreign_chain_url,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -151,7 +154,8 @@ where
 			},
 		);
 
-	let foreign_connector = get_connector(chain_type, is_validator).await.connector;
+	let foreign_connector =
+		get_connector(chain_type, is_validator, foreign_chain_url).await.connector;
 
 	let worker_params = worker::WorkerParams {
 		client,
@@ -175,7 +179,7 @@ pub struct Connector {
 	connector: Arc<dyn ForeignConnector>,
 }
 
-pub async fn get_connector(chain_type: ChainType, is_validator: bool) -> Connector {
+pub async fn get_connector(chain_type: ChainType, is_validator: bool, url: String) -> Connector {
 	log::info!(target:"thea","Assigning connector based on chain type: {:?}",chain_type);
 	if !is_validator {
 		return Connector { connector: Arc::new(NoOpConnector) }
@@ -184,7 +188,7 @@ pub async fn get_connector(chain_type: ChainType, is_validator: bool) -> Connect
 		ChainType::Development => Connector { connector: Arc::new(NoOpConnector) },
 		_ => Connector {
 			connector: Arc::new(
-				ParachainClient::connect("ws://127.0.0.1:9902".to_string())
+				ParachainClient::connect(url)
 					.await
 					.expect("Expected to connect to local foreign node"),
 			),

@@ -27,6 +27,9 @@ pub struct Cli {
 	#[allow(missing_docs)]
 	#[clap(flatten)]
 	pub run: RunCmd,
+	/// Thea expects foreign chain to run in this url
+	#[arg(short, long, default_value_t = String::from("ws://127.0.0.1:9902"))]
+	pub foreign_chain_url: String,
 }
 
 #[derive(Debug, clap::Subcommand)]
