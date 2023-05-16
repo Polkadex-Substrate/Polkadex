@@ -55,3 +55,6 @@ mockall = "0.11.1"
 testing_logger = "0.1.1"
 mockall_double = "0.3.0"
 serial_test = "2.0.0"
+sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+tempfile = "3.5.0"
