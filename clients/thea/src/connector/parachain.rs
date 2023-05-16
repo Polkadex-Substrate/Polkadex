@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use log::info;
 use parity_scale_codec::{Decode, Encode};
 use subxt::{OnlineClient, PolkadotConfig};
-use thea_primitives::{types::Message, AuthorityId};
+use thea_primitives::types::Message;
 
 use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMessage};
 
@@ -109,7 +109,7 @@ impl ForeignConnector for ParachainClient {
 		// Get validator set
 		let storage_address = parachain::storage().thea_message_handler().authorities(set_id);
 		// TODO: Get last finalized block hash
-		let auths: Vec<AuthorityId> = self
+		let auths = self
 			.api
 			.storage()
 			.at_latest()
@@ -125,6 +125,6 @@ impl ForeignConnector for ParachainClient {
 				err
 			})?;
 
-		Ok(!auths.is_empty())
+		Ok(!auths.0.is_empty())
 	}
 }
