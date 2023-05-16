@@ -37,6 +37,7 @@ use substrate_test_runtime_client::Ed25519Keyring;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
+use tokio::time::Instant;
 
 //pub mod deposit;
 mod grandpa;
@@ -213,7 +214,7 @@ pub struct PeerData {
 pub struct TheaTestnet {
 	api: Arc<TestApi>,
 	peers: Vec<GrandpaPeer>,
-	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, GossipMessage>>>>,
+	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>>,
 }
 
 impl TheaTestnet {
