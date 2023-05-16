@@ -240,7 +240,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: u128,
 			amount: u128,
-			beneficiary: VersionedMultiLocation,
+			beneficiary: sp_std::boxed::Box<VersionedMultiLocation>,
 			pay_for_remaining: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
