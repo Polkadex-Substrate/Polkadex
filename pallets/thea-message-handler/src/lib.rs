@@ -121,7 +121,7 @@ pub mod pallet {
 		/// Validator set is empty
 		ValidatorSetEmpty,
 		/// Cannot update with older nonce
-		NonceIsAlreadyProcessed
+		NonceIsAlreadyProcessed,
 	}
 
 	#[pallet::validate_unsigned]
@@ -202,20 +202,16 @@ pub mod pallet {
 			Ok(())
 		}
 
-
 		/// A governance endpoint to update last processed nonce
 		#[pallet::call_index(2)]
 		#[pallet::weight(Weight::default())]
 		#[transactional]
-		pub fn update_incoming_nonce(
-			origin: OriginFor<T>,
-			nonce: u64,
-		) -> DispatchResult {
+		pub fn update_incoming_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
 			let last_nonce = <IncomingNonce<T>>::get();
 			// Nonce can only be changed forwards, already processed nonces should not be changed.
 			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into());
+				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
 			}
 			<IncomingNonce<T>>::put(nonce);
 			Ok(())
@@ -259,6 +255,12 @@ impl<T: Config> Pallet<T> {
 			.longevity(3)
 			.propagate(true)
 			.build()
+	}
+
+	/// Returns the current authority set
+	pub fn get_current_authorities() -> Vec<T::TheaId> {
+		let current_set_id = Self::validator_set_id();
+		<Authorities<T>>::get(current_set_id).to_vec()
 	}
 }
 

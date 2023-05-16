@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
 
 use futures::StreamExt;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
@@ -16,8 +16,10 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
+use thea_primitives::{
+	types::Message, AuthorityIndex, Network, TheaApi, MESSAGE_CACHE_DURATION, NATIVE_NETWORK,
+};
 use tokio::time::Instant;
-use thea_primitives::{types::Message, AuthorityIndex, Network, TheaApi, NATIVE_NETWORK, MESSAGE_CACHE_DURATION};
 
 use crate::{
 	connector::traits::ForeignConnector,
@@ -61,7 +63,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Si
 	gossip_engine: GossipEngine<B>,
 	_gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
-	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, (Instant,GossipMessage)>>>,
+	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
@@ -178,6 +180,11 @@ where
 		if !self.is_validator {
 			return Ok(())
 		}
+		// Proceed only if thea auths are initialized
+		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			warn!(target: "thea", "Thea authorities not initialized yet!");
+			return Ok(())
+		}
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
 		let local_index = self.get_local_auth_index()?;
@@ -234,14 +241,15 @@ where
 						} else {
 							// Cache it.
 							info!(target:"thea", "No majority, caching the message");
-							self.message_cache
-								.write()
-								.insert(incoming_message.payload.clone(), (Instant::now(),incoming_message.clone()));
+							self.message_cache.write().insert(
+								incoming_message.payload.clone(),
+								(Instant::now(), incoming_message.clone()),
+							);
 						}
 					},
 				}
 			},
-			Some((_,message)) => {
+			Some((_, message)) => {
 				info!(target:"thea", "Message with nonce: {:?} is already known to us",incoming_message.payload.nonce);
 				// 1. incoming message has more signatories
 				let signed_auth_indexes = return_set_bits(&incoming_message.bitmap);
@@ -285,9 +293,10 @@ where
 					} else {
 						// Cache it.
 						info!(target:"thea", "No majority, caching the message");
-						self.message_cache
-							.write()
-							.insert(incoming_message.payload.clone(), (Instant::now(),incoming_message.clone()));
+						self.message_cache.write().insert(
+							incoming_message.payload.clone(),
+							(Instant::now(), incoming_message.clone()),
+						);
 						// TODO: Send it back to network.
 					}
 				} else {
@@ -304,6 +313,11 @@ where
 		&mut self,
 		notification: &FinalityNotification<B>,
 	) -> Result<(), Error> {
+		// Proceed only if thea auths are initialized
+		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			warn!(target: "thea", "Thea authorities not initialized yet!");
+			return Ok(())
+		}
 		info!(target: "thea", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		let at = BlockId::hash(header.hash());
@@ -357,11 +371,11 @@ where
 				self.sign_and_submit_message(message)?
 			} else {
 				let mut cache = self.message_cache.write();
-				if let Some((last, _))  = cache.get(&message).cloned()  {
+				if let Some((last, _)) = cache.get(&message).cloned() {
 					if Instant::now().duration_since(last) > MESSAGE_CACHE_DURATION {
 						cache.remove(&message);
 						info!(target:"thea","Thea message expired: {:?}",message);
-					}else{
+					} else {
 						info!(target:"thea","We already processed this message, so ignoring...")
 					}
 				}
@@ -412,6 +426,13 @@ where
 		if !self.is_validator {
 			return Ok(())
 		}
+
+		// Proceed only if thea auths are initialized
+		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			warn!(target: "thea", "Thea authorities not initialized yet!");
+			return Ok(())
+		}
+
 		match self.thea_network.as_ref() {
 			None => {
 				log::error!(target:"thea", "Thea network not set on this validator!");
@@ -445,11 +466,11 @@ where
 							self.sign_and_submit_message(message)?
 						} else {
 							let mut cache = self.message_cache.write();
-							if let Some((last, _))  = cache.get(&message).cloned()  {
+							if let Some((last, _)) = cache.get(&message).cloned() {
 								if Instant::now().duration_since(last) > MESSAGE_CACHE_DURATION {
 									cache.remove(&message);
 									info!(target:"thea","Thea message expired: {:?}",message);
-								}else{
+								} else {
 									info!(target:"thea","We already processed this message, so ignoring...")
 								}
 							}
@@ -471,7 +492,12 @@ where
 
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
-			info!(target: "thea", "Thea is not started waiting for blockhchain to sync completely");
+			info!(target: "thea", "Thea is not started waiting for blockchain to sync completely");
+			tokio::time::sleep(Duration::from_secs(12)).await;
+		}
+		// Wait for Thea authorities to initialize before starting thea
+		while !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			info!(target: "thea", "Thea on hold, waiting for authority initialization on foreign chain");
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
 
