@@ -340,6 +340,8 @@ benchmarks! {
 		let mut vec_withdrawals = Vec::with_capacity(1);
 		let fees = Decimal::new(100, 5);
 		vec_withdrawals.push(Withdrawal {
+			stid: 0,
+			worker_nonce:0,
 			amount: Decimal::new(x.into(), 0),
 			asset,
 			main_account: main.clone(),

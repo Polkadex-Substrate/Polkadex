@@ -2,12 +2,8 @@ use crate::error::Error;
 use log::warn;
 use sc_keystore::LocalKeystore;
 use sp_core::Pair;
-use sp_keystore::SyncCryptoStore;
 use std::sync::Arc;
-use thea_primitives::{
-	crypto::{AuthorityId, AuthoritySignature},
-	KEY_TYPE,
-};
+use thea_primitives::crypto::{AuthorityId, AuthoritySignature};
 
 pub struct TheaKeyStore {
 	keystore: Option<Arc<LocalKeystore>>,
@@ -51,13 +47,5 @@ impl TheaKeyStore {
 				},
 			},
 		}
-	}
-
-	pub fn public_keys(&self) -> Vec<sp_core::sr25519::Public> {
-		let store = self.keystore.clone().unwrap();
-		SyncCryptoStore::sr25519_public_keys(&*store, KEY_TYPE)
-			.iter()
-			.map(|k| *k)
-			.collect()
 	}
 }
