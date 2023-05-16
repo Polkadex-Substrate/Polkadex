@@ -75,8 +75,15 @@ pub mod pallet {
 	/// The current authorities set
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]
-	pub(super) type Authorities<T: Config> =
-		StorageMap<_, Identity, Network, BoundedVec<T::TheaId, T::MaxAuthorities>, ValueQuery>;
+	pub(super) type Authorities<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		Network,
+		Identity,
+		thea_primitives::ValidatorSetId,
+		BoundedVec<T::TheaId, T::MaxAuthorities>,
+		ValueQuery,
+	>;
 
 	/// The current validator set id
 	#[pallet::storage]
@@ -194,7 +201,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Send some arbitary data to the given network
+		/// Send some arbitrary data to the given network
 		#[pallet::call_index(2)]
 		#[pallet::weight(Weight::default())]
 		#[transactional]
@@ -212,7 +219,8 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	pub fn active_validators(network: Network) -> Vec<T::TheaId> {
-		<Authorities<T>>::get(network).to_vec()
+		let id = Self::validator_set_id();
+		<Authorities<T>>::get(network, id).to_vec()
 	}
 
 	pub fn authority_network_pref(authority: &T::TheaId) -> Option<Network> {
@@ -232,14 +240,20 @@ impl<T: Config> Pallet<T> {
 
 		// Find who all signed this payload
 		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
-		// TODO: Check if we have 2/3rd authorities signed on this.
-		// TODO: Make, <Authorities<T>> indexed by network as key1 and validator setid as key2
+
 		// Create a vector of public keys of everyone who signed
-		let auths: Vec<T::TheaId> = <Authorities<T>>::get(payload.network).to_vec();
+		let auths: Vec<T::TheaId> =
+			<Authorities<T>>::get(payload.network, payload.validator_set_id).to_vec();
+		// CHeck if 2/3rd authorities signed on this.
+		if (signed_auths_indexes.len() as u64) < payload.threshold() {
+			// Reject there is not super majority.
+			return Err(InvalidTransaction::Custom(2).into())
+		}
+
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
 		for index in signed_auths_indexes {
 			match auths.get(index) {
-				None => return Err(InvalidTransaction::Custom(2).into()),
+				None => return Err(InvalidTransaction::Custom(3).into()),
 				Some(auth) => signatories.push(auth.clone().into()),
 			}
 		}
@@ -268,8 +282,8 @@ impl<T: Config> Pallet<T> {
 
 	/// Return the current active validator set.
 	pub fn validator_set(network: Network) -> Option<ValidatorSet<T::TheaId>> {
-		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities(network);
 		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();
+		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities(network, id);
 		ValidatorSet::<T::TheaId>::new(validators, id)
 	}
 
@@ -304,11 +318,13 @@ impl<T: Config> Pallet<T> {
 			map
 		};
 
+		let id = Self::validator_set_id();
+		let new_id = id + 1u64;
+
 		for (network, list) in &group_by(&new) {
-			<Authorities<T>>::insert(network, list);
+			<Authorities<T>>::insert(network, new_id, list);
 		}
 
-		let new_id = Self::validator_set_id() + 1u64;
 		<ValidatorSetId<T>>::put(new_id);
 
 		for (network, list) in &group_by(&queued) {
@@ -322,8 +338,8 @@ impl<T: Config> Pallet<T> {
 				data: list.encode(),
 				network: NATIVE_NETWORK,
 				is_key_change: true,
-				validator_set_id: Self::validator_set_id(),
-				validator_set_len: Self::authorities(network).len().saturated_into(),
+				validator_set_id: id,
+				validator_set_len: Self::authorities(network, id).len().saturated_into(),
 			};
 			// Update nonce
 			<OutgoingNonce<T>>::insert(network, payload.nonce);
@@ -335,7 +351,7 @@ impl<T: Config> Pallet<T> {
 		let id = GENESIS_AUTHORITY_SET_ID;
 		<ValidatorSetId<T>>::put(id);
 
-		<Authorities<T>>::insert(1, BoundedVec::truncate_from(authorities.to_vec()));
+		<Authorities<T>>::insert(1, id, BoundedVec::truncate_from(authorities.to_vec()));
 		for auth in authorities {
 			// Everyone is assigned to one on genesis.
 			<NetworkPreference<T>>::insert(auth.clone(), 1);
@@ -368,7 +384,8 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
-		let auth_len = Self::authorities(network).len();
+		let id = Self::validator_set_id();
+		let auth_len = Self::authorities(network, id).len();
 		if auth_len == 0 {
 			return Err(Error::<T>::NoValidatorsFound(network).into())
 		}

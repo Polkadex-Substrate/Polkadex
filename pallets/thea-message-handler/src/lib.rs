@@ -216,13 +216,19 @@ impl<T: Config> Pallet<T> {
 
 		// Find who all signed this payload
 		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
-		// TODO: Super majority check here.
 		// Create a vector of public keys of everyone who signed
 		let auths = <Authorities<T>>::get(payload.validator_set_id);
+
+		// Check if 2/3rd authorities signed on this.
+		if (signed_auths_indexes.len() as u64) < payload.threshold() {
+			// Reject there is not super majority.
+			return Err(InvalidTransaction::Custom(2).into())
+		}
+
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
 		for index in signed_auths_indexes {
 			match auths.get(index) {
-				None => return Err(InvalidTransaction::Custom(2).into()),
+				None => return Err(InvalidTransaction::Custom(3).into()),
 				Some(auth) => signatories.push((*auth).clone().into()),
 			}
 		}
