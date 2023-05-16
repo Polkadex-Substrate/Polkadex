@@ -25,12 +25,12 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
 
+use sp_blockchain::{BlockStatus, HeaderBackend, Info};
 use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
-use std::{collections::HashMap, future::Future, sync::Arc};
-use sp_blockchain::{BlockStatus, HeaderBackend, Info};
 use sp_runtime::traits::{Header, NumberFor};
+use std::{collections::HashMap, future::Future, sync::Arc};
 
 #[derive(Clone, Default)]
 pub(crate) struct TestApi {
@@ -366,7 +366,7 @@ where
 					.unwrap();
 			// Insert the key
 			keystore
-				.as_ref()
+				.as_mut()
 				.unwrap()
 				.insert_unknown(
 					orderbook_primitives::KEY_TYPE,
