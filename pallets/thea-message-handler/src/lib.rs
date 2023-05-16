@@ -120,6 +120,8 @@ pub mod pallet {
 		InvalidValidatorSetId,
 		/// Validator set is empty
 		ValidatorSetEmpty,
+		/// Cannot update with older nonce
+		NonceIsAlreadyProcessed
 	}
 
 	#[pallet::validate_unsigned]
@@ -197,6 +199,25 @@ pub mod pallet {
 			}
 
 			<IncomingNonce<T>>::put(payload.nonce);
+			Ok(())
+		}
+
+
+		/// A governance endpoint to update last processed nonce
+		#[pallet::call_index(2)]
+		#[pallet::weight(Weight::default())]
+		#[transactional]
+		pub fn update_incoming_nonce(
+			origin: OriginFor<T>,
+			nonce: u64,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			let last_nonce = <IncomingNonce<T>>::get();
+			// Nonce can only be changed forwards, already processed nonces should not be changed.
+			if last_nonce >= nonce {
+				return Err(Error::<T>::NonceIsAlreadyProcessed.into());
+			}
+			<IncomingNonce<T>>::put(nonce);
 			Ok(())
 		}
 	}

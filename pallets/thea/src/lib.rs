@@ -138,6 +138,8 @@ pub mod pallet {
 		MessageNonce,
 		/// No validators for this network
 		NoValidatorsFound(Network),
+		/// Cannot update with older nonce
+		NonceIsAlreadyProcessed
 	}
 
 	#[pallet::validate_unsigned]
@@ -205,6 +207,25 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			Self::execute_withdrawals(network, data)?;
+			Ok(())
+		}
+
+		/// A governance endpoint to update last processed nonce
+		#[pallet::call_index(3)]
+		#[pallet::weight(Weight::default())]
+		#[transactional]
+		pub fn update_incoming_nonce(
+			origin: OriginFor<T>,
+			nonce: u64,
+			network: Network,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			let last_nonce = <IncomingNonce<T>>::get(network);
+			// Nonce can only be changed forwards, already processed nonces should not be changed.
+			if last_nonce >= nonce {
+				return Err(Error::<T>::NonceIsAlreadyProcessed.into());
+			}
+			<IncomingNonce<T>>::insert(network,nonce);
 			Ok(())
 		}
 	}
