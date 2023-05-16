@@ -364,7 +364,7 @@ pub fn hash_to_curve_g1(message: &[u8]) -> Result<G1Projective, HashToCurveError
 
 #[cfg(test)]
 mod tests {
-	use crate::{hash_to_curve_g1, Public, Signature, DST};
+	use crate::{Public, Signature, DST};
 	use sp_application_crypto::RuntimePublic;
 	use sp_core::Pair;
 
