@@ -283,7 +283,7 @@ impl<T: Config> Pallet<T> {
 	/// Return the current active validator set.
 	pub fn validator_set(network: Network) -> Option<ValidatorSet<T::TheaId>> {
 		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();
-		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities(network,id);
+		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities(network, id);
 		ValidatorSet::<T::TheaId>::new(validators, id)
 	}
 
@@ -318,7 +318,7 @@ impl<T: Config> Pallet<T> {
 			map
 		};
 
-		let id =  Self::validator_set_id();
+		let id = Self::validator_set_id();
 		let new_id = id + 1u64;
 
 		for (network, list) in &group_by(&new) {
@@ -339,7 +339,7 @@ impl<T: Config> Pallet<T> {
 				network: NATIVE_NETWORK,
 				is_key_change: true,
 				validator_set_id: id,
-				validator_set_len: Self::authorities(network,id).len().saturated_into(),
+				validator_set_len: Self::authorities(network, id).len().saturated_into(),
 			};
 			// Update nonce
 			<OutgoingNonce<T>>::insert(network, payload.nonce);
@@ -385,7 +385,7 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
 		let id = Self::validator_set_id();
-		let auth_len = Self::authorities(network,id).len();
+		let auth_len = Self::authorities(network, id).len();
 		if auth_len == 0 {
 			return Err(Error::<T>::NoValidatorsFound(network).into())
 		}
