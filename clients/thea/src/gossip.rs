@@ -10,6 +10,7 @@ use std::{
 	collections::{BTreeMap, BTreeSet},
 	sync::Arc,
 };
+use tokio::time::Instant;
 use thea_primitives::{Message, NATIVE_NETWORK};
 
 /// Gossip engine messages topic
@@ -35,7 +36,7 @@ where
 	_topic: B::Hash,
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
-	cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	cache: Arc<RwLock<BTreeMap<Message, (Instant,GossipMessage)>>>,
 	foreign_last_nonce: Arc<RwLock<u64>>, /* Nonce of foreign message that was last processed in
 	                                       * native */
 	native_last_nonce: Arc<RwLock<u64>>, /* Nonce of native message that was last processed in
@@ -47,7 +48,7 @@ where
 	B: Block,
 {
 	pub fn new(
-		cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+		cache: Arc<RwLock<BTreeMap<Message, (Instant,GossipMessage)>>>,
 		foreign_last_nonce: Arc<RwLock<u64>>,
 		native_last_nonce: Arc<RwLock<u64>>,
 	) -> GossipValidator<B> {
