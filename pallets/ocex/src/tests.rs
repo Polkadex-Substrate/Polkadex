@@ -1544,6 +1544,8 @@ fn get_dummy_snapshot(
 			amount: Decimal::one(),
 			asset: AssetId::Polkadex,
 			fees: Default::default(),
+			stid: 0,
+			worker_nonce: 0,
 		})
 	}
 
