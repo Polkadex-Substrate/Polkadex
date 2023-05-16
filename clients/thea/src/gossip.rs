@@ -28,11 +28,7 @@ where
 /// rejected/expired.
 ///
 ///All messaging is handled in a single Orderbook global topic.
-pub struct GossipValidator<B>
-where
-	B: Block,
-{
-	topic: B::Hash,
+pub struct GossipValidator {
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
@@ -42,18 +38,14 @@ where
 	                                      * foreign */
 }
 
-impl<B> GossipValidator<B>
-where
-	B: Block,
-{
+impl GossipValidator {
 	pub fn new(
 		cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
 		foreign_last_nonce: Arc<RwLock<u64>>,
 		native_last_nonce: Arc<RwLock<u64>>,
-	) -> GossipValidator<B> {
+	) -> GossipValidator {
 		log::debug!(target: "thea", "Creating gossip validator");
 		GossipValidator {
-			topic: topic::<B>(),
 			peers: Arc::new(RwLock::new(BTreeSet::new())),
 			fullnodes: Arc::new(RwLock::new(BTreeSet::new())),
 			cache,
@@ -80,7 +72,7 @@ where
 	}
 }
 
-impl<B> Validator<B> for GossipValidator<B>
+impl<B> Validator<B> for GossipValidator
 where
 	B: Block,
 {
@@ -107,10 +99,10 @@ where
 		&self,
 		_context: &mut dyn ValidatorContext<B>,
 		_sender: &PeerId,
-		data: &[u8],
+		mut data: &[u8],
 	) -> ValidationResult<B::Hash> {
 		// Decode
-		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data.as_ref()) {
+		if let Ok(thea_gossip_msg) = GossipMessage::decode(&mut data) {
 			// Check if we processed this message
 			if self.validate_message(&thea_gossip_msg) {
 				trace!(target:"thea-gossip", "Validation successfully for message: {thea_gossip_msg:?}");

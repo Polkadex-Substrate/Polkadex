@@ -90,7 +90,7 @@ pub trait OrderbookApi {
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
-pub struct OrderbookRpc<Runtime, Block,Client> {
+pub struct OrderbookRpc<Runtime, Block, Client> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
 	memory_db: DbRef,
@@ -100,12 +100,12 @@ pub struct OrderbookRpc<Runtime, Block,Client> {
 	_marker: std::marker::PhantomData<Block>,
 }
 
-impl<Runtime, Block, Client> OrderbookRpc<Runtime, Block,Client>
+impl<Runtime, Block, Client> OrderbookRpc<Runtime, Block, Client>
 where
 	Block: BlockT,
 	Runtime: Send + Sync + ProvideRuntimeApi<Block>,
 	Runtime::Api: ObApi<Block>,
-	Client: Send + Sync + HeaderBackend<Block>
+	Client: Send + Sync + HeaderBackend<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
@@ -114,9 +114,17 @@ where
 		memory_db: DbRef,
 		working_state_root: Arc<RwLock<[u8; 32]>>,
 		runtime: Arc<Runtime>,
-		client: Arc<Client>
+		client: Arc<Client>,
 	) -> Self {
-		Self { tx, _executor, memory_db, working_state_root, runtime, client, _marker: Default::default() }
+		Self {
+			tx,
+			_executor,
+			memory_db,
+			working_state_root,
+			runtime,
+			client,
+			_marker: Default::default(),
+		}
 	}
 
 	/// Returns the serialized offchain state based on the last finalized snapshot summary
@@ -212,7 +220,7 @@ where
 	Block: BlockT,
 	Runtime: Send + Sync + ProvideRuntimeApi<Block> + 'static,
 	Runtime::Api: ObApi<Block>,
-	Client: Send+ Sync+ HeaderBackend<Block> + 'static
+	Client: Send + Sync + HeaderBackend<Block> + 'static,
 {
 	async fn submit_action(&self, message: ObMessage) -> RpcResult<()> {
 		let mut tx = self.tx.clone();

@@ -59,7 +59,7 @@ pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?
 	_network: Arc<N>,
 	keystore: TheaKeyStore,
 	gossip_engine: GossipEngine<B>,
-	_gossip_validator: Arc<GossipValidator<B>>,
+	_gossip_validator: Arc<GossipValidator>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
@@ -452,7 +452,7 @@ where
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "thea", "Thea worker started");
-		//self.wait_for_runtime_pallet().await;
+		self.wait_for_runtime_pallet().await;
 
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
