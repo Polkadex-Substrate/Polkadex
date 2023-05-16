@@ -8,8 +8,6 @@ pub mod types;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
-#[cfg(feature = "std")]
-use std::time::Duration;
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
 pub use crate::{
@@ -117,8 +115,7 @@ pub type Network = u8;
 
 pub const NATIVE_NETWORK: Network = 0;
 
-#[cfg(feature = "std")]
-pub const MESSAGE_CACHE_DURATION: Duration = 60 * Duration::SECOND;
+pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60 ;
 
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Thea.
