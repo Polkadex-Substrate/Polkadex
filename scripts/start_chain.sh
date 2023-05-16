@@ -16,7 +16,7 @@ start_validator_1() {
   install -d ../ind_validators/validator2
   cd ../ind_validators/validator2
   ../../target/$TARGET/polkadex-node --validator --port 30334 --base-path ./validator01 \
-    -lthea=trace --ws-port=9945 --rpc-port=9946 --chain=../../scripts/customSpecRaw.json \
+    -lthea=trace --ws-port=19945 --rpc-port=9945 --chain=../../scripts/customSpecRaw.json \
     --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t \
     --bootnodes /ip4/127.0.0.1/tcp/30335/p2p/12D3KooWCMKvu1tJKQBjDZ4hN1saTP6D58e4WkwLZwks5cPpxqY7 \
     --node-key=d353c4b01db05aa66ddeab9d85c2fa2252368dd4961606e5985ed1e8f40dbc50 >out_validator_1 2>&1 &
@@ -29,12 +29,26 @@ start_validator_2() {
   install -d ../ind_validators/validator3
   cd ../ind_validators/validator3
   ../../target/$TARGET/polkadex-node --validator --port 30335 --base-path ./validator02 -lthea=trace  \
-    --ws-port=9947 --rpc-port=9948 --chain=../../scripts/customSpecRaw.json \
+    --ws-port=19947 --rpc-port=9946 --chain=../../scripts/customSpecRaw.json \
     --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t \
     --bootnodes /ip4/127.0.0.1/tcp/30334/p2p/12D3KooWEVBdwVmV1BeAdtqzhjANK31ibYmLQXxEoeai4fx7KhNh \
     --node-key=24f121a84149f784f9fe3f1e2fb04e8873191a510bc4b073a3a815d78a29cf2d >out_validator_2 2>&1 &
   VALIDATOR_2_PID=$(echo $!)
   cd ../../scripts
+}
+
+start_others() {
+  for id in {4..200}
+  do
+    echo "Starting validator $id..."
+    install -d ../ind_validators/validator$id
+    cd ../ind_validators/validator$id
+    ../../target/$TARGET/polkadex-node --validator --port $((30335 + $id)) --base-path ./validator0$id -lthea=trace  \
+      --ws-port=$((19947 + $id)) --rpc-port=$((9943 + $id)) --chain=../../scripts/customSpecRaw.json \
+      --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t \
+      --bootnodes /ip4/127.0.0.1/tcp/30334/p2p/12D3KooWEVBdwVmV1BeAdtqzhjANK31ibYmLQXxEoeai4fx7KhNh >out_validator_$id 2>&1 &
+    cd ../../scripts
+  done
 }
 
 start_full_node() {
@@ -62,6 +76,7 @@ start_chain() {
 
   start_validator_1
   start_validator_2
+  start_others
   sleep $SLEEP
 
   echo "Setting keys..."
@@ -75,11 +90,7 @@ start_chain() {
 
   start_validator_1
   start_validator_2
-
-  sleep $SLEEP
-  start_full_node
-
-  echo "Finish Starting FullNode"
+  start_others
 
   tail -f ../ind_validators/full_node/out_full_node
 }
