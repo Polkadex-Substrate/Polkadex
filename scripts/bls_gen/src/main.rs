@@ -21,7 +21,7 @@ fn main() -> Result<(), Error> {
 				.map_err(|_| Error::msg("Failed to derive given path from given seed"))?
 				.0;
 		let public = hex::encode(derived.public().0);
-		println!("{public}");
+		println!("0x{public}");
 	}
 	Ok(())
 }
