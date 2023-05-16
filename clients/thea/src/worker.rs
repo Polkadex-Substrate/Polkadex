@@ -62,7 +62,7 @@ pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?
 	_network: Arc<N>,
 	keystore: TheaKeyStore,
 	gossip_engine: GossipEngine<B>,
-	_gossip_validator: Arc<GossipValidator<B>>,
+	_gossip_validator: Arc<GossipValidator>,
 	// Payload to gossip message mapping
 	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
