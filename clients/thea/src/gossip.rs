@@ -11,6 +11,7 @@ use std::{
 	sync::Arc,
 };
 use thea_primitives::{Message, NATIVE_NETWORK};
+use tokio::time::Instant;
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -31,7 +32,7 @@ where
 pub struct GossipValidator {
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
-	cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 	foreign_last_nonce: Arc<RwLock<u64>>, /* Nonce of foreign message that was last processed in
 	                                       * native */
 	native_last_nonce: Arc<RwLock<u64>>, /* Nonce of native message that was last processed in
@@ -40,7 +41,7 @@ pub struct GossipValidator {
 
 impl GossipValidator {
 	pub fn new(
-		cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+		cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 		foreign_last_nonce: Arc<RwLock<u64>>,
 		native_last_nonce: Arc<RwLock<u64>>,
 	) -> GossipValidator {
