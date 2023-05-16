@@ -29,6 +29,7 @@ use crate::{
 	keystore::TheaKeyStore,
 	metric_add, metric_inc,
 	metrics::Metrics,
+	thea_protocol_name,
 	types::GossipMessage,
 	Client,
 };
@@ -42,17 +43,17 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector +
 	pub is_validator: bool,
 	/// Gossip network
 	pub network: N,
-	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
-	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
 	pub foreign_chain: Arc<FC>,
 	pub(crate) keystore: Option<Arc<LocalKeystore>>,
 }
 
-/// A Orderbook worker plays the Orderbook protocol
-pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
+/// A thea worker plays the thea protocol
+pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
 	// utilities
 	pub(crate) client: Arc<C>,
+	pub(crate) thea_network: Option<Network>,
+	// Payload to gossip message mapping
 	_backend: Arc<BE>,
 	runtime: Arc<R>,
 	sync_oracle: SO,
@@ -60,7 +61,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Si
 	is_validator: bool,
 	_network: Arc<N>,
 	keystore: TheaKeyStore,
-	thea_network: Option<Network>,
 	gossip_engine: GossipEngine<B>,
 	_gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
@@ -71,7 +71,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Si
 	last_finalized_blk: BlockId<B>,
 }
 
-impl<B, BE, C, SO, N, R, FC> ObWorker<B, BE, C, SO, N, R, FC>
+impl<B, BE, C, SO, N, R, FC> TheaWorker<B, BE, C, SO, N, R, FC>
 where
 	B: Block + Codec,
 	BE: Backend<B>,
@@ -99,7 +99,6 @@ where
 			metrics,
 			is_validator,
 			network,
-			protocol_name,
 			_marker,
 		} = worker_params;
 
@@ -111,10 +110,14 @@ where
 			foreign_nonce.clone(),
 			native_nonce.clone(),
 		));
-		let gossip_engine =
-			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
+		let gossip_engine = GossipEngine::new(
+			network.clone(),
+			thea_protocol_name::standard_name(),
+			gossip_validator.clone(),
+			None,
+		);
 
-		ObWorker {
+		TheaWorker {
 			client,
 			_backend: backend,
 			runtime,
@@ -411,7 +414,7 @@ where
 		Ok(())
 	}
 
-	/// Wait for Orderbook runtime pallet to be available.
+	/// Wait for thea runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		while let Some(notif) = finality_stream.next().await {
@@ -419,7 +422,7 @@ where
 			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
 				break
 			} else {
-				debug!(target: "orderbook", "📒 Waiting for thea pallet to become available...");
+				debug!(target: "thea", "📒 Waiting for thea pallet to become available...");
 			}
 		}
 	}
@@ -487,9 +490,9 @@ where
 		Ok(())
 	}
 
-	/// Main loop for Orderbook worker.
+	/// Main loop for thea worker.
 	///
-	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
+	/// Wait for thea runtime pallet to be available, then start the main async loop
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "thea", "Thea worker started");
@@ -520,9 +523,11 @@ where
 				.fuse(),
 		);
 		// finality events stream
+		debug!(target:"thea"," Starting finality streams...");
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 
 		// Interval timer to read foreign chain events
+		debug!(target:"thea"," Starting interval streams...");
 		let interval = tokio::time::interval(self.foreign_chain.block_duration());
 		// create a stream from the interval
 		let mut interval_stream = tokio_stream::wrappers::IntervalStream::new(interval).fuse();
@@ -531,16 +536,16 @@ where
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
 				_ = gossip_engine => {
-					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					error!(target: "thea", "📒 Gossip engine has terminated.");
 					return;
 				}
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
 						if let Err(err) = self.handle_finality_notification(&finality).await {
-							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
+							error!(target: "thea", "📒 Error during finalized block import{:?}", err);
 						}
 					}else {
-						error!(target:"orderbook","None finality recvd");
+						error!(target:"thea","None finality recvd");
 						return
 					}
 				},
@@ -553,7 +558,7 @@ where
 					);
 						// Gossip messages have already been verified to be valid by the gossip validator.
 						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
-							error!(target: "orderbook", "📒 {:?}", err);
+							error!(target: "thea", "📒 {:?}", err);
 						}
 					} else {
 						return;
@@ -561,10 +566,11 @@ where
 				},
 				_ = interval_stream.next() => {
 					if let Err(err) = self.try_process_foreign_chain_events().await {
-							error!(target: "orderbook", "📒 Error fetching foreign chain events {:?}", err);
+							error!(target: "thea", "📒 Error fetching foreign chain events {:?}", err);
 						}
 				},
 			}
+			debug!(target: "thea", "Inner loop cycled");
 		}
 	}
 }
