@@ -2,7 +2,7 @@ use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
 	tests::{
-		create_workers_array, generate_and_finalize_blocks, initialize_thea, make_thea_ids,
+		create_workers_array, generate_and_finalize_blocks, make_gradpa_ids, make_thea_ids,
 		TestApi, TheaTestnet,
 	},
 	types::GossipMessage,
@@ -13,20 +13,19 @@ use log::info;
 use parity_scale_codec::Encode;
 use parking_lot::RwLock;
 use polkadex_primitives::utils::return_set_bits;
-use sc_network_test::TestNetFactory;
 use sp_keyring::AccountKeyring;
 use std::{
 	collections::{BTreeMap, HashMap},
 	sync::Arc,
 	time::Duration,
 };
-use subxt::ext::frame_metadata::StorageEntryModifier::Default;
+use substrate_test_runtime_client::Ed25519Keyring;
 use thea_primitives::{AuthorityId, Message, ValidatorSet, ValidatorSetId};
 
-pub struct DummyForeignConnector {
-	authorities: HashMap<ValidatorSetId, Vec<AuthorityId>>,
-	incoming_nonce: Arc<RwLock<u64>>,
-	incoming_messages: Arc<RwLock<HashMap<u64, Message>>>,
+pub(crate) struct DummyForeignConnector {
+	pub(crate) authorities: HashMap<ValidatorSetId, Vec<AuthorityId>>,
+	pub(crate) incoming_nonce: Arc<RwLock<u64>>,
+	pub(crate) incoming_messages: Arc<RwLock<HashMap<u64, Message>>>,
 }
 
 #[async_trait]
@@ -35,7 +34,7 @@ impl ForeignConnector for DummyForeignConnector {
 		Duration::from_secs(12)
 	}
 
-	async fn connect(url: String) -> Result<Self, Error>
+	async fn connect(_url: String) -> Result<Self, Error>
 	where
 		Self: Sized,
 	{
@@ -46,8 +45,18 @@ impl ForeignConnector for DummyForeignConnector {
 		})
 	}
 
-	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error> {
-		Ok(None)
+	async fn read_events(&self, _last_processed_nonce: u64) -> Result<Option<Message>, Error> {
+		let message = Message {
+			block_no: 10,
+			nonce: 1,
+			data: vec![1, 2, 3],
+			network: 1,
+			is_key_change: false,
+			validator_set_id: 0,
+			validator_set_len: 3,
+		};
+
+		Ok(Some(message))
 	}
 
 	async fn send_transaction(&self, payload: GossipMessage) -> Result<(), Error> {
@@ -73,7 +82,7 @@ impl ForeignConnector for DummyForeignConnector {
 		Ok(())
 	}
 
-	async fn check_message(&self, message: &Message) -> Result<bool, Error> {
+	async fn check_message(&self, _message: &Message) -> Result<bool, Error> {
 		unimplemented!()
 	}
 
@@ -87,7 +96,6 @@ impl ForeignConnector for DummyForeignConnector {
 pub async fn test_withdrawal() {
 	sp_tracing::try_init_simple();
 
-	let mut testnet = TheaTestnet::new(3, 1);
 	let network = 1;
 	let peers = &[
 		(AccountKeyring::Alice, true),
@@ -97,6 +105,9 @@ pub async fn test_withdrawal() {
 
 	let active: Vec<AuthorityId> =
 		make_thea_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
+
+	let grandpa_peers = &[Ed25519Keyring::Alice, Ed25519Keyring::Bob, Ed25519Keyring::Charlie];
+	let genesys_authorities = make_gradpa_ids(grandpa_peers);
 
 	let message = Message {
 		block_no: 10,
@@ -109,12 +120,13 @@ pub async fn test_withdrawal() {
 	};
 
 	let runtime = Arc::new(TestApi {
+		genesys_authorities,
 		authorities: BTreeMap::from([(
 			network,
 			ValidatorSet { set_id: 0, validators: active.clone() },
 		)]),
 		validator_set_id: 0,
-		next_authorities: BTreeMap::new(),
+		_next_authorities: BTreeMap::new(),
 		network_pref: BTreeMap::from([
 			(active[0].clone(), network),
 			(active[1].clone(), network),
@@ -123,8 +135,10 @@ pub async fn test_withdrawal() {
 		outgoing_messages: BTreeMap::from([((network, 1), message.clone())]),
 		incoming_messages: Arc::new(RwLock::new(BTreeMap::new())),
 		incoming_nonce: Arc::new(RwLock::new(BTreeMap::new())),
-		outgoing_nonce: BTreeMap::from([(network, 1)]),
+		_outgoing_nonce: BTreeMap::from([(network, 1)]),
 	});
+
+	let mut testnet = TheaTestnet::new(3, 1, runtime.clone());
 
 	let foreign_connector = Arc::new(DummyForeignConnector {
 		authorities: HashMap::from([(0, active)]),
@@ -162,7 +176,7 @@ pub async fn test_withdrawal() {
 	// not if we artificially gossip these messages to each other.
 
 	// Get all the messages
-	let message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
+	let _message0 = workers[0].0.message_cache.read().get(&message).cloned().unwrap();
 	let message1 = workers[1].0.message_cache.read().get(&message).cloned().unwrap();
 	let message2 = workers[2].0.message_cache.read().get(&message).cloned().unwrap();
 
