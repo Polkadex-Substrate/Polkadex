@@ -1,9 +1,12 @@
+#![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 pub mod parachain;
 #[cfg(test)]
 mod test;
 pub mod types;
 
+#[cfg(feature = "std")]
+use std::time::Duration;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
@@ -113,6 +116,9 @@ pub type AuthorityIndex = u32;
 pub type Network = u8;
 
 pub const NATIVE_NETWORK: Network = 0;
+
+#[cfg(feature = "std")]
+pub const MESSAGE_CACHE_DURATION: Duration = 60*Duration::SECOND;
 
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Orderbook.

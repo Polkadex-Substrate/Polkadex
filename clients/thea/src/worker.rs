@@ -16,7 +16,8 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
-use thea_primitives::{types::Message, AuthorityIndex, Network, TheaApi, NATIVE_NETWORK};
+use tokio::time::Instant;
+use thea_primitives::{types::Message, AuthorityIndex, Network, TheaApi, NATIVE_NETWORK, MESSAGE_CACHE_DURATION};
 
 use crate::{
 	connector::traits::ForeignConnector,
@@ -60,7 +61,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Si
 	gossip_engine: GossipEngine<B>,
 	_gossip_validator: Arc<GossipValidator<B>>,
 	// Payload to gossip message mapping
-	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, (Instant,GossipMessage)>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
@@ -235,12 +236,12 @@ where
 							info!(target:"thea", "No majority, caching the message");
 							self.message_cache
 								.write()
-								.insert(incoming_message.payload.clone(), incoming_message.clone());
+								.insert(incoming_message.payload.clone(), (Instant::now(),incoming_message.clone()));
 						}
 					},
 				}
 			},
-			Some(message) => {
+			Some((_,message)) => {
 				info!(target:"thea", "Message with nonce: {:?} is already known to us",incoming_message.payload.nonce);
 				// 1. incoming message has more signatories
 				let signed_auth_indexes = return_set_bits(&incoming_message.bitmap);
@@ -286,7 +287,7 @@ where
 						info!(target:"thea", "No majority, caching the message");
 						self.message_cache
 							.write()
-							.insert(incoming_message.payload.clone(), incoming_message.clone());
+							.insert(incoming_message.payload.clone(), (Instant::now(),incoming_message.clone()));
 						// TODO: Send it back to network.
 					}
 				} else {
@@ -355,7 +356,15 @@ where
 				info!(target:"thea", "Found new native message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
 				self.sign_and_submit_message(message)?
 			} else {
-				info!(target:"thea","We already processed this message, so ignoring...")
+				let mut cache = self.message_cache.write();
+				if let Some((last, _))  = cache.get(&message).cloned()  {
+					if Instant::now().duration_since(last) > MESSAGE_CACHE_DURATION {
+						cache.remove(&message);
+						info!(target:"thea","Thea message expired: {:?}",message);
+					}else{
+						info!(target:"thea","We already processed this message, so ignoring...")
+					}
+				}
 			}
 		}
 
@@ -435,7 +444,15 @@ where
 							info!(target:"thea", "Found new message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
 							self.sign_and_submit_message(message)?
 						} else {
-							info!(target:"thea","We already processed this message, so ignoring...")
+							let mut cache = self.message_cache.write();
+							if let Some((last, _))  = cache.get(&message).cloned()  {
+								if Instant::now().duration_since(last) > MESSAGE_CACHE_DURATION {
+									cache.remove(&message);
+									info!(target:"thea","Thea message expired: {:?}",message);
+								}else{
+									info!(target:"thea","We already processed this message, so ignoring...")
+								}
+							}
 						}
 					},
 				}
