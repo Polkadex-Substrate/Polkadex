@@ -22,9 +22,6 @@ sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
-thea-primitives = {path = "../../primitives/thea", default-features = false}
-
-xcm = { workspace = true, default-features = false }
 
 chainbridge = { path = "../chainbridge", default-features = false }
 
@@ -45,10 +42,8 @@ std = [
 	"sp-std/std",
 	"sp-runtime/std",
 	"chainbridge/std",
-	"xcm/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
-	"thea-primitives/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
