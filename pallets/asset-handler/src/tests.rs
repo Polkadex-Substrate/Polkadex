@@ -628,15 +628,12 @@ pub fn test_convert_amount_for_foreign_chain() {
 }
 
 #[test]
-pub fn test_mint_thea_asset_with_not_registered_asset_will_return_asset_not_registered_error() {
+pub fn test_mint_thea_asset_with_not_registered_asset_will_return_ok() {
 	let recipient = create_recipient_account();
 	let asset_id = create_thea_asset_id(0, 5);
 
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			AssetHandler::mint_thea_asset(asset_id, recipient, 1_000_000_000_000_0_u128),
-			Error::<Test>::AssetNotRegistered
-		);
+		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 1_000_000_000_000_0_u128));
 	})
 }
 
@@ -647,7 +644,7 @@ pub fn test_burn_thea_asset_with_not_registered_asset_will_return_asset_not_regi
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AssetHandler::burn_thea_asset(non_register_asset_id, user, 100_u128),
-			Error::<Test>::AssetNotRegistered
+			pallet_assets::Error::<Test>::Unknown
 		);
 	})
 }
