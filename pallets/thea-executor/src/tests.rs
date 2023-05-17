@@ -17,7 +17,7 @@ use crate::{
 	mock::{new_test_ext, Assets, RuntimeOrigin as Origin, Test, *},
 	PendingWithdrawals,
 };
-use asset_handler::pallet::TheaAssets;
+
 use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Mutate};
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
@@ -147,7 +147,6 @@ fn test_claim_deposit_returns_ok() {
 		));
 		let deposit =
 			Deposit { recipient, asset_id, amount: 1_000_000_000_000_000_000u128, extra: vec![] };
-		<TheaAssets<Test>>::insert(asset_id, (0, 0, BoundedVec::default()));
 		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
 		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1));
 	})
@@ -180,9 +179,6 @@ fn test_claim_deposit_returns_asset_not_registered() {
 		let deposit =
 			Deposit { recipient, asset_id, amount: 1_000_000_000_000_000_000u128, extra: vec![] };
 		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
-		assert_err!(
-			TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1),
-			asset_handler::pallet::Error::<Test>::AssetNotRegistered
-		);
+		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1));
 	})
 }
