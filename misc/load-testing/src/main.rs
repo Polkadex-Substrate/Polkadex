@@ -1,14 +1,14 @@
 use jsonrpsee::{core::client::ClientT, rpc_params, ws_client::WsClientBuilder};
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
-	types::{ObMessage, UserActions, WithdrawPayloadCallByUser, WithdrawalRequest},
+	types::{ObMessage, Trade, UserActions, WithdrawPayloadCallByUser, WithdrawalRequest},
 };
 use polkadex_primitives::{AccountId, AssetId, Signature};
 use sp_core::{Encode, Pair};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-	let url = String::from("ws://localhost:9945");
+	let url = String::from("wss://solochain-bootnode.polkadex.trade:443");
 
 	let client = WsClientBuilder::default().build(&url).await.unwrap();
 
@@ -38,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
 	// 	signature: Default::default(),
 	// };
 
-	for i in 1..5000 {
+	for i in 1..1500 {
 		//		println!("Sending {i} block");
 		let mut message = ObMessage {
 			stid: 1,
@@ -51,6 +51,19 @@ async fn main() -> anyhow::Result<()> {
 
 		let _response = client.request("ob_submitAction", rpc_params![message]).await?;
 	}
+
+	// Trade action
+	// Set exchange state
+	// Create random asset + use polkadex
+	// Register pair
+	// Registr accounts OCEX -> register_main_account
+	// Deposit assets OCEX -> deposit (both currencies)
+	// Create random order -> engine -> random_order_for_testing
+	//let mut message = ObMessage {
+	//	stid: 2,
+	//	action: UserActions::Trade(vec![Trade]),
+	//	signature: Default::default(),
+	//};
 
 	//let result: Vec<u8> = client.request("ob_getObRecoverState", rpc_params![]).await.unwrap();
 	//let result: ObRecoveryState = serde_json::from_slice(&result).unwrap();
