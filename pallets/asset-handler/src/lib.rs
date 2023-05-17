@@ -188,13 +188,6 @@ pub mod pallet {
 	pub(super) type AssetPrecision<T: Config> =
 		StorageMap<_, Blake2_128Concat, ResourceId, PrecisionType, ValueQuery>;
 
-	/// Thea Assets, asset_id(u128) -> (network_id(u8), identifier_length(u8),
-	/// identifier(BoundedVec<>))
-	#[pallet::storage]
-	#[pallet::getter(fn get_thea_assets)]
-	pub type TheaAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, u128, (u8, u8, BoundedVec<u8, ConstU32<1000>>), ValueQuery>;
-
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
@@ -609,7 +602,9 @@ pub mod pallet {
 			recipient: T::AccountId,
 			amount: u128,
 		) -> Result<(), DispatchError> {
-			ensure!(<TheaAssets<T>>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
+			if !T::AssetManager::asset_exists(asset_id) {
+				T::AssetManager::create(asset_id, T::PDEXHolderAccount::get(), true, 1u128)?;
+			}
 			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
 			T::AssetManager::mint_into(asset_id, &recipient, amount)?;
 			Ok(())
@@ -654,7 +649,6 @@ pub mod pallet {
 			who: T::AccountId,
 			amount: u128,
 		) -> Result<(), DispatchError> {
-			ensure!(<TheaAssets<T>>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
 			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
 			T::AssetManager::burn_from(asset_id, &who, amount)?;
 			Ok(())
