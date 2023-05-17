@@ -52,8 +52,15 @@ async fn main() -> anyhow::Result<()> {
 		let _response = client.request("ob_submitAction", rpc_params![message]).await?;
 	}
 
+	let subxt = 
+
+	let proposal = subxt.metadata().module_with_calls("OCEX")
+		.and_then(|module| module.call("ocex_whitelistOrderbookOperator", "0x02a7d451190f72881cd92a044127adf6417b788e5118f4934484fe4d789860eb33"))
+		.map_err(|_| Error::msg("failed to compose a sudo call"))?;
+	let call = Call::new("Sudo", "sudo", proposal);
+
 	// Trade action
-	// Set exchange state
+	// Set exchange state as root
 	// Create random asset + use polkadex
 	// Register pair
 	// Registr accounts OCEX -> register_main_account
