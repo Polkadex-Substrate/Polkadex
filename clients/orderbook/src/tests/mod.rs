@@ -49,7 +49,7 @@ pub(crate) struct TestApi {
 
 impl TestApi {
 	pub fn validator_set(&self) -> ValidatorSet<AuthorityId> {
-		ValidatorSet { validators: self.active.clone() }
+		ValidatorSet { set_id: 0, validators: self.active.clone() }
 	}
 
 	pub fn get_latest_snapshot(&self) -> SnapshotSummary<AccountId> {
@@ -57,6 +57,7 @@ impl TestApi {
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				validator_set_id: 0,
 				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),
@@ -130,6 +131,7 @@ impl TestApi {
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				validator_set_id: 0,
 				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),

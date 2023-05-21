@@ -1550,6 +1550,7 @@ fn get_dummy_snapshot(
 	}
 
 	let mut snapshot = SnapshotSummary {
+		validator_set_id: 0,
 		snapshot_id: 1,
 		state_root: Default::default(),
 		worker_nonce: 1,

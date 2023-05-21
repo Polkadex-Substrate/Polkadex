@@ -24,7 +24,6 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
 use polkadex_primitives::assets::AssetId;
-use sp_runtime::traits::Zero;
 
 use pallet_timestamp as timestamp;
 use sp_core::H256;
@@ -45,6 +44,7 @@ pub mod weights;
 
 use orderbook_primitives::{
 	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
+	GENESIS_AUTHORITY_SET_ID,
 };
 use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
@@ -96,6 +96,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		pallet_prelude::*,
+		storage::Key,
 		traits::{
 			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
@@ -982,29 +983,32 @@ pub mod pallet {
 				Error::<T>::SnapshotNonceError
 			);
 			let summary_hash = H256::from_slice(&summary.sign_data());
-			let working_summary =
-				match <UnprocessedSnapshots<T>>::get(summary.snapshot_id, summary_hash) {
-					None => summary,
-					Some(mut stored_summary) => {
-						if let Some(signature) = summary.aggregate_signature {
-							// Aggregrate the signature
-							if stored_summary.add_signature(signature).is_err() {
-								return Err(Error::<T>::InvalidSignatureAggregation.into())
-							}
-							// update the bitfield
-							let auth_index = match summary.signed_auth_indexes().first() {
-								Some(index) => *index,
-								None => return Err(Error::<T>::SignerIndexNotFound.into()),
-							};
-							stored_summary.add_auth_index(auth_index.saturated_into());
-							stored_summary
-						} else {
-							return Err(Error::<T>::InvalidSnapshotState.into())
+			let working_summary = match <UnprocessedSnapshots<T>>::get((
+				summary.snapshot_id,
+				summary_hash,
+				summary.validator_set_id,
+			)) {
+				None => summary,
+				Some(mut stored_summary) => {
+					if let Some(signature) = summary.aggregate_signature {
+						// Aggregrate the signature
+						if stored_summary.add_signature(signature).is_err() {
+							return Err(Error::<T>::InvalidSignatureAggregation.into())
 						}
-					},
-				};
+						// update the bitfield
+						let auth_index = match summary.signed_auth_indexes().first() {
+							Some(index) => *index,
+							None => return Err(Error::<T>::SignerIndexNotFound.into()),
+						};
+						stored_summary.add_auth_index(auth_index.saturated_into());
+						stored_summary
+					} else {
+						return Err(Error::<T>::InvalidSnapshotState.into())
+					}
+				},
+			};
 			// Check if we have enough signatures
-			let total_validators = <Authorities<T>>::get().len();
+			let total_validators = <Authorities<T>>::get(working_summary.validator_set_id).len();
 			if working_summary.signed_auth_indexes().len() >=
 				total_validators.saturating_mul(2).saturating_div(3)
 			{
@@ -1012,13 +1016,13 @@ pub mod pallet {
 				// validate unsigned closure
 				// Remove all the unprocessed snapshots with prefix snapshot_id
 				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
-					working_summary.snapshot_id,
+					(working_summary.snapshot_id,),
 					total_validators as u32,
 					None,
 				);
 				while result.maybe_cursor.is_some() {
 					result = <UnprocessedSnapshots<T>>::clear_prefix(
-						working_summary.snapshot_id,
+						(working_summary.snapshot_id,),
 						total_validators as u32,
 						Some(result.maybe_cursor.unwrap().as_ref()),
 					);
@@ -1051,8 +1055,7 @@ pub mod pallet {
 			} else {
 				// We still don't have enough signatures on this, so save it back.
 				<UnprocessedSnapshots<T>>::insert(
-					working_summary.snapshot_id,
-					summary_hash,
+					(working_summary.snapshot_id, summary_hash, working_summary.validator_set_id),
 					working_summary,
 				);
 			}
@@ -1335,12 +1338,14 @@ pub mod pallet {
 	// Unprocessed Snapshots storage ( snapshot id, summary_hash ) => SnapshotSummary
 	#[pallet::storage]
 	#[pallet::getter(fn unprocessed_snapshots)]
-	pub(super) type UnprocessedSnapshots<T: Config> = StorageDoubleMap<
+	pub(super) type UnprocessedSnapshots<T: Config> = StorageNMap<
 		_,
-		Blake2_128Concat,
-		u64,
-		Identity,
-		H256,
+		// Snapshot id, snapshot hash, validator set id
+		(
+			Key<Blake2_128Concat, u64>,
+			Key<Identity, H256>,
+			Key<Blake2_128Concat, orderbook_primitives::ValidatorSetId>,
+		),
 		SnapshotSummary<T::AccountId>,
 		OptionQuery,
 	>;
@@ -1414,11 +1419,23 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_authorities)]
-	pub(super) type Authorities<T: Config> = StorageValue<_, Vec<AuthorityId>, ValueQuery>;
+	pub(super) type Authorities<T: Config> = StorageMap<
+		_,
+		Identity,
+		orderbook_primitives::ValidatorSetId,
+		ValidatorSet<AuthorityId>,
+		ValueQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_next_authorities)]
-	pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<AuthorityId>, ValueQuery>;
+	pub(super) type NextAuthorities<T: Config> =
+		StorageValue<_, ValidatorSet<AuthorityId>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn validator_set_id)]
+	pub(super) type ValidatorSetId<T: Config> =
+		StorageValue<_, orderbook_primitives::ValidatorSetId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_orderbook_operator_public_key)]
@@ -1459,7 +1476,10 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			None => return InvalidTransaction::BadSigner.into(),
 		};
 
-		let authority = match <Authorities<T>>::get().get(auth_idx) {
+		let authority = match <Authorities<T>>::get(snapshot_summary.validator_set_id)
+			.validators()
+			.get(auth_idx)
+		{
 			Some(auth) => auth,
 			None => return InvalidTransaction::Custom(11).into(),
 		}
@@ -1479,7 +1499,8 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	}
 
 	pub fn validator_set() -> ValidatorSet<AuthorityId> {
-		ValidatorSet { validators: <Authorities<T>>::get() }
+		let id = Self::validator_set_id();
+		<Authorities<T>>::get(id)
 	}
 
 	pub fn get_ingress_messages(
@@ -1593,7 +1614,10 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
 	{
 		let authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
-		<Authorities<T>>::put(authorities);
+		<Authorities<T>>::insert(
+			GENESIS_AUTHORITY_SET_ID,
+			ValidatorSet::new(authorities, GENESIS_AUTHORITY_SET_ID),
+		);
 	}
 
 	fn on_new_session<'a, I: 'a>(_changed: bool, authorities: I, queued_authorities: I)
@@ -1603,17 +1627,17 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		let next_authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
 		let next_queued_authorities = queued_authorities.map(|(_, k)| k).collect::<Vec<_>>();
 
-		<Authorities<T>>::put(next_authorities);
-		<NextAuthorities<T>>::put(next_queued_authorities);
-		// Check if there is a pending snapshot from outgoing authority set
-		let next_snapshot_id = <SnapshotNonce<T>>::get().saturating_add(1);
-		let unprocessed_snapshots_from_outgoing_set =
-			<UnprocessedSnapshots<T>>::iter_prefix(next_snapshot_id)
-				.collect::<Vec<(H256, SnapshotSummary<T::AccountId>)>>();
-		if !unprocessed_snapshots_from_outgoing_set.len().is_zero() {
-			// if yes, signal the new validators to process it again.
-			<PendingSnapshotFromPreviousSet<T>>::put(next_snapshot_id);
+		if next_authorities == next_queued_authorities {
+			// If there is no change, don't do anything
+			return
 		}
+
+		let id = Self::validator_set_id();
+		let new_id = id + 1u64;
+
+		<Authorities<T>>::insert(new_id, ValidatorSet::new(next_authorities, new_id));
+		<NextAuthorities<T>>::put(ValidatorSet::new(next_queued_authorities, new_id + 1));
+		<ValidatorSetId<T>>::put(new_id);
 	}
 
 	fn on_disabled(_i: u32) {}

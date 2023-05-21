@@ -75,26 +75,29 @@ pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
 /// A typedef for validator set id.
 pub type ValidatorSetId = u64;
 
-/// A set of BEEFY authorities, a.k.a. validators.
+/// A set of Orderbook authorities, a.k.a. validators.
 #[derive(Decode, Encode, Debug, PartialEq, Clone, TypeInfo)]
 pub struct ValidatorSet<AuthorityId> {
+	/// Validator Set id
+	pub set_id: ValidatorSetId,
 	/// Public keys of the validator set elements
 	pub validators: Vec<AuthorityId>,
 }
 
+impl<AuthorityId> Default for ValidatorSet<AuthorityId> {
+	fn default() -> Self {
+		ValidatorSet { set_id: GENESIS_AUTHORITY_SET_ID, validators: Vec::new() }
+	}
+}
+
 impl<AuthorityId> ValidatorSet<AuthorityId> {
 	/// Return a validator set with the given validators and set id.
-	pub fn new<I>(validators: I, _id: ValidatorSetId) -> Option<Self>
+	pub fn new<I>(validators: I, set_id: ValidatorSetId) -> Self
 	where
 		I: IntoIterator<Item = AuthorityId>,
 	{
 		let validators: Vec<AuthorityId> = validators.into_iter().collect();
-		if validators.is_empty() {
-			// No validators; the set would be empty.
-			None
-		} else {
-			Some(Self { validators })
-		}
+		Self { set_id, validators }
 	}
 
 	/// Return a reference to the vec of validators.
@@ -124,6 +127,7 @@ pub struct Fees {
 
 #[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq)]
 pub struct SnapshotSummary<AccountId: Clone + Codec> {
+	pub validator_set_id: u64,
 	pub snapshot_id: u64,
 	pub state_root: H256,
 	pub worker_nonce: u64,
@@ -138,6 +142,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 	fn default() -> Self {
 		Self {
+			validator_set_id: 0,
 			snapshot_id: 0,
 			state_root: Default::default(),
 			worker_nonce: 0,
