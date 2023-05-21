@@ -1028,6 +1028,7 @@ where
 					// 2. Check if the pending snapshot from previous set
 					if let Some(pending_snaphot) = self.runtime.runtime_api().pending_snapshot(
 						&BlockId::number(self.last_finalized_block.saturated_into()),
+						signing_key.clone(),
 					)? {
 						info!(target:"orderbook","Pending snapshot found: {:?}",pending_snaphot);
 						// 3. if yes, then submit snapshot summaries for that.
@@ -1057,18 +1058,26 @@ where
 											.position(|v| v == &signing_key)
 											.unwrap();
 										set_bit_field(&mut summary.bitflags, bit_index);
-										// send it to runtime
-										if self
-											.runtime
-											.runtime_api()
-											.submit_snapshot(
-												&BlockId::number(self.last_finalized_block.into()),
-												summary,
-											)?
-											.is_err()
-										{
-											error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
-											return Err(Error::FailedToSubmitSnapshotToRuntime)
+
+										if self.pending_snapshot_summary != Some(summary.clone()) {
+											// send it to runtime
+											if self
+												.runtime
+												.runtime_api()
+												.submit_snapshot(
+													&BlockId::number(
+														self.last_finalized_block.into(),
+													),
+													summary.clone(),
+												)?
+												.is_err()
+											{
+												error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
+												return Err(Error::FailedToSubmitSnapshotToRuntime)
+											}
+											self.pending_snapshot_summary = Some(summary);
+										} else {
+											log::debug!(target:"orderbook", "We already submitted snapshot: {:?}",self.pending_snapshot_summary);
 										}
 									},
 									Err(err) => {
