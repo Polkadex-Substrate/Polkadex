@@ -90,6 +90,13 @@ pub mod pallet {
 	pub(super) type OutgoingMessages<T: Config> =
 		StorageMap<_, Identity, u64, Message, OptionQuery>;
 
+	/// Incoming messages,
+	/// first key: Nonce of the incoming message
+	#[pallet::storage]
+	#[pallet::getter(fn outgoing_messages)]
+	pub(super) type IncomingMessages<T: Config> =
+		StorageMap<_, Identity, u64, Message, OptionQuery>;
+
 	/// Last processed nonce of this network
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_nonce)]
@@ -197,8 +204,8 @@ pub mod pallet {
 			if current_set_id.saturating_add(1) == payload.validator_set_id {
 				<ValidatorSetId<T>>::put(current_set_id.saturating_add(1));
 			}
-
 			<IncomingNonce<T>>::put(payload.nonce);
+			<IncomingMessages<T>>::insert(payload.nonce, payload);
 			Ok(())
 		}
 
