@@ -1570,8 +1570,8 @@ impl_runtime_apis! {
 			OCEX::submit_snapshot_api(summary)
 		}
 
-		fn pending_snapshot() -> Option<u64> {
-			OCEX::pending_snapshot()
+		fn pending_snapshot(auth: orderbook_primitives::crypto::AuthorityId) -> Option<u64> {
+			OCEX::pending_snapshot(auth)
 		}
 
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{

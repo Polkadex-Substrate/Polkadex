@@ -194,8 +194,9 @@ sp_api::mock_impl_runtime_apis! {
 		}
 
 		/// Gets pending snapshot if any
-		fn pending_snapshot() -> Option<u64>{
-			self.inner.pending_snapshot()
+		fn pending_snapshot(auth: AuthorityId) -> Option<u64>{
+			 // TODO: update this based on current implementation in pallet
+			todo!()
 		}
 
 		/// Returns Public Key of Whitelisted Orderbook Operator

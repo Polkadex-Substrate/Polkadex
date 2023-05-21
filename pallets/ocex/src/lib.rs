@@ -46,7 +46,7 @@ use orderbook_primitives::{
 	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
 	GENESIS_AUTHORITY_SET_ID,
 };
-use polkadex_primitives::ocex::TradingPairConfig;
+use polkadex_primitives::{ocex::TradingPairConfig, utils::return_set_bits};
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
@@ -1049,9 +1049,6 @@ pub mod pallet {
 					BoundedVec::try_from(working_summary.get_fees()).unwrap(),
 				);
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
-				// Clear PendingSnapshotFromPreviousSet storage if its present
-				// because we are accepted this snapshot as there are not pending snapshots
-				<PendingSnapshotFromPreviousSet<T>>::kill();
 			} else {
 				// We still don't have enough signatures on this, so save it back.
 				<UnprocessedSnapshots<T>>::insert(
@@ -1377,11 +1374,6 @@ pub mod pallet {
 	#[pallet::getter(fn orderbook_operational_state)]
 	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
 
-	// Unprocessed Snapshot from Previous set
-	#[pallet::storage]
-	#[pallet::getter(fn pending_snapshot_from_prev_set)]
-	pub(super) type PendingSnapshotFromPreviousSet<T: Config> = StorageValue<_, u64, OptionQuery>;
-
 	// Fees collected
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
@@ -1530,8 +1522,34 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		}
 	}
 
-	pub fn pending_snapshot() -> Option<u64> {
-		<PendingSnapshotFromPreviousSet<T>>::get()
+	// Pending snapshot will return a snapshot nonce if the given authority is part of current set
+	// and they are yet to support a snapshot, else returns None
+	pub fn pending_snapshot(auth: AuthorityId) -> Option<u64> {
+		// Get the next snapshot number and
+		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
+		let current_set_id = <ValidatorSetId<T>>::get();
+		// Get the pending snapshot by number
+		let iter = <UnprocessedSnapshots<T>>::iter_prefix((next_nonce,));
+		let mut pending_snapshot = Some(next_nonce);
+		for ((_, set_id), summary) in iter {
+			if set_id == current_set_id {
+				// Get auth's bit index for current set
+				let active = <Authorities<T>>::get(current_set_id);
+				match active.validators.binary_search(&auth) {
+					Err(_) => return None, /* If the auth is not part of active set, then do */
+					// nothing
+					Ok(index) => {
+						let set_indexes: Vec<usize> = return_set_bits(&summary.bitflags);
+						if set_indexes.contains(&index) {
+							// We already signed it so nothing is pending
+							// If bit is not set return Some() else None
+							pending_snapshot = None;
+						}
+					},
+				}
+			}
+		}
+		pending_snapshot
 	}
 
 	// Returns all main accounts and corresponding proxies for it at this point in time
