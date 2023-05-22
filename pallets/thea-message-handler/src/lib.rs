@@ -93,7 +93,7 @@ pub mod pallet {
 	/// Incoming messages,
 	/// first key: Nonce of the incoming message
 	#[pallet::storage]
-	#[pallet::getter(fn outgoing_messages)]
+	#[pallet::getter(fn incoming_messages)]
 	pub(super) type IncomingMessages<T: Config> =
 		StorageMap<_, Identity, u64, Message, OptionQuery>;
 
