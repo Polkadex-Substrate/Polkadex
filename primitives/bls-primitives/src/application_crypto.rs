@@ -26,7 +26,8 @@ impl RuntimePublic for Public {
 	}
 
 	fn generate_pair(_: KeyTypeId, _: Option<Vec<u8>>) -> Self {
-		unimplemented!()
+		// NOTE: this is just to make --dev mode compile, it will not work
+		Public([0; 96])
 	}
 
 	fn sign<M: AsRef<[u8]>>(&self, _: KeyTypeId, _: &M) -> Option<Self::Signature> {

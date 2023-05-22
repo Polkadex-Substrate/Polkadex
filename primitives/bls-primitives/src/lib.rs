@@ -311,11 +311,10 @@ impl sp_core::crypto::Pair for Pair {
 	}
 
 	fn from_seed_slice(seed: &[u8]) -> Result<Self, SecretStringError> {
-		println!("Seed: {:?}, len: {:?}", seed, seed.len());
 		let secret = match SecretKey::key_gen(seed, &[]) {
 			Ok(secret) => secret,
 			Err(err) => {
-				println!("BLS err: {err:?}");
+				log::error!(target:"bls","Error while computing secret from seed: {:?}",err);
 				return Err(SecretStringError::InvalidSeed)
 			},
 		};
