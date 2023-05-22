@@ -49,7 +49,7 @@ pub(crate) struct TestApi {
 
 impl TestApi {
 	pub fn validator_set(&self) -> ValidatorSet<AuthorityId> {
-		ValidatorSet { validators: self.active.clone() }
+		ValidatorSet { set_id: 0, validators: self.active.clone() }
 	}
 
 	pub fn get_latest_snapshot(&self) -> SnapshotSummary<AccountId> {
@@ -57,6 +57,7 @@ impl TestApi {
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				validator_set_id: 0,
 				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),
@@ -130,6 +131,7 @@ impl TestApi {
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				validator_set_id: 0,
 				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),
@@ -192,8 +194,9 @@ sp_api::mock_impl_runtime_apis! {
 		}
 
 		/// Gets pending snapshot if any
-		fn pending_snapshot() -> Option<u64>{
-			self.inner.pending_snapshot()
+		fn pending_snapshot(auth: AuthorityId) -> Option<u64>{
+			 // TODO: update this based on current implementation in pallet
+			todo!()
 		}
 
 		/// Returns Public Key of Whitelisted Orderbook Operator
