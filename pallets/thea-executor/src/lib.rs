@@ -24,10 +24,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
-	use thea_primitives::{Network, TheaIncomingExecutor, TheaOutgoingExecutor};
+	use thea_primitives::{
+		types::{Deposit, Withdraw},
+		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
+	};
 	use xcm::VersionedMultiLocation;
-
-	use thea_primitives::types::{Deposit, Withdraw};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (super) trait Store)]
@@ -54,6 +55,11 @@ pub mod pallet {
 		/// Para Id
 		type ParaId: Get<u32>;
 	}
+
+	/// Nonce used to generate randomness
+	#[pallet::storage]
+	#[pallet::getter(fn randomness_nonce)]
+	pub(super) type RandomnessNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn pending_withdrawals)]
@@ -89,10 +95,10 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Deposit Approved event ( Network, recipient, asset_id, amount))
-		DepositApproved(Network, T::AccountId, u128, u128),
-		/// Deposit claimed event ( recipient, number of deposits claimed )
-		DepositClaimed(T::AccountId, u128, u128),
+		/// Deposit Approved event ( Network, recipient, asset_id, amount, id))
+		DepositApproved(Network, T::AccountId, u128, u128, Vec<u8>),
+		/// Deposit claimed event ( recipient, asset id, amount, id )
+		DepositClaimed(T::AccountId, u128, u128, Vec<u8>),
 		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount )
 		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128),
 		/// Withdrawal Ready (Network id )
@@ -258,6 +264,14 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		/// Generates a new random id for withdrawals
+		fn new_random_id() -> Vec<u8> {
+			let mut nonce = <RandomnessNonce<T>>::get();
+			nonce = nonce.wrapping_add(1);
+			<RandomnessNonce<T>>::put(nonce);
+			let entropy = sp_io::hashing::blake2_256(&(NATIVE_NETWORK, nonce).encode());
+			entropy.to_vec()
+		}
 		pub fn thea_account() -> T::AccountId {
 			T::TheaPalletId::get().into_account_truncating()
 		}
@@ -274,6 +288,7 @@ pub mod pallet {
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
 			let withdraw = Withdraw {
+				id: Self::new_random_id(),
 				asset_id,
 				amount,
 				destination: beneficiary.clone(),
@@ -346,6 +361,7 @@ pub mod pallet {
 					deposit.recipient,
 					deposit.asset_id,
 					deposit.amount,
+					deposit.id,
 				))
 			}
 			Ok(())
@@ -365,6 +381,7 @@ pub mod pallet {
 				recipient.clone(),
 				deposit.asset_id,
 				deposit.amount,
+				deposit.id,
 			));
 			Ok(())
 		}
