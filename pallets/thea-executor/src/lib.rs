@@ -99,12 +99,10 @@ pub mod pallet {
 		DepositApproved(Network, T::AccountId, u128, u128, Vec<u8>),
 		/// Deposit claimed event ( recipient, asset id, amount, id )
 		DepositClaimed(T::AccountId, u128, u128, Vec<u8>),
-		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount )
-		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128),
+		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount, id )
+		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, Vec<u8>),
 		/// Withdrawal Ready (Network id )
 		WithdrawalReady(Network),
-		/// Withdrawal Executed (network, Tx hash )
-		WithdrawalExecuted(Network, sp_core::H256),
 		// Thea Public Key Updated ( network, new session id )
 		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
@@ -325,15 +323,16 @@ pub mod pallet {
 			// Handle assets
 			asset_handler::pallet::Pallet::<T>::handle_asset(asset_id, user.clone(), amount)?;
 
-			pending_withdrawals.push(withdraw);
-
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
 				network,
 				user,
 				beneficiary,
 				asset_id,
 				amount,
+				withdraw.id.clone(),
 			));
+			pending_withdrawals.push(withdraw);
+
 			if (pending_withdrawals.len() >= T::WithdrawalSize::get() as usize) || pay_for_remaining
 			{
 				// If it is full then we move it to ready queue and update withdrawal nonce
