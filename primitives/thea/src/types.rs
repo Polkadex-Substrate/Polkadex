@@ -29,6 +29,7 @@ use sp_std::vec::Vec;
 /// Deposit is relative to solochain
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct Deposit<AccountId> {
+	pub id: Vec<u8>, // Unique identifier
 	pub recipient: AccountId,
 	pub asset_id: u128,
 	pub amount: u128,
@@ -38,6 +39,7 @@ pub struct Deposit<AccountId> {
 /// Withdraw is relative to solochain
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct Withdraw {
+	pub id: Vec<u8>, // Unique identifier
 	pub asset_id: u128,
 	pub amount: u128,
 	pub destination: Vec<u8>,
