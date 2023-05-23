@@ -23,9 +23,8 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
-use polkadex_primitives::assets::AssetId;
-
 use pallet_timestamp as timestamp;
+use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
@@ -110,7 +109,7 @@ pub mod pallet {
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
 		withdrawal::Withdrawal,
-		AssetsLimit, ProxyLimit, UNIT_BALANCE,
+		ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
@@ -775,7 +774,7 @@ pub mod pallet {
 
 			ensure!(
 				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
-					while internal_vector.len() > 0 {
+					while !internal_vector.is_empty() {
 						if let Some(fees) = internal_vector.pop() {
 							if let Some(converted_fee) =
 								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
@@ -791,12 +790,12 @@ pub mod pallet {
 									// Push it back inside the internal vector
 									// The above function call will only fail if the beneficiary has
 									// balance below existential deposit requirements
-									internal_vector.try_push(fees).unwrap_or_default();
+									internal_vector.push(fees);
 									return Err(Error::<T>::UnableToTransferFee)
 								}
 							} else {
 								// Push it back inside the internal vector
-								internal_vector.try_push(fees).unwrap_or_default();
+								internal_vector.push(fees);
 								return Err(Error::<T>::FailedToConvertDecimaltoBalance)
 							}
 						}
@@ -1044,10 +1043,7 @@ pub mod pallet {
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
 				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
 				// The unwrap below should not fail
-				<FeesCollected<T>>::insert(
-					working_summary.snapshot_id,
-					BoundedVec::try_from(working_summary.get_fees()).unwrap(),
-				);
+				<FeesCollected<T>>::insert(working_summary.snapshot_id, working_summary.get_fees());
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
 			} else {
 				// We still don't have enough signatures on this, so save it back.
@@ -1378,7 +1374,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
 	pub(super) type FeesCollected<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, Vec<Fees>, ValueQuery>;
 
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
