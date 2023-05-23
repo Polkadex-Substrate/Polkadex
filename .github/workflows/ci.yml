@@ -51,6 +51,7 @@ jobs:
           cat /etc/issue 
           apt update
           apt install -y clang lldb lld gcc zip protobuf-compiler build-essential curl libssl-dev
+          cargo install taplo-cli --locked
       - name: Install latest nightly with wasm target
         uses: actions-rs/toolchain@v1
         with:
@@ -73,6 +74,10 @@ jobs:
           rustup -V
           cargo fmt -- --version
           cargo clippy -V
+      - name: Lint .toml files
+        run: |
+          taplo lint
+          taplo fmt --check
       - name: Build Project with runtime benchmarks
         run: cargo build --features runtime-benchmarks
       - name: Test weights generation
