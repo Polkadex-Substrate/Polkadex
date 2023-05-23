@@ -1,1 +1,1 @@
-./target/release/polkadex-node build-spec --disable-default-bootnode --chain=mainnet  --raw > extras/customSpecRaw.json
+./target/release/polkadex-node build-spec --disable-default-bootnode --chain=udon-testnet --raw > extras/customSpecRaw.json

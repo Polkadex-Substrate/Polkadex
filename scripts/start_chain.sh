@@ -19,7 +19,7 @@ start_validator_1() {
     -lthea=trace --ws-port=19945 --rpc-port=9945 --chain=../../scripts/customSpecRaw.json \
     --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t \
     --bootnodes /ip4/127.0.0.1/tcp/30335/p2p/12D3KooWCMKvu1tJKQBjDZ4hN1saTP6D58e4WkwLZwks5cPpxqY7 \
-    --node-key=d353c4b01db05aa66ddeab9d85c2fa2252368dd4961606e5985ed1e8f40dbc50 >out_validator_1 2>&1 &
+    --node-key=d353c4b01db05aa66ddeab9d85c2fa2252368dd4961606e5985ed1e8f40dbc50 >out_validator_2 2>&1 &
   VALIDATOR_1_PID=$(echo $!)
   cd ../../scripts
 }
@@ -32,7 +32,7 @@ start_validator_2() {
     --ws-port=19947 --rpc-port=9946 --chain=../../scripts/customSpecRaw.json \
     --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t \
     --bootnodes /ip4/127.0.0.1/tcp/30334/p2p/12D3KooWEVBdwVmV1BeAdtqzhjANK31ibYmLQXxEoeai4fx7KhNh \
-    --node-key=24f121a84149f784f9fe3f1e2fb04e8873191a510bc4b073a3a815d78a29cf2d >out_validator_2 2>&1 &
+    --node-key=24f121a84149f784f9fe3f1e2fb04e8873191a510bc4b073a3a815d78a29cf2d >out_validator_3 2>&1 &
   VALIDATOR_2_PID=$(echo $!)
   cd ../../scripts
 }
@@ -76,7 +76,7 @@ start_chain() {
 
   start_validator_1
   start_validator_2
-  start_others
+  #start_others
   sleep $SLEEP
 
   echo "Setting keys..."
@@ -90,9 +90,9 @@ start_chain() {
 
   start_validator_1
   start_validator_2
-  start_others
+  #start_others
 
-  tail -f ../ind_validators/full_node/out_full_node
+  tail -f ../ind_validators/validator3/out_validator_3
 }
 
 print_usage() {

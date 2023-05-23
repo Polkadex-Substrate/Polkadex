@@ -70,7 +70,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		orderbook_primitives::crypto::AuthorityId,
 		thea_primitives::AuthorityId,
 	)> = vec![];
-	for idx in 1..=200 {
+	for idx in 1..=3 {
 		let babe = sp_core::sr25519::Pair::from_string(
 			&(seed.to_owned() + idx.to_string().as_str() + "//babe"),
 			None,
@@ -120,7 +120,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 	// NOTE: The current root key for udon net is with GJ.
 	let root_key: AccountId = hex![
 		// 5GUD1cXQB1nFyLprscEQh6apekh4KMGD6FnkatcM6AAJ7JQb
-		"c2ddb84ed7692123f5f6746c81cd0850932553416515ecd71fbe66c128eafa73"
+		//"c2ddb84ed7692123f5f6746c81cd0850932553416515ecd71fbe66c128eafa73"
+		"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d" //Alice
 	]
 	.into();
 
