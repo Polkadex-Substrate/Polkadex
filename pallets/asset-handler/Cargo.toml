@@ -26,31 +26,31 @@ sp-runtime = { workspace = true, default-features = false }
 chainbridge = { path = "../chainbridge", default-features = false }
 
 [dev-dependencies]
-pallet-assets = { workspace = true , default-features = false}
-pallet-balances = { workspace = true , default-features = false}
+pallet-assets = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
 
 
 [features]
 default = ["std"]
 std = [
-	"parity-scale-codec/std",
-	"scale-info/std",
-	"frame-support/std",
-	"frame-system/std",
-	"sp-io/std",
-	"sp-core/std",
-	"sp-std/std",
-	"sp-runtime/std",
-	"chainbridge/std",
-	"pallet-assets/std",
-	"pallet-balances/std",
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-io/std",
+  "sp-core/std",
+  "sp-std/std",
+  "sp-runtime/std",
+  "chainbridge/std",
+  "pallet-assets/std",
+  "pallet-balances/std",
 ]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks",
-	"pallet-assets/runtime-benchmarks",
-	"chainbridge/runtime-benchmarks"
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "pallet-balances/runtime-benchmarks",
+  "pallet-assets/runtime-benchmarks",
+  "chainbridge/runtime-benchmarks",
 ]
