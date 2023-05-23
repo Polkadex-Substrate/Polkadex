@@ -90,6 +90,13 @@ pub mod pallet {
 	pub(super) type OutgoingMessages<T: Config> =
 		StorageMap<_, Identity, u64, Message, OptionQuery>;
 
+	/// Incoming messages,
+	/// first key: Nonce of the incoming message
+	#[pallet::storage]
+	#[pallet::getter(fn incoming_messages)]
+	pub(super) type IncomingMessages<T: Config> =
+		StorageMap<_, Identity, u64, Message, OptionQuery>;
+
 	/// Last processed nonce of this network
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_nonce)]
@@ -120,6 +127,8 @@ pub mod pallet {
 		InvalidValidatorSetId,
 		/// Validator set is empty
 		ValidatorSetEmpty,
+		/// Cannot update with older nonce
+		NonceIsAlreadyProcessed,
 	}
 
 	#[pallet::validate_unsigned]
@@ -195,8 +204,23 @@ pub mod pallet {
 			if current_set_id.saturating_add(1) == payload.validator_set_id {
 				<ValidatorSetId<T>>::put(current_set_id.saturating_add(1));
 			}
-
 			<IncomingNonce<T>>::put(payload.nonce);
+			<IncomingMessages<T>>::insert(payload.nonce, payload);
+			Ok(())
+		}
+
+		/// A governance endpoint to update last processed nonce
+		#[pallet::call_index(2)]
+		#[pallet::weight(Weight::default())]
+		#[transactional]
+		pub fn update_incoming_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
+			ensure_root(origin)?;
+			let last_nonce = <IncomingNonce<T>>::get();
+			// Nonce can only be changed forwards, already processed nonces should not be changed.
+			if last_nonce >= nonce {
+				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
+			}
+			<IncomingNonce<T>>::put(nonce);
 			Ok(())
 		}
 	}
@@ -216,13 +240,19 @@ impl<T: Config> Pallet<T> {
 
 		// Find who all signed this payload
 		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
-		// TODO: Super majority check here.
 		// Create a vector of public keys of everyone who signed
 		let auths = <Authorities<T>>::get(payload.validator_set_id);
+
+		// Check if 2/3rd authorities signed on this.
+		if (signed_auths_indexes.len() as u64) < payload.threshold() {
+			// Reject there is not super majority.
+			return Err(InvalidTransaction::Custom(2).into())
+		}
+
 		let mut signatories: Vec<bls_primitives::Public> = vec![];
 		for index in signed_auths_indexes {
 			match auths.get(index) {
-				None => return Err(InvalidTransaction::Custom(2).into()),
+				None => return Err(InvalidTransaction::Custom(3).into()),
 				Some(auth) => signatories.push((*auth).clone().into()),
 			}
 		}
@@ -238,6 +268,12 @@ impl<T: Config> Pallet<T> {
 			.longevity(3)
 			.propagate(true)
 			.build()
+	}
+
+	/// Returns the current authority set
+	pub fn get_current_authorities() -> Vec<T::TheaId> {
+		let current_set_id = Self::validator_set_id();
+		<Authorities<T>>::get(current_set_id).to_vec()
 	}
 }
 

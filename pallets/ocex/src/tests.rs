@@ -16,7 +16,7 @@
 //! Tests for pallet-ocex.
 
 use crate::*;
-use frame_support::{assert_noop, assert_ok, bounded_vec, traits::OnInitialize};
+use frame_support::{assert_noop, assert_ok, bounded_vec};
 use polkadex_primitives::{
 	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, UNIT_BALANCE,
 };
@@ -1544,10 +1544,13 @@ fn get_dummy_snapshot(
 			amount: Decimal::one(),
 			asset: AssetId::Polkadex,
 			fees: Default::default(),
+			stid: 0,
+			worker_nonce: 0,
 		})
 	}
 
 	let mut snapshot = SnapshotSummary {
+		validator_set_id: 0,
 		snapshot_id: 1,
 		state_root: Default::default(),
 		worker_nonce: 1,
@@ -1852,21 +1855,6 @@ fn create_account_id() -> AccountId32 {
 		&keystore,
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair")
-	.try_into()
-	.expect("Unable to convert to AccountId32");
-
-	return account_id
-}
-fn create_account_id_500(uid: u32) -> AccountId32 {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = KeyStore::new();
-	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{}/hunter{}", PHRASE, uid)),
 	)
 	.expect("Unable to create sr25519 key pair")
 	.try_into()

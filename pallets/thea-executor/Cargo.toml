@@ -3,8 +3,6 @@ name = "thea-executor"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
@@ -17,20 +15,19 @@ rust_decimal = { workspace = true, features = ["scale-codec"], default-features 
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
 bls-primitives = { path = "../../primitives/bls-primitives", default-features = false }
 thea-primitives = {path = "../../primitives/thea", default-features = false}
 asset-handler = {path = "../asset-handler", default-features = false}
 xcm = { workspace = true, default-features = false }
-
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
-sp-io = { workspace = true }
-thea = { path = "../thea", default-features = false }
-chainbridge = { path = "../chainbridge", default-features = false }
+thea = { path = "../thea" }
+chainbridge = { path = "../chainbridge" }
 
 [features]
 default = ["std"]
@@ -48,6 +45,7 @@ std = [
     "rust_decimal/std",
     "pallet-timestamp/std",
     "sp-core/std",
+    "sp-io/std",
     "asset-handler/std",
     "thea/std",
     "chainbridge/std"

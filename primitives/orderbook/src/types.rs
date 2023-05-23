@@ -189,6 +189,8 @@ impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
 			fees: Default::default(),
+			stid: 0,
+			worker_nonce: 0,
 		})
 	}
 }

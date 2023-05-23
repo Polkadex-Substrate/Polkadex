@@ -22,9 +22,7 @@
 use super::*;
 use crate::{fixtures::SNAPSHOT, Pallet as Ocex};
 use frame_benchmarking::{account, benchmarks};
-use frame_support::{
-	dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedBTreeMap, BoundedVec,
-};
+use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
 use orderbook_primitives::Fees;
 use parity_scale_codec::Decode;
@@ -343,6 +341,8 @@ benchmarks! {
 		let fees = Decimal::new(100, 5);
 		vec_withdrawals.push(Withdrawal {
 			amount: Decimal::new(x.into(), 0),
+			stid:0,
+			worker_nonce:0,
 			asset,
 			main_account: main.clone(),
 			fees,

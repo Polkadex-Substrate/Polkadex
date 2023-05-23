@@ -293,10 +293,7 @@ impl sp_core::crypto::Pair for Pair {
 		path: Iter,
 		seed: Option<Self::Seed>,
 	) -> Result<(Self, Option<Self::Seed>), Self::DeriveError> {
-		if seed.is_none() {
-			return Err(Error::InvalidSeed)
-		}
-		let mut master_key = SecretKey::key_gen(&seed.unwrap(), &[])?;
+		let mut master_key = self.secret.clone();
 		for junction in path {
 			let index_bytes = [
 				junction.inner()[0],
@@ -314,11 +311,10 @@ impl sp_core::crypto::Pair for Pair {
 	}
 
 	fn from_seed_slice(seed: &[u8]) -> Result<Self, SecretStringError> {
-		println!("Seed: {:?}, len: {:?}", seed, seed.len());
 		let secret = match SecretKey::key_gen(seed, &[]) {
 			Ok(secret) => secret,
 			Err(err) => {
-				println!("BLS err: {err:?}");
+				log::error!(target:"bls","Error while computing secret from seed: {:?}",err);
 				return Err(SecretStringError::InvalidSeed)
 			},
 		};
@@ -364,7 +360,7 @@ pub fn hash_to_curve_g1(message: &[u8]) -> Result<G1Projective, HashToCurveError
 
 #[cfg(test)]
 mod tests {
-	use crate::{hash_to_curve_g1, Public, Signature, DST};
+	use crate::{Public, Signature, DST};
 	use sp_application_crypto::RuntimePublic;
 	use sp_core::Pair;
 

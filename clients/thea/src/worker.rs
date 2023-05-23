@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
 
 use futures::StreamExt;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
@@ -16,7 +16,11 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
-use thea_primitives::{types::Message, AuthorityIndex, Network, TheaApi, NATIVE_NETWORK};
+use thea_primitives::{
+	types::Message, AuthorityIndex, Network, TheaApi, MESSAGE_CACHE_DURATION_IN_SECS,
+	NATIVE_NETWORK,
+};
+use tokio::time::Instant;
 
 use crate::{
 	connector::traits::ForeignConnector,
@@ -25,6 +29,7 @@ use crate::{
 	keystore::TheaKeyStore,
 	metric_add, metric_inc,
 	metrics::Metrics,
+	thea_protocol_name,
 	types::GossipMessage,
 	Client,
 };
@@ -38,17 +43,17 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector +
 	pub is_validator: bool,
 	/// Gossip network
 	pub network: N,
-	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
-	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
 	pub foreign_chain: Arc<FC>,
 	pub(crate) keystore: Option<Arc<LocalKeystore>>,
 }
 
-/// A Orderbook worker plays the Orderbook protocol
-pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
+/// A thea worker plays the thea protocol
+pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
 	// utilities
 	pub(crate) client: Arc<C>,
+	pub(crate) thea_network: Option<Network>,
+	// Payload to gossip message mapping
 	_backend: Arc<BE>,
 	runtime: Arc<R>,
 	sync_oracle: SO,
@@ -56,18 +61,17 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Si
 	is_validator: bool,
 	_network: Arc<N>,
 	keystore: TheaKeyStore,
-	thea_network: Option<Network>,
 	gossip_engine: GossipEngine<B>,
-	_gossip_validator: Arc<GossipValidator<B>>,
+	_gossip_validator: Arc<GossipValidator>,
 	// Payload to gossip message mapping
-	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, GossipMessage>>>,
+	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
 	last_finalized_blk: BlockId<B>,
 }
 
-impl<B, BE, C, SO, N, R, FC> ObWorker<B, BE, C, SO, N, R, FC>
+impl<B, BE, C, SO, N, R, FC> TheaWorker<B, BE, C, SO, N, R, FC>
 where
 	B: Block + Codec,
 	BE: Backend<B>,
@@ -95,7 +99,6 @@ where
 			metrics,
 			is_validator,
 			network,
-			protocol_name,
 			_marker,
 		} = worker_params;
 
@@ -107,10 +110,14 @@ where
 			foreign_nonce.clone(),
 			native_nonce.clone(),
 		));
-		let gossip_engine =
-			GossipEngine::new(network.clone(), protocol_name, gossip_validator.clone(), None);
+		let gossip_engine = GossipEngine::new(
+			network.clone(),
+			thea_protocol_name::standard_name(),
+			gossip_validator.clone(),
+			None,
+		);
 
-		ObWorker {
+		TheaWorker {
 			client,
 			_backend: backend,
 			runtime,
@@ -177,6 +184,11 @@ where
 		if !self.is_validator {
 			return Ok(())
 		}
+		// Proceed only if thea auths are initialized
+		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			warn!(target: "thea", "Thea authorities not initialized yet!");
+			return Ok(())
+		}
 		metric_inc!(self, thea_messages_recv);
 		metric_add!(self, thea_data_recv, incoming_message.encoded_size() as u64);
 		let local_index = self.get_local_auth_index()?;
@@ -233,14 +245,15 @@ where
 						} else {
 							// Cache it.
 							info!(target:"thea", "No majority, caching the message");
-							self.message_cache
-								.write()
-								.insert(incoming_message.payload.clone(), incoming_message.clone());
+							self.message_cache.write().insert(
+								incoming_message.payload.clone(),
+								(Instant::now(), incoming_message.clone()),
+							);
 						}
 					},
 				}
 			},
-			Some(message) => {
+			Some((_, message)) => {
 				info!(target:"thea", "Message with nonce: {:?} is already known to us",incoming_message.payload.nonce);
 				// 1. incoming message has more signatories
 				let signed_auth_indexes = return_set_bits(&incoming_message.bitmap);
@@ -284,9 +297,10 @@ where
 					} else {
 						// Cache it.
 						info!(target:"thea", "No majority, caching the message");
-						self.message_cache
-							.write()
-							.insert(incoming_message.payload.clone(), incoming_message.clone());
+						self.message_cache.write().insert(
+							incoming_message.payload.clone(),
+							(Instant::now(), incoming_message.clone()),
+						);
 						// TODO: Send it back to network.
 					}
 				} else {
@@ -303,6 +317,11 @@ where
 		&mut self,
 		notification: &FinalityNotification<B>,
 	) -> Result<(), Error> {
+		// Proceed only if thea auths are initialized
+		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			warn!(target: "thea", "Thea authorities not initialized yet!");
+			return Ok(())
+		}
 		info!(target: "thea", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		let at = BlockId::hash(header.hash());
@@ -355,7 +374,17 @@ where
 				info!(target:"thea", "Found new native message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
 				self.sign_and_submit_message(message)?
 			} else {
-				info!(target:"thea","We already processed this message, so ignoring...")
+				let mut cache = self.message_cache.write();
+				if let Some((last, _)) = cache.get(&message).cloned() {
+					if Instant::now().duration_since(last) >
+						Duration::from_secs(MESSAGE_CACHE_DURATION_IN_SECS)
+					{
+						cache.remove(&message);
+						info!(target:"thea","Thea message expired: {:?}",message);
+					} else {
+						info!(target:"thea","We already processed this message, so ignoring...")
+					}
+				}
 			}
 		}
 
@@ -381,11 +410,11 @@ where
 		let gossip_message = self.sign_message(message.clone())?;
 		info!(target:"thea","Message with nonce: {:?} with network: {:?}, is signed",message.nonce, message.network);
 		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
-		self.message_cache.write().insert(message, gossip_message);
+		self.message_cache.write().insert(message, (Instant::now(), gossip_message));
 		Ok(())
 	}
 
-	/// Wait for Orderbook runtime pallet to be available.
+	/// Wait for thea runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		while let Some(notif) = finality_stream.next().await {
@@ -393,7 +422,7 @@ where
 			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
 				break
 			} else {
-				debug!(target: "orderbook", "📒 Waiting for thea pallet to become available...");
+				debug!(target: "thea", "📒 Waiting for thea pallet to become available...");
 			}
 		}
 	}
@@ -403,6 +432,13 @@ where
 		if !self.is_validator {
 			return Ok(())
 		}
+
+		// Proceed only if thea auths are initialized
+		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			warn!(target: "thea", "Thea authorities not initialized yet!");
+			return Ok(())
+		}
+
 		match self.thea_network.as_ref() {
 			None => {
 				log::error!(target:"thea", "Thea network not set on this validator!");
@@ -435,7 +471,17 @@ where
 							info!(target:"thea", "Found new message for processing.. network:{:?} nonce: {:?}",message.network, message.nonce);
 							self.sign_and_submit_message(message)?
 						} else {
-							info!(target:"thea","We already processed this message, so ignoring...")
+							let mut cache = self.message_cache.write();
+							if let Some((last, _)) = cache.get(&message).cloned() {
+								if Instant::now().duration_since(last) >
+									Duration::from_secs(MESSAGE_CACHE_DURATION_IN_SECS)
+								{
+									cache.remove(&message);
+									info!(target:"thea","Thea message expired: {:?}",message);
+								} else {
+									info!(target:"thea","We already processed this message, so ignoring...")
+								}
+							}
 						}
 					},
 				}
@@ -444,9 +490,9 @@ where
 		Ok(())
 	}
 
-	/// Main loop for Orderbook worker.
+	/// Main loop for thea worker.
 	///
-	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
+	/// Wait for thea runtime pallet to be available, then start the main async loop
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "thea", "Thea worker started");
@@ -454,7 +500,12 @@ where
 
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
-			info!(target: "thea", "Thea is not started waiting for blockhchain to sync completely");
+			info!(target: "thea", "Thea is not started waiting for blockchain to sync completely");
+			tokio::time::sleep(Duration::from_secs(12)).await;
+		}
+		// Wait for Thea authorities to initialize before starting thea
+		while !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+			info!(target: "thea", "Thea on hold, waiting for authority initialization on foreign chain");
 			tokio::time::sleep(Duration::from_secs(12)).await;
 		}
 
@@ -472,9 +523,11 @@ where
 				.fuse(),
 		);
 		// finality events stream
+		debug!(target:"thea"," Starting finality streams...");
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 
 		// Interval timer to read foreign chain events
+		debug!(target:"thea"," Starting interval streams...");
 		let interval = tokio::time::interval(self.foreign_chain.block_duration());
 		// create a stream from the interval
 		let mut interval_stream = tokio_stream::wrappers::IntervalStream::new(interval).fuse();
@@ -483,16 +536,16 @@ where
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
 				_ = gossip_engine => {
-					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					error!(target: "thea", "📒 Gossip engine has terminated.");
 					return;
 				}
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
 						if let Err(err) = self.handle_finality_notification(&finality).await {
-							error!(target: "orderbook", "📒 Error during finalized block import{:?}", err);
+							error!(target: "thea", "📒 Error during finalized block import{:?}", err);
 						}
 					}else {
-						error!(target:"orderbook","None finality recvd");
+						error!(target:"thea","None finality recvd");
 						return
 					}
 				},
@@ -505,7 +558,7 @@ where
 					);
 						// Gossip messages have already been verified to be valid by the gossip validator.
 						if let Err(err) = self.process_gossip_message(&mut message,sender).await {
-							error!(target: "orderbook", "📒 {:?}", err);
+							error!(target: "thea", "📒 {:?}", err);
 						}
 					} else {
 						return;
@@ -513,10 +566,11 @@ where
 				},
 				_ = interval_stream.next() => {
 					if let Err(err) = self.try_process_foreign_chain_events().await {
-							error!(target: "orderbook", "📒 Error fetching foreign chain events {:?}", err);
+							error!(target: "thea", "📒 Error fetching foreign chain events {:?}", err);
 						}
 				},
 			}
+			debug!(target: "thea", "Inner loop cycled");
 		}
 	}
 }

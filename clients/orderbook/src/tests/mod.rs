@@ -2,15 +2,14 @@ mod gosssip;
 pub mod rpc;
 pub mod sync;
 
-use crate::protocol_standard_name;
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{ObMessage, TradingPair},
-	ObApi, SnapshotSummary, ValidatorSet, KEY_TYPE,
+	ObApi, SnapshotSummary, ValidatorSet,
 };
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use polkadex_primitives::{
 	ingress::IngressMessages, ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId,
 	BlockNumber,
@@ -25,10 +24,12 @@ use sc_network_test::{
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_consensus::BlockOrigin;
-use sp_core::{crypto::AccountId32, ecdsa::Public, Pair};
+
+use sp_blockchain::{BlockStatus, HeaderBackend, Info};
+use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
+use sp_runtime::traits::{Header, NumberFor};
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 #[derive(Clone, Default)]
@@ -48,7 +49,7 @@ pub(crate) struct TestApi {
 
 impl TestApi {
 	pub fn validator_set(&self) -> ValidatorSet<AuthorityId> {
-		ValidatorSet { validators: self.active.clone() }
+		ValidatorSet { set_id: 0, validators: self.active.clone() }
 	}
 
 	pub fn get_latest_snapshot(&self) -> SnapshotSummary<AccountId> {
@@ -56,6 +57,7 @@ impl TestApi {
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				validator_set_id: 0,
 				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),
@@ -129,6 +131,7 @@ impl TestApi {
 			.read()
 			.get(&*self.latest_snapshot_nonce.read())
 			.unwrap_or(&SnapshotSummary {
+				validator_set_id: 0,
 				worker_nonce: 0,
 				snapshot_id: 0,
 				state_root: Default::default(),
@@ -156,43 +159,44 @@ impl TestApi {
 }
 
 sp_api::mock_impl_runtime_apis! {
-impl ObApi<Block> for RuntimeApi {
-	/// Return the current active Orderbook validator set
-	fn validator_set() -> ValidatorSet<AuthorityId>
-	{
-		self.inner.validator_set()
-	}
+	impl ObApi<Block> for RuntimeApi {
+		/// Return the current active Orderbook validator set
+		fn validator_set() -> ValidatorSet<AuthorityId>
+		{
+			self.inner.validator_set()
+		}
 
-	fn get_latest_snapshot() -> SnapshotSummary<AccountId> {
-		self.inner.get_latest_snapshot()
-	}
+		fn get_latest_snapshot() -> SnapshotSummary<AccountId> {
+			self.inner.get_latest_snapshot()
+		}
 
-	/// Return the ingress messages at the given block
-	fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
+		/// Return the ingress messages at the given block
+		fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
 
-	/// Submits the snapshot to runtime
-	fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
+		/// Submits the snapshot to runtime
+		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
 			self.inner.submit_snapshot(summary)
 		}
 
-	/// Get Snapshot By Id
-	fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>> {
+		/// Get Snapshot By Id
+		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>> {
 			self.inner.snapshots.read().get(&id).cloned()
 		}
 
-	/// Returns all main account and corresponding proxies at this point in time
-	fn get_all_accounts_and_proxies() -> Vec<(AccountId, Vec<AccountId>)> {
+		/// Returns all main account and corresponding proxies at this point in time
+		fn get_all_accounts_and_proxies() -> Vec<(AccountId, Vec<AccountId>)> {
 			self.inner.get_all_accounts_and_proxies()
 		}
 
-	/// Returns snapshot generation intervals
-	fn get_snapshot_generation_intervals() -> (u64, BlockNumber) {
+		/// Returns snapshot generation intervals
+		fn get_snapshot_generation_intervals() -> (u64, BlockNumber) {
 			self.inner.get_snapshot_generation_intervals()
 		}
 
 		/// Gets pending snapshot if any
-		fn pending_snapshot() -> Option<u64>{
-			self.inner.pending_snapshot()
+		fn pending_snapshot(auth: AuthorityId) -> Option<u64>{
+			 // TODO: update this based on current implementation in pallet
+			todo!()
 		}
 
 		/// Returns Public Key of Whitelisted Orderbook Operator
@@ -214,7 +218,7 @@ impl ObApi<Block> for RuntimeApi {
 		fn get_allowlisted_assets() -> Vec<AssetId> {
 			self.inner.get_allowlisted_assets()
 		}
-}
+	}
 }
 
 // compiler gets confused and warns us about unused inner
@@ -360,12 +364,12 @@ where
 			keystore = Some(Arc::new(
 				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
 			));
-			let (pair, seed) =
+			let (pair, _seed) =
 				orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None)
 					.unwrap();
 			// Insert the key
 			keystore
-				.as_ref()
+				.as_mut()
 				.unwrap()
 				.insert_unknown(
 					orderbook_primitives::KEY_TYPE,
@@ -393,10 +397,6 @@ where
 			is_validator,
 			message_sender_link: receiver,
 			marker: Default::default(),
-			last_successful_block_number_snapshot_created: net.peers[peer_id]
-				.data
-				.last_successful_block_number_snapshot_created
-				.clone(),
 			memory_db: net.peers[peer_id].data.memory_db.clone(),
 			working_state_root: net.peers[peer_id].data.working_state_root.clone(),
 		};

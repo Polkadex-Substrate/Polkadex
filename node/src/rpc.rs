@@ -202,8 +202,15 @@ where
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
 	// Create Orderbook RPC
 	io.merge(
-		OrderbookRpc::new(subscription_executor, orderbook, memory_db, working_state_root, client)
-			.into_rpc(),
+		OrderbookRpc::new(
+			subscription_executor,
+			orderbook,
+			memory_db,
+			working_state_root,
+			client.clone(),
+			client,
+		)
+		.into_rpc(),
 	)?;
 
 	Ok(io)

@@ -328,6 +328,7 @@ pub struct NewFullBase {
 /// Creates a full service from the configuration.
 pub fn new_full_base(
 	mut config: Configuration,
+	foreign_chain_url: String,
 	with_startup_data: impl FnOnce(
 		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 		&sc_consensus_babe::BabeLink<Block>,
@@ -379,15 +380,8 @@ pub fn new_full_base(
 		.push(orderbook::orderbook_peers_set_config(orderbook_protocol_name.clone()));
 
 	// Thea
-	let thea_protocol_name = thea_client::protocol_standard_name(
-		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
-		config.chain_spec.as_ref(),
-	);
+	config.network.extra_sets.push(thea_client::thea_peers_set_config());
 
-	config
-		.network
-		.extra_sets
-		.push(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
 		sc_finality_grandpa_warp_sync::request_response_config_for_chain(
@@ -632,8 +626,12 @@ pub fn new_full_base(
 }
 
 /// Builds a new service for a full client.
-pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
-	new_full_base(config, |_, _| ()).map(|NewFullBase { task_manager, .. }| task_manager)
+pub fn new_full(
+	config: Configuration,
+	foreign_chain_url: String,
+) -> Result<TaskManager, ServiceError> {
+	new_full_base(config, foreign_chain_url, |_, _| ())
+		.map(|NewFullBase { task_manager, .. }| task_manager)
 }
 
 #[cfg(test)]
@@ -701,6 +699,7 @@ mod tests {
 				let NewFullBase { task_manager, client, network, transaction_pool, .. } =
 					new_full_base(
 						config,
+						"blah".to_string(),
 						|block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
 						 babe_link: &sc_consensus_babe::BabeLink<Block>| {
 							setup_handles = Some((block_import.clone(), babe_link.clone()));
@@ -876,7 +875,7 @@ mod tests {
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
 			|config| {
 				let NewFullBase { task_manager, client, network, transaction_pool, .. } =
-					new_full_base(config, |_, _| ())?;
+					new_full_base(config, "blah".to_string(), |_, _| ())?;
 				Ok(sc_service_test::TestNetComponents::new(
 					task_manager,
 					client,

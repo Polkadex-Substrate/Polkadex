@@ -14,6 +14,8 @@ pub struct Withdrawal<AccountId> {
 	pub amount: Decimal,
 	pub asset: AssetId,
 	pub fees: Decimal,
+	pub stid: u64,
+	pub worker_nonce: u64,
 }
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]

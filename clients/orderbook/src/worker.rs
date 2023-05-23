@@ -11,11 +11,12 @@ use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
+	crypto::AuthorityId,
 	types::{
 		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
 		UserActions, WithdrawalRequest,
 	},
-	ObApi, SnapshotSummary,
+	ObApi, SnapshotSummary, ValidatorSet,
 };
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
@@ -349,22 +350,21 @@ where
 				return Ok(())
 			}
 		}
-		let active_set = self.runtime.runtime_api().validator_set(&at)?.validators;
+		let active_set = self.runtime.runtime_api().validator_set(&at)?;
 
-		let mut summary =
-			self.store_snapshot(worker_nonce, stid, next_snapshot_id, active_set.len())?;
+		let mut summary = self.store_snapshot(worker_nonce, stid, next_snapshot_id, &active_set)?;
 		if !self.is_validator {
 			info!(target:"orderbook","📒 Not a validator, skipping snapshot signing.");
 			// We are done if we are not a validator
 			return Ok(())
 		}
 
-		let signing_key = self.keystore.get_local_key(&active_set)?;
+		let signing_key = self.keystore.get_local_key(&active_set.validators)?;
 		info!(target:"orderbook","Signing snapshot with: {:?}",signing_key);
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
 		summary.aggregate_signature = Some(signature.into());
-		let bit_index = active_set.iter().position(|v| v == &signing_key).unwrap();
+		let bit_index = active_set.validators().iter().position(|v| v == &signing_key).unwrap();
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index);
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
@@ -520,7 +520,7 @@ where
 		worker_nonce: u64,
 		state_change_id: u64,
 		snapshot_id: u64,
-		active_validators_len: usize,
+		active_set: &ValidatorSet<AuthorityId>,
 	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
@@ -550,11 +550,12 @@ where
 					let working_state_root = *working_state_root_read_lock;
 
 					let summary = SnapshotSummary {
+						validator_set_id: active_set.set_id,
 						snapshot_id,
 						worker_nonce,
 						state_root: working_state_root.into(),
 						state_change_id,
-						bitflags: vec![0; active_validators_len.div(128).saturating_add(1)],
+						bitflags: vec![0; active_set.len().div(128).saturating_add(1)],
 						withdrawals,
 						aggregate_signature: None,
 						state_chunk_hashes,
@@ -1027,6 +1028,7 @@ where
 					// 2. Check if the pending snapshot from previous set
 					if let Some(pending_snaphot) = self.runtime.runtime_api().pending_snapshot(
 						&BlockId::number(self.last_finalized_block.saturated_into()),
+						signing_key.clone(),
 					)? {
 						info!(target:"orderbook","Pending snapshot found: {:?}",pending_snaphot);
 						// 3. if yes, then submit snapshot summaries for that.
@@ -1056,18 +1058,26 @@ where
 											.position(|v| v == &signing_key)
 											.unwrap();
 										set_bit_field(&mut summary.bitflags, bit_index);
-										// send it to runtime
-										if self
-											.runtime
-											.runtime_api()
-											.submit_snapshot(
-												&BlockId::number(self.last_finalized_block.into()),
-												summary,
-											)?
-											.is_err()
-										{
-											error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
-											return Err(Error::FailedToSubmitSnapshotToRuntime)
+
+										if self.pending_snapshot_summary != Some(summary.clone()) {
+											// send it to runtime
+											if self
+												.runtime
+												.runtime_api()
+												.submit_snapshot(
+													&BlockId::number(
+														self.last_finalized_block.into(),
+													),
+													summary.clone(),
+												)?
+												.is_err()
+											{
+												error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
+												return Err(Error::FailedToSubmitSnapshotToRuntime)
+											}
+											self.pending_snapshot_summary = Some(summary);
+										} else {
+											log::debug!(target:"orderbook", "We already submitted snapshot: {:?}",self.pending_snapshot_summary);
 										}
 									},
 									Err(err) => {

@@ -628,88 +628,12 @@ pub fn test_convert_amount_for_foreign_chain() {
 }
 
 #[test]
-pub fn test_create_thea_asset() {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let asset_id = create_thea_asset_id(0, 5);
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(create_thea_asset(asset_address, 0, 5));
-
-		let (network_id, identifier_length, identifier) = <TheaAssets<Test>>::get(asset_id);
-
-		// Assert Storage
-		assert_eq!(network_id, 0);
-		assert_eq!(identifier_length, 5);
-		assert_eq!(identifier.to_vec(), asset_address.to_fixed_bytes().to_vec());
-	})
-}
-
-#[test]
-pub fn test_create_thea_asset_with_mismatching_identifier_will_return_identifier_length_mismatch_error(
-) {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			create_thea_asset(asset_address, 0, 25),
-			Error::<Test>::IdentifierLengthMismatch
-		);
-	})
-}
-
-#[test]
-pub fn test_mint_thea_asset_with_unknown_recipient_will_return_cannot_create_error() {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let asset_id = create_thea_asset_id(0, 5);
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(create_thea_asset(asset_address, 0, 5));
-		assert_noop!(
-			AssetHandler::mint_thea_asset(asset_id, u64::MAX, 1_000_000_000_000_0_u128),
-			TokenError::CannotCreate
-		);
-	})
-}
-
-#[test]
-pub fn test_mint_thea_asset_with_not_registered_asset_will_return_asset_not_registered_error() {
+pub fn test_mint_thea_asset_with_not_registered_asset_will_return_ok() {
 	let recipient = create_recipient_account();
 	let asset_id = create_thea_asset_id(0, 5);
 
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			AssetHandler::mint_thea_asset(asset_id, recipient, 1_000_000_000_000_0_u128),
-			Error::<Test>::AssetNotRegistered
-		);
-	})
-}
-
-#[test]
-pub fn test_mint_thea_asset_with_zero_amount_will_return_amount_cannot_be_zero_error() {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let recipient = create_recipient_account();
-	let asset_id = create_thea_asset_id(0, 5);
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(create_thea_asset(asset_address, 0, 5));
-		assert_noop!(
-			AssetHandler::mint_thea_asset(asset_id, recipient, 0_u128),
-			Error::<Test>::AmountCannotBeZero
-		);
-	})
-}
-
-#[test]
-pub fn test_mint_thea_asset_will_increase_asset_balance() {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let recipient = create_recipient_account();
-	let asset_id = create_thea_asset_id(0, 5);
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(create_thea_asset(asset_address, 0, 5));
-		//recipient needs to have existential deposit
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), recipient, 1 * UNIT_BALANCE, 0));
-		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 100_u128));
-		assert_eq!(AssetHandler::account_balances(vec![asset_id], recipient)[0], 100_u128);
+		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 1_000_000_000_000_0_u128));
 	})
 }
 
@@ -720,65 +644,7 @@ pub fn test_burn_thea_asset_with_not_registered_asset_will_return_asset_not_regi
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AssetHandler::burn_thea_asset(non_register_asset_id, user, 100_u128),
-			Error::<Test>::AssetNotRegistered
-		);
-	})
-}
-
-#[test]
-pub fn test_burn_thea_asset_with_zero_amount_will_return_amount_cannot_be_zero_error() {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let user = create_recipient_account();
-	let asset_id = create_thea_asset_id(0, 5);
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(create_thea_asset(asset_address, 0, 5));
-		assert_noop!(
-			AssetHandler::burn_thea_asset(asset_id, user, 0_u128),
-			Error::<Test>::AmountCannotBeZero
-		);
-	})
-}
-
-#[test]
-pub fn test_burn_thea_asset_will_reduce_asset_balance() {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let user = create_recipient_account();
-	let asset_id = create_thea_asset_id(0, 5);
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(create_thea_asset(asset_address, 0, 5));
-		//user needs to have existential deposit
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), user, 1 * UNIT_BALANCE, 0));
-		assert_ok!(AssetHandler::mint_thea_asset(asset_id, user, 100_u128));
-		assert_eq!(AssetHandler::account_balances(vec![asset_id], user)[0], 100_u128);
-		assert_ok!(AssetHandler::burn_thea_asset(asset_id, user, 100_u128));
-		assert_eq!(AssetHandler::account_balances(vec![asset_id], user)[0], 0_u128);
-	})
-}
-
-#[test]
-pub fn test_create_thea_asset_bad_origin() {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			AssetHandler::create_thea_asset(
-				RuntimeOrigin::root(),
-				0,
-				5,
-				BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
-			),
-			BadOrigin
-		);
-		assert_noop!(
-			AssetHandler::create_thea_asset(
-				RuntimeOrigin::none(),
-				0,
-				5,
-				BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap()
-			),
-			BadOrigin
+			pallet_assets::Error::<Test>::Unknown
 		);
 	})
 }
@@ -815,19 +681,6 @@ fn create_recipient_account() -> u64 {
 	let recipient = [1u8; 32];
 
 	<Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap()
-}
-
-fn create_thea_asset(
-	asset_address: H160,
-	network_id: u8,
-	identifier_length: u8,
-) -> Result<(), DispatchError> {
-	AssetHandler::create_thea_asset(
-		RuntimeOrigin::signed(1),
-		network_id,
-		identifier_length,
-		BoundedVec::try_from(asset_address.to_fixed_bytes().to_vec()).unwrap(),
-	)
 }
 
 fn create_thea_asset_id(network_id: u8, identifier_length: u8) -> u128 {

@@ -48,8 +48,6 @@ use sp_runtime::{
 	BoundedBTreeSet, SaturatedConversion,
 };
 use sp_std::{vec, vec::Vec};
-use thea_primitives::parachain::{AssetType, ParachainAsset};
-use xcm::latest::AssetId;
 
 pub trait WeightInfo {
 	fn create_asset(_b: u32) -> Weight;
@@ -189,13 +187,6 @@ pub mod pallet {
 	#[pallet::getter(fn get_precision)]
 	pub(super) type AssetPrecision<T: Config> =
 		StorageMap<_, Blake2_128Concat, ResourceId, PrecisionType, ValueQuery>;
-
-	/// Thea Assets, asset_id(u128) -> (network_id(u8), identifier_length(u8),
-	/// identifier(BoundedVec<>))
-	#[pallet::storage]
-	#[pallet::getter(fn get_thea_assets)]
-	pub type TheaAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, u128, (u8, u8, BoundedVec<u8, ConstU32<1000>>), ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -341,80 +332,6 @@ pub mod pallet {
 			<AssetPrecision<T>>::insert(rid, precision_type);
 			chainbridge::AssetIdToResourceMap::<T>::insert(asset_id, rid);
 			Self::deposit_event(Event::<T>::AssetRegistered(rid));
-			Ok(())
-		}
-
-		/// TODO: Proper Error Handling required, Testing and Benchmarking Pending
-		/// Creates new Asset where AssetId is derived from chain_id and contract Address
-		///
-		/// # Parameters
-		///
-		/// * `origin`: `Asset` owner
-		/// * `network_id`: Network ID of asset being Bridges
-		/// * `identifier_length`: Length of asset identifier length
-		/// * `asset_identifier`: Identifier for a given asset
-		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_thea_asset())]
-		pub fn create_thea_asset(
-			origin: OriginFor<T>,
-			network_id: u8,
-			identifier_length: u8,
-			asset_identifier: BoundedVec<u8, ConstU32<1000>>,
-		) -> DispatchResult {
-			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
-			// Check for index error
-			ensure!(
-				T::ParachainNetworkId::get() != network_id,
-				Error::<T>::ReservedParachainNetworkId
-			);
-			ensure!(
-				asset_identifier.len() >= identifier_length as usize,
-				Error::<T>::IdentifierLengthMismatch
-			);
-
-			let mut derived_asset_id = vec![];
-			derived_asset_id.push(network_id);
-			derived_asset_id.push(identifier_length);
-			derived_asset_id.extend(&asset_identifier[0..identifier_length as usize]);
-			let asset_id = Self::get_asset_id(derived_asset_id);
-			T::AssetManager::create(
-				asset_id,
-				chainbridge::Pallet::<T>::account_id(),
-				false,
-				BalanceOf::<T>::one().unique_saturated_into(),
-			)?;
-			<TheaAssets<T>>::insert(asset_id, (network_id, identifier_length, asset_identifier));
-			Self::deposit_event(Event::<T>::TheaAssetCreated(asset_id));
-			Ok(())
-		}
-
-		/// Create Parachain Asset
-		///
-		/// # Parameters
-		///
-		/// * `asset`: Parachain Asset
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_parachain_asset())]
-		pub fn create_parachain_asset(
-			origin: OriginFor<T>,
-			asset: sp_std::boxed::Box<AssetId>,
-		) -> DispatchResult {
-			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
-			let (network_id, asset_identifier, identifier_length) =
-				Self::get_asset_info(*asset.clone())?;
-			let asset_id = Self::generate_asset_id_for_parachain(*asset)?;
-			// Call Assets Pallet
-			T::AssetManager::create(
-				asset_id,
-				chainbridge::Pallet::<T>::account_id(),
-				false,
-				BalanceOf::<T>::one().unique_saturated_into(),
-			)?;
-			<TheaAssets<T>>::insert(
-				asset_id,
-				(network_id, identifier_length as u8, asset_identifier),
-			);
-			Self::deposit_event(Event::<T>::TheaAssetCreated(asset_id));
 			Ok(())
 		}
 
@@ -685,9 +602,10 @@ pub mod pallet {
 			recipient: T::AccountId,
 			amount: u128,
 		) -> Result<(), DispatchError> {
-			ensure!(<TheaAssets<T>>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
+			if !T::AssetManager::asset_exists(asset_id) {
+				T::AssetManager::create(asset_id, T::PDEXHolderAccount::get(), true, 1u128)?;
+			}
 			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
-
 			T::AssetManager::mint_into(asset_id, &recipient, amount)?;
 			Ok(())
 		}
@@ -731,7 +649,6 @@ pub mod pallet {
 			who: T::AccountId,
 			amount: u128,
 		) -> Result<(), DispatchError> {
-			ensure!(<TheaAssets<T>>::contains_key(asset_id), Error::<T>::AssetNotRegistered);
 			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
 			T::AssetManager::burn_from(asset_id, &who, amount)?;
 			Ok(())
@@ -742,36 +659,6 @@ pub mod pallet {
 			let mut temp = [0u8; 16];
 			temp.copy_from_slice(derived_asset_id_hash);
 			u128::from_le_bytes(temp)
-		}
-
-		pub fn get_asset_info(
-			asset: AssetId,
-		) -> Result<(u8, BoundedVec<u8, ConstU32<1000>>, usize), DispatchError> {
-			let network_id = T::ParachainNetworkId::get();
-			if let AssetId::Concrete(asset_location) = asset {
-				let asset_identifier =
-					ParachainAsset { location: asset_location, asset_type: AssetType::Fungible };
-				let asset_identifier = BoundedVec::try_from(asset_identifier.encode())
-					.map_err(|_| Error::<T>::IdentifierLengthMismatch)?;
-				let identifier_length = asset_identifier.len();
-				Ok((network_id, asset_identifier, identifier_length))
-			} else {
-				Err(Error::<T>::AssetIdAbstractNotHandled.into())
-			}
-		}
-
-		pub fn generate_asset_id_for_parachain(asset: AssetId) -> Result<u128, DispatchError> {
-			let (network_id, asset_identifier, identifier_length) = Self::get_asset_info(asset)?;
-			let mut derived_asset_id: Vec<u8> = vec![];
-			derived_asset_id.push(network_id);
-			derived_asset_id.push(identifier_length as u8);
-			derived_asset_id.extend(&asset_identifier);
-			let asset_id = Self::get_asset_id(derived_asset_id);
-			Ok(asset_id)
-		}
-
-		pub fn get_parachain_network_id() -> u8 {
-			T::ParachainNetworkId::get()
 		}
 
 		#[cfg(feature = "runtime-benchmarks")]

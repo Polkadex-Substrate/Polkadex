@@ -24,32 +24,22 @@ mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
-	use sc_chain_spec::ChainSpec;
 
 	pub(crate) const NAME: &str = "/thea/1";
 
 	/// Name of the notifications protocol used by Thea.
 	///
 	/// Must be registered towards the networking in order for Thea to properly function.
-	pub fn standard_name<Hash: AsRef<[u8]>>(
-		genesis_hash: &Hash,
-		chain_spec: &dyn ChainSpec,
-	) -> sc_network::ProtocolName {
-		let chain_prefix = match chain_spec.fork_id() {
-			Some(fork_id) => format!("/{}/{fork_id}", hex::encode(genesis_hash)),
-			None => format!("/{}", hex::encode(genesis_hash)),
-		};
-		format!("{chain_prefix}{NAME}").into()
+	pub fn standard_name() -> sc_network::ProtocolName {
+		sc_network::ProtocolName::Static(NAME)
 	}
 }
 
 /// Returns the configuration value to put in
 /// [`sc_network::config::NetworkConfiguration::extra_sets`].
-/// For standard protocol name see [`orderbook_protocol_name::standard_name`].
-pub fn thea_peers_set_config(
-	protocol_name: sc_network::ProtocolName,
-) -> sc_network_common::config::NonDefaultSetConfig {
-	let mut cfg = sc_network_common::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
+/// For standard protocol name see [`thea_protocol_name::standard_name`].
+pub fn thea_peers_set_config() -> sc_network_common::config::NonDefaultSetConfig {
+	let mut cfg = sc_network_common::config::NonDefaultSetConfig::new(standard_name(), 1024 * 1024);
 
 	cfg.allow_non_reserved(25, 25);
 	cfg
@@ -87,7 +77,8 @@ use crate::{
 		parachain::ParachainClient,
 		traits::{ForeignConnector, NoOpConnector},
 	},
-	worker::ObWorker,
+	thea_protocol_name::standard_name,
+	worker::TheaWorker,
 };
 use sc_network_gossip::Network as GossipNetwork;
 
@@ -113,13 +104,13 @@ where
 	pub network: N,
 	/// Prometheus metric registry
 	pub prometheus_registry: Option<Registry>,
-	/// Chain specific Ob protocol name. See [`thea_protocol_name::standard_name`].
-	pub protocol_name: sc_network::ProtocolName,
 	/// Boolean indicating if this node is a validator
 	pub is_validator: bool,
 	pub marker: PhantomData<B>,
 	/// Defines the chain type our current deployment ( Dev or production )
 	pub chain_type: ChainType,
+	/// Foreign Chain URL
+	pub foreign_chain_url: String,
 }
 
 /// Start the Thea gadget.
@@ -141,10 +132,10 @@ where
 		keystore,
 		network,
 		prometheus_registry,
-		protocol_name,
 		is_validator,
 		marker: _,
 		chain_type,
+		foreign_chain_url,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -153,17 +144,18 @@ where
 		prometheus_registry.as_ref().map(metrics::Metrics::register).and_then(
 			|result| match result {
 				Ok(metrics) => {
-					log::debug!(target: "orderbook", "🥩 Registered metrics");
+					log::debug!(target: "thea", "Registered metrics");
 					Some(metrics)
 				},
 				Err(err) => {
-					log::debug!(target: "orderbook", "🥩 Failed to register metrics: {:?}", err);
+					log::debug!(target: "thea", "Failed to register metrics: {:?}", err);
 					None
 				},
 			},
 		);
 
-	let foreign_connector = get_connector(chain_type, is_validator).await.connector;
+	let foreign_connector =
+		get_connector(chain_type, is_validator, foreign_chain_url).await.connector;
 
 	let worker_params = worker::WorkerParams {
 		client,
@@ -173,13 +165,12 @@ where
 		sync_oracle,
 		is_validator,
 		network,
-		protocol_name,
 		metrics,
 		_marker: Default::default(),
 		foreign_chain: foreign_connector,
 	};
 
-	let worker = ObWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
+	let worker = TheaWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
 
 	worker.run().await
 }
@@ -188,7 +179,7 @@ pub struct Connector {
 	connector: Arc<dyn ForeignConnector>,
 }
 
-pub async fn get_connector(chain_type: ChainType, is_validator: bool) -> Connector {
+pub async fn get_connector(chain_type: ChainType, is_validator: bool, url: String) -> Connector {
 	log::info!(target:"thea","Assigning connector based on chain type: {:?}",chain_type);
 	if !is_validator {
 		return Connector { connector: Arc::new(NoOpConnector) }
@@ -197,7 +188,7 @@ pub async fn get_connector(chain_type: ChainType, is_validator: bool) -> Connect
 		ChainType::Development => Connector { connector: Arc::new(NoOpConnector) },
 		_ => Connector {
 			connector: Arc::new(
-				ParachainClient::connect("ws://127.0.0.1:9902".to_string())
+				ParachainClient::connect(url)
 					.await
 					.expect("Expected to connect to local foreign node"),
 			),
