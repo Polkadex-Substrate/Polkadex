@@ -22,16 +22,18 @@ impl RuntimePublic for Public {
 	type Signature = Signature;
 
 	fn all(_: KeyTypeId) -> Vec<Self> {
-		unimplemented!()
+		unimplemented!("BLS12-381 Host functions are not yet available in Polkadot,\
+		 so this will not work")
 	}
 
 	fn generate_pair(_: KeyTypeId, _: Option<Vec<u8>>) -> Self {
-		// NOTE: this is just to make --dev mode compile, it will not work
-		Public([0; 96])
+		unimplemented!("BLS12-381 Host functions are not yet available in Polkadot,\
+		 so this will not work")
 	}
 
 	fn sign<M: AsRef<[u8]>>(&self, _: KeyTypeId, _: &M) -> Option<Self::Signature> {
-		unimplemented!()
+		unimplemented!("BLS12-381 Host functions are not yet available in Polkadot,\
+		 so this will not work")
 	}
 
 	fn verify<M: AsRef<[u8]>>(&self, msg: &M, signature: &Self::Signature) -> bool {
