@@ -51,7 +51,6 @@ jobs:
           cat /etc/issue 
           apt update
           apt install -y clang lldb lld gcc zip protobuf-compiler build-essential curl libssl-dev
-          cargo install taplo-cli --locked
       - name: Install latest nightly with wasm target
         uses: actions-rs/toolchain@v1
         with:
@@ -59,6 +58,8 @@ jobs:
           target: wasm32-unknown-unknown
           default: true
           components: rustfmt, clippy
+      - name: Install .toml files linter
+        run: cargo install taplo-cli --locked
       - name: Checkout to the current branch
         uses: actions/checkout@v3
       - name: Cache Rust Dependencies
