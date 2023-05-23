@@ -17,7 +17,7 @@ parking_lot = "0.12.1"
 serde = "1.0.152"
 serde_json = "1.0.94"
 tokio = "1.26.0"
-tokio-stream = {version="0.1.12", features = ["time"]}
+tokio-stream = { version = "0.1.12", features = ["time"] }
 thea-primitives = { path = "../../primitives/thea" }
 bls-primitives = { path = "../../primitives/bls-primitives" }
 polkadex-primitives = { path = "../../primitives/polkadex" }
@@ -50,7 +50,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 
 [dev-dependencies]
-substrate-test-runtime-client = {git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+substrate-test-runtime-client = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 mockall = "0.11.1"
 testing_logger = "0.1.1"
 mockall_double = "0.3.0"
