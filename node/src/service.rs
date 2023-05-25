@@ -613,7 +613,7 @@ pub fn new_full_base(
 		is_validator: role.is_authority(),
 		chain_type,
 		foreign_chain_url,
-		dummy_mode: thea_dummy_mode
+		dummy_mode: thea_dummy_mode,
 	};
 
 	// Thea task
@@ -703,6 +703,7 @@ mod tests {
 					new_full_base(
 						config,
 						"blah".to_string(),
+						true,
 						|block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
 						 babe_link: &sc_consensus_babe::BabeLink<Block>| {
 							setup_handles = Some((block_import.clone(), babe_link.clone()));
@@ -878,7 +879,7 @@ mod tests {
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
 			|config| {
 				let NewFullBase { task_manager, client, network, transaction_pool, .. } =
-					new_full_base(config, "blah".to_string(), |_, _| ())?;
+					new_full_base(config, "blah".to_string(), true, |_, _| ())?;
 				Ok(sc_service_test::TestNetComponents::new(
 					task_manager,
 					client,
