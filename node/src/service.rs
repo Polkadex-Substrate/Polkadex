@@ -329,6 +329,7 @@ pub struct NewFullBase {
 pub fn new_full_base(
 	mut config: Configuration,
 	foreign_chain_url: String,
+	thea_dummy_mode: bool,
 	with_startup_data: impl FnOnce(
 		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 		&sc_consensus_babe::BabeLink<Block>,
@@ -612,6 +613,7 @@ pub fn new_full_base(
 		is_validator: role.is_authority(),
 		chain_type,
 		foreign_chain_url,
+		dummy_mode: thea_dummy_mode
 	};
 
 	// Thea task
@@ -629,8 +631,9 @@ pub fn new_full_base(
 pub fn new_full(
 	config: Configuration,
 	foreign_chain_url: String,
+	thea_dummy_mode: bool,
 ) -> Result<TaskManager, ServiceError> {
-	new_full_base(config, foreign_chain_url, |_, _| ())
+	new_full_base(config, foreign_chain_url, thea_dummy_mode, |_, _| ())
 		.map(|NewFullBase { task_manager, .. }| task_manager)
 }
 

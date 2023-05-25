@@ -88,7 +88,7 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				service::new_full(config, cli.foreign_chain_url).map_err(sc_cli::Error::Service)
+				service::new_full(config, cli.foreign_chain_url, cli.thea_dummy_mode).map_err(sc_cli::Error::Service)
 			})
 		},
 		// Some(Subcommand::Inspect(cmd)) => {
