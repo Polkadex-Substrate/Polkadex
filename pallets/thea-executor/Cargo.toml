@@ -17,8 +17,8 @@ frame-benchmarking = { workspace = true, default-features = false, optional = tr
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 bls-primitives = { path = "../../primitives/bls-primitives", default-features = false }
-thea-primitives = {path = "../../primitives/thea", default-features = false}
-asset-handler = {path = "../asset-handler", default-features = false}
+thea-primitives = { path = "../../primitives/thea", default-features = false }
+asset-handler = { path = "../asset-handler", default-features = false }
 xcm = { workspace = true, default-features = false }
 
 [dev-dependencies]
@@ -32,29 +32,29 @@ chainbridge = { path = "../chainbridge" }
 [features]
 default = ["std"]
 std = [
-    "sp-application-crypto/std",
-    "bls-primitives/std",
-    "thea-primitives/std",
-    "parity-scale-codec/std",
-    "scale-info/std",
-    "frame-support/std",
-    "frame-system/std",
-    "sp-runtime/std",
-    "sp-std/std",
-    "polkadex-primitives/std",
-    "rust_decimal/std",
-    "pallet-timestamp/std",
-    "sp-core/std",
-    "sp-io/std",
-    "asset-handler/std",
-    "thea/std",
-    "chainbridge/std"
+  "sp-application-crypto/std",
+  "bls-primitives/std",
+  "thea-primitives/std",
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "polkadex-primitives/std",
+  "rust_decimal/std",
+  "pallet-timestamp/std",
+  "sp-core/std",
+  "sp-io/std",
+  "asset-handler/std",
+  "thea/std",
+  "chainbridge/std",
 ]
 
 runtime-benchmarks = [
-    "sp-runtime/runtime-benchmarks",
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
