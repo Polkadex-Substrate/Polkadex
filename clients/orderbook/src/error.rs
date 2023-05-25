@@ -35,8 +35,6 @@ pub enum Error {
 	ProxyAccountNotFound,
 	#[error("Proxy not associated with main")]
 	ProxyNotAssociatedWithMain,
-	// #[error("Error while snapshot signing")]
-	// SnapshotSigningFailed,
 	#[error("Failed to submit snapshot to runtime")]
 	FailedToSubmitSnapshotToRuntime,
 	#[error("Offchain storage not available")]
