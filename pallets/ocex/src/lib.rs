@@ -1643,6 +1643,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 
 		if next_authorities == next_queued_authorities {
 			// If there is no change, don't do anything
+			log::info!(target:"ocex","No session change required authorities are the same as previous");
 			return
 		}
 
@@ -1652,6 +1653,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		<Authorities<T>>::insert(new_id, ValidatorSet::new(next_authorities, new_id));
 		<NextAuthorities<T>>::put(ValidatorSet::new(next_queued_authorities, new_id + 1));
 		<ValidatorSetId<T>>::put(new_id);
+
 	}
 
 	fn on_disabled(_i: u32) {}
