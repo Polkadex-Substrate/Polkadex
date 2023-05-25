@@ -14,7 +14,7 @@ thiserror = "1.0.39"
 chrono = "0.4.24"
 parking_lot = "0.12.1"
 serde = "1.0.152"
-serde_with = {version="2.3.2", features =["json"]}
+serde_with = { version = "2.3.2", features = ["json"] }
 primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 serde_json = "1.0.94"
 blst = { version = "0.3.10", default-features = false }
@@ -25,7 +25,7 @@ trie-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "ma
 trie-root = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 reqwest = "0.11.14"
-tokio = {version="1.26.0", features = ["rt-multi-thread"]}
+tokio = { version = "1.26.0", features = ["rt-multi-thread"] }
 orderbook-primitives = { path = "../../primitives/orderbook" }
 bls-primitives = { path = "../../primitives/bls-primitives" }
 polkadex-primitives = { path = "../../primitives/polkadex" }
@@ -60,5 +60,5 @@ env_logger = "0.10.0"
 mockall = "0.11.1"
 testing_logger = "0.1.1"
 mockall_double = "0.3.0"
-orderbook-rpc = {path="rpc"}
+orderbook-rpc = { path = "rpc" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }

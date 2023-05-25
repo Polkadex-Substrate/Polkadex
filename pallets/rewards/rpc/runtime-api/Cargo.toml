@@ -17,11 +17,4 @@ sp-core = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
-std = [
-    "parity-scale-codec/std",
-    "sp-api/std",
-    "sp-runtime/std",
-    "sp-std/std",
-    "polkadex-primitives/std",
-    "sp-core/std",
-]
+std = ["parity-scale-codec/std", "sp-api/std", "sp-runtime/std", "sp-std/std", "polkadex-primitives/std", "sp-core/std"]

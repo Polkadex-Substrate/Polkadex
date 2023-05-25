@@ -3,32 +3,32 @@ panic = "unwind"
 
 [workspace]
 members = [
-    "client",
-    "node",
-    "runtime",
-    "clients/orderbook",
-    "clients/orderbook/rpc",
-    "clients/thea",
-    "pallets/pdex-migration",
-    "pallets/chainbridge",
-    "pallets/asset-handler",
-    "pallets/pdex-migration",
-    "pallets/ocex",
-    "pallets/rewards",
-    "pallets/thea-message-handler",
-    "primitives/orderbook",
-    "primitives/bls-primitives",
-    "primitives/polkadex",
-    "primitives/thea",
-    "pallets/thea",
-    "pallets/swap",
-    "pallets/support",
-    "pallets/router",
-    "pallets/liquidity",
-    "pallets/thea-executor",
-    "pallets/rewards/rpc",
-    "pallets/rewards/rpc/runtime-api",
-    "misc/load-testing",
+  "client",
+  "node",
+  "runtime",
+  "clients/orderbook",
+  "clients/orderbook/rpc",
+  "clients/thea",
+  "pallets/pdex-migration",
+  "pallets/chainbridge",
+  "pallets/asset-handler",
+  "pallets/pdex-migration",
+  "pallets/ocex",
+  "pallets/rewards",
+  "pallets/thea-message-handler",
+  "primitives/orderbook",
+  "primitives/bls-primitives",
+  "primitives/polkadex",
+  "primitives/thea",
+  "pallets/thea",
+  "pallets/swap",
+  "pallets/support",
+  "pallets/router",
+  "pallets/liquidity",
+  "pallets/thea-executor",
+  "pallets/rewards/rpc",
+  "pallets/rewards/rpc/runtime-api",
+  "misc/load-testing",
 ]
 
 [workspace.dependencies]
@@ -39,7 +39,7 @@ jsonrpsee = "0.16.2"
 blake2-rfc = { version = "0.2.18", default-features = false }
 static_assertions = "1.1.0"
 parity-scale-codec = { version = "3.1.5", default-features = false }
-rust_decimal = { git ="https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", default-features = false }
+rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", default-features = false }
 scale-info = { version = "2.1.2", default-features = false }
 bls-primitives = { path = "primitives/bls-primitives", default-features = false }
 thea-primitives = { path = "primitives/thea", default-features = false }
@@ -117,11 +117,11 @@ sp-authority-discovery = { git = "https://github.com/paritytech/substrate", bran
 sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
-sc-cli = {  git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.37", default-features = false }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
-sc-service = { git = "https://github.com/paritytech/substrate",branch = "polkadot-v0.9.37", default-features = false }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
@@ -136,7 +136,7 @@ sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = 
 sc-consensus-slots = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-consensus-epochs = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
-sc-finality-grandpa = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false}
+sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-consensus-uncles = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sc-consensus-babe-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
@@ -145,7 +145,7 @@ sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/substrate", bra
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 pallet-nomination-pools = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
-grandpa-primitives = {  git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false, package = "sp-finality-grandpa" }
+grandpa-primitives = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false, package = "sp-finality-grandpa" }
 polkadex-primitives = { path = "primitives/polkadex", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37", default-features = false }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37", default-features = false }
