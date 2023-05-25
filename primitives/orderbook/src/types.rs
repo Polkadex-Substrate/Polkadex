@@ -415,7 +415,7 @@ impl Order {
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
-		match self.order_type {
+		let result = match self.order_type {
 			OrderType::LIMIT =>
 				is_market_same &&
 					self.price >= config.min_price &&
@@ -438,12 +438,20 @@ impl Order {
 						self.quote_order_qty <= (config.max_qty * config.max_price) &&
 						self.quote_order_qty.rem(config.price_tick_size).is_zero()
 				},
+		};
+		if !result {
+			log::error!(target:"orderbook","pair config verification failed: config: {:?}, price: {:?}, qty: {:?}, quote_order_qty: {:?}", config, self.price, self.qty, self.quote_order_qty);
 		}
+		result
 	}
 
 	pub fn verify_signature(&self) -> bool {
 		let payload: OrderPayload = self.clone().into();
-		self.signature.verify(&payload.encode()[..], &self.user)
+		let result = self.signature.verify(&payload.encode()[..], &self.user);
+		if !result {
+			log::error!(target:"orderbook","Order signature check failed");
+		}
+		result
 	}
 }
 
