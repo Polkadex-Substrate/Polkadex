@@ -348,7 +348,7 @@ benchmarks! {
 			fees,
 		});
 		let mut wm = sp_std::collections::btree_map::BTreeMap::new();
-		wm.insert(main.clone(), vec_withdrawals.clone()).unwrap();
+		wm.insert(main.clone(), vec_withdrawals.clone());
 		<Withdrawals<T>>::insert(x as u64, wm);
 		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
 		Ocex::<T>::allowlist_token(governance.clone(), asset.clone())?;
