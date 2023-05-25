@@ -304,8 +304,6 @@ where
 		if num.is_zero() {
 			return Ok(())
 		}
-		// Update trading pair configs
-		self.load_trading_pair_configs(num)?;
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
