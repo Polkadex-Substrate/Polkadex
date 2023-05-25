@@ -22,7 +22,6 @@ use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::{
 	ingress::IngressMessages,
-	ingress::IngressMessages,
 	ocex::TradingPairConfig,
 	utils::{prepare_bitmap, return_set_bits, set_bit_field},
 	withdrawal::Withdrawal,
@@ -937,7 +936,7 @@ where
 			.validators;
 		if let Err(err) = self.keystore.get_local_key(&active_set) {
 			log::error!(target:"orderbook","No BLS key found: {:?}",err);
-		}else{
+		} else {
 			log::info!(target:"orderbook","Active BLS key found")
 		}
 		// Check if snapshot should be generated or not
