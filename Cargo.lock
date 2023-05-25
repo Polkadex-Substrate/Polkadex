@@ -5085,6 +5085,7 @@ dependencies = [
  "bls-primitives",
  "chrono",
  "libp2p",
+ "log",
  "parity-scale-codec",
  "polkadex-primitives",
  "primitive-types",

@@ -136,8 +136,13 @@ where
 		if self.message_expired_check(message) {
 			return false
 		}
-		match self.message_cache.read().get(&(msg_hash, peerid)) {
-			None => true,
+		let mut cache = self.message_cache.write();
+		match cache.get(&(msg_hash, peerid)) {
+			None => {
+				// Record the first rebroadcast of this message in cache
+				cache.insert((msg_hash,peerid),Instant::now());
+				true
+			},
 			Some(last_time) => Instant::now().sub(*last_time) > interval,
 		}
 	}
