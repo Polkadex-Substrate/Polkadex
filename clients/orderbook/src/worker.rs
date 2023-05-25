@@ -301,6 +301,9 @@ where
 
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		info!("Handling block import: {:?}", num);
+		if num.is_zero() {
+			return Ok(())
+		}
 		// Update trading pair configs
 		self.load_trading_pair_configs(num)?;
 		let mut memory_db = self.memory_db.write();
@@ -1203,7 +1206,7 @@ where
 			.runtime
 			.runtime_api()
 			.read_trading_pair_configs(&BlockId::Number(blk_num.saturated_into()))?;
-
+		info!(target: "orderbook","Loaded trading pairs", tradingpairs.len());
 		for (pair, config) in tradingpairs {
 			self.trading_pair_configs.insert(pair, config);
 		}
