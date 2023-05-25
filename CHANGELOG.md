@@ -12,16 +12,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [5.0.0] - 2023-05-16
+## [5.0.0] - 2023-05-26
 
 ### Added
 
-- `thea-client` crate ([#412], [#709], [#728], [#729], [#730], [#732], [#733])
-- `thea` pallet ([#597], [#595], [#669])
+- `thea-client` crate ([#412], [#709], [#728], [#729], [#730], [#732], [#733], [#748], [#750])
+- `thea` pallet ([#597], [#595], [#669], [#749], [#750])
+- `thea-message-handler` pallet ([#709], [#749], [#750], [#756])
 - Github pull request template ([#425])
-- `pallet-ocex-lmp` pallet ([#434], [#678], [#741]):
+- `pallet-ocex-lmp` pallet ([#434], [#678], [#741], [#748], [#755], [#759]):
   - Weights ([#486])
-  - Tests ([#479])
+  - Tests ([#479], [#748])
   - `remove_proxy_account` extrinsic ([#489])
   - `update_trading_pair` extrinsic ([#522])
   - Token allow-listing ([#527])
@@ -29,7 +30,8 @@ All notable changes to this project will be documented in this file.
   - `set_snapshot` extrinsic ([#633], [#631])
   - `whitelist_orderbook_operator` extrinsic ([#680])
 - Test token provider pallet for testnet ([#424])
-- `chainbridge` and `asset-handler` pallets ([#411])
+- `chainbridge` pallet ([#411])
+-  `asset-handler` pallet ([#411], [#753])
 - `polkadex-client` crate ([#505])
 - Whitelist tokens mechanism for the `chainbridge` ([#523])
 - `pallet-asset-handler-runtime-api` crate to perform `Get Balances` RPC calls ([#510], [#528])
@@ -42,10 +44,10 @@ All notable changes to this project will be documented in this file.
 - `pallet-amm` pallet benchmarks, weights, tests ([#705])
 - `support` pallet ([#634])
 - `router` pallet ([#634])
-- `thea-executor` pallet ([#706], [#707], [#741])
+- `thea-executor` pallet ([#706], [#707], [#741], [#757])
 - Node compiled binary as an artifact (via CI) to be fetched from other repositories for the testing purpose ([#679])
 - Snapshot generation related logic ([#681])
-- `Orderbook` client crate ([#693], [#736])
+- `Orderbook` client crate ([#693], [#736], [#748], [#755])
 - `Orderbook` client tests ([#675], [#721])
 - API to check recovery state ([#688])
 - Feature to process withdrawals from the snapshot ([#687])
@@ -55,6 +57,8 @@ All notable changes to this project will be documented in this file.
 - Runtime build check to the CI ([#715])
 - `NoOpConnector` for Dev mode ([#723])
 - Documentation for gossiping logic ([#735])
+- Changelog ([#747])
+- `foreign_chain_url` CLI argument ([#752])
 
 ### Changed
 
@@ -66,6 +70,8 @@ All notable changes to this project will be documented in this file.
     - `Balance` handling now uses `Decimal` instead of `Balance` ([#516])
     - `claim_withdraw` extrinsic to make it fee-free ([#556])
 - CI/CD to include formatter and `clippy` checks ([#506])
+- CI to lint/check formatting of `.toml` files ([#760])
+- CI to test weights generation ([#760])
 - Fee collection mechanism so that only the `orderbook` council can call it ([#515])
 - Error type naming in the `asset-handler` pallet ([#558])
 - Bumped `Runtime` and `Client` versions ([#557])
@@ -100,7 +106,7 @@ All notable changes to this project will be documented in this file.
   - Withdrawal double spend bug ([#548])
 - `mint_asset` extrinsic and amount precision in `asset-handler` pallet ([#473])
 - Chain spec ([#504])
-- Code style ([#519])
+- Code style ([#519], [#760])
 - Order of assertion in `asset-handler` pallet `mint_asset` extrinsic ([#549])
 - Unsafe arithmetic in `pallet-ocex-lmp` and `asset-handler` pallets ([#551])
 - Post-release bugs ([#554], [#560])
@@ -232,3 +238,14 @@ All notable changes to this project will be documented in this file.
 [#739]: https://github.com/Polkadex-Substrate/Polkadex/pull/739
 [#740]: https://github.com/Polkadex-Substrate/Polkadex/pull/740
 [#741]: https://github.com/Polkadex-Substrate/Polkadex/pull/741
+[#747]: https://github.com/Polkadex-Substrate/Polkadex/pull/747
+[#748]: https://github.com/Polkadex-Substrate/Polkadex/pull/748
+[#749]: https://github.com/Polkadex-Substrate/Polkadex/pull/749
+[#750]: https://github.com/Polkadex-Substrate/Polkadex/pull/750
+[#752]: https://github.com/Polkadex-Substrate/Polkadex/pull/752
+[#753]: https://github.com/Polkadex-Substrate/Polkadex/pull/753
+[#755]: https://github.com/Polkadex-Substrate/Polkadex/pull/755
+[#756]: https://github.com/Polkadex-Substrate/Polkadex/pull/756
+[#757]: https://github.com/Polkadex-Substrate/Polkadex/pull/757
+[#759]: https://github.com/Polkadex-Substrate/Polkadex/pull/759
+[#760]: https://github.com/Polkadex-Substrate/Polkadex/pull/760
