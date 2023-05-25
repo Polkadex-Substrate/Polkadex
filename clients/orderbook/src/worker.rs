@@ -1206,7 +1206,7 @@ where
 			.runtime
 			.runtime_api()
 			.read_trading_pair_configs(&BlockId::Number(blk_num.saturated_into()))?;
-		info!(target: "orderbook","Loaded trading pairs", tradingpairs.len());
+		info!(target: "orderbook","Loaded {:?} trading pairs", tradingpairs.len());
 		for (pair, config) in tradingpairs {
 			self.trading_pair_configs.insert(pair, config);
 		}
