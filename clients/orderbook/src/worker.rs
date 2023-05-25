@@ -929,6 +929,14 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
+		let active_set = self
+			.runtime
+			.runtime_api()
+			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+			.validators;
+		if let Err(err) = self.keystore.get_local_key(&active_set) {
+			log::error!(target:"orderbook","No BLS key found");
+		}
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			let latest_worker_nonce = *self.latest_worker_nonce.read();
