@@ -29,7 +29,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		let next_authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
 		if next_authorities.len() as u32 > T::MaxAuthorities::get() {
 			log::error!(
-				target: "runtime::beefy",
+				target: "runtime::thea",
 				"authorities list {:?} truncated to length {}",
 				next_authorities, T::MaxAuthorities::get(),
 			);
@@ -40,7 +40,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		let next_queued_authorities = queued_validators.map(|(_, k)| k).collect::<Vec<_>>();
 		if next_queued_authorities.len() as u32 > T::MaxAuthorities::get() {
 			log::error!(
-				target: "runtime::beefy",
+				target: "runtime::thea",
 				"queued authorities list {:?} truncated to length {}",
 				next_queued_authorities, T::MaxAuthorities::get(),
 			);
@@ -48,8 +48,6 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		let bounded_next_queued_authorities =
 			BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_queued_authorities);
 
-		// Always issue a change on each `session`, even if validator set hasn't changed.
-		// We want to have at least one BEEFY mandatory block per session.
 		Self::change_authorities(bounded_next_authorities, bounded_next_queued_authorities);
 	}
 
