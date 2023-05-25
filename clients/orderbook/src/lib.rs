@@ -126,8 +126,6 @@ where
 	pub is_validator: bool,
 	/// Submit message link
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
-	// Links between the block importer, the background voter and the RPC layer.
-	// pub links: BeefyVoterLinks<B>,
 	pub marker: PhantomData<B>,
 	// memory db
 	pub memory_db: DbRef,

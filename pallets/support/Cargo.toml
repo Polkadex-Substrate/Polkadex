@@ -12,16 +12,16 @@ edition = "2021"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-serde         = { version = '1.0.136', features = ['derive'], optional = true }
-num-bigint    = { default-features = false, version = '0.4' }
-num-traits    = { default-features = false, version = '0.2' }
-log           = { version = "0.4", default-features = false }
+serde = { version = '1.0.136', features = ['derive'], optional = true }
+num-bigint = { default-features = false, version = '0.4' }
+num-traits = { default-features = false, version = '0.2' }
+log = { version = "0.4", default-features = false }
 
 parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 frame-support = { workspace = true, default-features = false }
-frame-system =  { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 
 
@@ -35,17 +35,17 @@ sp-core = { workspace = true, default-features = false }
 [features]
 default = ["std"]
 std = [
-    'serde/std',
-    'parity-scale-codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'scale-info/std',
-    'sp-std/std',
-    'polkadex-primitives/std',
-    'num-bigint/std',
-    'num-traits/std',
-    'sp-core/std',
-    'sp-io/std'
+  'serde/std',
+  'parity-scale-codec/std',
+  'frame-support/std',
+  'frame-system/std',
+  'sp-runtime/std',
+  'scale-info/std',
+  'sp-std/std',
+  'polkadex-primitives/std',
+  'num-bigint/std',
+  'num-traits/std',
+  'sp-core/std',
+  'sp-io/std',
 ]
 try-runtime = ['frame-support/try-runtime']
