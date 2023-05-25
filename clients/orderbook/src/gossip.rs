@@ -133,12 +133,26 @@ where
 			GossipMessage::Want(_, _) => WANT_REBROADCAST_INTERVAL,
 			_ => REBROADCAST_INTERVAL,
 		};
+		let mut cache = self.message_cache.write();
 		if self.message_expired_check(message) {
+			// Remove the message from cache when the message is expired.
+			cache.remove(&(msg_hash, peerid));
 			return false
 		}
-		match self.message_cache.read().get(&(msg_hash, peerid)) {
-			None => true,
-			Some(last_time) => Instant::now().sub(*last_time) > interval,
+		match cache.get(&(msg_hash, peerid)) {
+			None => {
+				// Record the first rebroadcast of this message in cache
+				cache.insert((msg_hash, peerid), Instant::now());
+				true
+			},
+			Some(last_time) => {
+				let expired = Instant::now().sub(*last_time) > interval;
+				if expired {
+					// Remove the message from cache when the message is expired.
+					cache.remove(&(msg_hash, peerid));
+				}
+				expired
+			},
 		}
 	}
 
