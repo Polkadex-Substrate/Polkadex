@@ -15,17 +15,20 @@ struct Cli {
 	/// Path to excel worksheet
 	#[arg(short, long)]
 	path: std::path::PathBuf,
-	/// Search address
+	/// User address to search rewards details.
 	#[arg(short, long)]
 	user: Option<String>,
 }
 
 fn main() {
 	let args = Cli::parse();
+
 	let polkadex_version = Ss58AddressFormat::from(88u16);
 	let polkadot_version = Ss58AddressFormat::from(0u16);
 	let unit = Decimal::from(UNIT_BALANCE);
+
 	if args.user.is_some() {
+		// Check a specific account inside the hashmap.
 		if let Ok(user) = AccountId::from_str(&args.user.unwrap()) {
 			println!("User Account Info ");
 			println!("---------------------------------------------------------------------------");
@@ -58,11 +61,14 @@ fn main() {
 	}
 	// Open CSV file
 	let mut rdr = csv::Reader::from_path(args.path).unwrap();
+	// Check if CSV file and HASHMAP has same number of addresses
 	assert_eq!(
 		HASHMAP.len(),
 		rdr.records().collect::<Vec<csv::Result<StringRecord>>>().len(),
 		"Number of users doesn't match!"
 	);
+
+	// Check all addresses and their corresponding reward details, print to screen on error.
 	for result in rdr.records() {
 		let record = result.unwrap();
 		let user = AccountId::from_str(record.get(0).unwrap()).unwrap();
