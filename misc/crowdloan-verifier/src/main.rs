@@ -25,7 +25,7 @@ fn main() {
 
 	let polkadex_version = Ss58AddressFormat::from(88u16);
 	let polkadot_version = Ss58AddressFormat::from(0u16);
-	let unit = Decimal::from(UNIT_BALANCE);
+	let unit: Decimal = Decimal::from(UNIT_BALANCE);
 
 	if args.user.is_some() {
 		// Check a specific account inside the hashmap.
@@ -35,6 +35,7 @@ fn main() {
 			println!("User ( Polkadex ): {:?}", user.to_ss58check_with_version(polkadex_version));
 			println!("User ( Polkadot ): {:?}", user.to_ss58check_with_version(polkadot_version));
 			println!("---------------------------------------------------------------------------");
+			#[allow(clippy::borrow_interior_mutable_const)]
 			if let Some(details) = HASHMAP.get(user.as_slice()) {
 				println!("Reward Details ");
 				println!(
@@ -62,8 +63,10 @@ fn main() {
 	// Open CSV file
 	let mut rdr = csv::Reader::from_path(args.path).unwrap();
 	// Check if CSV file and HASHMAP has same number of addresses
+	#[allow(clippy::borrow_interior_mutable_const)]
+	let map_len = HASHMAP.len();
 	assert_eq!(
-		HASHMAP.len(),
+		map_len,
 		rdr.records().collect::<Vec<csv::Result<StringRecord>>>().len(),
 		"Number of users doesn't match!"
 	);
@@ -76,6 +79,7 @@ fn main() {
 		let cliff_amt = Decimal::from_str(record.get(2).unwrap()).unwrap();
 		let claim_per_blk = Decimal::from_str(record.get(3).unwrap()).unwrap();
 		let dot_contributed = Decimal::from_str(record.get(4).unwrap()).unwrap();
+		#[allow(clippy::borrow_interior_mutable_const)]
 		if let Some(details) = HASHMAP.get(user.as_slice()) {
 			let total_rewards_list = Decimal::from(details.0).div(unit);
 			let cliff_amt_list = Decimal::from(details.1).div(unit);
@@ -101,18 +105,18 @@ fn main() {
 				println!(
 					"---------------------------------------------------------------------------"
 				);
-				println!("Total Rewards: {:?} PDEX", total_rewards_list);
-				println!("25% Cliff: {:?} PDEX", cliff_amt_list);
-				println!("Amount claimable per block: {:?} PDEX", claim_per_blk_list);
+				println!("Total Rewards: {total_rewards_list:?} PDEX");
+				println!("25% Cliff: {cliff_amt_list:?} PDEX");
+				println!("Amount claimable per block: {claim_per_blk_list:?} PDEX");
 				println!();
 				println!("Reward details in CSV File");
 				println!(
 					"---------------------------------------------------------------------------"
 				);
-				println!("Total Rewards: {:?} PDEX", total_rewards);
-				println!("25% Cliff: {:?} PDEX", cliff_amt);
-				println!("Amount claimable per block: {:?} PDEX", claim_per_blk);
-				println!("DOT contributed: {:?} DOT", dot_contributed);
+				println!("Total Rewards: {total_rewards:?} PDEX");
+				println!("25% Cliff: {cliff_amt:?} PDEX");
+				println!("Amount claimable per block: {claim_per_blk:?} PDEX");
+				println!("DOT contributed: {dot_contributed:?} DOT");
 				return
 			}
 		} else {
