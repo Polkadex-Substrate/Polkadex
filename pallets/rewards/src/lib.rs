@@ -48,9 +48,9 @@ pub trait WeightInfo {
 	fn initialize_claim_rewards() -> Weight;
 	fn claim() -> Weight;
 }
-pub mod crowdloan_rewardees;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod crowdloan_rewardees;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
