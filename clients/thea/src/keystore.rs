@@ -17,8 +17,8 @@ impl TheaKeyStore {
 	pub fn get_local_key(&self, active: &[AuthorityId]) -> Result<AuthorityId, Error> {
 		match self.keystore.as_ref() {
 			None => {
-				warn!(target:"thea","Keystore not available");
-				return Err(Error::Keystore("Keystore not available in this context".to_string()))
+				warn!(target:"thea","🌉 Keystore not available");
+				return Err(Error::Keystore("🌉 Keystore not available in this context".to_string()))
 			},
 			Some(keystore) =>
 				for key in active {
@@ -29,21 +29,21 @@ impl TheaKeyStore {
 					}
 				},
 		}
-		warn!(target:"thea","No BLS key found");
-		Err(Error::Keystore("No BLS key found".to_string()))
+		warn!(target:"thea","🌉 No BLS key found");
+		Err(Error::Keystore("🌉 No BLS key found".to_string()))
 	}
 
 	pub fn sign(&self, public: &AuthorityId, message: &[u8]) -> Result<AuthoritySignature, Error> {
 		match self.keystore.as_ref() {
 			None => {
-				warn!(target:"thea","Keystore not available");
-				Err(Error::Keystore("Keystore not available in this context".to_string()))
+				warn!(target:"thea","🌉 Keystore not available");
+				Err(Error::Keystore("🌉 Keystore not available in this context".to_string()))
 			},
 			Some(keystore) => match keystore.key_pair::<thea_primitives::crypto::Pair>(public)? {
 				Some(local_pair) => Ok(local_pair.sign(message)),
 				None => {
-					warn!(target:"thea","No BLS key found");
-					Err(Error::Keystore("No BLS key found".to_string()))
+					warn!(target:"thea","🌉 No BLS key found");
+					Err(Error::Keystore("🌉 No BLS key found".to_string()))
 				},
 			},
 		}
