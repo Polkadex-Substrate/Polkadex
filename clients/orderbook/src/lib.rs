@@ -166,11 +166,11 @@ where
 		prometheus_registry.as_ref().map(metrics::Metrics::register).and_then(
 			|result| match result {
 				Ok(metrics) => {
-					log::debug!(target: "orderbook", "🥩 Registered metrics");
+					log::debug!(target: "orderbook", "📒 Registered metrics");
 					Some(metrics)
 				},
 				Err(err) => {
-					log::debug!(target: "orderbook", "🥩 Failed to register metrics: {:?}", err);
+					log::debug!(target: "orderbook", "📒 Failed to register metrics: {:?}", err);
 					None
 				},
 			},
