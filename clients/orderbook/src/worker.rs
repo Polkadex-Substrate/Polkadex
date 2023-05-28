@@ -161,7 +161,8 @@ where
 		// Shared data
 		let last_snapshot = Arc::new(RwLock::new(SnapshotSummary::default()));
 		// Read from offchain state for new worker nonce
-		let offchain_storage = backend.offchain_storage().expect("📒 Unable to load offchain storage");
+		let offchain_storage =
+			backend.offchain_storage().expect("📒 Unable to load offchain storage");
 		// if not found, set it to 0
 		let nonce: u64 = match offchain_storage
 			.get(ORDERBOOK_WORKER_NONCE_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX)
@@ -784,7 +785,8 @@ where
 			if !want_chunks.is_empty() {
 				let message = GossipMessage::RequestChunk(
 					*snapshot_id,
-					prepare_bitmap(&want_chunks, highest_index).expect("📒 Expected to create bitmap"),
+					prepare_bitmap(&want_chunks, highest_index)
+						.expect("📒 Expected to create bitmap"),
 				);
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
