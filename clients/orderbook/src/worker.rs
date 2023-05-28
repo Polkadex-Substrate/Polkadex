@@ -784,7 +784,7 @@ where
 			if !want_chunks.is_empty() {
 				let message = GossipMessage::RequestChunk(
 					*snapshot_id,
-					prepare_bitmap(&want_chunks, highest_index).expect("Expected to create bitmap"),
+					prepare_bitmap(&want_chunks, highest_index).expect("📒 Expected to create bitmap"),
 				);
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
@@ -822,19 +822,19 @@ where
 									metric_inc!(self, ob_messages_sent);
 									metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 								} else {
-									warn!(target:"orderbook","No chunk found for index: {:?}",index)
+									warn!(target:"orderbook","📒 No chunk found for index: {:?}",index)
 								}
 							},
 						}
 					}
 				} else {
-					warn!(target:"orderbook","No snapshot found for request chunk")
+					warn!(target:"orderbook","📒 No snapshot found for request chunk")
 				}
 			} else {
-				warn!(target:"orderbook","No offchain storage found for request chunk")
+				warn!(target:"orderbook","📒 No offchain storage found for request chunk")
 			}
 		} else {
-			warn!(target:"orderbook","No peer found for request chunk")
+			warn!(target:"orderbook","📒 No peer found for request chunk")
 		}
 	}
 
