@@ -28,7 +28,7 @@ use polkadex_primitives::assets::AssetId;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
-	SaturatedConversion,
+	Percent, SaturatedConversion,
 };
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -1008,9 +1008,9 @@ pub mod pallet {
 			};
 			// Check if we have enough signatures
 			let total_validators = <Authorities<T>>::get(working_summary.validator_set_id).len();
-			if working_summary.signed_auth_indexes().len() >=
-				total_validators.saturating_mul(2).saturating_div(3)
-			{
+			const MAJORITY: u8 = 67;
+			let p = Percent::from_percent(MAJORITY);
+			if working_summary.signed_auth_indexes().len() >= p * total_validators {
 				// We don't need to verify signatures again as it is already verified inside
 				// validate unsigned closure
 				// Remove all the unprocessed snapshots with prefix snapshot_id

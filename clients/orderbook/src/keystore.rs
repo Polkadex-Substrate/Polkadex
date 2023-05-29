@@ -18,8 +18,8 @@ impl OrderbookKeyStore {
 	pub fn get_local_key(&self, active: &[AuthorityId]) -> Result<AuthorityId, Error> {
 		match self.keystore.as_ref() {
 			None => {
-				warn!(target:"orderbook","Keystore not available");
-				return Err(Error::Keystore("Keystore not available in this context".to_string()))
+				warn!(target:"orderbook","📒 Keystore not available");
+				return Err(Error::Keystore("📒 Keystore not available in this context".to_string()))
 			},
 			Some(keystore) =>
 				for key in active {
@@ -30,8 +30,8 @@ impl OrderbookKeyStore {
 					}
 				},
 		}
-		warn!(target:"orderbook","No BLS key found");
-		Err(Error::Keystore("No BLS key found".to_string()))
+		warn!(target:"orderbook","📒 No BLS key found");
+		Err(Error::Keystore("📒 No BLS key found".to_string()))
 	}
 
 	pub fn sign(
@@ -41,15 +41,15 @@ impl OrderbookKeyStore {
 	) -> Result<orderbook_primitives::crypto::AuthoritySignature, Error> {
 		match self.keystore.as_ref() {
 			None => {
-				warn!(target:"orderbook","Keystore not available");
-				Err(Error::Keystore("Keystore not available in this context".to_string()))
+				warn!(target:"orderbook","📒 Keystore not available");
+				Err(Error::Keystore("📒 Keystore not available in this context".to_string()))
 			},
 			Some(keystore) => {
 				match keystore.key_pair::<orderbook_primitives::crypto::Pair>(public)? {
 					Some(local_pair) => Ok(local_pair.sign(message)),
 					None => {
-						warn!(target:"orderbook","No BLS key found");
-						Err(Error::Keystore("No BLS key found".to_string()))
+						warn!(target:"orderbook","📒 No BLS key found");
+						Err(Error::Keystore("📒 No BLS key found".to_string()))
 					},
 				}
 			},
