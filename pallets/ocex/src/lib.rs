@@ -985,8 +985,8 @@ pub mod pallet {
 			let summary_hash = H256::from_slice(&summary.sign_data());
 			let working_summary = match <UnprocessedSnapshots<T>>::get((
 				summary.snapshot_id,
-				summary_hash,
 				summary.validator_set_id,
+				summary_hash,
 			)) {
 				None => summary,
 				Some(mut stored_summary) => {
@@ -1019,14 +1019,14 @@ pub mod pallet {
 				// Remove all the unprocessed snapshots with prefix snapshot_id
 				log::debug!(target:"ocex", "Starting to clear unprocessed snapshots for snapshot id: {:?}",working_summary.snapshot_id);
 				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
-					(working_summary.snapshot_id,),
+					(working_summary.snapshot_id, working_summary.validator_set_id),
 					total_validators as u32,
 					None,
 				);
 				while result.maybe_cursor.is_some() {
 					log::debug!(target:"ocex", "Clearing prefix of working snapshot summary...");
 					result = <UnprocessedSnapshots<T>>::clear_prefix(
-						(working_summary.snapshot_id,),
+						(working_summary.snapshot_id, working_summary.validator_set_id),
 						total_validators as u32,
 						Some(result.maybe_cursor.unwrap().as_ref()),
 					);
@@ -1056,7 +1056,7 @@ pub mod pallet {
 				log::debug!(target:"ocex", "Not enough signatories on this summary.");
 				// We still don't have enough signatures on this, so save it back.
 				<UnprocessedSnapshots<T>>::insert(
-					(working_summary.snapshot_id, summary_hash, working_summary.validator_set_id),
+					(working_summary.snapshot_id, working_summary.validator_set_id, summary_hash),
 					working_summary,
 				);
 			}
@@ -1344,8 +1344,8 @@ pub mod pallet {
 		// Snapshot id, snapshot hash, validator set id
 		(
 			Key<Blake2_128Concat, u64>,
-			Key<Identity, H256>,
 			Key<Blake2_128Concat, orderbook_primitives::ValidatorSetId>,
+			Key<Identity, H256>,
 		),
 		SnapshotSummary<T::AccountId>,
 		OptionQuery,
@@ -1533,24 +1533,21 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 		let current_set_id = <ValidatorSetId<T>>::get();
 		// Get the pending snapshot by number
-		let iter = <UnprocessedSnapshots<T>>::iter_prefix((next_nonce,));
+		let iter = <UnprocessedSnapshots<T>>::iter_prefix((next_nonce, current_set_id));
 		let mut pending_snapshot = Some(next_nonce);
-		for ((_, set_id), summary) in iter {
-			if set_id == current_set_id {
-				// Get auth's bit index for current set
-				let active = <Authorities<T>>::get(current_set_id);
-				match active.validators.binary_search(&auth) {
-					Err(_) => return None, /* If the auth is not part of active set, then do */
-					// nothing
-					Ok(index) => {
-						let set_indexes: Vec<usize> = return_set_bits(&summary.bitflags);
-						if set_indexes.contains(&index) {
-							// We already signed it so nothing is pending
-							// If bit is not set return Some() else None
-							pending_snapshot = None;
-						}
-					},
-				}
+		for (_, summary) in iter {
+			let active = <Authorities<T>>::get(current_set_id);
+			match active.validators.binary_search(&auth) {
+				Err(_) => return None, /* If the auth is not part of active set, then do */
+				// nothing
+				Ok(index) => {
+					let set_indexes: Vec<usize> = return_set_bits(&summary.bitflags);
+					if set_indexes.contains(&index) {
+						// We already signed it so nothing is pending
+						// If bit is not set return Some() else None
+						pending_snapshot = None;
+					}
+				},
 			}
 		}
 		pending_snapshot
