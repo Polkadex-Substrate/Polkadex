@@ -36,6 +36,7 @@ sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
 bls-primitives = { path = "../../primitives/bls-primitives", default-features = false }
+hex = "0.4.3"
 
 [features]
 default = ["std"]
