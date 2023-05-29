@@ -144,11 +144,11 @@ where
 		prometheus_registry.as_ref().map(metrics::Metrics::register).and_then(
 			|result| match result {
 				Ok(metrics) => {
-					log::debug!(target: "thea", "Registered metrics");
+					log::debug!(target: "thea", "🌉 Registered metrics");
 					Some(metrics)
 				},
 				Err(err) => {
-					log::debug!(target: "thea", "Failed to register metrics: {:?}", err);
+					log::debug!(target: "thea", "🌉 Failed to register metrics: {:?}", err);
 					None
 				},
 			},
@@ -180,7 +180,7 @@ pub struct Connector {
 }
 
 pub async fn get_connector(chain_type: ChainType, is_validator: bool, url: String) -> Connector {
-	log::info!(target:"thea","Assigning connector based on chain type: {:?}",chain_type);
+	log::info!(target:"thea","🌉 Assigning connector based on chain type: {:?}",chain_type);
 	if !is_validator {
 		return Connector { connector: Arc::new(NoOpConnector) }
 	}
@@ -190,7 +190,7 @@ pub async fn get_connector(chain_type: ChainType, is_validator: bool, url: Strin
 			connector: Arc::new(
 				ParachainClient::connect(url)
 					.await
-					.expect("Expected to connect to local foreign node"),
+					.expect("🌉 Expected to connect to local foreign node"),
 			),
 		},
 	}
