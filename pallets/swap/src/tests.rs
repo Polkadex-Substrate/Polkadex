@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
-use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
+
 use support::AMM;
+
+use crate::mock::*;
+
+use super::*;
 
 const MINIMUM_LIQUIDITY: u128 = 1_000;
 

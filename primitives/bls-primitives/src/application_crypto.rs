@@ -1,6 +1,11 @@
-pub use crate::*;
 use sp_application_crypto::{KeyTypeId, RuntimePublic};
 use sp_std::vec::Vec;
+
+#[cfg(feature = "std")]
+pub use app::Pair as AppPair;
+pub use app::{Public as AppPublic, Signature as AppSignature};
+
+pub use crate::*;
 
 pub mod app {
 	use sp_core::crypto::KeyTypeId;
@@ -13,10 +18,6 @@ pub mod app {
 		type Public = Self;
 	}
 }
-
-#[cfg(feature = "std")]
-pub use app::Pair as AppPair;
-pub use app::{Public as AppPublic, Signature as AppSignature};
 
 impl RuntimePublic for Public {
 	type Signature = Signature;

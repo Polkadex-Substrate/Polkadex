@@ -1,7 +1,10 @@
-use crate::{error::Error, types::GossipMessage};
-use async_trait::async_trait;
 use std::time::Duration;
+
+use async_trait::async_trait;
+
 use thea_primitives::types::Message;
+
+use crate::{error::Error, types::GossipMessage};
 
 #[async_trait]
 pub trait ForeignConnector: Send + Sync {
@@ -26,6 +29,7 @@ pub trait ForeignConnector: Send + Sync {
 // ForeignConnector that does nothing, mainly used for starting node in development mode
 // for just testing runtime
 pub struct NoOpConnector;
+
 #[async_trait]
 impl ForeignConnector for NoOpConnector {
 	fn block_duration(&self) -> Duration {

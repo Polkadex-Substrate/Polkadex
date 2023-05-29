@@ -4,7 +4,6 @@ use futures::StreamExt;
 use log::{debug, error, info, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
-use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
@@ -16,11 +15,13 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
+use tokio::time::Instant;
+
+use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use thea_primitives::{
 	types::Message, AuthorityIndex, Network, TheaApi, MESSAGE_CACHE_DURATION_IN_SECS,
 	NATIVE_NETWORK,
 };
-use tokio::time::Instant;
 
 use crate::{
 	connector::traits::ForeignConnector,

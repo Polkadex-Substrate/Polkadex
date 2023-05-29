@@ -33,7 +33,8 @@ impl Message {
 /// Deposit is relative to solochain
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct Deposit<AccountId> {
-	pub id: Vec<u8>, // Unique identifier
+	pub id: Vec<u8>,
+	// Unique identifier
 	pub recipient: AccountId,
 	pub asset_id: u128,
 	pub amount: u128,
@@ -96,8 +97,9 @@ impl AssetMetadata {
 
 #[cfg(test)]
 mod tests {
-	use crate::types::AssetMetadata;
 	use polkadex_primitives::UNIT_BALANCE;
+
+	use crate::types::AssetMetadata;
 
 	#[test]
 	pub fn test_decimal_conversion() {

@@ -13,10 +13,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
-	OnFinalize, OnInitialize,
-};
-use frame_support::parameter_types;
+use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -24,9 +21,12 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use crate::pallet as asset_handler;
-
-use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
+use crate::{
+	mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
+		OnFinalize, OnInitialize,
+	},
+	pallet as asset_handler,
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;

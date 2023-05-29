@@ -20,10 +20,10 @@ chrono = { version = "0.4.23", optional = true }
 rand = { version = "0.8.5", optional = true }
 serde = { version = "1.0.152", optional = true, default-features = false }
 serde_with = { version = "2.3.2", features = ["json"], optional = true }
-log = {workspace =true, default-features = false}
+log = { workspace = true, default-features = false }
 anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
-  "scale-codec",
+    "scale-codec",
 ], default-features = false }
 bls-primitives = { path = "../bls-primitives", default-features = false }
 libp2p = { version = "0.50.0", optional = true }
@@ -35,22 +35,22 @@ serde_json = "1.0.94"
 [features]
 default = ["std"]
 std = [
-  "log/std",
+    "log/std",
     "primitive-types/std",
-  "libp2p",
-  "chrono",
-  "rand",
-  "bls-primitives/std",
-  "serde",
-  "serde_with",
-  "anyhow/std",
-  "rust_decimal/std",
-  "polkadex-primitives/std",
-  "parity-scale-codec/std",
-  "scale-info/std",
-  "sp-api/std",
-  "sp-application-crypto/std",
-  "sp-core/std",
-  "sp-runtime/std",
-  "sp-std/std",
+    "libp2p",
+    "chrono",
+    "rand",
+    "bls-primitives/std",
+    "serde",
+    "serde_with",
+    "anyhow/std",
+    "rust_decimal/std",
+    "polkadex-primitives/std",
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "sp-api/std",
+    "sp-application-crypto/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-std/std",
 ]

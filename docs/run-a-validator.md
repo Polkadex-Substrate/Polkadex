@@ -2,7 +2,6 @@
 
 This guide will instruct you how to set up a validator node on the Polkadex using the released binary.
 
-
 - **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/latest
 - **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/latest/customSpecRaw.json
 
@@ -10,21 +9,29 @@ This guide will instruct you how to set up a validator node on the Polkadex usin
 
 ### Requirements
 
-The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS provider you prefer, and whichever operating system you are comfortable with. For this guide we will be using **Ubuntu 20.04**, but the instructions should be similar for other platforms.
+The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS
+provider you prefer, and whichever operating system you are comfortable with. For this guide we will be using **Ubuntu
+20.04**, but the instructions should be similar for other platforms.
 
-The transaction weights in Polkadex were benchmarked on standard hardware. It is recommended that validators run at least the standard hardware in order to ensure they are able to process all blocks in time. The following are not minimum requirements but if you decide to run with less than this, you may experience performance issues.
+The transaction weights in Polkadex were benchmarked on standard hardware. It is recommended that validators run at
+least the standard hardware in order to ensure they are able to process all blocks in time. The following are not
+minimum requirements but if you decide to run with less than this, you may experience performance issues.
 
 #### Standard Hardware
 
 For the full details of the standard hardware please see [here](https://github.com/paritytech/substrate/pull/5848)
 
 - **CPU** - Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
-- **Storage** - A NVMe solid state drive. Should be reasonably sized to deal with blockchain growth. Starting around 80GB - 160GB will be okay for the first six months of Polkadex, but will need to be re-evaluated every six months.
+- **Storage** - A NVMe solid state drive. Should be reasonably sized to deal with blockchain growth. Starting around
+  80GB - 160GB will be okay for the first six months of Polkadex, but will need to be re-evaluated every six months.
 - **Memory** - 64GB
 
-The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to match up to other validators that are running the standard.
+The specs posted above are by no means the minimum specs that you could use when running a validator, however you should
+be aware that if you are using less you may need to toggle some extra optimizations in order to match up to other
+validators that are running the standard.
 
-Once you choose your cloud service provider and set-up your new server, the first thing you will do is install the necessary dependencies.
+Once you choose your cloud service provider and set-up your new server, the first thing you will do is install the
+necessary dependencies.
 
 ```
 sudo apt-get install curl unzip
@@ -34,13 +41,15 @@ curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0
 
 ### Synchronize Chain Data
 
-You can begin syncing your node by running the following commands if you do not want to start in validator mode right away:
+You can begin syncing your node by running the following commands if you do not want to start in validator mode right
+away:
 
 ```
 $HOME/Polkadex/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --pruning=archive
 ```
 
 This is an example output from the testnet:
+
 ```
 2021-08-17 12:46:37 Polkadex Node    
 2021-08-17 12:46:37 ✌️  version 3.0.0-dbc98eca-x86_64-linux-gnu    
@@ -85,30 +94,47 @@ Example of node sync:
 2021-08-17 12:46:59 💤 Idle (4 peers), best: #2635 (0x46df…4b8a), finalized #2633 (0xedd3…a07d), ⬇ 0.8kiB/s ⬆ 0.6kiB/s
 ```
 
-The `--pruning=archive` flag is implied by the `--validator` flag, so it is only required explicitly if you start your node without one of these two options. If you do not set your pruning to archive node, even when not running in validator mode, you will need to re-sync your database when you switch.
+The `--pruning=archive` flag is implied by the `--validator` flag, so it is only required explicitly if you start your
+node without one of these two options. If you do not set your pruning to archive node, even when not running in
+validator mode, you will need to re-sync your database when you switch.
 
-If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that to the current highest block via [Telemetry](https://telemetry.polkadot.io/#list/0x3920bcb4960a1eef5580cd5367ff3f430eef052774f78468852f7b9cb39f8a3c) or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/explorer).
-
+If you are interested in determining how much longer you have to go, your server logs (printed to STDOUT from
+the `Polkadex` process) will tell you the latest block your node has processed and verified. You can then compare that
+to the current highest block
+via [Telemetry](https://telemetry.polkadot.io/#list/0x3920bcb4960a1eef5580cd5367ff3f430eef052774f78468852f7b9cb39f8a3c)
+or the [PolkadotJS Block Explorer](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/explorer).
 
 ## Bond PDEX
-[Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/accounts) ([here is a video guide for creating an account](https://www.youtube.com/watch?v=hhUZ40ZWqkE)) and transfer some PDEX tokens to the main account.
-It is highly recommended that you set your controller and stash accounts as two separate accounts. For this, you will need to create two accounts and make sure each of them have at least enough funds to pay the fees for making transactions. Keep most of your funds in the stash account since it is meant to be the custodian of your staking funds.
+
+[Create two accounts](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/accounts) ([here is a video guide for creating an account](https://www.youtube.com/watch?v=hhUZ40ZWqkE))
+and transfer some PDEX tokens to the main account.
+It is highly recommended that you set your controller and stash accounts as two separate accounts. For this, you will
+need to create two accounts and make sure each of them have at least enough funds to pay the fees for making
+transactions. Keep most of your funds in the stash account since it is meant to be the custodian of your staking funds.
 
 Make sure not to bond all your PDEX balance since you will be unable to pay transaction fees from your bonded balance.
 
 It is now time to set up your validator. You will want to do the following:
 
-- Bond the PDEX from your Stash account. These PDEX will be put at stake for the security of the network and can be slashed.
+- Bond the PDEX from your Stash account. These PDEX will be put at stake for the security of the network and can be
+  slashed.
 - Select the Controller. This is the account that will decide when to start or stop validating.
 
-First, go to the [Staking](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/staking/actions) section. Click on "Account Actions", and then the "+ Stash" button.
+First, go to the [Staking](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/staking/actions)
+section. Click on "Account Actions", and then the "+ Stash" button.
 
 ![Bonding Preferences](./screenshots/bonding_preferences.png)
 
-- **Stash account** - Select your Stash account. In this example, we will bond 100 PDEX, where the minimum bonding amount is 1. Make sure that your Stash account contains at least this much. You can, of course, stake more than this.
-- **Controller account** - Select the Controller account created earlier. This account will also need a small amount of PDEX in order to start and stop validating.
-- **Value bonded** - How much PDEX from the Stash account you want to bond/stake? You do not need to bond all of the PDEX in that account. Also note that you can always bond more PDEX later. However, withdrawing any bonded amount requires the duration of the unbonding period. On Polkadex, the planned unbonding period is 28 days.
-- **Payment destination** - The account where the rewards from validating are sent. If you'd like to redirect payments to an account that is neither the controller nor the stash account, set one up. Please note that it is extremely unsafe to set an exchange deposit address as the recipient of the staking rewards.
+- **Stash account** - Select your Stash account. In this example, we will bond 100 PDEX, where the minimum bonding
+  amount is 1. Make sure that your Stash account contains at least this much. You can, of course, stake more than this.
+- **Controller account** - Select the Controller account created earlier. This account will also need a small amount of
+  PDEX in order to start and stop validating.
+- **Value bonded** - How much PDEX from the Stash account you want to bond/stake? You do not need to bond all of the
+  PDEX in that account. Also note that you can always bond more PDEX later. However, withdrawing any bonded amount
+  requires the duration of the unbonding period. On Polkadex, the planned unbonding period is 28 days.
+- **Payment destination** - The account where the rewards from validating are sent. If you'd like to redirect payments
+  to an account that is neither the controller nor the stash account, set one up. Please note that it is extremely
+  unsafe to set an exchange deposit address as the recipient of the staking rewards.
 
 Once everything is filled in properly, click `Bond` and sign the transaction with your Stash account.
 
@@ -116,20 +142,28 @@ Once everything is filled in properly, click `Bond` and sign the transaction wit
 
 After a few seconds, you should see an `ExtrinsicSuccess` message.
 
-Your bonded account will be available under `Stashes`. You should now see a new card with all your accounts (note: you may need to refresh the screen). The bonded amount on the right corresponds to the funds bonded by the Stash account.
+Your bonded account will be available under `Stashes`. You should now see a new card with all your accounts (note: you
+may need to refresh the screen). The bonded amount on the right corresponds to the funds bonded by the Stash account.
 
 ![Stashes](./screenshots/stashes.png)
 
 ### Set Session Keys
 
-> **Note:** The session keys are consensus critical, so if you are not sure if your node has the current session keys that you made with the `setKeys` transaction, then you can use one of the two available RPC methods to query your node: [hasKey](https://polkadot.js.org/docs/substrate/rpc/#haskeypublickey-bytes-keytype-text-bool) to check for a specific key or [hasSessionKeys](https://polkadot.js.org/docs/substrate/rpc/#hassessionkeyssessionkeys-bytes-bool) to check the full session key public key string.
+> **Note:** The session keys are consensus critical, so if you are not sure if your node has the current session keys
+> that you made with the `setKeys` transaction, then you can use one of the two available RPC methods to query your
+> node: [hasKey](https://polkadot.js.org/docs/substrate/rpc/#haskeypublickey-bytes-keytype-text-bool) to check for a
+> specific key or [hasSessionKeys](https://polkadot.js.org/docs/substrate/rpc/#hassessionkeyssessionkeys-bytes-bool) to
+> check the full session key public key string.
 
-Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running the node.
+Once your node is fully synced, stop the process by pressing Ctrl-C. At your terminal prompt, you will now start running
+the node.
 
 ```
 $HOME/target/release/polkadex-node --chain=$HOME/customSpecRaw.json --validator --name "Validator-Tutorial"
 ```
+
 Similarly:
+
 ```
 2021-08-17 12:50:57 Polkadex Node    
 2021-08-17 12:50:57 ✌️  version 3.0.0-dbc98eca-x86_64-linux-gnu    
@@ -147,11 +181,14 @@ Similarly:
 2021-08-17 12:50:57 👶 Starting BABE Authorship worker
 ```
 
-You can give your validator any name that you like, but note that others will be able to see it and it will be included in the list of all servers using the same telemetry server. Since numerous people are using telemetry, it is recommended that you choose something likely to be unique.
+You can give your validator any name that you like, but note that others will be able to see it and it will be included
+in the list of all servers using the same telemetry server. Since numerous people are using telemetry, it is recommended
+that you choose something likely to be unique.
 
 ##### Running a validator as a service
 
 Prepare a `validator.service` file
+
 ```
 sudo vi /etc/systemd/system/validator.service
 ```
@@ -173,6 +210,7 @@ WantedBy=multi-user.target
 ```
 
 Run a validator as a service
+
 ```
 sudo systemctl daemon-reload
 sudo systemctl enable validator
@@ -182,39 +220,59 @@ sudo systemctl status validator
 ```
 
 ### Generating the Session Keys
-You need to tell the chain your Session keys by signing and submitting an extrinsic. This is what associates your validator node with your Controller account on Polkadex.
+
+You need to tell the chain your Session keys by signing and submitting an extrinsic. This is what associates your
+validator node with your Controller account on Polkadex.
 
 #### Option 1: PolkadotJS-APPS
-You can generate your `Session keys` in the client via the apps RPC. If you are doing this, make sure that you have the PolkadotJS-Apps explorer attached to your validator node. You can configure the apps dashboard to connect to the endpoint of your validator in the Settings tab. If you are connected to a default endpoint hosted by the Polkadex Team, you will not be able to use this method since making RPC requests to this node would affect the local keystore hosted on a <i>public node</i> and you want to make sure you are interacting with the keystore for <i>your node</i>.
 
-After ensuring you have connected to your node, the easiest way to set session keys for your node is by calling the `author_rotateKeys` RPC request to create new keys in your validator's keystore. Navigate to the Toolbox tab and select RPC Calls then select the author > rotateKeys() option and remember to save the output that you get back for a later step.
+You can generate your `Session keys` in the client via the apps RPC. If you are doing this, make sure that you have the
+PolkadotJS-Apps explorer attached to your validator node. You can configure the apps dashboard to connect to the
+endpoint of your validator in the Settings tab. If you are connected to a default endpoint hosted by the Polkadex Team,
+you will not be able to use this method since making RPC requests to this node would affect the local keystore hosted on
+a <i>public node</i> and you want to make sure you are interacting with the keystore for <i>your node</i>.
+
+After ensuring you have connected to your node, the easiest way to set session keys for your node is by calling
+the `author_rotateKeys` RPC request to create new keys in your validator's keystore. Navigate to the Toolbox tab and
+select RPC Calls then select the author > rotateKeys() option and remember to save the output that you get back for a
+later step.
 
 ![Rotate keys](./screenshots/rotate_keys.png)
 
 #### Option 2: CLI
 
-If you are on a remote server, it is easier to run this command on the same machine (while the node is running with the default HTTP RPC port configured):
+If you are on a remote server, it is easier to run this command on the same machine (while the node is running with the
+default HTTP RPC port configured):
 
 ```
 curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9933
 ```
 
-The output will have a hex-encoded "result" field. The result is the concatenation of the four public keys. Save this result for a later step.
+The output will have a hex-encoded "result" field. The result is the concatenation of the four public keys. Save this
+result for a later step.
 
 You can restart your node at this point.
 
 #### Submitting the `setKeys` Transaction
 
-You need to tell the chain your Session keys by signing and submitting an extrinsic. This is what associates your validator with your Controller account.
+You need to tell the chain your Session keys by signing and submitting an extrinsic. This is what associates your
+validator with your Controller account.
 
-Go to [Staking > Account Actions](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/staking/actions), and click "Session Key" on the bonding account you generated earlier. Enter the output from `author_rotateKeys` in the field and click "Set Session Key".
+Go
+to [Staking > Account Actions](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet.polkadex.trade#/staking/actions),
+and click "Session Key" on the bonding account you generated earlier. Enter the output from `author_rotateKeys` in the
+field and click "Set Session Key".
 
 ![Set Session Key](./screenshots/session_key.png)
 
 Submit this extrinsic and you are now ready to start validating.
 
 ## Validate
-To verify that your node is live and synchronized, head to [Telemetry](https://telemetry.polkadot.io/#list/0x3920bcb4960a1eef5580cd5367ff3f430eef052774f78468852f7b9cb39f8a3c) and find your node. Note that this will show all nodes on the Polkadex network, which is why it is important to select a unique name for your node.
+
+To verify that your node is live and synchronized, head
+to [Telemetry](https://telemetry.polkadot.io/#list/0x3920bcb4960a1eef5580cd5367ff3f430eef052774f78468852f7b9cb39f8a3c)
+and find your node. Note that this will show all nodes on the Polkadex network, which is why it is important to select a
+unique name for your node.
 
 In this example, we used the name `Validator-Tutorial` and have successfully located it upon searching:
 
@@ -224,11 +282,14 @@ In this example, we used the name `Validator-Tutorial` and have successfully loc
 
 ![Setup Validator 1](./screenshots/setup_validator.png)
 
-Here you will need to input the Keys from `rotateKeys`, which is the Hex output from `author_rotateKeys`. The keys will show as pending until applied at the start of a new session.
+Here you will need to input the Keys from `rotateKeys`, which is the Hex output from `author_rotateKeys`. The keys will
+show as pending until applied at the start of a new session.
 
-The "reward commission percentage" is the commission percentage that you can declare against your validator's rewards. This is the rate that your validator will be commissioned with.
+The "reward commission percentage" is the commission percentage that you can declare against your validator's rewards.
+This is the rate that your validator will be commissioned with.
 
-- **Payment preferences** - You can specify the percentage of the rewards that will get paid to you. The remaining will be split among your nominators.
+- **Payment preferences** - You can specify the percentage of the rewards that will get paid to you. The remaining will
+  be split among your nominators.
 
 > Note: setting a commission rate of 100% suggests that you do not want your validator to receive nominations.
 
@@ -238,10 +299,19 @@ You can also determine if you would like to receive nominations with the "allows
 
 Click "Bond & Validate".
 
-If you go to the "Staking" tab, you will see a list of active validators currently running on the network. At the top of the page, you will see the number of validator slots that are available as well as the number of nodes that have signaled their intention to be a validator. You can go to the "Waiting" tab to double check to see whether your node is listed there.
+If you go to the "Staking" tab, you will see a list of active validators currently running on the network. At the top of
+the page, you will see the number of validator slots that are available as well as the number of nodes that have
+signaled their intention to be a validator. You can go to the "Waiting" tab to double check to see whether your node is
+listed there.
 
 ![Waiting](./screenshots/waiting.png)
 
-The validator set is refreshed every era. In the next era, if there is a slot available and your node is selected to join the validator set, your node will become an active validator. Until then, it will remain in the <i>waiting</i> queue. If your validator is not selected to become part of the validator set, it will remain in the <i>waiting</i> queue until it is. There is no need to re-start if you are not selected for the validator set in a particular era. However, it may be necessary to increase the number of PDEX staked or seek out nominators for your validator in order to join the validator set.
+The validator set is refreshed every era. In the next era, if there is a slot available and your node is selected to
+join the validator set, your node will become an active validator. Until then, it will remain in the <i>waiting</i>
+queue. If your validator is not selected to become part of the validator set, it will remain in the <i>waiting</i> queue
+until it is. There is no need to re-start if you are not selected for the validator set in a particular era. However, it
+may be necessary to increase the number of PDEX staked or seek out nominators for your validator in order to join the
+validator set.
 
-**Congratulations!** If you have followed all of these steps, and have been selected to be a part of the validator set, you are now running a Polkadex validator!
+**Congratulations!** If you have followed all of these steps, and have been selected to be a part of the validator set,
+you are now running a Polkadex validator!

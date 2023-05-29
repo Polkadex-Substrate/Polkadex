@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use log::info;
 use parity_scale_codec::{Decode, Encode};
 use subxt::{OnlineClient, PolkadotConfig};
+
 use thea_primitives::types::Message;
 
 use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMessage};

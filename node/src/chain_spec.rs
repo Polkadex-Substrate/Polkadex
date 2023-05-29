@@ -3,8 +3,6 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use itertools::Itertools;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use polkadex_primitives::Block;
-pub use polkadex_primitives::{AccountId, Balance, Signature};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
@@ -24,6 +22,8 @@ use node_polkadex_runtime::{
 	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
 	TechnicalCommitteeConfig,
 };
+use polkadex_primitives::Block;
+pub use polkadex_primitives::{AccountId, Balance, Signature};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -257,64 +257,64 @@ pub fn soba_testnet_config() -> ChainSpec {
 
 fn mainnet_genesis_constuctor() -> GenesisConfig {
 	let initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-		orderbook_primitives::crypto::AuthorityId,
-		thea_primitives::AuthorityId
-	)> = vec![
-		(
-			// 5Fbsd6WXDGiLTxunqeK5BATNiocfCqu9bS1yArVjCgeBLkVy
-			hex!["9c7a2ee14e565db0c69f78c7b4cd839fbf52b607d867e9e9c5a79042898a0d12"].into(),
-			// 5EnCiV7wSHeNhjW3FSUwiJNkcc2SBkPLn5Nj93FmbLtBjQUq
-			hex!["781ead1e2fa9ccb74b44c19d29cb2a7a4b5be3972927ae98cd3877523976a276"].into(),
-			// 5H4dmeetCqvLhFbXCQ9MrfHCu7RatJHrPYD71Jikdnt2VZeD
-			hex!["dd1f6928c778a52b605889acb99d627b3a9be9a42439c77bc00f1980d4f540ec"]
-				.unchecked_into(),
-			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
-			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
-				.unchecked_into(),
-			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
-			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
-				.unchecked_into(),
-			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
-			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
-				.unchecked_into(),
-			// BLS - Orderbook
-			hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
-				.try_into().unwrap(),
-			// BLS - Thea
-			hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
-				.try_into().unwrap(),
-		),
-		(
-			// 5ERawXCzCWkjVq3xz1W5KGNtVx2VdefvZ62Bw1FEuZW4Vny2
-			hex!["68655684472b743e456907b398d3a44c113f189e56d1bbfd55e889e295dfde78"].into(),
-			// 5Gc4vr42hH1uDZc93Nayk5G7i687bAQdHHc9unLuyeawHipF
-			hex!["c8dc79e36b29395413399edaec3e20fcca7205fb19776ed8ddb25d6f427ec40e"].into(),
-			// 5H85GsLD6svD6PHtpenjiXVyHGcwCCYB8zbdrVDPWsuocDYB
-			hex!["dfbf0015a3b9e483606f595ea122b3f2355b46d9085fcb0639cb03f05467ab59"]
-				.unchecked_into(),
-			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
-			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
-				.unchecked_into(),
-			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
-			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
-				.unchecked_into(),
-			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
-			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
-				.unchecked_into(),
-			// BLS - Orderbook
-			hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
-				.try_into().unwrap(),
-			// BLS - Thea
-			hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
-				.try_into().unwrap(),
-		),
-	];
+        AccountId,
+        AccountId,
+        GrandpaId,
+        BabeId,
+        ImOnlineId,
+        AuthorityDiscoveryId,
+        orderbook_primitives::crypto::AuthorityId,
+        thea_primitives::AuthorityId
+    )> = vec![
+        (
+            // 5Fbsd6WXDGiLTxunqeK5BATNiocfCqu9bS1yArVjCgeBLkVy
+            hex!["9c7a2ee14e565db0c69f78c7b4cd839fbf52b607d867e9e9c5a79042898a0d12"].into(),
+            // 5EnCiV7wSHeNhjW3FSUwiJNkcc2SBkPLn5Nj93FmbLtBjQUq
+            hex!["781ead1e2fa9ccb74b44c19d29cb2a7a4b5be3972927ae98cd3877523976a276"].into(),
+            // 5H4dmeetCqvLhFbXCQ9MrfHCu7RatJHrPYD71Jikdnt2VZeD
+            hex!["dd1f6928c778a52b605889acb99d627b3a9be9a42439c77bc00f1980d4f540ec"]
+                .unchecked_into(),
+            // 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
+            hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
+                .unchecked_into(),
+            // 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
+            hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
+                .unchecked_into(),
+            // 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
+            hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
+                .unchecked_into(),
+            // BLS - Orderbook
+            hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
+                .try_into().unwrap(),
+            // BLS - Thea
+            hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
+                .try_into().unwrap(),
+        ),
+        (
+            // 5ERawXCzCWkjVq3xz1W5KGNtVx2VdefvZ62Bw1FEuZW4Vny2
+            hex!["68655684472b743e456907b398d3a44c113f189e56d1bbfd55e889e295dfde78"].into(),
+            // 5Gc4vr42hH1uDZc93Nayk5G7i687bAQdHHc9unLuyeawHipF
+            hex!["c8dc79e36b29395413399edaec3e20fcca7205fb19776ed8ddb25d6f427ec40e"].into(),
+            // 5H85GsLD6svD6PHtpenjiXVyHGcwCCYB8zbdrVDPWsuocDYB
+            hex!["dfbf0015a3b9e483606f595ea122b3f2355b46d9085fcb0639cb03f05467ab59"]
+                .unchecked_into(),
+            // 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
+            hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
+                .unchecked_into(),
+            // 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
+            hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
+                .unchecked_into(),
+            // 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
+            hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
+                .unchecked_into(),
+            // BLS - Orderbook
+            hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
+                .try_into().unwrap(),
+            // BLS - Thea
+            hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
+                .try_into().unwrap(),
+        ),
+    ];
 	let root_key = hex!["70a5f4e786b47baf52d5a34742bb8312139cfe1c747fbeb3912c197d38c53332"].into();
 	testnet_genesis(initial_authorities, vec![], None, root_key)
 }

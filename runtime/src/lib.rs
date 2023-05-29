@@ -34,20 +34,21 @@ use frame_support::{
 		LockIdentifier, OnUnbalanced, U128CurrencyToVote,
 	},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
-		ConstantMultiplier, Weight,
+		constants::{
+			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
+		},
+		ConstantMultiplier, IdentityFee, Weight,
 	},
 	PalletId, RuntimeDebug,
 };
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use sp_std::vec;
-
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_assets::BenchmarkHelper;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
@@ -59,15 +60,16 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use polkadex_primitives::AssetId;
-pub use polkadex_primitives::{
-	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
-};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{
+	crypto::{AccountId32, KeyTypeId},
+	OpaqueMetadata,
+};
 use sp_inherents::{CheckInherentsResult, InherentData};
-
+use sp_npos_elections::ExtendedBalance;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -75,20 +77,23 @@ use sp_runtime::{
 	curve::PiecewiseLinear,
 	generic, impl_opaque_keys,
 	traits::{
-		self, AccountIdConversion, BlakeTwo256, Block as BlockT, BlockNumberProvider, NumberFor,
-		OpaqueKeys, SaturatedConversion, StaticLookup,
+		self, AccountIdConversion, BlakeTwo256, Block as BlockT, BlockNumberProvider, Bounded,
+		NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
-use sp_std::prelude::*;
+use sp_std::{prelude::*, vec};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
+pub use polkadex_primitives::{
+	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
+};
+use polkadex_primitives::{AssetId, POLKADEX_NATIVE_ASSET_ID};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -142,6 +147,7 @@ pub fn native_version() -> NativeVersion {
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
+
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
 		if let Some(mut fees) = fees_then_tips.next() {
@@ -254,10 +260,6 @@ parameter_types! {
 	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
 	pub const MaxPending: u16 = 32;
 }
-use scale_info::TypeInfo;
-use sp_core::crypto::AccountId32;
-use sp_npos_elections::ExtendedBalance;
-
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
 	Copy,
@@ -432,7 +434,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 }
-use sp_runtime::traits::Bounded;
+
 parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
@@ -532,12 +534,14 @@ parameter_types! {
 }
 
 pub struct StakingBenchmarkingConfig;
+
 impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
 	type MaxValidators = ConstU32<1000>;
 	type MaxNominators = ConstU32<1000>;
 }
 
 pub struct OnChainSeqPhragmen;
+
 impl onchain::Config for OnChainSeqPhragmen {
 	type System = Runtime;
 	type Solver = SequentialPhragmen<
@@ -646,6 +650,7 @@ parameter_types! {
 /// to ensure election snapshot will not run out of memory. For now, we set them to smaller values
 /// since the staking is bounded and the weight pipeline takes hours for this single pallet.
 pub struct ElectionProviderBenchmarkConfig;
+
 impl pallet_election_provider_multi_phase::BenchmarkingConfig for ElectionProviderBenchmarkConfig {
 	const VOTERS: [u32; 2] = [1000, 2000];
 	const TARGETS: [u32; 2] = [500, 1000];
@@ -662,6 +667,7 @@ pub const MINER_MAX_ITERATIONS: u32 = 10;
 
 /// A source of random balance for NposSolver, which is meant to be run by the OCW election miner.
 pub struct OffchainRandomBalancing;
+
 impl Get<Option<(usize, ExtendedBalance)>> for OffchainRandomBalancing {
 	fn get() -> Option<(usize, ExtendedBalance)> {
 		use sp_runtime::traits::TrailingZeroInput;
@@ -684,7 +690,7 @@ impl pallet_election_provider_multi_phase::MinerConfig for Runtime {
 	type AccountId = AccountId;
 	type Solution = NposSolution16;
 	type MaxVotesPerVoter =
-	<<Self as pallet_election_provider_multi_phase::Config>::DataProvider as ElectionDataProvider>::MaxVotesPerVoter;
+    <<Self as pallet_election_provider_multi_phase::Config>::DataProvider as ElectionDataProvider>::MaxVotesPerVoter;
 	type MaxLength = MinerMaxLength;
 	type MaxWeight = MinerMaxWeight;
 
@@ -692,12 +698,13 @@ impl pallet_election_provider_multi_phase::MinerConfig for Runtime {
 	// weight estimate function is wired to this call's weight.
 	fn solution_weight(v: u32, t: u32, a: u32, d: u32) -> Weight {
 		<
-		<Self as pallet_election_provider_multi_phase::Config>::WeightInfo
-		as
-		pallet_election_provider_multi_phase::WeightInfo
-		>::submit_unsigned(v, t, a, d)
+        <Self as pallet_election_provider_multi_phase::Config>::WeightInfo
+        as
+        pallet_election_provider_multi_phase::WeightInfo
+        >::submit_unsigned(v, t, a, d)
 	}
 }
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
@@ -744,6 +751,7 @@ parameter_types! {
 }
 
 type CouncilCollective = pallet_collective::Instance1;
+
 impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Proposal = RuntimeCall;
@@ -801,6 +809,7 @@ parameter_types! {
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
+
 impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Proposal = RuntimeCall;
@@ -819,6 +828,7 @@ parameter_types! {
 }
 
 type OrderbookCollective = pallet_collective::Instance3;
+
 impl pallet_collective::Config<OrderbookCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Proposal = RuntimeCall;
@@ -1153,10 +1163,10 @@ impl pallet_assets::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = AssetU128;
 }
+
 #[cfg(feature = "runtime-benchmarks")]
 pub struct AssetU128;
-#[cfg(feature = "runtime-benchmarks")]
-use pallet_assets::BenchmarkHelper;
+
 #[cfg(feature = "runtime-benchmarks")]
 impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
 	fn create_asset_id_parameter(id: u32) -> parity_scale_codec::Compact<u128> {
@@ -1212,6 +1222,7 @@ parameter_types! {
 }
 
 pub struct SusbtrateBlockNumberProvider;
+
 impl BlockNumberProvider for SusbtrateBlockNumberProvider {
 	type BlockNumber = BlockNumber;
 
@@ -1221,6 +1232,7 @@ impl BlockNumberProvider for SusbtrateBlockNumberProvider {
 }
 
 pub struct EnsureRootOrTreasury;
+
 impl EnsureOrigin<RuntimeOrigin> for EnsureRootOrTreasury {
 	type Success = AccountId;
 
@@ -1334,7 +1346,6 @@ impl chainbridge::Config for Runtime {
 	type BridgeChainId = ChainId;
 	type ProposalLifetime = ProposalLifetime;
 }
-use polkadex_primitives::POLKADEX_NATIVE_ASSET_ID;
 
 parameter_types! {
 	pub const PolkadexAssetId: u128 = POLKADEX_NATIVE_ASSET_ID; //TODO: Chnage Polkddex Asset ID

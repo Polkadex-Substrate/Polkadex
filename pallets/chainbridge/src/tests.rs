@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #![cfg(test)]
 
+use frame_support::{assert_noop, assert_ok};
+use frame_system as system;
+
 use super::{
 	mock::{
 		assert_events, new_test_ext, new_test_ext_initialized, Balances, Bridge, ProposalLifetime,
@@ -11,8 +14,6 @@ use super::{
 	pallet::Event as PalletEvent,
 	*,
 };
-use frame_support::{assert_noop, assert_ok};
-use frame_system as system;
 
 #[test]
 fn derive_ids() {

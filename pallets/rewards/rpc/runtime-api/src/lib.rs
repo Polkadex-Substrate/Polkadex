@@ -17,8 +17,11 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
 use parity_scale_codec::Codec;
+
 use polkadex_primitives::rewards::RewardsInfoByAccount;
+
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexRewardsRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec {
 		fn account_info(account_id : AccountId, reward_id: u32) ->  Result<RewardsInfoByAccount<u128>, sp_runtime::DispatchError>;

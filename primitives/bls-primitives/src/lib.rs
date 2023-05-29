@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod application_crypto;
-
 use ark_bls12_381::{
 	g1::Config as G1Config, Bls12_381, G1Affine, G1Projective, G2Affine, G2Projective,
 };
@@ -25,19 +23,20 @@ use blst::BLST_ERROR;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sha2::Sha256;
-use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive};
-use sp_std::ops::{Add, Neg};
-
 #[cfg(feature = "std")]
 use sp_core::crypto::SecretStringError;
+use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive};
 #[cfg(feature = "std")]
 use sp_core::DeriveJunction;
-
 use sp_runtime_interface::pass_by::PassByInner;
+use sp_std::{
+	ops::{Add, Neg},
+	vec::Vec,
+};
 #[cfg(feature = "std")]
 use substrate_bip39::seed_from_entropy;
 
-use sp_std::vec::Vec;
+pub mod application_crypto;
 
 /// An identifier used to match public keys against bls keys
 pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");
@@ -208,6 +207,7 @@ impl From<CryptoTypePublicPair> for Public {
 		Public::try_from(value.1.as_ref()).expect("Expected the public key to be 96 bytes")
 	}
 }
+
 impl ByteArray for Public {
 	const LEN: usize = 96;
 }
@@ -360,9 +360,10 @@ pub fn hash_to_curve_g1(message: &[u8]) -> Result<G1Projective, HashToCurveError
 
 #[cfg(test)]
 mod tests {
-	use crate::{Public, Signature, DST};
 	use sp_application_crypto::RuntimePublic;
 	use sp_core::Pair;
+
+	use crate::{Public, Signature, DST};
 
 	#[test]
 	pub fn test_signature_works() {

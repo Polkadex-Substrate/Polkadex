@@ -10,23 +10,8 @@ use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
-		UserActions, WithdrawalRequest,
-	},
-	ObApi, SnapshotSummary, ValidatorSet,
-};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
-use polkadex_primitives::{
-	ingress::IngressMessages,
-	ocex::TradingPairConfig,
-	utils::{prepare_bitmap, return_set_bits, set_bit_field},
-	withdrawal::Withdrawal,
-	AccountId, AssetId, BlockNumber,
-};
 use primitive_types::H128;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
@@ -43,6 +28,22 @@ use sp_runtime::{
 	traits::{Block, Header, Zero},
 };
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
+		UserActions, WithdrawalRequest,
+	},
+	ObApi, SnapshotSummary, ValidatorSet,
+};
+use polkadex_primitives::{
+	ingress::IngressMessages,
+	ocex::TradingPairConfig,
+	utils::{prepare_bitmap, return_set_bits, set_bit_field},
+	withdrawal::Withdrawal,
+	AccountId, AssetId, BlockNumber,
+};
 
 use crate::{
 	error::Error,

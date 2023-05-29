@@ -1,19 +1,8 @@
-mod gosssip;
-pub mod rpc;
-pub mod sync;
+use std::{collections::HashMap, future::Future, sync::Arc};
 
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{ObMessage, TradingPair},
-	ObApi, SnapshotSummary, ValidatorSet,
-};
 use parking_lot::RwLock;
-use polkadex_primitives::{
-	ingress::IngressMessages, ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId,
-	BlockNumber,
-};
 use primitive_types::H256;
 use reference_trie::RefHasher;
 use sc_keystore::LocalKeystore;
@@ -24,13 +13,25 @@ use sc_network_test::{
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
-
 use sp_blockchain::{BlockStatus, HeaderBackend, Info};
 use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Header, NumberFor};
-use std::{collections::HashMap, future::Future, sync::Arc};
+
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{ObMessage, TradingPair},
+	ObApi, SnapshotSummary, ValidatorSet,
+};
+use polkadex_primitives::{
+	ingress::IngressMessages, ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId,
+	BlockNumber,
+};
+
+mod gosssip;
+pub mod rpc;
+pub mod sync;
 
 #[derive(Clone, Default)]
 pub(crate) struct TestApi {

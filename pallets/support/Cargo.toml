@@ -35,17 +35,17 @@ sp-core = { workspace = true, default-features = false }
 [features]
 default = ["std"]
 std = [
-  'serde/std',
-  'parity-scale-codec/std',
-  'frame-support/std',
-  'frame-system/std',
-  'sp-runtime/std',
-  'scale-info/std',
-  'sp-std/std',
-  'polkadex-primitives/std',
-  'num-bigint/std',
-  'num-traits/std',
-  'sp-core/std',
-  'sp-io/std',
+    'serde/std',
+    'parity-scale-codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'sp-runtime/std',
+    'scale-info/std',
+    'sp-std/std',
+    'polkadex-primitives/std',
+    'num-bigint/std',
+    'num-traits/std',
+    'sp-core/std',
+    'sp-io/std',
 ]
 try-runtime = ['frame-support/try-runtime']

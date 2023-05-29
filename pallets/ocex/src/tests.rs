@@ -15,24 +15,34 @@
 
 //! Tests for pallet-ocex.
 
-use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec};
-use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, UNIT_BALANCE,
+use frame_system::EventRecord;
+use rust_decimal::{
+	prelude::{FromPrimitive, ToPrimitive},
+	Decimal,
 };
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use sp_core::{bounded::BoundedBTreeSet, Pair};
+use sp_keystore::{testing::KeyStore, SyncCryptoStore};
+use sp_runtime::{
+	traits::{BlockNumberProvider, One},
+	AccountId32,
+	DispatchError::BadOrigin,
+	SaturatedConversion, TokenError,
+};
 use sp_std::collections::btree_map::BTreeMap;
 
+use orderbook_primitives::Fees;
+use polkadex_primitives::{
+	assets::AssetId,
+	ingress::{HandleBalance, HandleBalanceLimit, IngressMessages},
+	withdrawal::Withdrawal,
+	AccountId, AssetsLimit, UNIT_BALANCE,
+};
+
+use crate::*;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use frame_system::EventRecord;
-
-use polkadex_primitives::{AccountId, AssetsLimit};
-use rust_decimal::Decimal;
-use sp_core::{bounded::BoundedBTreeSet, Pair};
-use sp_keystore::{testing::KeyStore, SyncCryptoStore};
-use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -133,6 +143,7 @@ fn test_add_proxy_account_main_account_not_found() {
 		);
 	});
 }
+
 #[test]
 fn test_add_proxy_account_exchange_state_not_operational() {
 	let account_id = create_account_id();
@@ -240,6 +251,7 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 		);
 	});
 }
+
 #[test]
 fn test_register_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
@@ -881,6 +893,7 @@ fn test_deposit_unknown_asset() {
 		);
 	});
 }
+
 #[test]
 fn test_deposit_exchange_not_operational() {
 	let account_id = create_account_id();
@@ -1062,6 +1075,7 @@ fn test_open_trading_pair_both_assets_cannot_be_same() {
 		assert_eq!(OCEX::ingress_messages(blk).len(), 1);
 	});
 }
+
 #[test]
 fn test_open_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
@@ -1277,6 +1291,7 @@ fn collect_fees_unexpected_behaviour() {
 		);
 	});
 }
+
 #[test]
 fn test_collect_fees_decimal_overflow() {
 	let account_id = create_account_id();
@@ -1488,7 +1503,7 @@ fn withdrawal() {
 				alice_proxy_account,
 				AssetId::Polkadex,
 				Decimal::new(100, 12),
-				true
+				true,
 			)
 		);
 
@@ -1522,7 +1537,8 @@ fn collect_fees_ddos(){
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
 		let (mut snapshot, _public) = get_dummy_snapshot(0);
-		snapshot.snapshot_id = 2; // Wrong nonce
+		snapshot.snapshot_id = 2;
+		// Wrong nonce
 		assert_noop!(
 			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot),
 			Error::<Test>::SnapshotNonceError
@@ -1675,8 +1691,6 @@ fn test_withdrawal() {
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
-use orderbook_primitives::Fees;
-use sp_runtime::traits::{BlockNumberProvider, One};
 
 #[test]
 fn test_withdrawal_bad_origin() {
@@ -1720,8 +1734,6 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 		);
 	});
 }
-
-use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 
 #[test]
 fn test_set_balances_with_bad_origin() {
@@ -1772,7 +1784,7 @@ pub fn test_set_balances_when_exchange_is_pause() {
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(
 			OCEX::ingress_messages(blk)[1],
-			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice,)
+			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice)
 		);
 	});
 }

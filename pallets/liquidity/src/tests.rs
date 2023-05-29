@@ -1,7 +1,10 @@
-use crate::{mock::*, *};
 use frame_support::{assert_noop, assert_ok};
-use polkadex_primitives::{AccountId, AssetId};
 use sp_runtime::{DispatchError::BadOrigin, SaturatedConversion};
+
+use polkadex_primitives::{AccountId, AssetId};
+
+use crate::{mock::*, *};
+
 pub const ALICE_ACCOUNT_RAW_ID: [u8; 32] = [0; 32];
 
 fn get_alice_account() -> AccountId {
@@ -52,6 +55,7 @@ fn register_account_with_bad_origin() {
 		);
 	});
 }
+
 #[test]
 fn deposit() {
 	let account_generation_key = get_account_generation_key();

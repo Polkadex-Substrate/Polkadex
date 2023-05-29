@@ -16,16 +16,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
-#[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod tests;
 
-pub mod weights;
-
-use chainbridge::{BridgeChainId, ResourceId};
 use frame_support::{
 	dispatch::fmt::Debug,
 	fail, log,
@@ -48,6 +39,17 @@ use sp_runtime::{
 	BoundedBTreeSet, SaturatedConversion,
 };
 use sp_std::{vec, vec::Vec};
+
+use chainbridge::{BridgeChainId, ResourceId};
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
+pub mod weights;
 
 pub trait WeightInfo {
 	fn create_asset(_b: u32) -> Weight;
@@ -95,11 +97,13 @@ pub mod pallet {
 
 	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode)]
 	pub struct WithdrawalLimit;
+
 	impl Get<u32> for WithdrawalLimit {
 		fn get() -> u32 {
 			5 // TODO: Arbitrary value
 		}
 	}
+
 	#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode)]
 	pub struct AllowlistedTokenLimit;
 
@@ -308,7 +312,7 @@ pub mod pallet {
 		/// * `chain_id`: Asset's native chain
 		/// * `contract_add`: Asset's actual address at native chain
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_asset(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::create_asset(1))]
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -346,7 +350,7 @@ pub mod pallet {
 		/// * `rid`: Resource ID
 		#[allow(clippy::unnecessary_lazy_evaluations)]
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::mint_asset(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
 			destination_add: Vec<u8>,
@@ -379,7 +383,7 @@ pub mod pallet {
 
 		/// Set Bridge Status
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_bridge_status())]
+		#[pallet::weight(< T as Config >::WeightInfo::set_bridge_status())]
 		pub fn set_bridge_status(origin: OriginFor<T>, status: bool) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeDeactivated<T>>::put(status);
@@ -389,7 +393,7 @@ pub mod pallet {
 
 		/// Set Block Delay
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_block_delay())]
+		#[pallet::weight(< T as Config >::WeightInfo::set_block_delay())]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
 			no_of_blocks: T::BlockNumber,
@@ -410,7 +414,7 @@ pub mod pallet {
 		/// * `amount`: Amount to be burned and transferred from Sender's Account
 		/// * `recipient`: recipient
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1, 1))]
+		#[pallet::weight(< T as Config >::WeightInfo::withdraw(1, 1))]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -480,7 +484,7 @@ pub mod pallet {
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
 		#[pallet::call_index(7)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_fee(1, 1))]
+		#[pallet::weight(< T as Config >::WeightInfo::update_fee(1, 1))]
 		pub fn update_fee(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -495,7 +499,7 @@ pub mod pallet {
 
 		/// Allowlists Token
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -509,7 +513,7 @@ pub mod pallet {
 
 		/// Remove allowlisted tokens
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -521,7 +525,7 @@ pub mod pallet {
 
 		/// Remove allowlisted tokens
 		#[pallet::call_index(10)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_precision(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::add_precision(1))]
 		pub fn add_precision(
 			origin: OriginFor<T>,
 			rid: ResourceId,

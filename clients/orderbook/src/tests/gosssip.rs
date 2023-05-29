@@ -1,16 +1,19 @@
-use crate::tests::{
-	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
-};
+use std::sync::Arc;
+
 use memory_db::MemoryDB;
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{ObMessage, UserActions},
-};
 use parking_lot::RwLock;
 use sc_network_test::{FullPeerConfig, TestNetFactory};
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
-use std::sync::Arc;
+
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{ObMessage, UserActions},
+};
+
+use crate::tests::{
+	generate_and_finalize_blocks, initialize_orderbook, make_ob_ids, ObTestnet, TestApi,
+};
 
 #[tokio::test]
 pub async fn test_orderbook_gossip() {

@@ -1,15 +1,28 @@
 #![feature(unwrap_infallible)]
+
+use std::{marker::PhantomData, sync::Arc};
+
 use prometheus::Registry;
 use sc_chain_spec::ChainType;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sc_keystore::LocalKeystore;
+use sc_network_gossip::Network as GossipNetwork;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
 use sp_runtime::traits::Block;
-use std::{marker::PhantomData, sync::Arc};
+
 use thea_primitives::TheaApi;
 pub use thea_protocol_name::standard_name as protocol_standard_name;
+
+use crate::{
+	connector::{
+		parachain::ParachainClient,
+		traits::{ForeignConnector, NoOpConnector},
+	},
+	thea_protocol_name::standard_name,
+	worker::TheaWorker,
+};
 
 mod error;
 mod gossip;
@@ -24,7 +37,6 @@ mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
-
 	pub(crate) const NAME: &str = "/thea/1";
 
 	/// Name of the notifications protocol used by Thea.
@@ -71,16 +83,6 @@ where
 {
 	// empty
 }
-
-use crate::{
-	connector::{
-		parachain::ParachainClient,
-		traits::{ForeignConnector, NoOpConnector},
-	},
-	thea_protocol_name::standard_name,
-	worker::TheaWorker,
-};
-use sc_network_gossip::Network as GossipNetwork;
 
 /// Thea gadget initialization parameters.
 pub struct TheaParams<B, BE, C, N, R>

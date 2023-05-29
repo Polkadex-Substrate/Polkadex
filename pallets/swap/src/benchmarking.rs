@@ -15,9 +15,7 @@
 //! AMM pallet benchmarking.
 
 #![cfg(feature = "runtime-benchmarks")]
-use super::*;
 
-use crate::{CurrencyId, Pallet as AMM};
 use frame_benchmarking::{
 	benchmarks_instance_pallet, impl_benchmark_test_suite, whitelisted_caller,
 };
@@ -25,6 +23,10 @@ use frame_support::{assert_ok, dispatch::UnfilteredDispatchable, traits::EnsureO
 use frame_system::{self, RawOrigin as SystemOrigin};
 use sp_runtime::traits::StaticLookup;
 use sp_std::prelude::*;
+
+use crate::{CurrencyId, Pallet as AMM};
+
+use super::*;
 
 pub const DOT: CurrencyId = 11;
 pub const SDOT: CurrencyId = 12;

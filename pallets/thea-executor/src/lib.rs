@@ -13,7 +13,6 @@ mod mock;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
 	use frame_support::{
 		log,
 		pallet_prelude::*,
@@ -24,11 +23,14 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
+	use xcm::VersionedMultiLocation;
+
 	use thea_primitives::{
 		types::{AssetMetadata, Deposit, Withdraw},
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
 	};
-	use xcm::VersionedMultiLocation;
+
+	use super::*;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (super) trait Store)]
@@ -98,7 +100,7 @@ pub mod pallet {
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Asset Metadata set ( config )
 		AssetMetadataSet(AssetMetadata),

@@ -13,12 +13,6 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::{
-	mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
-		OnFinalize, OnInitialize,
-	},
-	pallet as pallet_amm, CurrencyId,
-};
 use frame_support::{
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, SortedMembers},
@@ -36,9 +30,17 @@ use sp_runtime::{
 	Permill,
 };
 
+use crate::{
+	mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::{
+		OnFinalize, OnInitialize,
+	},
+	pallet as pallet_amm, CurrencyId,
+};
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
+
 #[derive(
 	Encode,
 	Decode,
@@ -227,6 +229,7 @@ parameter_types! {
 }
 
 pub struct AliceCreatePoolOrigin;
+
 impl SortedMembers<AccountId> for AliceCreatePoolOrigin {
 	fn sorted_members() -> Vec<AccountId> {
 		vec![ALICE]

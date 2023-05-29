@@ -1,15 +1,3 @@
-use crate::constants::*;
-use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
-};
-use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
-use sp_core::H256;
-use sp_runtime::traits::Verify;
-use sp_std::cmp::Ordering;
-
-#[cfg(not(feature = "std"))]
-use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use std::{
 	borrow::Borrow,
@@ -17,6 +5,27 @@ use std::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
+
+#[cfg(feature = "std")]
+use chrono::Utc;
+#[cfg(feature = "std")]
+use libp2p::PeerId;
+use parity_scale_codec::{Decode, Encode};
+use rust_decimal::{
+	prelude::{FromPrimitive, Zero},
+	Decimal, RoundingStrategy,
+};
+use sp_core::H256;
+use sp_runtime::traits::Verify;
+use sp_std::cmp::Ordering;
+#[cfg(not(feature = "std"))]
+use sp_std::vec::Vec;
+
+use polkadex_primitives::{
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
+};
+
+use crate::constants::*;
 
 pub type OrderId = H256;
 
@@ -78,12 +87,6 @@ impl Trade {
 		}
 	}
 }
-
-#[cfg(feature = "std")]
-use chrono::Utc;
-#[cfg(feature = "std")]
-use libp2p::PeerId;
-use rust_decimal::prelude::FromPrimitive;
 
 #[cfg(feature = "std")]
 impl Trade {

@@ -1,12 +1,15 @@
-use crate::*;
 use frame_support::{assert_noop, assert_ok};
+use frame_system::EventRecord;
+use pallet_balances::BalanceLock;
+use sp_runtime::{AccountId32, DispatchError::BadOrigin, WeakBoundedVec};
+
+use polkadex_primitives::{AccountId, UNIT_BALANCE};
+
+use crate::*;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use frame_system::EventRecord;
-use pallet_balances::BalanceLock;
-use polkadex_primitives::{AccountId, UNIT_BALANCE};
-use sp_runtime::{AccountId32, DispatchError::BadOrigin, WeakBoundedVec};
+
 pub const STACK_SIZE: usize = 8388608;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {

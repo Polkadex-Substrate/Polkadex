@@ -60,13 +60,13 @@ pub mod weights;
 
 const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
+
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
-	// Import various types used to declare pallet in scope.
-	use super::*;
+
 	use frame_support::{
 		pallet_prelude::{OptionQuery, *},
 		traits::{Currency, LockableCurrency, ReservableCurrency, WithdrawReasons},
@@ -74,6 +74,9 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
+
+	// Import various types used to declare pallet in scope.
+	use super::*;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -120,7 +123,7 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -134,7 +137,7 @@ pub mod pallet {
 		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block
 		/// * `reward_id`: The reward id
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_reward_cycle(1, 1, 1))]
+		#[pallet::weight(< T as Config >::WeightInfo::create_reward_cycle(1, 1, 1))]
 		pub fn create_reward_cycle(
 			origin: OriginFor<T>,
 			start_block: T::BlockNumber,
@@ -172,7 +175,7 @@ pub mod pallet {
 		/// * `origin`: The users address which has been mapped to reward id
 		/// * `reward_id`: Reward id
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::initialize_claim_rewards())]
+		#[pallet::weight(< T as Config >::WeightInfo::initialize_claim_rewards())]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 
@@ -257,7 +260,7 @@ pub mod pallet {
 		/// * `origin`: The users address which has been mapped to reward id
 		/// * `id`: The reward id
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim())]
+		#[pallet::weight(< T as Config >::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
@@ -359,7 +362,7 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		RewardCycleCreated {
 			start_block: T::BlockNumber,

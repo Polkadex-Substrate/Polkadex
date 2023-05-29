@@ -1,9 +1,12 @@
-use crate::error::Error;
+use std::sync::Arc;
+
 use log::warn;
 use sc_keystore::LocalKeystore;
 use sp_core::Pair;
-use std::sync::Arc;
+
 use thea_primitives::crypto::{AuthorityId, AuthoritySignature};
+
+use crate::error::Error;
 
 pub struct TheaKeyStore {
 	keystore: Option<Arc<LocalKeystore>>,

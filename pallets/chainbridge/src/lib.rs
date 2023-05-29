@@ -4,6 +4,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
+pub use pallet::*;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(test)]
@@ -12,8 +14,6 @@ mod mock;
 mod tests;
 
 pub mod hashing;
-
-pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -116,7 +116,7 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
@@ -142,7 +142,7 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Vote threshold has changed (new_threshold)
 		RelayerThresholdChanged(u32),
@@ -690,6 +690,7 @@ pub mod pallet {
 
 	/// Simple ensure origin for the bridge account
 	pub struct EnsureBridge<T>(sp_std::marker::PhantomData<T>);
+
 	impl<T: Config> EnsureOrigin<T::RuntimeOrigin> for EnsureBridge<T> {
 		type Success = T::AccountId;
 		fn try_origin(o: T::RuntimeOrigin) -> Result<Self::Success, T::RuntimeOrigin> {

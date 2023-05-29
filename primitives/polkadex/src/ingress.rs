@@ -1,11 +1,11 @@
-use crate::{ocex::TradingPairConfig, AssetId};
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
+use crate::{ocex::TradingPairConfig, AssetId};
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

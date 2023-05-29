@@ -19,17 +19,8 @@
 #![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod assets;
-pub mod fees;
-pub mod ingress;
-pub mod ocex;
-pub mod rewards;
-pub mod utils;
-pub mod withdrawal;
-
-pub use frame_support::storage::bounded_vec::BoundedVec;
-
 use codec::{Decode, Encode};
+pub use frame_support::storage::bounded_vec::BoundedVec;
 use frame_support::traits::Get;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
@@ -42,6 +33,14 @@ use sp_runtime::{
 
 // reexports:
 pub use assets::*;
+
+pub mod assets;
+pub mod fees;
+pub mod ingress;
+pub mod ocex;
+pub mod rewards;
+pub mod utils;
+pub mod withdrawal;
 
 pub const UNIT_BALANCE: u128 = 1_000_000_000_000;
 pub const POLKADEX_NATIVE_ASSET_ID: u128 = 1000;
@@ -88,6 +87,7 @@ pub type BlockId = generic::BlockId<Block>;
 #[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ProxyLimit;
+
 impl Get<u32> for ProxyLimit {
 	fn get() -> u32 {
 		3
@@ -97,6 +97,7 @@ impl Get<u32> for ProxyLimit {
 #[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetsLimit;
+
 impl Get<u32> for AssetsLimit {
 	fn get() -> u32 {
 		1000

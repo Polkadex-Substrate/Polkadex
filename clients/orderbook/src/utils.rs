@@ -1,10 +1,12 @@
-use crate::error::Error;
-use orderbook_primitives::types::AccountAsset;
 use parity_scale_codec::{Decode, Encode};
 use reference_trie::ExtensionLayout;
 use rust_decimal::Decimal;
 use sp_tracing::info;
 use trie_db::{TrieDBMut, TrieMut};
+
+use orderbook_primitives::types::AccountAsset;
+
+use crate::error::Error;
 
 pub fn add_balance(
 	trie: &mut TrieDBMut<ExtensionLayout>,

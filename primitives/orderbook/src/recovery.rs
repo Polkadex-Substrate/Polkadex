@@ -1,9 +1,12 @@
-use crate::types::AccountAsset;
+use std::collections::BTreeMap;
+
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{AccountId, BlockNumber};
 use rust_decimal::Decimal;
 use serde_with::{json::JsonString, serde_as};
-use std::collections::BTreeMap;
+
+use polkadex_primitives::{AccountId, BlockNumber};
+
+use crate::types::AccountAsset;
 
 /// A struct representing the recovery state of an Order Book.
 #[serde_as]

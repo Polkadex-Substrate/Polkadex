@@ -1,21 +1,23 @@
 #![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(test)]
-mod test;
-pub mod types;
-
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
+use sp_application_crypto::ByteArray;
+use sp_runtime::{traits::IdentifyAccount, DispatchResult};
 use sp_std::vec::Vec;
-/// Key type for Orderbook module.
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
+
 pub use crate::{
 	crypto::{AuthorityId, AuthoritySignature},
 	types::Message,
 };
-use sp_application_crypto::ByteArray;
-use sp_runtime::DispatchResult;
+
+#[cfg(test)]
+mod test;
+pub mod types;
+
+/// Key type for Orderbook module.
+pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
 
 /// Orderbook cryptographic types
 ///
@@ -42,7 +44,6 @@ pub mod crypto {
 	/// Signature for a Orderbook authority using BLS as its crypto.
 	pub type AuthoritySignature = Signature;
 }
-use sp_runtime::traits::IdentifyAccount;
 
 impl IdentifyAccount for AuthorityId {
 	type AccountId = Self;
@@ -141,6 +142,7 @@ sp_api::decl_runtime_apis! {
 pub trait TheaIncomingExecutor {
 	fn execute_deposits(network: Network, deposits: Vec<u8>);
 }
+
 // This is implemented by Thea pallet by gj.
 pub trait TheaOutgoingExecutor {
 	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> DispatchResult;

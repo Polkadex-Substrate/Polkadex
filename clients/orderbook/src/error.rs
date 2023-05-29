@@ -2,12 +2,14 @@
 //!
 //! Used for Orderbook gadget interal error handling only
 
-use hash_db::MaybeDebug;
-use orderbook_primitives::types::AccountAsset;
-use sp_api::ApiError;
 use std::fmt::Debug;
+
+use hash_db::MaybeDebug;
+use sp_api::ApiError;
 use tokio::task::JoinError;
 use trie_db::TrieError;
+
+use orderbook_primitives::types::AccountAsset;
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {

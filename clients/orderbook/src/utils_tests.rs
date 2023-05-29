@@ -1,14 +1,16 @@
+use memory_db::{HashKey, MemoryDB};
+use parity_scale_codec::{Decode, Encode};
+use reference_trie::{ExtensionLayout, RefHasher};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
+use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
+use orderbook_primitives::types::AccountAsset;
+use polkadex_primitives::{AccountId, AssetId};
+
 use crate::{
 	error::Error,
 	utils::{add_balance, sub_balance},
 };
-use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::types::AccountAsset;
-use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{AccountId, AssetId};
-use reference_trie::{ExtensionLayout, RefHasher};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
-use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 #[test]
 fn test_add_balance_creates_new_free_balance() {
@@ -21,7 +23,7 @@ fn test_add_balance_creates_new_free_balance() {
 		add_balance(
 			&mut db_client,
 			account_asset.clone(),
-			Decimal::from_u128(1_000_000_000_000u128).unwrap()
+			Decimal::from_u128(1_000_000_000_000u128).unwrap(),
 		),
 		Ok(())
 	);
@@ -71,7 +73,7 @@ fn test_sub_balance_updates_balance() {
 		sub_balance(
 			&mut db_client,
 			account_asset.clone(),
-			Decimal::from_u128(reduce_balance).unwrap()
+			Decimal::from_u128(reduce_balance).unwrap(),
 		),
 		Ok(())
 	);
@@ -92,7 +94,7 @@ fn test_sub_balance_returns_account_not_found() {
 		sub_balance(
 			&mut db_client,
 			account_asset.clone(),
-			Decimal::from_u128(reduce_balance).unwrap()
+			Decimal::from_u128(reduce_balance).unwrap(),
 		),
 		Err(Error::AccountBalanceNotFound(account_asset))
 	);
@@ -116,7 +118,7 @@ fn test_sub_balance_returns_insufficient_balance() {
 		sub_balance(
 			&mut db_client,
 			account_asset.clone(),
-			Decimal::from_u128(reduce_balance).unwrap()
+			Decimal::from_u128(reduce_balance).unwrap(),
 		),
 		Err(Error::InsufficientBalance)
 	);

@@ -2,21 +2,23 @@
 #![feature(int_roundings)]
 extern crate core;
 
-use futures::channel::mpsc::UnboundedReceiver;
-use orderbook_primitives::ObApi;
-pub use orderbook_protocol_name::standard_name as protocol_standard_name;
+use std::{marker::PhantomData, sync::Arc};
 
+use futures::channel::mpsc::UnboundedReceiver;
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use prometheus::Registry;
 use reference_trie::RefHasher;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sc_keystore::LocalKeystore;
+use sc_network_gossip::Network as GossipNetwork;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
 use sp_runtime::traits::Block;
-use std::{marker::PhantomData, sync::Arc};
+
+use orderbook_primitives::{types::ObMessage, ObApi};
+pub use orderbook_protocol_name::standard_name as protocol_standard_name;
 
 mod error;
 mod gossip;
@@ -91,9 +93,6 @@ where
 {
 	// empty
 }
-
-use orderbook_primitives::types::ObMessage;
-use sc_network_gossip::Network as GossipNetwork;
 
 /// Alias type for the `MemoryDB` database lock reference.
 pub type DbRef = Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>;

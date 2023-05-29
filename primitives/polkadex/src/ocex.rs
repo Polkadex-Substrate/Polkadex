@@ -1,14 +1,12 @@
-use crate::assets::AssetId;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
-
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
-use crate::{fees::FeeConfig, withdrawal::Withdrawal};
+use crate::{assets::AssetId, fees::FeeConfig, withdrawal::Withdrawal};
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -19,6 +17,7 @@ pub struct AccountInfo<Account, ProxyLimit: Get<u32>> {
 	/// Trading Fee config
 	pub fee_config: FeeConfig,
 }
+
 impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> {
 	pub fn maker_fee_fraction(&self) -> Decimal {
 		self.fee_config.maker_fraction
@@ -61,7 +60,8 @@ pub struct TradingPairConfig {
 	pub min_qty: Decimal,
 	pub max_qty: Decimal,
 	pub qty_step_size: Decimal,
-	pub operational_status: bool, //will be true if the trading pair is enabled on the orderbook.
+	pub operational_status: bool,
+	//will be true if the trading pair is enabled on the orderbook.
 	pub base_asset_precision: u8,
 	pub quote_asset_precision: u8,
 }

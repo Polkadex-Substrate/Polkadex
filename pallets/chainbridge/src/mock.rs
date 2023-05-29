@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #![cfg(test)]
 
-use super::*;
-
 use frame_support::{assert_ok, ord_parameter_types, parameter_types, weights::Weight};
-use frame_system::{self as system};
+use frame_system as system;
+pub use pallet_balances as balances;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -14,7 +13,8 @@ use sp_runtime::{
 };
 
 use crate::{self as bridge, Config};
-pub use pallet_balances as balances;
+
+use super::*;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;

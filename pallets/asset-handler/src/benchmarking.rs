@@ -13,13 +13,14 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::pallet::{Pallet as AssetHandler, *};
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
 use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
 use sp_core::H160;
 use sp_runtime::SaturatedConversion;
+
+use crate::pallet::{Pallet as AssetHandler, *};
 
 const SEED: u32 = 0;
 pub const UNIT_BALANCE: u128 = 1000_000_000_000;

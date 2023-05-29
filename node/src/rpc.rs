@@ -30,14 +30,13 @@
 
 #![warn(missing_docs)]
 
-use futures::channel::mpsc::UnboundedSender;
 use std::sync::Arc;
 
+use futures::channel::mpsc::UnboundedSender;
 use jsonrpsee::RpcModule;
-use orderbook_primitives::{types::ObMessage, ObApi};
-use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
-use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
-use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use memory_db::{HashKey, MemoryDB};
+use parking_lot::RwLock;
+use reference_trie::RefHasher;
 use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::{BabeConfiguration, Epoch};
 use sc_consensus_epochs::SharedEpochChanges;
@@ -54,8 +53,11 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
 
-use memory_db::{HashKey, MemoryDB};
-use reference_trie::RefHasher;
+use orderbook_primitives::{types::ObMessage, ObApi};
+use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
+use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
+use pallet_rewards_rpc::PolkadexRewardsRpc;
+use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -80,9 +82,6 @@ pub struct GrandpaDeps<B> {
 	/// Finality proof provider.
 	pub finality_provider: Arc<FinalityProofProvider<B, Block>>,
 }
-
-use pallet_rewards_rpc::PolkadexRewardsRpc;
-use parking_lot::RwLock;
 
 /// Full client dependencies.
 pub struct FullDeps<C, P, SC, B> {

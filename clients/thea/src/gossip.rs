@@ -1,4 +1,8 @@
-use crate::types::GossipMessage;
+use std::{
+	collections::{BTreeMap, BTreeSet},
+	sync::Arc,
+};
+
 use log::trace;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
@@ -6,12 +10,11 @@ use sc_network::PeerId;
 use sc_network_common::protocol::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
-use std::{
-	collections::{BTreeMap, BTreeSet},
-	sync::Arc,
-};
-use thea_primitives::{Message, NATIVE_NETWORK};
 use tokio::time::Instant;
+
+use thea_primitives::{Message, NATIVE_NETWORK};
+
+use crate::types::GossipMessage;
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -33,10 +36,12 @@ pub struct GossipValidator {
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
-	foreign_last_nonce: Arc<RwLock<u64>>, /* Nonce of foreign message that was last processed in
-	                                       * native */
-	native_last_nonce: Arc<RwLock<u64>>, /* Nonce of native message that was last processed in
-	                                      * foreign */
+	foreign_last_nonce: Arc<RwLock<u64>>,
+	/* Nonce of foreign message that was last processed in
+	 * native */
+	native_last_nonce: Arc<RwLock<u64>>,
+	/* Nonce of native message that was last processed in
+	 * foreign */
 }
 
 impl GossipValidator {

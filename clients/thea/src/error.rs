@@ -2,10 +2,12 @@
 //!
 //! Used for Orderbook gadget interal error handling only
 
-use sp_api::ApiError;
 use std::fmt::Debug;
-use thea_primitives::Network;
+
+use sp_api::ApiError;
 use tokio::task::JoinError;
+
+use thea_primitives::Network;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

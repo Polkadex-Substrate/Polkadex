@@ -13,8 +13,19 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use std::sync::Arc;
+
+use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
+use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
+use sc_service::PartialComponents;
+use sp_keyring::Sr25519Keyring;
+
+use node_polkadex_runtime::{Block, ExistentialDeposit};
+use polkadex_client::ExecutorDispatch;
+use polkadex_node::benchmarking::{
+	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
+};
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 use crate::{
@@ -23,15 +34,6 @@ use crate::{
 	service,
 	service::{new_partial, FullClient},
 };
-
-use node_polkadex_runtime::{Block, ExistentialDeposit};
-use polkadex_client::ExecutorDispatch;
-use polkadex_node::benchmarking::{
-	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
-};
-use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
-use sc_service::PartialComponents;
-use sp_keyring::Sr25519Keyring;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {

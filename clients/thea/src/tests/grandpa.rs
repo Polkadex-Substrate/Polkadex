@@ -2,6 +2,7 @@ use super::*;
 
 const TEST_GOSSIP_DURATION: Duration = Duration::from_millis(500);
 pub(crate) const GRANDPA_PROTOCOL_NAME: &str = "/grandpa/1";
+
 pub(crate) type GrandpaBlockNumber = u64;
 pub(crate) type TestLinkHalf =
 	LinkHalf<Block, PeersFullClient, LongestChain<substrate_test_runtime_client::Backend, Block>>;

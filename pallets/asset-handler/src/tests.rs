@@ -269,7 +269,7 @@ pub fn test_block_delay_with_multiple_withdrawals() {
 				1,
 				rid,
 				U256::from(200),
-				recipient.0.to_vec()
+				recipient.0.to_vec(),
 			)]
 		);
 		mock::run_to_block(110);
@@ -281,15 +281,15 @@ pub fn test_block_delay_with_multiple_withdrawals() {
 					1,
 					rid,
 					U256::from(200),
-					recipient.0.to_vec()
+					recipient.0.to_vec(),
 				),
 				chainbridge::BridgeEvent::FungibleTransfer(
 					chain_id,
 					2,
 					rid,
 					U256::from(100),
-					recipient.0.to_vec()
-				)
+					recipient.0.to_vec(),
+				),
 			]
 		);
 		assert_eq!(Assets::balance(asset_id, sender), 100000000);
@@ -337,7 +337,7 @@ pub fn test_withdraw_successfully() {
 				1,
 				rid,
 				U256::from(1),
-				recipient.0.to_vec()
+				recipient.0.to_vec(),
 			)]
 		);
 		assert_eq!(Assets::balance(asset_id, sender), 1000000);

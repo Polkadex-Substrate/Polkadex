@@ -30,24 +30,24 @@ sp-io = { workspace = true }
 [features]
 default = ["std"]
 std = [
-  "sp-application-crypto/std",
-  "bls-primitives/std",
-  "thea-primitives/std",
-  "parity-scale-codec/std",
-  "scale-info/std",
-  "frame-support/std",
-  "frame-system/std",
-  "sp-runtime/std",
-  "sp-std/std",
-  "polkadex-primitives/std",
-  "pallet-timestamp/std",
-  "sp-core/std",
-  "frame-benchmarking/std",
+    "sp-application-crypto/std",
+    "bls-primitives/std",
+    "thea-primitives/std",
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "polkadex-primitives/std",
+    "pallet-timestamp/std",
+    "sp-core/std",
+    "frame-benchmarking/std",
 ]
 runtime-benchmarks = [
-  "sp-runtime/runtime-benchmarks",
-  "frame-benchmarking/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

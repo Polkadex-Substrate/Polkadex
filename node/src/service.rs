@@ -19,29 +19,36 @@
 #![warn(unused_extern_crates)]
 
 //! Service implementation. Specialized wrapper over substrate service.
-use crate::rpc as node_rpc;
+use std::sync::Arc;
+
 use futures::{
 	channel::mpsc::{unbounded, UnboundedReceiver},
 	prelude::*,
 };
 use memory_db::{HashKey, MemoryDB};
-use node_polkadex_runtime::RuntimeApi;
 use parking_lot::RwLock;
-use polkadex_client::ExecutorDispatch;
-use polkadex_primitives::Block;
 use reference_trie::RefHasher;
 use sc_client_api::BlockBackend;
+use sc_consensus_babe::SlotProportion;
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
+use sc_network_common::service::NetworkEventStream;
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
-use sp_runtime::traits::Block as BlockT;
-use std::sync::Arc;
-
-use sc_consensus_babe::SlotProportion;
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_core::Pair;
-use sp_runtime::{generic, SaturatedConversion};
+use sp_runtime::{generic, traits::Block as BlockT, SaturatedConversion};
+/// Fetch the nonce of the given `account` from the chain state.
+///
+/// Note: Should only be used for tests.
+use substrate_frame_rpc_system::AccountNonceApi;
+
+use node_polkadex_runtime::RuntimeApi;
+use orderbook_primitives::types::ObMessage;
+use polkadex_client::ExecutorDispatch;
+use polkadex_primitives::Block;
+
+use crate::rpc as node_rpc;
 
 pub type FullClient =
 	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
@@ -50,10 +57,6 @@ type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
 	sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
-/// Fetch the nonce of the given `account` from the chain state.
-///
-/// Note: Should only be used for tests.
-use substrate_frame_rpc_system::AccountNonceApi;
 pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) -> u32 {
 	let best_hash = client.chain_info().best_hash;
 	client
@@ -87,18 +90,18 @@ pub fn create_extrinsic(
 		.unwrap_or(2) as u64;
 	let tip = 0;
 	let extra: node_polkadex_runtime::SignedExtra = (
-		// frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
-		frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
-		frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
-		frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
-		frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(generic::Era::mortal(
-			period,
-			best_block.saturated_into(),
-		)),
-		frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(nonce),
-		frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-		pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
-	);
+        // frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
+        frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
+        frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
+        frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
+        frame_system::CheckMortality::<node_polkadex_runtime::Runtime>::from(generic::Era::mortal(
+            period,
+            best_block.saturated_into(),
+        )),
+        frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(nonce),
+        frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
+        pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
+    );
 
 	let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
 		function.clone(),
@@ -124,8 +127,6 @@ pub fn create_extrinsic(
 		extra,
 	)
 }
-use orderbook_primitives::types::ObMessage;
-use sc_network_common::service::NetworkEventStream;
 
 #[allow(clippy::type_complexity)]
 pub fn new_partial(
@@ -225,10 +226,10 @@ pub fn new_partial(
 			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
 			let slot =
-				sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-					*timestamp,
-					slot_duration,
-				);
+                sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
+                    *timestamp,
+                    slot_duration,
+                );
 
 			let uncles =
 				sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
@@ -639,13 +640,9 @@ pub fn new_full(
 
 #[cfg(test)]
 mod tests {
-	use crate::service::{new_full_base, NewFullBase};
+	use std::{borrow::Cow, sync::Arc};
+
 	use codec::Encode;
-	use node_polkadex_runtime::{
-		constants::{currency::CENTS, time::SLOT_DURATION},
-		Address, BalancesCall, RuntimeCall, UncheckedExtrinsic,
-	};
-	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
 	use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};
 	use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
@@ -666,7 +663,14 @@ mod tests {
 		RuntimeAppPublic,
 	};
 	use sp_timestamp;
-	use std::{borrow::Cow, sync::Arc};
+
+	use node_polkadex_runtime::{
+		constants::{currency::CENTS, time::SLOT_DURATION},
+		Address, BalancesCall, RuntimeCall, UncheckedExtrinsic,
+	};
+	use polkadex_primitives::{Block, DigestItem, Signature};
+
+	use crate::service::{new_full_base, NewFullBase};
 
 	type AccountPublic = <Signature as Verify>::Signer;
 

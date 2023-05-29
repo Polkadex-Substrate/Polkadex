@@ -21,6 +21,9 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::Weight, traits::Cu
 use pallet_timestamp as timestamp;
 use sp_std::prelude::*;
 
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
+
 #[cfg(test)]
 mod tests;
 
@@ -31,9 +34,6 @@ mod mock;
 mod benchmarking;
 
 pub mod weights;
-
-// Re-export pallet items so that they can be accessed from the crate namespace.
-pub use pallet::*;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -72,20 +72,23 @@ pub trait WeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
-	// use thea_primitives::liquidity::LiquidityModifier;
-	// Import various types used to declare pallet in scope.
-	use super::*;
+
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{Currency, ReservableCurrency},
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::AssetId;
 	use sp_runtime::{
 		traits::{AccountIdConversion, IdentifyAccount, Verify},
 		SaturatedConversion,
 	};
+
+	use polkadex_primitives::AssetId;
+
+	// use thea_primitives::liquidity::LiquidityModifier;
+	// Import various types used to declare pallet in scope.
+	use super::*;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -132,7 +135,7 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -329,11 +332,12 @@ pub mod pallet {
 	#[pallet::getter(fn is_account_register)]
 	pub(super) type RegisterGovernanceAccounts<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, (T::AccountId, T::AccountId), OptionQuery>;
+
 	/// Events are a simple means of reporting specific conditions and
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		PalletAccountRegister {
 			main_account: T::AccountId,

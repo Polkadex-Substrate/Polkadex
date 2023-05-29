@@ -17,11 +17,11 @@
 //! Given a supported `route`, executes the indicated trades on all the available AMM(s) pool(s).
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
 	use frame_support::{
 		ensure, log,
 		pallet_prelude::{DispatchResult, DispatchResultWithPostInfo, Weight},
@@ -33,10 +33,13 @@ pub mod pallet {
 		transactional, BoundedVec, PalletId,
 	};
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-	use polkadex_primitives::Balance;
 	use sp_runtime::{traits::Zero, DispatchError};
 	use sp_std::{cmp::Reverse, collections::btree_map::BTreeMap, vec::Vec};
+
+	use polkadex_primitives::Balance;
 	use support::AMM;
+
+	use super::*;
 
 	pub type Route<T, I> = BoundedVec<
 		(

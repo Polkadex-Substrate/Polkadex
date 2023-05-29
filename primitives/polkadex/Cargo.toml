@@ -17,7 +17,7 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
-  "scale-codec",
+    "scale-codec",
 ], default-features = false }
 
 [dev-dependencies]
@@ -28,18 +28,18 @@ serde_json = { version = "1.0.94" }
 [features]
 default = ["std"]
 std = [
-  "primitive-types/serde",
-  "primitive-types/std",
-  "codec/std",
-  "scale-info/std",
-  "serde",
-  "frame-system/std",
-  "frame-support/std",
-  "sp-application-crypto/std",
-  "sp-core/std",
-  "sp-std/std",
-  "sp-runtime/std",
-  "rust_decimal/std",
-  "rust_decimal/serde",
+    "primitive-types/serde",
+    "primitive-types/std",
+    "codec/std",
+    "scale-info/std",
+    "serde",
+    "frame-system/std",
+    "frame-support/std",
+    "sp-application-crypto/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "rust_decimal/std",
+    "rust_decimal/serde",
 ]
 full_crypto = ['sp-core/full_crypto']

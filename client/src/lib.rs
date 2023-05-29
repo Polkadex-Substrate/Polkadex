@@ -1,4 +1,5 @@
 #![deny(unused_crate_dependencies)]
+
 // Declare an instance of the native executor named `ExecutorDispatch`. Include the wasm binary as
 // the equivalent wasm code.
 pub struct ExecutorDispatch;

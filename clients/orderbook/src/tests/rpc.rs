@@ -1,13 +1,8 @@
-use crate::tests::{generate_and_finalize_blocks, make_ob_ids, ObTestnet, TestApi};
+use std::{collections::HashMap, sync::Arc};
+
 use futures::{future::BoxFuture, StreamExt};
 use memory_db::MemoryDB;
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{AccountAsset, ObMessage, UserActions},
-};
-use orderbook_rpc::OrderbookRpc;
 use parking_lot::RwLock;
-use polkadex_primitives::{ingress::IngressMessages, AssetId};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use sc_client_api::BlockchainEvents;
 use sc_keystore::LocalKeystore;
@@ -15,7 +10,15 @@ use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
-use std::{collections::HashMap, sync::Arc};
+
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{AccountAsset, ObMessage, UserActions},
+};
+use orderbook_rpc::OrderbookRpc;
+use polkadex_primitives::{ingress::IngressMessages, AssetId};
+
+use crate::tests::{generate_and_finalize_blocks, make_ob_ids, ObTestnet, TestApi};
 
 #[tokio::test]
 pub async fn test_orderbook_rpc() {

@@ -15,7 +15,6 @@
 
 //! Tests for liquidity pallet
 
-use crate::{pallet as liquidity, LiquidityModifier, *};
 use frame_support::{
 	pallet_prelude::Weight,
 	parameter_types,
@@ -23,13 +22,17 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
-use polkadex_primitives::{AccountId, AssetId, Moment, Signature};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::cell::RefCell;
+
+use polkadex_primitives::{AccountId, AssetId, Moment, Signature};
+
+use crate::{pallet as liquidity, LiquidityModifier, *};
+
 // use pallet_ocex_lmp;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -98,6 +101,7 @@ thread_local! {
 }
 
 pub struct MockOnTimestampSet;
+
 impl OnTimestampSet<Moment> for MockOnTimestampSet {
 	fn on_timestamp_set(moment: Moment) {
 		CAPTURED_MOMENT.with(|x| *x.borrow_mut() = Some(moment));

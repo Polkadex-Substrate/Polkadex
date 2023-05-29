@@ -1,5 +1,6 @@
-use bls_primitives::Signature;
 use parity_scale_codec::{Decode, Encode};
+
+use bls_primitives::Signature;
 use thea_primitives::types::Message;
 
 #[derive(Encode, Decode, Clone, Debug)]

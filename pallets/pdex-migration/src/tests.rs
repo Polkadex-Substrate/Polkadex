@@ -2,9 +2,10 @@ use frame_support::{assert_noop, assert_ok};
 use sp_core::H256;
 use sp_runtime::traits::{BadOrigin, BlockNumberProvider};
 
-use crate::mock::{new_test_ext, PDEXMigration, RuntimeOrigin, Test, PDEX};
-
-use crate::pallet::*;
+use crate::{
+	mock::{new_test_ext, PDEXMigration, RuntimeOrigin, Test, PDEX},
+	pallet::*,
+};
 
 #[test]
 pub fn check_genesis_config() {

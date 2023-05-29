@@ -13,20 +13,21 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-use crate::{
-	mock::{new_test_ext, Assets, RuntimeOrigin as Origin, Test, *},
-	PendingWithdrawals,
-};
-
-use asset_handler::pallet::Error;
 use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Mutate};
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
 use sp_runtime::{traits::ConstU32, BoundedVec, SaturatedConversion, TokenError};
-use thea_primitives::types::{Deposit, Withdraw};
 use xcm::{
 	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
 	prelude::X1,
+};
+
+use asset_handler::pallet::Error;
+use thea_primitives::types::{Deposit, Withdraw};
+
+use crate::{
+	mock::{new_test_ext, Assets, RuntimeOrigin as Origin, Test, *},
+	PendingWithdrawals,
 };
 
 #[test]

@@ -15,7 +15,6 @@
 
 //! Tests for pallet-ocex
 
-use crate::*;
 use frame_support::{
 	dispatch::Weight,
 	parameter_types,
@@ -23,15 +22,19 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
-use polkadex_primitives::{Moment, Signature};
 use sp_application_crypto::sp_core::H256;
-use sp_std::cell::RefCell;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use sp_runtime::{
-	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	testing::{Header, TestXt},
+	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
 };
+use sp_std::cell::RefCell;
+
+use polkadex_primitives::{Moment, Signature};
+
+use crate::*;
+
 // Reexport crate as its pallet name for construct_runtime.
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -100,6 +103,7 @@ thread_local! {
 }
 
 pub struct MockOnTimestampSet;
+
 impl OnTimestampSet<Moment> for MockOnTimestampSet {
 	fn on_timestamp_set(moment: Moment) {
 		CAPTURED_MOMENT.with(|x| *x.borrow_mut() = Some(moment));
@@ -167,11 +171,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
-
-use sp_runtime::{
-	testing::TestXt,
-	traits::{Extrinsic as ExtrinsicT, IdentifyAccount, Verify},
-};
 
 type Extrinsic = TestXt<RuntimeCall, ()>;
 type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;

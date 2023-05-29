@@ -1,15 +1,7 @@
 #![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::crypto::AuthorityId;
-use bls_primitives::{Public, Signature};
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{
-	ocex::TradingPairConfig,
-	utils::{return_set_bits, set_bit_field},
-	withdrawal::Withdrawal,
-	AccountId, AssetId, BlockNumber,
-};
 use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
@@ -18,6 +10,16 @@ use sp_core::ByteArray;
 use sp_core::H256;
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
+
+use bls_primitives::{Public, Signature};
+use polkadex_primitives::{
+	ocex::TradingPairConfig,
+	utils::{return_set_bits, set_bit_field},
+	withdrawal::Withdrawal,
+	AccountId, AssetId, BlockNumber,
+};
+
+use crate::crypto::AuthorityId;
 
 pub mod constants;
 pub mod types;

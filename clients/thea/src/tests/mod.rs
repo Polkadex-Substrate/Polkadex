@@ -1,11 +1,16 @@
-use crate::{connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker};
+use std::{
+	collections::{BTreeMap, HashMap},
+	future::Future,
+	sync::{Arc, Mutex},
+	time::Duration,
+};
+
 use futures::{
 	stream::{Fuse, FuturesUnordered},
 	StreamExt,
 };
 use parity_scale_codec::Encode;
 use parking_lot::RwLock;
-use polkadex_primitives::utils::return_set_bits;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
 use sc_consensus::LongestChain;
 use sc_finality_grandpa::{
@@ -27,24 +32,21 @@ use sp_finality_grandpa::{
 use sp_keyring::AccountKeyring;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::key_types::GRANDPA;
-use std::{
-	collections::{BTreeMap, HashMap},
-	future::Future,
-	sync::{Arc, Mutex},
-	time::Duration,
-};
 use substrate_test_runtime_client::Ed25519Keyring;
+use tokio::time::Instant;
+
+pub(crate) use grandpa::*;
+use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
-use tokio::time::Instant;
+
+use crate::{connector::traits::ForeignConnector, types::GossipMessage, worker::TheaWorker};
 
 //pub mod deposit;
 mod grandpa;
 //mod protocol;
 //pub mod withdrawal;
-
-pub(crate) use grandpa::*;
 
 #[derive(Clone, Default)]
 // This is the mock of native runtime state

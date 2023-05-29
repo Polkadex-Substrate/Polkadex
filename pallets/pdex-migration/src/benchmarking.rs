@@ -17,12 +17,13 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! Benchmarking setup for pallet-pdex-migration
-use crate::pallet::{Call, Config, Pallet as PDEXMigration, Pallet, *};
 use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::{assert_ok, dispatch::UnfilteredDispatchable, traits::Get};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use sp_runtime::{traits::BlockNumberProvider, SaturatedConversion};
+
+use crate::pallet::{Call, Config, Pallet as PDEXMigration, Pallet, *};
 
 const PDEX: u128 = 1000_000_000_000;
 
@@ -111,8 +112,9 @@ benchmarks! {
 
 #[cfg(test)]
 mod tests {
-	use super::Pallet as PDM;
 	use frame_benchmarking::impl_benchmark_test_suite;
+
+	use super::Pallet as PDM;
 
 	impl_benchmark_test_suite!(PDM, crate::mock::new_test_ext(), crate::mock::Test,);
 }

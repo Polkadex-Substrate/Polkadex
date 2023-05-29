@@ -38,19 +38,19 @@ sp-keystore = { workspace = true }
 [features]
 default = ["std"]
 std = [
-  "parity-scale-codec/std",
-  "scale-info/std",
-  "frame-support/std",
-  "frame-system/std",
-  "pallet-balances/std",
-  "pallet-sudo/std",
-  "pallet-assets/std",
-  "frame-benchmarking/std",
-  "sp-io/std",
-  "sp-core/std",
-  "sp-std/std",
-  "sp-runtime/std",
-  "polkadex-primitives/std",
-  "support/std",
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "pallet-balances/std",
+    "pallet-sudo/std",
+    "pallet-assets/std",
+    "frame-benchmarking/std",
+    "sp-io/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "polkadex-primitives/std",
+    "support/std",
 ]
 try-runtime = ['frame-support/try-runtime']

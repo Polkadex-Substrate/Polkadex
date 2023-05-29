@@ -2,7 +2,7 @@
 
 #![warn(missing_docs)]
 
-use sc_rpc::SubscriptionTaskExecutor;
+use std::sync::Arc;
 
 use codec::{Decode, Encode};
 use futures::{channel::mpsc::UnboundedSender, task::SpawnError, SinkExt};
@@ -12,21 +12,22 @@ use jsonrpsee::{
 	types::{error::CallError, ErrorObject},
 };
 use log::info;
+use parking_lot::RwLock;
+use reference_trie::ExtensionLayout;
+use rust_decimal::Decimal;
+use sc_rpc::SubscriptionTaskExecutor;
+use sp_api::ProvideRuntimeApi;
+use sp_arithmetic::traits::SaturatedConversion;
+use sp_blockchain::HeaderBackend;
+use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
 use orderbook::DbRef;
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
 	types::{AccountAsset, ObMessage},
 	ObApi,
 };
-use parking_lot::RwLock;
-use reference_trie::ExtensionLayout;
-use rust_decimal::Decimal;
-use sp_api::ProvideRuntimeApi;
-use sp_arithmetic::traits::SaturatedConversion;
-use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
-use std::sync::Arc;
-use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 #[derive(Debug, thiserror::Error)]
 /// Top-level error type for the RPC handler

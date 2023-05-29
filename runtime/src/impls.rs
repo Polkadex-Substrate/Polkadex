@@ -33,6 +33,10 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 
 #[cfg(test)]
 mod multiplier_tests {
+	use frame_support::{
+		dispatch::DispatchClass,
+		weights::{Weight, WeightToFee},
+	};
 	use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 	use sp_runtime::{
 		assert_eq_error_rate,
@@ -44,10 +48,6 @@ mod multiplier_tests {
 		constants::{currency::*, time::*},
 		AdjustmentVariable, MaximumMultiplier, MinimumMultiplier, Runtime,
 		RuntimeBlockWeights as BlockWeights, System, TargetBlockFullness, TransactionPayment,
-	};
-	use frame_support::{
-		dispatch::DispatchClass,
-		weights::{Weight, WeightToFee},
 	};
 
 	fn max_normal() -> Weight {

@@ -32,10 +32,12 @@ use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
 	use frame_support::transactional;
 	use sp_std::vec;
+
 	use thea_primitives::{types::Message, TheaIncomingExecutor};
+
+	use super::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {

@@ -1,11 +1,10 @@
-use crate::assets::AssetId;
 use codec::{Decode, Encode, MaxEncodedLen};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
-
-use crate::AccountId;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+
+use crate::{assets::AssetId, AccountId};
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

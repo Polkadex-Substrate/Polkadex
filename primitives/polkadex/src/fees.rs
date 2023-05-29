@@ -1,7 +1,6 @@
 use codec::{Decode, Encode};
 use rust_decimal::{prelude::Zero, Decimal};
 use scale_info::TypeInfo;
-
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 

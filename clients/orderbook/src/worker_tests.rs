@@ -1,19 +1,21 @@
 //! This module contains code that defines test cases related to a trading system of worker module.
-use crate::{
-	error::Error,
-	worker::{add_proxy, deposit, process_trade, register_main, remove_proxy},
-};
 use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::types::{
-	AccountAsset, AccountInfo, Order, OrderPayload, OrderSide, OrderType, Trade, TradingPair,
-};
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId, Signature};
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
+use orderbook_primitives::types::{
+	AccountAsset, AccountInfo, Order, OrderPayload, OrderSide, OrderType, Trade, TradingPair,
+};
+use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId, Signature};
+
+use crate::{
+	error::Error,
+	worker::{add_proxy, deposit, process_trade, register_main, remove_proxy},
+};
 
 /// This function returns a tuple containing Alice's main account and a proxy account
 fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {

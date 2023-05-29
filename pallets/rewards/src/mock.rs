@@ -1,19 +1,23 @@
-use crate::{pallet as rewards, *};
 use frame_support::{
 	parameter_types,
-	traits::{ConstU64, OnTimestampSet},
+	traits::{AsEnsureOriginWithArg, ConstU64, OnTimestampSet},
+	PalletId,
 };
 use frame_system as system;
-use polkadex_primitives::{AccountId, Moment, Signature};
+use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use sp_std::convert::{TryFrom, TryInto};
+use sp_std::{
+	cell::RefCell,
+	convert::{TryFrom, TryInto},
+};
 
-use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
-use frame_system::{EnsureRoot, EnsureSigned};
+use polkadex_primitives::{AccountId, Moment, Signature};
+
+use crate::{pallet as rewards, *};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -115,12 +119,12 @@ impl pallet_assets::Config for Test {
 	type WeightInfo = ();
 }
 
-use sp_std::cell::RefCell;
 thread_local! {
 	pub static CAPTURED_MOMENT: RefCell<Option<Moment>> = RefCell::new(None);
 }
 
 pub struct MockOnTimestampSet;
+
 impl OnTimestampSet<Moment> for MockOnTimestampSet {
 	fn on_timestamp_set(moment: Moment) {
 		CAPTURED_MOMENT.with(|x| *x.borrow_mut() = Some(moment));
