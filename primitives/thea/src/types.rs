@@ -2,7 +2,7 @@
 use crate::{Network, ValidatorSetId};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_runtime::traits::Scale;
+use sp_runtime::Percent;
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Message {
@@ -19,7 +19,9 @@ pub struct Message {
 
 impl Message {
 	pub fn threshold(&self) -> u64 {
-		self.validator_set_len.saturating_mul(2).div(3u64)
+		const MAJORITY: u8 = 67;
+		let p = Percent::from_percent(MAJORITY);
+		p * self.validator_set_len
 	}
 }
 

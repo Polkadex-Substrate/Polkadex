@@ -179,14 +179,14 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
-		info!(target:"orderbook","New peer connected: {:?}, role: {:?}",who,role);
+		info!(target:"orderbook","📒 New peer connected: {:?}, role: {:?}",who,role);
 
 		if let ObservedRole::Full = role {
 			self.fullnodes.write().insert(*who);
 		}
 	}
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
-		info!(target:"orderbook","New peer disconnected: {:?}",who);
+		info!(target:"orderbook","📒 New peer disconnected: {:?}",who);
 		self.fullnodes.write().remove(who);
 	}
 	fn validate(
