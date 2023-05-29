@@ -16,7 +16,7 @@ impl SnapshotStore {
 		Self { map: BTreeMap::from_iter(iter) }
 	}
 
-	pub fn to_hashmap(self) -> HashMap<[u8; 32], (Vec<u8>, i32)> {
+	pub fn convert_to_hashmap(self) -> HashMap<[u8; 32], (Vec<u8>, i32)> {
 		HashMap::from_iter(self.map.into_iter())
 	}
 }
