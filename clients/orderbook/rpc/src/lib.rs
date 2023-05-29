@@ -11,7 +11,7 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::{error::CallError, ErrorObject},
 };
-use log::info;
+use log::{error, info};
 use orderbook::DbRef;
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
@@ -154,7 +154,6 @@ where
 
 		info!(target:"orderbook-rpc","main accounts found: {:?}, Getting last finalized snapshot summary",all_register_accounts.len());
 
-		info!(target:"orderbook-rpc","Getting allowlisted asset ids");
 		// Get all allow listed AssetIds
 		let allowlisted_asset_ids = self
 			.runtime
@@ -165,7 +164,7 @@ where
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;
-
+		info!(target:"orderbook-rpc","Getting allowlisted asset ids: {:?}", allowlisted_asset_ids);
 		// Create existing DB, it will fail if root does not exist
 		let trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
@@ -186,7 +185,7 @@ where
 				}
 			// Ignored none case as account may not have balance for asset
 			} else {
-				info!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
+				error!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
 				return Err(JsonRpseeError::Custom(
 					"unable to fetch DB data for account".to_string(),
 				))

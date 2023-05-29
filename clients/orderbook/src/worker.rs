@@ -724,7 +724,7 @@ where
 	// Expects the set bits in the bitmap to be missing chunks
 	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want snapshot: {:?} - {:?}", snapshot_id, bitmap);
-		// Only respond if we are a fullnode
+		// Respond only if we are a fullnode
 		// TODO: Should we respond if we are also syncing???
 		if !self.is_validator {
 			if let Some(peer) = remote {
@@ -868,6 +868,8 @@ where
 									*status = StateSyncStatus::Available;
 								})
 								.or_insert(StateSyncStatus::Available);
+						} else {
+							log::warn!(target:"orderbook","📒 Invalid chunk hash, dropping chunk...");
 						}
 					},
 				}
@@ -1467,6 +1469,7 @@ pub fn deposit(
 			trie.insert(&account_asset.encode(), &balance.encode())?;
 		},
 		None => {
+			info!(target: "orderbook", "📒 Account asset created: {:?}", account_asset);
 			trie.insert(&account_asset.encode(), &amount.encode())?;
 		},
 	}
