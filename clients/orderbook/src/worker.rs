@@ -463,7 +463,7 @@ where
 				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
 				let memory_db_write_lock = self.memory_db.write();
 				let mut memory_db = memory_db_write_lock.clone();
-				memory_db.load_from(store.to_hashmap());
+				memory_db.load_from(store.convert_to_hashmap());
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 				*self.latest_worker_nonce.write() = summary.worker_nonce;

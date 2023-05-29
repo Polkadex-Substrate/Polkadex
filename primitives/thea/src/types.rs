@@ -2,7 +2,8 @@
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Scale};
+use sp_runtime::traits::Scale;
+use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 
@@ -66,42 +67,45 @@ impl AssetMetadata {
 	/// Convert the foreign asset amount to native decimal configuration
 	pub fn convert_to_native_decimals(&self, amount: u128) -> u128 {
 		let diff = 12 - self.decimal as i8;
-		if diff > 0 {
-			amount.saturating_mul(10u128.pow(diff as u32))
-		} else if diff == 0 {
-			amount
-		} else {
-			// casting should not fail as diff*-1 is positive
-			amount.saturating_div(10u128.pow((diff * -1) as u32))
+		match diff.cmp(&0) {
+			Ordering::Less => {
+				// casting should not fail as diff*-1 is positive
+				amount.saturating_div(10u128.pow((-diff) as u32))
+			},
+			Ordering::Equal => amount,
+			Ordering::Greater => amount.saturating_mul(10u128.pow(diff as u32)),
 		}
 	}
 
 	/// Convert the foreign asset amount from native decimal configuration
 	pub fn convert_from_native_decimals(&self, amount: u128) -> u128 {
 		let diff = 12 - self.decimal as i8;
-		if diff > 0 {
-			amount.saturating_div(10u128.pow(diff as u32))
-		} else if diff == 0 {
-			amount
-		} else {
-			// casting should not fail as diff*-1 is positive
-			amount.saturating_mul(10u128.pow((diff * -1) as u32))
+
+		match diff.cmp(&0) {
+			Ordering::Less => {
+				// casting should not fail as diff*-1 is positive
+				amount.saturating_mul(10u128.pow((-diff) as u32))
+			},
+			Ordering::Equal => amount,
+			Ordering::Greater => amount.saturating_div(10u128.pow(diff as u32)),
 		}
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
-	use polkadex_primitives::UNIT_BALANCE;
 	use crate::types::AssetMetadata;
+	use polkadex_primitives::UNIT_BALANCE;
 
 	#[test]
 	pub fn test_decimal_conversion() {
 		// Decimal is greater
 		let greater = AssetMetadata::new(18).unwrap();
 		assert_eq!(greater.convert_to_native_decimals(1000_000_000_000_000_000u128), UNIT_BALANCE);
-		assert_eq!(greater.convert_from_native_decimals(UNIT_BALANCE), 1000_000_000_000_000_000u128);
+		assert_eq!(
+			greater.convert_from_native_decimals(UNIT_BALANCE),
+			1000_000_000_000_000_000u128
+		);
 		assert_eq!(
 			greater.convert_to_native_decimals(1234_567_891_234_567_890u128),
 			1234_567_891_234u128
