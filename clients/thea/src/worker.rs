@@ -153,7 +153,7 @@ where
 
 		let bitmap: Vec<u128> = prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
 
-		info!(target:"thea"," 🌉 Bitmap generated for message with nonce: {:?}, bitmap: {:?}",message.nonce, bitmap);
+		info!(target:"thea","🌉 Bitmap generated for message with nonce: {:?}, bitmap: {:?}",message.nonce, bitmap);
 
 		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
