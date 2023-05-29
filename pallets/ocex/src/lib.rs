@@ -175,6 +175,7 @@ pub mod pallet {
 		type Public: Clone
 			+ PartialEq
 			+ IdentifyAccount<AccountId = Self::AccountId>
+			+ IdentifyAccount<AccountId = Self::AccountId>
 			+ Debug
 			+ parity_scale_codec::Codec
 			+ Ord
@@ -1006,27 +1007,31 @@ pub mod pallet {
 					}
 				},
 			};
+			log::debug!(target:"ocex", "Checking Threshold requirement....");
 			// Check if we have enough signatures
 			let total_validators = <Authorities<T>>::get(working_summary.validator_set_id).len();
 			const MAJORITY: u8 = 67;
 			let p = Percent::from_percent(MAJORITY);
 			if working_summary.signed_auth_indexes().len() >= p * total_validators {
+				log::debug!(target:"ocex", "Got majority for working summary!");
 				// We don't need to verify signatures again as it is already verified inside
 				// validate unsigned closure
 				// Remove all the unprocessed snapshots with prefix snapshot_id
+				log::debug!(target:"ocex", "Starting to clear unprocessed snapshots for snapshot id: {:?}",working_summary.snapshot_id);
 				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
 					(working_summary.snapshot_id,),
 					total_validators as u32,
 					None,
 				);
 				while result.maybe_cursor.is_some() {
+					log::debug!(target:"ocex", "Clearing prefix of working snapshot summary...");
 					result = <UnprocessedSnapshots<T>>::clear_prefix(
 						(working_summary.snapshot_id,),
 						total_validators as u32,
 						Some(result.maybe_cursor.unwrap().as_ref()),
 					);
 				}
-
+				log::debug!(target:"ocex", "Creating withdrawal tree...");
 				let withdrawal_map =
 					Self::create_withdrawal_tree(working_summary.withdrawals.clone());
 				if !working_summary.withdrawals.is_empty() {
@@ -1039,13 +1044,16 @@ pub mod pallet {
 						);
 					});
 				}
+				log::debug!(target:"ocex", "Storing snapshot summary data...");
 				// Update the snapshot nonce and move the summary to snapshots storage
 				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
 				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
 				// The unwrap below should not fail
 				<FeesCollected<T>>::insert(working_summary.snapshot_id, working_summary.get_fees());
 				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
+				log::debug!(target:"ocex", "Snapshot stored successfully");
 			} else {
+				log::debug!(target:"ocex", "Not enough signatories on this summary.");
 				// We still don't have enough signatures on this, so save it back.
 				<UnprocessedSnapshots<T>>::insert(
 					(working_summary.snapshot_id, summary_hash, working_summary.validator_set_id),

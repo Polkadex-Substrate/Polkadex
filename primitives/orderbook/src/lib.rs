@@ -10,7 +10,7 @@ use polkadex_primitives::{
 	withdrawal::Withdrawal,
 	AccountId, AssetId, BlockNumber,
 };
-use primitive_types::H128;
+pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
