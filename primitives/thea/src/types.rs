@@ -2,7 +2,7 @@
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_runtime::traits::Scale;
+use sp_runtime::Percent;
 use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
@@ -24,7 +24,9 @@ pub struct Message {
 
 impl Message {
 	pub fn threshold(&self) -> u64 {
-		self.validator_set_len.saturating_mul(2).div(3u64)
+		const MAJORITY: u8 = 67;
+		let p = Percent::from_percent(MAJORITY);
+		p * self.validator_set_len
 	}
 }
 
