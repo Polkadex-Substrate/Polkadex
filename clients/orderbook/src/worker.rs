@@ -463,7 +463,7 @@ where
 				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
 				let memory_db_write_lock = self.memory_db.write();
 				let mut memory_db = memory_db_write_lock.clone();
-				memory_db.load_from(store.map);
+				memory_db.load_from(store.to_hashmap());
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 				*self.latest_worker_nonce.write() = summary.worker_nonce;
@@ -525,7 +525,8 @@ where
 	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			let store = SnapshotStore { map: self.memory_db.read().data().clone() };
+			// TODO: How to avoid this clone
+			let store = SnapshotStore::new(self.memory_db.read().data().clone().into_iter());
 			info!(target: "orderbook", "📒 snapshot contains {:?} keys ", store.map.len());
 			return match serde_json::to_vec(&store) {
 				Ok(data) => {
