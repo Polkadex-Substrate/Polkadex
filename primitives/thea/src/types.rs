@@ -1,9 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::UNIT_BALANCE;
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Scale, Saturating};
+use sp_runtime::{traits::Scale};
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 
@@ -91,30 +90,37 @@ impl AssetMetadata {
 	}
 }
 
-#[test]
-pub fn test_decimal_conversion() {
-	// Decimal is greater
-	let greater = AssetMetadata::new(18).unwrap();
-	assert_eq!(greater.convert_to_native_decimals(1000_000_000_000_000_000u128), UNIT_BALANCE);
-	assert_eq!(greater.convert_from_native_decimals(UNIT_BALANCE), 1000_000_000_000_000_000u128);
-	assert_eq!(
-		greater.convert_to_native_decimals(1234_567_891_234_567_890u128),
-		1234_567_891_234u128
-	);
-	assert_eq!(
-		greater.convert_from_native_decimals(1234_567_891_234u128),
-		1234_567_891_234_000_000u128
-	);
 
-	// Decimal is same
-	let same = AssetMetadata::new(12).unwrap();
-	assert_eq!(same.convert_to_native_decimals(UNIT_BALANCE), UNIT_BALANCE);
-	assert_eq!(same.convert_from_native_decimals(UNIT_BALANCE), UNIT_BALANCE);
+#[cfg(test)]
+mod tests {
+	use polkadex_primitives::UNIT_BALANCE;
+	use crate::types::AssetMetadata;
 
-	// Decimal is lesser
-	let smaller = AssetMetadata::new(8).unwrap();
-	assert_eq!(smaller.convert_to_native_decimals(100_000_000), UNIT_BALANCE);
-	assert_eq!(smaller.convert_from_native_decimals(UNIT_BALANCE), 100_000_000);
-	assert_eq!(smaller.convert_to_native_decimals(12_345_678u128), 123_456_780_000u128);
-	assert_eq!(smaller.convert_from_native_decimals(123_456_789_123u128), 12_345_678u128);
+	#[test]
+	pub fn test_decimal_conversion() {
+		// Decimal is greater
+		let greater = AssetMetadata::new(18).unwrap();
+		assert_eq!(greater.convert_to_native_decimals(1000_000_000_000_000_000u128), UNIT_BALANCE);
+		assert_eq!(greater.convert_from_native_decimals(UNIT_BALANCE), 1000_000_000_000_000_000u128);
+		assert_eq!(
+			greater.convert_to_native_decimals(1234_567_891_234_567_890u128),
+			1234_567_891_234u128
+		);
+		assert_eq!(
+			greater.convert_from_native_decimals(1234_567_891_234u128),
+			1234_567_891_234_000_000u128
+		);
+
+		// Decimal is same
+		let same = AssetMetadata::new(12).unwrap();
+		assert_eq!(same.convert_to_native_decimals(UNIT_BALANCE), UNIT_BALANCE);
+		assert_eq!(same.convert_from_native_decimals(UNIT_BALANCE), UNIT_BALANCE);
+
+		// Decimal is lesser
+		let smaller = AssetMetadata::new(8).unwrap();
+		assert_eq!(smaller.convert_to_native_decimals(100_000_000), UNIT_BALANCE);
+		assert_eq!(smaller.convert_from_native_decimals(UNIT_BALANCE), 100_000_000);
+		assert_eq!(smaller.convert_to_native_decimals(12_345_678u128), 123_456_780_000u128);
+		assert_eq!(smaller.convert_from_native_decimals(123_456_789_123u128), 12_345_678u128);
+	}
 }
