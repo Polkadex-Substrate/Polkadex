@@ -459,8 +459,7 @@ where
 		match serde_json::from_slice::<SnapshotStore>(data) {
 			Ok(store) => {
 				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
-				let memory_db_write_lock = self.memory_db.write();
-				let mut memory_db = memory_db_write_lock.clone();
+				let mut memory_db = self.memory_db.write();
 				memory_db.load_from(store.convert_to_hashmap());
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
@@ -523,7 +522,7 @@ where
 	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			// TODO: How to avoid this clone
+			// TODO: How to avoid cloning memory_db
 			let store = SnapshotStore::new(self.memory_db.read().data().clone().into_iter());
 			info!(target: "orderbook", "📒 snapshot contains {:?} keys ", store.map.len());
 			return match serde_json::to_vec(&store) {
@@ -539,6 +538,7 @@ where
 							chunk_hash.0.as_ref(),
 							chunk,
 						);
+						info!(target: "orderbook", "📒 Stored snapshot chunk: {}", chunk_hash);
 						state_chunk_hashes.push(chunk_hash);
 					}
 
