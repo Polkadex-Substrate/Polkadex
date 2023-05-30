@@ -461,12 +461,13 @@ where
 				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
 				let mut memory_db = self.memory_db.write();
 				memory_db.load_from(store.convert_to_hashmap());
-				info!(target: "orderbook", "📒 {} keys in loaded memory db",   memory_db.data().len());
+				info!(target: "orderbook", "📒 {} keys in loaded memory db",memory_db.data().len());
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 				*self.latest_worker_nonce.write() = summary.worker_nonce;
 				self.latest_state_change_id = summary.state_change_id;
 				self.last_processed_block_in_offchain_state = summary.last_processed_blk;
+				*self.working_state_root.write() = summary.state_root.0;
 			},
 			Err(err) => {
 				error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
