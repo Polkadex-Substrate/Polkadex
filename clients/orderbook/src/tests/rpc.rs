@@ -95,18 +95,15 @@ pub async fn test_orderbook_rpc() {
 
 	let sync_oracle = testnet.peers[peer_id].network_service().clone();
 
-	let deps =  orderbook_rpc::OrderbookDeps {
+	let deps = orderbook_rpc::OrderbookDeps {
 		rpc_channel: sender,
 		memory_db: testnet.peers[peer_id].data.memory_db.clone(),
 		working_state_root: testnet.peers[peer_id].data.working_state_root.clone(),
 		backend: testnet.peers[peer_id].client().as_backend().clone(),
 		client: testnet.peers[peer_id].client().as_client().clone(),
-		runtime: runtime.clone()
+		runtime: runtime.clone(),
 	};
-	let rpc_handle = OrderbookRpc::new(
-		Arc::new(DummyTaskExecutor),
-		deps,
-	);
+	let rpc_handle = OrderbookRpc::new(Arc::new(DummyTaskExecutor), deps);
 	let worker_params = crate::worker::WorkerParams {
 		client: testnet.peers[peer_id].client().as_client(),
 		backend: testnet.peers[peer_id].client().as_backend(),
