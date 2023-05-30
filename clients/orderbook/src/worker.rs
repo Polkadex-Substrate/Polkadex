@@ -304,15 +304,15 @@ where
 		}
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
-		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
-
-		// Get the ingress messsages for this block
+		info!("📒Starting state root: {:?}", hex::encode(working_state_root.clone()));
+		// Get the ingress messages for this block
 		let messages = self.runtime.runtime_api().ingress_messages(
 			&BlockId::number(self.last_finalized_block.saturated_into()),
 			num.saturated_into(),
 		)?;
 
 		{
+			let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
 			for message in messages {
 				match message {
@@ -329,6 +329,7 @@ where
 			// Commit the trie
 			trie.commit();
 		}
+		info!("📒state root after processing: {:?}", hex::encode(working_state_root.clone()));
 		self.last_processed_block_in_offchain_state = num;
 		Ok(())
 	}
@@ -548,14 +549,13 @@ where
 					self.pending_withdrawals.clear();
 					info!(target: "orderbook", "📒 Stored snapshot withdrawals ({} bytes)", withdrawals.len());
 
-					let working_state_root_read_lock = self.working_state_root.read();
-					let working_state_root = *working_state_root_read_lock;
+					let working_state_root = self.working_state_root.read();
 
 					let summary = SnapshotSummary {
 						validator_set_id: active_set.set_id,
 						snapshot_id,
 						worker_nonce,
-						state_root: working_state_root.into(),
+						state_root: working_state_root.clone().into(),
 						state_change_id,
 						bitflags: vec![0; active_set.len().div(128).saturating_add(1)],
 						withdrawals,
@@ -1204,8 +1204,10 @@ where
 		working_state_root: &'a mut [u8; 32],
 	) -> TrieDBMut<'a, ExtensionLayout> {
 		let trie = if working_state_root == &mut [0u8; 32] {
+			info!(target: "orderbook", "📒 Creating a new trie as state root is empty");
 			TrieDBMutBuilder::new(memory_db, working_state_root).build()
 		} else {
+			trace!(target: "orderbook", "📒 Loading trie from existing Db and state root");
 			TrieDBMutBuilder::from_existing(memory_db, working_state_root).build()
 		};
 		trie
