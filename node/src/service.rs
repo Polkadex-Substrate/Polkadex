@@ -294,6 +294,7 @@ pub fn new_partial(
 					working_state_root: working_state_root_cloned.clone(),
 					client: client.clone(),
 					backend: backend_cloned.clone(),
+					runtime: client.clone(),
 				},
 			};
 

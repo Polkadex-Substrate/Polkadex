@@ -96,7 +96,7 @@ pub struct FullDeps<C, P, SC, B> {
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
 	/// Orderbook specific dependencies
-	pub orderbook: orderbook_rpc::OrderbookDeps<B, C>,
+	pub orderbook: orderbook_rpc::OrderbookDeps<B, C, C>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -179,7 +179,7 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
-	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
 	// Create Orderbook RPC
 	io.merge(OrderbookRpc::new(subscription_executor, orderbook).into_rpc())?;
 

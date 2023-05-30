@@ -108,12 +108,12 @@ pub trait OrderbookApi {
 }
 
 #[async_trait]
-impl<Block, Client, Backend> OrderbookApiServer for OrderbookRpc<Block, Client, Backend>
+impl<Block, Client, Backend, Runtime> OrderbookApiServer for OrderbookRpc<Block, Client, Backend, Runtime>
 where
 	Block: BlockT,
-	Client: Send + Sync + ProvideRuntimeApi<Block> + 'static,
-	Client::Api: ObApi<Block>,
-	Client: Send + Sync + HeaderBackend<Block>,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block> + 'static,
+	Runtime::Api: ObApi<Block>,
+	Client: Send + Sync + HeaderBackend<Block> + 'static,
 	Backend: Send + Sync + sc_client_api::Backend<Block> + 'static,
 {
 	async fn submit_action(&self, message: ObMessage) -> RpcResult<()> {
@@ -135,11 +135,13 @@ where
 }
 
 /// Orderbook specific RPC dependencies
-pub struct OrderbookDeps<Backend, Client> {
+pub struct OrderbookDeps<Backend, Client, Runtime> {
 	/// Client Backend
 	pub backend: Arc<Backend>,
 	/// Client
 	pub client: Arc<Client>,
+	/// Runtime
+	pub runtime: Arc<Runtime>,
 	/// Channel for sending ob messages to worker
 	pub rpc_channel: UnboundedSender<ObMessage>,
 	/// memory db
@@ -150,35 +152,35 @@ pub struct OrderbookDeps<Backend, Client> {
 }
 
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
-pub struct OrderbookRpc<Block, Client, Backend> {
+pub struct OrderbookRpc<Block, Client, Backend, Runtime> {
 	tx: UnboundedSender<ObMessage>,
 	_executor: SubscriptionTaskExecutor,
 	memory_db: DbRef,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
-	runtime: Arc<Client>,
+	runtime: Arc<Runtime>,
 	client: Arc<Client>,
 	backend: Arc<Backend>,
 	_marker: std::marker::PhantomData<Block>,
 }
 
-impl<Block, Client, Backend> OrderbookRpc<Block, Client, Backend>
+impl<Block, Client, Backend, Runtime> OrderbookRpc<Block, Client, Backend, Runtime>
 where
 	Block: BlockT,
-	Client: Send + Sync + ProvideRuntimeApi<Block>,
-	Client::Api: ObApi<Block>,
+	Runtime: Send + Sync + ProvideRuntimeApi<Block>,
+	Runtime::Api: ObApi<Block>,
 	Client: Send + Sync + HeaderBackend<Block>,
 	Backend: sc_client_api::Backend<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
-	pub fn new(_executor: SubscriptionTaskExecutor, deps: OrderbookDeps<Backend, Client>) -> Self {
+	pub fn new(_executor: SubscriptionTaskExecutor, deps: OrderbookDeps<Backend, Client, Runtime>) -> Self {
 		Self {
 			tx: deps.rpc_channel,
 			_executor,
 			memory_db: deps.memory_db,
 			working_state_root: deps.working_state_root,
-			runtime: deps.client.clone(),
+			runtime: deps.runtime.clone(),
 			client: deps.client.clone(),
-			backend: deps.backend.clone(),
+			backend: deps.backend,
 			_marker: Default::default(),
 		}
 	}
@@ -265,7 +267,7 @@ where
 				))?[..],
 		)
 		.map_err(|err| {
-			JsonRpseeError::Custom(format!("Unable to decode snapshot summary: {:?}", err))
+			JsonRpseeError::Custom(format!("Unable to decode snapshot summary: {err:?}"))
 		})?;
 
 		let mut data = Vec::new();
@@ -273,7 +275,7 @@ where
 		for chunk in summary.state_chunk_hashes {
 			let mut chunk_data = offchain_storage
 				.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk.0.as_ref())
-				.ok_or(JsonRpseeError::Custom(format!("Chunk not found: {:?}", chunk)))?;
+				.ok_or(JsonRpseeError::Custom(format!("Chunk not found: {chunk:?}")))?;
 			data.append(&mut chunk_data);
 		}
 
