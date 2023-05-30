@@ -108,7 +108,8 @@ pub trait OrderbookApi {
 }
 
 #[async_trait]
-impl<Block, Client, Backend, Runtime> OrderbookApiServer for OrderbookRpc<Block, Client, Backend, Runtime>
+impl<Block, Client, Backend, Runtime> OrderbookApiServer
+	for OrderbookRpc<Block, Client, Backend, Runtime>
 where
 	Block: BlockT,
 	Runtime: Send + Sync + ProvideRuntimeApi<Block> + 'static,
@@ -172,7 +173,10 @@ where
 	Backend: sc_client_api::Backend<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
-	pub fn new(_executor: SubscriptionTaskExecutor, deps: OrderbookDeps<Backend, Client, Runtime>) -> Self {
+	pub fn new(
+		_executor: SubscriptionTaskExecutor,
+		deps: OrderbookDeps<Backend, Client, Runtime>,
+	) -> Self {
 		Self {
 			tx: deps.rpc_channel,
 			_executor,
