@@ -125,6 +125,7 @@ pub fn create_extrinsic(
 	)
 }
 use orderbook_primitives::types::ObMessage;
+use orderbook_rpc::OrderbookDeps;
 use sc_network_common::service::NetworkEventStream;
 
 #[allow(clippy::type_complexity)]
@@ -267,6 +268,7 @@ pub fn new_partial(
 		let chain_spec = config.chain_spec.cloned_box();
 		let memory_db_cloned = memory_db.clone();
 		let working_state_root_cloned = working_state_root.clone();
+		let backend_cloned = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),
@@ -286,9 +288,14 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
-				orderbook: ob_messge_sink.clone(),
-				memory_db: memory_db_cloned.clone(),
-				working_state_root: working_state_root_cloned.clone(),
+				orderbook: OrderbookDeps {
+					rpc_channel: ob_messge_sink.clone(),
+					memory_db: memory_db_cloned.clone(),
+					working_state_root: working_state_root_cloned.clone(),
+					client: client.clone(),
+					backend: backend_cloned.clone(),
+					runtime: client.clone(),
+				},
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)
@@ -329,6 +336,7 @@ pub struct NewFullBase {
 pub fn new_full_base(
 	mut config: Configuration,
 	foreign_chain_url: String,
+	thea_dummy_mode: bool,
 	with_startup_data: impl FnOnce(
 		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 		&sc_consensus_babe::BabeLink<Block>,
@@ -629,8 +637,9 @@ pub fn new_full_base(
 pub fn new_full(
 	config: Configuration,
 	foreign_chain_url: String,
+	thea_dummy_mode: bool,
 ) -> Result<TaskManager, ServiceError> {
-	new_full_base(config, foreign_chain_url, |_, _| ())
+	new_full_base(config, foreign_chain_url, thea_dummy_mode, |_, _| ())
 		.map(|NewFullBase { task_manager, .. }| task_manager)
 }
 
@@ -700,6 +709,7 @@ mod tests {
 					new_full_base(
 						config,
 						"blah".to_string(),
+						true,
 						|block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
 						 babe_link: &sc_consensus_babe::BabeLink<Block>| {
 							setup_handles = Some((block_import.clone(), babe_link.clone()));
@@ -875,7 +885,7 @@ mod tests {
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
 			|config| {
 				let NewFullBase { task_manager, client, network, transaction_pool, .. } =
-					new_full_base(config, "blah".to_string(), |_, _| ())?;
+					new_full_base(config, "blah".to_string(), true, |_, _| ())?;
 				Ok(sc_service_test::TestNetComponents::new(
 					task_manager,
 					client,

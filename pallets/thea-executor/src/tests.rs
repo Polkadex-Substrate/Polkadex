@@ -18,6 +18,7 @@ use crate::{
 	PendingWithdrawals,
 };
 
+use asset_handler::pallet::Error;
 use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Mutate};
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
@@ -66,6 +67,7 @@ fn test_transfer_native_asset() {
 			admin,
 			1u128
 		));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
 		// Set balance for User
 		assert_ok!(Balances::set_balance(
 			RuntimeOrigin::root(),
@@ -148,6 +150,7 @@ fn test_claim_deposit_returns_ok() {
 			admin,
 			1u128
 		));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
 		assert_ok!(Balances::set_balance(
 			RuntimeOrigin::root(),
 			recipient,
@@ -198,6 +201,9 @@ fn test_claim_deposit_returns_asset_not_registered() {
 			extra: vec![],
 		};
 		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
-		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1));
+		assert_noop!(
+			TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1),
+			crate::Error::<Test>::AssetNotRegistered
+		);
 	})
 }

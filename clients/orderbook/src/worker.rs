@@ -16,7 +16,8 @@ use orderbook_primitives::{
 		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
 		UserActions, WithdrawalRequest,
 	},
-	ObApi, SnapshotSummary, ValidatorSet,
+	ObApi, SnapshotSummary, ValidatorSet, ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
+	ORDERBOOK_STATE_CHUNK_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX,
 };
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
@@ -54,10 +55,6 @@ use crate::{
 	utils::*,
 	Client, DbRef,
 };
-
-pub const ORDERBOOK_WORKER_NONCE_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
-pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
-pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub client: Arc<C>,
@@ -461,9 +458,8 @@ where
 		match serde_json::from_slice::<SnapshotStore>(data) {
 			Ok(store) => {
 				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
-				let memory_db_write_lock = self.memory_db.write();
-				let mut memory_db = memory_db_write_lock.clone();
-				memory_db.load_from(store.map);
+				let mut memory_db = self.memory_db.write();
+				memory_db.load_from(store.convert_to_hashmap());
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 				*self.latest_worker_nonce.write() = summary.worker_nonce;
@@ -525,7 +521,8 @@ where
 	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			let store = SnapshotStore { map: self.memory_db.read().data().clone() };
+			// TODO: How to avoid cloning memory_db
+			let store = SnapshotStore::new(self.memory_db.read().data().clone().into_iter());
 			info!(target: "orderbook", "📒 snapshot contains {:?} keys ", store.map.len());
 			return match serde_json::to_vec(&store) {
 				Ok(data) => {
@@ -540,6 +537,7 @@ where
 							chunk_hash.0.as_ref(),
 							chunk,
 						);
+						info!(target: "orderbook", "📒 Stored snapshot chunk: {}", chunk_hash);
 						state_chunk_hashes.push(chunk_hash);
 					}
 
@@ -722,7 +720,7 @@ where
 	// Expects the set bits in the bitmap to be missing chunks
 	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want snapshot: {:?} - {:?}", snapshot_id, bitmap);
-		// Only respond if we are a fullnode
+		// Respond only if we are a fullnode
 		// TODO: Should we respond if we are also syncing???
 		if !self.is_validator {
 			if let Some(peer) = remote {
@@ -866,6 +864,8 @@ where
 									*status = StateSyncStatus::Available;
 								})
 								.or_insert(StateSyncStatus::Available);
+						} else {
+							log::warn!(target:"orderbook","📒 Invalid chunk hash, dropping chunk...");
 						}
 					},
 				}
@@ -930,6 +930,16 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
+		let active_set = self
+			.runtime
+			.runtime_api()
+			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+			.validators;
+		if let Err(err) = self.keystore.get_local_key(&active_set) {
+			log::error!(target:"orderbook","📒 No BLS key found: {:?}",err);
+		} else {
+			log::info!(target:"orderbook","📒 Active BLS key found")
+		}
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			let latest_worker_nonce = *self.latest_worker_nonce.read();
@@ -1455,6 +1465,7 @@ pub fn deposit(
 			trie.insert(&account_asset.encode(), &balance.encode())?;
 		},
 		None => {
+			info!(target: "orderbook", "📒 Account asset created: {:?}", account_asset);
 			trie.insert(&account_asset.encode(), &amount.encode())?;
 		},
 	}

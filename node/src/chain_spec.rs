@@ -70,7 +70,7 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		orderbook_primitives::crypto::AuthorityId,
 		thea_primitives::AuthorityId,
 	)> = vec![];
-	for idx in 1..=200 {
+	for idx in 1..=20 {
 		let babe = sp_core::sr25519::Pair::from_string(
 			&(seed.to_owned() + idx.to_string().as_str() + "//babe"),
 			None,

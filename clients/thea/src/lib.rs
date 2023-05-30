@@ -111,6 +111,8 @@ where
 	pub chain_type: ChainType,
 	/// Foreign Chain URL
 	pub foreign_chain_url: String,
+	/// Foreign chain dummy mode
+	pub dummy_mode: bool,
 }
 
 /// Start the Thea gadget.
@@ -136,6 +138,7 @@ where
 		marker: _,
 		chain_type,
 		foreign_chain_url,
+		dummy_mode,
 	} = ob_params;
 
 	let sync_oracle = network.clone();
@@ -154,8 +157,9 @@ where
 			},
 		);
 
-	let foreign_connector =
-		get_connector(chain_type, is_validator, foreign_chain_url).await.connector;
+	let foreign_connector = get_connector(chain_type, is_validator, foreign_chain_url, dummy_mode)
+		.await
+		.connector;
 
 	let worker_params = worker::WorkerParams {
 		client,
@@ -179,9 +183,14 @@ pub struct Connector {
 	connector: Arc<dyn ForeignConnector>,
 }
 
-pub async fn get_connector(chain_type: ChainType, is_validator: bool, url: String) -> Connector {
+pub async fn get_connector(
+	chain_type: ChainType,
+	is_validator: bool,
+	url: String,
+	dummy_mode: bool,
+) -> Connector {
 	log::info!(target:"thea","🌉 Assigning connector based on chain type: {:?}",chain_type);
-	if !is_validator {
+	if !is_validator | dummy_mode {
 		return Connector { connector: Arc::new(NoOpConnector) }
 	}
 	match chain_type {
