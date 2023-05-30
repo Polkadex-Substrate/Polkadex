@@ -317,7 +317,7 @@ where
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
 
 
-		info!(target:"orderbook-rpc","Trie loaded, empty: {:?}, Root hash: {:?}",trie.is_empty(), hex::encode(trie.root()));
+		info!(target:"orderbook-rpc","Trie loaded, empty: {:?}, Root hash: 0x{}",trie.is_empty(), hex::encode(trie.root()));
 
 		let mut ob_recovery_state = ObRecoveryState::default();
 

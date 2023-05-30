@@ -75,6 +75,7 @@ mod tests {
 		{
 			let mut trie: TrieDBMut<ExtensionLayout> =
 				TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
+			println!("Empty state root: 0x{}",hex::encode(trie.root()));
 
 			assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
 			assert!(
@@ -83,6 +84,8 @@ mod tests {
 
 			trie.commit();
 		}
+
+		println!("state root: 0x{}",hex::encode(working_state_root));
 
 		let store = SnapshotStore::new(memory_db.data().clone().into_iter());
 
@@ -104,10 +107,12 @@ mod tests {
 		let mut trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root)
 				.build();
+		println!("state root after rebuilding: 0x{}",hex::encode(trie.root()));
 		let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id };
 		let balance_encoded = trie.get(&account_asset.encode()).unwrap().unwrap();
 		let balance = Decimal::decode(&mut &balance_encoded[..]).unwrap();
 		assert_eq!(starting_balance, balance);
+		assert!(!trie.is_empty());
 
 		assert!(deposit(&mut trie, alice_main.clone(), asset_id.clone(), starting_balance).is_ok());
 	}
