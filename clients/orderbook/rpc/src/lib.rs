@@ -274,12 +274,15 @@ where
 			JsonRpseeError::Custom(format!("Unable to decode snapshot summary: {err:?}"))
 		})?;
 
+		info!(target:"orderbook-rpc","Summary Loaded: {:?}",summary);
+
 		let mut data = Vec::new();
 
 		for chunk in summary.state_chunk_hashes {
 			let mut chunk_data = offchain_storage
 				.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk.0.as_ref())
 				.ok_or(JsonRpseeError::Custom(format!("Chunk not found: {chunk:?}")))?;
+			info!(target:"orderbook-rpc","Chunk Loaded: {:?}",chunk);
 			data.append(&mut chunk_data);
 		}
 
@@ -308,9 +311,12 @@ where
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;
 		info!(target:"orderbook-rpc","Getting allowlisted asset ids: {:?}", allowlisted_asset_ids);
+
 		// Create existing DB, it will fail if root does not exist
-		let trie: TrieDBMut<ExtensionLayout> =
+		let mut trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
+
+		info!(target:"orderbook-rpc","Trie loaded, Root hash: {:?}",trie.root());
 
 		let mut ob_recovery_state = ObRecoveryState::default();
 
