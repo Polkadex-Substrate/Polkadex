@@ -328,7 +328,10 @@ where
 				self.insert_balance(&trie, &mut ob_recovery_state, &account_asset)?;
 			}
 			// Check if main account exists in the trie
-			if trie.contains(&user_main_account.encode()) {
+			if trie
+				.contains(&user_main_account.encode())
+				.map_err(|err| JsonRpseeError::Custom(format!("Error accessing trie: {err:?}")))?
+			{
 				ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
 			}
 		}
@@ -363,7 +366,10 @@ where
 		// Ignored none case as account may not have balance for asset
 		} else {
 			error!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
-			return Err(JsonRpseeError::Custom(format!("unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset)))
+			return Err(JsonRpseeError::Custom(format!(
+				"unable to fetch data for account: {:?}, asset: {:?}",
+				&account_asset.main, &account_asset.asset
+			)))
 		}
 		Ok(())
 	}
