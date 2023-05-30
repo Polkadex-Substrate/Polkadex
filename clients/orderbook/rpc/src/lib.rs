@@ -349,12 +349,12 @@ where
 				})?;
 				ob_recovery_state.balances.insert(account_asset.clone(), account_balance);
 			} else {
-				error!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
-				return Err(JsonRpseeError::Custom("unable to fetch DB data for account".to_string()))
+				log::warn!(target:"orderbook-rpc","No balance found for: {account_asset:?}");
 			}
 		// Ignored none case as account may not have balance for asset
 		} else {
-			log::warn!(target:"orderbook-rpc","No balance found for: {:?}", account_asset);
+			error!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
+			return Err(JsonRpseeError::Custom(format!("unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset)))
 		}
 		Ok(())
 	}
