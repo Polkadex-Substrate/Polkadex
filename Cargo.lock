@@ -5108,6 +5108,7 @@ name = "orderbook-rpc"
 version = "0.1.0"
 dependencies = [
  "futures 0.3.28",
+ "hex",
  "jsonrpsee",
  "log",
  "memory-db 0.31.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
