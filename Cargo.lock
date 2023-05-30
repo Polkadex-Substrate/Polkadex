@@ -5118,6 +5118,7 @@ dependencies = [
  "polkadex-primitives",
  "reference-trie",
  "rust_decimal",
+ "sc-client-api",
  "sc-rpc",
  "sc-utils",
  "serde",

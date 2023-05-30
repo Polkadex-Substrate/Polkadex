@@ -16,7 +16,8 @@ use orderbook_primitives::{
 		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
 		UserActions, WithdrawalRequest,
 	},
-	ObApi, SnapshotSummary, ValidatorSet,
+	ObApi, SnapshotSummary, ValidatorSet, ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
+	ORDERBOOK_STATE_CHUNK_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX,
 };
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
@@ -54,10 +55,6 @@ use crate::{
 	utils::*,
 	Client, DbRef,
 };
-
-pub const ORDERBOOK_WORKER_NONCE_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
-pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
-pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	pub client: Arc<C>,
