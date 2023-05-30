@@ -971,7 +971,7 @@ pub mod pallet {
 		/// Submit Snapshot Summary
 		/// TODO: Better documentation
 		#[pallet::call_index(17)]
-		#[pallet::weight(<T as Config>::WeightInfo:: ())]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			summary: SnapshotSummary<T::AccountId>,
