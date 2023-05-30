@@ -9,6 +9,7 @@ edition = "2021"
 codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"] }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
 futures = "0.3.21"
+hex = "0.4.3"
 jsonrpsee = { workspace = true, features = ["server", "macros"] }
 log = "0.4"
 parking_lot = "0.12.0"

@@ -5,13 +5,13 @@
 use std::sync::Arc;
 
 use codec::{Decode, Encode};
-use futures::{channel::mpsc::UnboundedSender, task::SpawnError, SinkExt};
+use futures::{channel::mpsc::UnboundedSender, SinkExt, task::SpawnError};
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
 	types::{error::CallError, ErrorObject},
 };
-use log::{error, info};
+use log::{error, info, warn};
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use reference_trie::{ExtensionLayout, RefHasher};
@@ -24,11 +24,11 @@ use sp_core::offchain::OffchainStorage;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
-use orderbook::{snapshot::SnapshotStore, DbRef};
+use orderbook::{DbRef, snapshot::SnapshotStore};
 use orderbook_primitives::{
-	recovery::ObRecoveryState,
-	types::{AccountAsset, ObMessage},
-	ObApi, SnapshotSummary, ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, ORDERBOOK_STATE_CHUNK_PREFIX,
+	ObApi,
+	ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
+	ORDERBOOK_STATE_CHUNK_PREFIX, recovery::ObRecoveryState, SnapshotSummary, types::{AccountAsset, ObMessage},
 };
 use polkadex_primitives::AccountId;
 
@@ -316,7 +316,8 @@ where
 		let mut trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
 
-		info!(target:"orderbook-rpc","Trie loaded, Root hash: {:?}",trie.root());
+
+		info!(target:"orderbook-rpc","Trie loaded, empty: {:?}, Root hash: {:?}",trie.is_empty(), hex::encode(trie.root()));
 
 		let mut ob_recovery_state = ObRecoveryState::default();
 
@@ -333,6 +334,8 @@ where
 				.map_err(|err| JsonRpseeError::Custom(format!("Error accessing trie: {err:?}")))?
 			{
 				ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
+			} else {
+				warn!(target:"orderbook-rpc","Main account not found: {:?}",user_main_account);
 			}
 		}
 
