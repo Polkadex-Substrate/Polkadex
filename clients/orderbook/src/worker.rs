@@ -133,12 +133,12 @@ where
 	SO: Send + Sync + Clone + 'static + SyncOracle,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
-	/// Return a new BEEFY worker instance.
+	/// Return a new Orderbook worker instance.
 	///
-	/// Note that a BEEFY worker is only fully functional if a corresponding
-	/// BEEFY pallet has been deployed on-chain.
+	/// Note that a Orderbook worker is only fully functional if a corresponding
+	/// Orderbook pallet has been deployed on-chain.
 	///
-	/// The BEEFY pallet is needed in order to keep track of the BEEFY authority set.
+	/// The Orderbook pallet is needed in order to keep track of the Orderbook authority set.
 	pub(crate) fn new(worker_params: WorkerParams<B, BE, C, SO, N, R>) -> Self {
 		let WorkerParams {
 			client,

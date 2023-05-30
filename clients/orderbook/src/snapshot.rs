@@ -1,6 +1,7 @@
+use std::collections::{BTreeMap, HashMap};
+
 use serde::{Deserialize, Serialize};
 use serde_with::{json::JsonString, serde_as};
-use std::collections::{BTreeMap, HashMap};
 
 /// This is a dummy struct used to serialize memory db
 /// We cannot serialize the hashmap below because of non-string type in key.
@@ -23,18 +24,20 @@ impl SnapshotStore {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::HashMap;
+
+	use memory_db::{HashKey, MemoryDB};
+	use parity_scale_codec::{Decode, Encode};
+	use reference_trie::{ExtensionLayout, RefHasher};
+	use rust_decimal::Decimal;
+	use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
+	use orderbook_primitives::types::AccountAsset;
+	use polkadex_primitives::AssetId;
 
 	use crate::{
 		snapshot::SnapshotStore, worker::*, worker_tests::get_alice_main_and_proxy_account,
 	};
-	use memory_db::{HashKey, MemoryDB};
-	use orderbook_primitives::types::AccountAsset;
-	use parity_scale_codec::{Decode, Encode};
-	use polkadex_primitives::AssetId;
-	use reference_trie::{ExtensionLayout, RefHasher};
-	use rust_decimal::Decimal;
-	use std::collections::HashMap;
-	use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 	#[test]
 	pub fn test_snapshot_deterministic_serialization() {
@@ -67,7 +70,7 @@ mod tests {
 		let mut working_state_root = [0u8; 32];
 		let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 		let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-		let asset_id = AssetId::Asset(1);
+		let asset_id = AssetId::Polkadex;
 		let starting_balance = Decimal::new(10, 0);
 		{
 			let mut trie: TrieDBMut<ExtensionLayout> =
