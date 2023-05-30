@@ -327,7 +327,10 @@ where
 				let account_asset = AccountAsset::new(user_main_account.clone(), asset);
 				self.insert_balance(&trie, &mut ob_recovery_state, &account_asset)?;
 			}
-			ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
+			// Check if main account exists in the trie
+			if trie.contains(&user_main_account.encode()) {
+				ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
+			}
 		}
 
 		ob_recovery_state.snapshot_id = summary.snapshot_id;
