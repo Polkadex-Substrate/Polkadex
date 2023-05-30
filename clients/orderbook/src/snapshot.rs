@@ -98,16 +98,18 @@ mod tests {
 		let store_restored: SnapshotStore = serde_json::from_slice(&data_restored).unwrap();
 		assert_eq!(store_restored, store);
 
-		let mut memory_db_restored: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> =
-			Default::default();
+		let mut memory_db_restored: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = MemoryDB::default();
 		memory_db_restored.load_from(store_restored.convert_to_hashmap());
 		let mut trie: TrieDBMut<ExtensionLayout> =
-			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root)
+			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root_second)
 				.build();
 		let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id };
 		let balance_encoded = trie.get(&account_asset.encode()).unwrap().unwrap();
 		let balance = Decimal::decode(&mut &balance_encoded[..]).unwrap();
-
 		assert_eq!(starting_balance, balance);
+
+		assert!(
+			deposit(&mut trie, alice_main.clone(), asset_id.clone(), starting_balance).is_ok()
+		);
 	}
 }
