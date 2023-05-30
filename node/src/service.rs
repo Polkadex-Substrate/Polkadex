@@ -125,6 +125,7 @@ pub fn create_extrinsic(
 	)
 }
 use orderbook_primitives::types::ObMessage;
+use orderbook_rpc::OrderbookDeps;
 use sc_network_common::service::NetworkEventStream;
 
 #[allow(clippy::type_complexity)]
@@ -267,6 +268,7 @@ pub fn new_partial(
 		let chain_spec = config.chain_spec.cloned_box();
 		let memory_db_cloned = memory_db.clone();
 		let working_state_root_cloned = working_state_root.clone();
+		let backend_cloned = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),
@@ -286,9 +288,13 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
-				orderbook: ob_messge_sink.clone(),
-				memory_db: memory_db_cloned.clone(),
-				working_state_root: working_state_root_cloned.clone(),
+				orderbook: OrderbookDeps {
+					rpc_channel: ob_messge_sink.clone(),
+					memory_db: memory_db_cloned.clone(),
+					working_state_root: working_state_root_cloned.clone(),
+					client: client.clone(),
+					backend: backend_cloned.clone(),
+				},
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)

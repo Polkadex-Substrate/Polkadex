@@ -30,11 +30,10 @@
 
 #![warn(missing_docs)]
 
-use futures::channel::mpsc::UnboundedSender;
 use std::sync::Arc;
 
 use jsonrpsee::RpcModule;
-use orderbook_primitives::{types::ObMessage, ObApi};
+use orderbook_primitives::ObApi;
 use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
 use pallet_asset_handler_rpc::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
@@ -53,9 +52,6 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
-
-use memory_db::{HashKey, MemoryDB};
-use reference_trie::RefHasher;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -82,7 +78,6 @@ pub struct GrandpaDeps<B> {
 }
 
 use pallet_rewards_rpc::PolkadexRewardsRpc;
-use parking_lot::RwLock;
 
 /// Full client dependencies.
 pub struct FullDeps<C, P, SC, B> {
@@ -100,13 +95,8 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
-	/// Channel for sending ob messages to worker
-	pub orderbook: UnboundedSender<ObMessage>,
-	/// memory db
-	#[allow(clippy::type_complexity)]
-	pub memory_db: Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
-	/// working_state_root
-	pub working_state_root: Arc<RwLock<[u8; 32]>>,
+	/// Orderbook specific dependencies
+	pub orderbook: orderbook_rpc::OrderbookDeps<B, C>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -145,18 +135,8 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps {
-		client,
-		pool,
-		select_chain,
-		chain_spec,
-		deny_unsafe,
-		babe,
-		grandpa,
-		orderbook,
-		memory_db,
-		working_state_root,
-	} = deps;
+	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, orderbook } =
+		deps;
 
 	let BabeDeps { keystore, babe_config, shared_epoch_changes } = babe;
 	let GrandpaDeps {
@@ -201,17 +181,7 @@ where
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
 	// Create Orderbook RPC
-	io.merge(
-		OrderbookRpc::new(
-			subscription_executor,
-			orderbook,
-			memory_db,
-			working_state_root,
-			client.clone(),
-			client,
-		)
-		.into_rpc(),
-	)?;
+	io.merge(OrderbookRpc::new(subscription_executor, orderbook).into_rpc())?;
 
 	Ok(io)
 }

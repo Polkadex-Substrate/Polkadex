@@ -24,16 +24,17 @@ impl SnapshotStore {
 #[cfg(test)]
 mod tests {
 
-	use crate::snapshot::SnapshotStore;
+	use crate::{
+		snapshot::SnapshotStore, worker::*, worker_tests::get_alice_main_and_proxy_account,
+	};
 	use memory_db::{HashKey, MemoryDB};
-	use reference_trie::{ExtensionLayout, RefHasher};
-	use std::collections::HashMap;
-	use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
-	use crate::{worker::*, worker_tests::get_alice_main_and_proxy_account};
 	use orderbook_primitives::types::AccountAsset;
 	use parity_scale_codec::{Decode, Encode};
 	use polkadex_primitives::AssetId;
+	use reference_trie::{ExtensionLayout, RefHasher};
 	use rust_decimal::Decimal;
+	use std::collections::HashMap;
+	use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 	#[test]
 	pub fn test_snapshot_deterministic_serialization() {
@@ -84,7 +85,14 @@ mod tests {
 
 		let data = serde_json::to_vec(&store).unwrap();
 
-		let store_restored: SnapshotStore = serde_json::from_slice(&data).unwrap();
+		let mut chunks = data.chunks(10 * 1024 * 1024);
+
+		let mut data_restored = Vec::new();
+		for chunk in chunks {
+			data_restored.append(&mut chunk.to_vec());
+		}
+
+		let store_restored: SnapshotStore = serde_json::from_slice(&data_restored).unwrap();
 		assert_eq!(store_restored, store);
 
 		let mut memory_db_restored: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> =
