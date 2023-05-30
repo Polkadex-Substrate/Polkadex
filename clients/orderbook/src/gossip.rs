@@ -100,10 +100,11 @@ where
 				}
 			},
 			GossipMessage::Want(snapshot_id, _) => {
-				if self.is_validator {
-					// Only fullnodes will respond to this
-					return ValidationResult::Discard
-				}
+				// TODO: Currently enabled for all nodes
+				// if self.is_validator {
+				// 	// Only fullnodes will respond to this
+				// 	return ValidationResult::Discard
+				// }
 				// We only process the request for last snapshot
 				if self.last_snapshot.read().snapshot_id == *snapshot_id {
 					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
