@@ -3,7 +3,7 @@
 set -e
 
 start_boot_node() {
-  echo "Starting boot node..."
+  echo "Starting boot node 1..."
   install -d ../ind_validators/validator1
   cd ../ind_validators/validator1
   ../../target/$TARGET/polkadex-node --validator --base-path ./bootnode -lafg=trace --ws-port=9943 --rpc-port=9944 --in-peers 200 --out-peers 200 --chain=../../scripts/customSpecRaw.json --node-key=1f64f01767da8258fcb986bd68d6dff93dfcd49d0fc753cea27cf37ce91c3684 >out_boot_node 2>&1 &
@@ -12,7 +12,7 @@ start_boot_node() {
 }
 
 start_validator_1() {
-  echo "Starting validator 1..."
+  echo "Starting validator 2..."
   install -d ../ind_validators/validator2
   cd ../ind_validators/validator2
   ../../target/$TARGET/polkadex-node --validator --port 30334 --base-path ./validator01 \
@@ -25,7 +25,7 @@ start_validator_1() {
 }
 
 start_validator_2() {
-  echo "Starting validator 2..."
+  echo "Starting validator 3..."
   install -d ../ind_validators/validator3
   cd ../ind_validators/validator3
   ../../target/$TARGET/polkadex-node --validator --port 30335 --base-path ./validator02 -lthea=trace  \
@@ -38,7 +38,7 @@ start_validator_2() {
 }
 
 start_others() {
-  for id in {4..200}
+  for id in {4..20}
   do
     echo "Starting validator $id..."
     install -d ../ind_validators/validator$id
@@ -48,7 +48,7 @@ start_others() {
       --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t \
       --bootnodes /ip4/127.0.0.1/tcp/30334/p2p/12D3KooWEVBdwVmV1BeAdtqzhjANK31ibYmLQXxEoeai4fx7KhNh >out_validator_$id 2>&1 &
     cd ../../scripts
-    sleep 20
+#    sleep 20
   done
 }
 
@@ -77,20 +77,23 @@ start_chain() {
 
   start_validator_1
   start_validator_2
-  start_others
   sleep $SLEEP
+  start_others
+  sleep 60
 
   echo "Setting keys..."
   ./set-keys.sh
   sleep $SLEEP
 
   kill_nodes
+  sleep 30
 
   start_boot_node
   sleep $SLEEP
 
   start_validator_1
   start_validator_2
+  sleep $SLEEP
   start_others
 
   tail -f ../ind_validators/validator3/out_validator_3

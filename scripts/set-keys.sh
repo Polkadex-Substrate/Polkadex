@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for id in {1..200}
+for id in {1..20}
 do
   port=$((9943 + $id))
   echo "Setting $id Keys with RPC: $port"

@@ -299,8 +299,9 @@ where
 
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		info!("Handling block import: {:?}", num);
-		// Update trading pair configs
-		self.load_trading_pair_configs(num)?;
+		if num.is_zero() {
+			return Ok(())
+		}
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);

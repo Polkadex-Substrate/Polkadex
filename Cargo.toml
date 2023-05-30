@@ -28,6 +28,7 @@ members = [
   "pallets/thea-executor",
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
+  "scripts/bls_gen"
 ]
 
 [workspace.dependencies]

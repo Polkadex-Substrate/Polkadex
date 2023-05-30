@@ -14,7 +14,7 @@ do
     ]
 }
 EOM
-  gran_id=$(subkey inspect "owner word vocal dose decline sunset battle example forget excite gentle waste//$id_n//grandpa" | grep Account | awk '0x{print $3}')
+  gran_id=$(subkey inspect --scheme Ed25519 "owner word vocal dose decline sunset battle example forget excite gentle waste//$id_n//grandpa" | grep Account | awk '0x{print $3}')
   echo "Gran: $gran_id"
   cat > ../session-keys/gran$id_n <<-EOM
 {
