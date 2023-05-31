@@ -1035,9 +1035,7 @@ where
 					prepare_bitmap(&missing_indexes, highest_missing_index)
 						.expect("📒 Expected to create bitmap"),
 				);
-				let fullnodes =
-					self.fullnodes.read().clone().iter().cloned().collect::<Vec<PeerId>>();
-				self.gossip_engine.send_message(fullnodes, message.encode());
+				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
 			} else {
 				// We have all the data, state is synced,
 				// so load snapshot shouldn't have any problem now
