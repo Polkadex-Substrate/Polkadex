@@ -91,7 +91,7 @@ where
 				}
 				// Validators only process it if the request is for nonces after
 				if *from >= self.last_snapshot.read().worker_nonce {
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndDiscard(topic::<B>())
 				} else {
 					ValidationResult::Discard
 				}
