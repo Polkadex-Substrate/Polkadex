@@ -72,9 +72,6 @@ where
 	) -> ValidationResult<B::Hash> {
 		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
 		// Discard if we already know this message
-		if self.message_cache.read().contains_key(&(msg_hash, peerid)) {
-			return ValidationResult::Discard
-		}
 		match message {
 			GossipMessage::ObMessage(msg) => {
 				let latest_worker_nonce = *self.latest_worker_nonce.read();
