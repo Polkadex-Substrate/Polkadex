@@ -856,7 +856,7 @@ where
 	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &usize, data: &[u8]) {
 		info!(target: "orderbook", "📒 Chunk snapshot: {:?} - {:?} - {:?}", snapshot_id, index, data.len());
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
-			let at = BlockId::Number(self.last_finalized_block.saturated_into());
+			let at = BlockId::Number(self.client.info().finalized_number);
 			if let Ok(Some(summary)) =
 				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 			{
