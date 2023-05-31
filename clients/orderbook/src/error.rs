@@ -11,6 +11,8 @@ use trie_db::TrieError;
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
+	#[error("Snapshot Data not found in DB")]
+	SnapshotNotFound,
 	#[error("Backend: {0}")]
 	Backend(String),
 	#[error("Keystore error: {0}")]
