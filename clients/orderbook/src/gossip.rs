@@ -105,7 +105,7 @@ where
 				// We only process the request for last snapshot
 				if self.last_snapshot.read().snapshot_id == *snapshot_id {
 					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndDiscard(topic::<B>())
 				} else {
 					ValidationResult::Discard
 				}
