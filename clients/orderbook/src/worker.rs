@@ -1035,7 +1035,8 @@ where
 					prepare_bitmap(&missing_indexes, highest_missing_index)
 						.expect("📒 Expected to create bitmap"),
 				);
-				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
+				info!(target:"orderbook","📒 Sending sync requests to neighbours...");
+				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
 			} else {
 				// We have all the data, state is synced,
 				// so load snapshot shouldn't have any problem now
