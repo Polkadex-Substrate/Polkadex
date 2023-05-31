@@ -566,6 +566,8 @@ where
 						last_processed_blk: self.last_processed_block_in_offchain_state,
 					};
 
+					info!(target: "orderbook", "📒 Writing summary to offchain storage: {:?}", summary);
+
 					offchain_storage.set(
 						ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
 						&snapshot_id.encode(),
@@ -1067,7 +1069,7 @@ where
 								log::error!(target:"orderbook", "📒 Unable to find snapshot summary for snapshot_id: {:?}",pending_snaphot)
 							},
 							Some(data) => {
-								info!(target:"orderbook","📒 Found snapshot summary for snapshot_id: {:?}",pending_snaphot);
+								info!(target:"orderbook","📒 Loading snapshot summary for snapshot_id: {:?} from off chain storage",pending_snaphot);
 								match SnapshotSummary::decode(&mut &data[..]) {
 									Ok(mut summary) => {
 										info!(target:"orderbook","📒 Signing snapshot with: {:?}",signing_key);
