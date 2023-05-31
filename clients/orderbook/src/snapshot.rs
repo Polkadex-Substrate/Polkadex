@@ -6,7 +6,7 @@ use serde_with::{json::JsonString, serde_as};
 /// This is a dummy struct used to serialize memory db
 /// We cannot serialize the hashmap below because of non-string type in key.
 #[serde_as]
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SnapshotStore {
 	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
 	pub map: BTreeMap<[u8; 32], (Vec<u8>, i32)>,
@@ -75,7 +75,7 @@ mod tests {
 		{
 			let mut trie: TrieDBMut<ExtensionLayout> =
 				TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
-			println!("Empty state root: 0x{}",hex::encode(trie.root()));
+			println!("Empty state root: 0x{}", hex::encode(trie.root()));
 
 			assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
 			assert!(
@@ -85,7 +85,7 @@ mod tests {
 			trie.commit();
 		}
 
-		println!("state root: 0x{}",hex::encode(working_state_root));
+		println!("state root: 0x{}", hex::encode(working_state_root));
 
 		let store = SnapshotStore::new(memory_db.data().clone().into_iter());
 
@@ -104,10 +104,14 @@ mod tests {
 		let mut memory_db_restored: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> =
 			MemoryDB::default();
 		memory_db_restored.load_from(store_restored.convert_to_hashmap());
+		let mut fake_state_root: [u8; 32] =
+			hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
+				.unwrap()
+				.try_into()
+				.unwrap();
 		let mut trie: TrieDBMut<ExtensionLayout> =
-			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root)
-				.build();
-		println!("state root after rebuilding: 0x{}",hex::encode(trie.root()));
+			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut fake_state_root).build();
+		println!("state root after rebuilding: 0x{}", hex::encode(trie.root()));
 		let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id };
 		let balance_encoded = trie.get(&account_asset.encode()).unwrap().unwrap();
 		let balance = Decimal::decode(&mut &balance_encoded[..]).unwrap();

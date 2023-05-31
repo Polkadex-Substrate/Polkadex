@@ -408,6 +408,7 @@ where
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
+		info!(target:"orderbook","📒Updated working state root: {:?}",hex::encode(self.working_state_root.read().clone()));
 		metric_set!(self, ob_snapshot_id, action.worker_nonce);
 		self.latest_state_change_id = action.stid;
 		// Multicast the message to other peers
@@ -469,6 +470,7 @@ where
 				self.latest_state_change_id = summary.state_change_id;
 				self.last_processed_block_in_offchain_state = summary.last_processed_blk;
 				*self.working_state_root.write() = summary.state_root.0;
+				info!(target: "orderbook", "📒 0x{} state root loaded",hex::encode(summary.state_root.0));
 			},
 			Err(err) => {
 				error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
@@ -527,7 +529,7 @@ where
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
 			// TODO: How to avoid cloning memory_db
 			let store = SnapshotStore::new(self.memory_db.read().data().clone().into_iter());
-			info!(target: "orderbook", "📒 snapshot contains {:?} keys ", store.map.len());
+			info!(target: "orderbook", "📒 snapshot contains {:?} keys", store.map.len());
 			return match serde_json::to_vec(&store) {
 				Ok(data) => {
 					info!(target: "orderbook", "📒 Stored snapshot data ({} bytes)", data.len());
@@ -723,45 +725,47 @@ where
 	// Expects the set bits in the bitmap to be missing chunks
 	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want snapshot: {:?} - {:?}", snapshot_id, bitmap);
-		// Respond only if we are a fullnode
-		// TODO: Should we respond if we are also syncing???
-		if !self.is_validator {
-			if let Some(peer) = remote {
-				let mut chunks_we_have = vec![];
-				let mut highest_index = 0;
-				let at = BlockId::Number(self.last_finalized_block.saturated_into());
-				if let Ok(Some(summary)) =
-					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
-				{
-					if let Some(offchain_storage) = self.backend.offchain_storage() {
-						let required_indexes: Vec<usize> = return_set_bits(bitmap);
-						for chunk_index in required_indexes {
-							if offchain_storage
-								.get(
-									ORDERBOOK_STATE_CHUNK_PREFIX,
-									summary.state_chunk_hashes[chunk_index].encode().as_ref(),
-								)
-								.is_some()
-							{
-								chunks_we_have.push(chunk_index);
-								highest_index = chunk_index.max(highest_index);
-							}
+		// Don't respond to want request if we are syncing
+		if self.state_is_syncing {
+			info!(target: "orderbook", "📒 we are syncing, Want request for id {snapshot_id:?} from {remote:?} ignored");
+			return
+		}
+
+		if let Some(peer) = remote {
+			let mut chunks_we_have = vec![];
+			let mut highest_index = 0;
+			let at = BlockId::Number(self.last_finalized_block.saturated_into());
+			if let Ok(Some(summary)) =
+				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
+			{
+				if let Some(offchain_storage) = self.backend.offchain_storage() {
+					let required_indexes: Vec<usize> = return_set_bits(bitmap);
+					for chunk_index in required_indexes {
+						if offchain_storage
+							.get(
+								ORDERBOOK_STATE_CHUNK_PREFIX,
+								summary.state_chunk_hashes[chunk_index].encode().as_ref(),
+							)
+							.is_some()
+						{
+							chunks_we_have.push(chunk_index);
+							highest_index = chunk_index.max(highest_index);
 						}
 					}
-				} else {
-					// TODO: Reduce reputation if else block is happens
 				}
+			} else {
+				// TODO: Reduce reputation if else block is happens
+			}
 
-				if !chunks_we_have.is_empty() {
-					let message = GossipMessage::Have(
-						*snapshot_id,
-						prepare_bitmap(&chunks_we_have, highest_index)
-							.expect("📒 Expected to create bitmap"),
-					);
-					self.gossip_engine.send_message(vec![peer], message.encode());
-					metric_inc!(self, ob_messages_sent);
-					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
-				}
+			if !chunks_we_have.is_empty() {
+				let message = GossipMessage::Have(
+					*snapshot_id,
+					prepare_bitmap(&chunks_we_have, highest_index)
+						.expect("📒 Expected to create bitmap"),
+				);
+				self.gossip_engine.send_message(vec![peer], message.encode());
+				metric_inc!(self, ob_messages_sent);
+				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 			}
 		}
 	}
@@ -789,6 +793,7 @@ where
 					prepare_bitmap(&want_chunks, highest_index)
 						.expect("📒 Expected to create bitmap"),
 				);
+				debug!(target: "orderbook", "📒 requested chunk of {:?} to {:?}", snapshot_id, peer);
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -802,7 +807,7 @@ where
 		bitmap: &Vec<u128>,
 		remote: Option<PeerId>,
 	) {
-		info!(target: "orderbook", "📒 Request chunk: {:?} - {:?}", snapshot_id, bitmap);
+		info!(target: "orderbook", "📒 Request chunk: {:?}, {:?}, {:?}", snapshot_id, bitmap, remote);
 		if let Some(peer) = remote {
 			if let Some(offchian_storage) = self.backend.offchain_storage() {
 				let at = BlockId::Number(self.last_finalized_block.saturated_into());
@@ -821,7 +826,9 @@ where
 								{
 									let message =
 										GossipMessage::Chunk(*snapshot_id, index as u16, data);
+									debug!(target: "orderbook", "📒 Chunk message size: {:?}", message.encode().len());
 									self.gossip_engine.send_message(vec![peer], message.encode());
+									info!(target: "orderbook", "📒 Chunk {:?} of {:?} sent to {:?}", chunk_hash, snapshot_id, remote);
 									metric_inc!(self, ob_messages_sent);
 									metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 								} else {
@@ -918,7 +925,7 @@ where
 					add_proxy(&mut trie, main.clone(), proxy.clone())?;
 				}
 			} else {
-				warn!(target:"orderbook","📒 No proxies found for main: {:?}",main)
+				debug!(target:"orderbook","📒 Only one proxy found for main: {:?}",main)
 			}
 		}
 		// Commit the trie
@@ -1178,14 +1185,10 @@ where
 		// Prepare bitmap
 		let bitmap = prepare_bitmap(&missing_chunks, highest_chunk_index)
 			.expect("📒 Expected to create bitmap");
-		// Gossip the sync requests to all connected fullnodes
-		let fullnodes = self.fullnodes.read().clone().into_iter().collect::<Vec<PeerId>>();
-		if fullnodes.is_empty() {
-			warn!(target:"orderbook","📒 No fullnode peers connected to request state sync");
-		}
-		info!(target:"orderbook","📒 State sync request send to {:?} peers",fullnodes.len());
+		// Gossip the sync requests to all connected nodes
 		let message = GossipMessage::Want(summary.snapshot_id, bitmap);
-		self.gossip_engine.send_message(fullnodes, message.encode());
+		self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
+		info!(target:"orderbook","📒 State sync request send to connected peers ");
 		Ok(())
 	}
 
@@ -1290,10 +1293,15 @@ where
 			self.gossip_engine
 				.messages_for(topic::<B>())
 				.filter_map(|notification| async move {
-					trace!(target: "orderbook", "📒 Got gossip message: {:?}", notification);
 					match GossipMessage::decode(&mut &notification.message[..]).ok() {
-						None => None,
-						Some(msg) => Some((msg, notification.sender)),
+						None => {
+							warn!(target: "orderbook", "📒 Gossip message decode failed: {:?}", notification);
+							None
+						},
+						Some(msg) => {
+							trace!(target: "orderbook", "📒 Got gossip message: {:?}", msg);
+							Some((msg, notification.sender))
+						},
 					}
 				})
 				.fuse(),

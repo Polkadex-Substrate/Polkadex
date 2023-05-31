@@ -263,16 +263,13 @@ where
 			.offchain_storage()
 			.ok_or(JsonRpseeError::Custom("Unable to access offchain storage".parse().unwrap()))?;
 
-		let summary = SnapshotSummary::<AccountId>::decode(
-			&mut &offchain_storage
-				.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &snapshot_id.encode())
-				.ok_or(JsonRpseeError::Custom(
-					"Unable to find snapshot summary in storage".parse().unwrap(),
-				))?[..],
-		)
-		.map_err(|err| {
-			JsonRpseeError::Custom(format!("Unable to decode snapshot summary: {err:?}"))
-		})?;
+		let summary = self
+			.runtime
+			.runtime_api()
+			.get_snapshot_by_id(&BlockId::number(self.client.info().finalized_number), snapshot_id)
+			.map_err(|err| {
+				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
+			})?.ok_or(JsonRpseeError::Custom("Snapshot not availabe in runtime".parse().unwrap()))?;
 
 		info!(target:"orderbook-rpc","Summary Loaded: {:?}",summary);
 
