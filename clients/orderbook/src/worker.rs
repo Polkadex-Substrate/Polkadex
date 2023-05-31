@@ -598,7 +598,10 @@ where
 			for chunk_hash in &summary.state_chunk_hashes {
 				match offchain_storage.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref()) {
 					None =>
-						error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash),
+						{
+							error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash)
+							return Err(Error::SnapshotNotFound)
+						},
 					Some(mut chunk) => {
 						let computed_hash = H128::from(blake2_128(&chunk));
 						if computed_hash != *chunk_hash {
@@ -869,6 +872,7 @@ where
 								expected_hash.0.as_ref(),
 								data,
 							);
+							info!(target: "orderbook", "📒 Chunk {:?} of snapshot: {:?} stored", computed_hash, snapshot_id);
 							// Update sync status map
 							self.sync_state_map
 								.entry(*index)
