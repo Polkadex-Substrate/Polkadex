@@ -885,7 +885,11 @@ where
 						}
 					},
 				}
+			}else{
+				log::error!(target:"orderbook","📒 Unable to read summary from runtime");
 			}
+		}else{
+			log::error!(target:"orderbook","📒 Unable to get handle to offchain storage");
 		}
 	}
 
