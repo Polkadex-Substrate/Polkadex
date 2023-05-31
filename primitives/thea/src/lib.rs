@@ -19,8 +19,6 @@
 #![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(test)]
-mod test;
 pub mod types;
 
 use parity_scale_codec::{Decode, Encode};
