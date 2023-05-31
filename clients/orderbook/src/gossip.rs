@@ -72,9 +72,6 @@ where
 	) -> ValidationResult<B::Hash> {
 		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
 		// Discard if we already know this message
-		if self.message_cache.read().contains_key(&(msg_hash, peerid)) {
-			return ValidationResult::Discard
-		}
 		match message {
 			GossipMessage::ObMessage(msg) => {
 				let latest_worker_nonce = *self.latest_worker_nonce.read();
@@ -94,20 +91,21 @@ where
 				}
 				// Validators only process it if the request is for nonces after
 				if *from >= self.last_snapshot.read().worker_nonce {
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndDiscard(topic::<B>())
 				} else {
 					ValidationResult::Discard
 				}
 			},
 			GossipMessage::Want(snapshot_id, _) => {
-				if self.is_validator {
-					// Only fullnodes will respond to this
-					return ValidationResult::Discard
-				}
+				// TODO: Currently enabled for all nodes
+				// if self.is_validator {
+				// 	// Only fullnodes will respond to this
+				// 	return ValidationResult::Discard
+				// }
 				// We only process the request for last snapshot
 				if self.last_snapshot.read().snapshot_id == *snapshot_id {
 					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndDiscard(topic::<B>())
 				} else {
 					ValidationResult::Discard
 				}

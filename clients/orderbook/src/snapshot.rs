@@ -1,11 +1,12 @@
+use std::collections::{BTreeMap, HashMap};
+
 use serde::{Deserialize, Serialize};
 use serde_with::{json::JsonString, serde_as};
-use std::collections::{BTreeMap, HashMap};
 
 /// This is a dummy struct used to serialize memory db
 /// We cannot serialize the hashmap below because of non-string type in key.
 #[serde_as]
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SnapshotStore {
 	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
 	pub map: BTreeMap<[u8; 32], (Vec<u8>, i32)>,
@@ -23,18 +24,20 @@ impl SnapshotStore {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::HashMap;
+
+	use memory_db::{HashKey, MemoryDB};
+	use parity_scale_codec::{Decode, Encode};
+	use reference_trie::{ExtensionLayout, RefHasher};
+	use rust_decimal::Decimal;
+	use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
+	use orderbook_primitives::types::AccountAsset;
+	use polkadex_primitives::AssetId;
 
 	use crate::{
 		snapshot::SnapshotStore, worker::*, worker_tests::get_alice_main_and_proxy_account,
 	};
-	use memory_db::{HashKey, MemoryDB};
-	use orderbook_primitives::types::AccountAsset;
-	use parity_scale_codec::{Decode, Encode};
-	use polkadex_primitives::AssetId;
-	use reference_trie::{ExtensionLayout, RefHasher};
-	use rust_decimal::Decimal;
-	use std::collections::HashMap;
-	use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 	#[test]
 	pub fn test_snapshot_deterministic_serialization() {
@@ -67,11 +70,12 @@ mod tests {
 		let mut working_state_root = [0u8; 32];
 		let mut memory_db: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> = Default::default();
 		let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-		let asset_id = AssetId::Asset(1);
+		let asset_id = AssetId::Polkadex;
 		let starting_balance = Decimal::new(10, 0);
 		{
 			let mut trie: TrieDBMut<ExtensionLayout> =
 				TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
+			println!("Empty state root: 0x{}", hex::encode(trie.root()));
 
 			assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
 			assert!(
@@ -80,6 +84,8 @@ mod tests {
 
 			trie.commit();
 		}
+
+		println!("state root: 0x{}", hex::encode(working_state_root));
 
 		let store = SnapshotStore::new(memory_db.data().clone().into_iter());
 
@@ -96,15 +102,22 @@ mod tests {
 		assert_eq!(store_restored, store);
 
 		let mut memory_db_restored: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> =
-			Default::default();
+			MemoryDB::default();
 		memory_db_restored.load_from(store_restored.convert_to_hashmap());
+		let mut fake_state_root: [u8; 32] =
+			hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
+				.unwrap()
+				.try_into()
+				.unwrap();
 		let mut trie: TrieDBMut<ExtensionLayout> =
-			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root)
-				.build();
+			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut fake_state_root).build();
+		println!("state root after rebuilding: 0x{}", hex::encode(trie.root()));
 		let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id };
 		let balance_encoded = trie.get(&account_asset.encode()).unwrap().unwrap();
 		let balance = Decimal::decode(&mut &balance_encoded[..]).unwrap();
-
 		assert_eq!(starting_balance, balance);
+		assert!(!trie.is_empty());
+
+		assert!(deposit(&mut trie, alice_main.clone(), asset_id.clone(), starting_balance).is_ok());
 	}
 }

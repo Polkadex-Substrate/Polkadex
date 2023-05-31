@@ -11,7 +11,7 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::{error::CallError, ErrorObject},
 };
-use log::{error, info};
+use log::{error, info, warn};
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use reference_trie::{ExtensionLayout, RefHasher};
@@ -263,16 +263,16 @@ where
 			.offchain_storage()
 			.ok_or(JsonRpseeError::Custom("Unable to access offchain storage".parse().unwrap()))?;
 
-		let summary = SnapshotSummary::<AccountId>::decode(
-			&mut &offchain_storage
-				.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &snapshot_id.encode())
-				.ok_or(JsonRpseeError::Custom(
-					"Unable to find snapshot summary in storage".parse().unwrap(),
-				))?[..],
-		)
-		.map_err(|err| {
-			JsonRpseeError::Custom(format!("Unable to decode snapshot summary: {err:?}"))
-		})?;
+		let summary = self
+			.runtime
+			.runtime_api()
+			.get_snapshot_by_id(&BlockId::number(self.client.info().finalized_number), snapshot_id)
+			.map_err(|err| {
+				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
+			})?
+			.ok_or(JsonRpseeError::Custom("Snapshot not availabe in runtime".parse().unwrap()))?;
+
+		info!(target:"orderbook-rpc","Summary Loaded: {:?}",summary);
 
 		let mut data = Vec::new();
 
@@ -280,6 +280,7 @@ where
 			let mut chunk_data = offchain_storage
 				.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk.0.as_ref())
 				.ok_or(JsonRpseeError::Custom(format!("Chunk not found: {chunk:?}")))?;
+			info!(target:"orderbook-rpc","Chunk Loaded: {:?}",chunk);
 			data.append(&mut chunk_data);
 		}
 
@@ -308,9 +309,12 @@ where
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;
 		info!(target:"orderbook-rpc","Getting allowlisted asset ids: {:?}", allowlisted_asset_ids);
+
 		// Create existing DB, it will fail if root does not exist
-		let trie: TrieDBMut<ExtensionLayout> =
+		let mut trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
+
+		info!(target:"orderbook-rpc","Trie loaded, empty: {:?}, Root hash: 0x{}",trie.is_empty(), hex::encode(trie.root()));
 
 		let mut ob_recovery_state = ObRecoveryState::default();
 
@@ -321,7 +325,15 @@ where
 				let account_asset = AccountAsset::new(user_main_account.clone(), asset);
 				self.insert_balance(&trie, &mut ob_recovery_state, &account_asset)?;
 			}
-			ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
+			// Check if main account exists in the trie
+			if trie
+				.contains(&user_main_account.encode())
+				.map_err(|err| JsonRpseeError::Custom(format!("Error accessing trie: {err:?}")))?
+			{
+				ob_recovery_state.account_ids.insert(user_main_account, list_of_proxy_accounts);
+			} else {
+				warn!(target:"orderbook-rpc","Main account not found: {:?}",user_main_account);
+			}
 		}
 
 		ob_recovery_state.snapshot_id = summary.snapshot_id;
@@ -349,12 +361,15 @@ where
 				})?;
 				ob_recovery_state.balances.insert(account_asset.clone(), account_balance);
 			} else {
-				log::warn!(target:"orderbook-rpc","No balance found for: {:?}", account_asset);
+				log::warn!(target:"orderbook-rpc","No balance found for: {account_asset:?}");
 			}
 		// Ignored none case as account may not have balance for asset
 		} else {
 			error!(target: "orderbook-rpc", "unable to fetch data for account: {:?}, asset: {:?}",&account_asset.main,&account_asset.asset);
-			return Err(JsonRpseeError::Custom("unable to fetch DB data for account".to_string()))
+			return Err(JsonRpseeError::Custom(format!(
+				"unable to fetch data for account: {:?}, asset: {:?}",
+				&account_asset.main, &account_asset.asset
+			)))
 		}
 		Ok(())
 	}
