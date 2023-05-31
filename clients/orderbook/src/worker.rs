@@ -599,7 +599,7 @@ where
 				match offchain_storage.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref()) {
 					None =>
 						{
-							error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash)
+							error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash);
 							return Err(Error::SnapshotNotFound)
 						},
 					Some(mut chunk) => {
