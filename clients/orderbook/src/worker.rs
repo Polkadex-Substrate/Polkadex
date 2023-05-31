@@ -440,7 +440,7 @@ where
 					*known_worker_nonces[0],
 				);
 
-				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
+				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 			} else {
@@ -597,11 +597,10 @@ where
 			let mut data = Vec::new();
 			for chunk_hash in &summary.state_chunk_hashes {
 				match offchain_storage.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref()) {
-					None =>
-						{
-							error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash);
-							return Err(Error::SnapshotNotFound)
-						},
+					None => {
+						error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash);
+						return Err(Error::SnapshotNotFound)
+					},
 					Some(mut chunk) => {
 						let computed_hash = H128::from(blake2_128(&chunk));
 						if computed_hash != *chunk_hash {
@@ -885,10 +884,10 @@ where
 						}
 					},
 				}
-			}else{
+			} else {
 				log::error!(target:"orderbook","📒 Unable to read summary from runtime");
 			}
-		}else{
+		} else {
 			log::error!(target:"orderbook","📒 Unable to get handle to offchain storage");
 		}
 	}
@@ -989,6 +988,14 @@ where
 				// Prune the known messages cache
 				// Remove all worker nonces older than the last processed worker nonce
 				self.known_messages.retain(|k, _| *k > last_worker_nonce);
+				// If the last processed worker nonce is less than the one from runtime then
+				// we need to sync
+				if self.latest_worker_nonce.read() < last_worker_nonce {
+					self.state_is_syncing = true;
+					if let Err(err) = self.send_sync_requests(&latest_summary) {
+						error!(target:"orderbook","📒 Error while sending sync requests to peers: {:?}",err);
+					}
+				}
 			}
 			if let Some(orderbook_operator_public_key) =
 				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
