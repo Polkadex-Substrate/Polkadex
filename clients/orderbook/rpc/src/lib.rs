@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use codec::{Decode, Encode};
-use futures::{channel::mpsc::UnboundedSender, SinkExt, task::SpawnError};
+use futures::{channel::mpsc::UnboundedSender, task::SpawnError, SinkExt};
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
@@ -24,11 +24,11 @@ use sp_core::offchain::OffchainStorage;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
-use orderbook::{DbRef, snapshot::SnapshotStore};
+use orderbook::{snapshot::SnapshotStore, DbRef};
 use orderbook_primitives::{
-	ObApi,
-	ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
-	ORDERBOOK_STATE_CHUNK_PREFIX, recovery::ObRecoveryState, SnapshotSummary, types::{AccountAsset, ObMessage},
+	recovery::ObRecoveryState,
+	types::{AccountAsset, ObMessage},
+	ObApi, SnapshotSummary, ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, ORDERBOOK_STATE_CHUNK_PREFIX,
 };
 use polkadex_primitives::AccountId;
 
@@ -269,7 +269,8 @@ where
 			.get_snapshot_by_id(&BlockId::number(self.client.info().finalized_number), snapshot_id)
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
-			})?.ok_or(JsonRpseeError::Custom("Snapshot not availabe in runtime".parse().unwrap()))?;
+			})?
+			.ok_or(JsonRpseeError::Custom("Snapshot not availabe in runtime".parse().unwrap()))?;
 
 		info!(target:"orderbook-rpc","Summary Loaded: {:?}",summary);
 
@@ -312,7 +313,6 @@ where
 		// Create existing DB, it will fail if root does not exist
 		let mut trie: TrieDBMut<ExtensionLayout> =
 			TrieDBMutBuilder::from_existing(&mut memory_db, &mut worker_state_root).build();
-
 
 		info!(target:"orderbook-rpc","Trie loaded, empty: {:?}, Root hash: 0x{}",trie.is_empty(), hex::encode(trie.root()));
 

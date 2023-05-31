@@ -336,7 +336,7 @@ where
 
 	pub fn snapshot(&mut self, worker_nonce: u64, stid: u64) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Generating snapshot");
-		let at = BlockId::number(self.last_finalized_block.saturated_into());
+		let at = BlockId::number(self.client.info().finalized_number);
 		let next_snapshot_id = self
 			.runtime
 			.runtime_api()
@@ -372,7 +372,10 @@ where
 		if self
 			.runtime
 			.runtime_api()
-			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary.clone())?
+			.submit_snapshot(
+				&BlockId::number(self.client.info().finalized_number),
+				summary.clone(),
+			)?
 			.is_err()
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
@@ -918,9 +921,10 @@ where
 	// Updates local trie with all registered main account and proxies
 	pub fn update_storage_with_genesis_data(&mut self) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Updating storage with genesis data");
-		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
-			self.last_finalized_block.saturated_into(),
-		))?;
+		let data = self
+			.runtime
+			.runtime_api()
+			.get_all_accounts_and_proxies(&BlockId::number(self.client.info().finalized_number))?;
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
