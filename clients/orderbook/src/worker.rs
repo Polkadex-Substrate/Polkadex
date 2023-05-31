@@ -307,7 +307,7 @@ where
 		info!("📒Starting state root: {:?}", hex::encode(working_state_root.clone()));
 		// Get the ingress messages for this block
 		let messages = self.runtime.runtime_api().ingress_messages(
-			&BlockId::number(self.last_finalized_block.saturated_into()),
+			&BlockId::number(self.client.info().finalized_number),
 			num.saturated_into(),
 		)?;
 
@@ -987,6 +987,7 @@ where
 				// we need to sync
 				if *self.latest_worker_nonce.read() < last_worker_nonce {
 					self.state_is_syncing = true;
+					info!(target: "orderbook", "📒 Syncing state to latest snapshot...");
 					if let Err(err) = self.send_sync_requests(&latest_summary) {
 						error!(target:"orderbook","📒 Error while sending sync requests to peers: {:?}",err);
 					}
