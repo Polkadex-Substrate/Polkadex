@@ -990,7 +990,7 @@ where
 				self.known_messages.retain(|k, _| *k > last_worker_nonce);
 				// If the last processed worker nonce is less than the one from runtime then
 				// we need to sync
-				if self.latest_worker_nonce.read() < last_worker_nonce {
+				if *self.latest_worker_nonce.read() < last_worker_nonce {
 					self.state_is_syncing = true;
 					if let Err(err) = self.send_sync_requests(&latest_summary) {
 						error!(target:"orderbook","📒 Error while sending sync requests to peers: {:?}",err);
