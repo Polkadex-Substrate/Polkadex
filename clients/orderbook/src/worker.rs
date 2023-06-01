@@ -425,6 +425,10 @@ where
 			UserActions::Withdraw(withdraw) =>
 				self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
+			UserActions::Reset => {
+				// Nothing to do here, we will not reach here.
+				info!(target:"orderbook","📒state is reset.");
+			},
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
 		metric_set!(self, ob_snapshot_id, action.worker_nonce);
