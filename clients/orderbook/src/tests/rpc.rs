@@ -151,6 +151,8 @@ pub async fn test_orderbook_rpc() {
 		stid: 10,
 		action: UserActions::BlockImport(1),
 		signature: Default::default(),
+		reset: false,
+		version: 0,
 	};
 	message.signature = orderbook_operator.sign_prehashed(&message.sign_data());
 	// Generate one block

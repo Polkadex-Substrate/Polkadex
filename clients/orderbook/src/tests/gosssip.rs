@@ -142,6 +142,8 @@ fn create_ob_message_import_block(
 		stid: nonce,
 		action: UserActions::BlockImport(blk_num),
 		signature: Default::default(),
+		reset: false,
+		version: 0,
 	};
 	msg.signature = pair.sign_prehashed(&msg.sign_data());
 	return msg
