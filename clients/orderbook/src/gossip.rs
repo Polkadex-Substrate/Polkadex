@@ -77,7 +77,7 @@ where
 			_topic: topic::<B>(),
 			latest_worker_nonce,
 			fullnodes,
-			_is_validator:is_validator,
+			_is_validator: is_validator,
 			last_snapshot,
 			message_cache: Arc::new(RwLock::new(HashMap::new())),
 		}
