@@ -122,13 +122,8 @@ mod tests {
 		let mut memory_db_restored: MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>> =
 			MemoryDB::default();
 		memory_db_restored.load_from(store_restored.convert_to_hashmap());
-		let mut fake_state_root: [u8; 32] =
-			hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
-				.unwrap()
-				.try_into()
-				.unwrap();
 		let mut trie: TrieDBMut<ExtensionLayout> =
-			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut fake_state_root).build();
+			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root).build();
 		println!("state root after rebuilding: 0x{}", hex::encode(trie.root()));
 		let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id };
 		let balance_encoded = trie.get(&account_asset.encode()).unwrap().unwrap();
