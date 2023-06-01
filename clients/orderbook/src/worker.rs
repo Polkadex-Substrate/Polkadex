@@ -301,7 +301,7 @@ where
 		drop(memory_db);
 		drop(working_state_root);
 		// Queue withdrawal
-		self.pending_withdrawals.push(withdraw.try_into(state_change_id, worker_nonce)?);
+		self.pending_withdrawals.push(withdraw.convert(state_change_id, worker_nonce)?);
 		info!(target:"orderbook","📒 Queued withdrawal to pending list"); // Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(worker_nonce, state_change_id) {
