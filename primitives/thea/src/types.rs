@@ -58,6 +58,17 @@ pub struct Deposit<AccountId> {
 	pub extra: Vec<u8>,
 }
 
+
+impl<AccountId>  Deposit<AccountId> {
+	pub fn amount_in_native_decimals(&self, metadata: AssetMetadata) -> u128 {
+		metadata.convert_to_native_decimals(self.amount)
+	}
+
+	pub fn amount_in_foreign_decimals(&self, metadata: AssetMetadata) -> u128 {
+		metadata.convert_from_native_decimals(self.amount)
+	}
+}
+
 /// Withdraw is relative to solochain
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
 pub struct Withdraw {

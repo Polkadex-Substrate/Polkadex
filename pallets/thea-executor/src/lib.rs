@@ -431,14 +431,14 @@ pub mod pallet {
 				deposit.asset_id,
 				recipient.clone(),
 				// Convert the decimals config
-				metadata.convert_to_native_decimals(deposit.amount),
+				deposit.amount_in_native_decimals(metadata),
 			)?;
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(
 				recipient.clone(),
 				deposit.asset_id,
-				deposit.amount,
+				deposit.amount_in_native_decimals(metadata),
 				deposit.id,
 			));
 			Ok(())
