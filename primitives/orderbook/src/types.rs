@@ -150,6 +150,8 @@ pub struct ObMessage {
 	pub worker_nonce: u64,
 	pub action: UserActions,
 	pub signature: sp_core::ecdsa::Signature,
+	pub reset: bool,
+	pub version: u16
 }
 
 #[cfg(feature = "std")]
@@ -186,7 +188,6 @@ pub enum UserActions {
 	Trade(Vec<Trade>),
 	Withdraw(WithdrawalRequest),
 	BlockImport(u32),
-	Reset
 }
 
 #[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]

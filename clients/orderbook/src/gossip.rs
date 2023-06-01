@@ -61,6 +61,7 @@ where
 	is_validator: bool,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) message_cache: Arc<RwLock<HashMap<([u8; 16], PeerId), Instant>>>,
+	pub state_version: Arc<RwLock<u16>>,
 }
 
 impl<B> GossipValidator<B>
@@ -72,6 +73,7 @@ where
 		fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 		is_validator: bool,
 		last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
+		state_version: Arc<RwLock<u16>>,
 	) -> GossipValidator<B> {
 		GossipValidator {
 			_topic: topic::<B>(),
@@ -80,6 +82,7 @@ where
 			is_validator,
 			last_snapshot,
 			message_cache: Arc::new(RwLock::new(HashMap::new())),
+			state_version,
 		}
 	}
 
@@ -96,7 +99,10 @@ where
 		match message {
 			GossipMessage::ObMessage(msg) => {
 				let latest_worker_nonce = *self.latest_worker_nonce.read();
-				if msg.worker_nonce > latest_worker_nonce {
+				if (msg.worker_nonce > latest_worker_nonce &&
+					msg.version == *self.state_version.read()) ||
+					msg.reset
+				{
 					// It's a new message so we process it and keep it in our pool
 					ValidationResult::ProcessAndKeep(topic::<B>())
 				} else {
@@ -164,7 +170,8 @@ where
 	pub fn message_expired_check(&self, message: &GossipMessage) -> bool {
 		match message {
 			GossipMessage::ObMessage(msg) =>
-				msg.worker_nonce < self.last_snapshot.read().worker_nonce,
+				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
+					msg.version < *self.state_version.read(),
 
 			GossipMessage::WantWorkerNonce(from, _) => {
 				// Validators only process it if the request is for nonces after
