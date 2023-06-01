@@ -7,11 +7,11 @@ description = "Tool for verifying crowdloan contributor list"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pallet-rewards = {path= "../../pallets/rewards"}
-polkadex-primitives = {path = "../../primitives/polkadex"}
+pallet-rewards = { path = "../../pallets/rewards" }
+polkadex-primitives = { path = "../../primitives/polkadex" }
 csv = "1.2.1"
 clap = { version = "4.3.0", features = ["derive"] }
-sp-core = {workspace = true}
+sp-core = { workspace = true }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
-    "scale-codec",
+  "scale-codec",
 ], default-features = false }
