@@ -197,9 +197,9 @@ pub struct WithdrawalRequest {
 	pub proxy: AccountId,
 }
 
+#[cfg(feature = "std")]
 impl WithdrawalRequest {
-	#[cfg(feature = "std")]
-	pub fn try_into(
+	pub fn convert(
 		&self,
 		stid: u64,
 		worker_nonce: u64,
