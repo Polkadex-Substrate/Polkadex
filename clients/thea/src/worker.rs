@@ -1,3 +1,21 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
 
 use futures::StreamExt;
@@ -322,10 +340,12 @@ where
 			warn!(target: "thea", "🌉 Thea authorities not initialized yet!");
 			return Ok(())
 		}
+
 		info!(target: "thea", "🌉 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		let at = BlockId::hash(header.hash());
 		self.last_finalized_blk = at;
+
 		// Proceed only if we are a validator
 		if !self.is_validator {
 			return Ok(())
@@ -367,7 +387,7 @@ where
 				.outgoing_messages(&at, network, next_nonce_to_process)?;
 
 		if let Some(message) = message {
-			info!(target:"thea", "🌉 Processing new message from native chain: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
+			info!(target:"thea", "🌉 Processing new message from Polkadex: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
 			// Don't do anything if we already know about the message
 			// It means Thea is already processing it.
 			if !self.message_cache.read().contains_key(&message) {
@@ -386,6 +406,8 @@ where
 					}
 				}
 			}
+		} else {
+			info!(target:"thea", "🌉 No messages from Polkadex: nonce: {:?}, to_network: {:?}",next_nonce_to_process, network);
 		}
 
 		Ok(())

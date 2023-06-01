@@ -1,3 +1,21 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::constants::*;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
@@ -180,17 +198,19 @@ pub struct WithdrawalRequest {
 }
 
 #[cfg(feature = "std")]
-impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
-	type Error = rust_decimal::Error;
-
-	fn try_into(self) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
+impl WithdrawalRequest {
+	pub fn convert(
+		&self,
+		stid: u64,
+		worker_nonce: u64,
+	) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
 		Ok(Withdrawal {
 			main_account: self.main.clone(),
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
 			fees: Default::default(),
-			stid: 0,
-			worker_nonce: 0,
+			stid,
+			worker_nonce,
 		})
 	}
 }

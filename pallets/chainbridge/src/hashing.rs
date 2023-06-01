@@ -1,5 +1,6 @@
 // Copyright 2021 ChainSafe Systems
 // SPDX-License-Identifier: GPL-3.0-only
+
 use blake2_rfc;
 
 /// Do a Blake2 128-bit hash and place result in `dest`.
