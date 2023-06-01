@@ -58,7 +58,7 @@ where
 	_topic: B::Hash,
 	latest_worker_nonce: Arc<RwLock<u64>>,
 	last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
-	is_validator: bool,
+	_is_validator: bool,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) message_cache: Arc<RwLock<HashMap<([u8; 16], PeerId), Instant>>>,
 }
@@ -77,7 +77,7 @@ where
 			_topic: topic::<B>(),
 			latest_worker_nonce,
 			fullnodes,
-			is_validator,
+			_is_validator:is_validator,
 			last_snapshot,
 			message_cache: Arc::new(RwLock::new(HashMap::new())),
 		}

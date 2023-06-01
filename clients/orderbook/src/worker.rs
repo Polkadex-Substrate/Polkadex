@@ -136,8 +136,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	pub(crate) orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 	// Our last snapshot waiting for approval
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
-	// Fullnodes we are connected to
-	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	last_processed_block_in_offchain_state: BlockNumber,
 }
 
@@ -195,7 +193,7 @@ where
 		// Gossip Validator
 		let gossip_validator = Arc::new(GossipValidator::new(
 			latest_worker_nonce.clone(),
-			fullnodes.clone(),
+			fullnodes,
 			is_validator,
 			last_snapshot.clone(),
 		));
@@ -231,7 +229,6 @@ where
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
 			pending_snapshot_summary: None,
-			fullnodes,
 			last_processed_block_in_offchain_state: 0,
 		}
 	}
@@ -323,7 +320,7 @@ where
 
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
-		info!("📒Starting state root: {:?}", hex::encode(working_state_root.clone()));
+		info!("📒Starting state root: {:?}", hex::encode(*working_state_root));
 		// Get the ingress messages for this block
 		let messages = self.runtime.runtime_api().ingress_messages(
 			&BlockId::number(self.client.info().finalized_number),
@@ -357,7 +354,7 @@ where
 			// Commit the trie
 			trie.commit();
 		}
-		info!("📒state root after processing: {:?}", hex::encode(working_state_root.clone()));
+		info!("📒state root after processing: {:?}", hex::encode(*working_state_root));
 		self.last_processed_block_in_offchain_state = num;
 		Ok(())
 	}
@@ -439,7 +436,7 @@ where
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
-		info!(target:"orderbook","📒Updated working state root: {:?}",hex::encode(self.working_state_root.read().clone()));
+		info!(target:"orderbook","📒Updated working state root: {:?}",hex::encode(*self.working_state_root.read()));
 		metric_set!(self, ob_snapshot_id, action.worker_nonce);
 		self.latest_state_change_id = action.stid;
 		// Multicast the message to other peers
@@ -588,7 +585,7 @@ where
 						validator_set_id: active_set.set_id,
 						snapshot_id,
 						worker_nonce,
-						state_root: working_state_root.clone().into(),
+						state_root: (*working_state_root).into(),
 						state_change_id,
 						bitflags: vec![0; active_set.len().div(128).saturating_add(1)],
 						withdrawals,
