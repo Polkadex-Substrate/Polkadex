@@ -22,6 +22,7 @@
 
 use hash_db::MaybeDebug;
 use orderbook_primitives::types::AccountAsset;
+use polkadex_primitives::BlockNumber;
 use sp_api::ApiError;
 use std::fmt::Debug;
 use tokio::task::JoinError;
@@ -30,7 +31,7 @@ use trie_db::TrieError;
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
 	#[error("Block trying to be imported is not finalized yet: finalized: {0}, importing: {1}")]
-	BlockNotFinalized(u64, u64),
+	BlockNotFinalized(BlockNumber, BlockNumber),
 	#[error("Snapshot Data not found in DB")]
 	SnapshotNotFound,
 	#[error("Backend: {0}")]
