@@ -407,7 +407,7 @@ where
 				}
 			}
 		} else {
-			info!(target:"thea", "🌉 No messages from Polkadex: nonce: {:?}, to_network: {:?}",next_nonce_to_process, message.network);
+			info!(target:"thea", "🌉 No messages from Polkadex: nonce: {:?}, to_network: {:?}",next_nonce_to_process, network);
 		}
 
 		Ok(())
