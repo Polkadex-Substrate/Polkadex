@@ -85,6 +85,7 @@ impl TestApi {
 				bitflags: vec![],
 				withdrawals: vec![],
 				aggregate_signature: None,
+				state_version: 0,
 			})
 			.clone()
 	}
@@ -159,6 +160,7 @@ impl TestApi {
 				bitflags: vec![],
 				withdrawals: vec![],
 				aggregate_signature: None,
+				state_version: 0,
 			})
 			.worker_nonce
 	}

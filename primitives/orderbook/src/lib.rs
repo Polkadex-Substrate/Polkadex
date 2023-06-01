@@ -155,7 +155,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub bitflags: Vec<u128>,
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	pub aggregate_signature: Option<bls_primitives::Signature>,
-	pub state_version: u16
+	pub state_version: u16,
 }
 
 impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
