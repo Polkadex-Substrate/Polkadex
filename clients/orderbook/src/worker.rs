@@ -722,7 +722,6 @@ where
 				gossip_messages.push(message.encode());
 				messages = vec![] // Reset the buffer
 			}
-			info!(target:"test", "📒 known messages length:{:?}", self.known_messages.len());
 			if let Some(msg) = self.known_messages.get(&worker_nonce) {
 				info!(target: "test", "📒 known_messages: {:?}", self.known_messages.len());
 				messages.push(msg.clone());
