@@ -150,6 +150,8 @@ pub struct ObMessage {
 	pub worker_nonce: u64,
 	pub action: UserActions,
 	pub signature: sp_core::ecdsa::Signature,
+	pub reset: bool,
+	pub version: u16,
 }
 
 #[cfg(feature = "std")]
@@ -763,6 +765,8 @@ mod tests {
 			worker_nonce: 0,
 			action: UserActions::BlockImport(1),
 			signature: Default::default(),
+			reset: false,
+			version: 0,
 		};
 
 		println!("OBMessage: {:?}", serde_json::to_string(&msg).unwrap());

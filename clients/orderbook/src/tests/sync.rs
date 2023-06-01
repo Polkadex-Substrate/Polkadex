@@ -93,6 +93,8 @@ pub async fn test_orderbook_snapshot() {
 		stid: 10,
 		action: UserActions::BlockImport(1),
 		signature: Default::default(),
+		reset: false,
+		version: 0,
 	};
 	message.signature = orderbook_operator.sign_prehashed(&message.sign_data());
 	testnet.peers[0]
