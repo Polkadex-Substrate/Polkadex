@@ -123,7 +123,8 @@ mod tests {
 			MemoryDB::default();
 		memory_db_restored.load_from(store_restored.convert_to_hashmap());
 		let mut trie: TrieDBMut<ExtensionLayout> =
-			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root).build();
+			TrieDBMutBuilder::from_existing(&mut memory_db_restored, &mut working_state_root)
+				.build();
 		println!("state root after rebuilding: 0x{}", hex::encode(trie.root()));
 		let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id };
 		let balance_encoded = trie.get(&account_asset.encode()).unwrap().unwrap();
