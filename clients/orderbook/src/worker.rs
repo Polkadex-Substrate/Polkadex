@@ -142,6 +142,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// Fullnodes we are connected to
 	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	last_processed_block_in_offchain_state: BlockNumber,
+	// Version of current state
+	state_version: Arc<RwLock<u16>>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -194,13 +196,14 @@ where
 		let latest_worker_nonce = Arc::new(RwLock::new(nonce));
 		let network = Arc::new(network);
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
-
+		let state_version = Arc::new(RwLock::new(0));
 		// Gossip Validator
 		let gossip_validator = Arc::new(GossipValidator::new(
 			latest_worker_nonce.clone(),
 			fullnodes.clone(),
 			is_validator,
 			last_snapshot.clone(),
+			state_version.clone(),
 		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator, None);
@@ -236,6 +239,7 @@ where
 			pending_snapshot_summary: None,
 			fullnodes,
 			last_processed_block_in_offchain_state: 0,
+			state_version,
 		}
 	}
 
@@ -487,6 +491,7 @@ where
 				*self.latest_worker_nonce.write() = summary.worker_nonce;
 				self.latest_state_change_id = summary.state_change_id;
 				self.last_processed_block_in_offchain_state = summary.last_processed_blk;
+				*self.state_version.write() = summary.state_version;
 			},
 			Err(err) => {
 				error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
@@ -498,8 +503,12 @@ where
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Received a new user action: {:?}",action);
+
+		if action.version < *self.state_version.read() {
+			warn!(target:"orderbook","📒 Ignoring message before recovery: given: {:?}, current version: {:?}",action.version,self.state_version.read());
+		}
 		// Check if stid is newer or not
-		if action.worker_nonce <= *self.latest_worker_nonce.read() {
+		if action.worker_nonce <= *self.latest_worker_nonce.read() && !action.reset {
 			// Ignore stids we already know.
 			warn!(target:"orderbook","📒 Ignoring old message: given: {:?}, latest stid: {:?}",action.worker_nonce,self.latest_worker_nonce.read());
 			return Ok(())
@@ -520,6 +529,10 @@ where
 		if self.sync_oracle.is_major_syncing() | self.state_is_syncing {
 			info!(target: "orderbook", "📒 Ob message cached for sync to complete: worker_nonce: {:?}",action.worker_nonce);
 			return Ok(())
+		}
+		// Engine sends this during recovery, so reset the state
+		if action.reset {
+			self.reload_state_from_last_snapshot().await?
 		}
 		self.check_state_sync().await?;
 		self.check_worker_nonce_gap_fill().await?;
@@ -579,6 +592,7 @@ where
 						aggregate_signature: None,
 						state_chunk_hashes,
 						last_processed_blk: self.last_processed_block_in_offchain_state,
+						state_version: *self.state_version.read(),
 					};
 
 					offchain_storage.set(
@@ -641,24 +655,33 @@ where
 						error!(target:"orderbook","📒 BLS session key not found: {:?}",err),
 					_ => {
 						error!(target:"orderbook","📒 Error processing action: {:?}",err);
-						// The node found an error during processing of the action. This means
-						// We need to revert everything after the last successful snapshot
-						// Clear the working state
-						self.memory_db.write().clear();
-						info!(target:"orderbook","📒 Working state cleared.");
-						// We forget about everything else from cache.
-						self.known_messages.clear();
-						info!(target:"orderbook","📒 OB messages cache cleared.");
-						let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
-							&BlockId::Number(self.last_finalized_block.saturated_into()),
-						)?;
-						self.load_snapshot(&latest_summary)?;
+						self.reload_state_from_last_snapshot().await?;
 						return Ok(())
 					},
 				}
 			}
 			next_worker_nonce = self.latest_worker_nonce.read().saturating_add(1);
 		}
+		Ok(())
+	}
+
+	/// Discards current state and reloads the last snapshot accepted by runtime
+	pub async fn reload_state_from_last_snapshot(&mut self) -> Result<(), Error> {
+		// The node found an error during processing of the action. This means
+		// We need to revert everything after the last successful snapshot
+		// Clear the working state
+		self.memory_db.write().clear();
+		info!(target:"orderbook","📒 Working state cleared.");
+		// We forget about everything else from cache.
+		self.known_messages.clear();
+		info!(target:"orderbook","📒 OB messages cache cleared.");
+		let latest_summary = self
+			.runtime
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::Number(self.last_finalized_block.saturated_into()))?;
+		self.load_snapshot(&latest_summary)?;
+		*self.state_version.write() = latest_summary.state_version.saturating_add(1);
+		info!(target:"orderbook","📒 New state version is updated: version: {:?}",self.state_version.read());
 		Ok(())
 	}
 
