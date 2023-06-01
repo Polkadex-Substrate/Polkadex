@@ -1635,6 +1635,7 @@ fn get_dummy_snapshot(
 		bitflags: vec![1, 2],
 		withdrawals,
 		aggregate_signature: None,
+		state_version: 0,
 	};
 	let (pair, _seed) = bls_primitives::Pair::generate();
 	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
