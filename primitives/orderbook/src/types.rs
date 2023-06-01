@@ -197,18 +197,20 @@ pub struct WithdrawalRequest {
 	pub proxy: AccountId,
 }
 
-#[cfg(feature = "std")]
-impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
-	type Error = rust_decimal::Error;
-
-	fn try_into(self) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
+impl WithdrawalRequest {
+	#[cfg(feature = "std")]
+	pub fn try_into(
+		&self,
+		stid: u64,
+		worker_nonce: u64,
+	) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
 		Ok(Withdrawal {
 			main_account: self.main.clone(),
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
 			fees: Default::default(),
-			stid: 0,
-			worker_nonce: 0,
+			stid,
+			worker_nonce,
 		})
 	}
 }
