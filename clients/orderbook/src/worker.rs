@@ -318,13 +318,16 @@ where
 			return Ok(())
 		}
 
-		if self.client.info().finalized_number < num {
+		if self.client.info().finalized_number < num.into() {
 			warn!(
 				"📒Importing block: {:?} but finality is lagging at: {:?}",
 				num,
 				self.client.info().finalized_number
 			);
-			return Err(Error::BlockNotFinalized(self.client.info().finalized_number, num as u64))
+			return Err(Error::BlockNotFinalized(
+				self.client.info().finalized_number.saturated_into(),
+				num,
+			))
 		}
 
 		let mut memory_db = self.memory_db.write();
