@@ -58,8 +58,7 @@ pub struct Deposit<AccountId> {
 	pub extra: Vec<u8>,
 }
 
-
-impl<AccountId>  Deposit<AccountId> {
+impl<AccountId> Deposit<AccountId> {
 	pub fn amount_in_native_decimals(&self, metadata: AssetMetadata) -> u128 {
 		metadata.convert_to_native_decimals(self.amount)
 	}
