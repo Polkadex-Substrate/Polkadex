@@ -46,9 +46,8 @@ use orderbook::{snapshot::SnapshotStore, DbRef};
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
 	types::{AccountAsset, ObMessage},
-	ObApi, SnapshotSummary, ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, ORDERBOOK_STATE_CHUNK_PREFIX,
+	ObApi, ORDERBOOK_STATE_CHUNK_PREFIX,
 };
-use polkadex_primitives::AccountId;
 
 #[derive(Debug, thiserror::Error)]
 /// Top-level error type for the RPC handler

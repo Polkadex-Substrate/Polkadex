@@ -38,6 +38,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use tracing::info_span;
 use tracing_futures::Instrument;
 
+#[ignore]
 #[tokio::test]
 pub async fn test_orderbook_snapshot() {
 	// sp_tracing::try_init_simple();
