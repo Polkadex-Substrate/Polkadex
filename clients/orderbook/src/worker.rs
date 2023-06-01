@@ -318,6 +318,11 @@ where
 			return Ok(())
 		}
 
+		if self.last_processed_block_in_offchain_state.saturating_add(1) != num {
+			error!("📒Cannot process blk import, last processed blk: {:?}, but trying to import: {:?}", self.last_processed_block_in_offchain_state,num);
+			return Err(Error::OutOfSequenceBlockImport)
+		}
+
 		if self.client.info().finalized_number < num.into() {
 			warn!(
 				"📒Importing block: {:?} but finality is lagging at: {:?}",
