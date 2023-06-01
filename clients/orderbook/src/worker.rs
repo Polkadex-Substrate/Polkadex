@@ -318,6 +318,15 @@ where
 			return Ok(())
 		}
 
+		if self.client.info().finalized_number < num {
+			warn!(
+				"📒Importing block: {:?} but finality is lagging at: {:?}",
+				num,
+				self.client.info().finalized_number
+			);
+			return Err(Error::BlockNotFinalized(self.client.info().finalized_number, num as u64))
+		}
+
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		info!("📒Starting state root: {:?}", hex::encode(*working_state_root));
@@ -656,6 +665,11 @@ where
 				match err {
 					Error::Keystore(_) =>
 						error!(target:"orderbook","📒 BLS session key not found: {:?}",err),
+					Error::BlockNotFinalized(_, _) => {
+						// We need to wait a little logger for finality to catch
+						// up before processing these messages.
+						break
+					},
 					_ => {
 						error!(target:"orderbook","📒 Error processing action: {:?}",err);
 						// The node found an error during processing of the action. This means

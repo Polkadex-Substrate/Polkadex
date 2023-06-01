@@ -29,6 +29,8 @@ use trie_db::TrieError;
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
+	#[error("Block trying to be imported is not finalized yet: finalized: {0}, importing: {1}")]
+	BlockNotFinalized(u64, u64),
 	#[error("Snapshot Data not found in DB")]
 	SnapshotNotFound,
 	#[error("Backend: {0}")]
