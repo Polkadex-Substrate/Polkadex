@@ -3,8 +3,6 @@ name = "orderbook-rpc"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"] }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
