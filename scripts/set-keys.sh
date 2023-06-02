@@ -32,4 +32,4 @@ echo "Setting Validator02 Keys"
 curl http://localhost:9070 -H "Content-Type:application/json;charset=utf-8" -d "@../session-keys/babe3"
 curl http://localhost:9070 -H "Content-Type:application/json;charset=utf-8" -d "@../session-keys/gran3"
 curl http://localhost:9070 -H "Content-Type:application/json;charset=utf-8" -d "@../session-keys/ob3"
-curl http://localhost:9070 -H "Content-Type:application/json;charset=utf-8" -d "@../session-keys/thea3"
+curl http://localhost:9070 -H "Content-Type:application/json;charset=utf-8" -d "@../session-keys/thea3"m

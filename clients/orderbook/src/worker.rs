@@ -561,6 +561,7 @@ where
 		}
 		// Engine sends this during recovery, so reset the state
 		if action.reset {
+			info!(target: "orderbook", "📒 Ob resetting on worker_nonce: {:?}",action.worker_nonce);
 			self.reload_state_from_last_snapshot().await?
 		}
 		self.check_state_sync().await?;
@@ -734,7 +735,11 @@ where
 	///
 	/// # Returns
 	/// * `()` - No return value
-	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
+	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, version: u16 ,peer: Option<PeerId>) {
+		if version < *self.state_version.read(){
+			debug!(target: "orderbook", "📒 Ignoring old want requests from version: {:?}",version);
+			return;
+		}
 		info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
 		if let Some(peer) = peer {
 			info!(target: "orderbook", "📒 Sending worker_nonce request to peer: {:?}", peer);
@@ -973,7 +978,7 @@ where
 		metric_inc!(self, ob_messages_recv);
 		metric_add!(self, ob_data_recv, message.encoded_size() as u64);
 		match message {
-			GossipMessage::WantWorkerNonce(from, to) => self.want_worker_nonce(from, to, remote),
+			GossipMessage::WantWorkerNonce(from, to, version) => self.want_worker_nonce(from, to, *version,remote),
 			GossipMessage::WorkerNonces(messages) =>
 				self.got_worker_nonces_via_gossip(messages).await?,
 			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
