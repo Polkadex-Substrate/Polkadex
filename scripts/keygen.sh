@@ -5,7 +5,7 @@ do
   cat > ../session-keys/babe$id_n <<-EOM
  {
     "jsonrpc":"2.0",
-    "id":$id_n,
+    "id":1,
     "method":"author_insertKey",
     "params": [
         "babe",
@@ -19,7 +19,7 @@ EOM
   cat > ../session-keys/gran$id_n <<-EOM
 {
     "jsonrpc":"2.0",
-    "id":$id_n,
+    "id":1,
     "method":"author_insertKey",
     "params": [
         "gran",
@@ -28,12 +28,12 @@ EOM
     ]
 }
 EOM
-  ob_id=$(../target/release/bls_gen orderbook 4 1)
+  ob_id=$(../target/release/bls_gen orderbook $id_n 1)
   echo "Orderbook: $ob_id"
   cat > ../session-keys/ob$id_n <<-EOM
 {
     "jsonrpc":"2.0",
-    "id":$id_n,
+    "id":1,
     "method":"author_insertKey",
     "params": [
         "orbk",
