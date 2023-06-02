@@ -486,22 +486,24 @@ where
 			known_worker_nonces.retain(|x| **x > *self.latest_worker_nonce.read());
 			known_worker_nonces.sort_unstable(); // unstable is fine since we know  worker nonces are unique
 									 // if the next best known  worker nonces is not available then ask others
-			if *known_worker_nonces[0] != self.latest_worker_nonce.read().saturating_add(1) {
-				// Ask other peers to send us the requests  worker nonces.
-				info!(target:"orderbook","📒 Asking peers to send us the missed \
+			if let Some(known_best_nonce) = known_worker_nonces.get(0) {
+				if **known_best_nonce != self.latest_worker_nonce.read().saturating_add(1) {
+					// Ask other peers to send us the requests  worker nonces.
+					info!(target:"orderbook","📒 Asking peers to send us the missed \
                 worker nonces: last processed nonce: {:?}, best known nonce: {:?} ",
                     self.latest_worker_nonce.read(), known_worker_nonces[0]);
-				let message = GossipMessage::WantWorkerNonce(
-					*self.latest_worker_nonce.read(),
-					*known_worker_nonces[0],
-					*self.state_version.read(),
-				);
+					let message = GossipMessage::WantWorkerNonce(
+						*self.latest_worker_nonce.read(),
+						*known_worker_nonces[0],
+						*self.state_version.read(),
+					);
 
-				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
-				metric_inc!(self, ob_messages_sent);
-				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
-			} else {
-				info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
+					self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
+					metric_inc!(self, ob_messages_sent);
+					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
+				} else {
+					info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
+				}
 			}
 		} else {
 			info!(target: "orderbook", "📒 No new messages known after worker_nonce: {:?}",self.latest_worker_nonce.read());
