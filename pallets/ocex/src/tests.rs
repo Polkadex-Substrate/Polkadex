@@ -89,6 +89,7 @@ fn test_ocex_submit_snapshot() {
 		bitflags: vec![42535295865117307932921825928971026432],
 		withdrawals: vec![],
 		aggregate_signature: Some(bls_primitives::Signature(signature)),
+		state_version: 0,
 	};
 
 	let signature: [u8; 48] = hex::decode(
@@ -114,6 +115,7 @@ fn test_ocex_submit_snapshot() {
 		bitflags: vec![85070591730234615865843651857942052864],
 		withdrawals: vec![],
 		aggregate_signature: Some(bls_primitives::Signature(signature)),
+		state_version: 0,
 	};
 
 	new_test_ext().execute_with(|| {
