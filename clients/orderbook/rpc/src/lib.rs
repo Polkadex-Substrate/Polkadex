@@ -358,6 +358,7 @@ where
 		ob_recovery_state.state_change_id = summary.state_change_id;
 		ob_recovery_state.worker_nonce = summary.worker_nonce;
 		ob_recovery_state.last_processed_block_number = summary.last_processed_blk;
+		ob_recovery_state.state_version = summary.state_version;
 
 		info!(target:"orderbook-rpc","Serializing Orderbook snapshot state");
 		let serialize_ob_recovery_state = serde_json::to_string(&ob_recovery_state)?;
