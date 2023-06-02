@@ -181,9 +181,12 @@ where
 	/// Returns true if the message is expired.
 	pub fn message_expired_check(&self, message: &GossipMessage) -> bool {
 		match message {
-			GossipMessage::ObMessage(msg) =>
+			GossipMessage::ObMessage(msg) if msg.reset =>
 				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
-					msg.version < *self.state_version.read(),
+					!(msg.version.saturating_add(1) == *self.state_version.read()),
+			GossipMessage::ObMessage(msg) if !msg.reset =>
+				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
+					(msg.version < *self.state_version.read()),
 
 			GossipMessage::WantWorkerNonce(from, _, version) => {
 				// Validators only process it if the request is for nonces after

@@ -573,6 +573,7 @@ where
 			self.reload_state_from_last_snapshot().await?;
 			// Update the worker nonce
 			*self.latest_worker_nonce.write() = action.worker_nonce;
+			self.known_messages.insert(action.worker_nonce, action.clone());
 			// Multicast the message to other peers
 			let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
 			self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
