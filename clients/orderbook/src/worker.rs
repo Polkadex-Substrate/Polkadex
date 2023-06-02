@@ -571,6 +571,8 @@ where
 		if action.reset {
 			info!(target: "orderbook", "📒 Ob resetting on worker_nonce: {:?}",action.worker_nonce);
 			self.reload_state_from_last_snapshot().await?;
+			// Update the worker nonce
+			*self.latest_worker_nonce.write() = action.worker_nonce;
 			// Multicast the message to other peers
 			let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
 			self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
