@@ -19,5 +19,6 @@
 cargo fmt --check
 RUSTFLAGS="-D warnings" cargo build
 cargo build --features runtime-benchmarks
+./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1
 cargo clippy -- -D warnings
 cargo test
