@@ -108,8 +108,8 @@ where
 				}
 			},
 
-			GossipMessage::WantWorkerNonce(from, to) => {
-				if from > to {
+			GossipMessage::WantWorkerNonce(from, to, version) => {
+				if from > to || *version < *self.state_version.read(){
 					// Invalid request
 					return ValidationResult::Discard
 				}
@@ -185,9 +185,9 @@ where
 				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
 					msg.version < *self.state_version.read(),
 
-			GossipMessage::WantWorkerNonce(from, _) => {
+			GossipMessage::WantWorkerNonce(from, _, version) => {
 				// Validators only process it if the request is for nonces after
-				*from < self.last_snapshot.read().worker_nonce
+				(*from < self.last_snapshot.read().worker_nonce) || (*version < *self.state_version.read())
 			},
 
 			GossipMessage::Want(snapshot_id, _) =>
