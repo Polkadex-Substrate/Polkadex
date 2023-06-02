@@ -458,6 +458,10 @@ where
 			UserActions::Withdraw(withdraw) =>
 				self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
+			UserActions::Reset => {
+				// Nothing to do here, we will not reach here.
+				info!(target:"orderbook","📒state is reset.");
+			},
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
 		info!(target:"orderbook","📒Updated working state root: {:?}",hex::encode(*self.working_state_root.read()));
