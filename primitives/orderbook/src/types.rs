@@ -188,7 +188,7 @@ pub enum UserActions {
 	Trade(Vec<Trade>),
 	Withdraw(WithdrawalRequest),
 	BlockImport(u32),
-	Reset
+	Reset,
 }
 
 #[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]
