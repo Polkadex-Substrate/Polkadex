@@ -323,7 +323,10 @@ where
 		}
 
 		if self.last_processed_block_in_offchain_state.saturating_add(1) != num {
-			error!("📒Cannot process blk import, last processed blk: {:?}, but trying to import: {:?}", self.last_processed_block_in_offchain_state,num);
+			error!(
+				"📒Cannot process blk import, last processed blk: {:?}, but trying to import: {:?}",
+				self.last_processed_block_in_offchain_state, num
+			);
 			return Err(Error::OutOfSequenceBlockImport)
 		}
 
@@ -487,6 +490,7 @@ where
 				let message = GossipMessage::WantWorkerNonce(
 					*self.latest_worker_nonce.read(),
 					*known_worker_nonces[0],
+					*self.state_version.read(),
 				);
 
 				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
@@ -735,10 +739,10 @@ where
 	///
 	/// # Returns
 	/// * `()` - No return value
-	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, version: u16 ,peer: Option<PeerId>) {
-		if version < *self.state_version.read(){
+	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, version: u16, peer: Option<PeerId>) {
+		if version < *self.state_version.read() {
 			debug!(target: "orderbook", "📒 Ignoring old want requests from version: {:?}",version);
-			return;
+			return
 		}
 		info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
 		if let Some(peer) = peer {
@@ -978,7 +982,8 @@ where
 		metric_inc!(self, ob_messages_recv);
 		metric_add!(self, ob_data_recv, message.encoded_size() as u64);
 		match message {
-			GossipMessage::WantWorkerNonce(from, to, version) => self.want_worker_nonce(from, to, *version,remote),
+			GossipMessage::WantWorkerNonce(from, to, version) =>
+				self.want_worker_nonce(from, to, *version, remote),
 			GossipMessage::WorkerNonces(messages) =>
 				self.got_worker_nonces_via_gossip(messages).await?,
 			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
@@ -1221,7 +1226,8 @@ where
 			let from = *self.latest_worker_nonce.read();
 			// Send it only if we are missing any messages
 			if to.saturating_sub(from) > 1 {
-				let want_request = GossipMessage::WantWorkerNonce(from, **to);
+				let want_request =
+					GossipMessage::WantWorkerNonce(from, **to, *self.state_version.read());
 				self.gossip_engine.gossip_message(topic::<B>(), want_request.encode(), true);
 				info!(target:"orderbook","📒 Sending periodic sync request for nonces between: from:{from:?} to: {to:?}");
 			} else if to.saturating_sub(from) == 1 && !self.is_validator {
