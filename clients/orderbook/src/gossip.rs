@@ -268,3 +268,52 @@ where
 		})
 	}
 }
+
+
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use parking_lot::RwLock;
+	use orderbook_primitives::types::{GossipMessage, ObMessage, UserActions};
+	use crate::gossip::GossipValidator;
+	use orderbook_primitives::SnapshotSummary;
+	use polkadex_primitives::{AccountId, Block};
+
+	#[test]
+	pub fn test_message_expiry_check() {
+		let latest_worker_nonce = Arc::new(RwLock::new(0));
+		let fullnodes = Arc::new(RwLock::new(Default::default()));
+		let last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>> = Arc::new(RwLock::new(Default::default()));
+		let state_version: Arc<RwLock<u16>> = Arc::new(RwLock::new(1));
+
+		let validator: GossipValidator<Block> = GossipValidator::new(
+			latest_worker_nonce,
+			fullnodes,
+			false,
+			last_snapshot,
+			state_version
+		);
+
+		let gossip = GossipMessage::ObMessage(Box::from(ObMessage {
+			stid: 0,
+			worker_nonce: 0,
+			action: UserActions::Reset,
+			signature: Default::default(),
+			reset: true,
+			version: 0,
+		}));
+		assert!(!validator.message_expired_check(&gossip));
+
+		let gossip = GossipMessage::ObMessage(Box::from(ObMessage {
+			stid: 0,
+			worker_nonce: 0,
+			action: UserActions::BlockImport(1),
+			signature: Default::default(),
+			reset: false,
+			version: 1,
+		}));
+		assert!(!validator.message_expired_check(&gossip));
+	}
+
+}
