@@ -1,11 +1,18 @@
 use clap::Parser;
-use csv::StringRecord;
-use rust_decimal::Decimal;
+use rust_decimal::{
+	prelude::{ToPrimitive, Zero},
+	Decimal,
+};
 use sp_core::{
+	bytes::to_hex,
 	crypto::{Ss58AddressFormat, Ss58Codec},
 	ByteArray,
 };
-use std::{ops::Div, str::FromStr};
+use std::{
+	collections::BTreeMap,
+	ops::{Add, Div},
+	str::FromStr,
+};
 
 use pallet_rewards::crowdloan_rewardees::HASHMAP;
 use polkadex_primitives::{AccountId, UNIT_BALANCE};
@@ -18,6 +25,9 @@ struct Cli {
 	/// User address to search rewards details.
 	#[arg(short, long)]
 	user: Option<String>,
+	/// Convert excel to sheet
+	#[arg(short, long)]
+	convert: bool,
 }
 
 fn main() {
@@ -36,7 +46,7 @@ fn main() {
 			println!("User ( Polkadot ): {:?}", user.to_ss58check_with_version(polkadot_version));
 			println!("---------------------------------------------------------------------------");
 			#[allow(clippy::borrow_interior_mutable_const)]
-			if let Some(details) = HASHMAP.get(user.as_slice()) {
+			if let Some(details) = HASHMAP.get(&user) {
 				println!("Reward Details ");
 				println!(
 					"---------------------------------------------------------------------------"
@@ -65,30 +75,80 @@ fn main() {
 	// Check if CSV file and HASHMAP has same number of addresses
 	#[allow(clippy::borrow_interior_mutable_const)]
 	let map_len = HASHMAP.len();
-	assert_eq!(
-		map_len,
-		rdr.records().collect::<Vec<csv::Result<StringRecord>>>().len(),
-		"Number of users doesn't match!"
-	);
+	let unit_balance = Decimal::from(UNIT_BALANCE);
 
-	// Check all addresses and their corresponding reward details, print to screen on error.
-	for result in rdr.records() {
-		let record = result.unwrap();
-		let user = AccountId::from_str(record.get(0).unwrap()).unwrap();
-		let total_rewards = Decimal::from_str(record.get(1).unwrap()).unwrap();
-		let cliff_amt = Decimal::from_str(record.get(2).unwrap()).unwrap();
-		let claim_per_blk = Decimal::from_str(record.get(3).unwrap()).unwrap();
-		let dot_contributed = Decimal::from_str(record.get(4).unwrap()).unwrap();
-		#[allow(clippy::borrow_interior_mutable_const)]
-		if let Some(details) = HASHMAP.get(user.as_slice()) {
-			let total_rewards_list = Decimal::from(details.0).div(unit);
-			let cliff_amt_list = Decimal::from(details.1).div(unit);
-			let claim_per_blk_list = Decimal::from(details.2).div(unit);
-			if (total_rewards != total_rewards_list) ||
-				(cliff_amt != cliff_amt_list) ||
-				(claim_per_blk != claim_per_blk_list)
-			{
-				println!("ERROR IN REWARDS INFO");
+	if !args.convert {
+		let mut map: BTreeMap<AccountId, (u128, u128, u128)> = BTreeMap::new();
+		for result in rdr.records() {
+			let record = result.unwrap();
+			let user = AccountId::from_str(record.get(0).unwrap()).unwrap();
+			let total_rewards = Decimal::from_str(record.get(2).unwrap()).unwrap();
+			let cliff_amt = Decimal::from_str(record.get(3).unwrap()).unwrap();
+			let claim_per_blk = Decimal::from_str(record.get(4).unwrap()).unwrap();
+
+			let t_new = total_rewards.saturating_mul(unit_balance).to_u128().unwrap();
+			let i_new = cliff_amt.saturating_mul(unit_balance).to_u128().unwrap();
+			let f_new = claim_per_blk.saturating_mul(unit_balance).to_u128().unwrap();
+
+			map.entry(user)
+				.and_modify(|(t, i, f)| {
+					*t = t.saturating_add(t_new);
+					*i = i.saturating_add(i_new);
+					*f = f.saturating_add(f_new);
+				})
+				.or_insert((t_new, i_new, f_new));
+		}
+		assert_eq!(map_len, map.len(), "Number of users doesn't match!");
+		// Check all addresses and their corresponding reward details, print to screen on error.
+		for result in rdr.records() {
+			let record = result.unwrap();
+			let user = AccountId::from_str(record.get(0).unwrap()).unwrap();
+			let total_rewards = Decimal::from_str(record.get(1).unwrap()).unwrap();
+			let cliff_amt = Decimal::from_str(record.get(2).unwrap()).unwrap();
+			let claim_per_blk = Decimal::from_str(record.get(3).unwrap()).unwrap();
+			let dot_contributed = Decimal::from_str(record.get(4).unwrap()).unwrap();
+			#[allow(clippy::borrow_interior_mutable_const)]
+			if let Some(details) = HASHMAP.get(&user) {
+				let total_rewards_list = Decimal::from(details.0).div(unit);
+				let cliff_amt_list = Decimal::from(details.1).div(unit);
+				let claim_per_blk_list = Decimal::from(details.2).div(unit);
+				if (total_rewards != total_rewards_list) ||
+					(cliff_amt != cliff_amt_list) ||
+					(claim_per_blk != claim_per_blk_list)
+				{
+					println!("ERROR IN REWARDS INFO");
+					println!(
+						"---------------------------------------------------------------------------"
+					);
+					println!(
+						"User ( Polkadex ): {:?}",
+						user.to_ss58check_with_version(polkadex_version)
+					);
+					println!(
+						"User ( Polkadot ): {:?}",
+						user.to_ss58check_with_version(polkadot_version)
+					);
+					println!();
+					println!("Reward details in Pallet Hashmap");
+					println!(
+						"---------------------------------------------------------------------------"
+					);
+					println!("Total Rewards: {total_rewards_list:?} PDEX");
+					println!("25% Cliff: {cliff_amt_list:?} PDEX");
+					println!("Amount claimable per block: {claim_per_blk_list:?} PDEX");
+					println!();
+					println!("Reward details in CSV File");
+					println!(
+						"---------------------------------------------------------------------------"
+					);
+					println!("Total Rewards: {total_rewards:?} PDEX");
+					println!("25% Cliff: {cliff_amt:?} PDEX");
+					println!("Amount claimable per block: {claim_per_blk:?} PDEX");
+					println!("DOT contributed: {dot_contributed:?} DOT");
+					return
+				}
+			} else {
+				println!("User Account Info ");
 				println!(
 					"---------------------------------------------------------------------------"
 				);
@@ -100,33 +160,62 @@ fn main() {
 					"User ( Polkadot ): {:?}",
 					user.to_ss58check_with_version(polkadot_version)
 				);
-				println!();
-				println!("Reward details in Pallet Hashmap");
+				println!("USER NOT FOUND IN LIST");
 				println!(
 					"---------------------------------------------------------------------------"
 				);
-				println!("Total Rewards: {total_rewards_list:?} PDEX");
-				println!("25% Cliff: {cliff_amt_list:?} PDEX");
-				println!("Amount claimable per block: {claim_per_blk_list:?} PDEX");
-				println!();
-				println!("Reward details in CSV File");
-				println!(
-					"---------------------------------------------------------------------------"
-				);
-				println!("Total Rewards: {total_rewards:?} PDEX");
-				println!("25% Cliff: {cliff_amt:?} PDEX");
-				println!("Amount claimable per block: {claim_per_blk:?} PDEX");
-				println!("DOT contributed: {dot_contributed:?} DOT");
 				return
 			}
-		} else {
-			println!("User Account Info ");
-			println!("---------------------------------------------------------------------------");
-			println!("User ( Polkadex ): {:?}", user.to_ss58check_with_version(polkadex_version));
-			println!("User ( Polkadot ): {:?}", user.to_ss58check_with_version(polkadot_version));
-			println!("USER NOT FOUND IN LIST");
-			println!("---------------------------------------------------------------------------");
-			return
 		}
+		println!("Excel and Source code account lists match, All good!")
+	} else {
+		// AccountID => (total rewards, initial rewards, reward per blk)
+		let mut map: BTreeMap<AccountId, (u128, u128, u128)> = BTreeMap::new();
+		let mut total_pdex = 0;
+		let mut total_cliff = 0;
+		let mut total_factor = 0;
+		let mut total_dot = Decimal::zero();
+
+		for result in rdr.records() {
+			let record = result.unwrap();
+			let user = AccountId::from_str(record.get(0).unwrap()).unwrap();
+			let total_rewards = Decimal::from_str(record.get(2).unwrap()).unwrap();
+			let cliff_amt = Decimal::from_str(record.get(3).unwrap()).unwrap();
+			let claim_per_blk = Decimal::from_str(record.get(4).unwrap()).unwrap();
+			let dot_contributed = Decimal::from_str(record.get(1).unwrap()).unwrap();
+
+			let t_new = total_rewards.saturating_mul(unit_balance).to_u128().unwrap();
+			let i_new = cliff_amt.saturating_mul(unit_balance).to_u128().unwrap();
+			let f_new = claim_per_blk.saturating_mul(unit_balance).to_u128().unwrap();
+			total_pdex = total_pdex.add(t_new);
+			total_cliff = total_cliff.add(i_new);
+			total_factor = total_factor.add(f_new);
+			total_dot = total_dot.add(dot_contributed);
+
+			map.entry(user)
+				.and_modify(|(t, i, f)| {
+					*t = t.saturating_add(t_new);
+					*i = i.saturating_add(i_new);
+					*f = f.saturating_add(f_new);
+				})
+				.or_insert((t_new, i_new, f_new));
+		}
+
+		for (user, values) in map.iter() {
+			println!(
+				"(hex_literal::hex!({:?}).into(),{:?}),",
+				&to_hex(&user.to_raw_vec(), false)[2..],
+				values
+			)
+		}
+
+		println!("Map len: {:?}", map.len());
+		println!(
+			"Total pdex rewards: {:?}, cliff: {:?}, factor: {:?}, total_dot: {:?}",
+			Decimal::from(total_pdex).div(unit_balance),
+			Decimal::from(total_cliff).div(unit_balance),
+			Decimal::from(total_factor).div(unit_balance),
+			total_dot
+		)
 	}
 }
