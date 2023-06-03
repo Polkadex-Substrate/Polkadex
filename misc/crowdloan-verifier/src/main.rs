@@ -1,5 +1,4 @@
 use clap::Parser;
-use csv::StringRecord;
 use rust_decimal::{
 	prelude::{ToPrimitive, Zero},
 	Decimal,
@@ -170,7 +169,7 @@ fn main() {
 		}
 		println!("Excel and Source code account lists match, All good!")
 	} else {
-		/// (total rewards, initial rewards, factor)
+		// AccountID => (total rewards, initial rewards, reward per blk)
 		let mut map: BTreeMap<AccountId, (u128, u128, u128)> = BTreeMap::new();
 		let mut total_pdex = 0;
 		let mut total_cliff = 0;
