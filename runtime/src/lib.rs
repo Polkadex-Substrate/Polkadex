@@ -1301,7 +1301,7 @@ impl pallet_rewards::Config for Runtime {
 	type NativeCurrency = Balances;
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = pallet_rewards::weights::WeightInfo<Runtime>;
 }
 
