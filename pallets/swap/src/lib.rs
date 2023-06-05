@@ -70,7 +70,6 @@ pub type BalanceOf<T, I = ()> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_system::pallet_prelude::BlockNumberFor;
 
 	pub type Amounts<T, I> = sp_std::vec::Vec<BalanceOf<T, I>>;
 
@@ -210,15 +209,6 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	pub struct Pallet<T, I = ()>(_);
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		#[cfg(feature = "try-runtime")]
-		fn try_state(_: BlockNumberFor<T>) -> Result<(), &'static str> {
-			// Add something here if you want to test runtime upgrade
-			Ok(())
-		}
-	}
 
 	/// A bag of liquidity composed by two different assets
 	#[pallet::storage]

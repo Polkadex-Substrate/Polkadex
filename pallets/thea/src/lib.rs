@@ -75,15 +75,6 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(PhantomData<T>);
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		#[cfg(feature = "try-runtime")]
-		fn try_state(_: BlockNumberFor<T>) -> Result<(), &'static str> {
-			// Add something here if you want to test runtime upgrade
-			Ok(())
-		}
-	}
-
 	/// The current authorities set
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]

@@ -293,12 +293,6 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		#[cfg(feature = "try-runtime")]
-		fn try_state(_: BlockNumberFor<T>) -> Result<(), &'static str> {
-			// Add something here if you want to test runtime upgrade
-			Ok(())
-		}
-
 		/// On idle, use the remaining weight to do clean up, remove all ingress messages that are
 		/// older than the block in the last accepted snapshot.
 		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
