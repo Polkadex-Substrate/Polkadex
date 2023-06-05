@@ -88,9 +88,10 @@ use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
 use constants::{currency::*, time::*};
-use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
-use frame_support::traits::UpgradeCheckSelect;
-use frame_support::traits::TryStateSelect;
+use frame_support::{
+	traits::{TryStateSelect, UpgradeCheckSelect},
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee},
+};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
