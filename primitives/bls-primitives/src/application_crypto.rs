@@ -16,9 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-pub use crate::*;
+#[cfg(feature = "std")]
+pub use app::Pair as AppPair;
+pub use app::{Public as AppPublic, Signature as AppSignature};
 use sp_application_crypto::{KeyTypeId, RuntimePublic};
 use sp_std::vec::Vec;
+
+pub use crate::*;
 
 pub mod app {
 	use sp_core::crypto::KeyTypeId;
@@ -32,10 +36,6 @@ pub mod app {
 	}
 }
 
-#[cfg(feature = "std")]
-pub use app::Pair as AppPair;
-pub use app::{Public as AppPublic, Signature as AppSignature};
-
 impl RuntimePublic for Public {
 	type Signature = Signature;
 
@@ -46,6 +46,12 @@ impl RuntimePublic for Public {
 		)
 	}
 
+	#[cfg(not(feature = "parachain"))]
+	fn generate_pair(key: KeyTypeId, seed: Option<Vec<u8>>) -> Self {
+		crate::host_function::bls_crypto_ext::bls_generate_pair(key, seed)
+	}
+
+	#[cfg(feature = "parachain")]
 	fn generate_pair(_: KeyTypeId, _: Option<Vec<u8>>) -> Self {
 		unimplemented!(
 			"BLS12-381 Host functions are not yet available in Polkadot,\

@@ -22,7 +22,10 @@
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+	type ExtendHostFunctions = (
+		frame_benchmarking::benchmarking::HostFunctions,
+		bls_primitives::host_function::bls_crypto_ext::HostFunctions,
+	);
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
 		node_polkadex_runtime::api::dispatch(method, data)
