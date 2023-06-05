@@ -16,6 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # BLS Primitives.
+//!
+//! In this crate defined BLS signature related low-level crypto operations and types.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate core;
@@ -62,12 +66,13 @@ use substrate_bip39::seed_from_entropy;
 
 use sp_std::vec::Vec;
 
-/// An identifier used to match public keys against bls keys
+/// An identifier used to match public keys against bls keys.
 pub const CRYPTO_ID: CryptoTypeId = CryptoTypeId(*b"blss");
 
+/// Domain separation tag.
 pub const DST: &str = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
-/// BLS Public Key
+/// BLS Public Key.
 #[cfg_attr(feature = "std", derive(Hash))]
 #[derive(
 	Clone,
@@ -85,6 +90,7 @@ pub const DST: &str = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 )]
 pub struct Public(pub [u8; 96]);
 
+/// BLS signature definition.
 #[cfg_attr(feature = "std", derive(Hash))]
 #[derive(
 	Encode, Decode, MaxEncodedLen, TypeInfo, PassByInner, PartialEq, Eq, Clone, Copy, Debug,
@@ -92,7 +98,11 @@ pub struct Public(pub [u8; 96]);
 pub struct Signature(pub [u8; 48]);
 
 impl Signature {
-	// Aggregates two signatures
+	/// Aggregates two signatures.
+	///
+	/// # Parameters
+	///
+	/// * `signature`: Signature to aggregate.
 	pub fn add_signature(self, signature: &Signature) -> Result<Signature, Error> {
 		let sig1: G1Projective = G1Affine::deserialize_compressed(self.as_ref())?.into();
 		let sig2: G1Projective = G1Affine::deserialize_compressed(signature.as_ref())?.into();
@@ -106,6 +116,12 @@ impl Signature {
 		}
 	}
 
+	/// Verifies message with provided public keys.
+	///
+	/// # Parameters
+	///
+	/// * `public_keys`: Public key to aggregate public key from.
+	/// * `message`: Message to verify.
 	pub fn verify(self, public_keys: &[Public], message: &[u8]) -> bool {
 		// Aggregate the public keys
 		let mut g2_points = Vec::new();
@@ -135,20 +151,27 @@ impl Signature {
 	}
 }
 
+/// Seed type.
 type Seed = [u8; 32];
 
 /// An error when deriving a key.
 #[derive(Debug)]
 pub enum Error {
-	/// Invalid Public key
+	/// Invalid Public key.
 	InvalidPublicKey,
+	/// BLS library specific error.
 	#[cfg(feature = "std")]
 	BLSError(BLST_ERROR),
+	/// Provided invalid seed.
 	InvalidSeed,
+	/// Error appeared in the process of BLS serialization.
 	BLSSerilizationError(SerializationError),
+	/// Invalid justification.
 	InvalidJunctionForDerivation,
+	/// Serde specific error.
 	#[cfg(feature = "std")]
 	SerdeError(serde_json::Error),
+	/// IO error.
 	#[cfg(feature = "std")]
 	IOError(std::io::Error),
 }
@@ -180,7 +203,7 @@ impl From<BLST_ERROR> for Error {
 	}
 }
 
-/// A key pair.
+/// The key pair.
 #[cfg(feature = "std")]
 #[derive(Clone)]
 pub struct Pair {
@@ -231,6 +254,7 @@ impl From<CryptoTypePublicPair> for Public {
 		Public::try_from(value.1.as_ref()).expect("Expected the public key to be 96 bytes")
 	}
 }
+
 impl ByteArray for Public {
 	const LEN: usize = 96;
 }

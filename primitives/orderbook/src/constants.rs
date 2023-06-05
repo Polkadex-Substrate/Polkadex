@@ -16,16 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! This module contains constants definitions related to the "Orderbook".
+
 use polkadex_primitives::Balance;
 
+/// The designated SS58 prefix of this chain.
 pub const POLKADEX_MAINNET_SS58: u16 = 88;
 
 pub const MAX_WITHDRAWALS_PER_SNAPSHOT: u8 = 20;
 pub const UNIT_BALANCE: Balance = 1_000_000_000_000_u128;
-// Range of QTY: 0.00000001 to 10,000,000 UNITs
+/// Range of QTY: 0.00000001 to 10,000,000 UNITs
 pub const MIN_QTY: Balance = UNIT_BALANCE / 10000000;
 pub const MAX_QTY: Balance = 10000000 * UNIT_BALANCE;
-// Range of PRICE: 0.00000001 to 10,000,000 UNITs
+/// Range of PRICE: 0.00000001 to 10,000,000 UNITs
 pub const MIN_PRICE: Balance = UNIT_BALANCE / 10000000;
 pub const MAX_PRICE: Balance = 10000000 * UNIT_BALANCE;
 

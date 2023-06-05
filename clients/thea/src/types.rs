@@ -16,13 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Definition of types used inside Thea client.
+
 use bls_primitives::Signature;
 use parity_scale_codec::{Decode, Encode};
 use thea_primitives::types::Message;
 
+/// Representation of the gossip message structure.
 #[derive(Encode, Decode, Clone, Debug)]
 pub struct GossipMessage {
+	/// Payload of the gossip message.
 	pub(crate) payload: Message,
+	/// Bitmap generated from active validators.
 	pub(crate) bitmap: Vec<u128>,
+	/// Message aggregated signature.
 	pub(crate) aggregate_signature: Signature,
 }

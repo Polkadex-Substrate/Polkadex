@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! This crate provides an RPC method "accountInfo" to retrieve rewards related information.
+
 use std::sync::Arc;
 
 use jsonrpsee::{
