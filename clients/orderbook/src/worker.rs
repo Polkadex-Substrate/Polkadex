@@ -36,8 +36,7 @@ use orderbook_primitives::{
 		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
 		UserActions, WithdrawalRequest,
 	},
-	ObApi, SnapshotSummary, ValidatorSet, ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
-	ORDERBOOK_STATE_CHUNK_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX,
+	ObApi, SnapshotSummary, ValidatorSet,
 };
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
@@ -153,8 +152,6 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	pub(crate) orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
 	/// Our last snapshot waiting for approval.
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
-	/// Full-nodes we are connected to.
-	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	last_processed_block_in_offchain_state: BlockNumber,
 	// Version of current state
 	state_version: Arc<RwLock<u16>>,
