@@ -38,6 +38,7 @@ thea-primitives = { path = "../primitives/thea" }
 orderbook-rpc = { path = "../clients/orderbook/rpc" }
 memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
+thea-message-handler = {path="../pallets/thea-message-handler"}
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
