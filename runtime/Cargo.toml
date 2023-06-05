@@ -8,7 +8,7 @@ homepage = "https://polkadex.trade"
 repository = "https://github.com/Polkadex-Substrate/Polkadex"
 
 [package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+targets = ["x86-64-unknown-linux-gnu"]
 
 [dependencies]
 parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
@@ -194,6 +194,7 @@ std = [
   "pallet-rewards/std",
   "thea-executor/std",
   "thea-primitives/std",
+  "frame-try-runtime/std"
 ]
 runtime-benchmarks = [
   #theirs
@@ -213,34 +214,52 @@ runtime-benchmarks = [
   "thea/runtime-benchmarks",
   "pallet-amm/runtime-benchmarks",
 ]
+
 try-runtime = [
   "frame-executive/try-runtime",
-  "frame-try-runtime",
-  "frame-support/try-runtime",
-  "frame-system/try-runtime",
-  "pallet-election-provider-multi-phase/try-runtime",
-  "pallet-babe/try-runtime",
-  "pallet-balances/try-runtime",
-  "pallet-bounties/try-runtime",
-  "pallet-collective/try-runtime",
-  "pallet-elections-phragmen/try-runtime",
-  "pallet-grandpa/try-runtime",
-  "pallet-identity/try-runtime",
-  "pallet-im-online/try-runtime",
-  "pallet-indices/try-runtime",
-  "pallet-child-bounties/try-runtime",
-  "pallet-preimage/try-runtime",
-  "pallet-membership/try-runtime",
-  "pallet-multisig/try-runtime",
-  "pallet-proxy/try-runtime",
-  "pallet-scheduler/try-runtime",
-  "pallet-staking/try-runtime",
-  "pallet-timestamp/try-runtime",
-  "pallet-treasury/try-runtime",
-  "pallet-democracy/try-runtime",
-  "pallet-utility/try-runtime",
-  "orml-vesting/try-runtime",
-  "pdex-migration/try-runtime",
-  "pallet-rewards/try-runtime",
-  "liquidity/try-runtime",
+  "frame-try-runtime/try-runtime",
+"frame-system/try-runtime",
+"pallet-utility/try-runtime",
+"pallet-babe/try-runtime",
+"pallet-timestamp/try-runtime",
+"pallet-authorship/try-runtime",
+"pallet-indices/try-runtime",
+"pallet-balances/try-runtime",
+"pallet-transaction-payment/try-runtime",
+"pallet-election-provider-multi-phase/try-runtime",
+"pallet-staking/try-runtime",
+"pallet-session/try-runtime",
+"pallet-collective/try-runtime",
+"pallet-elections-phragmen/try-runtime",
+"pallet-membership/try-runtime",
+"pallet-grandpa/try-runtime",
+"pallet-treasury/try-runtime",
+"pallet-sudo/try-runtime",
+"pallet-im-online/try-runtime",
+"pallet-authority-discovery/try-runtime",
+"pallet-offences/try-runtime",
+"pallet-session/try-runtime",
+"pallet-identity/try-runtime",
+"pallet-recovery/try-runtime",
+"pallet-scheduler/try-runtime",
+"pallet-proxy/try-runtime",
+"pallet-multisig/try-runtime",
+"pallet-bounties/try-runtime",
+"orml-vesting/try-runtime",
+"pdex-migration/try-runtime",
+"pallet-democracy/try-runtime",
+"pallet-preimage/try-runtime",
+"pallet-randomness-collective-flip/try-runtime",
+"pallet-child-bounties/try-runtime",
+"pallet-assets/try-runtime",
+"pallet-ocex-lmp/try-runtime",
+"pallet-collective/try-runtime",
+"chainbridge/try-runtime",
+"asset-handler/try-runtime",
+"thea/try-runtime",
+"pallet-rewards/try-runtime",
+"liquidity/try-runtime",
+"pallet-amm/try-runtime",
+"router/try-runtime",
+"thea-executor/try-runtime"
 ]

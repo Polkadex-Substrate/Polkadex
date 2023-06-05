@@ -10866,6 +10866,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.37#6f
 dependencies = [
  "clap 4.3.1",
  "frame-remote-externalities",
+ "frame-try-runtime",
  "hex",
  "log",
  "parity-scale-codec",
