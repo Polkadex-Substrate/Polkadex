@@ -238,7 +238,7 @@ pub fn run() -> Result<()> {
 						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 				Ok((
 					cmd.run::<Block, sc_executor::sp_wasm_interface::ExtendedHostFunctions<
-						sp_io::SubstrateHostFunctions,
+						frame_support::sp_io::SubstrateHostFunctions,
 						<ExecutorDispatch as sc_executor::NativeExecutionDispatch>::ExtendHostFunctions,
 					>>(),
 					task_manager,
