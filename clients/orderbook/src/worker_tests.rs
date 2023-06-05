@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! This module contains code that defines test cases related to a trading system of worker module.
+
 use crate::{
 	error::Error,
 	worker::{add_proxy, deposit, process_trade, register_main, remove_proxy},
@@ -33,21 +34,21 @@ use sp_core::Pair;
 use sp_keyring::AccountKeyring;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
-/// This function returns a tuple containing Alice's main account and a proxy account
+/// This function returns a tuple containing Alice's main account and a proxy account.
 fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Alice.pair().public());
 	let proxy_account = AccountId::from(AccountKeyring::Charlie.pair().public());
 	(main_account, proxy_account)
 }
 
-/// This function returns a tuple containing Bob's main account and a proxy account
+/// This function returns a tuple containing Bob's main account and a proxy account.
 fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Bob.pair().public());
 	let proxy_account = AccountId::from(AccountKeyring::Eve.pair().public());
 	(main_account, proxy_account)
 }
 
-// register main account and assert changes in db
+/// Register main account and assert changes in db.
 #[test]
 pub fn register_main_will_store_successfully() {
 	let mut working_state_root = [0u8; 32];
@@ -62,7 +63,7 @@ pub fn register_main_will_store_successfully() {
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy]);
 }
 
-// add proxy account and assert changes in db
+/// Add proxy account and assert changes in db.
 #[test]
 pub fn add_proxy_will_store_it_successfully() {
 	let mut working_state_root = [0u8; 32];
@@ -79,7 +80,7 @@ pub fn add_proxy_will_store_it_successfully() {
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy, alice_new_proxy_account]);
 }
 
-// remove proxy account and assert changes in db
+/// Remove proxy account and assert changes in db.
 #[test]
 pub fn remove_proxy_will_remove_it_from_the_storage_successfully() {
 	let mut working_state_root = [0u8; 32];
@@ -95,7 +96,7 @@ pub fn remove_proxy_will_remove_it_from_the_storage_successfully() {
 	assert_eq!(account_info_in_db.proxies, vec![]);
 }
 
-// Try to remove a proxy account when main account not registered
+/// Try to remove a proxy account when main account not registered.
 #[test]
 pub fn remove_proxy_with_not_registered_main_account_will_return_main_account_not_found_error() {
 	let mut working_state_root = [0u8; 32];
@@ -109,7 +110,7 @@ pub fn remove_proxy_with_not_registered_main_account_will_return_main_account_no
 	);
 }
 
-// Try to remove a non registered proxy account and assert expected error
+/// Try to remove a non registered proxy account and assert expected error.
 #[test]
 pub fn remove_proxy_with_not_registered_proxy_will_return_proxy_account_not_found_error() {
 	let mut working_state_root = [0u8; 32];
@@ -124,7 +125,7 @@ pub fn remove_proxy_with_not_registered_proxy_will_return_proxy_account_not_foun
 	);
 }
 
-// Try to deposit a amount when main account is not register and assert expected error
+/// Try to deposit a amount when main account is not register and assert expected error.
 #[test]
 pub fn deposit_with_not_registered_main_account_will_return_main_account_not_found_error() {
 	let mut working_state_root = [0u8; 32];
@@ -136,7 +137,7 @@ pub fn deposit_with_not_registered_main_account_will_return_main_account_not_fou
 	assert_eq!(result, Err(Error::MainAccountNotFound).into());
 }
 
-// Deposit assets in users main account and assert changes in DB
+/// Deposit assets in users main account and assert changes in DB.
 #[test]
 pub fn deposit_will_store_amount_successfully() {
 	let mut working_state_root = [0u8; 32];
@@ -161,7 +162,7 @@ pub fn deposit_will_store_amount_successfully() {
 	assert_eq!(balance, Decimal::new(20, 0));
 }
 
-// Process a receive trade and assert balance changes in DB
+/// Process a receive trade and assert balance changes in DB.
 #[test]
 pub fn process_trade_will_process_successfully() {
 	let mut working_state_root = [0u8; 32];

@@ -271,10 +271,12 @@ pub mod pallet {
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		/// Given input amount is fixed, the output token amount is not known in advance.
 		///
-		/// - `origin`: the trader.
-		/// - `route`: the route user inputs
-		/// - `amount_in`: the amount of trading assets
-		/// - `min_amount_out`: the minimum a trader is willing to receive
+		/// # Parameters
+		///
+		/// * `origin`: the trader.
+		/// * `route`: the route user inputs.
+		/// * `amount_in`: the amount of trading assets.
+		/// * `min_amount_out`: the minimum a trader is willing to receive.
 		#[transactional]
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::default())]
@@ -331,10 +333,10 @@ pub mod pallet {
 
 		/// Given the output token amount is fixed, the input token amount is not known.
 		///
-		/// - `origin`: the trader.
-		/// - `route`: the route user inputs
-		/// - `amount_out`: the amount of trading assets
-		/// - `max_amount_in`: the maximum a trader is willing to input
+		/// * `origin`: the trader.
+		/// * `route`: the route user inputs.
+		/// * `amount_out`: the amount of trading assets.
+		/// * `max_amount_in`: the maximum a trader is willing to input.
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::default())]
 		#[transactional]

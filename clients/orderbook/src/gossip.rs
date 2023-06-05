@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Contains messages exchange specific logic related to the messages validation.
+
 use log::{info, trace};
 use orderbook_primitives::{types::GossipMessage, SnapshotSummary};
 use parity_scale_codec::{Decode, Encode};
@@ -32,7 +34,11 @@ use std::{
 };
 use tokio::time::{Duration, Instant};
 
+/// Default rebroadcast interval between messages emitting.
 pub const REBROADCAST_INTERVAL: Duration = Duration::from_secs(3);
+
+/// Rebroadcast interval between messages emitting explicitly inquired by the consumer (e.g.
+/// worker).
 pub const WANT_REBROADCAST_INTERVAL: Duration = Duration::from_secs(3);
 
 /// Gossip engine messages topic
@@ -43,14 +49,14 @@ where
 	<<B::Header as Header>::Hashing as Hash>::hash(b"orderbook")
 }
 
-/// Orderbook gossip validator
+/// Orderbook gossip validator.
 ///
 /// Validate Orderbook gossip messages and limit the number of broadcast rounds.
 ///
 /// Allows messages for 'rounds >= last concluded' to flow, everything else gets
 /// rejected/expired.
 ///
-///All messaging is handled in a single Orderbook global topic.
+/// All messaging is handled in a single Orderbook global topic.
 pub struct GossipValidator<B>
 where
 	B: Block,
@@ -67,6 +73,14 @@ impl<B> GossipValidator<B>
 where
 	B: Block,
 {
+	/// Constructor.
+	///
+	/// # Parameters
+	///
+	/// * `latest_worker_nonce`: Latest worker nonce fetched from the offchain storage.
+	/// * `fullnodes`: Fullnodes.
+	/// * `is_validator`: Defines if peer is validator.
+	/// * `last_snapshot`: Latest snapshot summary.
 	pub fn new(
 		latest_worker_nonce: Arc<RwLock<u64>>,
 		fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
@@ -83,6 +97,12 @@ where
 		}
 	}
 
+	/// Validates provided message.
+	///
+	/// # Parameters
+	///
+	/// * `message`: `GossipMessage` reference to perform validation on.
+	/// * `peerid`: Identifier of a peer of the network (message sender).
 	pub fn validate_message(
 		&self,
 		message: &GossipMessage,
@@ -144,7 +164,12 @@ where
 		}
 	}
 
-	/// Returns true if the messgae can be rebroadcasted
+	/// Defines if the message can be rebroadcasted.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Gossip message to rebroadcast.
+	/// * `peerid`: Identifier of a peer of the network.
 	pub fn rebroadcast_check(&self, message: &GossipMessage, peerid: PeerId) -> bool {
 		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
 		let interval = match message {
@@ -161,6 +186,10 @@ where
 	}
 
 	/// Returns true if the message is expired.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Gossip message to check if it is expired.
 	pub fn message_expired_check(&self, message: &GossipMessage) -> bool {
 		match message {
 			GossipMessage::ObMessage(msg) =>
@@ -189,10 +218,12 @@ where
 			self.fullnodes.write().insert(*who);
 		}
 	}
+
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
 		info!(target:"orderbook","📒 New peer disconnected: {:?}",who);
 		self.fullnodes.write().remove(who);
 	}
+
 	fn validate(
 		&self,
 		_context: &mut dyn ValidatorContext<B>,

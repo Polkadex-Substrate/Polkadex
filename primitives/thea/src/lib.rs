@@ -126,7 +126,7 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 /// The index of an authority.
 pub type AuthorityIndex = u32;
 
-/// Network type
+/// Network type.
 pub type Network = u8;
 
 pub const NATIVE_NETWORK: Network = 0;

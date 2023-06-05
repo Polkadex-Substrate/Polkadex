@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Worker which manages/processes Orderbook client requests.
+
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	marker::PhantomData,
@@ -73,73 +75,84 @@ use crate::{
 	Client, DbRef,
 };
 
+/// Orderbook worker nonce prefix used as an offchain storage item prefix and the key.
 pub const ORDERBOOK_WORKER_NONCE_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
+
+/// Orderbook snapshot summary prefix used as an offchain storage item prefix.
 pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
+
+/// Orderbook state chunk prefix used as an offchain storage item prefix.
 pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
+/// Definition of the worker parameters required for the worker initialization.
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
+	/// Orderbook client.
 	pub client: Arc<C>,
+	/// Client Backend.
 	pub backend: Arc<BE>,
+	/// Client runtime.
 	pub runtime: Arc<R>,
+	/// Network service.
 	pub sync_oracle: SO,
+	/// Instance of Orderbook metrics exposed through Prometheus.
 	pub metrics: Option<Metrics>,
+	/// Indicates if this node is a validator.
 	pub is_validator: bool,
-	/// Local key store
+	/// Local key store.
 	pub keystore: Option<Arc<LocalKeystore>>,
+	/// Submit message link.
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
-	/// Gossip network
+	/// Gossip network.
 	pub network: N,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
 	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
-	// memory db
+	/// Memory db.
 	pub memory_db: DbRef,
-	// working state root
+	/// Working state root.
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
-/// A Orderbook worker plays the Orderbook protocol
+/// An Orderbook worker plays the Orderbook protocol.
 pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
-	// utilities
 	client: Arc<C>,
 	backend: Arc<BE>,
 	runtime: Arc<R>,
 	sync_oracle: SO,
 	is_validator: bool,
 	_network: Arc<N>,
-	/// Local key store
+	/// Local key store.
 	pub keystore: OrderbookKeyStore,
 	gossip_engine: GossipEngine<B>,
-	// gossip_validator: Arc<GossipValidator<B>>,
-	// Last processed SnapshotSummary
+	/// Last processed snapshot summary.
 	pub last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
-	// Working state root,
+	/// Working state root.
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
-	// Known state ids
+	/// Known state ids.
 	known_messages: BTreeMap<u64, ObMessage>,
 	pending_withdrawals: Vec<Withdrawal<AccountId>>,
 	/// Orderbook client metrics.
 	metrics: Option<Metrics>,
 	message_sender_link: UnboundedReceiver<ObMessage>,
 	_marker: PhantomData<N>,
-	// In memory store
+	/// In memory store.
 	pub memory_db: DbRef,
-	// Last finalized block
+	/// Last finalized block.
 	last_finalized_block: BlockNumber,
 	state_is_syncing: bool,
 	// (snapshot id, chunk index) => status of sync
 	sync_state_map: BTreeMap<usize, StateSyncStatus>,
-	// last block at which snapshot was generated
+	/// Last block at which snapshot was generated.
 	last_block_snapshot_generated: Arc<RwLock<BlockNumber>>,
-	// latest worker nonce
+	/// Latest worker nonce.
 	latest_worker_nonce: Arc<RwLock<u64>>,
 	latest_state_change_id: u64,
-	// Map of trading pair configs
+	/// Map of trading pair configs.
 	trading_pair_configs: BTreeMap<TradingPair, TradingPairConfig>,
 	pub(crate) orderbook_operator_public_key: Option<sp_core::ecdsa::Public>,
-	// Our last snapshot waiting for approval
+	/// Our last snapshot waiting for approval.
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
-	// Fullnodes we are connected to
+	/// Full-nodes we are connected to.
 	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	last_processed_block_in_offchain_state: BlockNumber,
 }
@@ -160,6 +173,10 @@ where
 	/// BEEFY pallet has been deployed on-chain.
 	///
 	/// The BEEFY pallet is needed in order to keep track of the BEEFY authority set.
+	///
+	/// # Parameters
+	///
+	/// * `worker_params`: DTO with data required for the worker initialization.
 	pub(crate) fn new(worker_params: WorkerParams<B, BE, C, SO, N, R>) -> Self {
 		let WorkerParams {
 			client,
@@ -216,7 +233,6 @@ where
 			_network: network,
 			keystore,
 			gossip_engine,
-			// gossip_validator,
 			memory_db,
 			message_sender_link,
 			state_is_syncing: false,
@@ -239,13 +255,12 @@ where
 		}
 	}
 
-	/// The function checks whether a snapshot of the blockchain should be generated based on the
-	/// pending withdrawals and block intervaland last stid
+	/// Checks whether a snapshot of the blockchain should be generated based on the pending
+	/// withdrawals and block interval and last stid.
 	///
-	/// # Arguments
-	/// * `&self`: a reference to an instance of a struct implementing some trait
 	/// # Returns
-	/// * `bool`: a boolean indicating whether a snapshot should be generated
+	///
+	/// * `bool`: A boolean indicating whether a snapshot should be generated.
 	pub fn should_generate_snapshot(&self) -> bool {
 		let at = BlockId::Number(self.last_finalized_block.saturated_into());
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
@@ -276,6 +291,13 @@ where
 		false
 	}
 
+	/// Processes withdrawal requests.
+	///
+	/// # Parameters
+	///
+	/// * `withdraw`: Withdraw request DTO.
+	/// * `worker_nonce`: Worker nonce required for the snapshot generation.
+	/// * `state_change_id`: State change id required for the snapshot generation.
 	pub fn process_withdraw(
 		&mut self,
 		withdraw: WithdrawalRequest,
@@ -318,6 +340,11 @@ where
 		Ok(())
 	}
 
+	/// Processes blocks imports.
+	///
+	/// # Parameters
+	///
+	/// * `num`: Number of importing block.
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		info!("📒Handling block import: {:?}", num);
 		// Update trading pair configs
@@ -353,6 +380,12 @@ where
 		Ok(())
 	}
 
+	/// Generates snapshots.
+	///
+	/// # Parameters
+	///
+	/// * `worker_nonce`: Worker nonce.
+	/// * `stid`: State change id required for the snapshot generation.
 	pub fn snapshot(&mut self, worker_nonce: u64, stid: u64) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Generating snapshot");
 		let at = BlockId::number(self.last_finalized_block.saturated_into());
@@ -401,6 +434,11 @@ where
 		Ok(())
 	}
 
+	/// Entrypoint for the known messages processing.
+	///
+	/// # Parameters
+	///
+	/// * `action`: Orderbook message DTO.
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
@@ -436,7 +474,7 @@ where
 		Ok(())
 	}
 
-	// Checks if we need to sync the orderbook state before processing the messages.
+	/// Checks if we need to sync the orderbook state before processing the messages.
 	pub async fn check_state_sync(&mut self) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Checking state sync");
 		// X->Y sync: Ask peers to send the missed worker_nonec
@@ -470,6 +508,12 @@ where
 		Ok(())
 	}
 
+	/// Hydrates snapshot from the encoded data and loads it to the memory db.
+	///
+	/// # Parameters
+	///
+	/// * `data`: Encoded snapshot to be hydrated.
+	/// * `summary`: Snapshot summary DTO.
 	pub fn load_state_from_data(
 		&mut self,
 		data: &[u8],
@@ -496,6 +540,11 @@ where
 		Ok(())
 	}
 
+	/// Processes `Orderbook` gossip messages.
+	///
+	/// # Parameters
+	///
+	/// * `action`: `Orderbook` message DTO.
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Received a new user action: {:?}",action);
 		// Check if stid is newer or not
@@ -527,6 +576,12 @@ where
 		Ok(())
 	}
 
+	/// Used only in the tests environment.
+	/// Accessor to the offchain storage data.
+	///
+	/// # Parameters
+	///
+	/// * `id`: Key of the stored record in the storage.
 	#[cfg(test)]
 	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
 		let offchain_storage = self.backend.offchain_storage().unwrap();
@@ -534,6 +589,15 @@ where
 		return result
 	}
 
+	/// Prepares and persists snapshot and worker nonce to the offchain storage and returns snapshot
+	/// summary DTO.
+	///
+	/// # Parameters
+	///
+	/// * `worker_nonce`: Worker nonce.
+	/// * `state_change_id`: State change id required for the snapshot generation.
+	/// * `snapshot_id`: New snapshot id.
+	/// * `active_set`: Active validators set.
 	pub fn store_snapshot(
 		&mut self,
 		worker_nonce: u64,
@@ -600,6 +664,11 @@ where
 		Err(Error::Backend("📒 Offchain Storage not Found".parse().unwrap()))
 	}
 
+	/// Loads snapshot from from decoded snapshot summary.
+	///
+	/// # Parameters
+	///
+	/// * `summary`: Decoded snapshot summary DTO to load state from.
 	pub fn load_snapshot(&mut self, summary: &SnapshotSummary<AccountId>) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Loading snapshot: {:?}", summary.snapshot_id);
 		if summary.snapshot_id == 0 {
@@ -629,8 +698,8 @@ where
 		Ok(())
 	}
 
-	/// go through the `known_messages` incrementally starting from the last snapshot's
-	/// worker_nonce and process the messages. if a message is not found, it means ?
+	/// Iterates through the `known_messages` incrementally starting from the last snapshot's
+	/// worker_nonce and process the messages.
 	pub async fn check_worker_nonce_gap_fill(&mut self) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Checking for worker_nonce gap fill");
 		let mut next_worker_nonce = self.latest_worker_nonce.read().saturating_add(1);
@@ -665,13 +734,11 @@ where
 	/// Checks the local `known_messages` to see if we have any messages between the `from` and `to`
 	/// worker_nonce. If we do, we gossip the `WorkerNonces` message to the peer that requested it.
 	///
-	/// # Arguments
-	/// * `from` - The worker_nonce to start from
-	/// * `to` - The worker_nonce to end at
-	/// * `peer` - The peer that requested the worker_nonces
+	/// # Parameters
 	///
-	/// # Returns
-	/// * `()` - No return value
+	/// * `from`: The worker_nonce to start from.
+	/// * `to`: The worker_nonce to end at.
+	/// * `peer`: The peer that requested the worker_nonces.
 	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
 		if let Some(peer) = peer {
@@ -684,15 +751,19 @@ where
 			}
 		}
 	}
+
 	/// Returns a list of gossip messages that contain the worker_nonces requested
 	/// from the `from` to the `to` worker_nonce.
 	/// The messages are limited to 10MB in size.
 	///
-	/// # Arguments:
-	///   * `from`: The first worker_nonce requested
-	///   * `to`: The last worker_nonce requested
-	/// # returns:
-	///   A list of gossip messages that contain the worker_nonces requested
+	/// # Parameters
+	///
+	/// * `from`: The first worker_nonce requested.
+	/// * `to`: The last worker_nonce requested.
+	///
+	/// # Returns
+	///
+	/// * `Vec<Vec<u8>>`: Collection of gossip messages that contain the `worker_nonces` requested.
 	pub fn get_want_worker_nonce_messages(&self, from: &u64, to: &u64) -> Vec<Vec<u8>> {
 		let mut gossip_messages = vec![];
 		let mut messages = vec![];
@@ -718,13 +789,18 @@ where
 		}
 		gossip_messages
 	}
+
 	/// Handles the worker_nonces received via gossip.
 	/// The worker_nonces are stored in the `known_messages` map.
 	///
-	/// # Arguments
-	///  * `messages`: The list of worker_nonces received via gossip
-	/// # returns:
-	/// Ok(()) if the worker_nonces are stored successfully
+	/// # Parameters
+	///
+	/// * `messages`: The list of worker_nonces received via gossip.
+	///
+	/// # Returns
+	///
+	/// * `Result<(), Error>`: Empty `Ok` result if the `worker_nonces` are stored successfully or
+	///   `Error` otherwise.
 	pub async fn got_worker_nonces_via_gossip(
 		&mut self,
 		messages: &Vec<ObMessage>,
@@ -737,7 +813,13 @@ where
 		self.check_worker_nonce_gap_fill().await
 	}
 
-	// Expects the set bits in the bitmap to be missing chunks
+	/// Expects the set bits in the bitmap to be missing chunks.
+	///
+	/// # Parameters
+	///
+	/// * `snapshot_id`: Expected snapshot id.
+	/// * `bitmap`: Required indexes.
+	/// * `remote`: Optional peer id.
 	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want snapshot: {:?} - {:?}", snapshot_id, bitmap);
 		// Only respond if we are a fullnode
@@ -783,6 +865,15 @@ where
 		}
 	}
 
+	/// Emits chunk indexes requested as bitmap.
+	///
+	/// Note. Message emitted only if peer id is provided.
+	///
+	/// # Parameters
+	///
+	/// * `snapshot_id`: Snapshot identifier.
+	/// * `bitmap`: Bitmap.
+	/// * `remote`: Peer id to emit message to.
 	pub async fn have(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Have snapshot: {:?} - {:?}", snapshot_id, bitmap);
 		if let Some(peer) = remote {
@@ -813,6 +904,16 @@ where
 		}
 	}
 
+	/// Emits message to a provided peer with a data chunk, requested by snapshot id, bitmap and
+	/// latest finalized block.
+	///
+	/// Note. Message emitted only if peer id is provided.
+	///
+	/// # Parameters
+	///
+	/// * `snapshot_id`: Snapshot identifier.
+	/// * `bitmap`: Bitmap.
+	/// * `remote`: Peer id to emit message to.
 	pub async fn request_chunk(
 		&mut self,
 		snapshot_id: &u64,
@@ -858,6 +959,13 @@ where
 		}
 	}
 
+	/// Processes chunks of the snapshot data.
+	///
+	/// # Parameters
+	///
+	/// * `snapshot_id`: Snapshot identifier.
+	/// * `index`: Index of a chunk.
+	/// * `data`: Snapshot chunk data.
 	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &usize, data: &[u8]) {
 		info!(target: "orderbook", "📒 Chunk snapshot: {:?} - {:?} - {:?}", snapshot_id, index, data.len());
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
@@ -867,7 +975,7 @@ where
 			{
 				match summary.state_chunk_hashes.get(*index) {
 					None =>
-						warn!(target:"orderbook","📒 Invalid index recvd, index > length of state chunk hashes"),
+						warn!(target:"orderbook","📒 Invalid index received, index > length of state chunk hashes"),
 					Some(expected_hash) => {
 						let computed_hash: H128 = H128::from(blake2_128(data));
 						if *expected_hash == computed_hash {
@@ -891,6 +999,14 @@ where
 		}
 	}
 
+	/// Highest level method used to process incoming gossip message.
+	///
+	/// Note. Message emitted only if peer id is provided.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Gossip message to be processed.
+	/// * `remote`: Peer identifier to send message to.
 	pub async fn process_gossip_message(
 		&mut self,
 		message: &GossipMessage,
@@ -914,7 +1030,7 @@ where
 		Ok(())
 	}
 
-	// Updates local trie with all registered main account and proxies
+	/// Updates local trie with all registered main account and proxies.
 	pub fn update_storage_with_genesis_data(&mut self) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Updating storage with genesis data");
 		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
@@ -941,6 +1057,11 @@ where
 		Ok(())
 	}
 
+	/// Handles block finalization notification.
+	///
+	/// # Parameters
+	///
+	/// * `notification`: Summary DTO of the finalized block.
 	pub(crate) async fn handle_finality_notification(
 		&mut self,
 		notification: &FinalityNotification<B>,
@@ -1156,6 +1277,11 @@ where
 		}
 	}
 
+	/// Syncs snapshot from other peers.
+	///
+	/// # Parameters
+	///
+	/// * `summary`: Snapshot summary DTO.
 	pub fn send_sync_requests(
 		&mut self,
 		summary: &SnapshotSummary<AccountId>,
@@ -1195,15 +1321,17 @@ where
 	}
 
 	/// Public method to get a mutable trie instance with the given mutable memory_db and
-	/// working_state_root
+	/// working_state_root.
 	///
-	/// # Parameters:
-	/// - `memory_db`: a mutable reference to a MemoryDB instance
-	/// - `working_state_root`: a mutable reference to a 32-byte array of bytes representing the
-	///   root of the trie
+	/// # Parameters
+	///
+	/// * `memory_db`: A mutable reference to a MemoryDB instance.
+	/// * `working_state_root`: A mutable reference to a 32-byte array of bytes representing the
+	///   root of the trie.
 	///
 	/// # Returns
-	/// `TrieDBMut`:  instance representing a mutable trie
+	///
+	/// `TrieDBMut`:  instance representing a mutable trie.
 	pub fn get_trie<'a>(
 		memory_db: &'a mut MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>,
 		working_state_root: &'a mut [u8; 32],
@@ -1216,7 +1344,11 @@ where
 		trie
 	}
 
-	/// Loads the latest trading pair configs from runtime
+	/// Loads the latest trading pair configs from runtime.
+	///
+	/// # Parameters
+	///
+	/// * `blk_num`: Block number.
 	pub fn load_trading_pair_configs(&mut self, blk_num: BlockNumber) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Loading trading pair configs from runtime...");
 		let tradingpairs = self
@@ -1231,9 +1363,9 @@ where
 		Ok(())
 	}
 
-	/// Main loop for Orderbook worker.
+	/// Entrypoint for the Orderbook worker.
 	///
-	/// Wait for Orderbook runtime pallet to be available, then start the main async loop
+	/// Waits for the Orderbook runtime pallet to be available, then start the main async loop
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "orderbook", "📒 Orderbook worker started");
@@ -1348,9 +1480,9 @@ where
 ///
 /// # Parameters
 ///
-/// * `trie` - A mutable reference to a `TrieDBMut` with `ExtensionLayout`.
-/// * `main` - The `AccountId` of the main account to be registered.
-/// * `proxy` - The `AccountId` of the proxy account to be associated with the main account.
+/// * `trie`: A mutable reference to a `TrieDBMut` with `ExtensionLayout`.
+/// * `main`: The `AccountId` of the main account to be registered.
+/// * `proxy`: The `AccountId` of the proxy account to be associated with the main account.
 ///
 /// # Returns
 ///
@@ -1372,12 +1504,13 @@ pub fn register_main(
 }
 
 /// The purpose of this function is to add new a proxy account to main account's list.
+///
 /// # Parameters
 ///
-/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+/// * `trie`: A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
 ///   trie database to modify.
-/// * `main` - An `AccountId` representing the main account for which to add a proxy.
-/// * `proxy` - An `AccountId` representing the proxy account to add to the list of authorized
+/// * `main`: An `AccountId` representing the main account for which to add a proxy.
+/// * `proxy`: An `AccountId` representing the proxy account to add to the list of authorized
 ///   proxies.
 ///
 /// # Returns
@@ -1409,10 +1542,10 @@ pub fn add_proxy(
 ///
 /// # Parameters
 ///
-/// * `trie` - A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
+/// * `trie`: A mutable reference to a `TrieDBMut<ExtensionLayout>` instance, which represents the
 ///   trie database to modify.
-/// * `main` - An `AccountId` representing the main account for which to remove a proxy.
-/// * `proxy` - An `AccountId` representing the proxy account that needs to be removed
+/// * `main`: An `AccountId` representing the main account for which to remove a proxy.
+/// * `proxy`: An `AccountId` representing the proxy account that needs to be removed.
 ///
 /// # Returns
 ///
@@ -1446,10 +1579,10 @@ pub fn remove_proxy(
 ///
 /// # Parameters
 ///
-/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
-/// * `main` - An `AccountId` object representing the main account to deposit the asset into.
-/// * `asset` - An `AssetId` object representing the asset to deposit.
-/// * `amount` - A `Decimal` object representing the amount of the asset to deposit.
+/// * `trie`: A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `main`: An `AccountId` object representing the main account to deposit the asset into.
+/// * `asset`: An `AssetId` object representing the asset to deposit.
+/// * `amount`: The `Decimal` object representing the amount of the asset to deposit.
 ///
 /// # Returns
 ///
@@ -1482,10 +1615,11 @@ pub fn deposit(
 /// Processes a trade between a maker and a taker, updating their order states and balances
 /// accordingly.
 ///
-/// # Arguments
+/// # Parameters
 ///
-/// * `trie` - A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
-/// * `trade` - A `Trade` object representing the trade to process.
+/// * `trie`: A mutable reference to a `TrieDBMut` object of type `ExtensionLayout`.
+/// * `trade`: A `Trade` object representing the trade to process.
+/// * `config`: Trading pair configuration DTO.
 ///
 /// # Returns
 ///

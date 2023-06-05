@@ -23,6 +23,10 @@
 // Start block on PDEX solo chain: 1815527
 // End block on PDEX solo chain: 6653927
 
+//! # Rewards Pallet.
+//!
+//! This pallet will help to provide "parachain" rewards to the participants in crowdloan.
+
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
@@ -129,13 +133,15 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// The extrinsic will be used to start a new reward cycle
+		/// The extrinsic will be used to start a new reward cycle.
+		///
 		/// # Parameters
-		/// * `origin`: The donor who wants to start the reward cycle
-		/// * `start_block`: The block from which reward distribution will start
-		/// * `end_block`: The block at which last rewards will be distributed
-		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block
-		/// * `reward_id`: The reward id
+		///
+		/// * `origin`: The donor who wants to start the reward cycle.
+		/// * `start_block`: The block from which reward distribution will start.
+		/// * `end_block`: The block at which last rewards will be distributed.
+		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block.
+		/// * `reward_id`: The reward id.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_reward_cycle(1, 1, 1))]
 		pub fn create_reward_cycle(
@@ -170,10 +176,12 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///The extrinsic will transfer and lock users rewards into users account
-		/// # Parameters,
-		/// * `origin`: The users address which has been mapped to reward id
-		/// * `reward_id`: Reward id
+		/// The extrinsic will transfer and lock users rewards into users account.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: The users address which has been mapped to reward id.
+		/// * `reward_id`: Reward id.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_claim_rewards())]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
@@ -255,10 +263,12 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// The user will use the extrinsic to claim rewards
+		/// The user will use the extrinsic to claim rewards.
+		///
 		/// # Parameters
-		/// * `origin`: The users address which has been mapped to reward id
-		/// * `id`: The reward id
+		///
+		/// * `origin`: The users address which has been mapped to reward id.
+		/// * `id`: The reward id.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {

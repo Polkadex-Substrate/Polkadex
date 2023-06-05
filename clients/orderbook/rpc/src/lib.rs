@@ -16,7 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! RPC API for Orderbook.
+//! Defines RPC abstraction and concrete implementation required to communicate with the
+//! `Orderbook`.
 
 #![warn(missing_docs)]
 
@@ -46,8 +47,8 @@ use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
+/// Top-level error type for the RPC handler.
 #[derive(Debug, thiserror::Error)]
-/// Top-level error type for the RPC handler
 pub enum Error {
 	/// The Orderbook RPC endpoint is not ready.
 	#[error("Orderbook RPC endpoint not ready")]
@@ -86,7 +87,7 @@ impl From<Error> for JsonRpseeError {
 	}
 }
 
-// Provides RPC methods for interacting with Orderbook.
+/// RPC abstraction for interacting with Orderbook.
 #[rpc(client, server)]
 pub trait OrderbookApi {
 	/// Returns hash of the latest Orderbook finalized block as seen by this client.
@@ -96,13 +97,16 @@ pub trait OrderbookApi {
 	/// In such case an error would be returned.
 	#[method(name = "ob_submitAction")]
 	async fn submit_action(&self, action: ObMessage) -> RpcResult<()>;
+
 	/// Returns the state of the orderbook that will help engine to recover.
 	///
 	/// # Parameters
-	/// - self: a reference to the current object
 	///
-	/// # Return
-	/// - RpcResult<String>: a Result containing serialized `ObRecoveryState`.
+	/// * `self`: A reference to the current object.
+	///
+	/// # Returns
+	///
+	/// * `RpcResult<String>`: A Result containing serialized `ObRecoveryState`.
 	#[method(name = "ob_getObRecoverState")]
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<String>;
 }
@@ -126,6 +130,15 @@ where
 	Client: Send + Sync + HeaderBackend<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
+	///
+	/// # Parameters
+	///
+	/// * `tx`: Channel for sending messages to the worker.
+	/// * `memory_db`: Reference to the MemoryDB to create in-memory trie representation from it.
+	/// * `working_state_root`: Working state root key in MemoryDB from which trie representation
+	///   will be created.
+	/// * `runtime`: Something that provides a runtime api.
+	/// * `client`: Blockchain database header backend concrete implementation.
 	pub fn new(
 		_executor: SubscriptionTaskExecutor,
 		tx: UnboundedSender<ObMessage>,
@@ -145,7 +158,7 @@ where
 		}
 	}
 
-	/// Returns the serialized offchain state based on the last finalized snapshot summary
+	/// Returns the serialized offchain state based on the last finalized snapshot summary.
 	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<String> {
 		// get snapshot summary
 		let last_snapshot_summary = self

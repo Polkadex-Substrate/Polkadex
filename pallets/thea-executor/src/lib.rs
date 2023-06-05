@@ -197,13 +197,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Manually claim an approved deposit
+		/// Manually claim an approved deposit.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: User
+		/// * `origin`: User.
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
-		/// (it's used to parametrise the weight of this extrinsic)
+		/// (it's used to parametrise the weight of this extrinsic).
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::default())]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
@@ -236,7 +236,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Add Token Config
+		/// Add Token Config.
 		///
 		/// # Parameters
 		///
