@@ -199,7 +199,7 @@ impl sp_core::traits::SpawnNamed for DummyTaskExecutor {
 		_group: Option<&'static str>,
 		_future: BoxFuture<'static, ()>,
 	) {
-		todo!()
+		unreachable!()
 	}
 
 	fn spawn(
@@ -208,6 +208,6 @@ impl sp_core::traits::SpawnNamed for DummyTaskExecutor {
 		_group: Option<&'static str>,
 		_future: BoxFuture<'static, ()>,
 	) {
-		todo!()
+		unreachable!()
 	}
 }

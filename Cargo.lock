@@ -6353,6 +6353,7 @@ dependencies = [
  "substrate-frame-rpc-system",
  "tempfile",
  "thea-client",
+ "thea-message-handler",
  "thea-primitives",
  "try-runtime-cli",
 ]

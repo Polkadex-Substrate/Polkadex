@@ -33,7 +33,6 @@ members = [
   "pallets/pdex-migration",
   "pallets/ocex",
   "pallets/rewards",
-  "pallets/thea-message-handler",
   "primitives/orderbook",
   "primitives/bls-primitives",
   "primitives/polkadex",

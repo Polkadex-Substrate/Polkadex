@@ -194,7 +194,7 @@ std = [
   "pallet-rewards/std",
   "thea-executor/std",
   "thea-primitives/std",
-  "frame-try-runtime/std",
+  "frame-try-runtime?/std",
 ]
 runtime-benchmarks = [
   #theirs

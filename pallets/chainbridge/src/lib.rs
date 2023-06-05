@@ -362,7 +362,6 @@ pub mod pallet {
         let dispatch_info = call.get_dispatch_info();
         (dispatch_info.weight, dispatch_info.class, Pays::Yes)
         })]
-		// TODO: benchmark this function too and add to proposal weight above
 		#[pallet::call_index(6)]
 		pub fn acknowledge_proposal(
 			origin: OriginFor<T>,
