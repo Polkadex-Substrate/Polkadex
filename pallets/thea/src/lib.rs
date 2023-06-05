@@ -19,6 +19,14 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+//! # Thea pallet.
+//!
+//! The core logic for runtime is handled by the Thea pallet. The most important
+//! responsibilities of the Thea pallet are to:
+//! * process ingress messages to the runtime;
+//! * keep track of egress messages;
+//! * handle validator session changes;
+
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
 use parity_scale_codec::{Encode, MaxEncodedLen};
