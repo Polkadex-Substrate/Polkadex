@@ -237,9 +237,9 @@ pub fn run() -> Result<()> {
 					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 				Ok((
-					cmd.run::<Block, ExtendedHostFunctions<
+					cmd.run::<Block, sc_executor::sp_wasm_interface::ExtendedHostFunctions<
 						sp_io::SubstrateHostFunctions,
-						<ExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+						<ExecutorDispatch as sc_executor::NativeExecutionDispatch>::ExtendHostFunctions,
 					>>(),
 					task_manager,
 				))
