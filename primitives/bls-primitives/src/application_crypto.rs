@@ -48,7 +48,7 @@ impl RuntimePublic for Public {
 
 	#[cfg(not(feature = "parachain"))]
 	fn generate_pair(key: KeyTypeId, seed: Option<Vec<u8>>) -> Self {
-		crate::host_function::bls_crypto_ext::bls_generate_pair(key, seed)
+		crate::host_functions::bls_crypto_ext::bls_generate_pair(key, seed)
 	}
 
 	#[cfg(feature = "parachain")]

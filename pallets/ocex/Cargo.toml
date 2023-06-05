@@ -35,7 +35,7 @@ pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
-bls-primitives = { path = "../../primitives/bls-primitives", default-features = false }
+bls-primitives = { workspace = true, default-features = false }
 hex = "0.4.3"
 
 [features]

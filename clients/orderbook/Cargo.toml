@@ -25,7 +25,7 @@ reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branc
 reqwest = "0.11.14"
 tokio = { version = "1.26.0", features = ["rt-multi-thread"] }
 orderbook-primitives = { path = "../../primitives/orderbook" }
-bls-primitives = { path = "../../primitives/bls-primitives" }
+bls-primitives = { workspace = true }
 polkadex-primitives = { path = "../../primitives/polkadex" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }

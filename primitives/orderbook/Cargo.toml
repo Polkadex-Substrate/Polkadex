@@ -23,7 +23,7 @@ anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
 ], default-features = false }
-bls-primitives = { path = "../bls-primitives", default-features = false }
+bls-primitives = { workspace = true, default-features = false }
 libp2p = { version = "0.50.0", optional = true }
 
 
