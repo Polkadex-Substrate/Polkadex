@@ -397,10 +397,10 @@ where
 			if next_snapshot_id == pending_snapshot.snapshot_id {
 				// We don't need to do anything because we already submitted the snapshot.
 				// Check if pending snapshot was removed from runtime, if yes, proceed, else wait
-				let local_key = self.keystore.get_local_key(&active_set[..])?;
+				let local_key = self.keystore.get_local_key(&active_set.validators[..])?;
 
 				if let Some(pending_snapshot_id) =
-					self.runtime.runtime_api().pending_snapshot(&local_key)?
+					self.runtime.runtime_api().pending_snapshot(&at, local_key)?
 				{
 					if pending_snapshot.snapshot_id == pending_snapshot_id {
 						return Ok(())
