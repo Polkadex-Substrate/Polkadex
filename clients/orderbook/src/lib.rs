@@ -42,7 +42,7 @@ mod error;
 mod gossip;
 mod keystore;
 mod metrics;
-mod snapshot;
+pub mod snapshot;
 mod utils;
 mod worker;
 

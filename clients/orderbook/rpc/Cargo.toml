@@ -1,12 +1,13 @@
 [package]
 name = "orderbook-rpc"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"] }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = ["scale-codec"] }
 futures = "0.3.21"
+hex = "0.4.3"
 jsonrpsee = { workspace = true, features = ["server", "macros"] }
 log = "0.4"
 parking_lot = "0.12.0"
@@ -18,6 +19,7 @@ orderbook-primitives = { path = "../../../primitives/orderbook" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }

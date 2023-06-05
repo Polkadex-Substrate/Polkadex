@@ -119,11 +119,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 282,
+	spec_version: 283,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
-	state_version: 0, // TODO: Check if this is correct?
+	state_version: 0,
 };
 
 /// The BABE epoch configuration at genesis.
@@ -1301,7 +1301,7 @@ impl pallet_rewards::Config for Runtime {
 	type NativeCurrency = Balances;
 	type Public = <Signature as traits::Verify>::Signer;
 	type Signature = Signature;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = pallet_rewards::weights::WeightInfo<Runtime>;
 }
 
@@ -1775,18 +1775,26 @@ impl_runtime_apis! {
 		}
 	}
 
+
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
-		fn on_runtime_upgrade() -> (Weight, Weight) {
+		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
 			// NOTE: intentional unwrap: we don't want to propagate the error backwards, and want to
 			// have a backtrace here. If any of the pre/post migration checks fail, we shall stop
 			// right here and right now.
-			let weight = Executive::try_runtime_upgrade().unwrap();
+			let weight = Executive::try_runtime_upgrade(checks).unwrap();
 			(weight, RuntimeBlockWeights::get().max_block)
 		}
 
-		fn execute_block_no_check(block: Block) -> Weight {
-			Executive::execute_block_no_check(block)
+		fn execute_block(
+			block: Block,
+			state_root_check: bool,
+			signature_check: bool,
+			select: frame_try_runtime::TryStateSelect
+		) -> Weight {
+			// NOTE: intentional unwrap: we don't want to propagate the error backwards, and want to
+			// have a backtrace here.
+			Executive::try_execute_block(block, state_root_check, signature_check, select).expect("execute-block failed")
 		}
 	}
 
