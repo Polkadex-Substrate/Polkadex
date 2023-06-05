@@ -14,7 +14,6 @@
 // GNU General Public License for more details.
 
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
-use frame_support::sp_io;
 use std::sync::Arc;
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -31,7 +30,6 @@ use polkadex_node::benchmarking::{
 	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
 };
 use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
-use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 

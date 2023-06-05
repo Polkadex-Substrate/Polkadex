@@ -43,6 +43,7 @@ members = [
   "pallets/router",
   "pallets/liquidity",
   "pallets/thea-executor",
+#  "pallets/thea-message-handler",
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
   "misc/load-testing",
