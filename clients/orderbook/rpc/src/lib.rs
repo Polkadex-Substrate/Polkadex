@@ -172,7 +172,6 @@ pub struct OrderbookDeps<Backend, Client, Runtime> {
 /// Implements the OrderbookApi RPC trait for interacting with Orderbook.
 pub struct OrderbookRpc<Block, Client, Backend, Runtime> {
 	tx: UnboundedSender<ObMessage>,
-	_executor: SubscriptionTaskExecutor,
 	memory_db: DbRef,
 	working_state_root: Arc<RwLock<[u8; 32]>>,
 	runtime: Arc<Runtime>,
@@ -191,12 +190,10 @@ where
 {
 	/// Creates a new Orderbook Rpc handler instance.
 	pub fn new(
-		_executor: SubscriptionTaskExecutor,
 		deps: OrderbookDeps<Backend, Client, Runtime>,
 	) -> Self {
 		Self {
 			tx: deps.rpc_channel,
-			_executor,
 			memory_db: deps.memory_db,
 			working_state_root: deps.working_state_root,
 			runtime: deps.runtime.clone(),

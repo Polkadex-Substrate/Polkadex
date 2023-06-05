@@ -50,6 +50,35 @@ members = [
   "misc/crowdloan-verifier",
 ]
 
+default-members = [
+  "client",
+  "node",
+  "runtime",
+  "clients/orderbook",
+  "clients/orderbook/rpc",
+  "clients/thea",
+  "pallets/pdex-migration",
+  "pallets/chainbridge",
+  "pallets/asset-handler",
+  "pallets/pdex-migration",
+  "pallets/ocex",
+  "pallets/rewards",
+  "primitives/orderbook",
+  "primitives/bls-primitives",
+  "primitives/polkadex",
+  "primitives/thea",
+  "pallets/thea",
+  "pallets/swap",
+  "pallets/support",
+  "pallets/router",
+  "pallets/liquidity",
+  "pallets/thea-executor",
+  "pallets/rewards/rpc",
+  "pallets/rewards/rpc/runtime-api",
+  "misc/load-testing",
+  "misc/crowdloan-verifier",
+]
+
 [workspace.dependencies]
 log = { version = "0.4.8", default-features = false }
 anyhow = "1.0.56"
