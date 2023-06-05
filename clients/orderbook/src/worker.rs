@@ -421,7 +421,10 @@ where
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
 		summary.aggregate_signature = Some(signature.into());
-		let bit_index = active_set.validators().iter().position(|v| v == &signing_key)
+		let bit_index = active_set
+			.validators()
+			.iter()
+			.position(|v| v == &signing_key)
 			.ok_or(Error::SigningKeyNotFound)?;
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index);
