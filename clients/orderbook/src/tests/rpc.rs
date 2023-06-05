@@ -121,7 +121,7 @@ pub async fn test_orderbook_rpc() {
 		client: testnet.peers[peer_id].client().as_client().clone(),
 		runtime: runtime.clone(),
 	};
-	let rpc_handle = OrderbookRpc::new(Arc::new(DummyTaskExecutor), deps);
+	let rpc_handle = OrderbookRpc::new(deps);
 	let worker_params = crate::worker::WorkerParams {
 		client: testnet.peers[peer_id].client().as_client(),
 		backend: testnet.peers[peer_id].client().as_backend(),

@@ -162,7 +162,7 @@ where
 	)?;
 	io.merge(
 		Grandpa::new(
-			subscription_executor.clone(),
+			subscription_executor,
 			shared_authority_set.clone(),
 			shared_voter_state,
 			justification_stream,

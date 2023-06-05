@@ -21,7 +21,7 @@ pub trait BLSCryptoExt {
 				(pair, seed_string)
 			},
 			Some(seed) => {
-				let seed = String::from_utf8(seed.clone()).expect("expected seed to be Utf-8");
+				let seed = String::from_utf8(seed).expect("expected seed to be Utf-8");
 				(crate::Pair::from_string(seed.as_str(), None).expect("Seed not valid!"), seed)
 			},
 		};

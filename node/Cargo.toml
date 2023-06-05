@@ -76,7 +76,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+#sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }

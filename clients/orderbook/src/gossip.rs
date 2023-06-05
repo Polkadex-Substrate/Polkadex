@@ -185,7 +185,7 @@ where
 		match message {
 			GossipMessage::ObMessage(msg) if msg.reset =>
 				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
-					!(msg.version.saturating_add(1) == *self.state_version.read()),
+					msg.version.saturating_add(1) != *self.state_version.read(),
 			GossipMessage::ObMessage(msg) if !msg.reset =>
 				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
 					(msg.version < *self.state_version.read()),
