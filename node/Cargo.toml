@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-node"
-version = "4.0.0"
+version = "5.0.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2021"
@@ -13,7 +13,7 @@ repository = "https://github.com/Polkadex-Substrate/Polkadex/"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-build-script-utils = { version = "3.0.0" }
+substrate-build-script-utils = { version = "5.0.0" }
 structopt = { version = "0.3.8", optional = true }
 
 [dependencies]
@@ -21,13 +21,13 @@ structopt = { version = "0.3.8", optional = true }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.136", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
-hex-literal = "0.3.1"
+hex-literal = "0.4.1"
 clap = { version = "4.0.9", features = ["derive"] }
 parking_lot = "0.12.1"
 itertools = "0.10.1"
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies
-node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
+node-polkadex-runtime = { path = "../runtime" }
 pallet-asset-handler-rpc = { path = "../pallets/asset-handler/rpc" }
 pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
 polkadex-client = { path = "../client" }
@@ -92,10 +92,10 @@ frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branc
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37", optional = true }
 
 
-# Force 0.9.2 as snow release to fix the compilation.
-#
-# When libp2p also enforces this version, we can get rid off this extra dep here.
-snow = "0.9.2"
+## Force 0.9.2 as snow release to fix the compilation.
+##
+## When libp2p also enforces this version, we can get rid off this extra dep here.
+#snow = "0.9.2"
 
 [dev-dependencies]
 futures = "0.3.9"

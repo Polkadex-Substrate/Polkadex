@@ -55,7 +55,7 @@ pub struct GossipValidator<B>
 where
 	B: Block,
 {
-	_topic: B::Hash,
+	topic: B::Hash,
 	latest_worker_nonce: Arc<RwLock<u64>>,
 	last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
 	_is_validator: bool,
@@ -76,7 +76,7 @@ where
 		state_version: Arc<RwLock<u16>>,
 	) -> GossipValidator<B> {
 		GossipValidator {
-			_topic: topic::<B>(),
+			topic: topic::<B>(),
 			latest_worker_nonce,
 			fullnodes,
 			_is_validator: is_validator,
@@ -101,7 +101,7 @@ where
 					msg.reset
 				{
 					// It's a new message so we process it and keep it in our pool
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndKeep(self.topic)
 				} else {
 					// We already saw this message, so discarding.
 					ValidationResult::Discard
@@ -115,7 +115,7 @@ where
 				}
 				// Validators only process it if the request is for nonces after
 				if *from >= self.last_snapshot.read().worker_nonce {
-					ValidationResult::ProcessAndDiscard(topic::<B>())
+					ValidationResult::ProcessAndDiscard(self.topic)
 				} else {
 					ValidationResult::Discard
 				}
@@ -129,7 +129,7 @@ where
 				// We only process the request for last snapshot
 				if self.last_snapshot.read().snapshot_id == *snapshot_id {
 					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndDiscard(topic::<B>())
+					ValidationResult::ProcessAndDiscard(self.topic)
 				} else {
 					ValidationResult::Discard
 				}
@@ -142,7 +142,7 @@ where
 					ValidationResult::Discard
 				} else {
 					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndDiscard(topic::<B>())
+					ValidationResult::ProcessAndDiscard(self.topic)
 				}
 			},
 		}
@@ -150,17 +150,19 @@ where
 
 	/// Returns true if the messgae can be rebroadcasted
 	pub fn rebroadcast_check(&self, message: &GossipMessage, peerid: PeerId) -> bool {
-		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
-		let interval = match message {
-			GossipMessage::Want(_, _) => WANT_REBROADCAST_INTERVAL,
-			_ => REBROADCAST_INTERVAL,
-		};
 		let mut cache = self.message_cache.write();
+		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
+
 		if self.message_expired_check(message) {
 			// Remove the message from cache when the message is expired.
 			cache.remove(&(msg_hash, peerid));
 			return false
 		}
+
+		let interval = match message {
+			GossipMessage::Want(_, _) => WANT_REBROADCAST_INTERVAL,
+			_ => REBROADCAST_INTERVAL,
+		};
 		match cache.get(&(msg_hash, peerid)) {
 			None => {
 				// Record the first rebroadcast of this message in cache

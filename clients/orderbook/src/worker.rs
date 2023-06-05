@@ -262,7 +262,7 @@ where
 		// block interval
 		if (pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
 			block_interval <
-				self.last_finalized_block
+				self.last_processed_block_in_offchain_state
 					.saturating_sub(*self.last_block_snapshot_generated.read())) &&
 			last_accepted_worker_nonce < *self.latest_worker_nonce.read()
 		// there is something new after last snapshot
@@ -392,14 +392,22 @@ where
 			.get_latest_snapshot(&at)?
 			.snapshot_id
 			.saturating_add(1);
-
+		let active_set = self.runtime.runtime_api().validator_set(&at)?;
 		if let Some(pending_snapshot) = self.pending_snapshot_summary.as_ref() {
 			if next_snapshot_id == pending_snapshot.snapshot_id {
 				// We don't need to do anything because we already submitted the snapshot.
-				return Ok(())
+				// Check if pending snapshot was removed from runtime, if yes, proceed, else wait
+				let local_key = self.keystore.get_local_key(&active_set.validators[..])?;
+
+				if let Some(pending_snapshot_id) =
+					self.runtime.runtime_api().pending_snapshot(&at, local_key)?
+				{
+					if pending_snapshot.snapshot_id == pending_snapshot_id {
+						return Ok(())
+					}
+				}
 			}
 		}
-		let active_set = self.runtime.runtime_api().validator_set(&at)?;
 
 		let mut summary = self.store_snapshot(worker_nonce, stid, next_snapshot_id, &active_set)?;
 		if !self.is_validator {
@@ -413,7 +421,11 @@ where
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
 		summary.aggregate_signature = Some(signature.into());
-		let bit_index = active_set.validators().iter().position(|v| v == &signing_key).unwrap();
+		let bit_index = active_set
+			.validators()
+			.iter()
+			.position(|v| v == &signing_key)
+			.ok_or(Error::SigningKeyNotFound)?;
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index);
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
@@ -435,7 +447,7 @@ where
 	}
 
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
-		info!(target:"orderbook","📒 Processing action: {:?}", action);
+		debug!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
 			// Get Trie here itself and pass to required function
 			// No need to change Test cases
@@ -479,7 +491,6 @@ where
 		info!(target:"orderbook","📒 Checking state sync");
 		// X->Y sync: Ask peers to send the missed worker_nonec
 		if !self.known_messages.is_empty() {
-			info!(target:"orderbook","📒 Known messages len: {:?}", self.known_messages.len());
 			// Collect all known worker nonces
 			let mut known_worker_nonces = self.known_messages.keys().collect::<Vec<&u64>>();
 			// Retain only those that are greater than what we already processed
@@ -541,7 +552,7 @@ where
 	}
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
-		info!(target:"orderbook","📒 Received a new user action: {:?}",action);
+		debug!(target:"orderbook","📒 Received a new user action: {:?}",action);
 
 		if action.version < *self.state_version.read() {
 			warn!(target:"orderbook","📒 Ignoring message before recovery: given: {:?}, current version: {:?}",action.version,self.state_version.read());
@@ -1193,7 +1204,7 @@ where
 										let bit_index = active_set
 											.iter()
 											.position(|v| v == &signing_key)
-											.unwrap();
+											.ok_or(Error::SigningKeyNotFound)?;
 										set_bit_field(&mut summary.bitflags, bit_index);
 
 										if self.pending_snapshot_summary != Some(summary.clone()) {
@@ -1248,13 +1259,12 @@ where
 			} else if to.saturating_sub(from) == 1 && !self.is_validator {
 				// If we are a fullnode and we know all the stids
 				// then broadcast the next best nonce periodically
-				// Unwrap is fine because we know the message exists
-				let best_msg = GossipMessage::ObMessage(Box::new(
-					self.known_messages.get(to).cloned().unwrap(),
-				));
-				self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
-				self.gossip_engine.broadcast_topic(topic::<B>(), true);
-				info!(target:"orderbook","📒 Sending periodic best message broadcast, nonce: {to:?}");
+				if let Some(msg) = self.known_messages.get(to).cloned() {
+					let best_msg = GossipMessage::ObMessage(Box::new(msg));
+					self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
+					self.gossip_engine.broadcast_topic(topic::<B>(), true);
+					info!(target:"orderbook","📒 Sending periodic best message broadcast, nonce: {to:?}");
+				}
 			}
 		}
 		Ok(())

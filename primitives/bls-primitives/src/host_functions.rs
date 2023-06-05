@@ -17,7 +17,7 @@ pub trait BLSCryptoExt {
 	fn bls_generate_pair(&mut self, id: KeyTypeId, seed: Option<Vec<u8>>) -> Public {
 		let (pair, seed) = match seed {
 			None => {
-				let (pair, seed_string, seed) = crate::Pair::generate_with_phrase(None);
+				let (pair, seed_string, _) = crate::Pair::generate_with_phrase(None);
 				(pair, seed_string)
 			},
 			Some(seed) => {

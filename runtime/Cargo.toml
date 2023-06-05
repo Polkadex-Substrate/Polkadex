@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "4.0.0"
+version = "5.0.0"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -194,7 +194,7 @@ std = [
   "pallet-rewards/std",
   "thea-executor/std",
   "thea-primitives/std",
-  "frame-try-runtime/std",
+  "frame-try-runtime?/std",
 ]
 runtime-benchmarks = [
   #theirs
