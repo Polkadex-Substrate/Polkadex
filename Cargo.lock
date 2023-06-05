@@ -5161,7 +5161,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook-rpc"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures 0.3.28",
  "hex",
@@ -6269,7 +6269,7 @@ checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
 
 [[package]]
 name = "polkadex-client"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -6341,6 +6341,7 @@ dependencies = [
  "sp-core",
  "sp-finality-grandpa",
  "sp-inherents",
+ "sp-io",
  "sp-keyring",
  "sp-keystore",
  "sp-runtime",
