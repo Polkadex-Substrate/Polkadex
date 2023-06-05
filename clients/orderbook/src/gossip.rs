@@ -55,10 +55,10 @@ pub struct GossipValidator<B>
 where
 	B: Block,
 {
-	_topic: B::Hash,
+	topic: B::Hash,
 	latest_worker_nonce: Arc<RwLock<u64>>,
 	last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
-	is_validator: bool,
+	_is_validator: bool,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) message_cache: Arc<RwLock<HashMap<([u8; 16], PeerId), Instant>>>,
 	pub state_version: Arc<RwLock<u16>>,
@@ -76,10 +76,10 @@ where
 		state_version: Arc<RwLock<u16>>,
 	) -> GossipValidator<B> {
 		GossipValidator {
-			_topic: topic::<B>(),
+			topic: topic::<B>(),
 			latest_worker_nonce,
 			fullnodes,
-			is_validator,
+			_is_validator: is_validator,
 			last_snapshot,
 			message_cache: Arc::new(RwLock::new(HashMap::new())),
 			state_version,
@@ -93,9 +93,6 @@ where
 	) -> ValidationResult<B::Hash> {
 		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
 		// Discard if we already know this message
-		if self.message_cache.read().contains_key(&(msg_hash, peerid)) {
-			return ValidationResult::Discard
-		}
 		match message {
 			GossipMessage::ObMessage(msg) => {
 				let latest_worker_nonce = *self.latest_worker_nonce.read();
@@ -104,34 +101,35 @@ where
 					msg.reset
 				{
 					// It's a new message so we process it and keep it in our pool
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndKeep(self.topic)
 				} else {
 					// We already saw this message, so discarding.
 					ValidationResult::Discard
 				}
 			},
 
-			GossipMessage::WantWorkerNonce(from, to) => {
-				if from > to {
+			GossipMessage::WantWorkerNonce(from, to, version) => {
+				if from > to || *version < *self.state_version.read() {
 					// Invalid request
 					return ValidationResult::Discard
 				}
 				// Validators only process it if the request is for nonces after
 				if *from >= self.last_snapshot.read().worker_nonce {
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndDiscard(self.topic)
 				} else {
 					ValidationResult::Discard
 				}
 			},
 			GossipMessage::Want(snapshot_id, _) => {
-				if self.is_validator {
-					// Only fullnodes will respond to this
-					return ValidationResult::Discard
-				}
+				// TODO: Currently enabled for all nodes
+				// if self.is_validator {
+				// 	// Only fullnodes will respond to this
+				// 	return ValidationResult::Discard
+				// }
 				// We only process the request for last snapshot
 				if self.last_snapshot.read().snapshot_id == *snapshot_id {
 					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndKeep(topic::<B>())
+					ValidationResult::ProcessAndDiscard(self.topic)
 				} else {
 					ValidationResult::Discard
 				}
@@ -144,7 +142,7 @@ where
 					ValidationResult::Discard
 				} else {
 					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndDiscard(topic::<B>())
+					ValidationResult::ProcessAndDiscard(self.topic)
 				}
 			},
 		}
@@ -152,30 +150,50 @@ where
 
 	/// Returns true if the messgae can be rebroadcasted
 	pub fn rebroadcast_check(&self, message: &GossipMessage, peerid: PeerId) -> bool {
+		let mut cache = self.message_cache.write();
 		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
+
+		if self.message_expired_check(message) {
+			// Remove the message from cache when the message is expired.
+			cache.remove(&(msg_hash, peerid));
+			return false
+		}
+
 		let interval = match message {
 			GossipMessage::Want(_, _) => WANT_REBROADCAST_INTERVAL,
 			_ => REBROADCAST_INTERVAL,
 		};
-		if self.message_expired_check(message) {
-			return false
-		}
-		match self.message_cache.read().get(&(msg_hash, peerid)) {
-			None => true,
-			Some(last_time) => Instant::now().sub(*last_time) > interval,
+		match cache.get(&(msg_hash, peerid)) {
+			None => {
+				// Record the first rebroadcast of this message in cache
+				cache.insert((msg_hash, peerid), Instant::now());
+				true
+			},
+			Some(last_time) => {
+				let expired = Instant::now().sub(*last_time) > interval;
+				if expired {
+					// Remove the message from cache when the message is expired.
+					cache.remove(&(msg_hash, peerid));
+				}
+				expired
+			},
 		}
 	}
 
 	/// Returns true if the message is expired.
 	pub fn message_expired_check(&self, message: &GossipMessage) -> bool {
 		match message {
-			GossipMessage::ObMessage(msg) =>
+			GossipMessage::ObMessage(msg) if msg.reset =>
 				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
-					msg.version < *self.state_version.read(),
+					msg.version.saturating_add(1) != *self.state_version.read(),
+			GossipMessage::ObMessage(msg) if !msg.reset =>
+				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
+					(msg.version < *self.state_version.read()),
 
-			GossipMessage::WantWorkerNonce(from, _) => {
+			GossipMessage::WantWorkerNonce(from, _, version) => {
 				// Validators only process it if the request is for nonces after
-				*from < self.last_snapshot.read().worker_nonce
+				(*from < self.last_snapshot.read().worker_nonce) ||
+					(*version < *self.state_version.read())
 			},
 
 			GossipMessage::Want(snapshot_id, _) =>
@@ -250,5 +268,54 @@ where
 			trace!(target:"ob-gossip","{msg:?} egress allowed check result: {result:?}");
 			result
 		})
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::gossip::GossipValidator;
+	use orderbook_primitives::{
+		types::{GossipMessage, ObMessage, UserActions},
+		SnapshotSummary,
+	};
+	use parking_lot::RwLock;
+	use polkadex_primitives::{AccountId, Block};
+	use std::sync::Arc;
+
+	#[test]
+	pub fn test_message_expiry_check() {
+		let latest_worker_nonce = Arc::new(RwLock::new(0));
+		let fullnodes = Arc::new(RwLock::new(Default::default()));
+		let last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>> =
+			Arc::new(RwLock::new(Default::default()));
+		let state_version: Arc<RwLock<u16>> = Arc::new(RwLock::new(1));
+
+		let validator: GossipValidator<Block> = GossipValidator::new(
+			latest_worker_nonce,
+			fullnodes,
+			false,
+			last_snapshot,
+			state_version,
+		);
+
+		let gossip = GossipMessage::ObMessage(Box::from(ObMessage {
+			stid: 0,
+			worker_nonce: 0,
+			action: UserActions::Reset,
+			signature: Default::default(),
+			reset: true,
+			version: 0,
+		}));
+		assert!(!validator.message_expired_check(&gossip));
+
+		let gossip = GossipMessage::ObMessage(Box::from(ObMessage {
+			stid: 0,
+			worker_nonce: 0,
+			action: UserActions::BlockImport(1),
+			signature: Default::default(),
+			reset: false,
+			version: 1,
+		}));
+		assert!(!validator.message_expired_check(&gossip));
 	}
 }

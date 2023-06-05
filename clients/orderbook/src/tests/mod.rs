@@ -19,7 +19,6 @@
 mod gosssip;
 pub mod rpc;
 pub mod sync;
-
 use futures::{channel::mpsc::UnboundedSender, stream::FuturesUnordered, StreamExt};
 use memory_db::{HashKey, MemoryDB};
 use orderbook_primitives::{
@@ -49,6 +48,8 @@ use sp_keyring::AccountKeyring;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Header, NumberFor};
 use std::{collections::HashMap, future::Future, sync::Arc};
+use tracing::info_span;
+use tracing_futures::Instrument;
 
 #[derive(Clone, Default)]
 pub(crate) struct TestApi {
@@ -420,7 +421,14 @@ where
 			memory_db: net.peers[peer_id].data.memory_db.clone(),
 			working_state_root: net.peers[peer_id].data.working_state_root.clone(),
 		};
-		let gadget = crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params);
+
+		let gadget = if is_validator {
+			crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params)
+				.instrument(info_span!("val:", peer_id))
+		} else {
+			crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params)
+				.instrument(info_span!("ful:", peer_id))
+		};
 
 		fn assert_send<T: Send>(_: &T) {}
 		assert_send(&gadget);

@@ -171,7 +171,7 @@ where
 
 		let bitmap: Vec<u128> = prepare_bitmap(&vec![bit_index], active.validators.len()).unwrap();
 
-		info!(target:"thea"," 🌉 Bitmap generated for message with nonce: {:?}, bitmap: {:?}",message.nonce, bitmap);
+		info!(target:"thea","🌉 Bitmap generated for message with nonce: {:?}, bitmap: {:?}",message.nonce, bitmap);
 
 		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
@@ -183,7 +183,7 @@ where
 			self.foreign_chain.check_message(&message.payload).await
 		} else {
 			let finalized_blk = self.last_finalized_blk;
-			let network = self.thea_network.unwrap();
+			let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 			let result = self
 				.runtime
 				.runtime_api()
@@ -340,10 +340,12 @@ where
 			warn!(target: "thea", "🌉 Thea authorities not initialized yet!");
 			return Ok(())
 		}
+
 		info!(target: "thea", "🌉 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		let at = BlockId::hash(header.hash());
 		self.last_finalized_blk = at;
+
 		// Proceed only if we are a validator
 		if !self.is_validator {
 			return Ok(())
@@ -365,7 +367,7 @@ where
 				self.thea_network = network;
 			}
 		}
-		let network = self.thea_network.unwrap();
+		let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 
 		// Update the last processed foreign nonce from native
 		let last_foreign_nonce_processed: u64 = self
@@ -385,7 +387,7 @@ where
 				.outgoing_messages(&at, network, next_nonce_to_process)?;
 
 		if let Some(message) = message {
-			info!(target:"thea", "🌉 Processing new message from native chain: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
+			info!(target:"thea", "🌉 Processing new message from Polkadex: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
 			// Don't do anything if we already know about the message
 			// It means Thea is already processing it.
 			if !self.message_cache.read().contains_key(&message) {
@@ -404,6 +406,8 @@ where
 					}
 				}
 			}
+		} else {
+			info!(target:"thea", "🌉 No messages from Polkadex: nonce: {:?}, to_network: {:?}",next_nonce_to_process, network);
 		}
 
 		Ok(())
@@ -440,7 +444,7 @@ where
 			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
 				break
 			} else {
-				debug!(target: "thea", "🌉 Waiting for thea pallet to become available...");
+				info!(target: "thea", "🌉 Waiting for thea pallet to become available...");
 			}
 		}
 	}

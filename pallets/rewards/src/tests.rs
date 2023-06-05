@@ -233,9 +233,7 @@ fn initialize_claim_rewards() {
 				let (mut alice_account, _) = get_alice_account_with_rewards();
 				//get alice account from hashmap
 				if let Some((key, _)) = crowdloan_rewardees::HASHMAP.iter().next() {
-					let vec: &Vec<u8> = key;
-					let arr: [u8; 32] = vec[..].try_into().unwrap();
-					alice_account = AccountId::new(arr);
+					alice_account = key.clone();
 				}
 				assert_ok!(Rewards::create_reward_cycle(
 					RuntimeOrigin::root(),

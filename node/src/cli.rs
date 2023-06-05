@@ -30,6 +30,10 @@ pub struct Cli {
 	/// Thea expects foreign chain to run in this url
 	#[arg(short, long, default_value_t = String::from("ws://127.0.0.1:9902"))]
 	pub foreign_chain_url: String,
+
+	/// Thea Dummy mode starts the chain with dummy connector ( for local testing only )
+	#[arg(short, long, default_value_t = false)]
+	pub thea_dummy_mode: bool,
 }
 
 #[derive(Debug, clap::Subcommand)]

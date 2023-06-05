@@ -14,7 +14,6 @@
 // GNU General Public License for more details.
 
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
-use frame_support::sp_io;
 use std::sync::Arc;
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -31,7 +30,6 @@ use polkadex_node::benchmarking::{
 	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
 };
 use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
-use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 
@@ -90,7 +88,8 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				service::new_full(config, cli.foreign_chain_url).map_err(sc_cli::Error::Service)
+				service::new_full(config, cli.foreign_chain_url, cli.thea_dummy_mode)
+					.map_err(sc_cli::Error::Service)
 			})
 		},
 		// Some(Subcommand::Inspect(cmd)) => {
@@ -238,9 +237,9 @@ pub fn run() -> Result<()> {
 					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 				Ok((
-					cmd.run::<Block, ExtendedHostFunctions<
-						sp_io::SubstrateHostFunctions,
-						<ExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+					cmd.run::<Block, sc_executor::sp_wasm_interface::ExtendedHostFunctions<
+						frame_support::sp_io::SubstrateHostFunctions,
+						<ExecutorDispatch as sc_executor::NativeExecutionDispatch>::ExtendHostFunctions,
 					>>(),
 					task_manager,
 				))
