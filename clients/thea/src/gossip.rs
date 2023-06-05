@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Contains messages exchange specific logic related to the messages validation.
+
 use crate::types::GossipMessage;
 use log::trace;
 use parity_scale_codec::Decode;
@@ -31,7 +33,7 @@ use std::{
 use thea_primitives::{Message, NATIVE_NETWORK};
 use tokio::time::Instant;
 
-/// Gossip engine messages topic
+/// Gossip engine messages topic.
 pub fn topic<B: Block>() -> B::Hash
 where
 	B: Block,
@@ -39,25 +41,31 @@ where
 	<<B::Header as Header>::Hashing as Hash>::hash(b"/thea/1")
 }
 
-/// Thea gossip validator
+/// Thea gossip validator.
 ///
-/// Validate Orderbook gossip messages and limit the number of broadcast rounds.
+/// Validate Thea gossip messages and limit the number of broadcast rounds.
 ///
 /// Allows messages for 'rounds >= last concluded' to flow, everything else gets
 /// rejected/expired.
 ///
-///All messaging is handled in a single Orderbook global topic.
+///All messaging is handled in a single Thea global topic.
 pub struct GossipValidator {
 	pub(crate) peers: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
-	foreign_last_nonce: Arc<RwLock<u64>>, /* Nonce of foreign message that was last processed in
-	                                       * native */
-	native_last_nonce: Arc<RwLock<u64>>, /* Nonce of native message that was last processed in
-	                                      * foreign */
+	// Nonce of foreign message that was last processed in native.
+	foreign_last_nonce: Arc<RwLock<u64>>,
+	// Nonce of native message that was last processed in foreign.
+	native_last_nonce: Arc<RwLock<u64>>,
 }
 
 impl GossipValidator {
+	/// Constructor.
+	///
+	/// # Parameters
+	/// * `cache`: Messages cache.
+	/// * `foreign_last_nonce`: Nonce of foreign message that was last processed in native.
+	/// * `native_last_nonce`: Nonce of native message that was last processed in foreign.
 	pub fn new(
 		cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 		foreign_last_nonce: Arc<RwLock<u64>>,
@@ -73,6 +81,11 @@ impl GossipValidator {
 		}
 	}
 
+	/// Validates provided message.
+	///
+	/// # Parameters
+	///
+	/// * `message`: `GossipMessage` reference to perform validation on.
 	pub fn validate_message(&self, message: &GossipMessage) -> bool {
 		// verify the message with our message cache and foreign chain connector
 		if message.payload.network == NATIVE_NETWORK {
@@ -84,6 +97,11 @@ impl GossipValidator {
 		}
 	}
 
+	/// Defines if the message can be rebroadcasted.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Gossip message to rebroadcast.
 	pub fn rebroadcast_check(&self, message: &GossipMessage) -> bool {
 		// We rebroadcast it as long as its in our cache, if its not in our cache,
 		// then don't broadcast it, its removed from cache when the message is accepted.

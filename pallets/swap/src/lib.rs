@@ -234,11 +234,13 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
-		/// Allow users to add liquidity to a given pool
+		/// Allow users to add liquidity to a given pool.
 		///
-		/// - `pool`: Currency pool, in which liquidity will be added
-		/// - `liquidity_amounts`: Liquidity amounts to be added in pool
-		/// - `minimum_amounts`: specifying its "worst case" ratio when pool already exists
+		/// # Parameters
+		///
+		/// * `pool`: Currency pool, in which liquidity will be added.
+		/// * `liquidity_amounts`: Liquidity amounts to be added in pool.
+		/// * `minimum_amounts`: specifying its "worst case" ratio when pool already exists.
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::add_liquidity())]
 		#[transactional]
@@ -320,10 +322,12 @@ pub mod pallet {
 			)
 		}
 
-		/// Allow users to remove liquidity from a given pool
+		/// Allow users to remove liquidity from a given pool.
 		///
-		/// - `pair`: Currency pool, in which liquidity will be removed
-		/// - `liquidity`: liquidity to be removed from user's liquidity
+		/// # Parameters
+		///
+		/// * `pair`: Currency pool, in which liquidity will be removed.
+		/// * `liquidity`: liquidity to be removed from user's liquidity.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::remove_liquidity())]
 		#[transactional]
@@ -369,12 +373,14 @@ pub mod pallet {
 			})
 		}
 
-		/// Create of a new pool, governance only
+		/// Create of a new pool, governance only.
 		///
-		/// - `pool`: Currency pool, in which liquidity will be added
-		/// - `liquidity_amounts`: Liquidity amounts to be added in pool
-		/// - `lptoken_receiver`: Allocate any liquidity tokens to lptoken_receiver
-		/// - `lp_token_id`: Liquidity pool share representative token
+		/// # Parameters
+		///
+		/// * `pool`: Currency pool, in which liquidity will be added.
+		/// * `liquidity_amounts`: Liquidity amounts to be added in pool.
+		/// * `lptoken_receiver`: Allocate any liquidity tokens to lptoken_receiver.
+		/// * `lp_token_id`: Liquidity pool share representative token.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::create_pool())]
 		#[transactional]

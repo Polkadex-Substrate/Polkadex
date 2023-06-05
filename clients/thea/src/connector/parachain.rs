@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! In this module defined concrete implementation of the foreign connector abstraction for the
+//! parachain.
+
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -29,6 +32,7 @@ use crate::{connector::traits::ForeignConnector, error::Error, types::GossipMess
 #[subxt::subxt(runtime_metadata_path = "../../parachain-metadata/metadata.scale")]
 mod parachain {}
 
+/// Client to communicate with the parachain.
 pub struct ParachainClient {
 	api: OnlineClient<PolkadotConfig>,
 }

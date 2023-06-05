@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # Off Chain EXchange Pallet.
+//!
+//! The OCEX pallet is the foundation for the fund security. This pallet handles all the critical
+//! operational tasks.
+
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
@@ -66,6 +71,7 @@ const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const WITHDRAWAL_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 
+/// Weight abstraction required for "ocex" pallet.
 pub trait OcexWeightInfo {
 	fn register_main_account(_b: u32) -> Weight;
 	fn add_proxy_account(x: u32) -> Weight;
@@ -312,7 +318,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Registers a new account in orderbook
+		/// Registers a new account in orderbook.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_main_account(1))]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
@@ -321,7 +327,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Adds a proxy account to a pre-registered main acocunt
+		/// Adds a proxy account to a pre-registered main account.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account(1))]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
@@ -346,7 +352,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Registers a new trading pair
+		/// Closes trading pair.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::close_trading_pair(1))]
 		pub fn close_trading_pair(
@@ -377,7 +383,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Registers a new trading pair
+		/// Opens a new trading pair.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::open_trading_pair(1))]
 		pub fn open_trading_pair(
@@ -409,7 +415,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Registers a new trading pair
+		/// Registers a new trading pair.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_trading_pair(1))]
 		pub fn register_trading_pair(
@@ -542,7 +548,7 @@ pub mod pallet {
 			}
 		}
 
-		/// Updates the trading pair config
+		/// Updates the trading pair configuration.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_trading_pair(1))]
 		pub fn update_trading_pair(
@@ -671,7 +677,7 @@ pub mod pallet {
 			}
 		}
 
-		/// Deposit Assets to Orderbook
+		/// Deposit Assets to the Orderbook.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit(1))]
 		pub fn deposit(
@@ -684,7 +690,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Removes a proxy account from pre-registered main account
+		/// Removes a proxy account from pre-registered main account.
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_proxy_account(1))]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
@@ -715,11 +721,12 @@ pub mod pallet {
 			})
 		}
 
-		/// Sets snapshot id as current. Callable by governance only
+		/// Sets snapshot id as current. Callable by governance only.
 		///
 		/// # Parameters
-		/// * `origin` - signed member of T::GovernanceOrigin
-		/// * `new_snapshot_id` - u64 id of new *current* snapshot
+		///
+		/// * `origin`: signed member of T::GovernanceOrigin.
+		/// * `new_snapshot_id`: u64 id of new *current* snapshot.
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_snapshot())]
 		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u64) -> DispatchResult {
@@ -728,12 +735,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// The extrinsic will be used to change pending withdrawals limit
+		/// The extrinsic will be used to change pending withdrawals limit.
 		///
 		/// # Parameters
-		/// * `origin`: Orderbook governance
-		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance
-		/// wants to set.
+		///
+		/// * `origin`: Orderbook governance.
+		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance wants to
+		///   set.
 		#[pallet::call_index(9)]
 		#[pallet::weight(<T as Config>::WeightInfo::change_pending_withdrawal_limit())]
 		pub fn change_pending_withdrawal_limit(
@@ -745,10 +753,11 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// The extrinsic will be used to change snapshot interval based on block number
+		/// The extrinsic will be used to change snapshot interval based on block number.
 		///
 		/// # Parameters
-		/// * `origin`: Orderbook governance
+		///
+		/// * `origin`: Orderbook governance.
 		/// * `new_snapshot_interval_block`: The new block interval at which snapshot should  be
 		/// generated.
 		#[pallet::call_index(10)]
@@ -762,9 +771,12 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Withdraws Fees Collected
+		/// Collects withdraws fees.
 		///
-		/// params:  snapshot_number: u32
+		/// # Parameters
+		///
+		/// * `snapshot_id`: Snapshot identifier.
+		/// * `beneficiary`: Receiving fee account identifier.
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::collect_fees(1))]
 		pub fn collect_fees(
@@ -812,9 +824,9 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///This extrinsic will pause/resume the exchange according to flag
-		/// If flag is set to false it will stop the exchange
-		/// If flag is set to true it will resume the exchange
+		/// This extrinsic will pause/resume the exchange according to flag.
+		/// If flag is set to false it will stop the exchange.
+		/// If flag is set to true it will resume the exchange.
 		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_exchange_state(1))]
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
@@ -831,7 +843,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Sends the changes required in balances for list of users with a particular asset
+		/// Sends the changes required in balances for list of users with a particular asset.
 		#[pallet::call_index(13)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_balances(1))]
 		pub fn set_balances(
@@ -858,10 +870,12 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Withdraws user balance
+		/// Withdraws user balance.
 		///
-		/// params: snapshot_number: u32
-		/// account: AccountId
+		/// # Parameters
+		///
+		/// * `snapshot_id`: Key of the withdrawal in the storage map.
+		/// * `account`: Account identifier.
 		#[pallet::call_index(14)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_withdraw(1))]
 		pub fn claim_withdraw(
@@ -1561,7 +1575,6 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	/// Returns a vector of allowlisted asset IDs.
 	///
 	/// # Returns
-	///
 	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.
 	pub fn get_allowlisted_assets() -> Vec<AssetId> {
 		<AllowlistedToken<T>>::get().iter().copied().collect::<Vec<AssetId>>()

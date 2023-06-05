@@ -16,29 +16,34 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Orderbook Prometheus metrics definition
+//! Thea Prometheus metrics definition.
 
 use prometheus::{register, Counter, Gauge, PrometheusError, Registry, U64};
 
-/// Orderbook metrics exposed through Prometheus
+/// Thea metrics exposed through Prometheus.
 pub struct Metrics {
-	/// Last processed state id
+	/// Last processed state id.
 	pub thea_state_id: Gauge<U64>,
-	/// Total number of ob messages sent by this node
+	/// Total number of ob messages sent by this node.
 	pub thea_messages_sent: Counter<U64>,
-	/// Total number of thea messages recvd by this node
+	/// Total number of thea messages received by this node.
 	pub thea_messages_recv: Counter<U64>,
-	/// Total data sent out by thea worker
+	/// Total data sent out by thea worker.
 	pub thea_data_sent: Gauge<U64>,
-	/// Total data recv by thea worker
+	/// Total data recv by thea worker.
 	pub thea_data_recv: Gauge<U64>,
 }
 
 impl Metrics {
+	/// Registers all predefined metrics collectors in registry.
+	///
+	/// # Parameters
+	///
+	/// * `registry`: Registry reference to register collectors in.
 	pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
 			thea_state_id: register(
-				Gauge::new("polkadex_thea_state_id", "Last processed state id by Orderbook")?,
+				Gauge::new("polkadex_thea_state_id", "Last processed state id by Thea")?,
 				registry,
 			)?,
 			thea_messages_sent: register(
@@ -56,11 +61,11 @@ impl Metrics {
 				registry,
 			)?,
 			thea_data_sent: register(
-				Gauge::new("polkadex_thea_data_sent", "Total Data sent by orderbook worker")?,
+				Gauge::new("polkadex_thea_data_sent", "Total Data sent by Thea worker")?,
 				registry,
 			)?,
 			thea_data_recv: register(
-				Gauge::new("polkadex_thea_data_recv", "Total Data received by orderbook worker")?,
+				Gauge::new("polkadex_thea_data_recv", "Total Data received by Thea worker")?,
 				registry,
 			)?,
 		})

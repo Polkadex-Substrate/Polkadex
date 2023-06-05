@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Bridge implementation for the `orderbook` client to control and execute user actions.
+
 #![feature(unwrap_infallible)]
 #![feature(int_roundings)]
 extern crate core;
@@ -126,28 +128,28 @@ where
 	R::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
-	/// Orderbook client
+	/// Orderbook client.
 	pub client: Arc<C>,
-	/// Client Backend
+	/// Client Backend.
 	pub backend: Arc<BE>,
-	/// Client runtime
+	/// Client runtime.
 	pub runtime: Arc<R>,
-	/// Local key store
+	/// Local key store.
 	pub keystore: Option<Arc<LocalKeystore>>,
-	/// Gossip network
+	/// Gossip network.
 	pub network: N,
-	/// Prometheus metric registry
+	/// Prometheus metric registry.
 	pub prometheus_registry: Option<Registry>,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
 	pub protocol_name: sc_network::ProtocolName,
-	/// Boolean indicating if this node is a validator
+	/// Indicates if this node is a validator.
 	pub is_validator: bool,
-	/// Submit message link
+	/// Submit message link.
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	pub marker: PhantomData<B>,
-	// memory db
+	/// Memory db.
 	pub memory_db: DbRef,
-	// working state root
+	/// Working state root.
 	pub working_state_root: Arc<RwLock<[u8; 32]>>,
 }
 
