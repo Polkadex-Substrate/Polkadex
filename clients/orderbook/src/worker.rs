@@ -262,7 +262,7 @@ where
 		// block interval
 		if (pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
 			block_interval <
-				self.last_finalized_block
+				self.last_processed_block_in_offchain_state
 					.saturating_sub(*self.last_block_snapshot_generated.read())) &&
 			last_accepted_worker_nonce < *self.latest_worker_nonce.read()
 		// there is something new after last snapshot
@@ -392,14 +392,22 @@ where
 			.get_latest_snapshot(&at)?
 			.snapshot_id
 			.saturating_add(1);
-
+		let active_set = self.runtime.runtime_api().validator_set(&at)?;
 		if let Some(pending_snapshot) = self.pending_snapshot_summary.as_ref() {
 			if next_snapshot_id == pending_snapshot.snapshot_id {
 				// We don't need to do anything because we already submitted the snapshot.
-				return Ok(())
+				// Check if pending snapshot was removed from runtime, if yes, proceed, else wait
+				let local_key = self.keystore.get_local_key(&active_set[..])?;
+
+				if let Some(pending_snapshot_id) =
+					self.runtime.runtime_api().pending_snapshot(&local_key)?
+				{
+					if pending_snapshot.snapshot_id == pending_snapshot_id {
+						return Ok(())
+					}
+				}
 			}
 		}
-		let active_set = self.runtime.runtime_api().validator_set(&at)?;
 
 		let mut summary = self.store_snapshot(worker_nonce, stid, next_snapshot_id, &active_set)?;
 		if !self.is_validator {
@@ -479,7 +487,6 @@ where
 		info!(target:"orderbook","📒 Checking state sync");
 		// X->Y sync: Ask peers to send the missed worker_nonec
 		if !self.known_messages.is_empty() {
-			info!(target:"orderbook","📒 Known messages len: {:?}", self.known_messages.len());
 			// Collect all known worker nonces
 			let mut known_worker_nonces = self.known_messages.keys().collect::<Vec<&u64>>();
 			// Retain only those that are greater than what we already processed
