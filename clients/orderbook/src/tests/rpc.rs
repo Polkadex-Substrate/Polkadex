@@ -113,14 +113,15 @@ pub async fn test_orderbook_rpc() {
 
 	let sync_oracle = testnet.peers[peer_id].network_service().clone();
 
-	let rpc_handle = OrderbookRpc::new(
-		Arc::new(DummyTaskExecutor),
-		sender,
-		testnet.peers[peer_id].data.memory_db.clone(),
-		testnet.peers[peer_id].data.working_state_root.clone(),
-		runtime.clone(),
-		testnet.peers[peer_id].client().as_client().clone(),
-	);
+	let deps = orderbook_rpc::OrderbookDeps {
+		rpc_channel: sender,
+		memory_db: testnet.peers[peer_id].data.memory_db.clone(),
+		working_state_root: testnet.peers[peer_id].data.working_state_root.clone(),
+		backend: testnet.peers[peer_id].client().as_backend().clone(),
+		client: testnet.peers[peer_id].client().as_client().clone(),
+		runtime: runtime.clone(),
+	};
+	let rpc_handle = OrderbookRpc::new(deps);
 	let worker_params = crate::worker::WorkerParams {
 		client: testnet.peers[peer_id].client().as_client(),
 		backend: testnet.peers[peer_id].client().as_backend(),
@@ -151,6 +152,8 @@ pub async fn test_orderbook_rpc() {
 		stid: 10,
 		action: UserActions::BlockImport(1),
 		signature: Default::default(),
+		reset: false,
+		version: 0,
 	};
 	message.signature = orderbook_operator.sign_prehashed(&message.sign_data());
 	// Generate one block
@@ -196,7 +199,7 @@ impl sp_core::traits::SpawnNamed for DummyTaskExecutor {
 		_group: Option<&'static str>,
 		_future: BoxFuture<'static, ()>,
 	) {
-		todo!()
+		unreachable!()
 	}
 
 	fn spawn(
@@ -205,6 +208,6 @@ impl sp_core::traits::SpawnNamed for DummyTaskExecutor {
 		_group: Option<&'static str>,
 		_future: BoxFuture<'static, ()>,
 	) {
-		todo!()
+		unreachable!()
 	}
 }

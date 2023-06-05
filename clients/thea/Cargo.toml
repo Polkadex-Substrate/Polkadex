@@ -1,6 +1,6 @@
 [package]
 name = "thea-client"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
@@ -17,7 +17,7 @@ serde_json = "1.0.94"
 tokio = "1.26.0"
 tokio-stream = { version = "0.1.12", features = ["time"] }
 thea-primitives = { path = "../../primitives/thea" }
-bls-primitives = { path = "../../primitives/bls-primitives" }
+bls-primitives = { workspace = true }
 polkadex-primitives = { path = "../../primitives/polkadex" }
 subxt = { git = "https://github.com/Polkadex-Substrate/subxt.git", branch = "polkadot-v0.9.37", features = ["substrate-compat"] }
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }

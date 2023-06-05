@@ -36,7 +36,8 @@ use orderbook_primitives::{
 		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
 		UserActions, WithdrawalRequest,
 	},
-	ObApi, SnapshotSummary, ValidatorSet,
+	ObApi, SnapshotSummary, ValidatorSet, ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
+	ORDERBOOK_STATE_CHUNK_PREFIX, ORDERBOOK_WORKER_NONCE_PREFIX,
 };
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
@@ -155,6 +156,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	/// Full-nodes we are connected to.
 	fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	last_processed_block_in_offchain_state: BlockNumber,
+	// Version of current state
+	state_version: Arc<RwLock<u16>>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -167,12 +170,12 @@ where
 	SO: Send + Sync + Clone + 'static + SyncOracle,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
-	/// Return a new BEEFY worker instance.
+	/// Return a new Orderbook worker instance.
 	///
-	/// Note that a BEEFY worker is only fully functional if a corresponding
-	/// BEEFY pallet has been deployed on-chain.
+	/// Note that a Orderbook worker is only fully functional if a corresponding
+	/// Orderbook pallet has been deployed on-chain.
 	///
-	/// The BEEFY pallet is needed in order to keep track of the BEEFY authority set.
+	/// The Orderbook pallet is needed in order to keep track of the Orderbook authority set.
 	///
 	/// # Parameters
 	///
@@ -211,13 +214,14 @@ where
 		let latest_worker_nonce = Arc::new(RwLock::new(nonce));
 		let network = Arc::new(network);
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
-
+		let state_version = Arc::new(RwLock::new(0));
 		// Gossip Validator
 		let gossip_validator = Arc::new(GossipValidator::new(
 			latest_worker_nonce.clone(),
-			fullnodes.clone(),
+			fullnodes,
 			is_validator,
 			last_snapshot.clone(),
+			state_version.clone(),
 		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator, None);
@@ -250,8 +254,8 @@ where
 			trading_pair_configs: Default::default(),
 			orderbook_operator_public_key: None,
 			pending_snapshot_summary: None,
-			fullnodes,
 			last_processed_block_in_offchain_state: 0,
+			state_version,
 		}
 	}
 
@@ -279,7 +283,7 @@ where
 		// block interval
 		if (pending_withdrawals_interval <= self.pending_withdrawals.len() as u64 ||
 			block_interval <
-				self.last_finalized_block
+				self.last_processed_block_in_offchain_state
 					.saturating_sub(*self.last_block_snapshot_generated.read())) &&
 			last_accepted_worker_nonce < *self.latest_worker_nonce.read()
 		// there is something new after last snapshot
@@ -329,7 +333,7 @@ where
 		drop(memory_db);
 		drop(working_state_root);
 		// Queue withdrawal
-		self.pending_withdrawals.push(withdraw.try_into()?);
+		self.pending_withdrawals.push(withdraw.convert(state_change_id, worker_nonce)?);
 		info!(target:"orderbook","📒 Queued withdrawal to pending list"); // Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			if let Err(err) = self.snapshot(worker_nonce, state_change_id) {
@@ -347,19 +351,41 @@ where
 	/// * `num`: Number of importing block.
 	pub fn handle_blk_import(&mut self, num: BlockNumber) -> Result<(), Error> {
 		info!("📒Handling block import: {:?}", num);
-		// Update trading pair configs
-		self.load_trading_pair_configs(num)?;
+		if num.is_zero() {
+			return Ok(())
+		}
+
+		if self.last_processed_block_in_offchain_state.saturating_add(1) != num {
+			error!(
+				"📒Cannot process blk import, last processed blk: {:?}, but trying to import: {:?}",
+				self.last_processed_block_in_offchain_state, num
+			);
+			return Err(Error::OutOfSequenceBlockImport)
+		}
+
+		if self.client.info().finalized_number < num.into() {
+			warn!(
+				"📒Importing block: {:?} but finality is lagging at: {:?}",
+				num,
+				self.client.info().finalized_number
+			);
+			return Err(Error::BlockNotFinalized(
+				self.client.info().finalized_number.saturated_into(),
+				num,
+			))
+		}
+
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
-		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
-
-		// Get the ingress messsages for this block
+		info!("📒Starting state root: {:?}", hex::encode(*working_state_root));
+		// Get the ingress messages for this block
 		let messages = self.runtime.runtime_api().ingress_messages(
-			&BlockId::number(self.last_finalized_block.saturated_into()),
+			&BlockId::number(self.client.info().finalized_number),
 			num.saturated_into(),
 		)?;
 
 		{
+			let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
 			// 3. Execute RegisterMain, AddProxy, RemoveProxy, Deposit messages
 			for message in messages {
 				match message {
@@ -370,12 +396,22 @@ where
 					IngressMessages::AddProxy(main, proxy) => add_proxy(&mut trie, main, proxy)?,
 					IngressMessages::RemoveProxy(main, proxy) =>
 						remove_proxy(&mut trie, main, proxy)?,
+					IngressMessages::OpenTradingPair(config) |
+					IngressMessages::UpdateTradingPair(config) => {
+						let pair = TradingPair::from(config.quote_asset, config.base_asset);
+						self.trading_pair_configs.insert(pair, config);
+					},
+					IngressMessages::CloseTradingPair(config) => {
+						let pair = TradingPair::from(config.quote_asset, config.base_asset);
+						self.trading_pair_configs.remove(&pair);
+					},
 					_ => {},
 				}
 			}
 			// Commit the trie
 			trie.commit();
 		}
+		info!("📒state root after processing: {:?}", hex::encode(*working_state_root));
 		self.last_processed_block_in_offchain_state = num;
 		Ok(())
 	}
@@ -388,21 +424,29 @@ where
 	/// * `stid`: State change id required for the snapshot generation.
 	pub fn snapshot(&mut self, worker_nonce: u64, stid: u64) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Generating snapshot");
-		let at = BlockId::number(self.last_finalized_block.saturated_into());
+		let at = BlockId::number(self.client.info().finalized_number);
 		let next_snapshot_id = self
 			.runtime
 			.runtime_api()
 			.get_latest_snapshot(&at)?
 			.snapshot_id
 			.saturating_add(1);
-
+		let active_set = self.runtime.runtime_api().validator_set(&at)?;
 		if let Some(pending_snapshot) = self.pending_snapshot_summary.as_ref() {
 			if next_snapshot_id == pending_snapshot.snapshot_id {
 				// We don't need to do anything because we already submitted the snapshot.
-				return Ok(())
+				// Check if pending snapshot was removed from runtime, if yes, proceed, else wait
+				let local_key = self.keystore.get_local_key(&active_set.validators[..])?;
+
+				if let Some(pending_snapshot_id) =
+					self.runtime.runtime_api().pending_snapshot(&at, local_key)?
+				{
+					if pending_snapshot.snapshot_id == pending_snapshot_id {
+						return Ok(())
+					}
+				}
 			}
 		}
-		let active_set = self.runtime.runtime_api().validator_set(&at)?;
 
 		let mut summary = self.store_snapshot(worker_nonce, stid, next_snapshot_id, &active_set)?;
 		if !self.is_validator {
@@ -416,7 +460,11 @@ where
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
 		summary.aggregate_signature = Some(signature.into());
-		let bit_index = active_set.validators().iter().position(|v| v == &signing_key).unwrap();
+		let bit_index = active_set
+			.validators()
+			.iter()
+			.position(|v| v == &signing_key)
+			.ok_or(Error::SigningKeyNotFound)?;
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index);
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
@@ -424,7 +472,10 @@ where
 		if self
 			.runtime
 			.runtime_api()
-			.submit_snapshot(&BlockId::number(self.last_finalized_block.into()), summary.clone())?
+			.submit_snapshot(
+				&BlockId::number(self.client.info().finalized_number),
+				summary.clone(),
+			)?
 			.is_err()
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
@@ -440,7 +491,7 @@ where
 	///
 	/// * `action`: Orderbook message DTO.
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
-		info!(target:"orderbook","📒 Processing action: {:?}", action);
+		debug!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
 			// Get Trie here itself and pass to required function
 			// No need to change Test cases
@@ -463,8 +514,13 @@ where
 			UserActions::Withdraw(withdraw) =>
 				self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
+			UserActions::Reset => {
+				// Nothing to do here, we will not reach here.
+				info!(target:"orderbook","📒state is reset.");
+			},
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
+		info!(target:"orderbook","📒Updated working state root: {:?}",hex::encode(*self.working_state_root.read()));
 		metric_set!(self, ob_snapshot_id, action.worker_nonce);
 		self.latest_state_change_id = action.stid;
 		// Multicast the message to other peers
@@ -479,28 +535,30 @@ where
 		info!(target:"orderbook","📒 Checking state sync");
 		// X->Y sync: Ask peers to send the missed worker_nonec
 		if !self.known_messages.is_empty() {
-			info!(target:"orderbook","📒 Known messages len: {:?}", self.known_messages.len());
 			// Collect all known worker nonces
 			let mut known_worker_nonces = self.known_messages.keys().collect::<Vec<&u64>>();
 			// Retain only those that are greater than what we already processed
 			known_worker_nonces.retain(|x| **x > *self.latest_worker_nonce.read());
 			known_worker_nonces.sort_unstable(); // unstable is fine since we know  worker nonces are unique
 									 // if the next best known  worker nonces is not available then ask others
-			if *known_worker_nonces[0] != self.latest_worker_nonce.read().saturating_add(1) {
-				// Ask other peers to send us the requests  worker nonces.
-				info!(target:"orderbook","📒 Asking peers to send us the missed \
+			if let Some(known_best_nonce) = known_worker_nonces.get(0) {
+				if **known_best_nonce != self.latest_worker_nonce.read().saturating_add(1) {
+					// Ask other peers to send us the requests  worker nonces.
+					info!(target:"orderbook","📒 Asking peers to send us the missed \
                 worker nonces: last processed nonce: {:?}, best known nonce: {:?} ",
                     self.latest_worker_nonce.read(), known_worker_nonces[0]);
-				let message = GossipMessage::WantWorkerNonce(
-					*self.latest_worker_nonce.read(),
-					*known_worker_nonces[0],
-				);
+					let message = GossipMessage::WantWorkerNonce(
+						*self.latest_worker_nonce.read(),
+						*known_worker_nonces[0],
+						*self.state_version.read(),
+					);
 
-				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
-				metric_inc!(self, ob_messages_sent);
-				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
-			} else {
-				info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
+					self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
+					metric_inc!(self, ob_messages_sent);
+					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
+				} else {
+					info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
+				}
 			}
 		} else {
 			info!(target: "orderbook", "📒 No new messages known after worker_nonce: {:?}",self.latest_worker_nonce.read());
@@ -523,14 +581,17 @@ where
 		match serde_json::from_slice::<SnapshotStore>(data) {
 			Ok(store) => {
 				info!(target: "orderbook", "📒 Loaded state from snapshot data ({} keys in memory db)",  store.map.len());
-				let memory_db_write_lock = self.memory_db.write();
-				let mut memory_db = memory_db_write_lock.clone();
-				memory_db.load_from(store.map);
+				let mut memory_db = self.memory_db.write();
+				memory_db.load_from(store.convert_to_hashmap());
+				info!(target: "orderbook", "📒 {} keys in loaded memory db",memory_db.data().len());
 				let summary_clone = summary.clone();
 				*self.last_snapshot.write() = summary_clone;
 				*self.latest_worker_nonce.write() = summary.worker_nonce;
 				self.latest_state_change_id = summary.state_change_id;
 				self.last_processed_block_in_offchain_state = summary.last_processed_blk;
+				*self.working_state_root.write() = summary.state_root.0;
+				info!(target: "orderbook", "📒 0x{} state root loaded",hex::encode(summary.state_root.0));
+				*self.state_version.write() = summary.state_version;
 			},
 			Err(err) => {
 				error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
@@ -546,9 +607,13 @@ where
 	///
 	/// * `action`: `Orderbook` message DTO.
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
-		info!(target:"orderbook","📒 Received a new user action: {:?}",action);
+		debug!(target:"orderbook","📒 Received a new user action: {:?}",action);
+
+		if action.version < *self.state_version.read() {
+			warn!(target:"orderbook","📒 Ignoring message before recovery: given: {:?}, current version: {:?}",action.version,self.state_version.read());
+		}
 		// Check if stid is newer or not
-		if action.worker_nonce <= *self.latest_worker_nonce.read() {
+		if action.worker_nonce <= *self.latest_worker_nonce.read() && !action.reset {
 			// Ignore stids we already know.
 			warn!(target:"orderbook","📒 Ignoring old message: given: {:?}, latest stid: {:?}",action.worker_nonce,self.latest_worker_nonce.read());
 			return Ok(())
@@ -569,6 +634,17 @@ where
 		if self.sync_oracle.is_major_syncing() | self.state_is_syncing {
 			info!(target: "orderbook", "📒 Ob message cached for sync to complete: worker_nonce: {:?}",action.worker_nonce);
 			return Ok(())
+		}
+		// Engine sends this during recovery, so reset the state
+		if action.reset {
+			info!(target: "orderbook", "📒 Ob resetting on worker_nonce: {:?}",action.worker_nonce);
+			self.reload_state_from_last_snapshot().await?;
+			// Update the worker nonce
+			*self.latest_worker_nonce.write() = action.worker_nonce;
+			self.known_messages.insert(action.worker_nonce, action.clone());
+			// Multicast the message to other peers
+			let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
+			self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
 		}
 		self.check_state_sync().await?;
 		self.check_worker_nonce_gap_fill().await?;
@@ -607,8 +683,9 @@ where
 	) -> Result<SnapshotSummary<AccountId>, Error> {
 		info!(target: "orderbook", "📒 Storing snapshot: {:?}", snapshot_id);
 		if let Some(mut offchain_storage) = self.backend.offchain_storage() {
-			let store = SnapshotStore { map: self.memory_db.read().data().clone() };
-			info!(target: "orderbook", "📒 snapshot contains {:?} keys ", store.map.len());
+			// TODO: How to avoid cloning memory_db
+			let store = SnapshotStore::new(self.memory_db.read().data().clone().into_iter());
+			info!(target: "orderbook", "📒 snapshot contains {:?} keys", store.map.len());
 			return match serde_json::to_vec(&store) {
 				Ok(data) => {
 					info!(target: "orderbook", "📒 Stored snapshot data ({} bytes)", data.len());
@@ -622,6 +699,7 @@ where
 							chunk_hash.0.as_ref(),
 							chunk,
 						);
+						info!(target: "orderbook", "📒 Stored snapshot chunk: {}", chunk_hash);
 						state_chunk_hashes.push(chunk_hash);
 					}
 
@@ -629,21 +707,23 @@ where
 					self.pending_withdrawals.clear();
 					info!(target: "orderbook", "📒 Stored snapshot withdrawals ({} bytes)", withdrawals.len());
 
-					let working_state_root_read_lock = self.working_state_root.read();
-					let working_state_root = *working_state_root_read_lock;
+					let working_state_root = self.working_state_root.read();
 
 					let summary = SnapshotSummary {
 						validator_set_id: active_set.set_id,
 						snapshot_id,
 						worker_nonce,
-						state_root: working_state_root.into(),
+						state_root: (*working_state_root).into(),
 						state_change_id,
 						bitflags: vec![0; active_set.len().div(128).saturating_add(1)],
 						withdrawals,
 						aggregate_signature: None,
 						state_chunk_hashes,
 						last_processed_blk: self.last_processed_block_in_offchain_state,
+						state_version: *self.state_version.read(),
 					};
+
+					info!(target: "orderbook", "📒 Writing summary to offchain storage: {:?}", summary);
 
 					offchain_storage.set(
 						ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX,
@@ -679,8 +759,10 @@ where
 			let mut data = Vec::new();
 			for chunk_hash in &summary.state_chunk_hashes {
 				match offchain_storage.get(ORDERBOOK_STATE_CHUNK_PREFIX, chunk_hash.0.as_ref()) {
-					None =>
-						error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash),
+					None => {
+						error!(target:"orderbook","📒 Unable to find chunk from offchain state: {:?}",chunk_hash);
+						return Err(Error::SnapshotNotFound)
+					},
 					Some(mut chunk) => {
 						let computed_hash = H128::from(blake2_128(&chunk));
 						if computed_hash != *chunk_hash {
@@ -708,26 +790,40 @@ where
 				match err {
 					Error::Keystore(_) =>
 						error!(target:"orderbook","📒 BLS session key not found: {:?}",err),
+					Error::BlockNotFinalized(_, _) => {
+						// We need to wait a little logger for finality to catch
+						// up before processing these messages.
+						break
+					},
 					_ => {
 						error!(target:"orderbook","📒 Error processing action: {:?}",err);
-						// The node found an error during processing of the action. This means
-						// We need to revert everything after the last successful snapshot
-						// Clear the working state
-						self.memory_db.write().clear();
-						info!(target:"orderbook","📒 Working state cleared.");
-						// We forget about everything else from cache.
-						self.known_messages.clear();
-						info!(target:"orderbook","📒 OB messages cache cleared.");
-						let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
-							&BlockId::Number(self.last_finalized_block.saturated_into()),
-						)?;
-						self.load_snapshot(&latest_summary)?;
+						self.reload_state_from_last_snapshot().await?;
 						return Ok(())
 					},
 				}
 			}
 			next_worker_nonce = self.latest_worker_nonce.read().saturating_add(1);
 		}
+		Ok(())
+	}
+
+	/// Discards current state and reloads the last snapshot accepted by runtime
+	pub async fn reload_state_from_last_snapshot(&mut self) -> Result<(), Error> {
+		// The node found an error during processing of the action. This means
+		// We need to revert everything after the last successful snapshot
+		// Clear the working state
+		self.memory_db.write().clear();
+		info!(target:"orderbook","📒 Working state cleared.");
+		// We forget about everything else from cache.
+		self.known_messages.clear();
+		info!(target:"orderbook","📒 OB messages cache cleared.");
+		let latest_summary = self
+			.runtime
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::Number(self.last_finalized_block.saturated_into()))?;
+		self.load_snapshot(&latest_summary)?;
+		*self.state_version.write() = latest_summary.state_version.saturating_add(1);
+		info!(target:"orderbook","📒 New state version is updated: version: {:?}",self.state_version.read());
 		Ok(())
 	}
 
@@ -739,7 +835,11 @@ where
 	/// * `from`: The worker_nonce to start from.
 	/// * `to`: The worker_nonce to end at.
 	/// * `peer`: The peer that requested the worker_nonces.
-	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
+	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, version: u16, peer: Option<PeerId>) {
+		if version < *self.state_version.read() {
+			debug!(target: "orderbook", "📒 Ignoring old want requests from version: {:?}",version);
+			return
+		}
 		info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
 		if let Some(peer) = peer {
 			info!(target: "orderbook", "📒 Sending worker_nonce request to peer: {:?}", peer);
@@ -776,7 +876,6 @@ where
 				gossip_messages.push(message.encode());
 				messages = vec![] // Reset the buffer
 			}
-			info!(target:"test", "📒 known messages length:{:?}", self.known_messages.len());
 			if let Some(msg) = self.known_messages.get(&worker_nonce) {
 				info!(target: "test", "📒 known_messages: {:?}", self.known_messages.len());
 				messages.push(msg.clone());
@@ -822,45 +921,47 @@ where
 	/// * `remote`: Optional peer id.
 	pub async fn want(&mut self, snapshot_id: &u64, bitmap: &Vec<u128>, remote: Option<PeerId>) {
 		info!(target: "orderbook", "📒 Want snapshot: {:?} - {:?}", snapshot_id, bitmap);
-		// Only respond if we are a fullnode
-		// TODO: Should we respond if we are also syncing???
-		if !self.is_validator {
-			if let Some(peer) = remote {
-				let mut chunks_we_have = vec![];
-				let mut highest_index = 0;
-				let at = BlockId::Number(self.last_finalized_block.saturated_into());
-				if let Ok(Some(summary)) =
-					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
-				{
-					if let Some(offchain_storage) = self.backend.offchain_storage() {
-						let required_indexes: Vec<usize> = return_set_bits(bitmap);
-						for chunk_index in required_indexes {
-							if offchain_storage
-								.get(
-									ORDERBOOK_STATE_CHUNK_PREFIX,
-									summary.state_chunk_hashes[chunk_index].encode().as_ref(),
-								)
-								.is_some()
-							{
-								chunks_we_have.push(chunk_index);
-								highest_index = chunk_index.max(highest_index);
-							}
+		// Don't respond to want request if we are syncing
+		if self.state_is_syncing {
+			info!(target: "orderbook", "📒 we are syncing, Want request for id {snapshot_id:?} from {remote:?} ignored");
+			return
+		}
+
+		if let Some(peer) = remote {
+			let mut chunks_we_have = vec![];
+			let mut highest_index = 0;
+			let at = BlockId::Number(self.last_finalized_block.saturated_into());
+			if let Ok(Some(summary)) =
+				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
+			{
+				if let Some(offchain_storage) = self.backend.offchain_storage() {
+					let required_indexes: Vec<usize> = return_set_bits(bitmap);
+					for chunk_index in required_indexes {
+						if offchain_storage
+							.get(
+								ORDERBOOK_STATE_CHUNK_PREFIX,
+								summary.state_chunk_hashes[chunk_index].encode().as_ref(),
+							)
+							.is_some()
+						{
+							chunks_we_have.push(chunk_index);
+							highest_index = chunk_index.max(highest_index);
 						}
 					}
-				} else {
-					// TODO: Reduce reputation if else block is happens
 				}
+			} else {
+				// TODO: Reduce reputation if else block is happens
+			}
 
-				if !chunks_we_have.is_empty() {
-					let message = GossipMessage::Have(
-						*snapshot_id,
-						prepare_bitmap(&chunks_we_have, highest_index)
-							.expect("📒 Expected to create bitmap"),
-					);
-					self.gossip_engine.send_message(vec![peer], message.encode());
-					metric_inc!(self, ob_messages_sent);
-					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
-				}
+			if !chunks_we_have.is_empty() {
+				let message = GossipMessage::Have(
+					*snapshot_id,
+					prepare_bitmap(&chunks_we_have, highest_index)
+						.expect("📒 Expected to create bitmap"),
+				);
+				self.gossip_engine.send_message(vec![peer], message.encode());
+				metric_inc!(self, ob_messages_sent);
+				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 			}
 		}
 	}
@@ -897,6 +998,7 @@ where
 					prepare_bitmap(&want_chunks, highest_index)
 						.expect("📒 Expected to create bitmap"),
 				);
+				debug!(target: "orderbook", "📒 requested chunk of {:?} to {:?}", snapshot_id, peer);
 				self.gossip_engine.send_message(vec![peer], message.encode());
 				metric_inc!(self, ob_messages_sent);
 				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
@@ -920,7 +1022,7 @@ where
 		bitmap: &Vec<u128>,
 		remote: Option<PeerId>,
 	) {
-		info!(target: "orderbook", "📒 Request chunk: {:?} - {:?}", snapshot_id, bitmap);
+		info!(target: "orderbook", "📒 Request chunk: {:?}, {:?}, {:?}", snapshot_id, bitmap, remote);
 		if let Some(peer) = remote {
 			if let Some(offchian_storage) = self.backend.offchain_storage() {
 				let at = BlockId::Number(self.last_finalized_block.saturated_into());
@@ -939,7 +1041,9 @@ where
 								{
 									let message =
 										GossipMessage::Chunk(*snapshot_id, index as u16, data);
+									debug!(target: "orderbook", "📒 Chunk message size: {:?}", message.encode().len());
 									self.gossip_engine.send_message(vec![peer], message.encode());
+									info!(target: "orderbook", "📒 Chunk {:?} of {:?} sent to {:?}", chunk_hash, snapshot_id, remote);
 									metric_inc!(self, ob_messages_sent);
 									metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 								} else {
@@ -969,7 +1073,7 @@ where
 	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &usize, data: &[u8]) {
 		info!(target: "orderbook", "📒 Chunk snapshot: {:?} - {:?} - {:?}", snapshot_id, index, data.len());
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
-			let at = BlockId::Number(self.last_finalized_block.saturated_into());
+			let at = BlockId::Number(self.client.info().finalized_number);
 			if let Ok(Some(summary)) =
 				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
 			{
@@ -985,6 +1089,7 @@ where
 								expected_hash.0.as_ref(),
 								data,
 							);
+							info!(target: "orderbook", "📒 Chunk {:?} of snapshot: {:?} stored", computed_hash, snapshot_id);
 							// Update sync status map
 							self.sync_state_map
 								.entry(*index)
@@ -992,10 +1097,16 @@ where
 									*status = StateSyncStatus::Available;
 								})
 								.or_insert(StateSyncStatus::Available);
+						} else {
+							log::warn!(target:"orderbook","📒 Invalid chunk hash, dropping chunk...");
 						}
 					},
 				}
+			} else {
+				log::error!(target:"orderbook","📒 Unable to read summary from runtime");
 			}
+		} else {
+			log::error!(target:"orderbook","📒 Unable to get handle to offchain storage");
 		}
 	}
 
@@ -1016,7 +1127,8 @@ where
 		metric_inc!(self, ob_messages_recv);
 		metric_add!(self, ob_data_recv, message.encoded_size() as u64);
 		match message {
-			GossipMessage::WantWorkerNonce(from, to) => self.want_worker_nonce(from, to, remote),
+			GossipMessage::WantWorkerNonce(from, to, version) =>
+				self.want_worker_nonce(from, to, *version, remote),
 			GossipMessage::WorkerNonces(messages) =>
 				self.got_worker_nonces_via_gossip(messages).await?,
 			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
@@ -1033,9 +1145,10 @@ where
 	/// Updates local trie with all registered main account and proxies.
 	pub fn update_storage_with_genesis_data(&mut self) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Updating storage with genesis data");
-		let data = self.runtime.runtime_api().get_all_accounts_and_proxies(&BlockId::number(
-			self.last_finalized_block.saturated_into(),
-		))?;
+		let data = self
+			.runtime
+			.runtime_api()
+			.get_all_accounts_and_proxies(&BlockId::number(self.client.info().finalized_number))?;
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
@@ -1049,7 +1162,7 @@ where
 					add_proxy(&mut trie, main.clone(), proxy.clone())?;
 				}
 			} else {
-				warn!(target:"orderbook","📒 No proxies found for main: {:?}",main)
+				debug!(target:"orderbook","📒 Only one proxy found for main: {:?}",main)
 			}
 		}
 		// Commit the trie
@@ -1069,6 +1182,19 @@ where
 		info!(target: "orderbook", "📒 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
 		self.last_finalized_block = (*header.number()).saturated_into();
+		let active_set = self
+			.runtime
+			.runtime_api()
+			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+			.validators;
+
+		if self.is_validator {
+			if let Err(err) = self.keystore.get_local_key(&active_set) {
+				log::error!(target:"orderbook","📒 No BLS key found: {:?}",err);
+			} else {
+				log::info!(target:"orderbook","📒 Active BLS key found")
+			}
+		}
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
 			let latest_worker_nonce = *self.latest_worker_nonce.read();
@@ -1093,6 +1219,15 @@ where
 				*self.last_snapshot.write() = latest_summary;
 			} else {
 				let last_worker_nonce = latest_summary.worker_nonce;
+				// If the last processed worker nonce is less than the one from runtime then
+				// we need to sync
+				if *self.latest_worker_nonce.read() < last_worker_nonce {
+					self.state_is_syncing = true;
+					info!(target: "orderbook", "📒 Syncing state to latest snapshot...");
+					if let Err(err) = self.send_sync_requests(&latest_summary) {
+						error!(target:"orderbook","📒 Error while sending sync requests to peers: {:?}",err);
+					}
+				}
 				// There is a valid snapshot from runtime, so update our state.
 				*self.last_snapshot.write() = latest_summary;
 				// Prune the known messages cache
@@ -1148,9 +1283,8 @@ where
 					prepare_bitmap(&missing_indexes, highest_missing_index)
 						.expect("📒 Expected to create bitmap"),
 				);
-				let fullnodes =
-					self.fullnodes.read().clone().iter().cloned().collect::<Vec<PeerId>>();
-				self.gossip_engine.send_message(fullnodes, message.encode());
+				info!(target:"orderbook","📒 Sending sync requests to neighbours...");
+				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
 			} else {
 				// We have all the data, state is synced,
 				// so load snapshot shouldn't have any problem now
@@ -1186,7 +1320,7 @@ where
 								log::error!(target:"orderbook", "📒 Unable to find snapshot summary for snapshot_id: {:?}",pending_snaphot)
 							},
 							Some(data) => {
-								info!(target:"orderbook","📒 Found snapshot summary for snapshot_id: {:?}",pending_snaphot);
+								info!(target:"orderbook","📒 Loading snapshot summary for snapshot_id: {:?} from off chain storage",pending_snaphot);
 								match SnapshotSummary::decode(&mut &data[..]) {
 									Ok(mut summary) => {
 										info!(target:"orderbook","📒 Signing snapshot with: {:?}",signing_key);
@@ -1197,7 +1331,7 @@ where
 										let bit_index = active_set
 											.iter()
 											.position(|v| v == &signing_key)
-											.unwrap();
+											.ok_or(Error::SigningKeyNotFound)?;
 										set_bit_field(&mut summary.bitflags, bit_index);
 
 										if self.pending_snapshot_summary != Some(summary.clone()) {
@@ -1245,19 +1379,19 @@ where
 			let from = *self.latest_worker_nonce.read();
 			// Send it only if we are missing any messages
 			if to.saturating_sub(from) > 1 {
-				let want_request = GossipMessage::WantWorkerNonce(from, **to);
+				let want_request =
+					GossipMessage::WantWorkerNonce(from, **to, *self.state_version.read());
 				self.gossip_engine.gossip_message(topic::<B>(), want_request.encode(), true);
 				info!(target:"orderbook","📒 Sending periodic sync request for nonces between: from:{from:?} to: {to:?}");
 			} else if to.saturating_sub(from) == 1 && !self.is_validator {
 				// If we are a fullnode and we know all the stids
 				// then broadcast the next best nonce periodically
-				// Unwrap is fine because we know the message exists
-				let best_msg = GossipMessage::ObMessage(Box::new(
-					self.known_messages.get(to).cloned().unwrap(),
-				));
-				self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
-				self.gossip_engine.broadcast_topic(topic::<B>(), true);
-				info!(target:"orderbook","📒 Sending periodic best message broadcast, nonce: {to:?}");
+				if let Some(msg) = self.known_messages.get(to).cloned() {
+					let best_msg = GossipMessage::ObMessage(Box::new(msg));
+					self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
+					self.gossip_engine.broadcast_topic(topic::<B>(), true);
+					info!(target:"orderbook","📒 Sending periodic best message broadcast, nonce: {to:?}");
+				}
 			}
 		}
 		Ok(())
@@ -1309,14 +1443,10 @@ where
 		// Prepare bitmap
 		let bitmap = prepare_bitmap(&missing_chunks, highest_chunk_index)
 			.expect("📒 Expected to create bitmap");
-		// Gossip the sync requests to all connected fullnodes
-		let fullnodes = self.fullnodes.read().clone().into_iter().collect::<Vec<PeerId>>();
-		if fullnodes.is_empty() {
-			warn!(target:"orderbook","📒 No fullnode peers connected to request state sync");
-		}
-		info!(target:"orderbook","📒 State sync request send to {:?} peers",fullnodes.len());
+		// Gossip the sync requests to all connected nodes
 		let message = GossipMessage::Want(summary.snapshot_id, bitmap);
-		self.gossip_engine.send_message(fullnodes, message.encode());
+		self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
+		info!(target:"orderbook","📒 State sync request send to connected peers ");
 		Ok(())
 	}
 
@@ -1337,8 +1467,10 @@ where
 		working_state_root: &'a mut [u8; 32],
 	) -> TrieDBMut<'a, ExtensionLayout> {
 		let trie = if working_state_root == &mut [0u8; 32] {
+			info!(target: "orderbook", "📒 Creating a new trie as state root is empty");
 			TrieDBMutBuilder::new(memory_db, working_state_root).build()
 		} else {
+			trace!(target: "orderbook", "📒 Loading trie from existing Db and state root");
 			TrieDBMutBuilder::from_existing(memory_db, working_state_root).build()
 		};
 		trie
@@ -1355,7 +1487,7 @@ where
 			.runtime
 			.runtime_api()
 			.read_trading_pair_configs(&BlockId::Number(blk_num.saturated_into()))?;
-
+		info!(target: "orderbook","Loaded {:?} trading pairs", tradingpairs.len());
 		for (pair, config) in tradingpairs {
 			self.trading_pair_configs.insert(pair, config);
 		}
@@ -1425,10 +1557,15 @@ where
 			self.gossip_engine
 				.messages_for(topic::<B>())
 				.filter_map(|notification| async move {
-					trace!(target: "orderbook", "📒 Got gossip message: {:?}", notification);
 					match GossipMessage::decode(&mut &notification.message[..]).ok() {
-						None => None,
-						Some(msg) => Some((msg, notification.sender)),
+						None => {
+							warn!(target: "orderbook", "📒 Gossip message decode failed: {:?}", notification);
+							None
+						},
+						Some(msg) => {
+							trace!(target: "orderbook", "📒 Got gossip message: {:?}", msg);
+							Some((msg, notification.sender))
+						},
 					}
 				})
 				.fuse(),
@@ -1606,6 +1743,7 @@ pub fn deposit(
 			trie.insert(&account_asset.encode(), &balance.encode())?;
 		},
 		None => {
+			info!(target: "orderbook", "📒 Account asset created: {:?}", account_asset);
 			trie.insert(&account_asset.encode(), &amount.encode())?;
 		},
 	}

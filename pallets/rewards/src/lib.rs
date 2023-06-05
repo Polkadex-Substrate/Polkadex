@@ -55,10 +55,9 @@ pub trait WeightInfo {
 	fn initialize_claim_rewards() -> Weight;
 	fn claim() -> Weight;
 }
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-mod crowdloan_rewardees;
+pub mod crowdloan_rewardees;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -80,6 +79,7 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
+	use polkadex_primitives::AccountId;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
@@ -205,12 +205,14 @@ pub mod pallet {
 				Error::<T>::RewardsAlreadyInitialized
 			);
 
-			let account_in_vec: Vec<u8> = T::AccountId::encode(&user);
+			let account_in_vec: [u8; 32] = T::AccountId::encode(&user)
+				.try_into()
+				.map_err(|_| Error::<T>::IncorrectDonorAccount)?;
 			#[allow(clippy::borrow_interior_mutable_const)]
 			#[allow(clippy::declare_interior_mutable_const)]
 			//get info of user from pre defined hash map and add it in storage
 			if let Some((total_rewards_in_pdex, initial_rewards_claimable, factor)) =
-				crowdloan_rewardees::HASHMAP.get(&account_in_vec)
+				crowdloan_rewardees::HASHMAP.get(&AccountId::new(account_in_vec))
 			{
 				//get reward info
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {

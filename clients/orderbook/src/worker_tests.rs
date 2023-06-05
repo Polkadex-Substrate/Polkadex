@@ -35,14 +35,14 @@ use sp_keyring::AccountKeyring;
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 /// This function returns a tuple containing Alice's main account and a proxy account.
-fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {
+pub fn get_alice_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Alice.pair().public());
 	let proxy_account = AccountId::from(AccountKeyring::Charlie.pair().public());
 	(main_account, proxy_account)
 }
 
 /// This function returns a tuple containing Bob's main account and a proxy account.
-fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
+pub fn get_bob_main_and_proxy_account() -> (AccountId, AccountId) {
 	let main_account = AccountId::from(AccountKeyring::Bob.pair().public());
 	let proxy_account = AccountId::from(AccountKeyring::Eve.pair().public());
 	(main_account, proxy_account)

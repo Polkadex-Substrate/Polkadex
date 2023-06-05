@@ -33,7 +33,36 @@ members = [
   "pallets/pdex-migration",
   "pallets/ocex",
   "pallets/rewards",
+  "primitives/orderbook",
+  "primitives/bls-primitives",
+  "primitives/polkadex",
+  "primitives/thea",
+  "pallets/thea",
+  "pallets/swap",
+  "pallets/support",
+  "pallets/router",
+  "pallets/liquidity",
+  "pallets/thea-executor",
   "pallets/thea-message-handler",
+  "pallets/rewards/rpc",
+  "pallets/rewards/rpc/runtime-api",
+  "misc/load-testing",
+  "misc/crowdloan-verifier",
+]
+
+default-members = [
+  "client",
+  "node",
+  "runtime",
+  "clients/orderbook",
+  "clients/orderbook/rpc",
+  "clients/thea",
+  "pallets/pdex-migration",
+  "pallets/chainbridge",
+  "pallets/asset-handler",
+  "pallets/pdex-migration",
+  "pallets/ocex",
+  "pallets/rewards",
   "primitives/orderbook",
   "primitives/bls-primitives",
   "primitives/polkadex",
@@ -47,6 +76,7 @@ members = [
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
   "misc/load-testing",
+  "misc/crowdloan-verifier",
 ]
 
 [workspace.dependencies]
@@ -54,6 +84,7 @@ log = { version = "0.4.8", default-features = false }
 anyhow = "1.0.56"
 smallvec = "1.6.1"
 jsonrpsee = "0.16.2"
+hex-literal = "0.4.1"
 blake2-rfc = { version = "0.2.18", default-features = false }
 static_assertions = "1.1.0"
 parity-scale-codec = { version = "3.1.5", default-features = false }
@@ -122,6 +153,8 @@ sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "polka
 sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
+sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
+sp-runtime-interface = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }

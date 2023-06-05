@@ -47,7 +47,7 @@ pub mod pallet {
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{
-		types::{Deposit, Withdraw},
+		types::{AssetMetadata, Deposit, Withdraw},
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
@@ -112,11 +112,18 @@ pub mod pallet {
 	pub(super) type ApprovedDeposits<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Deposit<T::AccountId>>, ValueQuery>;
 
+	/// Stores the metadata ( asset_id => Metadata )
+	#[pallet::storage]
+	#[pallet::getter(fn asset_metadata)]
+	pub(super) type Metadata<T: Config> = StorageMap<_, Identity, u128, AssetMetadata, OptionQuery>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Asset Metadata set ( config )
+		AssetMetadataSet(AssetMetadata),
 		/// Deposit Approved event ( Network, recipient, asset_id, amount, id))
 		DepositApproved(Network, T::AccountId, u128, u128, Vec<u8>),
 		/// Deposit claimed event ( recipient, asset id, amount, id )
@@ -134,6 +141,8 @@ pub mod pallet {
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Invalid decimal configuration
+		InvalidDecimal,
 		/// Error names should be descriptive.
 		NoneValue,
 		/// Errors should have helpful documentation associated with them.
@@ -281,6 +290,26 @@ pub mod pallet {
 			)?;
 			Ok(())
 		}
+
+		/// Update the Decimal metadata for an asset
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id.
+		/// * `metadata`: AssetMetadata.
+		#[pallet::call_index(4)]
+		#[pallet::weight(Weight::default())]
+		pub fn update_asset_metadata(
+			origin: OriginFor<T>,
+			asset_id: u128,
+			decimal: u8,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			let metadata = AssetMetadata::new(decimal).ok_or(Error::<T>::InvalidDecimal)?;
+			<Metadata<T>>::insert(asset_id, metadata);
+			Self::deposit_event(Event::<T>::AssetMetadataSet(metadata));
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -307,7 +336,7 @@ pub mod pallet {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
-			let withdraw = Withdraw {
+			let mut withdraw = Withdraw {
 				id: Self::new_random_id(),
 				asset_id,
 				amount,
@@ -316,6 +345,8 @@ pub mod pallet {
 				extra: Vec::new(),
 			};
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
+			let metadata =
+				<Metadata<T>>::get(withdraw.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 
 			ensure!(
 				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
@@ -353,6 +384,10 @@ pub mod pallet {
 				amount,
 				withdraw.id.clone(),
 			));
+
+			// Convert back to origin decimals
+			withdraw.amount = metadata.convert_from_native_decimals(amount);
+
 			pending_withdrawals.push(withdraw);
 
 			if (pending_withdrawals.len() >= T::WithdrawalSize::get() as usize) || pay_for_remaining
@@ -392,16 +427,22 @@ pub mod pallet {
 			deposit: Deposit<T::AccountId>,
 			recipient: &T::AccountId,
 		) -> Result<(), DispatchError> {
+			// Get the metadata
+			let metadata =
+				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+
 			asset_handler::pallet::Pallet::<T>::mint_thea_asset(
 				deposit.asset_id,
 				recipient.clone(),
-				deposit.amount,
+				// Convert the decimals config
+				deposit.amount_in_native_decimals(metadata),
 			)?;
+
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(
 				recipient.clone(),
 				deposit.asset_id,
-				deposit.amount,
+				deposit.amount_in_native_decimals(metadata),
 				deposit.id,
 			));
 			Ok(())

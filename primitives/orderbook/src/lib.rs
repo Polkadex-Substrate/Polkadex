@@ -33,7 +33,7 @@ use polkadex_primitives::{
 	withdrawal::Withdrawal,
 	AccountId, AssetId, BlockNumber,
 };
-use primitive_types::H128;
+pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
@@ -47,6 +47,10 @@ pub mod types;
 
 #[cfg(feature = "std")]
 pub mod recovery;
+
+pub const ORDERBOOK_WORKER_NONCE_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
+pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
+pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
 
 /// Key type for Orderbook module.
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
@@ -174,6 +178,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	/// Aggregated signature.
 	pub aggregate_signature: Option<bls_primitives::Signature>,
+	pub state_version: u16,
 }
 
 impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
@@ -189,6 +194,7 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 			bitflags: Vec::new(),
 			withdrawals: Vec::new(),
 			aggregate_signature: None,
+			state_version: 0,
 		}
 	}
 }

@@ -1,6 +1,6 @@
 [package]
 name = "pallet-ocex-lmp"
-version = "4.0.0"
+version = "5.0.0"
 authors = ["Gautham J <gautham@polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -13,6 +13,7 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+log = { workspace = true, default-features = false }
 parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
@@ -34,11 +35,13 @@ pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
-bls-primitives = { path = "../../primitives/bls-primitives", default-features = false }
+bls-primitives = { workspace = true, default-features = false }
+hex = "0.4.3"
 
 [features]
 default = ["std"]
 std = [
+  "log/std",
   "sp-application-crypto/std",
   "orderbook-primitives/std",
   "bls-primitives/std",
