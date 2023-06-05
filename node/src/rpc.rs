@@ -181,7 +181,7 @@ where
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
 	// Create Orderbook RPC
-	io.merge(OrderbookRpc::new(subscription_executor, orderbook).into_rpc())?;
+	io.merge(OrderbookRpc::new(orderbook).into_rpc())?;
 
 	Ok(io)
 }

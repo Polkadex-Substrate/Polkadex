@@ -76,7 +76,7 @@ where
 		state_version: Arc<RwLock<u16>>,
 	) -> GossipValidator<B> {
 		GossipValidator {
-			topic: self.topic,
+			topic: topic::<B>(),
 			latest_worker_nonce,
 			fullnodes,
 			_is_validator: is_validator,
@@ -151,12 +151,14 @@ where
 	/// Returns true if the messgae can be rebroadcasted
 	pub fn rebroadcast_check(&self, message: &GossipMessage, peerid: PeerId) -> bool {
 		let mut cache = self.message_cache.write();
+		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
+
 		if self.message_expired_check(message) {
 			// Remove the message from cache when the message is expired.
 			cache.remove(&(msg_hash, peerid));
 			return false
 		}
-		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
+
 		let interval = match message {
 			GossipMessage::Want(_, _) => WANT_REBROADCAST_INTERVAL,
 			_ => REBROADCAST_INTERVAL,

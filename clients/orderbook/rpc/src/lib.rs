@@ -34,7 +34,6 @@ use memory_db::{HashKey, MemoryDB};
 use parking_lot::RwLock;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
-use sc_rpc::SubscriptionTaskExecutor;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_blockchain::HeaderBackend;
@@ -189,9 +188,7 @@ where
 	Backend: sc_client_api::Backend<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
-	pub fn new(
-		deps: OrderbookDeps<Backend, Client, Runtime>,
-	) -> Self {
+	pub fn new(deps: OrderbookDeps<Backend, Client, Runtime>) -> Self {
 		Self {
 			tx: deps.rpc_channel,
 			memory_db: deps.memory_db,
