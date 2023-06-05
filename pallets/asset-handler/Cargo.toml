@@ -4,7 +4,7 @@ description = "Pallet for Handling Assets from multiple Bridges"
 edition = "2021"
 homepage = "https://polkadex.trade"
 name = "asset-handler"
-version = "1.0.0"
+version = "2.0.0"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

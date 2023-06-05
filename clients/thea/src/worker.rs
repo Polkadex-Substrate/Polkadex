@@ -183,7 +183,7 @@ where
 			self.foreign_chain.check_message(&message.payload).await
 		} else {
 			let finalized_blk = self.last_finalized_blk;
-			let network = self.thea_network.unwrap();
+			let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 			let result = self
 				.runtime
 				.runtime_api()
@@ -367,7 +367,7 @@ where
 				self.thea_network = network;
 			}
 		}
-		let network = self.thea_network.unwrap();
+		let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 
 		// Update the last processed foreign nonce from native
 		let last_foreign_nonce_processed: u64 = self
@@ -444,7 +444,7 @@ where
 			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
 				break
 			} else {
-				debug!(target: "thea", "🌉 Waiting for thea pallet to become available...");
+				info!(target: "thea", "🌉 Waiting for thea pallet to become available...");
 			}
 		}
 	}
