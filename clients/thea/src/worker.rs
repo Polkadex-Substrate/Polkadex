@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Worker which manages/processes Thea client requests.
+
 use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
 
 use futures::StreamExt;
@@ -52,24 +54,34 @@ use crate::{
 	Client,
 };
 
+/// Definition of the worker parameters required for the worker initialization.
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
+	/// Thea client.
 	pub client: Arc<C>,
+	/// Client Backend.
 	pub backend: Arc<BE>,
+	/// Client runtime.
 	pub runtime: Arc<R>,
+	/// Network service.
 	pub sync_oracle: SO,
+	/// Instance of Thea metrics exposed through Prometheus.
 	pub metrics: Option<Metrics>,
+	/// Indicates if this node is a validator.
 	pub is_validator: bool,
-	/// Gossip network
+	/// Gossip network.
 	pub network: N,
 	pub _marker: PhantomData<B>,
+	/// Foreign chain connector.
 	pub foreign_chain: Arc<FC>,
+	/// Local key store.
 	pub(crate) keystore: Option<Arc<LocalKeystore>>,
 }
 
 /// A thea worker plays the thea protocol
 pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
-	// utilities
+	/// Thea client.
 	pub(crate) client: Arc<C>,
+	/// Thea network type.
 	pub(crate) thea_network: Option<Network>,
 	// Payload to gossip message mapping
 	_backend: Arc<BE>,
@@ -106,6 +118,10 @@ where
 	/// BEEFY pallet has been deployed on-chain.
 	///
 	/// The BEEFY pallet is needed in order to keep track of the BEEFY authority set.
+	///
+	/// # Parameters
+	///
+	/// * `worker_params`: DTO with data required for the worker initialization.
 	pub(crate) async fn new(worker_params: WorkerParams<B, BE, C, SO, N, R, FC>) -> Self {
 		let WorkerParams {
 			client,
@@ -155,6 +171,12 @@ where
 		}
 	}
 
+	/// Signs provided message with stored BLS key related to the Thea authority and returns
+	/// instance of the gossip message definition.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Message to sign.
 	pub fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
 		let network = self.thea_network.expect("Expected the network to be defined here.");
 		info!(target:"thea", "Serving network: {:?}", network);
@@ -176,6 +198,11 @@ where
 		Ok(GossipMessage { payload: message, bitmap, aggregate_signature: signature.into() })
 	}
 
+	/// Validates provided gossip message.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Gossip message to validate.
 	pub async fn check_message(&mut self, message: &GossipMessage) -> Result<bool, Error> {
 		// TODO: Do signature check here.
 		// Based on network use the corresponding api to check if the message if valid or not.
@@ -194,6 +221,11 @@ where
 		}
 	}
 
+	/// Highest level method used to process incoming gossip message.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Gossip message to be processed.
 	pub async fn process_gossip_message(
 		&mut self,
 		incoming_message: &mut GossipMessage,
@@ -331,6 +363,11 @@ where
 		Ok(())
 	}
 
+	/// Handles block finalization notification.
+	///
+	/// # Parameters
+	///
+	/// * `notification`: Summary DTO of the finalized block.
 	pub(crate) async fn handle_finality_notification(
 		&mut self,
 		notification: &FinalityNotification<B>,
@@ -413,6 +450,7 @@ where
 		Ok(())
 	}
 
+	/// Provides the identity of the Orderbook authority.
 	pub fn get_local_auth_index(&self) -> Result<AuthorityIndex, Error> {
 		let network = self.thea_network.expect("🌉 Expected the thea network to be initialized");
 		let active = self
@@ -428,6 +466,11 @@ where
 		Ok(index.saturated_into())
 	}
 
+	/// Helper method to sign, emit and cache message.
+	///
+	/// # Parameters
+	///
+	/// * `message`: Message to process.
 	pub fn sign_and_submit_message(&mut self, message: Message) -> Result<(), Error> {
 		let gossip_message = self.sign_message(message.clone())?;
 		info!(target:"thea","🌉 Message with nonce: {:?} with network: {:?}, is signed",message.nonce, message.network);
@@ -436,7 +479,7 @@ where
 		Ok(())
 	}
 
-	/// Wait for thea runtime pallet to be available.
+	/// Waits for Thea runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
 		while let Some(notif) = finality_stream.next().await {
@@ -449,6 +492,9 @@ where
 		}
 	}
 
+	/// Processes foreign chain events.
+	///
+	/// Note. Processed only if the node started in a "validator" role.
 	pub async fn try_process_foreign_chain_events(&mut self) -> Result<(), Error> {
 		// Proceed only if we are a validator
 		if !self.is_validator {
@@ -512,7 +558,7 @@ where
 		Ok(())
 	}
 
-	/// Main loop for thea worker.
+	/// Entrypoint for thr Thea worker.
 	///
 	/// Wait for thea runtime pallet to be available, then start the main async loop
 	/// which is driven by gossiped user actions.

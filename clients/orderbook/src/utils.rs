@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Contains common/reusable functionality.
+
 use crate::error::Error;
 use orderbook_primitives::types::AccountAsset;
 use parity_scale_codec::{Decode, Encode};
@@ -24,6 +26,14 @@ use rust_decimal::Decimal;
 use sp_tracing::info;
 use trie_db::{TrieDBMut, TrieMut};
 
+/// Updates provided trie db with a new entrance balance if it is not contains item for specific
+/// account asset yet, or increments existed item balance.
+///
+/// # Parameters
+///
+/// * `trie`: Trie db to update.
+/// * `account_asset`: Account asset to look for in the db for update.
+/// * `balance`: Amount on which account asset balance should be incremented.
 pub fn add_balance(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	account_asset: AccountAsset,
@@ -45,6 +55,16 @@ pub fn add_balance(
 	Ok(())
 }
 
+/// Updates provided trie db with reducing balance of account asset if it exists in the db.
+///
+/// If account asset balance is not exists in the db `AccountBalanceNotFound` error will be
+/// returned.
+///
+/// # Parameters
+///
+/// * `trie`: Trie db to update.
+/// * `account_asset`: Account asset to look for in the db for update.
+/// * `balance`: Amount on which account asset balance should be reduced.
 pub fn sub_balance(
 	trie: &mut TrieDBMut<ExtensionLayout>,
 	account_asset: AccountAsset,

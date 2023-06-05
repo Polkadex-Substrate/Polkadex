@@ -16,34 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! This module contains foreign connector abstraction which should be implemented to be able to
+//! connect to multiple chains.
+//!
+//! This module contains as well the concrete implementation of a foreign connector abstraction,
+//! which used in development/testing environments as a stub.
+
 use crate::{error::Error, types::GossipMessage};
 use async_trait::async_trait;
 use std::time::Duration;
 use thea_primitives::types::Message;
 
+/// Abstraction which should be implemented to be able to connect to multiple chains.
 #[async_trait]
 pub trait ForeignConnector: Send + Sync {
-	/// Block duration
+	/// Block duration.
 	fn block_duration(&self) -> Duration;
-	/// Initialize the connection to native blockchain
+	/// Initialize the connection to native blockchain.
 	async fn connect(url: String) -> Result<Self, Error>
 	where
 		Self: Sized;
-	/// Read all interested events based on the last processed nonce of that network on Polkadex
+	/// Read all interested events based on the last processed nonce of that network on Polkadex.
 	async fn read_events(&self, last_processed_nonce: u64) -> Result<Option<Message>, Error>;
-	/// Sends transaction to blockchain, if failed, retry every second until its successful
+	/// Sends transaction to blockchain, if failed, retry every second until its successful.
 	async fn send_transaction(&self, message: GossipMessage) -> Result<(), Error>;
-	/// Checks if the given message is valid or not based on our local node
+	/// Checks if the given message is valid or not based on our local node.
 	async fn check_message(&self, message: &Message) -> Result<bool, Error>;
-	/// Returns the last processed nonce from native chain
+	/// Returns the last processed nonce from native chain.
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error>;
-	/// Check if the foreign chain is initialized with thea validators
+	/// Check if the foreign chain is initialized with thea validators.
 	async fn check_thea_authority_initialization(&self) -> Result<bool, Error>;
 }
 
-// ForeignConnector that does nothing, mainly used for starting node in development mode
-// for just testing runtime
+/// ForeignConnector that does nothing, mainly used for starting node in development mode
+/// for just testing runtime as a stub.
 pub struct NoOpConnector;
+
 #[async_trait]
 impl ForeignConnector for NoOpConnector {
 	fn block_duration(&self) -> Duration {

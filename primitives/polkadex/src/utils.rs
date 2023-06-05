@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! This module contains common/reusable utilities functions which performs low level operations and
+//! could be reused in a different components.
+
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 
@@ -32,6 +35,11 @@ pub fn set_bit_field(input: &mut [u128], bit_index: usize) -> bool {
 	true
 }
 
+/// Resolves indexes based on provided bitmap.
+///
+/// # Parameters
+///
+/// * `input`: Bitmap.
 pub fn return_set_bits(input: &[u128]) -> Vec<usize> {
 	let mut set_bits: Vec<usize> = Vec::new();
 	for (element_index, element) in input.iter().enumerate() {
@@ -45,6 +53,7 @@ pub fn return_set_bits(input: &[u128]) -> Vec<usize> {
 	set_bits
 }
 
+/// Calculates a bitmap based on provided indexes.
 #[cfg(feature = "std")]
 pub fn prepare_bitmap(indexes: &Vec<usize>, max_indexes: usize) -> Option<Vec<u128>> {
 	// Sanity check

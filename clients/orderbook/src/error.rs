@@ -16,9 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Orderbook gadget specific errors
+//! Orderbook gadget specific errors.
 //!
-//! Used for Orderbook gadget interal error handling only
+//! Used for Orderbook gadget internal error handling only.
 
 use hash_db::MaybeDebug;
 use orderbook_primitives::types::AccountAsset;
