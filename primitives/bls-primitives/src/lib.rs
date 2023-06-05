@@ -26,7 +26,10 @@ pub mod application_crypto;
 pub mod host_functions;
 
 #[cfg(feature = "parachain")]
-pub mod host_functions {}
+pub mod host_functions {
+	#[sp_runtime_interface::runtime_interface]
+	pub trait BlsCryptoExt {}
+}
 
 use ark_bls12_381::{
 	g1::Config as G1Config, Bls12_381, G1Affine, G1Projective, G2Affine, G2Projective,
