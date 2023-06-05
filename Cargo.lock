@@ -507,7 +507,7 @@ checksum = "155a5a185e42c6b77ac7b88a15143d930a9e9727a5b7b77eed417404ab15c247"
 
 [[package]]
 name = "asset-handler"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "chainbridge",
  "frame-benchmarking",
@@ -827,7 +827,7 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bls-primitives"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
@@ -4780,7 +4780,7 @@ dependencies = [
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "asset-handler",
  "chainbridge",
@@ -5074,7 +5074,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bls-primitives",
  "blst",
@@ -5135,7 +5135,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook-primitives"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "bls-primitives",
@@ -5623,7 +5623,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -6257,9 +6257,9 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
 name = "platforms"
-version = "1.1.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "989d43012e2ca1c4a02507c67282691a0a3207f9dc67cec596b43fe925b3d325"
+checksum = "e8d0eef3571242013a0d5dc84861c3ae4a652e56e12adf8bdc26ff5f8cb34c94"
 
 [[package]]
 name = "platforms"
@@ -6279,7 +6279,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "clap 4.3.1",
  "frame-benchmarking-cli",
@@ -6287,7 +6287,7 @@ dependencies = [
  "frame-system",
  "frame-try-runtime",
  "futures 0.3.28",
- "hex-literal 0.3.4",
+ "hex-literal 0.4.1",
  "itertools",
  "jsonrpsee",
  "memory-db 0.31.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
@@ -6331,7 +6331,6 @@ dependencies = [
  "sc-transaction-pool",
  "sc-transaction-pool-api",
  "serde",
- "snow",
  "sp-api",
  "sp-authority-discovery",
  "sp-authorship",
@@ -6359,7 +6358,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-primitives"
-version = "0.9.28"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "frame-support",
@@ -6934,9 +6933,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.8.3"
+version = "1.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81ca098a9821bd52d6b24fd8b10bd081f47d39c22778cafaa75a2857a62c6390"
+checksum = "d0ab3ca65655bb1e41f2a8c8cd662eb4fb035e67c3f78da1d61dffe89d07300f"
 dependencies = [
  "aho-corasick 1.0.2",
  "memchr",
@@ -7049,7 +7048,7 @@ dependencies = [
 
 [[package]]
 name = "router"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9885,11 +9884,11 @@ dependencies = [
 
 [[package]]
 name = "substrate-build-script-utils"
-version = "3.0.0"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd540ba72520174c2c73ce96bf507eeba3cc8a481f58be92525b69110e1fa645"
+checksum = "3cbc6b6e856dfd283e5116c3cc40c9f2efec2f0be49d9aaa27231a2b24bd454d"
 dependencies = [
- "platforms 1.1.0",
+ "platforms 2.0.0",
 ]
 
 [[package]]
@@ -10134,7 +10133,7 @@ dependencies = [
 
 [[package]]
 name = "support"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10266,7 +10265,7 @@ dependencies = [
 
 [[package]]
 name = "thea"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -10289,7 +10288,7 @@ dependencies = [
 
 [[package]]
 name = "thea-client"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "bls-primitives",
@@ -10343,7 +10342,7 @@ dependencies = [
 
 [[package]]
 name = "thea-executor"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "asset-handler",
  "bls-primitives",
@@ -10370,8 +10369,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "thea-message-handler"
+version = "1.0.0"
+dependencies = [
+ "bls-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std 5.0.0",
+ "thea-primitives",
+]
+
+[[package]]
 name = "thea-primitives"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bls-primitives",
  "frame-support",

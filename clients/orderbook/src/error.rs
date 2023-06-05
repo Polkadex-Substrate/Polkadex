@@ -30,6 +30,8 @@ use trie_db::TrieError;
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
+	#[error("Signing key not found in active set")]
+	SigningKeyNotFound,
 	#[error("Blocks are imported not in sequence")]
 	OutOfSequenceBlockImport,
 	#[error("Block trying to be imported is not finalized yet: finalized: {0}, importing: {1}")]

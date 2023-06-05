@@ -421,7 +421,8 @@ where
 
 		let signature = self.keystore.sign(&signing_key, &summary.sign_data())?;
 		summary.aggregate_signature = Some(signature.into());
-		let bit_index = active_set.validators().iter().position(|v| v == &signing_key).unwrap();
+		let bit_index = active_set.validators().iter().position(|v| v == &signing_key)
+			.ok_or(Error::SigningKeyNotFound)?;
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}",bit_index);
 		set_bit_field(&mut summary.bitflags, bit_index);
 		info!(target:"orderbook","📒 Signing snapshot with bit index: {:?}, signed auths: {:?}",bit_index,summary.signed_auth_indexes());
@@ -443,7 +444,7 @@ where
 	}
 
 	pub fn handle_action(&mut self, action: &ObMessage) -> Result<(), Error> {
-		info!(target:"orderbook","📒 Processing action: {:?}", action);
+		debug!(target:"orderbook","📒 Processing action: {:?}", action);
 		match action.action.clone() {
 			// Get Trie here itself and pass to required function
 			// No need to change Test cases
@@ -548,7 +549,7 @@ where
 	}
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
-		info!(target:"orderbook","📒 Received a new user action: {:?}",action);
+		debug!(target:"orderbook","📒 Received a new user action: {:?}",action);
 
 		if action.version < *self.state_version.read() {
 			warn!(target:"orderbook","📒 Ignoring message before recovery: given: {:?}, current version: {:?}",action.version,self.state_version.read());
@@ -1200,7 +1201,7 @@ where
 										let bit_index = active_set
 											.iter()
 											.position(|v| v == &signing_key)
-											.unwrap();
+											.ok_or(Error::SigningKeyNotFound)?;
 										set_bit_field(&mut summary.bitflags, bit_index);
 
 										if self.pending_snapshot_summary != Some(summary.clone()) {
@@ -1255,13 +1256,12 @@ where
 			} else if to.saturating_sub(from) == 1 && !self.is_validator {
 				// If we are a fullnode and we know all the stids
 				// then broadcast the next best nonce periodically
-				// Unwrap is fine because we know the message exists
-				let best_msg = GossipMessage::ObMessage(Box::new(
-					self.known_messages.get(to).cloned().unwrap(),
-				));
-				self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
-				self.gossip_engine.broadcast_topic(topic::<B>(), true);
-				info!(target:"orderbook","📒 Sending periodic best message broadcast, nonce: {to:?}");
+				if let Some(msg) = self.known_messages.get(to).cloned() {
+					let best_msg = GossipMessage::ObMessage(Box::new(msg));
+					self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
+					self.gossip_engine.broadcast_topic(topic::<B>(), true);
+					info!(target:"orderbook","📒 Sending periodic best message broadcast, nonce: {to:?}");
+				}
 			}
 		}
 		Ok(())
