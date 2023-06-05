@@ -28,11 +28,14 @@ pub mod pallet {
 		require_transactional,
 		traits::{
 			fungibles::{Inspect, Mutate, Transfer},
-			Get, IsType,
+			Get, Hooks, IsType,
 		},
 		transactional, BoundedVec, PalletId,
 	};
-	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+	use frame_system::{
+		ensure_signed,
+		pallet_prelude::{BlockNumberFor, OriginFor},
+	};
 	use polkadex_primitives::Balance;
 	use sp_runtime::{traits::Zero, DispatchError};
 	use sp_std::{cmp::Reverse, collections::btree_map::BTreeMap, vec::Vec};
@@ -115,6 +118,15 @@ pub mod pallet {
 		/// Event emitted when swap is successful
 		/// [sender, amount_in, route, amount_out]
 		Traded(T::AccountId, BalanceOf<T, I>, Vec<AssetIdOf<T, I>>, BalanceOf<T, I>),
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		#[cfg(feature = "try-runtime")]
+		fn try_state(_: BlockNumberFor<T>) -> Result<(), &'static str> {
+			// Add something here if you want to test runtime upgrade
+			Ok(())
+		}
 	}
 
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {

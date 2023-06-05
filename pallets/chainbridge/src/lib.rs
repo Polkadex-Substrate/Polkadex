@@ -259,6 +259,12 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		#[cfg(feature = "try-runtime")]
+		fn try_state(_: BlockNumberFor<T>) -> Result<(), &'static str> {
+			// Add something here if you want to test runtime upgrade
+			Ok(())
+		}
+
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			// Clear all bridge transfer data
 			BridgeEvents::<T>::kill();

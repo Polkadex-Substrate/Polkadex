@@ -171,6 +171,12 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		#[cfg(feature = "try-runtime")]
+		fn try_state(_: BlockNumberFor<T>) -> Result<(), &'static str> {
+			// Add something here if you want to test runtime upgrade
+			Ok(())
+		}
+
 		fn on_initialize(block_no: T::BlockNumber) -> Weight {
 			let pending_withdrawals = <ReadyWithdrawals<T>>::iter_prefix(
 				block_no.saturating_sub(T::BlockNumber::from(1u8)),
