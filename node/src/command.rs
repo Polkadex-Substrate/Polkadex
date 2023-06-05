@@ -14,6 +14,7 @@
 // GNU General Public License for more details.
 
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
+use frame_support::sp_io;
 use std::sync::Arc;
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -30,6 +31,7 @@ use polkadex_node::benchmarking::{
 	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
 };
 use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
+use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 
@@ -235,8 +237,13 @@ pub fn run() -> Result<()> {
 				let task_manager =
 					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
-
-				Ok((cmd.run::<Block, ExecutorDispatch>(), task_manager))
+				Ok((
+					cmd.run::<Block, ExtendedHostFunctions<
+						sp_io::SubstrateHostFunctions,
+						<ExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+					>>(),
+					task_manager,
+				))
 			})
 		},
 
