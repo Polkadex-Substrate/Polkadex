@@ -14,7 +14,7 @@ polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
-bls-primitives = { path = "../../primitives/bls-primitives", default-features = false, features = ["parachain"] }
+bls-primitives = { workspace = true, default-features = false, features = ["parachain"] }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 
 
