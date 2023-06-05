@@ -4888,16 +4888,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
 
 [[package]]
-name = "nu-ansi-term"
-version = "0.46.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
-dependencies = [
- "overload",
- "winapi",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5124,9 +5114,6 @@ dependencies = [
  "testing_logger",
  "thiserror",
  "tokio",
- "tracing",
- "tracing-futures",
- "tracing-subscriber 0.3.17",
  "trie-db 0.26.0",
  "trie-root 0.17.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
 ]
@@ -5139,7 +5126,6 @@ dependencies = [
  "bls-primitives",
  "chrono",
  "libp2p",
- "log",
  "parity-scale-codec",
  "polkadex-primitives",
  "primitive-types",
@@ -5162,7 +5148,6 @@ name = "orderbook-rpc"
 version = "0.1.0"
 dependencies = [
  "futures 0.3.28",
- "hex",
  "jsonrpsee",
  "log",
  "memory-db 0.31.0 (git+https://github.com/Polkadex-Substrate/trie.git?branch=master)",
@@ -5173,7 +5158,6 @@ dependencies = [
  "polkadex-primitives",
  "reference-trie",
  "rust_decimal",
- "sc-client-api",
  "sc-rpc",
  "sc-utils",
  "serde",
@@ -5210,12 +5194,6 @@ checksum = "628223faebab4e3e40667ee0b2336d34a5b960ff60ea743ddfdbcf7770bcfb66"
 dependencies = [
  "winapi",
 ]
-
-[[package]]
-name = "overload"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "p256"
@@ -5627,9 +5605,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex",
  "liquidity",
- "log",
  "orderbook-primitives",
  "pallet-assets",
  "pallet-balances",
@@ -8329,7 +8305,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-log",
- "tracing-subscriber 0.2.25",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -9599,7 +9575,7 @@ dependencies = [
  "sp-std 5.0.0",
  "tracing",
  "tracing-core",
- "tracing-subscriber 0.2.25",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -10787,20 +10763,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
-]
-
-[[package]]
-name = "tracing-subscriber"
-version = "0.3.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30a651bc37f915e81f087d86e62a18eec5f79550c7faff886f7090b4ea757c77"
-dependencies = [
- "nu-ansi-term",
- "sharded-slab",
- "smallvec",
- "thread_local",
- "tracing-core",
- "tracing-log",
 ]
 
 [[package]]

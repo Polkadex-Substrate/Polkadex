@@ -269,23 +269,22 @@ where
 	}
 }
 
+
+
 #[cfg(test)]
 mod tests {
-	use crate::gossip::GossipValidator;
-	use orderbook_primitives::{
-		types::{GossipMessage, ObMessage, UserActions},
-		SnapshotSummary,
-	};
-	use parking_lot::RwLock;
-	use polkadex_primitives::{AccountId, Block};
 	use std::sync::Arc;
+	use parking_lot::RwLock;
+	use orderbook_primitives::types::{GossipMessage, ObMessage, UserActions};
+	use crate::gossip::GossipValidator;
+	use orderbook_primitives::SnapshotSummary;
+	use polkadex_primitives::{AccountId, Block};
 
 	#[test]
 	pub fn test_message_expiry_check() {
 		let latest_worker_nonce = Arc::new(RwLock::new(0));
 		let fullnodes = Arc::new(RwLock::new(Default::default()));
-		let last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>> =
-			Arc::new(RwLock::new(Default::default()));
+		let last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>> = Arc::new(RwLock::new(Default::default()));
 		let state_version: Arc<RwLock<u16>> = Arc::new(RwLock::new(1));
 
 		let validator: GossipValidator<Block> = GossipValidator::new(
@@ -293,7 +292,7 @@ mod tests {
 			fullnodes,
 			false,
 			last_snapshot,
-			state_version,
+			state_version
 		);
 
 		let gossip = GossipMessage::ObMessage(Box::from(ObMessage {
@@ -316,4 +315,5 @@ mod tests {
 		}));
 		assert!(!validator.message_expired_check(&gossip));
 	}
+
 }
