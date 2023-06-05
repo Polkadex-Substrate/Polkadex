@@ -46,7 +46,8 @@ members = [
   "pallets/thea-executor",
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
-  "scripts/bls_gen"
+  "scripts/bls_gen",
+  "misc/crowdloan-verifier",
 ]
 
 [workspace.dependencies]

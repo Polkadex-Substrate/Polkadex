@@ -137,6 +137,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// Our last snapshot waiting for approval
 	pending_snapshot_summary: Option<SnapshotSummary<AccountId>>,
 	last_processed_block_in_offchain_state: BlockNumber,
+	// Version of current state
+	state_version: Arc<RwLock<u16>>,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -189,13 +191,14 @@ where
 		let latest_worker_nonce = Arc::new(RwLock::new(nonce));
 		let network = Arc::new(network);
 		let fullnodes = Arc::new(RwLock::new(BTreeSet::new()));
-
+		let state_version = Arc::new(RwLock::new(0));
 		// Gossip Validator
 		let gossip_validator = Arc::new(GossipValidator::new(
 			latest_worker_nonce.clone(),
 			fullnodes,
 			is_validator,
 			last_snapshot.clone(),
+			state_version.clone(),
 		));
 		let gossip_engine =
 			GossipEngine::new(network.clone(), protocol_name, gossip_validator, None);
@@ -230,6 +233,7 @@ where
 			orderbook_operator_public_key: None,
 			pending_snapshot_summary: None,
 			last_processed_block_in_offchain_state: 0,
+			state_version,
 		}
 	}
 
@@ -319,7 +323,10 @@ where
 		}
 
 		if self.last_processed_block_in_offchain_state.saturating_add(1) != num {
-			error!("📒Cannot process blk import, last processed blk: {:?}, but trying to import: {:?}", self.last_processed_block_in_offchain_state,num);
+			error!(
+				"📒Cannot process blk import, last processed blk: {:?}, but trying to import: {:?}",
+				self.last_processed_block_in_offchain_state, num
+			);
 			return Err(Error::OutOfSequenceBlockImport)
 		}
 
@@ -451,6 +458,10 @@ where
 			UserActions::Withdraw(withdraw) =>
 				self.process_withdraw(withdraw, action.worker_nonce, action.stid)?,
 			UserActions::BlockImport(num) => self.handle_blk_import(num)?,
+			UserActions::Reset => {
+				// Nothing to do here, we will not reach here.
+				info!(target:"orderbook","📒state is reset.");
+			},
 		}
 		*self.latest_worker_nonce.write() = action.worker_nonce;
 		info!(target:"orderbook","📒Updated working state root: {:?}",hex::encode(*self.working_state_root.read()));
@@ -475,21 +486,24 @@ where
 			known_worker_nonces.retain(|x| **x > *self.latest_worker_nonce.read());
 			known_worker_nonces.sort_unstable(); // unstable is fine since we know  worker nonces are unique
 									 // if the next best known  worker nonces is not available then ask others
-			if *known_worker_nonces[0] != self.latest_worker_nonce.read().saturating_add(1) {
-				// Ask other peers to send us the requests  worker nonces.
-				info!(target:"orderbook","📒 Asking peers to send us the missed \
+			if let Some(known_best_nonce) = known_worker_nonces.get(0) {
+				if **known_best_nonce != self.latest_worker_nonce.read().saturating_add(1) {
+					// Ask other peers to send us the requests  worker nonces.
+					info!(target:"orderbook","📒 Asking peers to send us the missed \
                 worker nonces: last processed nonce: {:?}, best known nonce: {:?} ",
                     self.latest_worker_nonce.read(), known_worker_nonces[0]);
-				let message = GossipMessage::WantWorkerNonce(
-					*self.latest_worker_nonce.read(),
-					*known_worker_nonces[0],
-				);
+					let message = GossipMessage::WantWorkerNonce(
+						*self.latest_worker_nonce.read(),
+						*known_worker_nonces[0],
+						*self.state_version.read(),
+					);
 
-				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
-				metric_inc!(self, ob_messages_sent);
-				metric_add!(self, ob_data_sent, message.encoded_size() as u64);
-			} else {
-				info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
+					self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
+					metric_inc!(self, ob_messages_sent);
+					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
+				} else {
+					info!(target: "orderbook", "📒 sync request not required, we know the next worker_nonce");
+				}
 			}
 		} else {
 			info!(target: "orderbook", "📒 No new messages known after worker_nonce: {:?}",self.latest_worker_nonce.read());
@@ -516,6 +530,7 @@ where
 				self.last_processed_block_in_offchain_state = summary.last_processed_blk;
 				*self.working_state_root.write() = summary.state_root.0;
 				info!(target: "orderbook", "📒 0x{} state root loaded",hex::encode(summary.state_root.0));
+				*self.state_version.write() = summary.state_version;
 			},
 			Err(err) => {
 				error!(target: "orderbook", "📒 Error decoding snapshot data: {err:?}");
@@ -527,8 +542,12 @@ where
 
 	pub async fn process_new_user_action(&mut self, action: &ObMessage) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Received a new user action: {:?}",action);
+
+		if action.version < *self.state_version.read() {
+			warn!(target:"orderbook","📒 Ignoring message before recovery: given: {:?}, current version: {:?}",action.version,self.state_version.read());
+		}
 		// Check if stid is newer or not
-		if action.worker_nonce <= *self.latest_worker_nonce.read() {
+		if action.worker_nonce <= *self.latest_worker_nonce.read() && !action.reset {
 			// Ignore stids we already know.
 			warn!(target:"orderbook","📒 Ignoring old message: given: {:?}, latest stid: {:?}",action.worker_nonce,self.latest_worker_nonce.read());
 			return Ok(())
@@ -549,6 +568,17 @@ where
 		if self.sync_oracle.is_major_syncing() | self.state_is_syncing {
 			info!(target: "orderbook", "📒 Ob message cached for sync to complete: worker_nonce: {:?}",action.worker_nonce);
 			return Ok(())
+		}
+		// Engine sends this during recovery, so reset the state
+		if action.reset {
+			info!(target: "orderbook", "📒 Ob resetting on worker_nonce: {:?}",action.worker_nonce);
+			self.reload_state_from_last_snapshot().await?;
+			// Update the worker nonce
+			*self.latest_worker_nonce.write() = action.worker_nonce;
+			self.known_messages.insert(action.worker_nonce, action.clone());
+			// Multicast the message to other peers
+			let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
+			self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
 		}
 		self.check_state_sync().await?;
 		self.check_worker_nonce_gap_fill().await?;
@@ -609,6 +639,7 @@ where
 						aggregate_signature: None,
 						state_chunk_hashes,
 						last_processed_blk: self.last_processed_block_in_offchain_state,
+						state_version: *self.state_version.read(),
 					};
 
 					info!(target: "orderbook", "📒 Writing summary to offchain storage: {:?}", summary);
@@ -680,24 +711,33 @@ where
 					},
 					_ => {
 						error!(target:"orderbook","📒 Error processing action: {:?}",err);
-						// The node found an error during processing of the action. This means
-						// We need to revert everything after the last successful snapshot
-						// Clear the working state
-						self.memory_db.write().clear();
-						info!(target:"orderbook","📒 Working state cleared.");
-						// We forget about everything else from cache.
-						self.known_messages.clear();
-						info!(target:"orderbook","📒 OB messages cache cleared.");
-						let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
-							&BlockId::Number(self.last_finalized_block.saturated_into()),
-						)?;
-						self.load_snapshot(&latest_summary)?;
+						self.reload_state_from_last_snapshot().await?;
 						return Ok(())
 					},
 				}
 			}
 			next_worker_nonce = self.latest_worker_nonce.read().saturating_add(1);
 		}
+		Ok(())
+	}
+
+	/// Discards current state and reloads the last snapshot accepted by runtime
+	pub async fn reload_state_from_last_snapshot(&mut self) -> Result<(), Error> {
+		// The node found an error during processing of the action. This means
+		// We need to revert everything after the last successful snapshot
+		// Clear the working state
+		self.memory_db.write().clear();
+		info!(target:"orderbook","📒 Working state cleared.");
+		// We forget about everything else from cache.
+		self.known_messages.clear();
+		info!(target:"orderbook","📒 OB messages cache cleared.");
+		let latest_summary = self
+			.runtime
+			.runtime_api()
+			.get_latest_snapshot(&BlockId::Number(self.last_finalized_block.saturated_into()))?;
+		self.load_snapshot(&latest_summary)?;
+		*self.state_version.write() = latest_summary.state_version.saturating_add(1);
+		info!(target:"orderbook","📒 New state version is updated: version: {:?}",self.state_version.read());
 		Ok(())
 	}
 
@@ -711,7 +751,11 @@ where
 	///
 	/// # Returns
 	/// * `()` - No return value
-	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, peer: Option<PeerId>) {
+	pub fn want_worker_nonce(&mut self, from: &u64, to: &u64, version: u16, peer: Option<PeerId>) {
+		if version < *self.state_version.read() {
+			debug!(target: "orderbook", "📒 Ignoring old want requests from version: {:?}",version);
+			return
+		}
 		info!(target: "orderbook", "📒 Want worker_nonce: {:?} - {:?}", from, to);
 		if let Some(peer) = peer {
 			info!(target: "orderbook", "📒 Sending worker_nonce request to peer: {:?}", peer);
@@ -950,7 +994,8 @@ where
 		metric_inc!(self, ob_messages_recv);
 		metric_add!(self, ob_data_recv, message.encoded_size() as u64);
 		match message {
-			GossipMessage::WantWorkerNonce(from, to) => self.want_worker_nonce(from, to, remote),
+			GossipMessage::WantWorkerNonce(from, to, version) =>
+				self.want_worker_nonce(from, to, *version, remote),
 			GossipMessage::WorkerNonces(messages) =>
 				self.got_worker_nonces_via_gossip(messages).await?,
 			GossipMessage::ObMessage(msg) => self.process_new_user_action(msg).await?,
@@ -1004,10 +1049,13 @@ where
 			.runtime_api()
 			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
 			.validators;
-		if let Err(err) = self.keystore.get_local_key(&active_set) {
-			log::error!(target:"orderbook","📒 No BLS key found: {:?}",err);
-		} else {
-			log::info!(target:"orderbook","📒 Active BLS key found")
+
+		if self.is_validator {
+			if let Err(err) = self.keystore.get_local_key(&active_set) {
+				log::error!(target:"orderbook","📒 No BLS key found: {:?}",err);
+			} else {
+				log::info!(target:"orderbook","📒 Active BLS key found")
+			}
 		}
 		// Check if snapshot should be generated or not
 		if self.should_generate_snapshot() {
@@ -1193,7 +1241,8 @@ where
 			let from = *self.latest_worker_nonce.read();
 			// Send it only if we are missing any messages
 			if to.saturating_sub(from) > 1 {
-				let want_request = GossipMessage::WantWorkerNonce(from, **to);
+				let want_request =
+					GossipMessage::WantWorkerNonce(from, **to, *self.state_version.read());
 				self.gossip_engine.gossip_message(topic::<B>(), want_request.encode(), true);
 				info!(target:"orderbook","📒 Sending periodic sync request for nonces between: from:{from:?} to: {to:?}");
 			} else if to.saturating_sub(from) == 1 && !self.is_validator {

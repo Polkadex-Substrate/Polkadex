@@ -124,8 +124,8 @@ impl Trade {
 #[cfg(feature = "std")]
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
-	/// (From, to)
-	WantWorkerNonce(u64, u64),
+	/// (From, to, state_version)
+	WantWorkerNonce(u64, u64, u16),
 	/// Collection of WorkerNonces
 	WorkerNonces(Box<Vec<ObMessage>>),
 	/// Single ObMessage
@@ -150,6 +150,8 @@ pub struct ObMessage {
 	pub worker_nonce: u64,
 	pub action: UserActions,
 	pub signature: sp_core::ecdsa::Signature,
+	pub reset: bool,
+	pub version: u16,
 }
 
 #[cfg(feature = "std")]
@@ -186,6 +188,7 @@ pub enum UserActions {
 	Trade(Vec<Trade>),
 	Withdraw(WithdrawalRequest),
 	BlockImport(u32),
+	Reset
 }
 
 #[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]
@@ -763,6 +766,8 @@ mod tests {
 			worker_nonce: 0,
 			action: UserActions::BlockImport(1),
 			signature: Default::default(),
+			reset: false,
+			version: 0,
 		};
 
 		println!("OBMessage: {:?}", serde_json::to_string(&msg).unwrap());
