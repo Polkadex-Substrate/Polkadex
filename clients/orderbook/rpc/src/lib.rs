@@ -32,6 +32,12 @@ use jsonrpsee::{
 };
 use log::{error, info, warn};
 use memory_db::{HashKey, MemoryDB};
+use orderbook::{snapshot::SnapshotStore, DbRef};
+use orderbook_primitives::{
+	recovery::ObRecoveryState,
+	types::{AccountAsset, ObMessage},
+	ObApi, ORDERBOOK_STATE_CHUNK_PREFIX,
+};
 use parking_lot::RwLock;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
@@ -41,12 +47,6 @@ use sp_blockchain::HeaderBackend;
 use sp_core::offchain::OffchainStorage;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
-use orderbook::{snapshot::SnapshotStore, DbRef};
-use orderbook_primitives::{
-	recovery::ObRecoveryState,
-	types::{AccountAsset, ObMessage},
-	ObApi, ORDERBOOK_STATE_CHUNK_PREFIX,
-};
 
 /// Top-level error type for the RPC handler.
 #[derive(Debug, thiserror::Error)]
