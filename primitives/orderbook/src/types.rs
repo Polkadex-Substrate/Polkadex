@@ -124,8 +124,8 @@ impl Trade {
 #[cfg(feature = "std")]
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
-	/// (From, to)
-	WantWorkerNonce(u64, u64),
+	/// (From, to, state_version)
+	WantWorkerNonce(u64, u64, u16),
 	/// Collection of WorkerNonces
 	WorkerNonces(Box<Vec<ObMessage>>),
 	/// Single ObMessage
@@ -201,17 +201,19 @@ pub struct WithdrawalRequest {
 }
 
 #[cfg(feature = "std")]
-impl TryInto<Withdrawal<AccountId>> for WithdrawalRequest {
-	type Error = rust_decimal::Error;
-
-	fn try_into(self) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
+impl WithdrawalRequest {
+	pub fn convert(
+		&self,
+		stid: u64,
+		worker_nonce: u64,
+	) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
 		Ok(Withdrawal {
 			main_account: self.main.clone(),
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
 			fees: Default::default(),
-			stid: 0,
-			worker_nonce: 0,
+			stid,
+			worker_nonce,
 		})
 	}
 }
@@ -436,7 +438,7 @@ impl Order {
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
-		match self.order_type {
+		let result = match self.order_type {
 			OrderType::LIMIT =>
 				is_market_same &&
 					self.price >= config.min_price &&
@@ -459,12 +461,20 @@ impl Order {
 						self.quote_order_qty <= (config.max_qty * config.max_price) &&
 						self.quote_order_qty.rem(config.price_tick_size).is_zero()
 				},
+		};
+		if !result {
+			log::error!(target:"orderbook","pair config verification failed: config: {:?}, price: {:?}, qty: {:?}, quote_order_qty: {:?}", config, self.price, self.qty, self.quote_order_qty);
 		}
+		result
 	}
 
 	pub fn verify_signature(&self) -> bool {
 		let payload: OrderPayload = self.clone().into();
-		self.signature.verify(&payload.encode()[..], &self.user)
+		let result = self.signature.verify(&payload.encode()[..], &self.user);
+		if !result {
+			log::error!(target:"orderbook","Order signature check failed");
+		}
+		result
 	}
 }
 

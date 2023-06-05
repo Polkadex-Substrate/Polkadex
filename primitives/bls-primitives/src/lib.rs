@@ -18,7 +18,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate core;
+
 pub mod application_crypto;
+
+#[cfg(not(feature = "parachain"))]
+pub mod host_functions;
 
 use ark_bls12_381::{
 	g1::Config as G1Config, Bls12_381, G1Affine, G1Projective, G2Affine, G2Projective,
