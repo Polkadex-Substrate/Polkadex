@@ -47,7 +47,7 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions for `pallet_rewards`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_rewards::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> super::WeightInfo for WeightInfo<T> {
 	// Storage: Rewards InitializeRewards (r:1 w:1)
 	/// The range of component `b` is `[0, 4838400]`.
 	/// The range of component `i` is `[1, 100]`.
