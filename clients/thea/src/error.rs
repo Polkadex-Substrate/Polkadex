@@ -16,9 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Orderbook gadget specific errors
+//! Thea gadget specific errors.
 //!
-//! Used for Orderbook gadget interal error handling only
+//! Used for Thea gadget internal error handling only.
 
 use sp_api::ApiError;
 use std::fmt::Debug;

@@ -16,6 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! This crate responsible for observing foreign networks and aggregation of the BLS signatures for
+//! ingress messages.
+//! Creates external network payloads based on the inputs of solochain runtime.
+//!
+//! The client listens to 3 streams for messages:
+//! * finality stream
+//! * gossip messages
+//! * interval stream
+
 #![feature(unwrap_infallible)]
 use prometheus::Registry;
 use sc_chain_spec::ChainType;
@@ -43,6 +52,7 @@ mod types;
 
 pub(crate) mod thea_protocol_name {
 
+	/// Protocol name.
 	pub(crate) const NAME: &str = "/thea/1";
 
 	/// Name of the notifications protocol used by Thea.
@@ -63,7 +73,7 @@ pub fn thea_peers_set_config() -> sc_network_common::config::NonDefaultSetConfig
 	cfg
 }
 
-/// A convenience Orderbook client trait that defines all the type bounds a Orderbook client
+/// A convenience Thea client trait that defines all the type bounds a Thea client
 /// has to satisfy. Ideally that should actually be a trait alias. Unfortunately as
 /// of today, Rust does not allow a type alias to be used as a trait bound. Tracking
 /// issue is <https://github.com/rust-lang/rust/issues/41517>.
@@ -110,24 +120,24 @@ where
 	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
-	/// Orderbook client
+	/// Thea client.
 	pub client: Arc<C>,
-	/// Client Backend
+	/// Client Backend.
 	pub backend: Arc<BE>,
-	/// Client runtime
+	/// Client runtime.
 	pub runtime: Arc<R>,
-	/// Keystore
+	/// Keystore.
 	pub keystore: Option<Arc<LocalKeystore>>,
-	/// Gossip network
+	/// Gossip network.
 	pub network: N,
-	/// Prometheus metric registry
+	/// Prometheus metric registry.
 	pub prometheus_registry: Option<Registry>,
-	/// Boolean indicating if this node is a validator
+	/// Boolean indicating if this node is a validator.
 	pub is_validator: bool,
 	pub marker: PhantomData<B>,
-	/// Defines the chain type our current deployment ( Dev or production )
+	/// Defines the chain type our current deployment (Dev or production).
 	pub chain_type: ChainType,
-	/// Foreign Chain URL
+	/// Foreign Chain URL.
 	pub foreign_chain_url: String,
 	/// Foreign chain dummy mode
 	pub dummy_mode: bool,
@@ -197,10 +207,21 @@ where
 	worker.run().await
 }
 
+/// Foreign connector wrapper. Holds concrete implementation of the foreign connector abstraction.
 pub struct Connector {
 	connector: Arc<dyn ForeignConnector>,
 }
 
+/// Connector resolver/factory.
+///
+/// Based on chain type or validators group member - resolves, creates and returns a new
+/// connector instance.
+///
+/// # Parameters
+///
+/// * `chain_type`: Type of chain for which connector should be created.
+/// * `is_validator`: Defines if connector should be created for validator or not.
+/// * `url`: The address to which connector should be connected.
 pub async fn get_connector(
 	chain_type: ChainType,
 	is_validator: bool,

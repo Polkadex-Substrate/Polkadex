@@ -16,7 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! RPC API for Orderbook.
+//! Defines RPC abstraction and concrete implementation required to communicate with the
+//! `Orderbook`.
 
 #![warn(missing_docs)]
 
@@ -31,6 +32,12 @@ use jsonrpsee::{
 };
 use log::{error, info, warn};
 use memory_db::{HashKey, MemoryDB};
+use orderbook::{snapshot::SnapshotStore, DbRef};
+use orderbook_primitives::{
+	recovery::ObRecoveryState,
+	types::{AccountAsset, ObMessage},
+	ObApi, ORDERBOOK_STATE_CHUNK_PREFIX,
+};
 use parking_lot::RwLock;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
@@ -41,15 +48,8 @@ use sp_core::offchain::OffchainStorage;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
-use orderbook::{snapshot::SnapshotStore, DbRef};
-use orderbook_primitives::{
-	recovery::ObRecoveryState,
-	types::{AccountAsset, ObMessage},
-	ObApi, ORDERBOOK_STATE_CHUNK_PREFIX,
-};
-
+/// Top-level error type for the RPC handler.
 #[derive(Debug, thiserror::Error)]
-/// Top-level error type for the RPC handler
 pub enum Error {
 	/// The Orderbook RPC endpoint is not ready.
 	#[error("Orderbook RPC endpoint not ready")]
@@ -88,23 +88,25 @@ impl From<Error> for JsonRpseeError {
 	}
 }
 
-// Provides RPC methods for interacting with Orderbook.
+/// RPC abstraction for interacting with Orderbook.
 #[rpc(client, server)]
 pub trait OrderbookApi {
-	/// Returns hash of the latest Orderbook finalized block as seen by this client.
+	/// Submits a new state changing event for settlement to blockchain
+	/// # Parameters
 	///
-	/// The latest Orderbook block might not be available if the Orderbook gadget is not running
-	/// in the network or if the client is still initializing or syncing with the network.
-	/// In such case an error would be returned.
+	/// * `action`: The state changing event from Orderbook engine
 	#[method(name = "ob_submitAction")]
 	async fn submit_action(&self, action: ObMessage) -> RpcResult<()>;
+
 	/// Returns the state of the orderbook that will help engine to recover.
 	///
 	/// # Parameters
-	/// - self: a reference to the current object
 	///
-	/// # Return
-	/// - RpcResult<String>: a Result containing serialized `ObRecoveryState`.
+	/// * `self`: A reference to the current object.
+	///
+	/// # Returns
+	///
+	/// * `RpcResult<String>`: A Result containing serialized `ObRecoveryState`.
 	#[method(name = "ob_getObRecoverState")]
 	async fn get_orderbook_recovery_state(&self) -> RpcResult<String>;
 
@@ -188,6 +190,15 @@ where
 	Backend: sc_client_api::Backend<Block>,
 {
 	/// Creates a new Orderbook Rpc handler instance.
+	///
+	/// # Parameters
+	///
+	/// * `tx`: Channel for sending messages to the worker.
+	/// * `memory_db`: Reference to the MemoryDB to create in-memory trie representation from it.
+	/// * `working_state_root`: Working state root key in MemoryDB from which trie representation
+	///   will be created.
+	/// * `runtime`: Something that provides a runtime api.
+	/// * `client`: Blockchain database header backend concrete implementation.
 	pub fn new(deps: OrderbookDeps<Backend, Client, Runtime>) -> Self {
 		Self {
 			tx: deps.rpc_channel,
@@ -200,7 +211,7 @@ where
 		}
 	}
 
-	/// Returns the serialized offchain state based on the last finalized snapshot summary
+	/// Returns the serialized offchain state based on the last finalized snapshot summary.
 	pub async fn get_orderbook_recovery_state_inner(&self) -> RpcResult<String> {
 		// get snapshot summary
 		let last_snapshot_summary = self

@@ -16,6 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # Support pallet.
+//!
+//! Pallet which holds common reusable functionality.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{dispatch::DispatchError, traits::tokens::Balance as BalanceT};

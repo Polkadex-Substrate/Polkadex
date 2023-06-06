@@ -16,27 +16,32 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Orderbook Prometheus metrics definition
+//! Orderbook Prometheus metrics definition.
 
 use prometheus::{register, Counter, Gauge, PrometheusError, Registry, U64};
 
-/// Orderbook metrics exposed through Prometheus
+/// Orderbook metrics exposed through Prometheus.
 pub struct Metrics {
-	/// Last processed snapshot id
+	/// Last processed snapshot id.
 	pub ob_snapshot_id: Gauge<U64>,
-	/// Last processed worker nonce
+	/// Last processed worker nonce.
 	pub ob_worker_nonce: Gauge<U64>,
-	/// Total number of ob messages sent by this node
+	/// Total number of ob messages sent by this node.
 	pub ob_messages_sent: Counter<U64>,
-	/// Total number of ob messages recvd by this node
+	/// Total number of ob messages recvd by this node.
 	pub ob_messages_recv: Counter<U64>,
-	/// Total data sent out by ob worker
+	/// Total data sent out by ob worker.
 	pub ob_data_sent: Gauge<U64>,
-	/// Total data recv by ob worker
+	/// Total data recv by ob worker.
 	pub ob_data_recv: Gauge<U64>,
 }
 
 impl Metrics {
+	/// Registers all predefined metrics collectors in registry.
+	///
+	/// # Parameters
+	///
+	/// * `registry`: Registry reference to register collectors in.
 	pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
 			ob_snapshot_id: register(

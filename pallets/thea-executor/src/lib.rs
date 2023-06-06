@@ -16,6 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # Thea executor pallet.
+//!
+//! Pallet performs operations with balance (e.g. withdraw, claim deposit and set withdraw fee).
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 /// Edit this file to define custom logic or remove it if it is not needed.
@@ -206,13 +210,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Manually claim an approved deposit
+		/// Manually claim an approved deposit.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: User
+		/// * `origin`: User.
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
-		/// (it's used to parametrise the weight of this extrinsic)
+		/// (it's used to parametrise the weight of this extrinsic).
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::default())]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
@@ -245,7 +249,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Add Token Config
+		/// Add Token Config.
 		///
 		/// # Parameters
 		///

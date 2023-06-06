@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Local keystore implementation.
+
 use log::warn;
 use std::sync::Arc;
 
@@ -24,15 +26,27 @@ use orderbook_primitives::crypto::AuthorityId;
 use sc_keystore::LocalKeystore;
 use sp_core::Pair;
 
+/// Key store definition which holds keys and performs messages signing operations and accessor to
+/// the public keys.
 pub struct OrderbookKeyStore {
 	keystore: Option<Arc<LocalKeystore>>,
 }
 
 impl OrderbookKeyStore {
+	/// Constructor.
+	///
+	/// # Parameters
+	///
+	/// * `keystore`: Local keystore from the keystore container.
 	pub fn new(keystore: Option<Arc<LocalKeystore>>) -> Self {
 		Self { keystore }
 	}
 
+	/// Accessor to the BLS public key by identity of Orderbook authority.
+	///
+	/// # Parameters
+	///
+	/// * `active`: Identifier of the Orderbook authority.
 	pub fn get_local_key(&self, active: &[AuthorityId]) -> Result<AuthorityId, Error> {
 		match self.keystore.as_ref() {
 			None => {
@@ -52,6 +66,12 @@ impl OrderbookKeyStore {
 		Err(Error::Keystore("📒 No BLS key found".to_string()))
 	}
 
+	/// Signs provided message with stored BLS key related to the Orderbook authority.
+	///
+	/// # Parameters
+	///
+	/// * `public`: Identifier of the Orderbook authority using BLS as its crypto.
+	/// * `message`: Message to sign.
 	pub fn sign(
 		&self,
 		public: &AuthorityId,

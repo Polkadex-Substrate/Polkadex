@@ -19,6 +19,12 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+//! # Thea Message Handler Pallet.
+//!
+//! Pallet which processes incoming messages.
+//!
+//! Used only by "Parachain".
+
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 use parity_scale_codec::{Encode, MaxEncodedLen};
