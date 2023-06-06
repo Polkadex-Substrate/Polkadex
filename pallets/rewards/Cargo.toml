@@ -11,7 +11,6 @@ license = "GPL-3.0-or-later"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-hex-literal = { workspace = true, default-features = false }
 parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
@@ -20,8 +19,9 @@ sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
-once_cell = { version = "1.17.0", default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
+hex_lit = "0.1.1"
+lazy_static = { version ="1.4", features = ["spin_no_std"] }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
