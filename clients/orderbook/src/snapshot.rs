@@ -21,11 +21,12 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use serde_with::{json::JsonString, serde_as};
 
-/// This is a dummy struct used to serialize memory db
+/// This is a dummy struct used to serialize memory db.
 /// We cannot serialize the hashmap below because of non-string type in key.
 #[serde_as]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SnapshotStore {
+	/// Snapshots map.
 	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
 	pub map: BTreeMap<[u8; 32], (Vec<u8>, i32)>,
 }

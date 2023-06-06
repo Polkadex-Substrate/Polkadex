@@ -79,23 +79,27 @@ jobs:
         run: |
           taplo lint
           taplo fmt --check
-      - name: Build Project with runtime benchmarks
-        run: cargo build --features runtime-benchmarks
       - name: Build Project with try-runtime
         run: cargo build --features try-runtime
-      - name: Test weights generation
-        run: ./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1
-      - name: Normal Build
-        run: RUSTFLAGS="-D warnings" cargo build
       - name: Runtime build
         run: cargo build -p node-polkadex-runtime
+      - name: Build Project with runtime benchmarks
+        run: cargo build --features runtime-benchmarks
+      - name: Test weights generation
+        run: ./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1
+      - name: Normal Build in release mode
+        if: contains(github.ref, 'Develop')
+        run: RUSTFLAGS="-D warnings" cargo build --release
+      - name: Normal Build
+        if: "!(contains(github.ref, 'Develop'))"
+        run: RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
         run: cargo clippy -- -D warnings
       - name: Test Project
         run: cargo test
-      - name: Run Cargo Trampulin
+      - name: Run Cargo Tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
           version: '0.22.0'

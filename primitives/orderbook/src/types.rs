@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! In this module defined "Orderbook" specific operations and types.
+
 use crate::constants::*;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
@@ -38,38 +40,61 @@ use std::{
 
 pub type OrderId = H256;
 
+/// Defined account information required for the "Orderbook" client.
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountInfo {
+	/// Collection of the proxy accounts.
 	pub proxies: Vec<AccountId>,
 }
 
+/// Defines account to asset map DTO to be used in the "Orderbook" client.
 #[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountAsset {
+	/// Main account identifier.
 	pub main: AccountId,
+	/// Asset identifier.
 	pub asset: AssetId,
 }
 
 impl AccountAsset {
+	/// Constructor.
+	///
+	/// # Parameters
+	///
+	/// * `main`: Main account identifier.
+	/// * `asset`: Asset identifier.
 	pub fn new(main: AccountId, asset: AssetId) -> Self {
 		AccountAsset { main, asset }
 	}
 }
 
+/// Defines trade related structure DTO.
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "std")]
 pub struct Trade {
+	/// Market order.
 	pub maker: Order,
+	/// Taker order.
 	pub taker: Order,
+	/// Price of the trade.
 	pub price: Decimal,
+	/// Amount of the trade.
 	pub amount: Decimal,
+	/// Timestamp of the trade.
 	pub time: i64,
 }
 
 #[cfg(feature = "std")]
 impl Trade {
+	/// Depends on the trade side - calculates and provides price and asset information required for
+	/// further balances transfers.
+	///
+	/// # Parameters
+	///
+	/// * `market`: Defines if order is a market order.
 	pub fn credit(&self, maker: bool) -> (AccountAsset, Decimal) {
 		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
 		let (base, quote) = (user.pair.base, user.pair.quote);
@@ -83,6 +108,12 @@ impl Trade {
 		}
 	}
 
+	/// Depends on the trade side - calculates and provides price and asset information required for
+	/// further balances transfers.
+	///
+	/// # Parameters
+	///
+	/// * `market`: Defines if order is a market order.
 	pub fn debit(&self, maker: bool) -> (AccountAsset, Decimal) {
 		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
 		let (base, quote) = (user.pair.base, user.pair.quote);
@@ -105,12 +136,24 @@ use rust_decimal::prelude::FromPrimitive;
 
 #[cfg(feature = "std")]
 impl Trade {
-	// Creates a Trade with zero event_tag
+	/// Constructor.
+	/// Creates a Trade with zero event_tag.
+	///
+	/// # Parameters
+	///
+	/// * `market`: Market order.
+	/// * `taker`: Taker order.
+	/// * `price`: Price of the trade.
+	/// * `amount`: Amount of the trade.
 	pub fn new(maker: Order, taker: Order, price: Decimal, amount: Decimal) -> Trade {
 		Self { maker, taker, price, amount, time: Utc::now().timestamp_millis() }
 	}
 
-	// Verifies the contents of a trade
+	/// Verifies content of the trade.
+	///
+	/// # Parameters
+	///
+	/// * `config`: Trading pair configuration DTO.
 	pub fn verify(&self, config: TradingPairConfig) -> bool {
 		// Verify signatures
 		self.maker.verify_signature() &
@@ -121,6 +164,7 @@ impl Trade {
 	}
 }
 
+/// Representation of gossip message possible variants.
 #[cfg(feature = "std")]
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
@@ -142,13 +186,18 @@ pub enum GossipMessage {
 	Chunk(u64, u16, Vec<u8>),
 }
 
+/// Defines "Orderbook" message structure DTO.
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "std")]
 pub struct ObMessage {
+	/// State change identifier.
 	pub stid: u64,
+	/// Worker nonce.
 	pub worker_nonce: u64,
+	/// Specific action.
 	pub action: UserActions,
+	/// Ecdsa signature.
 	pub signature: sp_core::ecdsa::Signature,
 	pub reset: bool,
 	pub version: u16,
@@ -156,6 +205,11 @@ pub struct ObMessage {
 
 #[cfg(feature = "std")]
 impl ObMessage {
+	/// Verifies itself.
+	///
+	/// # Parameters
+	///
+	/// * `public_key`: Ecdsa public key.
 	pub fn verify(&self, public_key: &sp_core::ecdsa::Public) -> bool {
 		match self.signature.recover_prehashed(&self.sign_data()) {
 			None => false,
@@ -163,6 +217,7 @@ impl ObMessage {
 		}
 	}
 
+	/// Signs itself.
 	pub fn sign_data(&self) -> [u8; 32] {
 		let mut cloned_self = self.clone();
 		cloned_self.signature = sp_core::ecdsa::Signature::default();
@@ -170,33 +225,45 @@ impl ObMessage {
 	}
 }
 
+/// Definition of the synchronization statuse variants.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg(feature = "std")]
 pub enum StateSyncStatus {
+	/// Peer is not responding.
 	Unavailable,
-	// We don't have this chunk yet
-	// (Who is supposed to send us, when we requested)
+	/// Synchronization is in progress and the chunk is not received yet.
+	/// Peer was requested for this chunk and currently in pending mode.
+	/// (Who is supposed to send us, when we requested)
 	InProgress(PeerId, i64),
-	// We have asked a peer for this chunk and waiting
-	Available, // We have this chunk
+	/// This chunk already present.
+	Available,
 }
 
+/// Defines user specific operations variants.
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "std")]
 pub enum UserActions {
+	/// Trade operation requested.
 	Trade(Vec<Trade>),
+	/// Withdraw operation requested.
 	Withdraw(WithdrawalRequest),
+	/// Block import requested.
 	BlockImport(u32),
 	Reset,
 }
 
+/// Defines withdraw request DTO.
 #[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]
 #[cfg(feature = "std")]
 pub struct WithdrawalRequest {
+	/// Signature.
 	pub signature: Signature,
+	/// Payload.
 	pub payload: WithdrawPayloadCallByUser,
+	/// User's main account identifier.
 	pub main: AccountId,
+	/// User's proxy account identifier.
 	pub proxy: AccountId,
 }
 
@@ -220,35 +287,46 @@ impl WithdrawalRequest {
 
 #[cfg(feature = "std")]
 impl WithdrawalRequest {
+	/// Verifies request payload.
 	pub fn verify(&self) -> bool {
 		self.signature.verify(self.payload.encode().as_ref(), &self.proxy)
 	}
 
+	/// Instantiates `AccountAsset` DTO based on owning data.
 	pub fn account_asset(&self) -> AccountAsset {
 		AccountAsset { main: self.main.clone(), asset: self.payload.asset_id }
 	}
 
+	/// Tries to convert owning payload amount `String` value to `Decimal`.
 	pub fn amount(&self) -> Result<Decimal, rust_decimal::Error> {
 		Decimal::from_str(&self.payload.amount)
 	}
 }
 
+/// Withdraw payload requested by user.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg(feature = "std")]
 pub struct WithdrawPayloadCallByUser {
+	/// Asset identifier.
 	pub asset_id: AssetId,
+	/// Amount in a `String` representation.
 	pub amount: String,
+	/// Timestamp of the request.
 	pub timestamp: i64,
 }
 
+/// Defines possible order sides variants.
 #[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderSide {
+	/// Asking order side.
 	Ask,
+	/// Bidding order side.
 	Bid,
 }
 
 impl OrderSide {
+	/// Resolves an opposite side of the current order side.
 	pub fn get_opposite(&self) -> Self {
 		match self {
 			OrderSide::Ask => OrderSide::Bid,
@@ -270,10 +348,13 @@ impl TryFrom<String> for OrderSide {
 	}
 }
 
+/// Defines possible order types variants.
 #[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderType {
+	/// Order limit type.
 	LIMIT,
+	/// Order market type.
 	MARKET,
 }
 
@@ -290,11 +371,15 @@ impl TryFrom<String> for OrderType {
 	}
 }
 
+/// Defines possible order statuses variants.
 #[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderStatus {
+	/// Order open.
 	OPEN,
+	/// Order closed.
 	CLOSED,
+	/// Order canceled.
 	CANCELLED,
 }
 
@@ -323,10 +408,13 @@ impl From<OrderStatus> for String {
 	}
 }
 
+/// Defines trading pair structure.
 #[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
+	/// Base asset identifier.
 	pub base: AssetId,
+	/// Quote asset identifier.
 	pub quote: AssetId,
 }
 
@@ -358,20 +446,44 @@ impl TryFrom<String> for TradingPair {
 }
 
 impl TradingPair {
+	/// Constructor.
+	///
+	/// # Parameters
+	///
+	/// * `quote`: Quote asset identifier.
+	/// * `base`: Base asset identifier.
 	pub fn from(quote: AssetId, base: AssetId) -> Self {
 		TradingPair { base, quote }
 	}
 
+	/// Defines if provided asset is a quote asset of the current trading pair.
+	///
+	/// # Parameters
+	///
+	/// * `asset_id`: Asset identifier to compare.
 	pub fn is_quote_asset(&self, asset_id: AssetId) -> bool {
 		self.quote == asset_id
 	}
+
+	/// Defines if provided asset is a base asset of the current trading pair.
+	///
+	/// # Parameters
+	///
+	/// * `asset_id`: Asset identifier to compare.
 	pub fn is_base_asset(&self, asset_id: AssetId) -> bool {
 		self.base == asset_id
 	}
 
+	/// Defines if provided asset identifier is matching internal base or quote asset identifier.
+	///
+	/// # Parameters
+	///
+	/// * `asset_id`: Asset identifier.
 	pub fn is_part_of(&self, asset_id: AssetId) -> bool {
 		(self.base == asset_id) | (self.quote == asset_id)
 	}
+
+	/// Converts base asset identifier to the `String`.
 	#[cfg(feature = "std")]
 	pub fn base_asset_str(&self) -> String {
 		match self.base {
@@ -379,6 +491,8 @@ impl TradingPair {
 			AssetId::Asset(id) => id.to_string(),
 		}
 	}
+
+	/// Converts quote asset identifier to the `String`.
 	#[cfg(feature = "std")]
 	pub fn quote_asset_str(&self) -> String {
 		match self.quote {
@@ -387,6 +501,7 @@ impl TradingPair {
 		}
 	}
 
+	/// Normalizes base and quote assets to the market identifier.
 	#[cfg(feature = "std")]
 	pub fn market_id(&self) -> String {
 		format!("{}/{}", self.base_asset_str(), self.quote_asset_str())
@@ -410,31 +525,55 @@ impl Display for TradingPair {
 	}
 }
 
+/// Order structure definition.
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Order {
+	/// State change identifier.
 	pub stid: u64,
+	/// Client order identifier.
 	pub client_order_id: H256,
+	/// Average filled price.
 	pub avg_filled_price: Decimal,
+	/// Fee.
 	pub fee: Decimal,
+	/// Filled quantity.
 	pub filled_quantity: Decimal,
+	/// Status.
 	pub status: OrderStatus,
+	/// Identifier.
 	pub id: OrderId,
+	/// User's account identifier.
 	pub user: AccountId,
+	/// Main account identifier.
 	pub main_account: AccountId,
+	/// Trading pair.
 	pub pair: TradingPair,
+	/// Side of the order.
 	pub side: OrderSide,
+	/// Type.
 	pub order_type: OrderType,
+	/// Quantity.
 	pub qty: Decimal,
+	/// Price.
 	pub price: Decimal,
+	/// Quote order quantity.
 	pub quote_order_qty: Decimal,
+	/// Creation timestamp.
 	pub timestamp: i64,
+	/// Overall unreserved volume.
 	pub overall_unreserved_volume: Decimal,
+	/// Signature.
 	pub signature: Signature,
 }
 
 #[cfg(feature = "std")]
 impl Order {
+	/// Verifies provided trading pair configuration.
+	///
+	/// # Parameters
+	///
+	/// * `config`: Trading pair configuration reference.
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
@@ -468,6 +607,7 @@ impl Order {
 		result
 	}
 
+	/// Verifies signature.
 	pub fn verify_signature(&self) -> bool {
 		let payload: OrderPayload = self.clone().into();
 		let result = self.signature.verify(&payload.encode()[..], &self.user);
@@ -560,8 +700,13 @@ impl Ord for Order {
 
 #[cfg(feature = "std")]
 impl Order {
-	/// Computes the new avg_price and adds qty to filled_qty
-	/// if returned is false then underflow occurred during division
+	/// Computes the new avg_price and adds qty to filled_qty. If returned is false - then underflow
+	/// occurred during division.
+	///
+	/// # Parameters
+	///
+	/// * `price`: New price.
+	/// * `amount`: New amount.
 	pub fn update_avg_price_and_filled_qty(&mut self, price: Decimal, amount: Decimal) -> bool {
 		let mut temp = self.avg_filled_price.saturating_mul(self.filled_quantity);
 		temp = temp.saturating_add(amount.saturating_mul(price));
@@ -577,6 +722,11 @@ impl Order {
 		}
 	}
 
+	/// Calculates available volume.
+	///
+	/// # Parameters
+	///
+	/// * `other_price`: Optional price.
 	pub fn available_volume(&self, other_price: Option<Decimal>) -> Decimal {
 		//this if for market bid order
 		if self.qty.is_zero() {
@@ -584,14 +734,14 @@ impl Order {
 				"quote_order_qty: {:?}, avg_filled_price: {:?}, filled_quantity: {:?}",
 				self.quote_order_qty, self.avg_filled_price, self.filled_quantity
 			);
-			return rounding_off(
+			return Self::rounding_off(
 				self.quote_order_qty
 					.saturating_sub(self.avg_filled_price.saturating_mul(self.filled_quantity)),
 			)
 		}
 		//this is for market ask order
 		if self.order_type == OrderType::MARKET {
-			rounding_off(
+			Self::rounding_off(
 				self.qty
 					.saturating_sub(self.filled_quantity)
 					.saturating_mul(other_price.unwrap_or_default()),
@@ -601,9 +751,18 @@ impl Order {
 		else {
 			// We cannot use avg. price here as limit orders might not have avg_price defined
 			// if they are not yet matched and just inserted into the book
-			rounding_off(self.qty.saturating_sub(self.filled_quantity).saturating_mul(self.price))
+			Self::rounding_off(
+				self.qty.saturating_sub(self.filled_quantity).saturating_mul(self.price),
+			)
 		}
 	}
+
+	fn rounding_off(a: Decimal) -> Decimal {
+		// if we want to operate with a precision of 8 decimal places,
+		// all calculations should be done with latest 9 decimal places
+		a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
+	}
+
 	// TODO: how to gate this only for testing
 	#[cfg(feature = "std")]
 	pub fn random_order_for_testing(
@@ -636,32 +795,40 @@ impl Order {
 	}
 }
 
-pub fn rounding_off(a: Decimal) -> Decimal {
-	// if we want to operate with a precision of 8 decimal places,
-	// all calculations should be done with latest 9 decimal places
-	a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
-}
-
+/// Defines order details structure DTO.
 #[cfg(feature = "std")]
 pub struct OrderDetails {
+	/// Payload of the order.
 	pub payload: OrderPayload,
+	/// Signature of the order.
 	pub signature: Signature,
 }
 
+/// Defines payload of the order.
 #[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[cfg(feature = "std")]
 pub struct OrderPayload {
+	/// Client order identifier.
 	pub client_order_id: H256,
+	/// User's account identifier.
 	pub user: AccountId,
+	/// Main account identifier.
 	pub main_account: AccountId,
+	/// Trading pair.
 	pub pair: String,
+	/// Side of the order.
 	pub side: OrderSide,
+	/// Type.
 	pub order_type: OrderType,
+	/// Quote order quantity.
 	pub quote_order_quantity: String,
-	// Quantity is defined in base asset
+	/// Quantity.
+	/// Quantity is defined in base asset.
 	pub qty: String,
-	// Price is defined in quote asset per unit base asset
+	/// Price.
+	/// Price is defined in quote asset per unit base asset.
 	pub price: String,
+	/// Creation timestamp.
 	pub timestamp: i64,
 }
 
@@ -746,12 +913,17 @@ impl TryFrom<OrderDetails> for Order {
 	}
 }
 
+/// Defines withdraw details DTO.
 #[cfg(feature = "std")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Encode, Decode, Eq, PartialEq)]
 pub struct WithdrawalDetails {
+	/// Withdraw payload.
 	pub payload: WithdrawPayloadCallByUser,
+	/// Main account identifier.
 	pub main: AccountId,
+	/// Proxy account identifier.
 	pub proxy: AccountId,
+	/// Signature.
 	pub signature: Signature,
 }
 

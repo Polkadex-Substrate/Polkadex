@@ -16,6 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # Liquidity Pallet.
+//!
+//! Pallet for adding liquidity through governance.
+
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
@@ -156,13 +160,13 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Register pallet account into orderbook
+		/// Register pallet account into orderbook.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: governance
+		/// * `origin`: governance.
 		/// * `account_generation_key`: u32 value that will be used to generate main account and
-		///   proxy account
+		///   proxy account.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
 		pub fn register_account(
@@ -195,15 +199,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Deposit assets to orderbook
+		/// Deposit assets to orderbook.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: governance
-		/// * `asset`: asset id to deposit
-		/// * `amount`: amount to deposit
+		/// * `origin`: governance.
+		/// * `asset`: asset id to deposit.
+		/// * `amount`: amount to deposit.
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
-		///   account
+		///   account.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(1)]
 		pub fn deposit_to_orderbook(
@@ -228,16 +232,16 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Withdraw assets from orderbook
+		/// Withdraw assets from orderbook.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: governance
-		/// * `asset`: asset id to withdraw
-		/// * `amount`: amount to withdraw
-		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook
+		/// * `origin`: governance.
+		/// * `asset`: asset id to withdraw.
+		/// * `amount`: amount to withdraw.
+		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook.
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
-		///  account given amount will be withdrawn
+		///  account given amount will be withdrawn.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(2)]
 		pub fn withdraw_from_orderbook(

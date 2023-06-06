@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Local keystore implementation.
+
 use crate::error::Error;
 use log::warn;
 use sc_keystore::LocalKeystore;
@@ -23,15 +25,27 @@ use sp_core::Pair;
 use std::sync::Arc;
 use thea_primitives::crypto::{AuthorityId, AuthoritySignature};
 
+/// Key store definition which holds keys and performs messages signing operations and accessor to
+/// the public keys.
 pub struct TheaKeyStore {
 	keystore: Option<Arc<LocalKeystore>>,
 }
 
 impl TheaKeyStore {
+	/// Constructor.
+	///
+	/// # Parameters
+	///
+	/// * `keystore`: Local keystore from the keystore container.
 	pub fn new(keystore: Option<Arc<LocalKeystore>>) -> Self {
 		Self { keystore }
 	}
 
+	/// Accessor to the BLS public key by identity of Thea authority.
+	///
+	/// # Parameters
+	///
+	/// * `active`: Identifier of the Thea authority.
 	pub fn get_local_key(&self, active: &[AuthorityId]) -> Result<AuthorityId, Error> {
 		match self.keystore.as_ref() {
 			None => {
@@ -51,6 +65,12 @@ impl TheaKeyStore {
 		Err(Error::Keystore("🌉 No BLS key found".to_string()))
 	}
 
+	/// Signs provided message with stored BLS key related to the Thea authority.
+	///
+	/// # Parameters
+	///
+	/// * `public`: Identifier of the Thea authority using BLS as its crypto.
+	/// * `message`: Message to sign.
 	pub fn sign(&self, public: &AuthorityId, message: &[u8]) -> Result<AuthoritySignature, Error> {
 		match self.keystore.as_ref() {
 			None => {

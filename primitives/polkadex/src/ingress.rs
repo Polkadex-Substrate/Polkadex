@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! In this module defined ingress messages related types.
+
 use crate::{ocex::TradingPairConfig, AssetId};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -25,56 +27,66 @@ use frame_support::{traits::Get, BoundedVec};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
+/// Definition of available ingress messages variants.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum IngressMessages<AccountId> {
-	// Open Trading Pair
+	/// Open Trading Pair.
 	OpenTradingPair(TradingPairConfig),
-	// Update Trading Pair Config
+	/// Update Trading Pair Config.
 	UpdateTradingPair(TradingPairConfig),
-	// Register User ( main, proxy)
+	/// Register User ( main, proxy).
 	RegisterUser(AccountId, AccountId),
-	// Main Acc, Assetid, Amount
+	/// Main Acc, Assetid, Amount.
 	Deposit(AccountId, AssetId, Decimal),
-	// Main Acc, Proxy Account
+	/// Main Acc, Proxy Account.
 	AddProxy(AccountId, AccountId),
-	// Main Acc, Proxy Account
+	/// Main Acc, Proxy Account.
 	RemoveProxy(AccountId, AccountId),
-	// Close Trading Pair
+	/// Close Trading Pair.
 	CloseTradingPair(TradingPairConfig),
-	// Resetting the balances of Account
+	/// Resetting the balances of Account.
 	SetFreeReserveBalanceForAccounts(BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>),
-	// Changing the exchange state in order-book
+	/// Changing the exchange state in order-book.
 	SetExchangeState(bool),
-	// Withdrawal from Chain to OrderBook
+	/// Withdrawal from Chain to OrderBook.
 	DirectWithdrawal(AccountId, AssetId, Decimal, bool),
 }
 
+/// Defines the structure of handle balance data which used to set account balance.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HandleBalance<AccountId> {
+	/// Main account identifier.
 	pub main_account: AccountId,
+	/// Asset identifier.
 	pub asset_id: AssetId,
+	/// Operation fee.
 	pub free: u128,
+	/// Reserved amount.
 	pub reserve: u128,
 }
 
+/// Defines a limit of the account handle balance.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HandleBalanceLimit;
 
 impl Get<u32> for HandleBalanceLimit {
+	/// Accessor to the handle balance limit amount.
 	fn get() -> u32 {
 		1000
 	}
 }
 
+/// Defines a limit of the state hashes.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct StateHashesLimit;
 
 impl Get<u32> for StateHashesLimit {
-	// for max 20 GB and 10 MB chunks
+	/// Accessor to the state hashes limit amount.
+	/// For max 20 GB and 10 MB chunks.
 	fn get() -> u32 {
 		2000
 	}

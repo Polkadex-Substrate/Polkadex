@@ -16,24 +16,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # Thea Primitives.
+//!
+//! This crate contains common types and operations definition required for the `Thea` related
+//! components.
+
 #![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod types;
 
-use parity_scale_codec::{Decode, Encode};
-use scale_info::TypeInfo;
-use sp_std::vec::Vec;
-/// Key type for Orderbook module.
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
 pub use crate::{
 	crypto::{AuthorityId, AuthoritySignature},
 	types::Message,
 };
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 use sp_application_crypto::ByteArray;
-use sp_runtime::DispatchResult;
+use sp_runtime::{traits::IdentifyAccount, DispatchResult};
+use sp_std::vec::Vec;
 
-/// Orderbook cryptographic types
+/// Key type for Orderbook module.
+pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"thea");
+
+/// Orderbook cryptographic types.
 ///
 /// This module basically introduces three crypto types:
 /// - `crypto::Pair`
@@ -58,10 +64,10 @@ pub mod crypto {
 	/// Signature for a Orderbook authority using BLS as its crypto.
 	pub type AuthoritySignature = Signature;
 }
-use sp_runtime::traits::IdentifyAccount;
 
 impl IdentifyAccount for AuthorityId {
 	type AccountId = Self;
+
 	fn into_account(self) -> Self {
 		self
 	}
@@ -75,9 +81,10 @@ impl TryFrom<[u8; 96]> for crypto::AuthorityId {
 	}
 }
 
-/// Authority set id starts with zero at genesis
+/// Authority set id starts with zero at genesis.
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
 
+/// Thea worker prefix.
 pub const THEA_WORKER_PREFIX: &[u8; 18] = b"Thea Worker Prefix";
 
 /// A typedef for validator set id.
@@ -86,14 +93,14 @@ pub type ValidatorSetId = u64;
 /// A set of Orderbook authorities, a.k.a. validators.
 #[derive(Decode, Encode, Debug, PartialEq, Clone, TypeInfo)]
 pub struct ValidatorSet<AuthorityId> {
-	/// Validator Set id
+	/// Validator Set id.
 	pub set_id: ValidatorSetId,
-	/// Public keys of the validator set elements
+	/// Public keys of the validator set elements.
 	pub validators: Vec<AuthorityId>,
 }
 
 impl<AuthorityId> ValidatorSet<AuthorityId> {
-	/// Return a validator set with the given validators and set id.
+	/// Returns a validator set with the given validators and set id.
 	pub fn new<I>(validators: I, id: ValidatorSetId) -> Option<Self>
 	where
 		I: IntoIterator<Item = AuthorityId>,
@@ -107,17 +114,17 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 		}
 	}
 
-	/// Return a reference to the vec of validators.
+	/// Returns a reference to the vec of validators.
 	pub fn validators(&self) -> &[AuthorityId] {
 		&self.validators
 	}
 
-	/// Return the number of validators in the set.
+	/// Returns the number of validators in the set.
 	pub fn len(&self) -> usize {
 		self.validators.len()
 	}
 
-	/// Return true if set is empty
+	/// Return true if set is empty.
 	pub fn is_empty(&self) -> bool {
 		self.validators.is_empty()
 	}
@@ -126,38 +133,41 @@ impl<AuthorityId> ValidatorSet<AuthorityId> {
 /// The index of an authority.
 pub type AuthorityIndex = u32;
 
-/// Network type
+/// Network type.
 pub type Network = u8;
 
+/// Native network id.
 pub const NATIVE_NETWORK: Network = 0;
 
+/// TTL of the cached message.
 pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60;
 
 sp_api::decl_runtime_apis! {
 	/// APIs necessary for Thea.
 	pub trait TheaApi
 	{
-		/// Return the current active Thea validator set for all networks
+		/// Return the current active Thea validator set for all networks.
 		fn full_validator_set() -> Option<ValidatorSet<AuthorityId>>;
-		/// Return the current active Thea validator set
+		/// Return the current active Thea validator set.
 		fn validator_set(network: Network) -> Option<ValidatorSet<AuthorityId>>;
-		/// Returns the outgoing message for given network and blk
+		/// Returns the outgoing message for given network and blk.
 		fn outgoing_messages(network: Network, nonce: u64) -> Option<Message>;
-		/// Get Thea network associated with Validator
+		/// Get Thea network associated with Validator.
 		fn network(auth: AuthorityId) -> Option<Network>;
-		/// Incoming messages
+		/// Incoming messages.
 		#[allow(clippy::result_unit_err)]
 		fn incoming_message(message: Message, bitmap: Vec<u128>, signature: AuthoritySignature) -> Result<(),()>;
-		/// Get last processed nonce for a given network
+		/// Get last processed nonce for a given network.
 		fn get_last_processed_nonce(network: Network) -> u64;
 	}
 }
 
-/// This is implemented by TheaExecutor by zK
+/// Thea incoming message executor abstraction which should be implemented by the "Thea Executor".
 pub trait TheaIncomingExecutor {
 	fn execute_deposits(network: Network, deposits: Vec<u8>);
 }
-// This is implemented by Thea pallet by gj.
+
+/// Thea outgoing message executor abstraction which should be implemented by the "Thea" pallet.
 pub trait TheaOutgoingExecutor {
 	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> DispatchResult;
 }

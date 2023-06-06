@@ -16,6 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # PDEX Migration Pallet.
+//!
+//! The PDEX Migration Pallet used for migrating ERC20 PDEX to Native PDEX.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![deny(unused_crate_dependencies)]
@@ -175,6 +179,11 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Sets migration operational status.
+		///
+		/// # Parameters
+		///
+		/// * `status`: `bool` to define if bridge enabled or disabled.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
 		pub fn set_migration_operational_status(
@@ -186,6 +195,12 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
+		/// Updates relayer operational status.
+		///
+		/// # Parameters
+		///
+		/// * `relayer`: Relayer account identifier.
+		/// * `status`: Operational or not.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(1)]
 		pub fn set_relayer_status(
@@ -199,6 +214,13 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
+		/// Increases the balance of `who` by `amount`.
+		///
+		/// # Parameters
+		///
+		/// * `beneficiary`: Account on which balance should be increased.
+		/// * `amount`: Amount on which balance should be increased.
+		/// * `eth_tx`: Ethereum Tx Hash.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(2)]
 		pub fn mint(
@@ -222,6 +244,7 @@ pub mod pallet {
 			}
 		}
 
+		/// Removes lock from the balance.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(3)]
 		pub fn unlock(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -234,6 +257,11 @@ pub mod pallet {
 			}
 		}
 
+		/// Removes minted tokens locked in the migration process.
+		///
+		/// # Parameters
+		///
+		/// * `beneficiary`: Tokens holder.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(4)]
 		pub fn remove_minted_tokens(
@@ -270,6 +298,8 @@ pub mod pallet {
 			Self::deposit_event(Event::RevertedMintedTokens(beneficiary));
 			Ok(())
 		}
+
+		/// Executes tokens migration.
 		pub fn process_migration(
 			relayer: T::AccountId,
 			beneficiary: T::AccountId,
@@ -329,6 +359,11 @@ pub mod pallet {
 			}
 		}
 
+		/// Removes migration lock from `beneficiary` account.
+		///
+		/// # Parameters
+		///
+		/// * `beneficiary`: Account to remove lock from.
 		pub fn process_unlock(beneficiary: T::AccountId) -> Result<(), Error<T>> {
 			if let Some(locked_block) = LockedTokenHolders::<T>::take(&beneficiary) {
 				if locked_block + T::LockPeriod::get() <=
@@ -345,6 +380,11 @@ pub mod pallet {
 			}
 		}
 
+		/// Provides balance of previously locked amount on the requested account.
+		///
+		/// # Parameters
+		///
+		/// * `who`: Account identifier.
 		pub fn previous_locked_balance(who: &T::AccountId) -> T::Balance {
 			let mut prev_locked_amount: T::Balance = T::Balance::zero();
 
