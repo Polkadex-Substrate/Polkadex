@@ -146,7 +146,7 @@ where
 		let gossip_engine = GossipEngine::new(
 			network.clone(),
 			thea_protocol_name::standard_name(),
-			gossip_validator.clone(),
+			gossip_validator,
 			None,
 		);
 
