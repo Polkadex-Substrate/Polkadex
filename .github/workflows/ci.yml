@@ -87,8 +87,12 @@ jobs:
         run: cargo build --features runtime-benchmarks
       - name: Test weights generation
         run: ./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1
-      - name: Normal Build
+      - name: Normal Build in release mode
+        if: contains(github.ref, 'Develop')
         run: RUSTFLAGS="-D warnings" cargo build --release
+      - name: Normal Build
+        if: !contains(github.ref, 'Develop')
+        run: RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
       - name: Check Clippy
