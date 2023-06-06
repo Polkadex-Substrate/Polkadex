@@ -39,7 +39,7 @@ Download Polkadot Spec File
 ```
 curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/polkadot.json
 ```
-Make Parachain bianry executable
+Make Parachain binary executable
 ```
 chmod +x parachain-polkadex-node
 ```
@@ -76,8 +76,8 @@ Once you choose your cloud service provider and set-up your new server, the firs
 
 ```
 sudo apt-get install curl unzip
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.3/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
-
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/latest/download/PolkadexNodeUbuntu.zip 
+unzip PolkadexNodeUbuntu.zip
 ```
 
 ### Synchronize Chain Data
