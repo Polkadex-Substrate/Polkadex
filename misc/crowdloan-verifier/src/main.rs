@@ -202,9 +202,9 @@ fn main() {
 		}
 
 		for (user, values) in map.iter() {
+			println!("// {:?} ", to_hex(&user.to_raw_vec(),false));
 			println!(
-				"(hex_literal::hex!({:?}).into(),{:?}),",
-				&to_hex(&user.to_raw_vec(), false)[2..],
+				"(AccountId::new({:?}),{:?}),",  <sp_core::crypto::AccountId32 as AsRef<[u8;32]>>::as_ref(user),
 				values
 			)
 		}
