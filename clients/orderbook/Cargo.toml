@@ -41,7 +41,6 @@ sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polk
 sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sc-network-gossip = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sc-network-sync = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
-sc-network-test = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
@@ -63,3 +62,4 @@ testing_logger = "0.1.1"
 mockall_double = "0.3.0"
 orderbook-rpc = { path = "rpc" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+sc-network-test = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
