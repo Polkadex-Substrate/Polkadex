@@ -91,7 +91,7 @@ jobs:
         if: contains(github.ref, 'Develop')
         run: RUSTFLAGS="-D warnings" cargo build --release
       - name: Normal Build
-        if: !contains(github.ref, 'Develop')
+        if: "!(contains(github.ref, 'Develop'))"
         run: RUSTFLAGS="-D warnings" cargo build
       - name: Check Formatting
         run: cargo fmt --check
