@@ -211,8 +211,10 @@ pub mod pallet {
 			#[allow(clippy::borrow_interior_mutable_const)]
 			#[allow(clippy::declare_interior_mutable_const)]
 			//get info of user from pre defined hash map and add it in storage
-			if let Some((total_rewards_in_pdex, initial_rewards_claimable, factor)) =
-				crowdloan_rewardees::HASHMAP.get(&AccountId::new(account_in_vec))
+			if let Some((_, (total_rewards_in_pdex, initial_rewards_claimable, factor))) =
+				crowdloan_rewardees::HASHMAP
+					.iter()
+					.find(|a| a.0 == AccountId::new(account_in_vec))
 			{
 				//get reward info
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {

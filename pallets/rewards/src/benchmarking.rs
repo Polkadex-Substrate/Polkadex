@@ -68,9 +68,9 @@ benchmarks! {
 		<InitializeRewards<T>>::insert(reward_id, reward_info);
 		let someone: [u8; 32] =
 			[
-				56, 134, 235, 7, 231, 177, 252, 235, 55, 126, 246, 106, 208, 183, 23, 68, 222, 230,
-				68, 172, 98, 117, 196, 201, 188, 54, 116, 10, 8, 86, 229, 86,
-			];
+			254, 243, 86, 10, 107, 201, 46, 29, 70, 6, 204, 171, 233, 231, 178, 8, 147, 180, 143,
+			59, 167, 7, 203, 235, 194, 253, 133, 67, 99, 107, 26, 7,
+		];
 		let alice_account = T::AccountId::decode(&mut someone.as_ref()).unwrap();
 		let pallet_id_account = pallet_rewards::<T>::get_pallet_account();
 
