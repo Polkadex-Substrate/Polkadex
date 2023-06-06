@@ -22,6 +22,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use futures::{FutureExt, StreamExt};
 use log::info;
 use parity_scale_codec::{Decode, Encode};
 use subxt::{OnlineClient, PolkadotConfig};
@@ -52,9 +53,25 @@ impl ForeignConnector for ParachainClient {
 	async fn read_events(&self, nonce: u64) -> Result<Option<Message>, Error> {
 		// Read thea messages from foreign chain
 		let storage_address = parachain::storage().thea_message_handler().outgoing_messages(nonce);
-		// TODO: Get last finalized block hash
-		let encoded_bytes =
-			self.api.storage().at_latest().await?.fetch(&storage_address).await?.encode();
+
+		// Get last finalized block hash
+		let last_finalized_blk = self
+			.api
+			.blocks()
+			.subscribe_finalized()
+			.await?
+			.next()
+			.await
+			.ok_or(Error::Subxt(String::from("Failed to get last finalized ")))??;
+
+		let encoded_bytes = self
+			.api
+			.storage()
+			.at(last_finalized_blk.hash())
+			.await?
+			.fetch(&storage_address)
+			.await?
+			.encode();
 
 		Ok(parity_scale_codec::Decode::decode(&mut &encoded_bytes[..])?)
 	}
@@ -86,9 +103,23 @@ impl ForeignConnector for ParachainClient {
 		// Read thea messages from foreign chain
 		let storage_address =
 			parachain::storage().thea_message_handler().outgoing_messages(message.nonce);
-		// TODO: Get last finalized block hash
-		let encoded_bytes =
-			self.api.storage().at_latest().await?.fetch(&storage_address).await?.encode();
+		// Get last finalized block hash
+		let last_finalized_blk = self
+			.api
+			.blocks()
+			.subscribe_finalized()
+			.await?
+			.next()
+			.await
+			.ok_or(Error::Subxt(String::from("Failed to get last finalized ")))??;
+		let encoded_bytes = self
+			.api
+			.storage()
+			.at(last_finalized_blk.hash())
+			.await?
+			.fetch(&storage_address)
+			.await?
+			.encode();
 
 		let message_option: Option<Message> =
 			parity_scale_codec::Decode::decode(&mut &encoded_bytes[..])?;
@@ -102,20 +133,41 @@ impl ForeignConnector for ParachainClient {
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
 		// Read native network nonce from foreign chain
 		let storage_address = parachain::storage().thea_message_handler().incoming_nonce();
-		// TODO: Get last finalized block hash
-		let nonce =
-			self.api.storage().at_latest().await?.fetch_or_default(&storage_address).await?;
+		// Get last finalized block hash
+		let last_finalized_blk = self
+			.api
+			.blocks()
+			.subscribe_finalized()
+			.await?
+			.next()
+			.await
+			.ok_or(Error::Subxt(String::from("Failed to get last finalized ")))??;
+		let nonce = self
+			.api
+			.storage()
+			.at(last_finalized_blk.hash())
+			.await?
+			.fetch_or_default(&storage_address)
+			.await?;
 		Ok(nonce)
 	}
 
 	async fn check_thea_authority_initialization(&self) -> Result<bool, Error> {
 		// Get current validator set id
 		let storage_address = parachain::storage().thea_message_handler().validator_set_id();
-		// TODO: Get last finalized block hash
+		// Get last finalized block hash
+		let last_finalized_blk = self
+			.api
+			.blocks()
+			.subscribe_finalized()
+			.await?
+			.next()
+			.await
+			.ok_or(Error::Subxt(String::from("Failed to get last finalized ")))??;
 		let set_id = self
 			.api
 			.storage()
-			.at_latest()
+			.at(last_finalized_blk.hash())
 			.await
 			.map_err(|err| {
 				log::error!(target:"parachain","Error while fetching current set id: {:?}",err);
@@ -130,11 +182,19 @@ impl ForeignConnector for ParachainClient {
 
 		// Get validator set
 		let storage_address = parachain::storage().thea_message_handler().authorities(set_id);
-		// TODO: Get last finalized block hash
+		// Get last finalized block hash
+		let last_finalized_blk = self
+			.api
+			.blocks()
+			.subscribe_finalized()
+			.await?
+			.next()
+			.await
+			.ok_or(Error::Subxt(String::from("Failed to get last finalized ")))??;
 		let auths = self
 			.api
 			.storage()
-			.at_latest()
+			.at(last_finalized_blk.hash())
 			.await
 			.map_err(|err| {
 				log::error!(target:"parachain","Error while fetching auth set: {:?}",err);
