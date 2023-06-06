@@ -20,8 +20,6 @@ sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
-hex_lit = "0.1.1"
-lazy_static = { version = "1.4", features = ["spin_no_std"] }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
