@@ -92,7 +92,6 @@ pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?
 	_network: Arc<N>,
 	keystore: TheaKeyStore,
 	gossip_engine: GossipEngine<B>,
-	_gossip_validator: Arc<GossipValidator>,
 	// Payload to gossip message mapping
 	pub(crate) message_cache: Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>,
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
@@ -147,7 +146,7 @@ where
 		let gossip_engine = GossipEngine::new(
 			network.clone(),
 			thea_protocol_name::standard_name(),
-			gossip_validator.clone(),
+			gossip_validator,
 			None,
 		);
 
@@ -162,7 +161,6 @@ where
 			keystore: TheaKeyStore::new(keystore),
 			thea_network: None,
 			gossip_engine,
-			_gossip_validator: gossip_validator,
 			message_cache,
 			last_foreign_nonce_processed: foreign_nonce,
 			last_native_nonce_processed: native_nonce,
