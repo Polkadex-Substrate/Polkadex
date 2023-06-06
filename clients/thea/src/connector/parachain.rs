@@ -22,7 +22,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use log::info;
 use parity_scale_codec::{Decode, Encode};
 use subxt::{OnlineClient, PolkadotConfig};
@@ -68,9 +68,9 @@ impl ForeignConnector for ParachainClient {
 			.api
 			.storage()
 			.at(last_finalized_blk.hash())
-			.await?
 			.fetch(&storage_address)
 			.await?
+			.ok_or(Error::Subxt(String::from("Read events fetch api returned None")))?
 			.encode();
 
 		Ok(parity_scale_codec::Decode::decode(&mut &encoded_bytes[..])?)
@@ -116,9 +116,9 @@ impl ForeignConnector for ParachainClient {
 			.api
 			.storage()
 			.at(last_finalized_blk.hash())
-			.await?
 			.fetch(&storage_address)
 			.await?
+			.ok_or(Error::Subxt(String::from("Read events fetch api returned None")))?
 			.encode();
 
 		let message_option: Option<Message> =
@@ -146,7 +146,6 @@ impl ForeignConnector for ParachainClient {
 			.api
 			.storage()
 			.at(last_finalized_blk.hash())
-			.await?
 			.fetch_or_default(&storage_address)
 			.await?;
 		Ok(nonce)
@@ -168,11 +167,6 @@ impl ForeignConnector for ParachainClient {
 			.api
 			.storage()
 			.at(last_finalized_blk.hash())
-			.await
-			.map_err(|err| {
-				log::error!(target:"parachain","Error while fetching current set id: {:?}",err);
-				err
-			})?
 			.fetch_or_default(&storage_address)
 			.await
 			.map_err(|err| {
@@ -195,11 +189,6 @@ impl ForeignConnector for ParachainClient {
 			.api
 			.storage()
 			.at(last_finalized_blk.hash())
-			.await
-			.map_err(|err| {
-				log::error!(target:"parachain","Error while fetching auth set: {:?}",err);
-				err
-			})?
 			.fetch_or_default(&storage_address)
 			.await
 			.map_err(|err| {
