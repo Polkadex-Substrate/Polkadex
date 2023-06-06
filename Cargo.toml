@@ -75,8 +75,6 @@ default-members = [
   "pallets/thea-executor",
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
-  "misc/load-testing",
-  "misc/crowdloan-verifier",
 ]
 
 [workspace.dependencies]
