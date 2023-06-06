@@ -70,7 +70,6 @@ impl ForeignConnector for ParachainClient {
 			.at(last_finalized_blk.hash())
 			.fetch(&storage_address)
 			.await?
-			.ok_or(Error::Subxt(String::from("Read events fetch api returned None")))?
 			.encode();
 
 		Ok(parity_scale_codec::Decode::decode(&mut &encoded_bytes[..])?)
@@ -118,7 +117,6 @@ impl ForeignConnector for ParachainClient {
 			.at(last_finalized_blk.hash())
 			.fetch(&storage_address)
 			.await?
-			.ok_or(Error::Subxt(String::from("Read events fetch api returned None")))?
 			.encode();
 
 		let message_option: Option<Message> =
