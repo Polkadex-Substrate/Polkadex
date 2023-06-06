@@ -91,11 +91,10 @@ impl From<Error> for JsonRpseeError {
 /// RPC abstraction for interacting with Orderbook.
 #[rpc(client, server)]
 pub trait OrderbookApi {
-	/// Returns hash of the latest Orderbook finalized block as seen by this client.
+	/// Submits a new state changing event for settlement to blockchain
+	/// # Parameters
 	///
-	/// The latest Orderbook block might not be available if the Orderbook gadget is not running
-	/// in the network or if the client is still initializing or syncing with the network.
-	/// In such case an error would be returned.
+	/// * `action`: The state changing event from Orderbook engine
 	#[method(name = "ob_submitAction")]
 	async fn submit_action(&self, action: ObMessage) -> RpcResult<()>;
 
