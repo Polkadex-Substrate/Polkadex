@@ -1,17 +1,28 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2021-2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! # PDEX Migration Pallet.
+//!
+//! The PDEX Migration Pallet used for migrating ERC20 PDEX to Native PDEX.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-
-use frame_support::weights::Weight;
-pub mod weights;
-
-/// Weight functions needed for pdex_migration.
-pub trait WeightInfo {
-	fn set_migration_operational_status() -> Weight;
-	fn set_relayer_status() -> Weight;
-	fn mint() -> Weight;
-	fn unlock() -> Weight;
-	fn remove_minted_tokens() -> Weight;
-}
+#![deny(unused_crate_dependencies)]
 
 #[cfg(test)]
 mod mock;
@@ -36,8 +47,6 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 
-	use crate::WeightInfo;
-
 	const MIGRATION_LOCK: frame_support::traits::LockIdentifier = *b"pdexlock";
 
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -59,15 +68,13 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	pub trait Config: frame_system::Config + pallet_balances::Config + pallet_sudo::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Max Number of relayers
 		#[pallet::constant]
 		type MaxRelayers: Get<u32>;
 		/// Lock Period
 		#[pallet::constant]
 		type LockPeriod: Get<<Self as frame_system::Config>::BlockNumber>;
-		/// Weight Info for PDEX migration
-		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -172,7 +179,13 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(<T as Config>::WeightInfo::set_migration_operational_status())]
+		/// Sets migration operational status.
+		///
+		/// # Parameters
+		///
+		/// * `status`: `bool` to define if bridge enabled or disabled.
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(0)]
 		pub fn set_migration_operational_status(
 			origin: OriginFor<T>,
 			status: bool,
@@ -182,7 +195,14 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::set_relayer_status())]
+		/// Updates relayer operational status.
+		///
+		/// # Parameters
+		///
+		/// * `relayer`: Relayer account identifier.
+		/// * `status`: Operational or not.
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(1)]
 		pub fn set_relayer_status(
 			origin: OriginFor<T>,
 			relayer: T::AccountId,
@@ -194,7 +214,15 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::mint())]
+		/// Increases the balance of `who` by `amount`.
+		///
+		/// # Parameters
+		///
+		/// * `beneficiary`: Account on which balance should be increased.
+		/// * `amount`: Amount on which balance should be increased.
+		/// * `eth_tx`: Ethereum Tx Hash.
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(2)]
 		pub fn mint(
 			origin: OriginFor<T>,
 			beneficiary: T::AccountId,
@@ -216,7 +244,9 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::unlock())]
+		/// Removes lock from the balance.
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(3)]
 		pub fn unlock(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let beneficiary = ensure_signed(origin)?;
 			if Self::operational() {
@@ -227,7 +257,13 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::remove_minted_tokens())]
+		/// Removes minted tokens locked in the migration process.
+		///
+		/// # Parameters
+		///
+		/// * `beneficiary`: Tokens holder.
+		#[pallet::weight(Weight::default())]
+		#[pallet::call_index(4)]
 		pub fn remove_minted_tokens(
 			origin: OriginFor<T>,
 			beneficiary: T::AccountId,
@@ -262,6 +298,8 @@ pub mod pallet {
 			Self::deposit_event(Event::RevertedMintedTokens(beneficiary));
 			Ok(())
 		}
+
+		/// Executes tokens migration.
 		pub fn process_migration(
 			relayer: T::AccountId,
 			beneficiary: T::AccountId,
@@ -321,6 +359,11 @@ pub mod pallet {
 			}
 		}
 
+		/// Removes migration lock from `beneficiary` account.
+		///
+		/// # Parameters
+		///
+		/// * `beneficiary`: Account to remove lock from.
 		pub fn process_unlock(beneficiary: T::AccountId) -> Result<(), Error<T>> {
 			if let Some(locked_block) = LockedTokenHolders::<T>::take(&beneficiary) {
 				if locked_block + T::LockPeriod::get() <=
@@ -337,6 +380,11 @@ pub mod pallet {
 			}
 		}
 
+		/// Provides balance of previously locked amount on the requested account.
+		///
+		/// # Parameters
+		///
+		/// * `who`: Account identifier.
 		pub fn previous_locked_balance(who: &T::AccountId) -> T::Balance {
 			let mut prev_locked_amount: T::Balance = T::Balance::zero();
 

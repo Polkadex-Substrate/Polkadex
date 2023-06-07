@@ -1,64 +1,79 @@
 // This file is part of Polkadex.
-
-// Copyright (C) 2020-2022 Polkadex oü.
+//
+// Copyright (c) 2022-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! # Asset Handler Pallet.
+//!
+//! Pallet for Handling Assets from multiple Bridges.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-
+#![deny(unused_crate_dependencies)]
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
-
 pub mod weights;
-pub use weights::*;
+
+use chainbridge::{BridgeChainId, ResourceId};
+use frame_support::{
+	dispatch::fmt::Debug,
+	fail, log,
+	pallet_prelude::*,
+	traits::{
+		fungibles::Transfer,
+		tokens::{
+			fungibles::{Create, Inspect, Mutate},
+			DepositConsequence, WithdrawConsequence,
+		},
+		Currency, ExistenceRequirement, ReservableCurrency,
+	},
+	PalletId,
+};
+use frame_system::pallet_prelude::*;
+use sp_core::{H160, U256};
+use sp_io::hashing::keccak_256;
+use sp_runtime::{
+	traits::{One, Saturating, UniqueSaturatedInto},
+	BoundedBTreeSet, SaturatedConversion,
+};
+use sp_std::{vec, vec::Vec};
+
+/// Weight abstraction required for "asset-handler" pallet.
+pub trait WeightInfo {
+	fn create_asset(_b: u32) -> Weight;
+	fn create_thea_asset() -> Weight;
+	fn create_parachain_asset() -> Weight;
+	fn mint_asset(_b: u32) -> Weight;
+	fn set_bridge_status() -> Weight;
+	fn set_block_delay() -> Weight;
+	fn update_fee(_m: u32, f: u32) -> Weight;
+	fn withdraw(_b: u32, c: u32) -> Weight;
+	fn allowlist_token(b: u32) -> Weight;
+	fn remove_allowlisted_token(b: u32) -> Weight;
+	fn add_precision(_b: u32) -> Weight;
+}
 
 #[frame_support::pallet]
 pub mod pallet {
-	use chainbridge::{BridgeChainId, ResourceId};
-	use frame_support::{
-		dispatch::fmt::Debug,
-		log,
-		pallet_prelude::*,
-		traits::{
-			tokens::fungibles::{Create, Inspect, Mutate},
-			Currency, ExistenceRequirement, ReservableCurrency,
-		},
-		PalletId,
-	};
-	use frame_system::pallet_prelude::*;
-	use sp_core::{H160, U256};
-	use sp_runtime::{
-		traits::{One, Saturating, UniqueSaturatedInto},
-		BoundedBTreeSet, SaturatedConversion,
-	};
-	use sp_std::vec::Vec;
-
-	pub trait AssetHandlerWeightInfo {
-		fn create_asset(b: u32) -> Weight;
-		fn mint_asset(_b: u32) -> Weight;
-		fn set_bridge_status() -> Weight;
-		fn set_block_delay() -> Weight;
-		fn update_fee(_m: u32, _f: u32) -> Weight;
-		fn withdraw(_b: u32, _c: u32) -> Weight;
-		fn allowlist_token(_b: u32) -> Weight;
-		fn remove_allowlisted_token(b: u32) -> Weight;
-	}
+	use super::*;
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -104,25 +119,37 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	/// Configure the pallet by specifying the parameters and types on which it depends.
 	pub trait Config: frame_system::Config + chainbridge::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Balances Pallet
 		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 		/// Asset Manager
 		type AssetManager: Create<<Self as frame_system::Config>::AccountId>
 			+ Mutate<<Self as frame_system::Config>::AccountId, Balance = u128, AssetId = u128>
-			+ Inspect<<Self as frame_system::Config>::AccountId>;
+			+ Inspect<<Self as frame_system::Config>::AccountId>
+			+ Transfer<<Self as frame_system::Config>::AccountId>;
 
 		/// Asset Create/ Update Origin
-		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+
+		//PDEX asset id
+		#[pallet::constant]
+		type NativeCurrencyId: Get<u128>;
 
 		/// Treasury PalletId
 		#[pallet::constant]
 		type TreasuryPalletId: Get<PalletId>;
 
-		type WeightInfo: AssetHandlerWeightInfo;
+		/// Parachain Network Id
+		#[pallet::constant]
+		type ParachainNetworkId: Get<u8>;
+
+		/// PDEX Token Holder Account
+		type PDEXHolderAccount: Get<Self::AccountId>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -190,6 +217,8 @@ pub mod pallet {
 		AllowlistedTokenAdded(H160),
 		/// This token got removed from Allowlisted Tokens
 		AllowlistedTokenRemoved(H160),
+		/// Thea Asset has been register
+		TheaAssetCreated(u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -221,6 +250,22 @@ pub mod pallet {
 		AllowlistedTokenRemoved,
 		/// Division Overflow
 		DivisionOverflow,
+		/// Amount for minting or burning cannot be Zero
+		AmountCannotBeZero,
+		/// Thea Asset has not been registered
+		AssetNotRegistered,
+		// Identifier length provided is wrong
+		IdentifierLengthMismatch,
+		//when trying to burn PDEX asset
+		CannotBurnNativeAsset,
+		//when trying to mint PDEX asset
+		CannotMintNativeAsset,
+		//when cannot transfer PDEX asset
+		NativeAssetTransferFailed,
+		/// ReservedParachainNetworkId
+		ReservedParachainNetworkId,
+		/// AssetId Abstract Not Handled
+		AssetIdAbstractNotHandled,
 	}
 
 	#[pallet::hooks]
@@ -256,22 +301,22 @@ pub mod pallet {
 			});
 			<PendingWithdrawals<T>>::insert(n, failed_withdrawal);
 			// TODO: Benchmark on initialize
-			(195_000_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(5 as Weight))
-				.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			T::DbWeight::get().writes(5).saturating_add(T::DbWeight::get().reads(5))
 		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Creates new Asset where AssetId is derived from chain_id and contract Address
+		/// Creates a new Asset where AssetId is derived from chain_id and contract Address.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: `Asset` owner
-		/// * `chain_id`: Asset's native chain
-		/// * `contract_add`: Asset's actual address at native chain
-		#[pallet::weight(T::WeightInfo::create_asset(1))]
+		/// * `origin`: `Asset` owner.
+		/// * `chain_id`: Asset's native chain.
+		/// * `contract_add`: Asset's actual address at native chain.
+		/// * `precision_type`: Asset precision type.
+		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_asset(1))]
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -298,17 +343,19 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Mints Asset into Recipient's Account
+		/// Mints Asset into Recipient's Account.
+		///
 		/// Only Relayers can call it.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: `Asset` owner
-		/// * `destination_add`: Recipient's Account
-		/// * `amount`: Amount to be minted in Recipient's Account
-		/// * `rid`: Resource ID
+		/// * `origin`: `Asset` owner.
+		/// * `destination_add`: Recipient's Account.
+		/// * `amount`: Amount to be minted in Recipient's Account.
+		/// * `rid`: Resource ID.
 		#[allow(clippy::unnecessary_lazy_evaluations)]
-		#[pallet::weight(T::WeightInfo::mint_asset(1))]
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::mint_asset(1))]
 		pub fn mint_asset(
 			origin: OriginFor<T>,
 			destination_add: Vec<u8>,
@@ -339,8 +386,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set Bridge Status
-		#[pallet::weight(T::WeightInfo::set_bridge_status())]
+		/// Sets bridge operational status.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: `Asset` owner.
+		/// * `status`: `bool` to define if bridge enabled or disabled.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_bridge_status())]
 		pub fn set_bridge_status(origin: OriginFor<T>, status: bool) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<BridgeDeactivated<T>>::put(status);
@@ -348,8 +401,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set Block Delay
-		#[pallet::weight(T::WeightInfo::set_block_delay())]
+		/// Sets block delay.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: `Asset` owner.
+		/// * `no_of_blocks`: Block number to delay on.
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_block_delay())]
 		pub fn set_block_delay(
 			origin: OriginFor<T>,
 			no_of_blocks: T::BlockNumber,
@@ -364,12 +423,13 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
-		/// * `origin`: `Asset` owner
-		/// * `chain_id`: Asset's native chain
-		/// * `contract_add`: Asset's actual address at native chain
-		/// * `amount`: Amount to be burned and transferred from Sender's Account
-		/// * `recipient`: recipient
-		#[pallet::weight(T::WeightInfo::withdraw(1, 1))]
+		/// * `origin`: `Asset` owner.
+		/// * `chain_id`: Asset's native chain.
+		/// * `contract_add`: Asset's actual address at native chain.
+		/// * `amount`: Amount to be burned and transferred from Sender's Account.
+		/// * `recipient`: Recipient.
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1, 1))]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -419,7 +479,9 @@ pub mod pallet {
 			<PendingWithdrawals<T>>::try_mutate(
 				withdrawal_execution_block.saturated_into::<T::BlockNumber>(),
 				|withdrawals| {
-					withdrawals.try_push(pending_withdrawal)?;
+					if withdrawals.try_push(pending_withdrawal).is_err() {
+						return Err(())
+					}
 					Ok(())
 				},
 			)
@@ -432,11 +494,12 @@ pub mod pallet {
 		///
 		/// # Parameters
 		///
-		/// * `origin`: `Asset` owner
-		/// * `chain_id`: Asset's native chain
+		/// * `origin`: `Asset` owner.
+		/// * `chain_id`: Asset's native chain.
 		/// * `min_fee`: Minimum fee to be charged to transfer Asset to different.
 		/// * `fee_scale`: Scale to find fee depending on amount.
-		#[pallet::weight(T::WeightInfo::update_fee(1, 1))]
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_fee(1, 1))]
 		pub fn update_fee(
 			origin: OriginFor<T>,
 			chain_id: BridgeChainId,
@@ -449,8 +512,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Allowlists Token
-		#[pallet::weight(T::WeightInfo::allowlist_token(1))]
+		/// Allowlists Token.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: `Asset` owner.
+		/// * `token_add`: Token which should be added to allow list.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -462,8 +531,14 @@ pub mod pallet {
 			})
 		}
 
-		/// Remove allowlisted tokens
-		#[pallet::weight(T::WeightInfo::remove_allowlisted_token(1))]
+		/// Remove token from allow list.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: `Asset` owner.
+		/// * `token_add`: Token which should be removed from the allow list.
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token_add: H160) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			<AllowlistedToken<T>>::try_mutate(|allowlisted_tokens| {
@@ -473,8 +548,15 @@ pub mod pallet {
 			})
 		}
 
-		/// Remove allowlisted tokens
-		#[pallet::weight((195_000_000).saturating_add(T::DbWeight::get().writes(1 as Weight)))]
+		/// Inserts a new precision type for the specific resource.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: `Asset` owner.
+		/// * `rid`: Resource id.
+		/// * `precision_type`: Precision type.
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_precision(1))]
 		pub fn add_precision(
 			origin: OriginFor<T>,
 			rid: ResourceId,
@@ -487,11 +569,17 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		/// Precisely calculates amount depends on precision for the foreign chain.
+		///
+		/// # Parameters
+		///
+		/// * `rid`: Resource identifier.
+		/// * `amount`: Amount to calculate.
 		pub fn convert_amount_for_foreign_chain(
 			rid: ResourceId,
 			balance: BalanceOf<T>,
 		) -> Option<U256> {
-			let balance: u128 = balance.unique_saturated_into();
+			let balance: u128 = balance.saturated_into();
 			match <AssetPrecision<T>>::get(rid) {
 				PrecisionType::LowPrecision(precision) =>
 					U256::from(balance).checked_div(U256::from(precision)),
@@ -501,6 +589,12 @@ pub mod pallet {
 			}
 		}
 
+		/// Precisely calculates amount depends on precision for the native chain.
+		///
+		/// # Parameters
+		///
+		/// * `rid`: Resource identifier.
+		/// * `amount`: Amount to calculate.
 		pub fn convert_amount_for_native_chain(rid: ResourceId, amount: u128) -> Option<u128> {
 			match <AssetPrecision<T>>::get(rid) {
 				PrecisionType::LowPrecision(precision) => Some(amount.saturating_mul(precision)),
@@ -529,18 +623,33 @@ pub mod pallet {
 			}
 		}
 
-		/// converts `balance` from 18 decimal points to 12
-		/// by dividing it by 1_000_000
+		/// Converts `balance` from 18 decimal points to 12
+		/// by dividing it by 1_000_000.
+		///
+		/// # Parameters
+		///
+		/// * `balance`: Balance to convert.
 		pub fn convert_18dec_to_12dec(balance: u128) -> Option<u128> {
 			balance.checked_div(1000000u128)
 		}
 
+		/// Converts asset id from bytes to u128.
+		///
+		/// # Parameters
+		///
+		/// * `token`: Resource identifier.
 		pub fn convert_asset_id(token: ResourceId) -> u128 {
 			let mut temp = [0u8; 16];
 			temp.copy_from_slice(&token[0..16]);
 			u128::from_le_bytes(temp)
 		}
 
+		/// Provides balances of requested assets for specific account.
+		///
+		/// # Parameters
+		///
+		/// * `assets`: Collection of assets, balances for which should be provided.
+		/// * `account_id`: Account id for which balances should be provided.
 		pub fn account_balances(assets: Vec<u128>, account_id: T::AccountId) -> Vec<u128> {
 			assets
 				.iter()
@@ -548,6 +657,91 @@ pub mod pallet {
 					<T as Config>::AssetManager::balance(*asset, &account_id).saturated_into()
 				})
 				.collect()
+		}
+
+		/// Increases the `asset` balance of `who` by `amount`.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset identifier, amount of which should be increased.
+		/// * `who`: Account on which balance should be increased.
+		/// * `amount`: Amount on which balance should be increased.
+		pub fn mint_thea_asset(
+			asset_id: u128,
+			recipient: T::AccountId,
+			amount: u128,
+		) -> Result<(), DispatchError> {
+			if !T::AssetManager::asset_exists(asset_id) {
+				T::AssetManager::create(asset_id, T::PDEXHolderAccount::get(), true, 1u128)?;
+			}
+			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
+			T::AssetManager::mint_into(asset_id, &recipient, amount)?;
+			Ok(())
+		}
+
+		/// Asset Handler for Withdraw Extrinsic.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id.
+		/// * `who`: Asset Holder.
+		/// * `amount`: Amount to be burned/locked.
+		pub fn handle_asset(
+			asset_id: u128,
+			who: T::AccountId,
+			amount: u128,
+		) -> Result<(), DispatchError> {
+			let polkadex_asset_id = T::NativeCurrencyId::get();
+			if polkadex_asset_id == asset_id {
+				Self::lock_pdex_asset(amount, who)
+			} else {
+				Self::burn_thea_asset(asset_id, who, amount)
+			}
+		}
+
+		/// Locks assets.
+		///
+		/// # Parameters
+		///
+		/// * `amount`: Amount to be locked.
+		/// * `who`: Asset Holder.
+		pub fn lock_pdex_asset(amount: u128, who: T::AccountId) -> DispatchResult {
+			let polkadex_holder_account = T::PDEXHolderAccount::get();
+			T::Currency::transfer(
+				&who,
+				&polkadex_holder_account,
+				amount.saturated_into(),
+				ExistenceRequirement::AllowDeath,
+			)
+		}
+
+		/// Reduces the `asset` balance of `who` by `amount`.
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset identifier, amount of which should be reduced.
+		/// * `who`: Account from which balance should be reduced.
+		/// * `amount`: Amount of the balance which should be reduced.
+		pub fn burn_thea_asset(
+			asset_id: u128,
+			who: T::AccountId,
+			amount: u128,
+		) -> Result<(), DispatchError> {
+			ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
+			T::AssetManager::burn_from(asset_id, &who, amount)?;
+			Ok(())
+		}
+
+		/// Resolves asset identifier from hashed asset id.
+		///
+		/// # Parameters
+		///
+		/// * `derived_asset_id`: Hashed asset id representation.
+		pub fn get_asset_id(derived_asset_id: Vec<u8>) -> u128 {
+			let derived_asset_id_hash = &keccak_256(derived_asset_id.as_ref())[0..16];
+			let mut temp = [0u8; 16];
+			temp.copy_from_slice(derived_asset_id_hash);
+			u128::from_le_bytes(temp)
 		}
 
 		#[cfg(feature = "runtime-benchmarks")]
@@ -565,6 +759,176 @@ pub mod pallet {
 		pub fn mint_token(account: T::AccountId, rid: ResourceId, amount: u128) {
 			T::AssetManager::mint_into(Pallet::<T>::convert_asset_id(rid), &account, amount)
 				.unwrap();
+		}
+	}
+
+	impl<T: Config> Inspect<T::AccountId> for Pallet<T> {
+		type AssetId = u128;
+		type Balance = u128;
+
+		fn total_issuance(asset: Self::AssetId) -> Self::Balance {
+			// when asset is not polkadex
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::total_issuance(asset.saturated_into()).saturated_into()
+			} else {
+				T::Currency::total_issuance().saturated_into()
+			}
+		}
+
+		fn active_issuance(asset: Self::AssetId) -> Self::Balance {
+			T::AssetManager::active_issuance(asset)
+		}
+
+		fn minimum_balance(asset: Self::AssetId) -> Self::Balance {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::minimum_balance(asset.saturated_into()).saturated_into()
+			} else {
+				T::Currency::minimum_balance().saturated_into()
+			}
+		}
+
+		fn balance(asset: Self::AssetId, who: &T::AccountId) -> Self::Balance {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::balance(asset.saturated_into(), who).saturated_into()
+			} else {
+				T::Currency::total_balance(who).saturated_into()
+			}
+		}
+
+		fn reducible_balance(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			keep_alive: bool,
+		) -> Self::Balance {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::reducible_balance(asset.saturated_into(), who, keep_alive)
+					.saturated_into()
+			} else {
+				T::Currency::free_balance(who).saturated_into()
+			}
+		}
+
+		fn can_deposit(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+			mint: bool,
+		) -> DepositConsequence {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::can_deposit(asset, who, amount.saturated_into(), mint)
+			} else {
+				// balance of native asset can always be increased
+				DepositConsequence::Success
+			}
+		}
+
+		fn can_withdraw(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> WithdrawConsequence<Self::Balance> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::can_withdraw(asset.saturated_into(), who, amount.saturated_into())
+			} else if T::Currency::free_balance(who) >= amount.saturated_into() {
+				WithdrawConsequence::Success
+			} else {
+				// TODO: Need a better error mapping
+				WithdrawConsequence::UnknownAsset
+			}
+		}
+
+		fn asset_exists(asset: Self::AssetId) -> bool {
+			T::AssetManager::asset_exists(asset)
+		}
+	}
+
+	impl<T: Config> Transfer<T::AccountId> for Pallet<T> {
+		fn transfer(
+			asset: Self::AssetId,
+			source: &T::AccountId,
+			dest: &T::AccountId,
+			amount: Self::Balance,
+			keep_alive: bool,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::transfer(asset, source, dest, amount.saturated_into(), keep_alive)
+					.map(|x| x.saturated_into())
+			} else {
+				let existence_requirement = if keep_alive {
+					ExistenceRequirement::KeepAlive
+				} else {
+					ExistenceRequirement::AllowDeath
+				};
+				T::Currency::transfer(
+					source,
+					dest,
+					amount.saturated_into(),
+					existence_requirement,
+				)?;
+				Ok(amount)
+			}
+		}
+	}
+
+	impl<T: Config> Mutate<T::AccountId> for Pallet<T> {
+		fn mint_into(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> DispatchResult {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::mint_into(asset, who, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				fail!(Error::<T>::CannotMintNativeAsset)
+			}
+		}
+
+		fn burn_from(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::burn_from(asset, who, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				fail!(Error::<T>::CannotBurnNativeAsset)
+			}
+		}
+
+		fn slash(
+			asset: Self::AssetId,
+			who: &T::AccountId,
+			amount: Self::Balance,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::slash(asset, who, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				let (_, balance) = T::Currency::slash(who, amount.saturated_into());
+				Ok(balance.saturated_into())
+			}
+		}
+
+		fn teleport(
+			asset: Self::AssetId,
+			source: &T::AccountId,
+			dest: &T::AccountId,
+			amount: Self::Balance,
+		) -> Result<Self::Balance, DispatchError> {
+			if asset != T::NativeCurrencyId::get() {
+				T::AssetManager::teleport(asset, source, dest, amount.saturated_into())
+					.map(|x| x.saturated_into())
+			} else {
+				T::Currency::transfer(
+					source,
+					dest,
+					amount.saturated_into(),
+					ExistenceRequirement::KeepAlive,
+				)?;
+				Ok(amount)
+			}
 		}
 	}
 }

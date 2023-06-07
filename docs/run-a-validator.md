@@ -24,12 +24,60 @@ For the full details of the standard hardware please see [here](https://github.c
 
 The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to match up to other validators that are running the standard.
 
+### Download Parachain Binary and Spec file
+For the Polkadex decentralized bridging solution Thea to transfer tokens from Polkadot ecosystem to the Polkadex network, the validators have to run a parachain full node along with the solochain node. Please follow the below steps to run the parachain binary.
+
+Download Parachain Binary
+```
+curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/parachain-polkadex-node
+```
+Download Polkadex Parachain Spec File
+```
+curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/polkadot-parachain-plain.json
+```
+Download Polkadot Spec File
+```
+curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/polkadot.json
+```
+Make Parachain binary executable
+```
+chmod +x parachain-polkadex-node
+```
+Prepare a validator.service file
+```
+sudo vi /etc/systemd/system/parachain.service
+```
+```
+[Unit]
+Description=Polkadex Parachain Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+ExecStart=$HOME/parachain-polkadex-node --chain=$HOME/polkadot-parachain-raw.json --port 40333 --ws-port 8844 --rpc-port 9902 --bootnodes /ip4/3.108.191.170/tcp/40333/p2p/12D3KooWKi39o5WvzPTFz8W2KMqjP5c9HWoY2naYGPVF1YANCFnC -- --execution wasm --chain $HOME/polkadot.json --port 30343 --ws-port 9977 --pruning=archive
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
+```
+Run a Parachain fullnode as a service
+```
+sudo systemctl daemon-reload
+sudo systemctl enable parachain
+sudo systemctl start parachain
+sudo systemctl status parachain
+```
+
+### Download Polkadex Solochain Binary
 Once you choose your cloud service provider and set-up your new server, the first thing you will do is install the necessary dependencies.
 
 ```
 sudo apt-get install curl unzip
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/latest/download/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
-
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/latest/download/PolkadexNodeUbuntu.zip 
+unzip PolkadexNodeUbuntu.zip
 ```
 
 ### Synchronize Chain Data

@@ -1,0 +1,54 @@
+[package]
+authors = ["Parallel Team"]
+description = "Pallet for finding route between assets to swap"
+name = "router"
+version = "1.0.0"
+edition = "2021"
+
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+
+frame-support = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+frame-system = { workspace = true, default-features = false }
+
+pallet-balances = { workspace = true, default-features = false }
+pallet-sudo = { workspace = true, default-features = false }
+pallet-assets = { workspace = true, default-features = false }
+
+sp-io = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+
+polkadex-primitives = { workspace = true, default-features = false }
+support = { path = "../support", default-features = false }
+
+[dev-dependencies]
+sp-application-crypto = { workspace = true }
+sp-keystore = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "pallet-balances/std",
+  "pallet-sudo/std",
+  "pallet-assets/std",
+  "frame-benchmarking/std",
+  "sp-io/std",
+  "sp-core/std",
+  "sp-std/std",
+  "sp-runtime/std",
+  "polkadex-primitives/std",
+  "support/std",
+]
+try-runtime = ['frame-support/try-runtime']

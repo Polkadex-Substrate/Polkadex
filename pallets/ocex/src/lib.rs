@@ -1,55 +1,97 @@
 // This file is part of Polkadex.
-
-// Copyright (C) 2020-2022 Polkadex oü.
+//
+// Copyright (c) 2022-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! # Off Chain EXchange Pallet.
+//!
+//! The OCEX pallet is the foundation for the fund security. This pallet handles all the critical
+//! operational tasks.
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#![deny(unused_crate_dependencies)]
 use frame_support::{
 	dispatch::DispatchResult,
-	pallet_prelude::Get,
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement},
+	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},
+	traits::{fungibles::Mutate, Currency, ExistenceRequirement, Get, OneSessionHandler},
 	BoundedVec,
 };
-use frame_system::ensure_signed;
-use polkadex_primitives::{assets::AssetId, OnChainEventsLimit};
-
-use pallet_timestamp::{self as timestamp};
-use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
+use frame_system::{ensure_signed, offchain::SubmitTransaction};
+use pallet_timestamp as timestamp;
+use polkadex_primitives::assets::AssetId;
+use sp_core::H256;
+use sp_runtime::{
+	traits::{AccountIdConversion, UniqueSaturatedInto},
+	Percent, SaturatedConversion,
+};
 use sp_std::prelude::*;
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
 pub mod weights;
 
-pub use weights::*;
+use orderbook_primitives::{
+	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
+	GENESIS_AUTHORITY_SET_ID,
+};
+use polkadex_primitives::{ocex::TradingPairConfig, utils::return_set_bits};
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::One;
+use sp_std::vec::Vec;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+pub(crate) mod fixtures;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
 	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
+const WITHDRAWAL_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
+
+/// Weight abstraction required for "ocex" pallet.
+pub trait OcexWeightInfo {
+	fn register_main_account(_b: u32) -> Weight;
+	fn add_proxy_account(x: u32) -> Weight;
+	fn close_trading_pair(_x: u32) -> Weight;
+	fn open_trading_pair(_x: u32) -> Weight;
+	fn register_trading_pair(_x: u32) -> Weight;
+	fn update_trading_pair(_x: u32) -> Weight;
+	fn deposit(_x: u32) -> Weight;
+	fn remove_proxy_account(x: u32) -> Weight;
+	fn submit_snapshot() -> Weight;
+	fn collect_fees(_x: u32) -> Weight;
+	fn set_exchange_state(_x: u32) -> Weight;
+	fn set_balances(_x: u32) -> Weight;
+	fn claim_withdraw(_x: u32) -> Weight;
+	fn allowlist_token(_x: u32) -> Weight;
+	fn remove_allowlisted_token(_x: u32) -> Weight;
+	fn set_snapshot() -> Weight;
+	fn change_pending_withdrawal_limit() -> Weight;
+	fn change_snapshot_interval_block() -> Weight;
+}
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
@@ -57,68 +99,37 @@ const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
 #[frame_support::pallet]
 pub mod pallet {
 	use core::fmt::Debug;
+	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use frame_support::{
 		pallet_prelude::*,
-		sp_tracing::debug,
-		storage::bounded_btree_map::BoundedBTreeMap,
+		storage::Key,
 		traits::{
 			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
 		},
 		PalletId,
 	};
-	use frame_system::pallet_prelude::*;
-	use ias_verify::{verify_ias_report, SgxStatus};
+	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
+	use liquidity::LiquidityModifier;
+	use orderbook_primitives::{crypto::AuthorityId, Fees, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
-		snapshot::{EnclaveSnapshot, Fees},
 		withdrawal::Withdrawal,
-		AssetsLimit, ProxyLimit, SnapshotAccLimit, WithdrawalLimit, UNIT_BALANCE,
+		ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_runtime::{
-		traits::{IdentifyAccount, Verify},
+		traits::{BlockNumberProvider, IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
 
-	pub trait OcexWeightInfo {
-		fn register_main_account(_b: u32) -> Weight;
-		fn add_proxy_account(x: u32) -> Weight;
-		fn close_trading_pair(_x: u32) -> Weight;
-		fn open_trading_pair(_x: u32) -> Weight;
-		fn register_trading_pair(_x: u32) -> Weight;
-		fn update_trading_pair(_x: u32) -> Weight;
-		fn deposit(_x: u32) -> Weight;
-		fn remove_proxy_account(x: u32) -> Weight;
-		fn submit_snapshot() -> Weight;
-		fn insert_enclave(_x: u32) -> Weight;
-		fn collect_fees(_x: u32) -> Weight;
-		fn shutdown() -> Weight;
-		fn set_exchange_state(_x: u32) -> Weight;
-		fn set_balances(_x: u32) -> Weight;
-		fn claim_withdraw(_x: u32) -> Weight;
-		fn register_enclave(_x: u32) -> Weight;
-		fn allowlist_token(_x: u32) -> Weight;
-		fn remove_allowlisted_token(_x: u32) -> Weight;
-		fn allowlist_enclave(_x: u32) -> Weight;
-		fn update_certificate(_x: u32) -> Weight;
-	}
-
-	type WithdrawalsMap<T> = BoundedBTreeMap<
+	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
-		BoundedVec<Withdrawal<<T as frame_system::Config>::AccountId>, WithdrawalLimit>,
-		SnapshotAccLimit,
-	>;
-
-	type EnclaveSnapshotType<T> = EnclaveSnapshot<
-		<T as frame_system::Config>::AccountId,
-		WithdrawalLimit,
-		AssetsLimit,
-		SnapshotAccLimit,
+		Vec<Withdrawal<<T as frame_system::Config>::AccountId>>,
 	>;
 
 	pub struct AllowlistedTokenLimit;
@@ -128,15 +139,30 @@ pub mod pallet {
 		}
 	}
 
+	#[pallet::validate_unsigned]
+	impl<T: Config> frame_support::unsigned::ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			sp_runtime::print("Entering validate unsigned....");
+			match call {
+				Call::submit_snapshot { summary } => Self::validate_snapshot(summary),
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
 	/// should be added to our implied traits list.
 	///
 	/// `frame_system::Config` should always be included.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + timestamp::Config {
+	pub trait Config:
+		frame_system::Config + timestamp::Config + SendTransactionTypes<Call<Self>>
+	{
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Address which holds the customer funds.
 		#[pallet::constant]
@@ -154,9 +180,10 @@ pub mod pallet {
 			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
-		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		type Public: Clone
 			+ PartialEq
+			+ IdentifyAccount<AccountId = Self::AccountId>
 			+ IdentifyAccount<AccountId = Self::AccountId>
 			+ Debug
 			+ parity_scale_codec::Codec
@@ -171,16 +198,16 @@ pub mod pallet {
 			+ parity_scale_codec::Codec
 			+ scale_info::TypeInfo;
 
-		/// Type representing the weight of this pallet
-		type WeightInfo: OcexWeightInfo;
-
 		// declared number of milliseconds per day and is used to determine
 		// enclave's report validity time.
 		// standard 24h in ms = 86_400_000
 		type MsPerDay: Get<Self::Moment>;
 
 		/// Governance Origin
-		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: OcexWeightInfo;
 	}
 
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
@@ -260,75 +287,49 @@ pub mod pallet {
 		/// Can not write into withdrawal bounded structure
 		/// limit reached
 		WithdrawalBoundOverflow,
+		/// Unable to aggregrate the signature
+		InvalidSignatureAggregation,
+		/// Unable to get signer index
+		SignerIndexNotFound,
+		/// Snapshot in invalid state
+		InvalidSnapshotState,
+		/// AccountId cannot be decoded
+		AccountIdCannotBeDecoded,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		/// On idle, use the remaining weight to do clean up, remove all ingress messages that are
+		/// older than the block in the last accepted snapshot.
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			// TODO: We can do it after release, as an upgrade
+			remaining_weight
+		}
 		/// What to do at the end of each block.
 		///
 		/// Clean IngressMessages
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
-			// When block's been initialized - clean up expired registrations of enclaves
-			//Self::unregister_timed_out_enclaves();
-			if let Some(snapshot_nonce) = <SnapshotNonce<T>>::get() {
-				if let Some(snapshot) = <Snapshots<T>>::get(snapshot_nonce.saturating_sub(1)) {
-					<IngressMessages<T>>::put(Vec::<
-						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
-					>::from([
-						polkadex_primitives::ingress::IngressMessages::LastestSnapshot(
-							snapshot.snapshot_hash,
-							snapshot.snapshot_number,
-						),
-					]));
-				} else {
-					<IngressMessages<T>>::put(Vec::<
-						polkadex_primitives::ingress::IngressMessages<T::AccountId>,
-					>::new());
-				}
-			} else {
-				<IngressMessages<T>>::put(Vec::<
-					polkadex_primitives::ingress::IngressMessages<T::AccountId>,
-				>::new());
-			}
+			<OnChainEvents<T>>::kill();
 
-			<OnChainEvents<T>>::put(BoundedVec::<
-				polkadex_primitives::ocex::OnChainEvents<T::AccountId>,
-				OnChainEventsLimit,
-			>::default());
-
-			(1000000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(2 as Weight))
-				.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			Weight::default()
+				.saturating_add(T::DbWeight::get().reads(2))
+				.saturating_add(T::DbWeight::get().writes(2))
 		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Registers a new account in orderbook
+		/// Registers a new account in orderbook.
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_main_account(1))]
 		pub fn register_main_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
-			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
-			ensure!(
-				!<Accounts<T>>::contains_key(&main_account),
-				Error::<T>::MainAccountAlreadyRegistered
-			);
-
-			let mut account_info = AccountInfo::new(main_account.clone());
-			ensure!(account_info.add_proxy(proxy.clone()).is_ok(), Error::<T>::ProxyLimitExceeded);
-			<Accounts<T>>::insert(&main_account, account_info);
-
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
-					main_account.clone(),
-					proxy.clone(),
-				));
-			});
-			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
+			Self::register_user(main_account, proxy)?;
 			Ok(())
 		}
 
-		/// Adds a proxy account to a pre-registered main acocunt
+		/// Adds a proxy account to a pre-registered main account.
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_proxy_account(1))]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
@@ -339,8 +340,8 @@ pub mod pallet {
 					account_info.add_proxy(proxy.clone()).is_ok(),
 					Error::<T>::ProxyLimitExceeded
 				);
-
-				<IngressMessages<T>>::mutate(|ingress_messages| {
+				let current_blk = frame_system::Pallet::<T>::current_block_number();
+				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 					ingress_messages.push(polkadex_primitives::ingress::IngressMessages::AddProxy(
 						main_account.clone(),
 						proxy.clone(),
@@ -352,7 +353,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Registers a new trading pair
+		/// Closes trading pair.
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::close_trading_pair(1))]
 		pub fn close_trading_pair(
 			origin: OriginFor<T>,
@@ -366,7 +368,8 @@ pub mod pallet {
 			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
 					trading_pair.operational_status = false;
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
 								trading_pair.clone(),
@@ -381,7 +384,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Registers a new trading pair
+		/// Opens a new trading pair.
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::open_trading_pair(1))]
 		pub fn open_trading_pair(
 			origin: OriginFor<T>,
@@ -396,7 +400,8 @@ pub mod pallet {
 			<TradingPairs<T>>::mutate(base, quote, |value| {
 				if let Some(trading_pair) = value {
 					trading_pair.operational_status = true;
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
 								trading_pair.clone(),
@@ -411,7 +416,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Registers a new trading pair
+		/// Registers a new trading pair.
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_trading_pair(1))]
 		pub fn register_trading_pair(
 			origin: OriginFor<T>,
@@ -527,7 +533,8 @@ pub mod pallet {
 					};
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
 								trading_pair_info,
@@ -542,7 +549,8 @@ pub mod pallet {
 			}
 		}
 
-		/// Updates the trading pair config
+		/// Updates the trading pair configuration.
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_trading_pair(1))]
 		pub fn update_trading_pair(
 			origin: OriginFor<T>,
@@ -654,7 +662,8 @@ pub mod pallet {
 					};
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
 								trading_pair_info,
@@ -669,7 +678,8 @@ pub mod pallet {
 			}
 		}
 
-		/// Deposit Assets to Orderbook
+		/// Deposit Assets to the Orderbook.
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit(1))]
 		pub fn deposit(
 			origin: OriginFor<T>,
@@ -677,39 +687,12 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
-			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
-			// Check if account is registered
-			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
-			// TODO: Check if asset is enabled for deposit
-
-			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
-			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
-				.checked_div(Decimal::from(UNIT_BALANCE))
-				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-
-			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
-			// Get Storage Map Value
-			if let Some(expected_total_amount) =
-				converted_amount.checked_add(Self::total_assets(asset))
-			{
-				<TotalAssets<T>>::insert(asset, expected_total_amount);
-			} else {
-				return Err(Error::<T>::AmountOverflow.into())
-			}
-
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
-					user.clone(),
-					asset,
-					converted_amount,
-				));
-			});
-			Self::deposit_event(Event::DepositSuccessful { user, asset, amount });
+			Self::do_deposit(user, asset, amount)?;
 			Ok(())
 		}
 
-		/// Removes a proxy account from pre-registered main account
+		/// Removes a proxy account from pre-registered main account.
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_proxy_account(1))]
 		pub fn remove_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
@@ -724,7 +707,8 @@ pub mod pallet {
 						.position(|account| *account == proxy)
 						.ok_or(Error::<T>::ProxyNotFound)?;
 					account_info.proxies.remove(proxy_positon);
-					<IngressMessages<T>>::mutate(|ingress_messages| {
+					let current_blk = frame_system::Pallet::<T>::current_block_number();
+					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::RemoveProxy(
 								main_account.clone(),
@@ -738,96 +722,67 @@ pub mod pallet {
 			})
 		}
 
-		//TODO: Benchmark set_snapshot
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
-		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u32) -> DispatchResult {
+		/// Sets snapshot id as current. Callable by governance only.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: signed member of T::GovernanceOrigin.
+		/// * `new_snapshot_id`: u64 id of new *current* snapshot.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_snapshot())]
+		pub fn set_snapshot(origin: OriginFor<T>, new_snapshot_id: u64) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<SnapshotNonce<T>>::put(new_snapshot_id);
 			Ok(())
 		}
 
-		/// Extrinsic used by enclave to submit balance snapshot and withdrawal requests
-		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
-		pub fn submit_snapshot(
+		/// The extrinsic will be used to change pending withdrawals limit.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: Orderbook governance.
+		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance wants to
+		///   set.
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as Config>::WeightInfo::change_pending_withdrawal_limit())]
+		pub fn change_pending_withdrawal_limit(
 			origin: OriginFor<T>,
-			mut snapshot: EnclaveSnapshot<
-				T::AccountId,
-				WithdrawalLimit,
-				AssetsLimit,
-				SnapshotAccLimit,
-			>,
-			signature: T::Signature,
-		) -> DispatchResultWithPostInfo {
-			let _ = ensure_signed(origin)?;
-			ensure!(
-				<RegisteredEnclaves<T>>::contains_key(&snapshot.enclave_id),
-				Error::<T>::SenderIsNotAttestedEnclave
-			);
-			ensure!(
-				<AllowlistedEnclaves<T>>::get(&snapshot.enclave_id),
-				<Error<T>>::EnclaveNotAllowlisted
-			);
-
-			let last_snapshot_serial_number =
-				if let Some(last_snapshot_number) = <SnapshotNonce<T>>::get() {
-					last_snapshot_number
-				} else {
-					0
-				};
-			ensure!(
-				snapshot.snapshot_number.eq(&(last_snapshot_serial_number + 1)),
-				Error::<T>::SnapshotNonceError
-			);
-			let bytes = snapshot.encode();
-
-			ensure!(
-				signature.verify(bytes.as_slice(), &snapshot.enclave_id),
-				Error::<T>::EnclaveSignatureVerificationFailed
-			);
-			let current_snapshot_nonce = snapshot.snapshot_number;
-			if snapshot.withdrawals.keys().len() > 0 {
-				ensure!(
-					<OnChainEvents<T>>::try_mutate(|onchain_events| {
-						onchain_events.try_push(
-							polkadex_primitives::ocex::OnChainEvents::GetStorage(
-								polkadex_primitives::ocex::Pallet::OCEX,
-								polkadex_primitives::ocex::StorageItem::Withdrawal,
-								snapshot.snapshot_number,
-							),
-						)?;
-						Ok::<(), ()>(())
-					})
-					.is_ok(),
-					Error::<T>::OnchainEventsBoundedVecOverflow
-				);
-			}
-			<Withdrawals<T>>::insert(current_snapshot_nonce, snapshot.withdrawals.clone());
-			<FeesCollected<T>>::insert(current_snapshot_nonce, snapshot.fees.clone());
-			snapshot.withdrawals = Default::default();
-			snapshot.fees = Default::default();
-			<Snapshots<T>>::insert(current_snapshot_nonce, snapshot.clone());
-			<SnapshotNonce<T>>::put(current_snapshot_nonce);
-			Ok(Pays::No.into())
-		}
-
-		// FIXME Only for testing will be removed before mainnet launch
-		/// Insert Enclave
-		#[doc(hidden)]
-		#[pallet::weight(<T as Config>::WeightInfo::insert_enclave(1))]
-		pub fn insert_enclave(origin: OriginFor<T>, enclave: T::AccountId) -> DispatchResult {
+			new_pending_withdrawals_limit: u64,
+		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			let timestamp = <timestamp::Pallet<T>>::get();
-			<RegisteredEnclaves<T>>::insert(enclave, timestamp);
+			<PendingWithdrawalsAllowedPerSnapshot<T>>::put(new_pending_withdrawals_limit);
 			Ok(())
 		}
 
-		/// Withdraws Fees Collected
+		/// The extrinsic will be used to change snapshot interval based on block number.
 		///
-		/// params:  snapshot_number: u32
+		/// # Parameters
+		///
+		/// * `origin`: Orderbook governance.
+		/// * `new_snapshot_interval_block`: The new block interval at which snapshot should  be
+		/// generated.
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as Config>::WeightInfo::change_snapshot_interval_block())]
+		pub fn change_snapshot_interval_block(
+			origin: OriginFor<T>,
+			new_snapshot_interval_block: T::BlockNumber,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<SnapshotIntervalBlock<T>>::put(new_snapshot_interval_block);
+			Ok(())
+		}
+
+		/// Collects withdraws fees.
+		///
+		/// # Parameters
+		///
+		/// * `snapshot_id`: Snapshot identifier.
+		/// * `beneficiary`: Receiving fee account identifier.
+		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::collect_fees(1))]
 		pub fn collect_fees(
 			origin: OriginFor<T>,
-			snapshot_id: u32,
+			snapshot_id: u64,
 			beneficiary: T::AccountId,
 		) -> DispatchResult {
 			// TODO: The caller should be of operational council
@@ -835,7 +790,7 @@ pub mod pallet {
 
 			ensure!(
 				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
-					while internal_vector.len() > 0 {
+					while !internal_vector.is_empty() {
 						if let Some(fees) = internal_vector.pop() {
 							if let Some(converted_fee) =
 								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
@@ -851,12 +806,12 @@ pub mod pallet {
 									// Push it back inside the internal vector
 									// The above function call will only fail if the beneficiary has
 									// balance below existential deposit requirements
-									internal_vector.try_push(fees).unwrap_or_default();
+									internal_vector.push(fees);
 									return Err(Error::<T>::UnableToTransferFee)
 								}
 							} else {
 								// Push it back inside the internal vector
-								internal_vector.try_push(fees).unwrap_or_default();
+								internal_vector.push(fees);
 								return Err(Error::<T>::FailedToConvertDecimaltoBalance)
 							}
 						}
@@ -870,27 +825,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Extrinsic used to shutdown the orderbook
-		#[pallet::weight(<T as Config>::WeightInfo::shutdown())]
-		pub fn shutdown(origin: OriginFor<T>) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<ExchangeState<T>>::put(false);
-			<IngressMessages<T>>::mutate(|ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Shutdown);
-			});
-			Ok(())
-		}
-
-		///This extrinsic will pause/resume the exchange according to flag
-		/// If flag is set to false it will stop the exchange
-		/// If flag is set to true it will resume the exchange
+		/// This extrinsic will pause/resume the exchange according to flag.
+		/// If flag is set to false it will stop the exchange.
+		/// If flag is set to true it will resume the exchange.
+		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_exchange_state(1))]
 		pub fn set_exchange_state(origin: OriginFor<T>, state: bool) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<ExchangeState<T>>::put(state);
-
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			//SetExchangeState Ingress message store in queue
-			<IngressMessages<T>>::mutate(|ingress_messages| {
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
 					.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
 			});
@@ -899,8 +844,9 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Sends the changes required in balances for list of users with a particular asset
-		#[pallet::weight(<T as Config>::WeightInfo::set_balances(change_in_balances.len().saturated_into()))]
+		/// Sends the changes required in balances for list of users with a particular asset.
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_balances(1))]
 		pub fn set_balances(
 			origin: OriginFor<T>,
 			change_in_balances: BoundedVec<
@@ -913,9 +859,9 @@ pub mod pallet {
 
 			// Check if exchange is pause
 			ensure!(!Self::orderbook_operational_state(), Error::<T>::ExchangeOperational);
-
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			//Pass the vec as ingress message
-			<IngressMessages<T>>::mutate(|ingress_messages| {
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(
 					polkadex_primitives::ingress::IngressMessages::SetFreeReserveBalanceForAccounts(
 						change_in_balances,
@@ -925,14 +871,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Withdraws user balance
+		/// Withdraws user balance.
 		///
-		/// params: snapshot_number: u32
-		/// account: AccountId
+		/// # Parameters
+		///
+		/// * `snapshot_id`: Key of the withdrawal in the storage map.
+		/// * `account`: Account identifier.
+		#[pallet::call_index(14)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_withdraw(1))]
 		pub fn claim_withdraw(
 			origin: OriginFor<T>,
-			snapshot_id: u32,
+			snapshot_id: u64,
 			account: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			// Anyone can claim the withdrawal for any user
@@ -950,7 +899,7 @@ pub mod pallet {
 			<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
 				// Get mutable reference to the withdrawals vector
 				if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
-					while withdrawal_vector.len() > 0 {
+					while !withdrawal_vector.is_empty() {
 						// Perform pop operation to ensure we do not leave any withdrawal left
 						// for a double spend
 						if let Some(withdrawal) = withdrawal_vector.pop() {
@@ -982,14 +931,7 @@ pub mod pallet {
 					}
 					// Not removing key from BtreeMap so that failed withdrawals can still be
 					// tracked
-					btree_map
-						.try_insert(
-							account.clone(),
-							failed_withdrawals
-								.try_into()
-								.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
-						)
-						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
+					btree_map.insert(account.clone(), failed_withdrawals);
 					Ok(())
 				} else {
 					// This allows us to ensure we do not have someone with an invalid account
@@ -1002,20 +944,14 @@ pub mod pallet {
 					withdrawals: processed_withdrawals.clone(),
 				});
 				<OnChainEvents<T>>::mutate(|onchain_events| {
-					onchain_events
-						.try_push(
-							polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-								snapshot_id,
-								account.clone(),
-								processed_withdrawals
-									.clone()
-									.try_into()
-									.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?,
-							),
-						)
-						.map_err(|_| Error::<T>::WithdrawalBoundOverflow)?;
-					Ok::<(), Error<T>>(())
-				})?;
+					onchain_events.push(
+						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+							snapshot_id,
+							account.clone(),
+							processed_withdrawals,
+						),
+					);
+				});
 				Ok(Pays::No.into())
 			} else {
 				// If someone withdraws nothing successfully - should pay for such transaction
@@ -1023,39 +959,8 @@ pub mod pallet {
 			}
 		}
 
-		/// In order to register itself - enclave must send it's own report to this extrinsic
-		#[pallet::weight(<T as Config>::WeightInfo::register_enclave(1))]
-		pub fn register_enclave(origin: OriginFor<T>, ias_report: Vec<u8>) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-
-			// this step is required for runtime-benchmarks
-			let cv: u64 = <CertificateValidity<T>>::get();
-			let report = verify_ias_report(&ias_report, cv)
-				.map_err(|_| Error::<T>::RemoteAttestationVerificationFailed)?;
-
-			ensure!(
-				(report.status == SgxStatus::Ok) |
-					(report.status == SgxStatus::ConfigurationNeeded),
-				<Error<T>>::InvalidSgxReportStatus
-			);
-
-			let enclave_signer = T::AccountId::decode(&mut &report.pubkey[..])
-				.map_err(|_| Error::<T>::SenderIsNotAttestedEnclave)?;
-
-			ensure!(
-				enclave_signer != T::AccountId::decode(&mut [0u8; 32].as_slice()).unwrap(),
-				<Error<T>>::SenderIsNotAttestedEnclave
-			);
-
-			<RegisteredEnclaves<T>>::mutate(&enclave_signer, |v| {
-				*v = T::Moment::saturated_from(report.timestamp);
-			});
-			Self::deposit_event(Event::EnclaveRegistered(enclave_signer));
-			debug!("registered enclave at time =>{:?}", report.timestamp);
-			Ok(())
-		}
-
 		/// Allowlist Token
+		#[pallet::call_index(15)]
 		#[pallet::weight(<T as Config>::WeightInfo::allowlist_token(1))]
 		pub fn allowlist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -1069,6 +974,7 @@ pub mod pallet {
 		}
 
 		/// Remove Allowlisted Token
+		#[pallet::call_index(16)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_allowlisted_token(1))]
 		pub fn remove_allowlisted_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
@@ -1079,52 +985,278 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// In order to register itself - enclave account id must be allowlisted and called by
-		/// Governance
-		#[pallet::weight(<T as Config>::WeightInfo::allowlist_enclave(1))]
-		pub fn allowlist_enclave(
+		/// Submit Snapshot Summary
+		/// TODO: Better documentation
+		#[pallet::call_index(17)]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
+		pub fn submit_snapshot(
 			origin: OriginFor<T>,
-			enclave_account_id: T::AccountId,
+			summary: SnapshotSummary<T::AccountId>,
 		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			// It will just overwrite if account_id is already allowlisted
-			<AllowlistedEnclaves<T>>::insert(&enclave_account_id, true);
-			Self::deposit_event(Event::EnclaveAllowlisted(enclave_account_id));
+			ensure_none(origin)?;
+			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
+			ensure!(
+				summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)),
+				Error::<T>::SnapshotNonceError
+			);
+			let summary_hash = H256::from_slice(&summary.sign_data());
+			let working_summary = match <UnprocessedSnapshots<T>>::get((
+				summary.snapshot_id,
+				summary.validator_set_id,
+				summary_hash,
+			)) {
+				None => summary,
+				Some(mut stored_summary) => {
+					if let Some(signature) = summary.aggregate_signature {
+						// Aggregrate the signature
+						if stored_summary.add_signature(signature).is_err() {
+							return Err(Error::<T>::InvalidSignatureAggregation.into())
+						}
+						// update the bitfield
+						let auth_index = match summary.signed_auth_indexes().first() {
+							Some(index) => *index,
+							None => return Err(Error::<T>::SignerIndexNotFound.into()),
+						};
+						stored_summary.add_auth_index(auth_index.saturated_into());
+						stored_summary
+					} else {
+						return Err(Error::<T>::InvalidSnapshotState.into())
+					}
+				},
+			};
+			log::debug!(target:"ocex", "Checking Threshold requirement....");
+			// Check if we have enough signatures
+			let total_validators = <Authorities<T>>::get(working_summary.validator_set_id).len();
+			const MAJORITY: u8 = 67;
+			let p = Percent::from_percent(MAJORITY);
+			if working_summary.signed_auth_indexes().len() >= p * total_validators {
+				log::debug!(target:"ocex", "Got majority for working summary!");
+				// We don't need to verify signatures again as it is already verified inside
+				// validate unsigned closure
+				// Remove all the unprocessed snapshots with prefix snapshot_id
+				log::debug!(target:"ocex", "Starting to clear unprocessed snapshots for snapshot id: {:?}",working_summary.snapshot_id);
+				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
+					(working_summary.snapshot_id, working_summary.validator_set_id),
+					total_validators as u32,
+					None,
+				);
+				while result.maybe_cursor.is_some() {
+					log::debug!(target:"ocex", "Clearing prefix of working snapshot summary...");
+					result = <UnprocessedSnapshots<T>>::clear_prefix(
+						(working_summary.snapshot_id, working_summary.validator_set_id),
+						total_validators as u32,
+						Some(result.maybe_cursor.unwrap().as_ref()),
+					);
+				}
+				log::debug!(target:"ocex", "Creating withdrawal tree...");
+				let withdrawal_map =
+					Self::create_withdrawal_tree(working_summary.withdrawals.clone());
+				if !working_summary.withdrawals.is_empty() {
+					<OnChainEvents<T>>::mutate(|onchain_events| {
+						onchain_events.push(
+							polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+								working_summary.snapshot_id,
+								working_summary.withdrawals.clone(),
+							),
+						);
+					});
+				}
+				log::debug!(target:"ocex", "Storing snapshot summary data...");
+				// Update the snapshot nonce and move the summary to snapshots storage
+				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
+				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
+				// The unwrap below should not fail
+				<FeesCollected<T>>::insert(working_summary.snapshot_id, working_summary.get_fees());
+				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
+				log::debug!(target:"ocex", "Snapshot stored successfully");
+			} else {
+				log::debug!(target:"ocex", "Not enough signatories on this summary.");
+				// We still don't have enough signatures on this, so save it back.
+				<UnprocessedSnapshots<T>>::insert(
+					(working_summary.snapshot_id, working_summary.validator_set_id, summary_hash),
+					working_summary,
+				);
+			}
 			Ok(())
 		}
 
-		/// Extrinsic to update ExchangeState
-		#[pallet::weight(<T as Config>::WeightInfo::update_certificate(1))]
-		pub fn update_certificate(
+		/// Submit Snapshot Summary
+		#[pallet::call_index(18)]
+		#[pallet::weight(10000)]
+		pub fn whitelist_orderbook_operator(
 			origin: OriginFor<T>,
-			certificate_valid_until: u64,
+			operator_public_key: sp_core::ecdsa::Public,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			<CertificateValidity<T>>::put(certificate_valid_until);
+			<OrderbookOperatorPublicKey<T>>::put(operator_public_key);
+			Self::deposit_event(Event::<T>::OrderbookOperatorKeyWhitelisted(operator_public_key));
+			Ok(())
+		}
+	}
+
+	impl<T: Config> LiquidityModifier for Pallet<T> {
+		type AssetId = AssetId;
+		type AccountId = T::AccountId;
+
+		fn on_deposit(
+			account: Self::AccountId,
+			asset: Self::AssetId,
+			balance: u128,
+		) -> DispatchResult {
+			Self::do_deposit(account, asset, balance.saturated_into())?;
+			Ok(())
+		}
+		fn on_withdraw(
+			account: Self::AccountId,
+			proxy_account: Self::AccountId,
+			asset: Self::AssetId,
+			balance: u128,
+			do_force_withdraw: bool,
+		) -> DispatchResult {
+			Self::withdrawal_from_orderbook(
+				account,
+				proxy_account,
+				asset,
+				balance.saturated_into(),
+				do_force_withdraw,
+			)?;
+			Ok(())
+		}
+		fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult {
+			Self::register_user(main_account, proxy)?;
+			Ok(())
+		}
+
+		#[cfg(feature = "runtime-benchmarks")]
+		fn set_exchange_state_to_true() -> DispatchResult {
+			<ExchangeState<T>>::put(true);
+			Ok(())
+		}
+
+		#[cfg(feature = "runtime-benchmarks")]
+		fn allowlist_and_create_token(account: Self::AccountId, token: u128) -> DispatchResult {
+			let asset: AssetId = AssetId::Asset(token);
+			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
+			allowlisted_tokens
+				.try_insert(asset)
+				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
+			<AllowlistedToken<T>>::put(allowlisted_tokens);
+			let amount = BalanceOf::<T>::decode(&mut &(u128::MAX).to_le_bytes()[..])
+				.map_err(|_| Error::<T>::FailedToConvertDecimaltoBalance)?;
+			//create asset and mint into it.
+			T::OtherAssets::create(
+				token,
+				Self::get_pallet_account(),
+				true,
+				BalanceOf::<T>::one().unique_saturated_into(),
+			)?;
+			T::OtherAssets::mint_into(token, &account.clone(), amount)?;
 			Ok(())
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		// clean-up function - should be called on each block
-		#[allow(dead_code)]
-		fn unregister_timed_out_enclaves() {
-			use sp_runtime::traits::CheckedSub;
-			let mut enclaves_to_remove = sp_std::vec![];
-			let iter = <RegisteredEnclaves<T>>::iter();
-			iter.for_each(|(enclave, attested_ts)| {
-				let current_timestamp = <timestamp::Pallet<T>>::get();
-				// enclave will be removed even if something happens with substraction
-				if current_timestamp.checked_sub(&attested_ts).unwrap_or(current_timestamp) >=
-					T::MsPerDay::get()
-				{
-					enclaves_to_remove.push(enclave);
-				}
-			});
-			for enclave in &enclaves_to_remove {
-				<RegisteredEnclaves<T>>::remove(enclave);
+		pub fn do_deposit(
+			user: T::AccountId,
+			asset: AssetId,
+			amount: BalanceOf<T>,
+		) -> DispatchResult {
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
+			// Check if account is registered
+			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
+			ensure!(amount.saturated_into::<u128>() <= DEPOSIT_MAX, Error::<T>::AmountOverflow);
+			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
+				.checked_div(Decimal::from(UNIT_BALANCE))
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+
+			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
+			// Get Storage Map Value
+			if let Some(expected_total_amount) =
+				converted_amount.checked_add(Self::total_assets(asset))
+			{
+				<TotalAssets<T>>::insert(asset, expected_total_amount);
+			} else {
+				return Err(Error::<T>::AmountOverflow.into())
 			}
-			Self::deposit_event(Event::EnclaveCleanup(enclaves_to_remove));
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
+					user.clone(),
+					asset,
+					converted_amount,
+				));
+			});
+			Self::deposit_event(Event::DepositSuccessful { user, asset, amount });
+			Ok(())
+		}
+
+		pub fn register_user(main_account: T::AccountId, proxy: T::AccountId) -> DispatchResult {
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			ensure!(
+				!<Accounts<T>>::contains_key(&main_account),
+				Error::<T>::MainAccountAlreadyRegistered
+			);
+
+			let mut account_info = AccountInfo::new(main_account.clone());
+			ensure!(account_info.add_proxy(proxy.clone()).is_ok(), Error::<T>::ProxyLimitExceeded);
+			<Accounts<T>>::insert(&main_account, account_info);
+
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
+					main_account.clone(),
+					proxy.clone(),
+				));
+			});
+			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
+			Ok(())
+		}
+
+		pub fn withdrawal_from_orderbook(
+			user: T::AccountId,
+			proxy_account: T::AccountId,
+			asset: AssetId,
+			amount: BalanceOf<T>,
+			do_force_withdraw: bool,
+		) -> DispatchResult {
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			ensure!(<AllowlistedToken<T>>::get().contains(&asset), Error::<T>::TokenNotAllowlisted);
+			// Check if account is registered
+			ensure!(<Accounts<T>>::contains_key(&user), Error::<T>::AccountNotRegistered);
+			ensure!(amount.saturated_into::<u128>() <= WITHDRAWAL_MAX, Error::<T>::AmountOverflow);
+			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
+				.checked_div(Decimal::from(UNIT_BALANCE))
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+				ingress_messages.push(
+					polkadex_primitives::ingress::IngressMessages::DirectWithdrawal(
+						proxy_account,
+						asset,
+						converted_amount,
+						do_force_withdraw,
+					),
+				);
+			});
+			Self::deposit_event(Event::WithdrawFromOrderbook(user, asset, amount));
+			Ok(())
+		}
+
+		fn create_withdrawal_tree(
+			pending_withdrawals: Vec<Withdrawal<T::AccountId>>,
+		) -> WithdrawalsMap<T> {
+			let mut withdrawal_map: WithdrawalsMap<T> = WithdrawalsMap::<T>::new();
+			for withdrawal in pending_withdrawals {
+				let recipient_account: T::AccountId = withdrawal.main_account.clone();
+				if let Some(pending_withdrawals) = withdrawal_map.get_mut(&recipient_account) {
+					pending_withdrawals.push(withdrawal)
+				} else {
+					let pending_withdrawals = sp_std::vec![withdrawal];
+					withdrawal_map.insert(recipient_account, pending_withdrawals);
+				}
+			}
+			withdrawal_map
 		}
 	}
 
@@ -1136,7 +1268,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		FeesClaims {
 			beneficiary: T::AccountId,
-			snapshot_id: u32,
+			snapshot_id: u64,
 		},
 		MainAccountRegistered {
 			main: T::AccountId,
@@ -1185,6 +1317,10 @@ pub mod pallet {
 		WithdrawalFailed(Withdrawal<T::AccountId>),
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
+		/// Withdraw Assets from Orderbook
+		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
+		/// Orderbook Operator Key Whitelisted
+		OrderbookOperatorKeyWhitelisted(sp_core::ecdsa::Public),
 	}
 
 	///Allowlisted tokens
@@ -1192,11 +1328,6 @@ pub mod pallet {
 	#[pallet::getter(fn get_allowlisted_token)]
 	pub(super) type AllowlistedToken<T: Config> =
 		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
-
-	///CertificateValidity
-	#[pallet::storage]
-	#[pallet::getter(fn get_certificate_validation_time)]
-	pub(super) type CertificateValidity<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// A map that has enumerable entries.
 	#[pallet::storage]
@@ -1222,16 +1353,42 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	// Unprocessed Snapshots storage ( snapshot id, summary_hash ) => SnapshotSummary
+	#[pallet::storage]
+	#[pallet::getter(fn unprocessed_snapshots)]
+	pub(super) type UnprocessedSnapshots<T: Config> = StorageNMap<
+		_,
+		// Snapshot id, snapshot hash, validator set id
+		(
+			Key<Blake2_128Concat, u64>,
+			Key<Blake2_128Concat, orderbook_primitives::ValidatorSetId>,
+			Key<Identity, H256>,
+		),
+		SnapshotSummary<T::AccountId>,
+		OptionQuery,
+	>;
+
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
 	pub(super) type Snapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, EnclaveSnapshotType<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, ValueQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_nonce)]
-	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u32, OptionQuery>;
+	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	// Snapshot will be produced after snapshot interval block
+	#[pallet::storage]
+	#[pallet::getter(fn snapshot_interval_block)]
+	pub(super) type SnapshotIntervalBlock<T: Config> = StorageValue<_, T::BlockNumber, OptionQuery>;
+
+	// Snapshot will be produced after reaching pending withdrawals limit
+	#[pallet::storage]
+	#[pallet::getter(fn pending_withdrawals_allowed_per_snapshot)]
+	pub(super) type PendingWithdrawalsAllowedPerSnapshot<T: Config> =
+		StorageValue<_, u64, OptionQuery>;
 
 	// Exchange Operation State
 	#[pallet::storage]
@@ -1242,25 +1399,21 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
 	pub(super) type FeesCollected<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, BoundedVec<Fees, AssetsLimit>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, Vec<Fees>, ValueQuery>;
 
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
 	#[pallet::getter(fn withdrawals)]
 	pub(super) type Withdrawals<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, WithdrawalsMap<T>, ValueQuery>;
-
-	// Allowlisted enclaves
-	#[pallet::storage]
-	#[pallet::getter(fn allowlisted_enclaves)]
-	pub(super) type AllowlistedEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, bool, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, WithdrawalsMap<T>, ValueQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]
 	#[pallet::getter(fn ingress_messages)]
-	pub(super) type IngressMessages<T: Config> = StorageValue<
+	pub(super) type IngressMessages<T: Config> = StorageMap<
 		_,
+		Identity,
+		T::BlockNumber,
 		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
 		ValueQuery,
 	>;
@@ -1268,11 +1421,8 @@ pub mod pallet {
 	// Queue for onchain events
 	#[pallet::storage]
 	#[pallet::getter(fn onchain_events)]
-	pub(super) type OnChainEvents<T: Config> = StorageValue<
-		_,
-		BoundedVec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>, OnChainEventsLimit>,
-		ValueQuery,
-	>;
+	pub(super) type OnChainEvents<T: Config> =
+		StorageValue<_, Vec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
 
 	// Total Assets present in orderbook
 	#[pallet::storage]
@@ -1280,11 +1430,30 @@ pub mod pallet {
 	pub(super) type TotalAssets<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
 
-	// Vector of registered enclaves
 	#[pallet::storage]
-	#[pallet::getter(fn get_registered_enclaves)]
-	pub(super) type RegisteredEnclaves<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::Moment, ValueQuery>;
+	#[pallet::getter(fn get_authorities)]
+	pub(super) type Authorities<T: Config> = StorageMap<
+		_,
+		Identity,
+		orderbook_primitives::ValidatorSetId,
+		ValidatorSet<AuthorityId>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_next_authorities)]
+	pub(super) type NextAuthorities<T: Config> =
+		StorageValue<_, ValidatorSet<AuthorityId>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn validator_set_id)]
+	pub(super) type ValidatorSetId<T: Config> =
+		StorageValue<_, orderbook_primitives::ValidatorSetId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_orderbook_operator_public_key)]
+	pub(super) type OrderbookOperatorPublicKey<T: Config> =
+		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
@@ -1292,11 +1461,157 @@ pub mod pallet {
 // - Public interface. These are functions that are `pub` and generally fall into inspector
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
-impl<T: Config> Pallet<T> {
+impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
+	pub fn validate_snapshot(
+		snapshot_summary: &SnapshotSummary<T::AccountId>,
+	) -> TransactionValidity {
+		let valid_tx = |provide| {
+			ValidTransaction::with_tag_prefix("orderbook")
+				.and_provides([&provide])
+				.longevity(3)
+				.propagate(true)
+				.build()
+		};
+		// Verify Nonce/state_change_id
+		let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
+		if !snapshot_summary
+			.snapshot_id
+			.eq(&(last_snapshot_serial_number.saturating_add(1)))
+		{
+			return InvalidTransaction::Custom(10).into()
+		}
+
+		// Get authority from active set
+		// index is zero because we are signing only with one authority
+		// when submitting snapshot
+		let auth_idx = match snapshot_summary.signed_auth_indexes().first() {
+			Some(idx) => *idx,
+			None => return InvalidTransaction::BadSigner.into(),
+		};
+
+		let authority = match <Authorities<T>>::get(snapshot_summary.validator_set_id)
+			.validators()
+			.get(auth_idx)
+		{
+			Some(auth) => auth,
+			None => return InvalidTransaction::Custom(11).into(),
+		}
+		.clone();
+
+		// Verify Signature
+		match snapshot_summary.aggregate_signature {
+			None => return InvalidTransaction::Custom(12).into(),
+			Some(signature) => {
+				if !signature.verify(&[authority.into()], &snapshot_summary.sign_data()) {
+					return InvalidTransaction::Custom(13).into()
+				}
+			},
+		}
+		sp_runtime::print("Signature successfull");
+		valid_tx(snapshot_summary.clone())
+	}
+
+	pub fn validator_set() -> ValidatorSet<AuthorityId> {
+		let id = Self::validator_set_id();
+		<Authorities<T>>::get(id)
+	}
+
+	pub fn get_ingress_messages(
+		blk: T::BlockNumber,
+	) -> Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>> {
+		<IngressMessages<T>>::get(blk)
+	}
+
+	#[allow(clippy::result_unit_err)]
+	pub fn submit_snapshot_api(summary: SnapshotSummary<T::AccountId>) -> Result<(), ()> {
+		let call = Call::<T>::submit_snapshot { summary };
+		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+	}
+
+	pub fn get_latest_snapshot() -> SnapshotSummary<T::AccountId> {
+		let last_nonce = <SnapshotNonce<T>>::get();
+		<Snapshots<T>>::get(last_nonce)
+	}
+
+	pub fn get_snapshot_by_id(nonce: u64) -> Option<SnapshotSummary<T::AccountId>> {
+		let summary = <Snapshots<T>>::get(nonce);
+
+		if summary == SnapshotSummary::default() {
+			None
+		} else {
+			Some(summary)
+		}
+	}
+
+	// Pending snapshot will return a snapshot nonce if the given authority is part of current set
+	// and they are yet to support a snapshot, else returns None
+	pub fn pending_snapshot(auth: AuthorityId) -> Option<u64> {
+		// Get the next snapshot number and
+		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
+		let current_set_id = <ValidatorSetId<T>>::get();
+		// Get the pending snapshot by number
+		let iter = <UnprocessedSnapshots<T>>::iter_prefix((next_nonce, current_set_id));
+		let mut pending_snapshot = Some(next_nonce);
+		for (_, summary) in iter {
+			let active = <Authorities<T>>::get(current_set_id);
+			match active.validators.binary_search(&auth) {
+				Err(_) => return None, /* If the auth is not part of active set, then do */
+				// nothing
+				Ok(index) => {
+					let set_indexes: Vec<usize> = return_set_bits(&summary.bitflags);
+					if set_indexes.contains(&index) {
+						// We already signed it so nothing is pending
+						// If bit is not set return Some() else None
+						pending_snapshot = None;
+					}
+				},
+			}
+		}
+		pending_snapshot
+	}
+
+	// Returns all main accounts and corresponding proxies for it at this point in time
+	pub fn get_all_accounts_and_proxies() -> Vec<(T::AccountId, Vec<T::AccountId>)> {
+		<Accounts<T>>::iter()
+			.map(|(main, info)| (main, info.proxies.to_vec()))
+			.collect::<Vec<(T::AccountId, Vec<T::AccountId>)>>()
+	}
+
+	/// Returns a vector of allowlisted asset IDs.
+	///
+	/// # Returns
+	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.
+	pub fn get_allowlisted_assets() -> Vec<AssetId> {
+		<AllowlistedToken<T>>::get().iter().copied().collect::<Vec<AssetId>>()
+	}
+
+	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {
+		let pending_withdrawals_interval =
+			<PendingWithdrawalsAllowedPerSnapshot<T>>::get().unwrap_or(20);
+		let block_interval = <SnapshotIntervalBlock<T>>::get().unwrap_or(5u32.saturated_into());
+		(pending_withdrawals_interval, block_interval)
+	}
+
+	/// Returns the last processed stid from latest snapshot
+	pub fn get_last_accepted_worker_nonce() -> u64 {
+		let last_snapshot_nonce = <SnapshotNonce<T>>::get();
+		let last_snapshot = <Snapshots<T>>::get(last_snapshot_nonce);
+		last_snapshot.worker_nonce
+	}
+
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
 	/// can accessed using on-chain logic.
 	fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	pub fn read_trading_pair_configs() -> Vec<(TradingPair, TradingPairConfig)> {
+		let iterator = <TradingPairs<T>>::iter();
+		let mut configs = Vec::new();
+		for (base, quote, config) in iterator {
+			configs.push((TradingPair { base, quote }, config))
+		}
+		configs
 	}
 
 	fn transfer_asset(
@@ -1306,7 +1621,7 @@ impl<T: Config> Pallet<T> {
 		asset: AssetId,
 	) -> DispatchResult {
 		match asset {
-			AssetId::polkadex => {
+			AssetId::Polkadex => {
 				T::NativeCurrency::transfer(
 					payer,
 					payee,
@@ -1314,10 +1629,52 @@ impl<T: Config> Pallet<T> {
 					ExistenceRequirement::KeepAlive,
 				)?;
 			},
-			AssetId::asset(id) => {
+			AssetId::Asset(id) => {
 				T::OtherAssets::teleport(id, payer, payee, amount.unique_saturated_into())?;
 			},
 		}
 		Ok(())
 	}
+}
+
+impl<T: Config> sp_application_crypto::BoundToRuntimeAppPublic for Pallet<T> {
+	type Public = orderbook_primitives::crypto::AuthorityId;
+}
+
+impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
+	type Key = orderbook_primitives::crypto::AuthorityId;
+
+	fn on_genesis_session<'a, I: 'a>(authorities: I)
+	where
+		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+	{
+		let authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
+		<Authorities<T>>::insert(
+			GENESIS_AUTHORITY_SET_ID,
+			ValidatorSet::new(authorities, GENESIS_AUTHORITY_SET_ID),
+		);
+	}
+
+	fn on_new_session<'a, I: 'a>(_changed: bool, authorities: I, queued_authorities: I)
+	where
+		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+	{
+		let next_authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
+		let next_queued_authorities = queued_authorities.map(|(_, k)| k).collect::<Vec<_>>();
+
+		if next_authorities == next_queued_authorities {
+			// If there is no change, don't do anything
+			log::info!(target:"ocex","No session change required authorities are the same as previous");
+			return
+		}
+
+		let id = Self::validator_set_id();
+		let new_id = id + 1u64;
+
+		<Authorities<T>>::insert(new_id, ValidatorSet::new(next_authorities, new_id));
+		<NextAuthorities<T>>::put(ValidatorSet::new(next_queued_authorities, new_id + 1));
+		<ValidatorSetId<T>>::put(new_id);
+	}
+
+	fn on_disabled(_i: u32) {}
 }

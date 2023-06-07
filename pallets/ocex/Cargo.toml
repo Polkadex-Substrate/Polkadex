@@ -1,6 +1,6 @@
 [package]
 name = "pallet-ocex-lmp"
-version = "4.0.0"
+version = "5.0.0"
 authors = ["Gautham J <gautham@polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -13,52 +13,55 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-parity-scale-codec = { workspace = true, default-features = false }
 log = { workspace = true, default-features = false }
+parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
 frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
-ias-verify = { workspace = true, default-features = false }
 rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
-frame-benchmarking = { workspace = true, default-features = false, optional = true }
-test-utils = { workspace = true, default-features = false, optional = true }
 pallet-timestamp = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+sp-core = { workspace = true, default-features = false }
+liquidity = { path = "../liquidity", default-features = false }
+orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
+sp-application-crypto = { workspace = true }
 
 [dev-dependencies]
-test-utils = { workspace = true }
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
-frame-benchmarking = { workspace = true }
-anyhow = { workspace = true }
 sp-io = { workspace = true }
+bls-primitives = { workspace = true, default-features = false }
+hex = "0.4.3"
 
 [features]
 default = ["std"]
 std = [
-    "parity-scale-codec/std",
-    "log/std",
-    "scale-info/std",
-    "frame-support/std",
-    "frame-system/std",
-    "sp-runtime/std",
-    "sp-std/std",
-    "sp-core/std",
-    "polkadex-primitives/std",
-    "ias-verify/std",
-    "rust_decimal/std",
-    "pallet-timestamp/std",
+  "log/std",
+  "sp-application-crypto/std",
+  "orderbook-primitives/std",
+  "bls-primitives/std",
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "polkadex-primitives/std",
+  "rust_decimal/std",
+  "pallet-timestamp/std",
+  "liquidity/std",
+  "sp-core/std",
 ]
 runtime-benchmarks = [
-    "sp-runtime/runtime-benchmarks",
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "test-utils"
+  "sp-runtime/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "liquidity/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
