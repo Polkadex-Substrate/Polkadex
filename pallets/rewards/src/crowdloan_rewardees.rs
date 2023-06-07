@@ -23,7 +23,7 @@ use polkadex_primitives::AccountId;
 /// Arrayof beneficiary
 /// Vec<u8> = beneficiary account
 /// (u128,u128,u128) = (total rewards, initial rewards, factor)
-pub(crate) const HASHMAP: [(AccountId, (u128, u128, u128)); 3631] = [
+pub const HASHMAP: [(AccountId, (u128, u128, u128)); 3631] = [
 	// "0x0007ae30526dfc179d16b5d29daf10aa81781b7da1b5cb67e9a91dd625868f03"
 	(
 		AccountId::new([

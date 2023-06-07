@@ -46,7 +46,7 @@ fn main() {
 			println!("User ( Polkadot ): {:?}", user.to_ss58check_with_version(polkadot_version));
 			println!("---------------------------------------------------------------------------");
 			#[allow(clippy::borrow_interior_mutable_const)]
-			if let Some(details) = HASHMAP.get(&user) {
+			if let Some((_, details)) = HASHMAP.iter().find(|inner| inner.0 == user) {
 				println!("Reward Details ");
 				println!(
 					"---------------------------------------------------------------------------"
@@ -108,7 +108,7 @@ fn main() {
 			let claim_per_blk = Decimal::from_str(record.get(3).unwrap()).unwrap();
 			let dot_contributed = Decimal::from_str(record.get(4).unwrap()).unwrap();
 			#[allow(clippy::borrow_interior_mutable_const)]
-			if let Some(details) = HASHMAP.get(&user) {
+			if let Some((_, details)) = HASHMAP.iter().find(|inner| inner.0 == user) {
 				let total_rewards_list = Decimal::from(details.0).div(unit);
 				let cliff_amt_list = Decimal::from(details.1).div(unit);
 				let claim_per_blk_list = Decimal::from(details.2).div(unit);
