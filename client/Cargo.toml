@@ -1,11 +1,10 @@
 [package]
 name = "polkadex-client"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 sc-executor = { workspace = true }
-node-polkadex-runtime = { path = "../runtime", version = "4.0.0" }
+node-polkadex-runtime = { path = "../runtime" }
 frame-benchmarking = { workspace = true }
+bls-primitives = { workspace = true }

@@ -1,13 +1,13 @@
 // This file is part of Substrate.
-
+//
 // Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -88,7 +88,8 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				service::new_full(config).map_err(sc_cli::Error::Service)
+				service::new_full(config, cli.foreign_chain_url, cli.thea_dummy_mode)
+					.map_err(sc_cli::Error::Service)
 			})
 		},
 		// Some(Subcommand::Inspect(cmd)) => {
@@ -118,33 +119,54 @@ pub fn run() -> Result<()> {
 						let PartialComponents { client, .. } = new_partial(&config)?;
 						cmd.run(client)
 					},
+					#[cfg(not(feature = "runtime-benchmarks"))]
+					BenchmarkCmd::Storage(_) => Err(
+						"Storage benchmarking can be enabled with `--features runtime-benchmarks`."
+							.into(),
+					),
+					#[cfg(feature = "runtime-benchmarks")]
 					BenchmarkCmd::Storage(cmd) => {
-						let PartialComponents { client, backend, .. } = new_partial(&config)?;
-						let db = backend.expose_db();
-						let storage = backend.expose_storage();
+						// ensure that we keep the task manager alive
+						let partial = new_partial(&config)?;
+						let db = partial.backend.expose_db();
+						let storage = partial.backend.expose_storage();
 
-						cmd.run(config, client, db, storage)
+						cmd.run(config, partial.client, db, storage)
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						let PartialComponents { client, .. } = new_partial(&config)?;
-						let ext_builder = RemarkBuilder::new(client.clone());
-						cmd.run(config, client, inherent_benchmark_data()?, &ext_builder)
+						// ensure that we keep the task manager alive
+						let partial = new_partial(&config)?;
+						let ext_builder = RemarkBuilder::new(partial.client.clone());
+
+						cmd.run(
+							config,
+							partial.client,
+							inherent_benchmark_data()?,
+							Vec::new(),
+							&ext_builder,
+						)
 					},
 					BenchmarkCmd::Machine(cmd) =>
 						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
 					BenchmarkCmd::Extrinsic(cmd) => {
-						let PartialComponents { client, .. } = service::new_partial(&config)?;
+						// ensure that we keep the task manager alive
+						let partial = service::new_partial(&config)?;
 						// Register the *Remark* and *TKA* builders.
 						let ext_factory = ExtrinsicFactory(vec![
-							Box::new(RemarkBuilder::new(client.clone())),
+							Box::new(RemarkBuilder::new(partial.client.clone())),
 							Box::new(TransferKeepAliveBuilder::new(
-								client.clone(),
+								partial.client.clone(),
 								Sr25519Keyring::Alice.to_account_id(),
 								ExistentialDeposit::get(),
 							)),
 						]);
 
-						cmd.run(client, inherent_benchmark_data()?, &ext_factory)
+						cmd.run(
+							partial.client,
+							inherent_benchmark_data()?,
+							Vec::new(),
+							&ext_factory,
+						)
 					},
 				}
 			})
@@ -214,8 +236,13 @@ pub fn run() -> Result<()> {
 				let task_manager =
 					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
-
-				Ok((cmd.run::<Block, ExecutorDispatch>(config), task_manager))
+				Ok((
+					cmd.run::<Block, sc_executor::sp_wasm_interface::ExtendedHostFunctions<
+						frame_support::sp_io::SubstrateHostFunctions,
+						<ExecutorDispatch as sc_executor::NativeExecutionDispatch>::ExtendHostFunctions,
+					>>(),
+					task_manager,
+				))
 			})
 		},
 

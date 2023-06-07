@@ -1,0 +1,18 @@
+[package]
+name = "pallet-rewards-runtime-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+parity-scale-codec = { workspace = true, default-features = false, features = ["derive"] }
+
+# Substrate Dependencies
+sp-api = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+
+[features]
+default = ["std"]
+std = ["parity-scale-codec/std", "sp-api/std", "sp-runtime/std", "sp-std/std", "polkadex-primitives/std", "sp-core/std"]

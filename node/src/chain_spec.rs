@@ -1,3 +1,21 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2021-2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
@@ -52,8 +70,10 @@ pub(crate) fn session_keys(
 	babe: BabeId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
+	orderbook: orderbook_primitives::crypto::AuthorityId,
+	thea: thea_primitives::AuthorityId,
 ) -> SessionKeys {
-	SessionKeys { grandpa, babe, im_online, authority_discovery }
+	SessionKeys { grandpa, babe, im_online, authority_discovery, orderbook, thea }
 }
 
 fn udon_testnet_config_genesis() -> GenesisConfig {
@@ -65,6 +85,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
+		orderbook_primitives::crypto::AuthorityId,
+		thea_primitives::AuthorityId,
 	)> = vec![];
 	for idx in 1..4 {
 		let babe = sp_core::sr25519::Pair::from_string(
@@ -89,6 +111,17 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			None,
 		)
 		.unwrap();
+		let ob = orderbook_primitives::crypto::Pair::from_string(
+			&(seed.to_owned() + idx.to_string().as_str() + "//orderbook"),
+			None,
+		)
+		.unwrap();
+
+		let thea = thea_primitives::crypto::Pair::from_string(
+			&(seed.to_owned() + idx.to_string().as_str() + "//thea"),
+			None,
+		)
+		.unwrap();
 
 		initial_authorities.push((
 			AccountId::from(babe.public().into_account()),
@@ -97,6 +130,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			BabeId::from(babe.public().into_account()),
 			ImOnlineId::from(imon.public().into_account()),
 			AuthorityDiscoveryId::from(audi.public().into_account()),
+			ob.public().into_account(),
+			thea.public().into_account(),
 		));
 	}
 
@@ -157,7 +192,16 @@ where
 /// Helper function to generate stash, controller and session key from seed
 pub fn authority_keys_from_seed(
 	seed: &str,
-) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (
+	AccountId,
+	AccountId,
+	GrandpaId,
+	BabeId,
+	ImOnlineId,
+	AuthorityDiscoveryId,
+	orderbook_primitives::crypto::AuthorityId,
+	thea_primitives::AuthorityId,
+) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(&format!("{seed}//stash")),
 		get_account_id_from_seed::<sr25519::Public>(seed),
@@ -165,6 +209,8 @@ pub fn authority_keys_from_seed(
 		get_from_seed::<BabeId>(seed),
 		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
+		get_from_seed::<orderbook_primitives::crypto::AuthorityId>(seed),
+		get_from_seed::<thea_primitives::AuthorityId>(seed),
 	)
 }
 
@@ -235,6 +281,8 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
+		orderbook_primitives::crypto::AuthorityId,
+		thea_primitives::AuthorityId
 	)> = vec![
 		(
 			// 5Fbsd6WXDGiLTxunqeK5BATNiocfCqu9bS1yArVjCgeBLkVy
@@ -253,6 +301,12 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
 			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
 				.unchecked_into(),
+			// BLS - Orderbook
+			hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
+				.try_into().unwrap(),
+			// BLS - Thea
+			hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
+				.try_into().unwrap(),
 		),
 		(
 			// 5ERawXCzCWkjVq3xz1W5KGNtVx2VdefvZ62Bw1FEuZW4Vny2
@@ -271,6 +325,12 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
 			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
 				.unchecked_into(),
+			// BLS - Orderbook
+			hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
+				.try_into().unwrap(),
+			// BLS - Thea
+			hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
+				.try_into().unwrap(),
 		),
 	];
 	let root_key = hex!["70a5f4e786b47baf52d5a34742bb8312139cfe1c747fbeb3912c197d38c53332"].into();
@@ -314,6 +374,8 @@ pub fn testnet_genesis(
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
+		orderbook_primitives::crypto::AuthorityId,
+		thea_primitives::AuthorityId,
 	)>,
 	_initial_nominators: Vec<AccountId>,
 	development_accounts: Option<Vec<AccountId>>,
@@ -393,7 +455,14 @@ pub fn testnet_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+						session_keys(
+							x.2.clone(),
+							x.3.clone(),
+							x.4.clone(),
+							x.5.clone(),
+							x.6.clone(),
+							x.7.clone(),
+						),
 					)
 				})
 				.collect::<Vec<_>>(),

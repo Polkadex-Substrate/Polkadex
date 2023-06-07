@@ -1,0 +1,51 @@
+[package]
+authors = ['Parallel Team']
+edition = '2021'
+name = 'pallet-amm'
+version = '1.9.5'
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[dependencies]
+parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+num-traits = { default-features = false, version = '0.2' }
+serde = { version = '1.0.136', features = ['derive'], optional = true }
+pallet-assets = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+support = { path = "../support", default-features = false }
+
+[dev-dependencies]
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+asset-handler = { path = "../asset-handler", default-features = false }
+chainbridge = { path = "../chainbridge", default-features = false }
+serde = { version = '1.0.136', features = ['derive'] }
+
+[features]
+default = ['std']
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "frame-benchmarking/std",
+  "sp-io/std",
+  "sp-core/std",
+  "sp-std/std",
+  "sp-runtime/std",
+  "polkadex-primitives/std",
+  "support/std",
+  "pallet-assets/std",
+]
+runtime-benchmarks = ['frame-benchmarking', 'frame-system/runtime-benchmarks']
+try-runtime = ['frame-support/try-runtime']

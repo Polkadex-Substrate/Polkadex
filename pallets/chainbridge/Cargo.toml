@@ -1,5 +1,6 @@
 #Copyright 2021 ChainSafe Systems
 #SPDX-License-Identifier: GPL-3.0-only
+
 [package]
 name = "chainbridge"
 version = "0.0.3"
@@ -11,39 +12,37 @@ publish = false
 repository = "https://github.com/ChainSafe/chainbridge-substrate"
 
 [dependencies]
-log = { workspace = true, default-features = false }
 parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
 frame-support = { workspace = true, default-features = false }
-frame-benchmarking = { workspace = true, default-features = false,  optional = true }
 frame-system = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
-sp-core = { workspace = true, default-features = false}
-sp-io = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
-pallet-balances = { workspace = true, default-features = false }
 blake2-rfc = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+
+[dev-dependencies]
+pallet-balances = { workspace = true, features = ["std"] }
+sp-io = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-    "log/std",
-    "parity-scale-codec/std",
-    "frame-support/std",
-    "frame-system/std",
-    "scale-info/std",
-    "sp-core/std",
-    "sp-io/std",
-    "sp-std/std",
-    "sp-runtime/std",
-    "pallet-balances/std",
-    "blake2-rfc/std",
+  "parity-scale-codec/std",
+  "frame-support/std",
+  "frame-system/std",
+  "scale-info/std",
+  "sp-core/std",
+  "sp-std/std",
+  "sp-runtime/std",
+  "blake2-rfc/std",
 ]
 runtime-benchmarks = [
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "sp-runtime/runtime-benchmarks",
-    "pallet-balances/runtime-benchmarks"
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "pallet-balances/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

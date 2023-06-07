@@ -1,0 +1,50 @@
+[package]
+name = "pallet-rewards"
+version = "1.0.0"
+edition = "2021"
+authors = ["Polkadex Authors"]
+repository = 'https://github.com/Polkadex-Substrate/Polkadex/'
+description = "A pallet that will give parachain rewards to participants"
+license = "GPL-3.0-or-later"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+parity-scale-codec = { workspace = true, default-features = false }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+frame-support = { default-features = false, workspace = true }
+frame-system = { default-features = false, workspace = true }
+sp-runtime = { default-features = false, workspace = true }
+sp-std = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+pallet-timestamp = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+
+[dev-dependencies]
+pallet-assets = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, features = ["std"] }
+sp-core = { default-features = false, workspace = true }
+sp-io = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "polkadex-primitives/std",
+  "pallet-timestamp/std",
+]
+
+runtime-benchmarks = [
+  "sp-runtime/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+]
+
+try-runtime = ["frame-support/try-runtime"]
