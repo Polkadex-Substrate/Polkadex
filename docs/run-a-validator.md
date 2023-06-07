@@ -33,7 +33,7 @@ curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/downl
 ```
 Download Polkadex Parachain Spec File
 ```
-curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/polkadot-parachain-plain.json
+curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/polkadot-parachain-raw.json
 ```
 Download Polkadot Spec File
 ```
