@@ -31,3 +31,5 @@ rustup toolchain add nightly-2021-06-28
 rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup target add wasm32-unknown-unknown --toolchain nightly-2021-06-28
 rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-06-28
+sudo apt install build-essential -y
+sudo apt install --assume-yes git clang curl libssl-dev protobuf-compiler
