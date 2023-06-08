@@ -16,9 +16,6 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 frame-support = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 frame-system = { workspace = true, default-features = false }
-
-
-sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
@@ -28,7 +25,7 @@ chainbridge = { path = "../chainbridge", default-features = false }
 [dev-dependencies]
 pallet-assets = { workspace = true, default-features = false }
 pallet-balances = { workspace = true, default-features = false }
-
+sp-io = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
@@ -37,9 +34,9 @@ std = [
   "scale-info/std",
   "frame-support/std",
   "frame-system/std",
-  "sp-io/std",
   "sp-core/std",
   "sp-std/std",
+  "sp-io/std",
   "sp-runtime/std",
   "chainbridge/std",
   "pallet-assets/std",

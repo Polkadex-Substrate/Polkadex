@@ -49,7 +49,6 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 use sp_core::{H160, U256};
-use sp_io::hashing::keccak_256;
 use sp_runtime::{
 	traits::{One, Saturating, UniqueSaturatedInto},
 	BoundedBTreeSet, SaturatedConversion,
