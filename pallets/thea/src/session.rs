@@ -42,8 +42,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 	where
 		I: Iterator<Item = (&'a T::AccountId, T::TheaId)>,
 	{
-		// TODO: what happens if someone changes their session key
-		// and queued_validators != validators in next set.???
+		// A new thea message will be sent on session changes when queued != next.
 		let next_authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
 		if next_authorities.len() as u32 > T::MaxAuthorities::get() {
 			log::error!(

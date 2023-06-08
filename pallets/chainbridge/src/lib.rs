@@ -262,7 +262,8 @@ pub mod pallet {
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			// Clear all bridge transfer data
 			BridgeEvents::<T>::kill();
-			Weight::default() // TODO: This is not zero
+			// A good enough weight for deletion of one key.
+			Weight::from_ref_time(10_000_000).saturating_add(T::DbWeight::get().writes(1))
 		}
 	}
 

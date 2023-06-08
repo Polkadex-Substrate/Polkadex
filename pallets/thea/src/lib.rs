@@ -344,7 +344,7 @@ impl<T: Config> Pallet<T> {
 							auth.clone()
 						])));
 				} else {
-					// TODO: Make it an offence to not provide network as part of next version
+					// TODO: Make it an offence to not provide network as part of next release
 				}
 			}
 			map
