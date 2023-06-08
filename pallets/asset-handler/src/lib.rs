@@ -732,18 +732,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Resolves asset identifier from hashed asset id.
-		///
-		/// # Parameters
-		///
-		/// * `derived_asset_id`: Hashed asset id representation.
-		pub fn get_asset_id(derived_asset_id: Vec<u8>) -> u128 {
-			let derived_asset_id_hash = &keccak_256(derived_asset_id.as_ref())[0..16];
-			let mut temp = [0u8; 16];
-			temp.copy_from_slice(derived_asset_id_hash);
-			u128::from_le_bytes(temp)
-		}
-
 		#[cfg(feature = "runtime-benchmarks")]
 		pub fn register_asset(rid: ResourceId) {
 			T::AssetManager::create(
@@ -832,7 +820,8 @@ pub mod pallet {
 			} else if T::Currency::free_balance(who) >= amount.saturated_into() {
 				WithdrawConsequence::Success
 			} else {
-				// TODO: Need a better error mapping
+				// We return unknown asset because, the given asset is different
+				// from registered native asset
 				WithdrawConsequence::UnknownAsset
 			}
 		}
