@@ -16,11 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-cargo fmt --check
-RUSTFLAGS="-D warnings" cargo build
-cargo build --features try-runtime
-cargo build --features runtime-benchmarks
-./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1
-cargo clippy -- -D warnings
-cargo test
-RUSTFLAGS="-D warnings" cargo build -p thea-message-handler
+cargo fmt --check || exit
+RUSTFLAGS="-D warnings" cargo build || exit
+cargo build --features try-runtime || exit
+cargo build --features runtime-benchmarks || exit
+./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1 || exit
+cargo clippy -- -D warnings || exit
+cargo test || exit
+RUSTFLAGS="-D warnings" cargo build -p thea-message-handler || exit

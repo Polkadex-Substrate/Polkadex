@@ -1578,22 +1578,21 @@ fn withdrawal() {
 }
 
 // P.S. This was to apply a DDOS attack and see the response in the mock environment
-/* #[test]
-fn collect_fees_ddos(){
+#[ignore]
+#[test]
+fn collect_fees_ddos() {
 	let account_id = create_account_id();
-	new_test_ext().execute_with(||{
+	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
 		for x in 0..10000000 {
-			assert_ok!(
-				OCEX::collect_fees(
-					RuntimeOrigin::signed(account_id.clone().into()),
-					x,
-					account_id.clone().into()
-				)
-			);
+			assert_ok!(OCEX::collect_fees(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				x,
+				account_id.clone().into()
+			));
 		}
 	});
-} */
+}
 
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {

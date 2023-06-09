@@ -634,7 +634,7 @@ pub fn test_convert_amount_for_foreign_chain() {
 #[test]
 pub fn test_mint_thea_asset_with_not_registered_asset_will_return_ok() {
 	let recipient = create_recipient_account();
-	let asset_id = create_thea_asset_id(0, 5);
+	let asset_id = u128::MAX;
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(AssetHandler::mint_thea_asset(asset_id, recipient, 1_000_000_000_000_0_u128));
@@ -685,22 +685,4 @@ fn create_recipient_account() -> u64 {
 	let recipient = [1u8; 32];
 
 	<Test as frame_system::Config>::AccountId::decode(&mut &recipient[..]).unwrap()
-}
-
-fn create_thea_asset_id(network_id: u8, identifier_length: u8) -> u128 {
-	let asset_address: H160 = ASSET_ADDRESS.parse().unwrap();
-	let mut derived_asset_id = vec![];
-
-	derived_asset_id.push(network_id);
-	derived_asset_id.push(identifier_length);
-	derived_asset_id.extend(&asset_address.to_fixed_bytes()[0..identifier_length as usize]);
-
-	// Hash the resulting vector with Keccak256 Hashing Algorithm and retrieve first 16 bytes
-	let derived_asset_id_hash = &sp_io::hashing::keccak_256(derived_asset_id.as_ref())[0..16];
-	// Derive u128 from resulting bytes
-	let mut temp = [0u8; 16];
-
-	temp.copy_from_slice(derived_asset_id_hash);
-
-	u128::from_le_bytes(temp)
 }
