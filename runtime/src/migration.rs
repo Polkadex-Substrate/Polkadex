@@ -20,10 +20,7 @@ pub mod session_keys {
 
 	impl MigrateToV5 {
 		fn run() -> Weight {
-			if let Err(_) = pallet_session::QueuedKeys::<Runtime>::translate::<
-				Vec<(AccountId, SessionKeysV4)>,
-				_,
-			>(|keys| {
+			let translate_fn = |keys: Option<Vec<(AccountId, SessionKeysV4)>>| {
 				let mut new_keys: Vec<(AccountId, SessionKeys)> = Vec::new();
 				if let Some(keys) = keys {
 					for (validator, keys) in keys {
@@ -49,7 +46,12 @@ pub mod session_keys {
 					}
 				}
 				Some(new_keys)
-			}) {
+			};
+
+			if pallet_session::QueuedKeys::<Runtime>::translate::<
+				Vec<(AccountId, SessionKeysV4)>,
+				_,
+			>(translate_fn).is_err() {
 				log::error!(target:"migration","Storage type cannot be interpreted as the Vec<(AccountId, SessionKeysV4)>")
 			}
 			Weight::zero()
