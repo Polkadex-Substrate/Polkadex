@@ -1509,7 +1509,10 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	Migrations
 >;
+
+pub type Migrations = (migration::session_keys::MigrateToV5, );
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {

@@ -1,4 +1,4 @@
-mod session_keys {
+pub mod session_keys {
 	use frame_support::{pallet_prelude::Weight, traits::StorageVersion};
 	use sp_runtime::impl_opaque_keys;
 	use sp_std::vec::Vec;
@@ -14,9 +14,9 @@ mod session_keys {
 		}
 	}
 
-	pub struct MigrateToV5<T>(sp_std::marker::PhantomData<T>);
+	pub struct MigrateToV5;
 
-	impl<T> MigrateToV5<T> {
+	impl MigrateToV5 {
 		fn run(_: StorageVersion) -> Weight {
 			if let Err(_) = pallet_session::QueuedKeys::<Runtime>::translate::<
 				Vec<(AccountId, SessionKeysV4)>,
@@ -32,11 +32,11 @@ mod session_keys {
 								babe: keys.babe,
 								im_online: keys.im_online,
 								authority_discovery: keys.authority_discovery,
-								orderbook: match [0u8; 96].try_into() {
+								orderbook: match [0u8; 96].as_ref().try_into() {
 									Ok(ob) => ob,
 									Err(_) => return None,
 								}, // Set empty public key
-								thea:  match [0u8; 96].try_into() {
+								thea:  match [0u8; 96].as_ref().try_into() {
 									Ok(thea) => thea,
 									Err(_) => return None,
 								},
