@@ -95,6 +95,7 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
+pub mod migration;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
