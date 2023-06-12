@@ -18,8 +18,17 @@
 
 //! Worker which manages/processes Thea client requests.
 
-use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
-
+use crate::{
+	connector::traits::ForeignConnector,
+	error::Error,
+	gossip::{topic, GossipValidator},
+	keystore::TheaKeyStore,
+	metric_add, metric_inc,
+	metrics::Metrics,
+	thea_protocol_name,
+	types::GossipMessage,
+	Client,
+};
 use futures::StreamExt;
 use log::{debug, error, info, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
@@ -36,23 +45,21 @@ use sp_runtime::{
 	generic::BlockId,
 	traits::{Block, Header, Zero},
 };
+use std::{
+	collections::BTreeMap,
+	marker::PhantomData,
+	ops::AddAssign,
+	sync::{
+		atomic::{AtomicBool, Ordering},
+		Arc,
+	},
+	time::Duration,
+};
 use thea_primitives::{
 	types::Message, AuthorityIndex, Network, TheaApi, MESSAGE_CACHE_DURATION_IN_SECS,
 	NATIVE_NETWORK,
 };
 use tokio::time::Instant;
-
-use crate::{
-	connector::traits::ForeignConnector,
-	error::Error,
-	gossip::{topic, GossipValidator},
-	keystore::TheaKeyStore,
-	metric_add, metric_inc,
-	metrics::Metrics,
-	thea_protocol_name,
-	types::GossipMessage,
-	Client,
-};
 
 /// Definition of the worker parameters required for the worker initialization.
 pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?Sized> {
@@ -98,6 +105,8 @@ pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
 	last_finalized_blk: BlockId<B>,
+	// is runtime running and we can process
+	operational: AtomicBool,
 }
 
 impl<B, BE, C, SO, N, R, FC> TheaWorker<B, BE, C, SO, N, R, FC>
@@ -166,6 +175,7 @@ where
 			last_native_nonce_processed: native_nonce,
 			foreign_chain,
 			last_finalized_blk: BlockId::number(Zero::zero()),
+			operational: AtomicBool::new(false),
 		}
 	}
 
@@ -230,6 +240,11 @@ where
 		_: Option<PeerId>,
 	) -> Result<(), Error> {
 		if !self.is_validator {
+			return Ok(())
+		}
+		// is runtime ready
+		if !self.operational.load(Ordering::Relaxed) {
+			debug!(target: "thea", "Runtime is not ready.");
 			return Ok(())
 		}
 		// Proceed only if thea auths are initialized
@@ -370,6 +385,10 @@ where
 		&mut self,
 		notification: &FinalityNotification<B>,
 	) -> Result<(), Error> {
+		if !self.operational.load(Ordering::Relaxed) {
+			debug!(target: "thea", "Runtime is not ready.");
+			return Ok(())
+		}
 		// Proceed only if thea auths are initialized
 		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
 			warn!(target: "thea", "🌉 Thea authorities not initialized yet!");
@@ -477,19 +496,6 @@ where
 		Ok(())
 	}
 
-	/// Waits for Thea runtime pallet to be available.
-	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
-		let mut finality_stream = self.client.finality_notification_stream().fuse();
-		while let Some(notif) = finality_stream.next().await {
-			let at = BlockId::hash(notif.header.hash());
-			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
-				break
-			} else {
-				info!(target: "thea", "🌉 Waiting for thea pallet to become available...");
-			}
-		}
-	}
-
 	/// Processes foreign chain events.
 	///
 	/// Note. Processed only if the node started in a "validator" role.
@@ -498,7 +504,11 @@ where
 		if !self.is_validator {
 			return Ok(())
 		}
-
+		// is runtime ready
+		if !self.operational.load(Ordering::Relaxed) {
+			debug!(target: "thea", "Runtime is not ready.");
+			return Ok(())
+		}
 		// Proceed only if thea auths are initialized
 		if !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
 			warn!(target: "thea", "🌉 Thea authorities not initialized yet!");
@@ -562,8 +572,6 @@ where
 	/// which is driven by gossiped user actions.
 	pub(crate) async fn run(mut self) {
 		info!(target: "thea", "🌉 Thea worker started");
-		self.wait_for_runtime_pallet().await;
-
 		// Wait for blockchain sync to complete
 		while self.sync_oracle.is_major_syncing() {
 			info!(target: "thea", "🌉 Thea is not started waiting for blockchain to sync completely");
@@ -607,6 +615,15 @@ where
 				}
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
+						let at = BlockId::hash(finality.header.hash());
+						if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
+							// we are good to go
+							self.operational.store(true, Ordering::Relaxed);
+						} else {
+							info!(target: "thea", "🌉 Waiting for thea pallet to become available...");
+							// dont process further
+							continue
+						}
 						if let Err(err) = self.handle_finality_notification(&finality).await {
 							error!(target: "thea", "🌉 Error during finalized block import{:?}", err);
 						}
