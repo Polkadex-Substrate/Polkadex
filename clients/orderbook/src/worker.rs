@@ -158,7 +158,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	// Version of current state
 	state_version: Arc<RwLock<u16>>,
 	// is runtime upgraded and client can process
-	operational: AtomicBool,
+	pub(crate) operational: AtomicBool,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>

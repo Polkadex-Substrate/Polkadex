@@ -145,6 +145,7 @@ pub async fn test_orderbook_rpc() {
 		.fuse();
 
 	let mut worker = crate::worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
+	worker.operational.store(true, std::sync::atomic::Ordering::Relaxed);
 
 	// Send the RPC with Ob message
 	let mut message = ObMessage {
