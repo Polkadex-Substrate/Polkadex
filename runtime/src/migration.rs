@@ -1,7 +1,8 @@
 mod session_keys {
 	use frame_support::{pallet_prelude::Weight, traits::StorageVersion};
 	use sp_runtime::impl_opaque_keys;
-
+	use sp_std::vec::Vec;
+	use crate::{Runtime, Grandpa, Babe, ImOnline, AuthorityDiscovery, SessionKeys};
 	use polkadex_primitives::AccountId;
 
 	impl_opaque_keys! {
@@ -13,16 +14,6 @@ mod session_keys {
 		}
 	}
 
-	impl_opaque_keys! {
-		pub struct SessionKeysV5 {
-			pub grandpa: Grandpa,
-			pub babe: Babe,
-			pub im_online: ImOnline,
-			pub authority_discovery: AuthorityDiscovery,
-			pub orderbook: OCEX,
-			pub thea: Thea,
-		}
-	}
 	pub struct MigrateToV5<T>(sp_std::marker::PhantomData<T>);
 
 	impl<T> MigrateToV5<T> {
@@ -31,12 +22,12 @@ mod session_keys {
 				Vec<(AccountId, SessionKeysV4)>,
 				_,
 			>(|keys| {
-				let mut new_keys: Vec<(AccountId, SessionKeysV5)> = Vec::new();
+				let mut new_keys: Vec<(AccountId, SessionKeys)> = Vec::new();
 				if let Some(keys) = keys {
 					for (validator, keys) in keys {
 						new_keys.push((
 							validator,
-							SessionKeysV5 {
+							SessionKeys {
 								grandpa: keys.grandpa,
 								babe: keys.babe,
 								im_online: keys.im_online,
