@@ -32,8 +32,14 @@ mod session_keys {
 								babe: keys.babe,
 								im_online: keys.im_online,
 								authority_discovery: keys.authority_discovery,
-								orderbook: [0u8; 96].into(), // Set empty public key
-								thea: [0u8; 96].into(),
+								orderbook: match [0u8; 96].try_into() {
+									Ok(ob) => ob,
+									Err(_) => return None,
+								}, // Set empty public key
+								thea:  match [0u8; 96].try_into() {
+									Ok(thea) => thea,
+									Err(_) => return None,
+								},
 							},
 						))
 					}
