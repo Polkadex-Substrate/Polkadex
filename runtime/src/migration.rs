@@ -1,7 +1,5 @@
 pub mod session_keys {
-	use frame_support::{pallet_prelude::Weight, traits::StorageVersion};
-	use frame_support::traits::OnRuntimeUpgrade;
-	use log::log;
+	use frame_support::{pallet_prelude::Weight, traits::OnRuntimeUpgrade};
 	use sp_runtime::impl_opaque_keys;
 	use sp_std::vec::Vec;
 
@@ -21,7 +19,7 @@ pub mod session_keys {
 	pub struct MigrateToV5;
 
 	impl MigrateToV5 {
-		fn run(_: StorageVersion) -> Weight {
+		fn run() -> Weight {
 			if let Err(_) = pallet_session::QueuedKeys::<Runtime>::translate::<
 				Vec<(AccountId, SessionKeysV4)>,
 				_,
@@ -29,7 +27,7 @@ pub mod session_keys {
 				let mut new_keys: Vec<(AccountId, SessionKeys)> = Vec::new();
 				if let Some(keys) = keys {
 					for (validator, keys) in keys {
-						new_keys.push((
+						let new_key = (
 							validator,
 							SessionKeys {
 								grandpa: keys.grandpa,
@@ -40,12 +38,14 @@ pub mod session_keys {
 									Ok(ob) => ob,
 									Err(_) => return None,
 								}, // Set empty public key
-								thea:  match [0u8; 96].as_ref().try_into() {
+								thea: match [0u8; 96].as_ref().try_into() {
 									Ok(thea) => thea,
 									Err(_) => return None,
 								},
 							},
-						))
+						);
+						log::info!(target:"migration","Migrated session key: {:?}",new_key);
+						new_keys.push(new_key);
 					}
 				}
 				Some(new_keys)
@@ -56,19 +56,10 @@ pub mod session_keys {
 		}
 	}
 
-	impl OnRuntimeUpgrade for MigrateToV2 {
+	impl OnRuntimeUpgrade for MigrateToV5 {
 		fn on_runtime_upgrade() -> Weight {
-			let current = pallet_session::<Runtime>::current_storage_version();
-			let onchain = pallet_session::<Runtime>::on_chain_storage_version();
-
-			log!(
-				info,
-				"Running migration with current storage version {:?} / onchain {:?}",
-				current,
-				onchain
-			);
-
-			Self::run(current)
+			log::info!("Running migration for session pallet's queued keys storage ");
+			Self::run()
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -78,7 +69,8 @@ pub mod session_keys {
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(_: Vec<u8>) -> Result<(), &'static str> {
-			let session_keys: Vec<(AccountId, SessionKeys)> = pallet_session::QueuedKeys::<Runtime>::get();
+			let session_keys: Vec<(AccountId, SessionKeys)> =
+				pallet_session::QueuedKeys::<Runtime>::get();
 			if session_keys.is_empty() {
 				return Err("Error reading sessiong keys after upgrade")
 			}
