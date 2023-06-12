@@ -55,24 +55,24 @@ pub mod session_keys {
 				log::error!(target:"migration","Storage type cannot be interpreted as the Vec<(AccountId, SessionKeysV4)>")
 			}
 
-			if pallet_session::NextKeys::<Runtime>::translate::<SessionKeysV4,_>(| (validator, old_keys) | {
-				Some(SessionKeys {
-					grandpa: old_keys.grandpa,
-					babe: old_keys.babe,
-					im_online: old_keys.im_online,
-					authority_discovery: old_keys.authority_discovery,
-					orderbook: match [0u8; 96].as_ref().try_into() {
-						Ok(ob) => ob,
-						Err(_) => return None,
-					}, // Set empty public key
-					thea: match [0u8; 96].as_ref().try_into() {
-						Ok(thea) => thea,
-						Err(_) => return None,
-					},
-				})
-			}).is_err() {
-
-			}
+			pallet_session::NextKeys::<Runtime>::translate::<SessionKeysV4, _>(
+				|_, old_keys| {
+					Some(SessionKeys {
+						grandpa: old_keys.grandpa,
+						babe: old_keys.babe,
+						im_online: old_keys.im_online,
+						authority_discovery: old_keys.authority_discovery,
+						orderbook: match [0u8; 96].as_ref().try_into() {
+							Ok(ob) => ob,
+							Err(_) => return None,
+						}, // Set empty public key
+						thea: match [0u8; 96].as_ref().try_into() {
+							Ok(thea) => thea,
+							Err(_) => return None,
+						},
+					})
+				},
+			);
 			Weight::zero()
 		}
 	}
