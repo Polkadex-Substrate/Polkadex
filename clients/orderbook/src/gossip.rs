@@ -18,7 +18,7 @@
 
 //! Contains messages exchange specific logic related to the messages validation.
 
-use log::{info, trace};
+use log::trace;
 use orderbook_primitives::{types::GossipMessage, SnapshotSummary};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::RwLock;
@@ -237,7 +237,7 @@ where
 	B: Block,
 {
 	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
-		info!(target:"orderbook","📒 New peer connected: {:?}, role: {:?}",who,role);
+		trace!(target:"orderbook","📒 New peer connected: {:?}, role: {:?}",who,role);
 
 		if let ObservedRole::Full = role {
 			self.fullnodes.write().insert(*who);
@@ -245,7 +245,7 @@ where
 	}
 
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId) {
-		info!(target:"orderbook","📒 New peer disconnected: {:?}",who);
+		trace!(target:"orderbook","📒 New peer disconnected: {:?}",who);
 		self.fullnodes.write().remove(who);
 	}
 
