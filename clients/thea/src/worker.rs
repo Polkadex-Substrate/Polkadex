@@ -21,7 +21,7 @@
 use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
 
 use futures::StreamExt;
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
@@ -479,13 +479,49 @@ where
 
 	/// Waits for Thea runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
+		info!(target: "thea", "🌉 Waiting for Thea pallet to become available...");
+
+		let mut gossip_messages = Box::pin(
+			self.gossip_engine
+				.messages_for(topic::<B>())
+				.filter_map(|notification| async move {
+					match GossipMessage::decode(&mut &notification.message[..]).ok() {
+						None => {
+							warn!(target: "thea", "🌉 Gossip message decode failed: {:?}", notification);
+							None
+						},
+						Some(msg) => {
+							trace!(target: "thea", "🌉 Got gossip message: {:?}", msg);
+							Some((msg, notification.sender))
+						},
+					}
+				})
+				.fuse(),
+		);
+
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
-		while let Some(notif) = finality_stream.next().await {
-			let at = BlockId::hash(notif.header.hash());
-			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
-				break
-			} else {
-				info!(target: "thea", "🌉 Waiting for thea pallet to become available...");
+
+		loop {
+			let mut gossip_engine = &mut self.gossip_engine;
+			futures::select_biased! {
+				_ = gossip_engine => {
+					error!(target: "thea", "🌉 Gossip engine has terminated.");
+					return;
+				}
+				finality = finality_stream.next() => {
+					if let Some(finality) = finality {
+						let at = BlockId::hash(finality.header.hash());
+						if self.runtime.runtime_api().validator_set(&at,0).ok().is_some() {
+								// Pallet is available break and exit
+								break
+						} else {
+							debug!(target: "thea", "🌉 Waiting for orderbook pallet to become available...");
+						}
+					}
+				},
+				_ = gossip_messages.next() => {
+					// Just drop any messages before runtime upgrade
+				}
 			}
 		}
 	}
