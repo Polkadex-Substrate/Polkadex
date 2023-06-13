@@ -18,7 +18,7 @@
 
 //! Contains messages exchange specific logic related to the messages validation.
 
-use log::{info, trace};
+use log::trace;
 use orderbook_primitives::{types::GossipMessage, SnapshotSummary};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::RwLock;
