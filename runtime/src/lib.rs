@@ -1269,7 +1269,7 @@ parameter_types! {
 	pub TreasuryModuleAccount: AccountId = PolkadexTreasuryModuleId::get().into_account_truncating();
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
+//impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
 	pub const ProxyLimit: u32 = 3;
@@ -1453,7 +1453,7 @@ construct_runtime!(
 		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
+		//RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
 		ChildBounties: pallet_child_bounties = 33,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 35,

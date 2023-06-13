@@ -73,7 +73,7 @@ sp-inherents = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
 sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
-pallet-randomness-collective-flip = { default-features = false, workspace = true }
+#pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
 #end added
 
@@ -176,7 +176,7 @@ std = [
   "sp-staking/std",
   "sp-npos-elections/std",
   "frame-election-provider-support/std",
-  "pallet-randomness-collective-flip/std",
+  #"pallet-randomness-collective-flip/std",
   "pallet-assets/std",
   "frame-system-rpc-runtime-api/std",
   "orml-vesting/std",
@@ -249,7 +249,7 @@ try-runtime = [
   "pdex-migration/try-runtime",
   "pallet-democracy/try-runtime",
   "pallet-preimage/try-runtime",
-  "pallet-randomness-collective-flip/try-runtime",
+  #"pallet-randomness-collective-flip/try-runtime",
   "pallet-child-bounties/try-runtime",
   "pallet-assets/try-runtime",
   "pallet-ocex-lmp/try-runtime",
