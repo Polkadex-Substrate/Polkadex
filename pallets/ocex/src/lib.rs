@@ -1662,12 +1662,6 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		let next_authorities = authorities.map(|(_, k)| k).collect::<Vec<_>>();
 		let next_queued_authorities = queued_authorities.map(|(_, k)| k).collect::<Vec<_>>();
 
-		if next_authorities == next_queued_authorities {
-			// If there is no change, don't do anything
-			log::info!(target:"ocex","No session change required authorities are the same as previous");
-			return
-		}
-
 		let id = Self::validator_set_id();
 		let new_id = id + 1u64;
 
