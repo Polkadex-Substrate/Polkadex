@@ -157,7 +157,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	last_processed_block_in_offchain_state: BlockNumber,
 	// Version of current state
 	state_version: Arc<RwLock<u16>>,
-	// is runtime upgraded and client can process
+	/// is runtime upgraded and client can process
 	pub(crate) operational: AtomicBool,
 }
 
