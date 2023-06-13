@@ -1588,7 +1588,7 @@ where
 						if let Err(err) = self.handle_finality_notification(&finality).await {
 							error!(target: "orderbook", "📒 Error during finalized block import{}", err);
 						}
-					}	else {
+					} else {
 						error!(target:"orderbook","📒 None finality received");
 						return
 					}
