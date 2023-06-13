@@ -133,6 +133,7 @@ use chrono::Utc;
 #[cfg(feature = "std")]
 use libp2p::PeerId;
 use rust_decimal::prelude::FromPrimitive;
+use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
 impl Trade {
@@ -409,7 +410,7 @@ impl From<OrderStatus> for String {
 }
 
 /// Defines trading pair structure.
-#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq)]
+#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	/// Base asset identifier.
