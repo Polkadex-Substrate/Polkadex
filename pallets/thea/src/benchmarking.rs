@@ -44,7 +44,7 @@ benchmarks! {
 		let authority = Public([b as u8; 96]);
 		let network = b as u8;
 		let signature = Signature([b as u8; 48]);
-	}: _(RawOrigin::None, authority, network, signature)
+	}: _(RawOrigin::None, authority.into(), network, signature.into())
 	verify {
 		assert_last_event::<T>(Event::NetworkUpdated { authority, network}.into());
 	}
@@ -67,24 +67,30 @@ benchmarks! {
 		let bitmap = u128::MAX; // ALL bits are set :)
 	}: _(RawOrigin::None, bitmap, message, signature)
 	verify {
-		assert!(<IncomingNonce::<T>>::get() == 1);
+		assert!(<IncomingNonce::<T>>::get(0) == 1);
 		assert!(<IncomingMessages::<T>>::iter().count() == 1);
 	}
 
 	send_thea_message {
-		let b in 0 .. 50_000;
+		let b in 0 .. 256; // keep within u8 bounds
+		let key = ();
+		let network = 0 as u8;
+		let data = [b as u8; 1_048_576].to_vec(); // 10MB
+		let set: BoundedVec<TheaId, MaxAuthorities>= vec!(key).into();
+		<Authorities::<T>>::insert(network, 0, set);
 	}: _(RawOrigin::Root, data, network)
 	verify {
-		assert!(<OutgoingNonce::<T>>::get() == 1);
+		assert!(<OutgoingNonce::<T>>::get(network) == 1);
 		assert!(<OutgoingMessages::<T>>::iter().count() == 1);
 	}
 
 	update_incoming_nonce {
 		let b in 0 .. 50_000;
-
+		let network = 0;
+		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)
 	verify {
-		assert!(<IncomingNonce::<T>>::get() == 1);
+		assert!(<IncomingNonce::<T>>::get(network) == b.into());
 	}
 }
 //
