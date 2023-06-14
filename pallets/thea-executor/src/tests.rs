@@ -68,7 +68,7 @@ fn test_transfer_native_asset() {
 		// Set withdrawal Fee
 		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		assert_ok!(TheaExecutor::withdraw(
-			RuntimeOrigin::signed(1),
+			RuntimeOrigin::signed(user),
 			asset_id.clone(),
 			10_000_000_000_000u128,
 			vec![1; 32],
