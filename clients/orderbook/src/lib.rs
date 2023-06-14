@@ -78,8 +78,8 @@ pub(crate) mod orderbook_protocol_name {
 /// For standard protocol name see [`orderbook_protocol_name::standard_name`].
 pub fn orderbook_peers_set_config(
 	protocol_name: sc_network::ProtocolName,
-) -> sc_network_common::config::NonDefaultSetConfig {
-	let mut cfg = sc_network_common::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
+) -> sc_network::config::NonDefaultSetConfig {
+	let mut cfg = sc_network::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
 
 	cfg.allow_non_reserved(25, 25);
 	cfg
@@ -113,13 +113,13 @@ where
 }
 
 use orderbook_primitives::types::ObMessage;
-use sc_network_gossip::Network as GossipNetwork;
+use sc_network_gossip::{Network as GossipNetwork, Syncing};
 
 /// Alias type for the `MemoryDB` database lock reference.
 pub type DbRef = Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>;
 
 /// Orderbook gadget initialization parameters.
-pub struct ObParams<B, BE, C, N, R>
+pub struct ObParams<B, BE, C, N, R, S>
 where
 	B: Block,
 	BE: Backend<B>,
@@ -127,6 +127,7 @@ where
 	C: Client<B, BE>,
 	R::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	S: SyncOracle + Syncing<B>
 {
 	/// Orderbook client.
 	pub client: Arc<C>,
@@ -138,6 +139,8 @@ where
 	pub keystore: Option<Arc<LocalKeystore>>,
 	/// Gossip network.
 	pub network: N,
+	/// Syncing Service
+	pub sync: Arc<S>,
 	/// Prometheus metric registry.
 	pub prometheus_registry: Option<Registry>,
 	/// Chain specific Ob protocol name. See [`orderbook_protocol_name::standard_name`].
@@ -156,14 +159,15 @@ where
 /// Start the Orderbook gadget.
 ///
 /// This is a thin shim around running and awaiting a Orderbook worker.
-pub async fn start_orderbook_gadget<B, BE, C, N, R>(ob_params: ObParams<B, BE, C, N, R>)
+pub async fn start_orderbook_gadget<B, BE, C, N, R, S>(ob_params: ObParams<B, BE, C, N, R, S>)
 where
 	B: Block,
 	BE: Backend<B>,
 	C: Client<B, BE>,
 	R: ProvideRuntimeApi<B>,
 	R::Api: ObApi<B>,
-	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
+	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	S: SyncOracle + Syncing<B> + Clone + Sync + Send + 'static
 {
 	let ObParams {
 		client,
@@ -171,6 +175,7 @@ where
 		runtime,
 		keystore,
 		network,
+		sync,
 		prometheus_registry,
 		protocol_name,
 		is_validator,
@@ -179,8 +184,6 @@ where
 		memory_db,
 		working_state_root,
 	} = ob_params;
-
-	let sync_oracle = network.clone();
 
 	let metrics =
 		prometheus_registry.as_ref().map(metrics::Metrics::register).and_then(
@@ -200,7 +203,6 @@ where
 		client,
 		backend,
 		runtime,
-		sync_oracle,
 		is_validator,
 		network,
 		protocol_name,
@@ -210,6 +212,7 @@ where
 		memory_db,
 		working_state_root,
 		keystore,
+		sync_oracle: sync,
 	};
 
 	let worker = worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
