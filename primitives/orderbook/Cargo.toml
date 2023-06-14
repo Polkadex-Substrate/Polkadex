@@ -24,7 +24,7 @@ rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git",
   "scale-codec",
 ], default-features = false }
 bls-primitives = { workspace = true, default-features = false }
-libp2p = { version = "0.50.0", optional = true }
+sc-network = {  workspace = true,  optional = true }
 
 
 [dev-dependencies]
@@ -35,7 +35,7 @@ default = ["std"]
 std = [
   "log/std",
   "primitive-types/std",
-  "libp2p",
+  "sc-network",
   "chrono",
   "rand",
   "bls-primitives/std",
