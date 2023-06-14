@@ -235,11 +235,15 @@ pub fn run() -> Result<()> {
 				let task_manager =
 					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+
+				let info_provider = try_runtime_cli::block_building_info::substrate_info(
+					node_polkadex_runtime::constants::time::SLOT_DURATION,
+				);
 				Ok((
 					cmd.run::<Block, sc_executor::sp_wasm_interface::ExtendedHostFunctions<
 						frame_support::sp_io::SubstrateHostFunctions,
 						<ExecutorDispatch as sc_executor::NativeExecutionDispatch>::ExtendHostFunctions,
-					>>(),
+					>,_>(Some(info_provider)),
 					task_manager,
 				))
 			})

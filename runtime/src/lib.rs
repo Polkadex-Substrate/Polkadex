@@ -1236,7 +1236,7 @@ impl EnsureOrigin<RuntimeOrigin> for EnsureRootOrTreasury {
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn try_successful_origin() -> Result<RuntimeOrigin,()> {
+	fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
 		Ok(RuntimeOrigin::from(RawOrigin::Signed(AccountId::new([0u8; 32]))))
 	}
 }
