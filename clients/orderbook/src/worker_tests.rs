@@ -58,7 +58,7 @@ pub fn register_main_will_store_successfully() {
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
 	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
 	trie.commit();
-	let get_db_val = trie.get(&alice_main.encode()).unwrap().unwrap().to_vec().clone();
+	let get_db_val = trie.get(&alice_main.encode()).unwrap().unwrap().to_vec();
 	let account_info_in_db = AccountInfo::decode(&mut &get_db_val[..]).unwrap();
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy]);
 }
@@ -75,7 +75,7 @@ pub fn add_proxy_will_store_it_successfully() {
 	let alice_new_proxy_account = AccountId::from([2_u8; 32]);
 	assert!(add_proxy(&mut trie, alice_main.clone(), alice_new_proxy_account.clone()).is_ok());
 
-	let get_db_val = trie.get(&alice_main.encode()).unwrap().unwrap().to_vec().clone();
+	let get_db_val = trie.get(&alice_main.encode()).unwrap().unwrap().to_vec();
 	let account_info_in_db = AccountInfo::decode(&mut &get_db_val[..]).unwrap();
 	assert_eq!(account_info_in_db.proxies, vec![alice_proxy, alice_new_proxy_account]);
 }
@@ -89,9 +89,9 @@ pub fn remove_proxy_will_remove_it_from_the_storage_successfully() {
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
 	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
-	assert!(remove_proxy(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
+	assert!(remove_proxy(&mut trie, alice_main.clone(), alice_proxy).is_ok());
 
-	let get_db_val = trie.get(&alice_main.encode()).unwrap().unwrap().to_vec().clone();
+	let get_db_val = trie.get(&alice_main.encode()).unwrap().unwrap().to_vec();
 	let account_info_in_db = AccountInfo::decode(&mut &get_db_val[..]).unwrap();
 	assert_eq!(account_info_in_db.proxies, vec![]);
 }
@@ -105,8 +105,8 @@ pub fn remove_proxy_with_not_registered_main_account_will_return_main_account_no
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
 	assert_eq!(
-		remove_proxy(&mut trie, alice_main.clone(), alice_proxy.clone()),
-		Err(Error::MainAccountNotFound).into()
+		remove_proxy(&mut trie, alice_main, alice_proxy),
+		Err(Error::MainAccountNotFound)
 	);
 }
 
@@ -118,10 +118,10 @@ pub fn remove_proxy_with_not_registered_proxy_will_return_proxy_account_not_foun
 	let mut trie: TrieDBMut<ExtensionLayout> =
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
+	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy).is_ok());
 	assert_eq!(
-		remove_proxy(&mut trie, alice_main.clone(), AccountId::from([2_u8; 32])),
-		Err(Error::ProxyAccountNotFound).into()
+		remove_proxy(&mut trie, alice_main, AccountId::from([2_u8; 32])),
+		Err(Error::ProxyAccountNotFound)
 	);
 }
 
@@ -133,8 +133,8 @@ pub fn deposit_with_not_registered_main_account_will_return_main_account_not_fou
 	let mut trie: TrieDBMut<ExtensionLayout> =
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, _alice_proxy) = get_alice_main_and_proxy_account();
-	let result = deposit(&mut trie, alice_main.clone(), AssetId::Asset(1), Decimal::new(10, 0));
-	assert_eq!(result, Err(Error::MainAccountNotFound).into());
+	let result = deposit(&mut trie, alice_main, AssetId::Asset(1), Decimal::new(10, 0));
+	assert_eq!(result, Err(Error::MainAccountNotFound));
 }
 
 /// Deposit assets in users main account and assert changes in DB.
@@ -146,18 +146,18 @@ pub fn deposit_will_store_amount_successfully() {
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
 	let asset_id = AssetId::Asset(1);
-	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
-	assert!(deposit(&mut trie, alice_main.clone(), asset_id.clone(), Decimal::new(10, 0)).is_ok());
+	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy).is_ok());
+	assert!(deposit(&mut trie, alice_main.clone(), asset_id, Decimal::new(10, 0)).is_ok());
 
 	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id };
 
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let balance = Decimal::decode(&mut &get_db_val[..]).unwrap();
 	assert_eq!(balance, Decimal::new(10, 0));
 
 	// Redeposit
-	assert!(deposit(&mut trie, alice_main.clone(), asset_id.clone(), Decimal::new(10, 0)).is_ok());
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	assert!(deposit(&mut trie, alice_main, asset_id, Decimal::new(10, 0)).is_ok());
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let balance = Decimal::decode(&mut &get_db_val[..]).unwrap();
 	assert_eq!(balance, Decimal::new(20, 0));
 }
@@ -177,30 +177,30 @@ pub fn process_trade_will_process_successfully() {
 
 	//Register alice & deposit asset 1 & 2
 	assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
-	assert!(deposit(&mut trie, alice_main.clone(), asset_id_1.clone(), Decimal::new(10, 0)).is_ok());
-	assert!(deposit(&mut trie, alice_main.clone(), asset_id_2.clone(), Decimal::new(10, 0)).is_ok());
+	assert!(deposit(&mut trie, alice_main.clone(), asset_id_1, Decimal::new(10, 0)).is_ok());
+	assert!(deposit(&mut trie, alice_main.clone(), asset_id_2, Decimal::new(10, 0)).is_ok());
 
 	//Register bob & deposit asset 1 & 2
 	assert!(register_main(&mut trie, bob_main.clone(), bob_proxy.clone()).is_ok());
-	assert!(deposit(&mut trie, bob_main.clone(), asset_id_1.clone(), Decimal::new(10, 0)).is_ok());
-	assert!(deposit(&mut trie, bob_main.clone(), asset_id_2.clone(), Decimal::new(10, 0)).is_ok());
+	assert!(deposit(&mut trie, bob_main.clone(), asset_id_1, Decimal::new(10, 0)).is_ok());
+	assert!(deposit(&mut trie, bob_main.clone(), asset_id_2, Decimal::new(10, 0)).is_ok());
 	trie.commit();
 
 	//getting balances
-	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id_1.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id_1 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let alice_balance_asset_1 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
-	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id_2.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id_2 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let alice_balance_asset_2 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
-	let account_asset = AccountAsset { main: bob_main.clone(), asset: asset_id_1.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: bob_main.clone(), asset: asset_id_1 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let bob_balance_asset_1 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
-	let account_asset = AccountAsset { main: bob_main.clone(), asset: asset_id_2.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: bob_main.clone(), asset: asset_id_2 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let bob_balance_asset_2 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
 	//asserting balances
@@ -215,7 +215,7 @@ pub fn process_trade_will_process_successfully() {
 		Order::random_order_for_testing(trading_pair, OrderSide::Ask, OrderType::LIMIT);
 	alice_ask_limit_order.price = Decimal::from(1_u32);
 	alice_ask_limit_order.qty = Decimal::from(2_u32);
-	alice_ask_limit_order.user = alice_proxy.clone();
+	alice_ask_limit_order.user = alice_proxy;
 	alice_ask_limit_order.main_account = alice_main.clone();
 
 	alice_ask_limit_order.signature = Signature::from(
@@ -228,7 +228,7 @@ pub fn process_trade_will_process_successfully() {
 		Order::random_order_for_testing(trading_pair, OrderSide::Bid, OrderType::LIMIT);
 	bob_bid_limit_order.price = Decimal::from(1_u32);
 	bob_bid_limit_order.qty = Decimal::from(2_u32);
-	bob_bid_limit_order.user = bob_proxy.clone();
+	bob_bid_limit_order.user = bob_proxy;
 	bob_bid_limit_order.main_account = bob_main.clone();
 
 	bob_bid_limit_order.signature = Signature::from(
@@ -241,24 +241,24 @@ pub fn process_trade_will_process_successfully() {
 		Trade::new(bob_bid_limit_order, alice_ask_limit_order, Decimal::from(1), Decimal::from(2));
 
 	let config = TradingPairConfig::default(trading_pair.base, trading_pair.quote);
-	assert!(process_trade(&mut trie, trade.clone(), config).is_ok());
+	assert!(process_trade(&mut trie, trade, config).is_ok());
 	trie.commit();
 
 	//getting balances
-	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id_1.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id_1 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let alice_balance_asset_1 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
-	let account_asset = AccountAsset { main: alice_main.clone(), asset: asset_id_2.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: alice_main, asset: asset_id_2 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let alice_balance_asset_2 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
-	let account_asset = AccountAsset { main: bob_main.clone(), asset: asset_id_1.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: bob_main.clone(), asset: asset_id_1 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let bob_balance_asset_1 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
-	let account_asset = AccountAsset { main: bob_main.clone(), asset: asset_id_2.clone() };
-	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec().clone();
+	let account_asset = AccountAsset { main: bob_main, asset: asset_id_2 };
+	let get_db_val = trie.get(&account_asset.encode()).unwrap().unwrap().to_vec();
 	let bob_balance_asset_2 = Decimal::decode(&mut &get_db_val[..]).unwrap();
 
 	//asserting balances

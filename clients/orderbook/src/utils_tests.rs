@@ -133,7 +133,7 @@ fn test_sub_balance_returns_insufficient_balance() {
 	assert_eq!(
 		sub_balance(
 			&mut db_client,
-			account_asset.clone(),
+			account_asset,
 			Decimal::from_u128(reduce_balance).unwrap()
 		),
 		Err(Error::InsufficientBalance)
@@ -150,6 +150,6 @@ fn get_trie_db_client<'a>(
 
 fn get_balance(client: &TrieDBMut<ExtensionLayout>, account_asset: AccountAsset) -> Decimal {
 	let db_value = client.get(&account_asset.encode()).unwrap().unwrap();
-	let account_balance = Decimal::decode(&mut &db_value[..]).unwrap();
-	account_balance
+	
+	Decimal::decode(&mut &db_value[..]).unwrap()
 }

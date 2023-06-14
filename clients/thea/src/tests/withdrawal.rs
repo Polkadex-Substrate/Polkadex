@@ -126,7 +126,7 @@ pub async fn test_withdrawal() {
 	];
 
 	let active: Vec<AuthorityId> =
-		make_thea_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
+		make_thea_ids(&peers.iter().map(|(k, _)| *k).collect::<Vec<AccountKeyring>>());
 
 	let message = Message {
 		block_no: 10,

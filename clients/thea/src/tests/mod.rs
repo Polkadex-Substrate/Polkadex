@@ -98,7 +98,7 @@ impl TestApi {
 		bitmap: Vec<u128>,
 		signature: AuthoritySignature,
 	) -> Result<(), ()> {
-		let last_nonce = self.incoming_nonce.read().get(&message.network).unwrap_or(&0).clone();
+		let last_nonce = *self.incoming_nonce.read().get(&message.network).unwrap_or(&0);
 		if last_nonce.saturating_add(1) != message.nonce {
 			return Ok(()) // Don't throw error here to mimic the behaviour of transaction
 			  // pool which ignores the the transaction if the nonce is wrong.
@@ -181,7 +181,7 @@ pub(crate) fn make_thea_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	keys.iter()
 		.map(|key| {
 			let seed = key.to_seed();
-			thea_primitives::crypto::Pair::from_string(&seed, None).unwrap().public().into()
+			thea_primitives::crypto::Pair::from_string(&seed, None).unwrap().public()
 		})
 		.collect()
 }
