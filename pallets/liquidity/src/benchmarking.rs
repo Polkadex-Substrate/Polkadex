@@ -36,7 +36,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 benchmarks! {
 	register_account {
 		let a in 0..u32::MAX;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let account_generation_key = a as u32;
 		let proxy_account: T::AccountId = liquidity::<T>::generate_proxy_account(account_generation_key).unwrap();
 		let main_account: T::AccountId = liquidity::<T>::generate_main_account(account_generation_key).unwrap();
@@ -53,7 +53,7 @@ benchmarks! {
 		let i in 0..u32::MAX;
 		let z in 10..u32::MAX;
 
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let asset = AssetId::Asset(a.into());
 		let amount = BalanceOf::<T>::decode(&mut &(z as u128).saturating_mul(4u128).to_le_bytes()[..]).unwrap();
 		let account_generation_key = i as u32;
@@ -89,7 +89,7 @@ benchmarks! {
 		let i in 0..u32::MAX;
 		let z in 10..u32::MAX;
 
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let asset = AssetId::Asset(a.into());
 		let amount = BalanceOf::<T>::decode(&mut &(z as u128).saturating_mul(4u128).to_le_bytes()[..]).unwrap();
 		let account_generation_key = i as u32;
