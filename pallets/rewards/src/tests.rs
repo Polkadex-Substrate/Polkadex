@@ -63,11 +63,7 @@ fn get_rewards_when_50_percentage_of_lock_amount_claimable() -> (u128, u128, u12
 }
 
 fn get_rewards_when_75_percentage_of_lock_amount_claimable() -> (u128, u128, u128) {
-	(
-		162 * UNIT_BALANCE + 500_000_000_000,
-		325 * UNIT_BALANCE,
-		487 * UNIT_BALANCE + 500_000_000_000,
-	)
+	(162 * UNIT_BALANCE + 500_000_000_000, 325 * UNIT_BALANCE, 487 * UNIT_BALANCE + 500_000_000_000)
 }
 
 //it returns a tuple (start_block ,end_block, initial_percentage, reward_id)
@@ -235,8 +231,7 @@ fn initialize_claim_rewards() {
 				let pallet_id_account = Rewards::get_pallet_account();
 
 				//calculate total rewards in pdex
-				let total_rewards_in_pdex =
-					amount_to_be_added_in_pallet_account(beneficiaries);
+				let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries);
 
 				//transfer balance to pallet account
 				Balances::set_balance(&pallet_id_account, total_rewards_in_pdex);
@@ -319,8 +314,7 @@ fn initialize_claim_rewards_when_vesting_period_not_started() {
 				let pallet_id_account = Rewards::get_pallet_account();
 
 				//calculate total rewards in pdex
-				let total_rewards_in_pdex =
-					amount_to_be_added_in_pallet_account(beneficiaries);
+				let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries);
 
 				//transfer balance to pallet account
 				Balances::set_balance(&pallet_id_account, total_rewards_in_pdex);
@@ -438,10 +432,7 @@ pub fn claim_reward_for_unregister_id() {
 	new_test_ext().execute_with(|| {
 		let (_, _, _, reward_id) = get_parameters_for_reward_cycle();
 		assert_noop!(
-			Rewards::claim(
-				RuntimeOrigin::signed(get_alice_account_with_rewards().0),
-				reward_id
-			),
+			Rewards::claim(RuntimeOrigin::signed(get_alice_account_with_rewards().0), reward_id),
 			Error::<Test>::RewardIdNotRegister
 		);
 	});

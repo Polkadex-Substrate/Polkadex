@@ -104,10 +104,7 @@ pub fn remove_proxy_with_not_registered_main_account_will_return_main_account_no
 	let mut trie: TrieDBMut<ExtensionLayout> =
 		TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 	let (alice_main, alice_proxy) = get_alice_main_and_proxy_account();
-	assert_eq!(
-		remove_proxy(&mut trie, alice_main, alice_proxy),
-		Err(Error::MainAccountNotFound)
-	);
+	assert_eq!(remove_proxy(&mut trie, alice_main, alice_proxy), Err(Error::MainAccountNotFound));
 }
 
 /// Try to remove a non registered proxy account and assert expected error.
