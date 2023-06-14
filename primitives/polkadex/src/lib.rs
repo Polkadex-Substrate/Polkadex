@@ -51,7 +51,7 @@ pub use assets::*;
 pub const UNIT_BALANCE: u128 = 1_000_000_000_000;
 
 /// Native "Polkadex" asset id.
-pub const POLKADEX_NATIVE_ASSET_ID: u128 = 1000;
+pub const POLKADEX_NATIVE_ASSET_ID: u128 = 0;
 
 /// An index to a block.
 pub type BlockNumber = u32;

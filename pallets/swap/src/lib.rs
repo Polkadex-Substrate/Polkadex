@@ -24,7 +24,8 @@ use frame_support::{
 	pallet_prelude::*,
 	require_transactional,
 	traits::{
-		fungibles::{Inspect, Mutate, Transfer},
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Precision, Preservation},
 		Get, IsType,
 	},
 	transactional, Blake2_128Concat, PalletId,
@@ -80,8 +81,7 @@ pub mod pallet {
 
 		/// Currency type for deposit/withdraw assets to/from amm
 		/// module
-		type Assets: Transfer<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
-			+ Inspect<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
+		type Assets: Inspect<Self::AccountId, AssetId = CurrencyId, Balance = Balance>
 			+ Mutate<Self::AccountId, AssetId = CurrencyId, Balance = Balance>;
 
 		#[pallet::constant]
@@ -845,14 +845,14 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			who,
 			&Self::account_id(),
 			ideal_base_amount,
-			base_asset == T::GetNativeCurrencyId::get(), // should keep alive if is native
+			Preservation::Preserve,
 		)?;
 		T::Assets::transfer(
 			quote_asset,
 			who,
 			&Self::account_id(),
 			ideal_quote_amount,
-			quote_asset == T::GetNativeCurrencyId::get(), // should keep alive if is native
+			Preservation::Preserve,
 		)?;
 
 		if Self::protocol_fee_on() {
@@ -921,20 +921,26 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			.checked_sub(quote_amount)
 			.ok_or(Error::<T, I>::InsufficientLiquidity)?;
 
-		T::Assets::burn_from(pool.lp_token_id, who, liquidity)?;
+		T::Assets::burn_from(
+			pool.lp_token_id,
+			who,
+			liquidity,
+			Precision::Exact,
+			Fortitude::Polite,
+		)?;
 		T::Assets::transfer(
 			base_asset,
 			&Self::account_id(),
 			who,
 			base_amount,
-			base_asset == T::GetNativeCurrencyId::get(), // should keep alive if is native
+			Preservation::Preserve,
 		)?;
 		T::Assets::transfer(
 			quote_asset,
 			&Self::account_id(),
 			who,
 			quote_amount,
-			quote_asset == T::GetNativeCurrencyId::get(), // should keep alive if is native
+			Preservation::Preserve,
 		)?;
 
 		if Self::protocol_fee_on() {
@@ -1083,14 +1089,14 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 					who,
 					&Self::account_id(),
 					amount_in,
-					asset_in == T::GetNativeCurrencyId::get(), // should keep alive if is native
+					Preservation::Preserve,
 				)?;
 				T::Assets::transfer(
 					asset_out,
 					&Self::account_id(),
 					who,
 					amount_out,
-					asset_out == T::GetNativeCurrencyId::get(), // should keep alive if is native
+					Preservation::Preserve,
 				)?;
 
 				log::trace!(

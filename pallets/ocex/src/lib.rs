@@ -27,7 +27,10 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},
-	traits::{fungibles::Mutate, Currency, ExistenceRequirement, Get, OneSessionHandler},
+	traits::{
+		fungibles::Mutate, tokens::Preservation, Currency, ExistenceRequirement, Get,
+		OneSessionHandler,
+	},
 	BoundedVec,
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
@@ -213,7 +216,6 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -1630,7 +1632,13 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 				)?;
 			},
 			AssetId::Asset(id) => {
-				T::OtherAssets::teleport(id, payer, payee, amount.unique_saturated_into())?;
+				T::OtherAssets::transfer(
+					id,
+					payer,
+					payee,
+					amount.unique_saturated_into(),
+					Preservation::Preserve,
+				)?;
 			},
 		}
 		Ok(())

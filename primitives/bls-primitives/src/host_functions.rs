@@ -3,7 +3,7 @@ use sp_core::crypto::KeyTypeId;
 #[cfg(feature = "std")]
 use sp_core::Pair;
 #[cfg(feature = "std")]
-use sp_keystore::{KeystoreExt, Keystore};
+use sp_keystore::{Keystore, KeystoreExt};
 use sp_std::vec::Vec;
 
 use crate::Public;
