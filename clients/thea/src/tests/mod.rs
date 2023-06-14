@@ -26,24 +26,25 @@ use parking_lot::RwLock;
 use polkadex_primitives::utils::return_set_bits;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
 use sc_consensus::LongestChain;
-use sc_finality_grandpa::{
+use sc_consensus_grandpa::{
 	block_import, run_grandpa_voter, Config, GenesisAuthoritySetProvider, GrandpaParams, LinkHalf,
 	SharedVoterState,
 };
 use sc_keystore::LocalKeystore;
 use sc_network::{config::Role, NetworkService};
+use sc_network_sync::SyncingService;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, Hash, PassThroughVerifier, Peer, PeersClient,
 	PeersFullClient, TestNetFactory,
 };
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_core::{Pair, H256};
-use sp_finality_grandpa::{
+use sp_consensus_grandpa::{
 	AuthorityList, EquivocationProof, GrandpaApi, OpaqueKeyOwnershipProof, SetId,
 };
+use sp_core::{Pair, H256};
 use sp_keyring::AccountKeyring;
-use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
+use sp_keystore::Keystore;
 use sp_runtime::key_types::GRANDPA;
 use std::{
 	collections::{BTreeMap, HashMap},
@@ -51,23 +52,21 @@ use std::{
 	sync::{Arc, Mutex},
 	time::Duration,
 };
-use substrate_test_runtime_client::Ed25519Keyring;
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
 };
 use tokio::time::Instant;
 
-//pub mod deposit;
-mod grandpa;
+pub mod deposit;
+// mod grandpa;
 //mod protocol;
-//pub mod withdrawal;
+pub mod withdrawal;
 
-pub(crate) use grandpa::*;
+// pub(crate) use grandpa::*;
 
 #[derive(Clone, Default)]
 // This is the mock of native runtime state
 pub(crate) struct TestApi {
-	genesys_authorities: AuthorityList,
 	authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
 	validator_set_id: ValidatorSetId,
 	_next_authorities: BTreeMap<Network, ValidatorSet<AuthorityId>>,
@@ -136,12 +135,6 @@ impl TestApi {
 	}
 }
 
-impl GenesisAuthoritySetProvider<Block> for TestApi {
-	fn get(&self) -> sp_blockchain::Result<AuthorityList> {
-		Ok(self.genesys_authorities.clone())
-	}
-}
-
 // compiler gets confused and warns us about unused inner
 #[allow(dead_code)]
 pub(crate) struct RuntimeApi {
@@ -187,30 +180,6 @@ sp_api::mock_impl_runtime_apis! {
 			self.inner.get_last_processed_nonce(network)
 		}
 	}
-
-	impl GrandpaApi<Block> for RuntimeApi {
-		fn grandpa_authorities(&self) -> AuthorityList {
-			self.inner.genesys_authorities.clone()
-		}
-
-		fn current_set_id(&self) -> SetId {
-				0
-		}
-
-		fn submit_report_equivocation_unsigned_extrinsic(
-			_equivocation_proof: EquivocationProof<Hash, GrandpaBlockNumber>,
-			_key_owner_proof: OpaqueKeyOwnershipProof,
-		) -> Option<()> {
-			None
-		}
-
-		fn generate_key_ownership_proof(
-			_set_id: SetId,
-			_authority_id: sp_finality_grandpa::AuthorityId,
-		) -> Option<OpaqueKeyOwnershipProof> {
-			None
-		}
-	}
 }
 
 /// Helper function to convert keyring types to AuthorityId
@@ -225,13 +194,13 @@ pub(crate) fn make_thea_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 
 #[derive(Default)]
 pub struct PeerData {
-	_is_validator: bool,
+	is_validator: bool,
 }
 
 #[derive(Default)]
 pub struct TheaTestnet {
 	api: Arc<TestApi>,
-	peers: Vec<GrandpaPeer>,
+	peers: Vec<Peer<PeerData, PeersClient>>,
 	worker_massages: HashMap<usize, Arc<RwLock<BTreeMap<Message, (Instant, GossipMessage)>>>>,
 }
 
@@ -253,38 +222,35 @@ impl TheaTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				GRANDPA_PROTOCOL_NAME.into(),
-				crate::protocol_standard_name(),
-			],
+			notifications_protocols: vec![crate::protocol_standard_name()],
 			is_authority: true,
 			..Default::default()
 		})
-	}
-
-	pub(crate) fn drop_validator(&mut self) {
-		drop(self.peers.remove(0))
 	}
 }
 
 impl TestNetFactory for TheaTestnet {
 	type Verifier = PassThroughVerifier;
-	type BlockImport = GrandpaBlockImport;
-	type PeerData = GrandpaPeerData;
+	type BlockImport = PeersClient;
+	type PeerData = PeerData;
 
 	fn make_verifier(&self, _: PeersClient, _: &Self::PeerData) -> Self::Verifier {
-		PassThroughVerifier::new(false)
+		PassThroughVerifier::new(true)
 	}
 
-	fn peer(&mut self, i: usize) -> &mut GrandpaPeer {
+	fn peer(&mut self, i: usize) -> &mut Peer<PeerData, PeersClient> {
 		&mut self.peers[i]
 	}
 
-	fn peers(&self) -> &Vec<GrandpaPeer> {
+	fn peers(&self) -> &Vec<Peer<PeerData, PeersClient>> {
 		&self.peers
 	}
 
-	fn mut_peers<F: FnOnce(&mut Vec<GrandpaPeer>)>(&mut self, closure: F) {
+	fn peers_mut(&mut self) -> &mut Vec<Peer<Self::PeerData, Self::BlockImport>> {
+		self.peers.as_mut()
+	}
+
+	fn mut_peers<F: FnOnce(&mut Vec<Peer<PeerData, PeersClient>>)>(&mut self, closure: F) {
 		closure(&mut self.peers);
 	}
 	fn make_block_import(
@@ -295,21 +261,12 @@ impl TestNetFactory for TheaTestnet {
 		Option<sc_consensus::import_queue::BoxJustificationImport<sc_network_test::Block>>,
 		Self::PeerData,
 	) {
-		//(client.as_block_import(), None, PeerData { is_validator: false })
-		let (client, backend) = (client.as_client(), client.as_backend());
-		let (import, link) =
-			block_import(client, self.api.as_ref(), LongestChain::new(backend), None)
-				.expect("Could not create block import for fresh peer.");
-		let justification_import = Box::new(import.clone());
-		(BlockImportAdapter::new(import), Some(justification_import), Mutex::new(Some(link)))
+		(client.as_block_import(), None, PeerData { is_validator: false })
 	}
 
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![
-				GRANDPA_PROTOCOL_NAME.into(),
-				crate::protocol_standard_name(),
-			],
+			notifications_protocols: vec![crate::protocol_standard_name()],
 			is_authority: false,
 			..Default::default()
 		})
@@ -328,36 +285,27 @@ where
 {
 	let workers = FuturesUnordered::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		let mut keystore = None;
+		let mut keystore = Arc::new(LocalKeystore::in_memory());
 
 		if is_validator {
 			// Generate the crypto material with test keys,
 			// we have to use file based keystore,
 			// in memory keystore doesn't seem to work here
-			keystore = Some(Arc::new(
-				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
-			));
 			let (pair, _seed) =
 				thea_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
 			// Insert the key
 			keystore
-				.as_ref()
-				.unwrap()
-				.insert_unknown(thea_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
+				.insert(thea_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
 				.unwrap();
 			// Check if the key is present or not
-			keystore
-				.as_ref()
-				.unwrap()
-				.key_pair::<thea_primitives::crypto::Pair>(&pair.public())
-				.unwrap();
+			keystore.key_pair::<thea_primitives::crypto::Pair>(&pair.public()).unwrap();
 		}
 
 		let worker_params = crate::worker::WorkerParams {
 			client: net.peers[peer_id].client().as_client(),
 			backend: net.peers[peer_id].client().as_backend(),
 			runtime: api,
-			sync_oracle: net.peers[peer_id].network_service().clone(),
+			sync_oracle: net.peers[peer_id].sync_service().clone(),
 			keystore,
 			network: net.peers[peer_id].network_service().clone(),
 			_marker: Default::default(),
@@ -385,7 +333,7 @@ async fn create_workers_array<R, FC>(
 		Block,
 		substrate_test_runtime_client::Backend,
 		PeersFullClient,
-		Arc<NetworkService<Block, H256>>,
+		SyncingService<Block>,
 		Arc<NetworkService<Block, H256>>,
 		R,
 		FC,
@@ -399,36 +347,27 @@ where
 {
 	let mut workers = Vec::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		let mut keystore = None;
+		let mut keystore = Arc::new(LocalKeystore::in_memory());
 
 		if is_validator {
 			// Generate the crypto material with test keys,
 			// we have to use file based keystore,
 			// in memory keystore doesn't seem to work here
-			keystore = Some(Arc::new(
-				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
-			));
 			let (pair, _seed) =
 				thea_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
 			// Insert the key
 			keystore
-				.as_ref()
-				.unwrap()
-				.insert_unknown(thea_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
+				.insert(thea_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
 				.unwrap();
 			// Check if the key is present or not
-			keystore
-				.as_ref()
-				.unwrap()
-				.key_pair::<thea_primitives::crypto::Pair>(&pair.public())
-				.unwrap();
+			keystore.key_pair::<thea_primitives::crypto::Pair>(&pair.public()).unwrap();
 		}
 
 		let worker_params = crate::worker::WorkerParams {
 			client: net.peers[peer_id].client().as_client(),
 			backend: net.peers[peer_id].client().as_backend(),
 			runtime: api,
-			sync_oracle: net.peers[peer_id].network_service().clone(),
+			sync_oracle: net.peers[peer_id].sync_service().clone(),
 			keystore,
 			network: net.peers[peer_id].network_service().clone(),
 			_marker: Default::default(),
