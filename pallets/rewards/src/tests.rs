@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, traits::fungible::Mutate};
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
@@ -90,24 +90,9 @@ fn amount_to_be_added_in_pallet_account(beneficiaries: Vec<(AccountId32, u128)>)
 }
 
 fn add_existential_deposit() {
-	assert_ok!(Balances::set_balance(
-		RuntimeOrigin::root(),
-		get_alice_account_with_rewards().0,
-		1 * UNIT_BALANCE,
-		0
-	));
-	assert_ok!(Balances::set_balance(
-		RuntimeOrigin::root(),
-		get_neal_account_with_rewards().0,
-		1 * UNIT_BALANCE,
-		0
-	));
-	assert_ok!(Balances::set_balance(
-		RuntimeOrigin::root(),
-		get_bob_account_with_rewards().0,
-		1 * UNIT_BALANCE,
-		0
-	));
+	Balances::set_balance(&get_alice_account_with_rewards().0, 1 * UNIT_BALANCE);
+	Balances::set_balance(&get_neal_account_with_rewards().0, 1 * UNIT_BALANCE);
+	Balances::set_balance(&get_bob_account_with_rewards().0, 1 * UNIT_BALANCE);
 }
 
 #[test]
@@ -254,12 +239,7 @@ fn initialize_claim_rewards() {
 					amount_to_be_added_in_pallet_account(beneficiaries.clone());
 
 				//transfer balance to pallet account
-				assert_ok!(Balances::set_balance(
-					RuntimeOrigin::root(),
-					pallet_id_account.clone(),
-					total_rewards_in_pdex,
-					0
-				));
+				Balances::set_balance(&pallet_id_account.clone(), total_rewards_in_pdex);
 
 				assert_eq!(Balances::free_balance(&pallet_id_account), total_rewards_in_pdex);
 
@@ -343,12 +323,7 @@ fn initialize_claim_rewards_when_vesting_period_not_started() {
 					amount_to_be_added_in_pallet_account(beneficiaries.clone());
 
 				//transfer balance to pallet account
-				assert_ok!(Balances::set_balance(
-					RuntimeOrigin::root(),
-					pallet_id_account.clone(),
-					total_rewards_in_pdex,
-					0
-				));
+				Balances::set_balance(&pallet_id_account.clone(), total_rewards_in_pdex);
 
 				assert_eq!(Balances::free_balance(&pallet_id_account), total_rewards_in_pdex);
 
@@ -595,12 +570,7 @@ pub fn claim_rewards_at_start_block() {
 
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			Rewards::get_pallet_account(),
-			total_rewards_in_pdex,
-			0
-		));
+		Balances::set_balance(&Rewards::get_pallet_account(), total_rewards_in_pdex);
 
 		System::set_block_number(start_block);
 
@@ -690,12 +660,7 @@ pub fn claim_rewards_at_end_block() {
 
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			Rewards::get_pallet_account(),
-			total_rewards_in_pdex,
-			0
-		));
+		Balances::set_balance(&Rewards::get_pallet_account(), total_rewards_in_pdex);
 
 		System::set_block_number(end_block);
 
@@ -794,12 +759,7 @@ pub fn claim_rewards_at_50_percentage_of_reward_period() {
 
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			Rewards::get_pallet_account(),
-			total_rewards_in_pdex,
-			0
-		));
+		Balances::set_balance(&Rewards::get_pallet_account(), total_rewards_in_pdex);
 
 		let require_block_to_claim_50_percentage_of_rewards =
 			start_block.saturating_add(end_block).saturating_div(2);
@@ -893,12 +853,7 @@ pub fn claim_rewards_at_75_percentage_of_reward_period() {
 
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			Rewards::get_pallet_account(),
-			total_rewards_in_pdex,
-			0
-		));
+		Balances::set_balance(&Rewards::get_pallet_account(), total_rewards_in_pdex);
 
 		let require_block_to_claim_75_percentage_of_rewards = 95;
 		System::set_block_number(require_block_to_claim_75_percentage_of_rewards);
@@ -974,12 +929,7 @@ pub fn claim_rewards_for_alice_at_multiple_intervals() {
 
 		//calculate total rewards and set balance
 		let total_rewards_in_pdex = amount_to_be_added_in_pallet_account(beneficiaries.clone());
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			Rewards::get_pallet_account(),
-			total_rewards_in_pdex,
-			0
-		));
+		Balances::set_balance(&Rewards::get_pallet_account(), total_rewards_in_pdex);
 
 		let block_number = start_block;
 		System::set_block_number(block_number);

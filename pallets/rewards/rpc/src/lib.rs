@@ -29,7 +29,7 @@ pub use pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi;
 use parity_scale_codec::Codec;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::traits::Block as BlockT;
 
 const RUNTIME_ERROR: i32 = 1;
 
