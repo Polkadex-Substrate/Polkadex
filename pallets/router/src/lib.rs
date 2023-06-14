@@ -27,7 +27,8 @@ pub mod pallet {
 		pallet_prelude::{DispatchResult, DispatchResultWithPostInfo, Weight},
 		require_transactional,
 		traits::{
-			fungibles::{Inspect, Mutate, Transfer},
+			fungibles::{Inspect, Mutate},
+			tokens::{Fortitude, Preservation},
 			Get, IsType,
 		},
 		transactional, BoundedVec, PalletId,
@@ -79,8 +80,7 @@ pub mod pallet {
 
 		/// Currency type for deposit/withdraw assets to/from amm route
 		/// module
-		type Assets: Transfer<Self::AccountId, AssetId = u128, Balance = Balance>
-			+ Inspect<Self::AccountId, AssetId = u128, Balance = Balance>
+		type Assets: Inspect<Self::AccountId, AssetId = u128, Balance = Balance>
 			+ Mutate<Self::AccountId, AssetId = u128, Balance = Balance>;
 	}
 
@@ -303,7 +303,8 @@ pub mod pallet {
 				T::Assets::reducible_balance(
 					from_currency_id,
 					&trader,
-					from_currency_id == T::GetNativeCurrencyId::get()
+					Preservation::Preserve,
+					Fortitude::Polite
 				) >= amount_in,
 				Error::<T, I>::InsufficientBalance
 			);
@@ -367,7 +368,8 @@ pub mod pallet {
 				T::Assets::reducible_balance(
 					from_currency_id,
 					&trader,
-					from_currency_id == T::GetNativeCurrencyId::get()
+					Preservation::Preserve,
+					Fortitude::Polite
 				) > amounts[0],
 				Error::<T, I>::InsufficientBalance
 			);

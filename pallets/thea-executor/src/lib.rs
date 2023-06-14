@@ -40,11 +40,11 @@ pub mod pallet {
 		log,
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
-		traits::{Currency, ExistenceRequirement, ReservableCurrency},
-		PalletId,
+		traits::{fungible::Mutate, tokens::Preservation},
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{traits::AccountIdConversion, Saturating};
+	use polkadex_primitives::Resolver;
+	use sp_runtime::Saturating;
 	use sp_std::vec::Vec;
 	use thea_primitives::{
 		types::{AssetMetadata, Deposit, Withdraw},
@@ -53,24 +53,29 @@ pub mod pallet {
 	use xcm::VersionedMultiLocation;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + asset_handler::pallet::Config {
+	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Balances Pallet
-		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+		type Currency: frame_support::traits::tokens::fungible::Mutate<Self::AccountId>
+			+ frame_support::traits::tokens::fungible::Inspect<Self::AccountId>;
+		/// Assets Pallet
+		type Assets: frame_support::traits::tokens::fungibles::Mutate<Self::AccountId>
+			+ frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaOutgoingExecutor;
+		/// Native Asset Id
+		type NativeAssetId: Get<<<Self as pallet::Config>::Assets as frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>>::AssetId>;
 		/// Thea PalletId
 		#[pallet::constant]
-		type TheaPalletId: Get<PalletId>;
+		type TheaPalletId: Get<Self::AccountId>;
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
@@ -191,7 +196,12 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
+			<T as frame_system::Config>::AccountId,
+		>>::AssetId: From<u128>,
+	{
 		/// An example dispatch able that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::call_index(0)]
@@ -322,7 +332,7 @@ pub mod pallet {
 			entropy.to_vec()
 		}
 		pub fn thea_account() -> T::AccountId {
-			T::TheaPalletId::get().into_account_truncating()
+			T::TheaPalletId::get()
 		}
 
 		pub fn do_withdraw(
@@ -332,7 +342,12 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
-		) -> Result<(), DispatchError> {
+		) -> Result<(), DispatchError>
+		where
+			<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
+				<T as frame_system::Config>::AccountId,
+			>>::AssetId: From<u128>,
+		{
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
@@ -370,11 +385,11 @@ pub mod pallet {
 				&user,
 				&Self::thea_account(),
 				total_fees.saturated_into(),
-				ExistenceRequirement::KeepAlive,
+				Preservation::Preserve,
 			)?;
 
-			// Handle assets
-			asset_handler::pallet::Pallet::<T>::handle_asset(asset_id, user.clone(), amount)?;
+			// Withdraw assets
+			Self::resolver_withdraw(asset_id.into(), amount, &user)?;
 
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
 				network,
@@ -426,16 +441,21 @@ pub mod pallet {
 		pub fn execute_deposit(
 			deposit: Deposit<T::AccountId>,
 			recipient: &T::AccountId,
-		) -> Result<(), DispatchError> {
+		) -> Result<(), DispatchError>
+		where
+			<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
+				<T as frame_system::Config>::AccountId,
+			>>::AssetId: From<u128>,
+		{
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 
-			asset_handler::pallet::Pallet::<T>::mint_thea_asset(
-				deposit.asset_id,
-				recipient.clone(),
+			Self::resolver_deposit(
+				deposit.asset_id.into(),
 				// Convert the decimals config
 				deposit.amount_in_native_decimals(metadata),
+				&recipient,
 			)?;
 
 			// Emit event
@@ -455,5 +475,17 @@ pub mod pallet {
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
 			}
 		}
+	}
+
+	// Implement this trait for handing deposits and withdrawals
+	impl<T: Config>
+		polkadex_primitives::assets::Resolver<
+			T::AccountId,
+			T::Currency,
+			T::Assets,
+			T::TheaPalletId,
+			T::NativeAssetId,
+		> for Pallet<T>
+	{
 	}
 }

@@ -37,7 +37,11 @@ mod benchmarking;
 pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{fungible::Mutate, Currency, Get, LockableCurrency, WithdrawReasons},
+		traits::{
+			fungible::Mutate,
+			tokens::{Fortitude, Precision},
+			Currency, Get, LockableCurrency, WithdrawReasons,
+		},
 	};
 	use frame_system::pallet_prelude::*;
 	use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -289,7 +293,12 @@ pub mod pallet {
 
 			pallet_balances::Pallet::<T>::remove_lock(MIGRATION_LOCK, &beneficiary);
 			// Burn the illegally minted tokens
-			pallet_balances::Pallet::<T>::burn_from(&beneficiary, amount_to_burn)?;
+			pallet_balances::Pallet::<T>::burn_from(
+				&beneficiary,
+				amount_to_burn,
+				Precision::Exact,
+				Fortitude::Polite,
+			)?;
 			// Increment total mintable tokens
 			let mut mintable_tokens = MintableTokens::<T>::get();
 			mintable_tokens += amount_to_burn;
