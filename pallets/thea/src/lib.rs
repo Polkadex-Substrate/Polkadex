@@ -96,7 +96,7 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	/// The current validator set id
+	/// The current validator set id, it will increment by 1 on every epoch.
 	#[pallet::storage]
 	#[pallet::getter(fn validator_set_id)]
 	pub(super) type ValidatorSetId<T: Config> =
@@ -323,10 +323,6 @@ impl<T: Config> Pallet<T> {
 		new: BoundedVec<T::TheaId, T::MaxAuthorities>,
 		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,
 	) {
-		if new == queued {
-			// Don't do anything if there is not change in new and queued validators
-			return
-		}
 		let group_by = |list: &BoundedVec<T::TheaId, T::MaxAuthorities>| -> sp_std::collections::btree_map::BTreeMap<
 			Network,
 			BoundedVec<T::TheaId, T::MaxAuthorities>,

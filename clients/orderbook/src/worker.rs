@@ -30,23 +30,8 @@ use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
-use orderbook_primitives::{
-	crypto::AuthorityId,
-	types::{
-		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
-		UserActions, WithdrawalRequest,
-	},
-	ObApi, SnapshotSummary, ValidatorSet,
-};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
-use polkadex_primitives::{
-	ingress::IngressMessages,
-	ocex::TradingPairConfig,
-	utils::{prepare_bitmap, return_set_bits, set_bit_field},
-	withdrawal::Withdrawal,
-	AccountId, AssetId, BlockNumber,
-};
 use primitive_types::H128;
 use reference_trie::{ExtensionLayout, RefHasher};
 use rust_decimal::Decimal;
@@ -64,6 +49,22 @@ use sp_runtime::{
 	traits::{Block, Zero},
 };
 use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
+use orderbook_primitives::{
+	crypto::AuthorityId,
+	types::{
+		AccountAsset, AccountInfo, GossipMessage, ObMessage, StateSyncStatus, Trade, TradingPair,
+		UserActions, WithdrawalRequest,
+	},
+	ObApi, SnapshotSummary, ValidatorSet,
+};
+use polkadex_primitives::{
+	ingress::IngressMessages,
+	ocex::TradingPairConfig,
+	utils::{prepare_bitmap, return_set_bits, set_bit_field},
+	withdrawal::Withdrawal,
+	AccountId, AssetId, BlockNumber,
+};
 
 use crate::{
 	error::Error,
@@ -1426,12 +1427,48 @@ where
 	/// Wait for Orderbook runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		info!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
+
+		let mut gossip_messages = Box::pin(
+			self.gossip_engine
+				.messages_for(topic::<B>())
+				.filter_map(|notification| async move {
+					match GossipMessage::decode(&mut &notification.message[..]).ok() {
+						None => {
+							warn!(target: "orderbook", "📒 Gossip message decode failed: {:?}", notification);
+							None
+						},
+						Some(msg) => {
+							trace!(target: "orderbook", "📒 Got gossip message: {:?}", msg);
+							Some((msg, notification.sender))
+						},
+					}
+				})
+				.fuse(),
+		);
+
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
-		while let Some(notif) = finality_stream.next().await {
-			if self.runtime.runtime_api().validator_set(notif.header.hash()).ok().is_some() {
-				break
-			} else {
-				debug!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
+
+		loop {
+			let mut gossip_engine = &mut self.gossip_engine;
+			futures::select_biased! {
+				_ = gossip_engine => {
+					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					return;
+				}
+				finality = finality_stream.next() => {
+					if let Some(finality) = finality {
+						let at = BlockId::hash(finality.header.hash());
+						if self.runtime.runtime_api().validator_set(&at).ok().is_some() {
+								// Pallet is available break and exit
+								break
+						} else {
+							debug!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
+						}
+					}
+				},
+				_ = gossip_messages.next() => {
+					// Just drop any messages before runtime upgrade
+				}
 			}
 		}
 	}
