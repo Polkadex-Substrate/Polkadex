@@ -21,7 +21,7 @@
 
 use super::*;
 use crate::Pallet as Thea;
-use bls_primitives::{Pair, Public, Signature};
+use bls_primitives::{Public, Signature};
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
@@ -41,17 +41,16 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 benchmarks! {
 	update_network_pref {
 		let b in 1 .. 255; // keep within u8 range
-		let authority = Public([b as u8; 96]);
+		let authority = <T as crate::Config>::TheaId::decode(&mut Public([b as u8; 96]).encode().as_ref()).unwrap();
 		let network = b as u8;
-		let signature = Signature([b as u8; 48]);
-	}: _(RawOrigin::None, authority.into(), network, signature.into())
+		let signature = <T as crate::Config>::Signature::decode(&mut Signature([b as u8; 48]).encode().as_ref()).unwrap();
+	}: _(RawOrigin::None, authority, network, signature)
 	verify {
 		assert_last_event::<T>(Event::NetworkUpdated { authority, network}.into());
 	}
 
-	incomming_message {
+	incoming_message {
 		let b in 0 .. 256; // keep withing u8 range
-		let pair = Pair::from_seed_slice(&[b as u8; 256]).unwrap();
 		let message = Message {
 			block_no: b as u64,
 			nonce: 0,
@@ -61,10 +60,10 @@ benchmarks! {
 			validator_set_id: 0,
 			validator_set_len: 1
 		};
-		let payload = message.encode();
-		let signature = pair.signi(payload.as_ref());
-		<Authorities::<T>>::insert(b as u8, 0, vec!(pair.public()).try_into().unwrap());
-		let bitmap = u128::MAX; // ALL bits are set :)
+		let payload = b"";
+		let signature = <T as crate::Config>::Signature::decode(&mut b"".as_ref()).unwrap();
+		<Authorities::<T>>::insert(b as u8, 0, vec!(Public([0u8; 96])).try_into().unwrap());
+		let bitmap = vec!(u128::MAX); // ALL bits are set :)
 	}: _(RawOrigin::None, bitmap, message, signature)
 	verify {
 		assert!(<IncomingNonce::<T>>::get(0) == 1);
@@ -76,7 +75,7 @@ benchmarks! {
 		let key = ();
 		let network = 0 as u8;
 		let data = [b as u8; 1_048_576].to_vec(); // 10MB
-		let set: BoundedVec<TheaId, MaxAuthorities>= vec!(key).into();
+		let set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities>= vec!(key).into();
 		<Authorities::<T>>::insert(network, 0, set);
 	}: _(RawOrigin::Root, data, network)
 	verify {
