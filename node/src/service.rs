@@ -711,7 +711,7 @@ mod tests {
 	use sp_core::{crypto::Pair as CryptoPair, Public};
 	use sp_inherents::InherentDataProvider;
 	use sp_keyring::AccountKeyring;
-	use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
+	use sp_keystore::{Keystore, KeystorePtr};
 	use sp_runtime::{
 		generic,
 		generic::{BlockId, Digest, SignedPayload},
@@ -732,12 +732,16 @@ mod tests {
 		sp_tracing::try_init_simple();
 
 		let keystore_path = tempfile::tempdir().expect("Creates keystore path");
-		let keystore: SyncCryptoStorePtr =
+		let keystore: KeystorePtr =
 			Arc::new(LocalKeystore::open(keystore_path.path(), None).expect("Creates keystore"));
 		let alice: sp_consensus_babe::AuthorityId =
-			SyncCryptoStore::sr25519_generate_new(&*keystore, BABE, Some("//Alice"))
-				.expect("Creates authority pair")
-				.into();
+			<(dyn sp_keystore::Keystore + 'static)>::sr25519_generate_new(
+				&*keystore,
+				BABE,
+				Some("//Alice"),
+			)
+			.expect("Creates authority pair")
+			.into();
 
 		let chain_spec = crate::chain_spec::tests::integration_test_config_with_single_authority();
 
@@ -757,6 +761,7 @@ mod tests {
 					new_full_base(
 						config,
 						"blah".to_string(),
+						true,
 						true,
 						|block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
 						 babe_link: &sc_consensus_babe::BabeLink<Block>| {
@@ -854,17 +859,11 @@ mod tests {
 				// sign the pre-sealed hash of the block and then
 				// add it to a digest item.
 				let to_sign = pre_hash.encode();
-				let signature = SyncCryptoStore::sign_with(
-					&*keystore,
-					sp_consensus_babe::AuthorityId::ID,
-					&alice.to_public_crypto_pair(),
-					&to_sign,
-				)
-				.unwrap()
-				.unwrap()
-				.try_into()
-				.unwrap();
-				let item = <DigestItem as CompatibleDigestItem>::babe_seal(signature);
+				let signature = keystore
+					.sr25519_sign(sp_consensus_babe::AuthorityId::ID, alice.as_ref(), &to_sign)
+					.unwrap()
+					.unwrap();
+				let item = <DigestItem as CompatibleDigestItem>::babe_seal(signature.into());
 				slot += 1;
 
 				let mut params = BlockImportParams::new(BlockOrigin::File, new_header);
@@ -876,7 +875,7 @@ mod tests {
 				);
 				params.fork_choice = Some(ForkChoiceStrategy::LongestChain);
 
-				futures::executor::block_on(block_import.import_block(params, Default::default()))
+				futures::executor::block_on(block_import.import_block(params))
 					.expect("error importing test block");
 			},
 			|service, _| {
@@ -936,7 +935,7 @@ mod tests {
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
 			|config| {
 				let NewFullBase { task_manager, client, network, transaction_pool, sync, .. } =
-					new_full_base(config, "blah".to_string(), true, |_, _| ())?;
+					new_full_base(config, "blah".to_string(), true, true, |_, _| ())?;
 				Ok(sc_service_test::TestNetComponents::new(
 					task_manager,
 					client,
