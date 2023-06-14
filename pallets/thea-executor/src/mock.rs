@@ -41,8 +41,6 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		Thea: thea::{Pallet, Call, Storage, Event<T>},
-		ChainBridge: chainbridge::{Pallet, Storage, Call, Event<T>},
-		AssetHandler: asset_handler::pallet::{Pallet, Storage, Call, Event<T>},
 		TheaExecutor: thea_executor::{Pallet, Call, Storage, Event<T>}
 	}
 );
@@ -86,15 +84,19 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 	type Balance = Balance;
 	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
+	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
-	type WeightInfo = ();
+	type MaxHolds = ();
+	type MaxFreezes = ();
 }
 
 parameter_types! {
@@ -144,49 +146,19 @@ impl thea::Config for Test {
 }
 
 parameter_types! {
-	pub const ChainId: u8 = 1;
-	pub const ParachainNetworkId: u8 = 1;
-	pub const ProposalLifetime: u64 = 1000;
-	pub const ChainbridgePalletId: PalletId = PalletId(*b"CSBRIDGE");
-}
-
-impl chainbridge::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type BridgeCommitteeOrigin = frame_system::EnsureSigned<Self::AccountId>;
-	type Proposal = RuntimeCall;
-	type BridgeChainId = ChainId;
-	type ProposalLifetime = ProposalLifetime;
-	//type PalletId = ChainbridgePalletId;
-}
-
-parameter_types! {
-	pub const PolkadexAssetId: u128 = 1000;
-	pub const PDEXHolderAccount: u64 = 10u64;
-}
-
-impl asset_handler::pallet::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type AssetManager = Assets;
-	type AssetCreateUpdateOrigin = frame_system::EnsureSigned<Self::AccountId>;
-	type NativeCurrencyId = PolkadexAssetId;
-	type TreasuryPalletId = ChainbridgePalletId;
-	type ParachainNetworkId = ParachainNetworkId;
-	type PDEXHolderAccount = PDEXHolderAccount;
-	type WeightInfo = asset_handler::weights::WeightInfo<Test>;
-}
-
-parameter_types! {
 	pub const TheaPalletId: PalletId = PalletId(*b"th/accnt");
 	pub const WithdrawalSize: u32 = 10;
+	pub const PolkadexAssetId: u128 = 0;
 	pub const ParaId: u32 = 2040;
 }
 
 impl thea_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	type Assets = Assets;
 	type AssetCreateUpdateOrigin = EnsureRoot<Self::AccountId>;
 	type Executor = Thea;
+	type NativeAssetId = PolkadexAssetId;
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;

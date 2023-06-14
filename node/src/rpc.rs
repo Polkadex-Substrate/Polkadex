@@ -37,7 +37,7 @@ use orderbook_primitives::ObApi;
 use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use sc_client_api::{AuxStore, BlockchainEvents};
-use sc_consensus_babe::{BabeWorkerHandle};
+use sc_consensus_babe::BabeWorkerHandle;
 
 use sc_consensus_grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,

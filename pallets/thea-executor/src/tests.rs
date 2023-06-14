@@ -20,9 +20,10 @@ use crate::{
 	mock::{new_test_ext, Assets, RuntimeOrigin as Origin, Test, *},
 	PendingWithdrawals,
 };
-
-use asset_handler::pallet::Error;
-use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Mutate};
+use frame_support::{
+	assert_err, assert_noop, assert_ok,
+	traits::{fungible::Mutate as FungibleMutate, fungibles::Mutate as FungiblesMutate},
+};
 use parity_scale_codec::Encode;
 use sp_core::{H160, H256};
 use sp_runtime::{traits::ConstU32, BoundedVec, SaturatedConversion, TokenError};
@@ -58,12 +59,7 @@ fn test_transfer_native_asset() {
 		let asset_id = 1000u128;
 		let admin = 1u64;
 		let user = 2u64;
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			admin,
-			1_000_000_000_000_000_000,
-			0
-		));
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
 		assert_ok!(Assets::create(
 			RuntimeOrigin::signed(admin),
 			parity_scale_codec::Compact(asset_id),
@@ -72,12 +68,7 @@ fn test_transfer_native_asset() {
 		));
 		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
 		// Set balance for User
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			user,
-			1_000_000_000_000_000_000,
-			0
-		));
+		Balances::set_balance(&user, 1_000_000_000_000_000_000);
 		assert_ok!(Assets::mint_into(asset_id, &user, 1_000_000_000_000_000_000));
 		// Set withdrawal Fee
 		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
@@ -112,12 +103,7 @@ fn test_deposit_with_valid_args_returns_ok() {
 		let asset_id = 1000u128;
 		let admin = 1u64;
 		let recipient = 2u64;
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			admin,
-			1_000_000_000_000_000_000,
-			0
-		));
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
 		assert_ok!(Assets::create(
 			RuntimeOrigin::signed(admin),
 			parity_scale_codec::Compact(asset_id),
@@ -141,12 +127,7 @@ fn test_claim_deposit_returns_ok() {
 		let asset_id = 2000u128;
 		let admin = 1u64;
 		let recipient = 2u64;
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			admin,
-			1_000_000_000_000_000_000,
-			0
-		));
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
 		assert_ok!(Assets::create(
 			RuntimeOrigin::signed(admin),
 			parity_scale_codec::Compact(asset_id),
@@ -154,12 +135,7 @@ fn test_claim_deposit_returns_ok() {
 			1u128
 		));
 		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			recipient,
-			1_000_000_000_000_000_000,
-			0
-		));
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
 		let deposit = Deposit {
 			id: Vec::new(),
 			recipient,
@@ -178,24 +154,14 @@ fn test_claim_deposit_returns_asset_not_registered() {
 		let asset_id = 2000u128;
 		let admin = 1u64;
 		let recipient = 2u64;
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			admin,
-			1_000_000_000_000_000_000,
-			0
-		));
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
 		assert_ok!(Assets::create(
 			RuntimeOrigin::signed(admin),
 			parity_scale_codec::Compact(asset_id),
 			admin,
 			1u128
 		));
-		assert_ok!(Balances::set_balance(
-			RuntimeOrigin::root(),
-			recipient,
-			1_000_000_000_000_000_000,
-			0
-		));
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
 		let deposit = Deposit {
 			id: Vec::new(),
 			recipient,
