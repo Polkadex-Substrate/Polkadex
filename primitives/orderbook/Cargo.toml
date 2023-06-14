@@ -24,7 +24,7 @@ rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git",
   "scale-codec",
 ], default-features = false }
 bls-primitives = { workspace = true, default-features = false }
-sc-network = {  workspace = true,  optional = true }
+sc-network = { workspace = true, optional = true }
 
 
 [dev-dependencies]
