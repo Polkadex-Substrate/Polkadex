@@ -42,6 +42,7 @@ std = [
   "polkadex-primitives/std",
   "rust_decimal/std",
   "pallet-timestamp/std",
+  "frame-benchmarking?/std",
   "sp-core/std",
   "sp-io/std",
   "thea/std",
