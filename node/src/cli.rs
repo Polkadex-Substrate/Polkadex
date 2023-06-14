@@ -34,6 +34,19 @@ pub struct Cli {
 	/// Thea Dummy mode starts the chain with dummy connector ( for local testing only )
 	#[arg(short, long, default_value_t = false)]
 	pub thea_dummy_mode: bool,
+	/// Disable automatic hardware benchmarks.
+	///
+	/// By default these benchmarks are automatically ran at startup and measure
+	/// the CPU speed, the memory bandwidth and the disk speed.
+	///
+	/// The results are then printed out in the logs, and also sent as part of
+	/// telemetry, if telemetry is enabled.
+	#[arg(long)]
+	pub no_hardware_benchmarks: bool,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
 }
 
 #[derive(Debug, clap::Subcommand)]

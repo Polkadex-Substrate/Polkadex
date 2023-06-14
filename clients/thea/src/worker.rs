@@ -71,7 +71,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector +
 	/// Foreign chain connector.
 	pub foreign_chain: Arc<FC>,
 	/// Local key store.
-	pub(crate) keystore: Option<Arc<LocalKeystore>>,
+	pub(crate) keystore: Arc<LocalKeystore>,
 }
 
 /// A thea worker plays the thea protocol

@@ -88,8 +88,7 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				service::new_full(config, cli.foreign_chain_url, cli.thea_dummy_mode)
-					.map_err(sc_cli::Error::Service)
+				service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},
 		// Some(Subcommand::Inspect(cmd)) => {
@@ -219,7 +218,7 @@ pub fn run() -> Result<()> {
 				let PartialComponents { client, task_manager, backend, .. } = new_partial(&config)?;
 				let aux_revert = Box::new(move |client: Arc<FullClient>, backend, blocks| {
 					sc_consensus_babe::revert(client.clone(), backend, blocks)?;
-					sc_finality_grandpa::revert(client, blocks)?;
+					sc_consensus_grandpa::revert(client, blocks)?;
 					Ok(())
 				});
 				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
