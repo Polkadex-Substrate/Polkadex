@@ -40,7 +40,6 @@ pub trait Resolver<
 		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
 	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
 		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>,
-	NativeLockingAccount: Get<AccountId>,
 	NativeAssetId: Get<Others::AssetId>,
 >
 {
@@ -50,10 +49,11 @@ pub trait Resolver<
 		asset: Others::AssetId,
 		amount: Balance,
 		who: &AccountId,
+		locking_account: AccountId,
 	) -> Result<(), DispatchError> {
 		if asset == NativeAssetId::get() {
 			Native::transfer(
-				&NativeLockingAccount::get(),
+				&locking_account,
 				who,
 				amount.saturated_into(),
 				Preservation::Preserve,
@@ -70,11 +70,12 @@ pub trait Resolver<
 		asset: Others::AssetId,
 		amount: Balance,
 		who: &AccountId,
+		locking_account: AccountId,
 	) -> Result<(), DispatchError> {
 		if asset == NativeAssetId::get() {
 			Native::transfer(
 				who,
-				&NativeLockingAccount::get(),
+				&locking_account,
 				amount.saturated_into(),
 				Preservation::Preserve,
 			)?;

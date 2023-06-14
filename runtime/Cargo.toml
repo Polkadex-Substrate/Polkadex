@@ -100,11 +100,6 @@ pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 thea = { path = "../pallets/thea", default-features = false }
 thea-executor = { path = "../pallets/thea-executor", default-features = false }
 
-#swap
-pallet-amm = { path = "../pallets/swap", default-features = false }
-#router for swap
-router = { path = "../pallets/router", default-features = false }
-
 # Liquidity Pallet
 liquidity = { path = "../pallets/liquidity", default-features = false }
 
@@ -182,8 +177,6 @@ std = [
   "pallet-ocex-lmp/std",
   "pallet-rewards-runtime-api/std",
   "thea/std",
-  "pallet-amm/std",
-  "router/std",
   "liquidity/std",
   "pallet-rewards/std",
   "thea-executor/std",
@@ -205,7 +198,6 @@ runtime-benchmarks = [
   "pallet-rewards/runtime-benchmarks",
   "liquidity/runtime-benchmarks",
   "thea/runtime-benchmarks",
-  "pallet-amm/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -250,7 +242,5 @@ try-runtime = [
   "thea/try-runtime",
   "pallet-rewards/try-runtime",
   "liquidity/try-runtime",
-  "pallet-amm/try-runtime",
-  "router/try-runtime",
   "thea-executor/try-runtime",
 ]

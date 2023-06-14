@@ -4987,7 +4987,6 @@ dependencies = [
  "log",
  "orderbook-primitives",
  "orml-vesting",
- "pallet-amm",
  "pallet-assets",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -5025,7 +5024,6 @@ dependencies = [
  "parity-scale-codec",
  "pdex-migration",
  "polkadex-primitives",
- "router",
  "scale-info",
  "sp-api",
  "sp-authority-discovery",
@@ -5427,27 +5425,6 @@ checksum = "a1914cd452d8fccd6f9db48147b29fd4ae05bea9dc5d9ad578509f72415de282"
 dependencies = [
  "cfg-if",
  "libm 0.1.4",
-]
-
-[[package]]
-name = "pallet-amm"
-version = "1.9.5"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "num-traits",
- "pallet-assets",
- "pallet-balances",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "serde",
- "sp-core 7.0.0",
- "sp-io 7.0.0",
- "sp-runtime 7.0.0",
- "sp-std 5.0.0",
- "support",
 ]
 
 [[package]]
@@ -7291,28 +7268,6 @@ checksum = "bb6f170a4041d50a0ce04b0d2e14916d6ca863ea2e422689a5b694395d299ffe"
 dependencies = [
  "libc",
  "librocksdb-sys",
-]
-
-[[package]]
-name = "router"
-version = "1.0.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-sudo",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "sp-application-crypto 7.0.0",
- "sp-core 7.0.0",
- "sp-io 7.0.0",
- "sp-keystore 0.13.0",
- "sp-runtime 7.0.0",
- "sp-std 5.0.0",
- "support",
 ]
 
 [[package]]
@@ -10756,25 +10711,6 @@ dependencies = [
  "scale-info",
  "sp-core-hashing 9.0.0",
  "thiserror",
-]
-
-[[package]]
-name = "support"
-version = "1.0.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "num-bigint",
- "num-traits",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "serde",
- "sp-core 7.0.0",
- "sp-io 7.0.0",
- "sp-runtime 7.0.0",
- "sp-std 5.0.0",
 ]
 
 [[package]]

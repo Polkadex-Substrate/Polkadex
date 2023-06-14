@@ -44,7 +44,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::Resolver;
-	use sp_runtime::Saturating;
+	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{
 		types::{AssetMetadata, Deposit, Withdraw},
@@ -75,7 +75,7 @@ pub mod pallet {
 		type NativeAssetId: Get<<<Self as pallet::Config>::Assets as frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>>::AssetId>;
 		/// Thea PalletId
 		#[pallet::constant]
-		type TheaPalletId: Get<Self::AccountId>;
+		type TheaPalletId: Get<frame_support::PalletId>;
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
@@ -332,7 +332,7 @@ pub mod pallet {
 			entropy.to_vec()
 		}
 		pub fn thea_account() -> T::AccountId {
-			T::TheaPalletId::get()
+			T::TheaPalletId::get().into_account_truncating()
 		}
 
 		pub fn do_withdraw(
@@ -389,7 +389,7 @@ pub mod pallet {
 			)?;
 
 			// Withdraw assets
-			Self::resolver_withdraw(asset_id.into(), amount, &user)?;
+			Self::resolver_withdraw(asset_id.into(), amount, &user, Self::thea_account())?;
 
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
 				network,
@@ -456,6 +456,7 @@ pub mod pallet {
 				// Convert the decimals config
 				deposit.amount_in_native_decimals(metadata),
 				&recipient,
+				Self::thea_account(),
 			)?;
 
 			// Emit event
@@ -483,7 +484,6 @@ pub mod pallet {
 			T::AccountId,
 			T::Currency,
 			T::Assets,
-			T::TheaPalletId,
 			T::NativeAssetId,
 		> for Pallet<T>
 	{
