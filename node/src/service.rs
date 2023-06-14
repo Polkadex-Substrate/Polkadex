@@ -246,7 +246,7 @@ pub fn new_partial(
 	let (ob_messge_sink, ob_message_stream) = unbounded::<ObMessage>();
 
 	let (rpc_extensions_builder, rpc_setup) = {
-		let (_, grandpa_link, babe_link) = &import_setup;
+		let (_, grandpa_link, _babe_link) = &import_setup;
 
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
@@ -341,7 +341,7 @@ pub struct NewFullBase {
 
 /// Creates a full service from the configuration.
 pub fn new_full_base(
-	mut config: Configuration,
+	config: Configuration,
 	foreign_chain_url: String,
 	thea_dummy_mode: bool,
 	disable_hardware_benchmarks: bool,
