@@ -100,7 +100,7 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Indicates if this node is a validator.
 	pub is_validator: bool,
 	/// Local key store.
-	pub keystore: Option<Arc<LocalKeystore>>,
+	pub keystore: Arc<LocalKeystore>,
 	/// Submit message link.
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	/// Gossip network.

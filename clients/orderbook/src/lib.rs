@@ -136,7 +136,7 @@ where
 	/// Client runtime.
 	pub runtime: Arc<R>,
 	/// Local key store.
-	pub keystore: Option<Arc<LocalKeystore>>,
+	pub keystore: Arc<LocalKeystore>,
 	/// Gossip network.
 	pub network: N,
 	/// Syncing Service

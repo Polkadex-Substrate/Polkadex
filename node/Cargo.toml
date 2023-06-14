@@ -56,6 +56,9 @@ sc-consensus-epochs = { git = "https://github.com/paritytech/substrate", branch 
 sc-consensus-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-consensus-grandpa-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sc-storage-monitor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sc-sysinfo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sc-network-sync = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
