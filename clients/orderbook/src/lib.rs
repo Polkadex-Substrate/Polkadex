@@ -127,7 +127,7 @@ where
 	C: Client<B, BE>,
 	R::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
-	S: SyncOracle + Syncing<B>
+	S: SyncOracle + Syncing<B>,
 {
 	/// Orderbook client.
 	pub client: Arc<C>,
@@ -167,7 +167,7 @@ where
 	R: ProvideRuntimeApi<B>,
 	R::Api: ObApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
-	S: SyncOracle + Syncing<B> + Clone + Sync + Send + 'static
+	S: SyncOracle + Syncing<B> + Clone + Sync + Send + 'static,
 {
 	let ObParams {
 		client,
