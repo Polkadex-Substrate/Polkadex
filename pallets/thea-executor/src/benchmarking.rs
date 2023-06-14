@@ -35,4 +35,7 @@ benchmarks! {
         let network_id = r as u8;
         let fee = 1_000_000_000_000;
     }: _(RawOrigin::Root, network_id, fee)
+    verify {
+
+    }
 }
