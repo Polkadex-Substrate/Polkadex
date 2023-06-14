@@ -99,9 +99,9 @@ impl TestApi {
 				None => snapshot,
 				Some(mut stored_summary) => {
 					let signature = snapshot.aggregate_signature.unwrap();
-					let auth_index = snapshot.signed_auth_indexes().first().unwrap().clone();
+					let auth_index = *snapshot.signed_auth_indexes().first().unwrap();
 					// Verify the auth signature.
-					let signer: &AuthorityId = self.active.get(auth_index as usize).unwrap();
+					let signer: &AuthorityId = self.active.get(auth_index).unwrap();
 					assert!(signer.verify(&snapshot.sign_data(), &signature.into()));
 					// Aggregate signature
 					assert!(stored_summary.add_signature(signature).is_ok());
@@ -263,7 +263,6 @@ pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 			orderbook_primitives::crypto::Pair::from_string(&seed, None)
 				.unwrap()
 				.public()
-				.into()
 		})
 		.collect()
 }
