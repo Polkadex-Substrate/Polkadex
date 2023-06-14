@@ -140,6 +140,18 @@ pub mod pallet {
 	#[pallet::getter(fn outgoing_nonce)]
 	pub(super) type OutgoingNonce<T: Config> = StorageMap<_, Identity, Network, u64, ValueQuery>;
 
+	/// Authorities set scheduled to be used with the next session
+	#[pallet::storage]
+	#[pallet::getter(fn next_babe_authorities)]
+	pub(super) type NextBabeAuthorities<T: Config> =
+	StorageValue<_, BoundedVec<(T::AccountId, T::TheaId), T::MaxAuthorities>, ValueQuery>;
+
+	/// Authorities set scheduled to be used with the next session
+	#[pallet::storage]
+	#[pallet::getter(fn babe_authorities)]
+	pub(super) type BabeAuthorities<T: Config> =
+	StorageValue<_, BoundedVec<(T::AccountId, T::TheaId), T::MaxAuthorities>, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -168,6 +180,8 @@ pub mod pallet {
 			match call {
 				Call::incoming_message { bitmap, payload, signature } =>
 					Self::validate_incoming_message(bitmap, payload, signature),
+				Call::update_network_pref { authority, network, signature} =>
+				    Self::verify_update_network_pref_call(authority, network, signature),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -180,13 +194,13 @@ pub mod pallet {
 		#[pallet::weight(Weight::default())]
 		pub fn update_network_pref(
 			origin: OriginFor<T>,
-			authority: T::TheaId,
+			authority: T::AccountId,
 			network: Network,
 			_signature: T::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			<NetworkPreference<T>>::insert(authority.clone(), network);
-			Self::deposit_event(Event::NetworkUpdated { authority, network });
+			//<NetworkPreference<T>>::insert(authority.clone(), network);
+			//Self::deposit_event(Event::NetworkUpdated { authority, network });
 			Ok(())
 		}
 
@@ -250,6 +264,16 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	pub fn verify_update_network_pref_call(authority: &T::AccountId, network: &Network, signature: &T::Signature) -> TransactionValidity {
+		let current_validators = <BabeAuthorities<T>>::get();
+		let auth = current_validators.to_vec().into_iter().filter(|(babe_key, thea_key)| authority == babe_key).collect::<Vec<_>>();
+		if auth.is_empty() {
+			return Err(InvalidTransaction::Custom(2).into())
+		} else {
+			signature.clone().ve
+		}
+		unimplemented!()
+	}
 	pub fn active_validators(network: Network) -> Vec<T::TheaId> {
 		let id = Self::validator_set_id();
 		<Authorities<T>>::get(network, id).to_vec()

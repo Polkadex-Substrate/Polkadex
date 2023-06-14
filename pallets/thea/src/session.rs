@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Config, Pallet};
+use crate::{BabeAuthorities, Config, NextBabeAuthorities, Pallet};
 use frame_support::{log, traits::OneSessionHandler};
 use sp_core::{bounded::BoundedVec, Get};
 use sp_std::vec::Vec;
@@ -38,12 +38,13 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		Self::initialize_authorities(&authorities).expect("Authorities vec too big");
 	}
 
-	fn on_new_session<'a, I: 'a>(_changed: bool, validators: I, queued_validators: I)
+	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
 	where
 		I: Iterator<Item = (&'a T::AccountId, T::TheaId)>,
 	{
 		// A new thea message will be sent on session changes when queued != next.
-		let next_authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
+		let mut next_babe_authorities = vec![];
+		let next_authorities = validators.map(|(babe_key, k)| {next_babe_authorities.push((babe_key.clone(), k.clone())); k}).collect::<Vec<_>>();
 		if next_authorities.len() as u32 > T::MaxAuthorities::get() {
 			log::error!(
 				target: "runtime::thea",
@@ -53,8 +54,8 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		}
 		let bounded_next_authorities =
 			BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_authorities);
-
-		let next_queued_authorities = queued_validators.map(|(_, k)| k).collect::<Vec<_>>();
+		let mut next_queued_babe_authorities = vec![];
+		let next_queued_authorities = queued_validators.map(|(babe_key, k)| {next_queued_babe_authorities.push((babe_key.clone(), k.clone()));k}).collect::<Vec<_>>();
 		if next_queued_authorities.len() as u32 > T::MaxAuthorities::get() {
 			log::error!(
 				target: "runtime::thea",
@@ -66,6 +67,16 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 			BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_queued_authorities);
 
 		Self::change_authorities(bounded_next_authorities, bounded_next_queued_authorities);
+		if next_babe_authorities != next_queued_babe_authorities {
+			let bounded_next_authorities =
+				BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_queued_babe_authorities);
+			<NextBabeAuthorities<T>>::put(bounded_next_authorities);
+		}
+		if changed {
+			let bounded_next_authorities =
+				BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_babe_authorities);
+			<BabeAuthorities<T>>::put(bounded_next_authorities);
+		}
 	}
 
 	fn on_disabled(_i: u32) {}
