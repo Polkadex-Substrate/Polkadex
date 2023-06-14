@@ -1457,8 +1457,7 @@ where
 				}
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
-						let at = BlockId::hash(finality.header.hash());
-						if self.runtime.runtime_api().validator_set(&at).ok().is_some() {
+						if self.runtime.runtime_api().validator_set(finality.header.hash()).ok().is_some() {
 								// Pallet is available break and exit
 								break
 						} else {
