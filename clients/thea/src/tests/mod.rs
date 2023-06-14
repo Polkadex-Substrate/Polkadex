@@ -26,11 +26,9 @@ use parking_lot::RwLock;
 use polkadex_primitives::utils::return_set_bits;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
 
-use sc_consensus_grandpa::{
-	GenesisAuthoritySetProvider,
-};
+use sc_consensus_grandpa::GenesisAuthoritySetProvider;
 use sc_keystore::LocalKeystore;
-use sc_network::{NetworkService};
+use sc_network::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_network_test::{
 	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
@@ -46,7 +44,7 @@ use sp_keystore::Keystore;
 use std::{
 	collections::{BTreeMap, HashMap},
 	future::Future,
-	sync::{Arc},
+	sync::Arc,
 };
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,

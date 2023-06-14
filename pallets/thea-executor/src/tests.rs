@@ -26,9 +26,7 @@ use frame_support::{
 };
 use parity_scale_codec::Encode;
 
-
 use thea_primitives::types::{Deposit, Withdraw};
-
 
 #[test]
 fn test_withdraw_returns_ok() {
