@@ -1236,8 +1236,8 @@ impl EnsureOrigin<RuntimeOrigin> for EnsureRootOrTreasury {
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn successful_origin() -> RuntimeOrigin {
-		RuntimeOrigin::from(RawOrigin::Signed(AccountId::new([0u8; 32])))
+	fn try_successful_origin() -> Result<RuntimeOrigin,()> {
+		Ok(RuntimeOrigin::from(RawOrigin::Signed(AccountId::new([0u8; 32]))))
 	}
 }
 
@@ -1746,11 +1746,9 @@ impl_runtime_apis! {
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
-			list_benchmark!(list, extra, asset_handler, AssetHandler);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
-			list_benchmark!(list, extra, pallet_amm, Swap);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1781,11 +1779,9 @@ impl_runtime_apis! {
 			let params = (&config, &allowlist);
 
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
-			add_benchmark!(params, batches, asset_handler, AssetHandler);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
-			add_benchmark!(params, batches, pallet_amm, Swap);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

@@ -192,6 +192,7 @@ runtime-benchmarks = [
   "sp-runtime/runtime-benchmarks",
   "hex-literal",
   "pallet-assets/runtime-benchmarks",
+  "pallet-collective/runtime-benchmarks",
   #our
   "pallet-ocex-lmp/runtime-benchmarks",
   "pdex-migration/runtime-benchmarks",
