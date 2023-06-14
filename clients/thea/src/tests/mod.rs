@@ -25,32 +25,28 @@ use parity_scale_codec::Encode;
 use parking_lot::RwLock;
 use polkadex_primitives::utils::return_set_bits;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
-use sc_consensus::LongestChain;
+
 use sc_consensus_grandpa::{
-	block_import, run_grandpa_voter, Config, GenesisAuthoritySetProvider, GrandpaParams, LinkHalf,
-	SharedVoterState,
+	GenesisAuthoritySetProvider,
 };
 use sc_keystore::LocalKeystore;
-use sc_network::{config::Role, NetworkService};
+use sc_network::{NetworkService};
 use sc_network_sync::SyncingService;
 use sc_network_test::{
-	Block, BlockImportAdapter, FullPeerConfig, Hash, PassThroughVerifier, Peer, PeersClient,
+	Block, BlockImportAdapter, FullPeerConfig, PassThroughVerifier, Peer, PeersClient,
 	PeersFullClient, TestNetFactory,
 };
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_consensus_grandpa::{
-	AuthorityList, EquivocationProof, GrandpaApi, OpaqueKeyOwnershipProof, SetId,
-};
+
 use sp_core::{Pair, H256};
 use sp_keyring::AccountKeyring;
 use sp_keystore::Keystore;
-use sp_runtime::key_types::GRANDPA;
+
 use std::{
 	collections::{BTreeMap, HashMap},
 	future::Future,
-	sync::{Arc, Mutex},
-	time::Duration,
+	sync::{Arc},
 };
 use thea_primitives::{
 	AuthorityId, AuthoritySignature, Message, Network, TheaApi, ValidatorSet, ValidatorSetId,
@@ -285,7 +281,7 @@ where
 {
 	let workers = FuturesUnordered::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		let mut keystore = Arc::new(LocalKeystore::in_memory());
+		let keystore = Arc::new(LocalKeystore::in_memory());
 
 		if is_validator {
 			// Generate the crypto material with test keys,
@@ -347,7 +343,7 @@ where
 {
 	let mut workers = Vec::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		let mut keystore = Arc::new(LocalKeystore::in_memory());
+		let keystore = Arc::new(LocalKeystore::in_memory());
 
 		if is_validator {
 			// Generate the crypto material with test keys,

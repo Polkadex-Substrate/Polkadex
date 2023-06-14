@@ -110,7 +110,7 @@ mod tests {
 
 		let data = serde_json::to_vec(&store).unwrap();
 
-		let mut chunks = data.chunks(10 * 1024 * 1024);
+		let chunks = data.chunks(10 * 1024 * 1024);
 
 		let mut data_restored = Vec::new();
 		for chunk in chunks {

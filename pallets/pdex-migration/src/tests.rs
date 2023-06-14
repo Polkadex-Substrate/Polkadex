@@ -18,6 +18,7 @@
 
 use frame_support::{assert_noop, assert_ok};
 use sp_core::H256;
+use sp_runtime::TokenError;
 use sp_runtime::traits::{BadOrigin, BlockNumberProvider};
 
 use crate::mock::{new_test_ext, PDEXMigration, RuntimeOrigin, Test, PDEX};
@@ -254,7 +255,7 @@ pub fn mint_works() {
 				100,
 				valid_amount - 1 * PDEX
 			), // minus 1 PDEX is because of existential deposit
-			pallet_balances::Error::<Test>::LiquidityRestrictions
+			sp_runtime::DispatchError::Token(TokenError::Frozen)
 		);
 		// Unlock tokens should not work before lock period ends
 		assert_eq!(PDEXMigration::unlock(RuntimeOrigin::signed(beneficiary)).is_err(), true);

@@ -89,7 +89,7 @@ pub async fn test_orderbook_gossip() {
 	let working_state_root = Arc::new(RwLock::new([0; 32]));
 
 	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
-	let (sender, receiver) = futures::channel::mpsc::unbounded();
+	let (_sender, receiver) = futures::channel::mpsc::unbounded();
 	// Now we add a new full node and see if it can catch up.
 	let worker_params = crate::worker::WorkerParams {
 		client: testnet.peers[fifth_node_index].client().as_client(),
@@ -108,7 +108,7 @@ pub async fn test_orderbook_gossip() {
 	};
 	use futures::StreamExt;
 	use sc_client_api::BlockchainEvents;
-	let mut finality_stream_future =
+	let _finality_stream_future =
 		testnet.peers[5].client().as_client().finality_notification_stream().fuse();
 
 	let mut worker = crate::worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
