@@ -36,7 +36,7 @@ use std::{
 	sync::Arc,
 	time::Duration,
 };
-use substrate_test_runtime_client::Ed25519Keyring;
+
 use thea_primitives::{AuthorityId, Message, ValidatorSet, ValidatorSetId};
 
 pub(crate) struct DummyForeignConnector {

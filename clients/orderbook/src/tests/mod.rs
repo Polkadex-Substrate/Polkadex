@@ -42,11 +42,11 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
 
-use sp_blockchain::{BlockStatus, HeaderBackend, Info};
+use sp_blockchain::{HeaderBackend};
 use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::Keystore;
-use sp_runtime::traits::{Header, NumberFor};
+use sp_runtime::traits::{Header};
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tracing::info_span;
 use tracing_futures::Instrument;
@@ -192,7 +192,7 @@ sp_api::mock_impl_runtime_apis! {
 		}
 
 		/// Return the ingress messages at the given block
-		fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
+		fn ingress_messages(_blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
 
 		/// Submits the snapshot to runtime
 		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
@@ -215,7 +215,7 @@ sp_api::mock_impl_runtime_apis! {
 		}
 
 		/// Gets pending snapshot if any
-		fn pending_snapshot(auth: AuthorityId) -> Option<u64>{
+		fn pending_snapshot(_auth: AuthorityId) -> Option<u64>{
 			 // TODO: update this based on current implementation in pallet
 			todo!()
 		}
@@ -380,7 +380,7 @@ where
 		net.peers[peer_id].data.memory_db = Arc::new(RwLock::new(MemoryDB::default()));
 		net.peers[peer_id].data.working_state_root = Arc::new(RwLock::new([0; 32]));
 
-		let mut keystore = Arc::new(LocalKeystore::in_memory());
+		let keystore = Arc::new(LocalKeystore::in_memory());
 
 		if is_validator {
 			// Generate the crypto material with test keys,

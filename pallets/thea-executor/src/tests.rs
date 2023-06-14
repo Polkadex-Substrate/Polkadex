@@ -17,21 +17,18 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	mock::{new_test_ext, Assets, RuntimeOrigin as Origin, Test, *},
+	mock::{new_test_ext, Assets, Test, *},
 	PendingWithdrawals,
 };
 use frame_support::{
-	assert_err, assert_noop, assert_ok,
+	assert_noop, assert_ok,
 	traits::{fungible::Mutate as FungibleMutate, fungibles::Mutate as FungiblesMutate},
 };
 use parity_scale_codec::Encode;
-use sp_core::{H160, H256};
-use sp_runtime::{traits::ConstU32, BoundedVec, SaturatedConversion, TokenError};
+
+
 use thea_primitives::types::{Deposit, Withdraw};
-use xcm::{
-	latest::{AssetId, Fungibility, Junction, Junctions, MultiAsset, MultiLocation, NetworkId},
-	prelude::X1,
-};
+
 
 #[test]
 fn test_withdraw_returns_ok() {
