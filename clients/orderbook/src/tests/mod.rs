@@ -42,11 +42,11 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
 
-use sp_blockchain::{HeaderBackend};
+use sp_blockchain::HeaderBackend;
 use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
 use sp_keystore::Keystore;
-use sp_runtime::traits::{Header};
+use sp_runtime::traits::Header;
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tracing::info_span;
 use tracing_futures::Instrument;
