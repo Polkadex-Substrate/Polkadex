@@ -84,10 +84,12 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
-
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
 		let runtime_api_result = api
-			.account_info(&at, account_id, reward_id)
+			.account_info(at, account_id, reward_id)
 			.map_err(runtime_error_into_rpc_err)?;
 		let json =
 			serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;

@@ -130,9 +130,9 @@ impl Trade {
 
 #[cfg(feature = "std")]
 use chrono::Utc;
+use rust_decimal::prelude::FromPrimitive;
 #[cfg(feature = "std")]
 use sc_network::PeerId;
-use rust_decimal::prelude::FromPrimitive;
 use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
