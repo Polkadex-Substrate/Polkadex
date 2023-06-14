@@ -29,7 +29,7 @@ use parking_lot::RwLock;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetId};
 use primitive_types::H256;
 use rust_decimal::Decimal;
-use sc_network_common::service::NetworkStateInfo;
+use sc_network::NetworkStateInfo;
 use sc_network_test::{FullPeerConfig, TestNetFactory};
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
@@ -150,8 +150,9 @@ pub async fn test_orderbook_snapshot() {
 		client: testnet.peers[fifth_node_index].client().as_client(),
 		backend: testnet.peers[fifth_node_index].client().as_backend(),
 		runtime: runtime.clone(),
-		keystore: None,
+		keystore: Arc::new(sc_keystore::LocalKeystore::in_memory()),
 		network: testnet.peers[fifth_node_index].network_service().clone(),
+		sync: testnet.peers[fifth_node_index].sync_service().clone(),
 		prometheus_registry: None,
 		protocol_name: "/ob/1".into(),
 		is_validator: false,
@@ -161,7 +162,7 @@ pub async fn test_orderbook_snapshot() {
 		working_state_root: working_state_root.clone(),
 	};
 
-	let gadget = crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params)
+	let gadget = crate::start_orderbook_gadget::<_, _, _, _, _, _>(ob_params)
 		.instrument(info_span!("ful:", fifth_node_index));
 
 	testnet.run_until_connected().await;
