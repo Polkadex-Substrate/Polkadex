@@ -44,7 +44,7 @@ benchmarks! {
 		let authority = <T as crate::Config>::TheaId::decode(&mut Public([b as u8; 96]).encode().as_ref()).unwrap();
 		let network = b as u8;
 		let signature = <T as crate::Config>::Signature::decode(&mut Signature([b as u8; 48]).encode().as_ref()).unwrap();
-	}: _(RawOrigin::None, authority, network, signature)
+	}: _(RawOrigin::None, authority.clone(), network, signature)
 	verify {
 		assert_last_event::<T>(Event::NetworkUpdated { authority, network}.into());
 	}
@@ -61,8 +61,11 @@ benchmarks! {
 			validator_set_len: 1
 		};
 		let payload = b"";
+		let key = <T as crate::Config>::TheaId::decode(&mut Public([0u8; 96]).encode().as_ref()).unwrap();
 		let signature = <T as crate::Config>::Signature::decode(&mut b"".as_ref()).unwrap();
-		<Authorities::<T>>::insert(b as u8, 0, vec!(Public([0u8; 96])).try_into().unwrap());
+		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
+		set.try_push(key).unwrap();
+		<Authorities::<T>>::insert(b as u8, 0, set);
 		let bitmap = vec!(u128::MAX); // ALL bits are set :)
 	}: _(RawOrigin::None, bitmap, message, signature)
 	verify {
@@ -72,10 +75,11 @@ benchmarks! {
 
 	send_thea_message {
 		let b in 0 .. 256; // keep within u8 bounds
-		let key = ();
+		let key = <T as crate::Config>::TheaId::decode(&mut Public([0u8; 96]).encode().as_ref()).unwrap();
 		let network = 0 as u8;
 		let data = [b as u8; 1_048_576].to_vec(); // 10MB
-		let set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities>= vec!(key).into();
+		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
+		set.try_push(key).unwrap();
 		<Authorities::<T>>::insert(network, 0, set);
 	}: _(RawOrigin::Root, data, network)
 	verify {
@@ -89,7 +93,7 @@ benchmarks! {
 		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)
 	verify {
-		assert!(<IncomingNonce::<T>>::get(network) == b.into());
+		assert!(<IncomingNonce::<T>>::get(network) == nonce);
 	}
 }
 //
