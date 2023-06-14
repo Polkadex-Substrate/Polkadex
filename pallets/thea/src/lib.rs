@@ -44,6 +44,8 @@ use thea_primitives::{
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+#[cfg(test)]
+mod fixtures;
 mod session;
 
 #[frame_support::pallet]
