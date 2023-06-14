@@ -155,7 +155,10 @@ mod tests {
 	pub fn test_decimal_conversion() {
 		// Decimal is greater
 		let greater = AssetMetadata::new(18).unwrap();
-		assert_eq!(greater.convert_to_native_decimals(1_000_000_000_000_000_000_u128), UNIT_BALANCE);
+		assert_eq!(
+			greater.convert_to_native_decimals(1_000_000_000_000_000_000_u128),
+			UNIT_BALANCE
+		);
 		assert_eq!(
 			greater.convert_from_native_decimals(UNIT_BALANCE),
 			1_000_000_000_000_000_000_u128

@@ -260,9 +260,7 @@ pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	keys.iter()
 		.map(|key| {
 			let seed = key.to_seed();
-			orderbook_primitives::crypto::Pair::from_string(&seed, None)
-				.unwrap()
-				.public()
+			orderbook_primitives::crypto::Pair::from_string(&seed, None).unwrap().public()
 		})
 		.collect()
 }

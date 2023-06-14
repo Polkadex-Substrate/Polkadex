@@ -97,9 +97,7 @@ mod tests {
 			println!("Empty state root: 0x{}", hex::encode(trie.root()));
 
 			assert!(register_main(&mut trie, alice_main.clone(), alice_proxy).is_ok());
-			assert!(
-				deposit(&mut trie, alice_main.clone(), asset_id, starting_balance).is_ok()
-			);
+			assert!(deposit(&mut trie, alice_main.clone(), asset_id, starting_balance).is_ok());
 
 			trie.commit();
 		}
