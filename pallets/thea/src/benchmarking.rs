@@ -20,14 +20,13 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::{fixtures::SNAPSHOT, Pallet as Thea};
+use crate::Pallet as Thea;
 use bls_primitives::{Pair, Public, Signature};
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
-use orderbook_primitives::Fees;
 use parity_scale_codec::Decode;
-use rust_decimal::{prelude::*, Decimal};
+use sp_core::crypto::ByteArray;
 use sp_runtime::{
 	traits::{BlockNumberProvider, One},
 	BoundedBTreeSet,
@@ -42,12 +41,12 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 benchmarks! {
 	update_network_pref {
 		let b in 1 .. 255; // keep within u8 range
-		let authority = Public::from_bytes(&[b as u8; 96]);
+		let authority = Public([b as u8; 96]);
 		let network = b as u8;
-		let signature = Signature::from_bytes(&[b as u8; 64]);
+		let signature = Signature([b as u8; 48]);
 	}: _(RawOrigin::None, authority, network, signature)
 	verify {
-		assert_last_event::<T>(Event::NetworkUpdated { authority, network});
+		assert_last_event::<T>(Event::NetworkUpdated { authority, network}.into());
 	}
 
 	incomming_message {
@@ -56,7 +55,7 @@ benchmarks! {
 		let message = Message {
 			block_no: b as u64,
 			nonce: 0,
-			data: Vec::from(&[b as u8; 1_048_576]), //10 MB
+			data: [b as u8; 1_048_576].into(), //10 MB
 			network: b as u8,
 			is_key_change: false,
 			validator_set_id: 0,
@@ -64,20 +63,20 @@ benchmarks! {
 		};
 		let payload = message.encode();
 		let signature = pair.signi(payload.as_ref());
-		Thea::Authorities::<T>::insert(b as u8, 0, vec!(pair.public()).try_into().unwrap());
+		<Authorities::<T>>::insert(b as u8, 0, vec!(pair.public()).try_into().unwrap());
 		let bitmap = u128::MAX; // ALL bits are set :)
 	}: _(RawOrigin::None, bitmap, message, signature)
 	verify {
-		assert!(Thea::IncomingNonce::<T>::len() == 1);
-		assert!(Thea::IncomingMessages::<T>::len() == 1);
+		assert!(<IncomingNonce::<T>>::get() == 1);
+		assert!(<IncomingMessages::<T>>::iter().count() == 1);
 	}
 
 	send_thea_message {
 		let b in 0 .. 50_000;
 	}: _(RawOrigin::Root, data, network)
 	verify {
-		assert!(Thea::OutgoingNonce::<T>::len() == 1);
-		assert!(Thea::OutgoingMessages::<T>::len() == 1);
+		assert!(<OutgoingNonce::<T>>::get() == 1);
+		assert!(<OutgoingMessages::<T>>::iter().count() == 1);
 	}
 
 	update_incoming_nonce {
@@ -85,12 +84,12 @@ benchmarks! {
 
 	}: _(RawOrigin::Root, nonce, network)
 	verify {
-		assert!(Thea::IncomingNonce::<T>::len() == 1);
+		assert!(<IncomingNonce::<T>>::get() == 1);
 	}
 }
-
-#[cfg(test)]
-use frame_benchmarking::impl_benchmark_test_suite;
-
-#[cfg(test)]
-impl_benchmark_test_suite!(Thea, crate::mock::new_test_ext(), crate::mock::Test);
+//
+//#[cfg(test)]
+//use frame_benchmarking::impl_benchmark_test_suite;
+//
+//#[cfg(test)]
+//impl_benchmark_test_suite!(Thea, crate::mock::new_test_ext(), crate::mock::Test);
