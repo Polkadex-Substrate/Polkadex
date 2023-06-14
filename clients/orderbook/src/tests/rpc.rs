@@ -32,7 +32,7 @@ use sc_keystore::LocalKeystore;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::Pair;
 use sp_keyring::AccountKeyring;
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 use std::{collections::HashMap, sync::Arc};
 
 #[tokio::test]
@@ -93,25 +93,17 @@ pub async fn test_orderbook_rpc() {
 	// Generate the crypto material with test keys,
 	// we have to use file based keystore,
 	// in memory keystore doesn't seem to work here
-	let keystore =
-		Some(Arc::new(LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap()));
+	let keystore = Arc::new(LocalKeystore::in_memory());
 	let (pair, _seed) =
 		orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None).unwrap();
 	// Insert the key
 	keystore
-		.as_ref()
-		.unwrap()
-		.insert_unknown(orderbook_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
-		.await
+		.insert(orderbook_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
 		.unwrap();
 	// Check if the key is present or not
-	keystore
-		.as_ref()
-		.unwrap()
-		.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public())
-		.unwrap();
+	keystore.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public()).unwrap();
 
-	let sync_oracle = testnet.peers[peer_id].network_service().clone();
+	let sync_oracle = testnet.peers[peer_id].sync_service().clone();
 
 	let deps = orderbook_rpc::OrderbookDeps {
 		rpc_channel: sender,

@@ -45,7 +45,7 @@ use sp_arithmetic::traits::SaturatedConversion;
 use sp_blockchain::{BlockStatus, HeaderBackend, Info};
 use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 use sp_runtime::traits::{Header, NumberFor};
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tracing::info_span;
@@ -299,6 +299,10 @@ impl TestNetFactory for ObTestnet {
 		&self.peers
 	}
 
+	fn peers_mut(&mut self) -> &mut Vec<Peer<Self::PeerData, Self::BlockImport>> {
+		self.peers.as_mut()
+	}
+
 	fn mut_peers<F: FnOnce(&mut Vec<Peer<PeerData, PeersClient>>)>(&mut self, closure: F) {
 		closure(&mut self.peers);
 	}
@@ -376,35 +380,24 @@ where
 		net.peers[peer_id].data.memory_db = Arc::new(RwLock::new(MemoryDB::default()));
 		net.peers[peer_id].data.working_state_root = Arc::new(RwLock::new([0; 32]));
 
-		let mut keystore = None;
+		let mut keystore = Arc::new(LocalKeystore::in_memory());
 
 		if is_validator {
 			// Generate the crypto material with test keys,
 			// we have to use file based keystore,
 			// in memory keystore doesn't seem to work here
-			keystore = Some(Arc::new(
-				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
-			));
+			// keystore = Some(Arc::new(
+			// 	LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
+			// ));
 			let (pair, _seed) =
 				orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None)
 					.unwrap();
 			// Insert the key
 			keystore
-				.as_mut()
-				.unwrap()
-				.insert_unknown(
-					orderbook_primitives::KEY_TYPE,
-					&key.to_seed(),
-					pair.public().as_ref(),
-				)
-				.await
+				.insert(orderbook_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
 				.unwrap();
 			// Check if the key is present or not
-			keystore
-				.as_ref()
-				.unwrap()
-				.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public())
-				.unwrap();
+			keystore.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public()).unwrap();
 		}
 
 		let ob_params = crate::ObParams {
@@ -413,6 +406,7 @@ where
 			runtime: api,
 			keystore,
 			network: net.peers[peer_id].network_service().clone(),
+			sync: net.peers[peer_id].sync_service().clone(),
 			prometheus_registry: None,
 			protocol_name: "/ob/1".into(),
 			is_validator,
@@ -423,10 +417,10 @@ where
 		};
 
 		let gadget = if is_validator {
-			crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params)
+			crate::start_orderbook_gadget::<_, _, _, _, _, _>(ob_params)
 				.instrument(info_span!("val:", peer_id))
 		} else {
-			crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params)
+			crate::start_orderbook_gadget::<_, _, _, _, _, _>(ob_params)
 				.instrument(info_span!("ful:", peer_id))
 		};
 
