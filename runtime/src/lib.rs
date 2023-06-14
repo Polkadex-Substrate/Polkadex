@@ -1330,6 +1330,7 @@ impl thea::pallet::Config for Runtime {
 	type Signature = thea_primitives::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
