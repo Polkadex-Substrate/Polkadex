@@ -58,9 +58,9 @@ pub(crate) mod orderbook_protocol_name {
 
 	const NAME: &str = "/ob/1";
 
-	/// Name of the notifications protocol used by BEEFY.
+	/// Name of the notifications protocol used by Orderbook.
 	///
-	/// Must be registered towards the networking in order for BEEFY to properly function.
+	/// Must be registered towards the networking in order for Orderbook to properly function.
 	pub fn standard_name<Hash: AsRef<[u8]>>(
 		genesis_hash: &Hash,
 		chain_spec: &dyn ChainSpec,
