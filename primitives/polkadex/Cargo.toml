@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-primitives"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Gautham J <Gauthamastro@gmail.com>"]
 edition = "2021"
 
