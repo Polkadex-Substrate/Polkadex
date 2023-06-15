@@ -665,8 +665,8 @@ where
 	#[cfg(test)]
 	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
 		let offchain_storage = self.backend.offchain_storage().unwrap();
-		let result = offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode());
-		return result
+
+		offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode())
 	}
 
 	/// Prepares and persists snapshot and worker nonce to the offchain storage and returns snapshot

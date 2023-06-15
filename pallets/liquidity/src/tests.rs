@@ -34,10 +34,10 @@ fn get_account_generation_key() -> u32 {
 fn register_pallet_account() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), u32::MAX));
-		assert_eq!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MAX), true);
+		assert!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MAX));
 
 		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), u32::MIN));
-		assert_eq!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MIN), true);
+		assert!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MIN));
 	});
 }
 

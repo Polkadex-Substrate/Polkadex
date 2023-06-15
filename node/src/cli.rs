@@ -59,7 +59,7 @@ pub enum Subcommand {
 	// Inspect(node_inspect::cli::InspectCmd),
 	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[clap(subcommand)]
-	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+	Benchmark(Box<frame_benchmarking_cli::BenchmarkCmd>),
 
 	/// Try some command against runtime state.
 	#[cfg(feature = "try-runtime")]
@@ -71,7 +71,7 @@ pub enum Subcommand {
 
 	/// Key management cli utilities
 	#[clap(subcommand)]
-	Key(sc_cli::KeySubcommand),
+	Key(Box<sc_cli::KeySubcommand>),
 
 	/// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
 	Verify(sc_cli::VerifyCmd),

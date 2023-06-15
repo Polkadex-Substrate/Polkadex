@@ -94,6 +94,7 @@ pub trait OcexWeightInfo {
 	fn set_snapshot() -> Weight;
 	fn change_pending_withdrawal_limit() -> Weight;
 	fn change_snapshot_interval_block() -> Weight;
+	fn whitelist_orderbook_operator() -> Weight;
 }
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -1084,7 +1085,7 @@ pub mod pallet {
 
 		/// Submit Snapshot Summary
 		#[pallet::call_index(18)]
-		#[pallet::weight(10000)]
+		#[pallet::weight(<T as Config>::WeightInfo::whitelist_orderbook_operator())]
 		pub fn whitelist_orderbook_operator(
 			origin: OriginFor<T>,
 			operator_public_key: sp_core::ecdsa::Public,

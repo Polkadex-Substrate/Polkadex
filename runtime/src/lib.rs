@@ -1330,6 +1330,7 @@ impl thea::pallet::Config for Runtime {
 	type Signature = thea_primitives::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1749,6 +1750,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
+			list_benchmark!(list, extra, thea, Thea);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1782,6 +1784,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
+			add_benchmark!(params, batches, thea, Thea);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

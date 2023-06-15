@@ -32,7 +32,6 @@ use sp_std::cmp::Ordering;
 use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use std::{
-	borrow::Borrow,
 	fmt::{Display, Formatter},
 	ops::{Mul, Rem},
 	str::FromStr,
@@ -96,7 +95,7 @@ impl Trade {
 	///
 	/// * `market`: Defines if order is a market order.
 	pub fn credit(&self, maker: bool) -> (AccountAsset, Decimal) {
-		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
+		let user = if maker { &self.maker } else { &self.taker };
 		let (base, quote) = (user.pair.base, user.pair.quote);
 		match user.side {
 			OrderSide::Ask => (
@@ -115,7 +114,7 @@ impl Trade {
 	///
 	/// * `market`: Defines if order is a market order.
 	pub fn debit(&self, maker: bool) -> (AccountAsset, Decimal) {
-		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
+		let user = if maker { &self.maker } else { &self.taker };
 		let (base, quote) = (user.pair.base, user.pair.quote);
 		match user.side {
 			OrderSide::Ask =>
