@@ -810,7 +810,7 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bls-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
@@ -4332,7 +4332,7 @@ checksum = "ef53942eb7bf7ff43a617b3e2c1c4a5ecf5944a7c1bc12d7ee39bbb15e5c1519"
 
 [[package]]
 name = "liquidity"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4875,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.0.1"
+version = "5.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -5153,7 +5153,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "blst",
@@ -5214,7 +5214,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "bls-primitives",
@@ -5240,7 +5240,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook-rpc"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "futures 0.3.28",
  "hex",
@@ -5711,7 +5711,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "5.0.0"
+version = "5.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -5802,7 +5802,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-rewards"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6373,7 +6373,7 @@ checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
 
 [[package]]
 name = "polkadex-client"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -6383,7 +6383,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.0.1"
+version = "5.1.1"
 dependencies = [
  "clap 4.3.3",
  "frame-benchmarking-cli",
@@ -6462,7 +6462,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "frame-support",
@@ -10735,7 +10735,7 @@ dependencies = [
 
 [[package]]
 name = "thea"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -10758,7 +10758,7 @@ dependencies = [
 
 [[package]]
 name = "thea-client"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "bls-primitives",
@@ -10812,7 +10812,7 @@ dependencies = [
 
 [[package]]
 name = "thea-executor"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -10838,7 +10838,7 @@ dependencies = [
 
 [[package]]
 name = "thea-message-handler"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -10861,7 +10861,7 @@ dependencies = [
 
 [[package]]
 name = "thea-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-support",
