@@ -402,7 +402,8 @@ pub fn new_full_base(
 		config.chain_spec.as_ref(),
 	);
 
-	net_config.add_notification_protocol(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
+	net_config
+		.add_notification_protocol(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
