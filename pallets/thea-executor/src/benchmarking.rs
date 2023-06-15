@@ -20,6 +20,10 @@
 use super::*;
 use crate::Pallet as TheaExecutor;
 use parity_scale_codec::Decode;
+use sp_std::vec;
+use sp_std::vec::Vec;
+use sp_std::boxed::Box;
+use sp_runtime::traits::AccountIdConversion;
 
 use frame_benchmarking::v1::{account, benchmarks, whitelisted_caller, BenchmarkError};
 use frame_support::{
@@ -71,23 +75,21 @@ benchmarks! {
 
     withdraw {
         let r in 1 .. 1000;
-        //Create Asset
         let asset_id: T::AssetId = 100u128.into();
         let admin = account::<T::AccountId>("admin", 1, r);
         let network_id = 1;
-        T::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into());
-        //Mint Tokens
+        T::Currency::mint_into(&admin, 100_000_000_000_000_000_000u128.saturated_into());
+        T::Assets::create(asset_id.into(), admin.clone(), true, 1u128.saturated_into()).unwrap();
         let account = account::<T::AccountId>("alice", 1, r);
-        T::Assets::mint_into(asset_id.into(), &account, 1_000_000_000_000u128.saturated_into());
-        //Mint Native Asset
-        T::Currency::mint_into(&account, 1_000_000_000_000u128.saturated_into());
-        //Set Metadata
-        let metadata = AssetMetadata::new(10).unwrap();
+        T::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+        T::Currency::mint_into(&account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+        let pallet_acc = T::TheaPalletId::get().into_account_truncating();
+        T::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+        let metadata = AssetMetadata::new(3).unwrap();
         <Metadata<T>>::insert(100, metadata);
-        //Set Withdrawal Fee
-        <WithdrawalFees<T>>::insert(network_id, 1_000);
+        <WithdrawalFees<T>>::insert(network_id, 10);
         let benificary = vec![1;32];
-    }: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, benificary, true, network_id)
+    }: _(RawOrigin::Signed(account.clone()), 100, 1_000, benificary, true, network_id)
     verify {
         let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
         assert_eq!(ready_withdrawal.len(), 1);
@@ -95,20 +97,17 @@ benchmarks! {
 
     parachain_withdraw {
         let r in 1 .. 1000;
-        //Create Asset
         let asset_id: T::AssetId = 100u128.into();
         let admin = account::<T::AccountId>("admin", 1, r);
         let network_id = 1;
         T::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into());
-        //Mint Tokens
+        let pallet_acc = T::TheaPalletId::get().into_account_truncating();
+        T::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
         let account = account::<T::AccountId>("alice", 1, r);
-        T::Assets::mint_into(asset_id.into(), &account, 1_000_000_000_000u128.saturated_into());
-        //Mint Native Asset
-        T::Currency::mint_into(&account, 1_000_000_000_000u128.saturated_into());
-        //Set Metadata
+        T::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into());
+        T::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into());
         let metadata = AssetMetadata::new(10).unwrap();
         <Metadata<T>>::insert(100, metadata);
-        //Set Withdrawal Fee
         <WithdrawalFees<T>>::insert(network_id, 1_000);
         let multilocation = MultiLocation { parents: 1, interior: Junctions::Here };
         let benificary = VersionedMultiLocation::V3(multilocation);

@@ -1342,6 +1342,7 @@ impl thea_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type Assets = Assets;
+	type AssetId = u128;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type Executor = Thea;
 	type NativeAssetId = PolkadexAssetId;
@@ -1749,6 +1750,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
+			list_benchmark!(list, extra, thea_executor, TheaExecutor);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1782,6 +1784,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
+			add_benchmark!(params, batches, thea_executor, TheaExecutor);  //TheaExecutor: thea_executor
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
