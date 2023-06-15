@@ -402,7 +402,7 @@ pub fn new_full_base(
 		config.chain_spec.as_ref(),
 	);
 
-	net_config.add_notification_protocol(thea_client::thea_peers_set_config(thea_protocol_name));
+	net_config.add_notification_protocol(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
@@ -649,6 +649,7 @@ pub fn new_full_base(
 		prometheus_registry,
 		marker: Default::default(),
 		is_validator: role.is_authority(),
+		protocol_name: thea_protocol_name,
 		chain_type,
 		foreign_chain_url,
 		dummy_mode: thea_dummy_mode,
