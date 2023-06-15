@@ -41,14 +41,14 @@ pub trait Resolver<
 	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
 		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>
 	    + frame_support::traits::tokens::fungibles::Create<AccountId>,
-	AssetIdNew: Into<Others::AssetId> + sp_std::cmp::PartialEq + Copy,
-	NativeAssetId: Get<AssetIdNew>,
+	AssetId: Into<Others::AssetId> + sp_std::cmp::PartialEq + Copy,
+	NativeAssetId: Get<AssetId>,
 >
 {
 	/// Deposit will mint new tokens if asset is non native and in case of native, will transfer
 	/// native tokens from `NativeLockingAccount` to `who`
 	fn resolver_deposit(
-		asset: AssetIdNew,
+		asset: AssetId,
 		amount: Balance,
 		who: &AccountId,
 		admin: AccountId,
@@ -74,7 +74,7 @@ pub trait Resolver<
 	/// Deposit will burn tokens if asset is non native and in case of native, will transfer
 	/// native tokens from `who` to `NativeLockingAccount`
 	fn resolver_withdraw(
-		asset: AssetIdNew,
+		asset: AssetId,
 		amount: Balance,
 		who: &AccountId,
 		locking_account: AccountId,
