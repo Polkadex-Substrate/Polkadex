@@ -47,7 +47,7 @@ runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "lazy_static"
+  "lazy_static",
 ]
 try-runtime = ["frame-support/try-runtime"]
 parachain = ["bls-primitives/parachain"]
