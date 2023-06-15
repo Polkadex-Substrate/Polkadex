@@ -91,7 +91,9 @@ pub mod session_keys {
 			let session_keys: Vec<(AccountId, SessionKeys)> =
 				pallet_session::QueuedKeys::<Runtime>::get();
 			if session_keys.is_empty() {
-				return Err( sp_runtime::TryRuntimeError::Other("Error reading sessiong keys after upgrade"))
+				return Err(sp_runtime::TryRuntimeError::Other(
+					"Error reading sessiong keys after upgrade",
+				))
 			}
 			Ok(())
 		}
