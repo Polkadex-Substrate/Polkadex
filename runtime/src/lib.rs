@@ -1445,7 +1445,7 @@ pub type Executive = frame_executive::Executive<
 >;
 
 pub type Migrations = (migration::session_keys::MigrateToV5,);
-
+use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -1571,12 +1571,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
+	impl rpc_assets_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
 		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
 			assets
 				.iter()
 				.map(|asset| {
-					if asset != POLKADEX_NATIVE_ASSET_ID {
+					if *asset != POLKADEX_NATIVE_ASSET_ID {
 					Assets::balance(*asset, &account_id).saturated_into()
 					}else{
 					Balances::balance(&account_id).saturated_into()
