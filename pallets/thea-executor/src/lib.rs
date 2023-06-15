@@ -69,6 +69,7 @@ pub mod pallet {
 			+ frame_support::traits::tokens::fungible::Inspect<Self::AccountId>;
 		/// Assets Pallet
 		type Assets: frame_support::traits::tokens::fungibles::Mutate<Self::AccountId>
+		    + frame_support::traits::tokens::fungibles::Create<Self::AccountId>
 			+ frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>;
 		/// Asset Id
 		type AssetId: Member + Parameter + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId> + From<u128>;
@@ -236,7 +237,6 @@ pub mod pallet {
 			let mut deposits = <ApprovedDeposits<T>>::get(&user);
 			let length: u32 = deposits.len().saturated_into();
 			let length: u32 = if length <= num_deposits { length } else { num_deposits };
-
 			for _ in 0..length {
 				if let Some(deposit) = deposits.pop() {
 					if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
@@ -449,6 +449,8 @@ pub mod pallet {
 				// Convert the decimals config
 				deposit.amount_in_native_decimals(metadata),
 				&recipient,
+				Self::thea_account(),
+				1u128,
 				Self::thea_account(),
 			)?;
 
