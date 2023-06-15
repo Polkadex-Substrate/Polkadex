@@ -66,8 +66,8 @@ fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {
 benchmarks! {
 	register_main_account {
 		let b in 0 .. 50_000;
-		let origin = T::EnclaveOrigin::successful_origin();
-		let account = T::EnclaveOrigin::successful_origin();
+		let origin = T::EnclaveOrigin::try_successful_origin().unwrap();
+		let account = T::EnclaveOrigin::try_successful_origin().unwrap();
 		let main: T::AccountId = match unsafe { origin.clone().into().unwrap_unchecked() } {
 			RawOrigin::Signed(account) => account.into(),
 			_ => panic!("wrong RawOrigin returned")
@@ -88,7 +88,7 @@ benchmarks! {
 
 	add_proxy_account {
 		let x in 0 .. 255; // should not overflow u8
-		let origin = T::EnclaveOrigin::successful_origin();
+		let origin = T::EnclaveOrigin::try_successful_origin().unwrap();
 		let main: T::AccountId = match unsafe { origin.clone().into().unwrap_unchecked() } {
 			RawOrigin::Signed(account) => account.into(),
 			_ => panic!("wrong RawOrigin returned")
@@ -107,7 +107,7 @@ benchmarks! {
 
 	close_trading_pair {
 		let x in 1 .. 50_000;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let base = AssetId::Asset(x.into());
 		let quote = AssetId::Asset((x + 1).into());
 		let config = tpc(base, quote);
@@ -128,7 +128,7 @@ benchmarks! {
 
 	open_trading_pair {
 		let x in 0 .. 100_000;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let base = AssetId::Asset(x.into());
 		let quote = AssetId::Asset((x + 1).into());
 		let config = tpc(base, quote);
@@ -144,7 +144,7 @@ benchmarks! {
 
 	register_trading_pair {
 		let x in 0 .. 100_000;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let base = AssetId::Asset(x.into());
 		let quote = AssetId::Asset((x + 1).into());
 		let TradingPairConfig{
@@ -181,7 +181,7 @@ benchmarks! {
 
 	update_trading_pair {
 		let x in 0 .. 100_000;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let base = AssetId::Asset(x.into());
 		let quote = AssetId::Asset((x + 1).into());
 		let mut tp = tpc(base, quote);
@@ -198,7 +198,7 @@ benchmarks! {
 			base_asset_precision,
 			quote_asset_precision,
 			} = tp.clone();
-		let governance = T::GovernanceOrigin::successful_origin();
+		let governance = T::GovernanceOrigin::try_successful_origin().unwrap();
 		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
 		tp.operational_status = false;
 		<TradingPairs<T>>::insert(base_asset, quote_asset, tp);
@@ -225,7 +225,7 @@ benchmarks! {
 		let user = account::<T::AccountId>("user", x, 0);
 		let asset = AssetId::Asset(x.into());
 		let amount  = BalanceOf::<T>::decode(&mut &(x as u128).saturating_mul(10u128).to_le_bytes()[..]).unwrap();
-		let governance = T::GovernanceOrigin::successful_origin();
+		let governance = T::GovernanceOrigin::try_successful_origin().unwrap();
 		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
 		Ocex::<T>::allowlist_token(governance.clone(), asset.clone())?;
 		use frame_support::traits::fungibles::Create;
@@ -255,7 +255,7 @@ benchmarks! {
 		let x in 1 .. 255; // should not overflow u8
 		let main = account::<T::AccountId>("main", 0, 0);
 		let proxy = T::AccountId::decode(&mut &[x as u8 ; 32].to_vec()[..]).unwrap();
-		let governance = T::GovernanceOrigin::successful_origin();
+		let governance = T::GovernanceOrigin::try_successful_origin().unwrap();
 		Ocex::<T>::set_exchange_state(governance.clone(), true)?;
 		let signed = RawOrigin::Signed(main.clone());
 		Ocex::<T>::register_main_account(signed.clone().into(), proxy.clone())?;
@@ -284,7 +284,7 @@ benchmarks! {
 
 	collect_fees {
 		let x in 0 .. 255; // should not overflow u8
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let beneficiary = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::new(100, 1) };
 		<ExchangeState<T>>::put(true);
@@ -299,7 +299,7 @@ benchmarks! {
 	set_exchange_state {
 		let x in 0 .. 100_000;
 		let state = x % 2 == 0;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		<ExchangeState<T>>::put(state);
 		let call = Call::<T>::set_exchange_state { state: !state };
 	}: { call.dispatch_bypass_filter(origin)? }
@@ -309,7 +309,7 @@ benchmarks! {
 
 	set_balances {
 		let x in 0 .. 255; // should not overflow up
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let main_account = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		let asset_id = AssetId::Asset(x as u128);
 		let hb = polkadex_primitives::ingress::HandleBalance {
@@ -332,8 +332,8 @@ benchmarks! {
 
 	claim_withdraw {
 		let x in 1 .. 255; // should not overflow u8
-		let governance = T::GovernanceOrigin::successful_origin();
-		let origin = T::EnclaveOrigin::successful_origin();
+		let governance = T::GovernanceOrigin::try_successful_origin().unwrap();
+		let origin = T::EnclaveOrigin::try_successful_origin().unwrap();
 		let main = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		let asset = AssetId::Asset(x.into());
 		let amount = BalanceOf::<T>::decode(&mut &(x as u128).to_le_bytes()[..]).unwrap();
@@ -374,7 +374,7 @@ benchmarks! {
 
 	allowlist_token {
 		let x in 0 .. 65_000;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let asset_id = AssetId::Asset(x.into());
 		<ExchangeState<T>>::put(true);
 		let call = Call::<T>::allowlist_token { token: asset_id };
@@ -385,7 +385,7 @@ benchmarks! {
 
 	remove_allowlisted_token {
 		let x in 0 .. 65_000;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let asset_id = AssetId::Asset(x.into());
 		let mut at: BoundedBTreeSet<AssetId, AllowlistedTokenLimit> = BoundedBTreeSet::new();
 		at.try_insert(asset_id).unwrap();
@@ -402,15 +402,24 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
 
 	change_pending_withdrawal_limit {
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let call = Call::<T>::change_pending_withdrawal_limit { new_pending_withdrawals_limit: u64::MAX };
 	}: { call.dispatch_bypass_filter(origin)? }
 
 	change_snapshot_interval_block {
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let new_snapshot_interval_block = T::BlockNumber::decode(&mut 123u64.to_le_bytes().as_ref()).unwrap();
 		let call = Call::<T>::change_snapshot_interval_block{ new_snapshot_interval_block };
 	}: { call.dispatch_bypass_filter(origin)? }
+
+	whitelist_orderbook_operator {
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
+		let operator_public_key = sp_core::ecdsa::Public([u8::MAX; 33]);
+		let call = Call::<T>::whitelist_orderbook_operator { operator_public_key };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert!(<OrderbookOperatorPublicKey<T>>::get().unwrap() == operator_public_key);
+	}
 }
 
 #[cfg(test)]

@@ -88,8 +88,7 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				service::new_full(config, cli.foreign_chain_url, cli.thea_dummy_mode)
-					.map_err(sc_cli::Error::Service)
+				service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},
 		// Some(Subcommand::Inspect(cmd)) => {
@@ -98,12 +97,12 @@ pub fn run() -> Result<()> {
 		//     runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
 		// },
 		Some(Subcommand::Benchmark(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
+			let runner = cli.create_runner(cmd.as_ref())?;
 
 			runner.sync_run(|config| {
 				// This switch needs to be in the client, since the client decides
 				// which sub-commands it wants to support.
-				match cmd {
+				match cmd.as_ref() {
 					BenchmarkCmd::Pallet(cmd) => {
 						if !cfg!(feature = "runtime-benchmarks") {
 							return Err(
@@ -219,7 +218,7 @@ pub fn run() -> Result<()> {
 				let PartialComponents { client, task_manager, backend, .. } = new_partial(&config)?;
 				let aux_revert = Box::new(move |client: Arc<FullClient>, backend, blocks| {
 					sc_consensus_babe::revert(client.clone(), backend, blocks)?;
-					sc_finality_grandpa::revert(client, blocks)?;
+					sc_consensus_grandpa::revert(client, blocks)?;
 					Ok(())
 				});
 				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
@@ -236,11 +235,15 @@ pub fn run() -> Result<()> {
 				let task_manager =
 					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+
+				let info_provider = try_runtime_cli::block_building_info::substrate_info(
+					node_polkadex_runtime::constants::time::SLOT_DURATION,
+				);
 				Ok((
 					cmd.run::<Block, sc_executor::sp_wasm_interface::ExtendedHostFunctions<
 						frame_support::sp_io::SubstrateHostFunctions,
 						<ExecutorDispatch as sc_executor::NativeExecutionDispatch>::ExtendHostFunctions,
-					>>(),
+					>,_>(Some(info_provider)),
 					task_manager,
 				))
 			})

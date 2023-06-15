@@ -41,7 +41,7 @@ benchmarks! {
 		let i in 1..100;
 		let r in 0..10;
 
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let start_block = b as u32;
 		let end_block = start_block + 1;
 

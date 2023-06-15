@@ -155,18 +155,21 @@ mod tests {
 	pub fn test_decimal_conversion() {
 		// Decimal is greater
 		let greater = AssetMetadata::new(18).unwrap();
-		assert_eq!(greater.convert_to_native_decimals(1000_000_000_000_000_000u128), UNIT_BALANCE);
+		assert_eq!(
+			greater.convert_to_native_decimals(1_000_000_000_000_000_000_u128),
+			UNIT_BALANCE
+		);
 		assert_eq!(
 			greater.convert_from_native_decimals(UNIT_BALANCE),
-			1000_000_000_000_000_000u128
+			1_000_000_000_000_000_000_u128
 		);
 		assert_eq!(
-			greater.convert_to_native_decimals(1234_567_891_234_567_890u128),
-			1234_567_891_234u128
+			greater.convert_to_native_decimals(1_234_567_891_234_567_890_u128),
+			1_234_567_891_234_u128
 		);
 		assert_eq!(
-			greater.convert_from_native_decimals(1234_567_891_234u128),
-			1234_567_891_234_000_000u128
+			greater.convert_from_native_decimals(1_234_567_891_234_u128),
+			1_234_567_891_234_000_000_u128
 		);
 
 		// Decimal is same
