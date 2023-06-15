@@ -1358,6 +1358,7 @@ impl thea_message_handler::Config for Runtime {
 	type Signature = thea_primitives::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
 }
 
 construct_runtime!(
