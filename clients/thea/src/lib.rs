@@ -51,23 +51,33 @@ mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
+	use sc_chain_spec::ChainSpec;
 
 	/// Protocol name.
 	pub(crate) const NAME: &str = "/thea/1";
 
-	/// Name of the notifications protocol used by Thea.
+	/// Name of the notifications protocol used by BEEFY.
 	///
-	/// Must be registered towards the networking in order for Thea to properly function.
-	pub fn standard_name() -> sc_network::ProtocolName {
-		sc_network::ProtocolName::Static(NAME)
+	/// Must be registered towards the networking in order for BEEFY to properly function.
+	pub fn standard_name<Hash: AsRef<[u8]>>(
+		genesis_hash: &Hash,
+		chain_spec: &dyn ChainSpec,
+	) -> sc_network::ProtocolName {
+		let chain_prefix = match chain_spec.fork_id() {
+			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),
+			None => format!("/{}", hex::encode(genesis_hash)),
+		};
+		format!("{chain_prefix}{NAME}").into()
 	}
 }
 
 /// Returns the configuration value to put in
 /// [`sc_network::config::NetworkConfiguration::extra_sets`].
 /// For standard protocol name see [`thea_protocol_name::standard_name`].
-pub fn thea_peers_set_config() -> sc_network::config::NonDefaultSetConfig {
-	let mut cfg = sc_network::config::NonDefaultSetConfig::new(standard_name(), 1024 * 1024);
+pub fn thea_peers_set_config(
+	protocol_name: sc_network::ProtocolName,
+) -> sc_network::config::NonDefaultSetConfig {
+	let mut cfg = sc_network::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
 
 	cfg.allow_non_reserved(25, 25);
 	cfg
@@ -105,7 +115,6 @@ use crate::{
 		parachain::ParachainClient,
 		traits::{ForeignConnector, NoOpConnector},
 	},
-	thea_protocol_name::standard_name,
 	worker::TheaWorker,
 };
 use sc_network_gossip::{Network as GossipNetwork, Syncing};
@@ -138,6 +147,8 @@ where
 	/// Boolean indicating if this node is a validator.
 	pub is_validator: bool,
 	pub marker: PhantomData<B>,
+	/// Chain specific Thea protocol name. See [`thea_protocol_name::standard_name`].
+	pub protocol_name: sc_network::ProtocolName,
 	/// Defines the chain type our current deployment (Dev or production).
 	pub chain_type: ChainType,
 	/// Foreign Chain URL.
@@ -169,6 +180,7 @@ where
 		prometheus_registry,
 		is_validator,
 		marker: _,
+		protocol_name,
 		chain_type,
 		foreign_chain_url,
 		dummy_mode,
@@ -203,6 +215,7 @@ where
 		metrics,
 		_marker: Default::default(),
 		foreign_chain: foreign_connector,
+		protocol_name,
 	};
 
 	let worker = TheaWorker::<_, _, _, _, _, _, _>::new(worker_params).await;
