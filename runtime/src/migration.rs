@@ -82,16 +82,16 @@ pub mod session_keys {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
 			Ok(Vec::new())
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(_: Vec<u8>) -> Result<(), &'static str> {
+		fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
 			let session_keys: Vec<(AccountId, SessionKeys)> =
 				pallet_session::QueuedKeys::<Runtime>::get();
 			if session_keys.is_empty() {
-				return Err("Error reading sessiong keys after upgrade")
+				return Err( sp_runtime::TryRuntimeError::Other("Error reading sessiong keys after upgrade"))
 			}
 			Ok(())
 		}
