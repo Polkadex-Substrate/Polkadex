@@ -20,6 +20,7 @@
 panic = "unwind"
 
 [workspace]
+resolver = "2"
 members = [
   "client",
   "node",

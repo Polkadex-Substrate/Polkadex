@@ -48,7 +48,7 @@ pub async fn test_orderbook_rpc() {
 	];
 
 	let active: Vec<AuthorityId> =
-		make_ob_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
+		make_ob_ids(&peers.iter().map(|(k, _)| *k).collect::<Vec<AccountKeyring>>());
 
 	let main = AccountKeyring::Alice;
 	let proxy1 = AccountKeyring::Bob;
@@ -109,8 +109,8 @@ pub async fn test_orderbook_rpc() {
 		rpc_channel: sender,
 		memory_db: testnet.peers[peer_id].data.memory_db.clone(),
 		working_state_root: testnet.peers[peer_id].data.working_state_root.clone(),
-		backend: testnet.peers[peer_id].client().as_backend().clone(),
-		client: testnet.peers[peer_id].client().as_client().clone(),
+		backend: testnet.peers[peer_id].client().as_backend(),
+		client: testnet.peers[peer_id].client().as_client(),
 		runtime: runtime.clone(),
 	};
 	let rpc_handle = OrderbookRpc::new(deps);
