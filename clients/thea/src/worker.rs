@@ -46,7 +46,6 @@ use crate::{
 	keystore::TheaKeyStore,
 	metric_add, metric_inc,
 	metrics::Metrics,
-	thea_protocol_name,
 	types::GossipMessage,
 	Client,
 };
@@ -67,6 +66,8 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector +
 	pub is_validator: bool,
 	/// Gossip network.
 	pub network: N,
+	/// Chain specific Thea protocol name. See [`thea_protocol_name::standard_name`].
+	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
 	/// Foreign chain connector.
 	pub foreign_chain: Arc<FC>,
@@ -122,7 +123,7 @@ where
 			client,
 			backend,
 			runtime,
-			foreign_chain,
+			protocol_name, foreign_chain,
 			keystore,
 			sync_oracle,
 			metrics,
@@ -142,7 +143,7 @@ where
 		let gossip_engine = GossipEngine::new(
 			network.clone(),
 			sync_oracle.clone(),
-			thea_protocol_name::standard_name(),
+			protocol_name,
 			gossip_validator,
 			None,
 		);
