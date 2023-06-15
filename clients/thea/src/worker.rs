@@ -172,7 +172,7 @@ where
 	///
 	/// * `message`: Message to sign.
 	pub fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
-		let network = self.thea_network.expect("Expected the network to be defined here.");
+		let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 		info!(target:"thea", "Serving network: {:?}", network);
 		let active = self
 			.runtime
@@ -448,7 +448,7 @@ where
 
 	/// Provides the identity of the Orderbook authority.
 	pub fn get_local_auth_index(&self) -> Result<AuthorityIndex, Error> {
-		let network = self.thea_network.expect("🌉 Expected the thea network to be initialized");
+		let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 		let active = self
 			.runtime
 			.runtime_api()
