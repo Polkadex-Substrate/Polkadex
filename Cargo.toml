@@ -28,6 +28,8 @@ members = [
   "clients/orderbook",
   "clients/orderbook/rpc",
   "clients/thea",
+  "rpc/assets",
+  "rpc/assets/runtime-api",
   "pallets/pdex-migration",
   "pallets/ocex",
   "pallets/rewards",

@@ -1571,6 +1571,21 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
+		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
+			assets
+				.iter()
+				.map(|asset| {
+					if asset != POLKADEX_NATIVE_ASSET_ID {
+					Assets::balance(*asset, &account_id).saturated_into()
+					}else{
+					Balances::balance(&account_id).saturated_into()
+				}
+				})
+				.collect()
+		}
+	}
+
 	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block,AccountId,Hash> for Runtime {
 		fn account_info(account_id : AccountId, reward_id: u32) ->  Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, sp_runtime::DispatchError> {
 			Rewards::account_info(account_id,reward_id)
