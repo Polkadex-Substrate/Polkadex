@@ -1352,6 +1352,14 @@ impl thea_executor::Config for Runtime {
 	type ParaId = ParaId;
 }
 
+impl thea_message_handler::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type TheaId = thea_primitives::AuthorityId;
+	type Signature = thea_primitives::AuthoritySignature;
+	type MaxAuthorities = MaxAuthorities;
+	type Executor = TheaExecutor;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1398,7 +1406,8 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 39,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
-		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44
+		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44,
+		TheaMH: thea_message_handler::pallet::{Pallet, Call, Storage, Event<T>} = 45
 	}
 );
 /// Digest item type.
@@ -1770,6 +1779,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
 			list_benchmark!(list, extra, thea, Thea);
+			list_benchmark!(list, extra, thea_message_handler, TheaMH);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1804,6 +1814,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
 			add_benchmark!(params, batches, thea, Thea);
+			add_benchmark!(params, batches, thea_message_handler, TheaMH);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
