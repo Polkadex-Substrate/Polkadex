@@ -397,7 +397,12 @@ pub fn new_full_base(
 	));
 
 	// Thea
-	net_config.add_notification_protocol(thea_client::thea_peers_set_config());
+	let thea_protocol_name = thea_client::protocol_standard_name(
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		config.chain_spec.as_ref(),
+	);
+
+	net_config.add_notification_protocol(thea_client::thea_peers_set_config(thea_protocol_name));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
