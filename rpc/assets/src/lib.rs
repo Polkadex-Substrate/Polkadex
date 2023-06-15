@@ -26,11 +26,11 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::error::{CallError, ErrorObject},
 };
-pub use rpc_assets_runtime_api::PolkadexAssetHandlerRuntimeApi;
 use parity_scale_codec::Codec;
+pub use rpc_assets_runtime_api::PolkadexAssetHandlerRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{traits::Block as BlockT};
+use sp_runtime::traits::Block as BlockT;
 
 const RUNTIME_ERROR: i32 = 1;
 
@@ -94,11 +94,7 @@ where
 			.collect();
 		let api = self.client.runtime_api();
 
-		let at = if let Some(at) = at {
-			at
-		}else {
-			self.client.info().best_hash
-		};
+		let at = if let Some(at) = at { at } else { self.client.info().best_hash };
 
 		let runtime_api_result = api.account_balances(at, assets?, account_id);
 		runtime_api_result

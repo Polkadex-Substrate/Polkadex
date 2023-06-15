@@ -35,8 +35,8 @@ use std::sync::Arc;
 use jsonrpsee::RpcModule;
 use orderbook_primitives::ObApi;
 use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
-use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::BabeWorkerHandle;
 
