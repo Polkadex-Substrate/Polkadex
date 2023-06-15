@@ -40,13 +40,14 @@ pub trait Resolver<
 		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
 	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
 		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>,
-	NativeAssetId: Get<Others::AssetId>,
+	AssetIdNew: Into<Others::AssetId> + sp_std::cmp::PartialEq,
+	NativeAssetId: Get<AssetIdNew>,
 >
 {
 	/// Deposit will mint new tokens if asset is non native and in case of native, will transfer
 	/// native tokens from `NativeLockingAccount` to `who`
 	fn resolver_deposit(
-		asset: Others::AssetId,
+		asset: AssetIdNew,
 		amount: Balance,
 		who: &AccountId,
 		locking_account: AccountId,
@@ -59,7 +60,7 @@ pub trait Resolver<
 				Preservation::Preserve,
 			)?;
 		} else {
-			Others::mint_into(asset, who, amount.saturated_into())?;
+			Others::mint_into(asset.into(), who, amount.saturated_into())?;
 		}
 		Ok(())
 	}
@@ -67,7 +68,7 @@ pub trait Resolver<
 	/// Deposit will burn tokens if asset is non native and in case of native, will transfer
 	/// native tokens from `who` to `NativeLockingAccount`
 	fn resolver_withdraw(
-		asset: Others::AssetId,
+		asset: AssetIdNew,
 		amount: Balance,
 		who: &AccountId,
 		locking_account: AccountId,
@@ -81,7 +82,7 @@ pub trait Resolver<
 			)?;
 		} else {
 			Others::burn_from(
-				asset,
+				asset.into(),
 				who,
 				amount.saturated_into(),
 				Precision::Exact,

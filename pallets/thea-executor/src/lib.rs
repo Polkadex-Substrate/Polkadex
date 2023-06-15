@@ -44,6 +44,7 @@ pub mod pallet {
 		sp_runtime::SaturatedConversion,
 		traits::{fungible::Mutate, tokens::Preservation},
 	};
+	use frame_support::traits::fungibles::Inspect;
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::Resolver;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
@@ -69,12 +70,14 @@ pub mod pallet {
 		/// Assets Pallet
 		type Assets: frame_support::traits::tokens::fungibles::Mutate<Self::AccountId>
 			+ frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>;
+		/// Asset Id
+		type AssetId: Member + Parameter + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId> + From<u128>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaOutgoingExecutor;
 		/// Native Asset Id
-		type NativeAssetId: Get<<<Self as pallet::Config>::Assets as frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>>::AssetId>;
+		type NativeAssetId: Get<Self::AssetId>;
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<frame_support::PalletId>;
@@ -199,10 +202,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
-	where
-		<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
-			<T as frame_system::Config>::AccountId,
-		>>::AssetId: From<u128>,
 	{
 		/// An example dispatch able that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
@@ -345,10 +344,6 @@ pub mod pallet {
 			pay_for_remaining: bool,
 			network: Network,
 		) -> Result<(), DispatchError>
-		where
-			<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
-				<T as frame_system::Config>::AccountId,
-			>>::AssetId: From<u128>,
 		{
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
@@ -444,10 +439,6 @@ pub mod pallet {
 			deposit: Deposit<T::AccountId>,
 			recipient: &T::AccountId,
 		) -> Result<(), DispatchError>
-		where
-			<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
-				<T as frame_system::Config>::AccountId,
-			>>::AssetId: From<u128>,
 		{
 			// Get the metadata
 			let metadata =
@@ -486,6 +477,7 @@ pub mod pallet {
 			T::AccountId,
 			T::Currency,
 			T::Assets,
+			T::AssetId,
 			T::NativeAssetId,
 		> for Pallet<T>
 	{

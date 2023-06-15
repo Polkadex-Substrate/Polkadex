@@ -26,8 +26,13 @@ use frame_support::{
     ensure,
     traits::{EnsureOrigin, Get},
 };
+use frame_support::traits::fungible::Mutate;
+use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_system::RawOrigin;
 use sp_runtime::traits::Bounded;
+use thea_primitives::types::{AssetMetadata, Deposit};
+use sp_runtime::SaturatedConversion;
+
 
 benchmarks! {
     set_withdrawal_fee {
@@ -36,6 +41,76 @@ benchmarks! {
         let fee = 1_000_000_000_000;
     }: _(RawOrigin::Root, network_id, fee)
     verify {
-
+        assert_eq!(<WithdrawalFees<T>>::get(network_id), Some(fee));
     }
+
+    update_asset_metadata {
+        let r in 1 .. 1000;
+        let asset_id = r as u128;
+        let decimal: u8 = 8;
+    }: _(RawOrigin::Root, asset_id, decimal)
+    verify {
+        let metadata = AssetMetadata::new(decimal).unwrap();
+        assert_eq!(<Metadata<T>>::get(asset_id), Some(metadata));
+    }
+
+    claim_deposit {
+        let r in 1 .. 1000;
+        let account = account::<T::AccountId>("alice", 1, r);
+        let deposits = create_deposit::<T>(account.clone());
+        <ApprovedDeposits<T>>::insert(account.clone(), deposits);
+    }: _(RawOrigin::Signed(account.clone()), 10)
+    verify {
+        //let current_balance = T::Assets::balance(100, &account);
+        //assert_eq!(current_balance.into(), 10_000_000_000_000);
+    }
+
+    withdraw {
+        let r in 1 .. 1000;
+        //Create Asset
+        //Mint Tokens
+        let account = account::<T::AccountId>("alice", 1, r);
+        T::Assets::mint_into(100, account.clone(), 1_000_000_000_000);
+        //Mint Native Asset
+        T::Currency::mint_into(account_clone(), 1_000_000_000_000);
+        //Set Metadata
+        let metadata = AssetMetadata::new(decimal).unwrap();
+        <Metadata<T>>::insert(100, metadata);
+        //Set Withdrawal Fee
+        <WithdrawalFees<T>>::insert(1, 1_000);
+        let benificary = vec![1;32];
+    }: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, benificary, true)
+
+    parachain_withdraw {
+        let r in 1 .. 1000;
+        //Create Asset
+        //Mint Tokens
+        let account = account::<T::AccountId>("alice", 1, r);
+        T::Assets::mint_into(100, account.clone(), 1_000_000_000_000);
+        //Mint Native Asset
+        T::Currency::mint_into(account_clone(), 1_000_000_000_000);
+        //Set Metadata
+        let metadata = AssetMetadata::new(decimal).unwrap();
+        <Metadata<T>>::insert(100, metadata);
+        //Set Withdrawal Fee
+        <WithdrawalFees<T>>::insert(1, 1_000);
+        let benificary = vec![1;32];
+    }: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, benificary, true)
+}
+
+fn create_deposit<T:Config>(recipient: T::AccountId) -> Vec<Deposit<T::AccountId>> {
+    T::Currency::mint_into()
+    let mut pending_deposits = vec![];
+    let asset_id = 100;
+    for i in 1 .. 10 {
+        let deposit: Deposit<T::AccountId> = Deposit{
+            id: vec![],
+            recipient: recipient.clone(),
+            asset_id: asset_id,
+            amount: 1_000_000_000_000,
+            extra: vec![]
+        };
+        pending_deposits.push(deposit);
+    }
+    pending_deposits
 }
