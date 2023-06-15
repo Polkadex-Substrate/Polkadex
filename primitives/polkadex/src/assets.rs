@@ -39,8 +39,9 @@ pub trait Resolver<
 	Native: frame_support::traits::tokens::fungible::Mutate<AccountId>
 		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
 	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
-		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>,
-	AssetIdNew: Into<Others::AssetId> + sp_std::cmp::PartialEq,
+		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>
+	    + frame_support::traits::tokens::fungibles::Create<AccountId>,
+	AssetIdNew: Into<Others::AssetId> + sp_std::cmp::PartialEq + Copy,
 	NativeAssetId: Get<AssetIdNew>,
 >
 {
@@ -50,6 +51,8 @@ pub trait Resolver<
 		asset: AssetIdNew,
 		amount: Balance,
 		who: &AccountId,
+		admin: AccountId,
+		min_balance: Balance,
 		locking_account: AccountId,
 	) -> Result<(), DispatchError> {
 		if asset == NativeAssetId::get() {
@@ -60,6 +63,9 @@ pub trait Resolver<
 				Preservation::Preserve,
 			)?;
 		} else {
+			if !Others::asset_exists(asset.into()) {
+				Others::create(asset.into(), admin, true, min_balance.saturated_into())?;
+			}
 			Others::mint_into(asset.into(), who, amount.saturated_into())?;
 		}
 		Ok(())

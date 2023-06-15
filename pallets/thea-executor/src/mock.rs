@@ -156,6 +156,7 @@ impl thea_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type Assets = Assets;
+	type AssetId = u128;
 	type AssetCreateUpdateOrigin = EnsureRoot<Self::AccountId>;
 	type Executor = Thea;
 	type NativeAssetId = PolkadexAssetId;

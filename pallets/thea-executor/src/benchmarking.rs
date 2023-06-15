@@ -26,13 +26,13 @@ use frame_support::{
     ensure,
     traits::{EnsureOrigin, Get},
 };
-use frame_support::traits::fungible::Mutate;
-use frame_support::traits::fungibles::{Inspect, Mutate};
+use frame_support::traits::fungible::Mutate as NativeMutate;
+use frame_support::traits::fungibles::{Create, Inspect, Mutate};
 use frame_system::RawOrigin;
 use sp_runtime::traits::Bounded;
 use thea_primitives::types::{AssetMetadata, Deposit};
 use sp_runtime::SaturatedConversion;
-
+use xcm::VersionedMultiLocation;
 
 benchmarks! {
     set_withdrawal_fee {
@@ -57,52 +57,72 @@ benchmarks! {
     claim_deposit {
         let r in 1 .. 1000;
         let account = account::<T::AccountId>("alice", 1, r);
+        let asset_id: T::AssetId = 100u128.into();
         let deposits = create_deposit::<T>(account.clone());
+        let metadata = AssetMetadata::new(10).unwrap();
+        <Metadata<T>>::insert(100, metadata);
+        T::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
         <ApprovedDeposits<T>>::insert(account.clone(), deposits);
     }: _(RawOrigin::Signed(account.clone()), 10)
     verify {
-        //let current_balance = T::Assets::balance(100, &account);
-        //assert_eq!(current_balance.into(), 10_000_000_000_000);
+        let current_balance = T::Assets::balance(asset_id.into(), &account);
+        assert_eq!(current_balance, 1_000_000_000_000_000u128.saturated_into()); //TODO: Verify this value
     }
 
     withdraw {
         let r in 1 .. 1000;
         //Create Asset
+        let asset_id: T::AssetId = 100u128.into();
+        let admin = account::<T::AccountId>("admin", 1, r);
+        let network_id = 1;
+        T::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into());
         //Mint Tokens
         let account = account::<T::AccountId>("alice", 1, r);
-        T::Assets::mint_into(100, account.clone(), 1_000_000_000_000);
+        T::Assets::mint_into(asset_id.into(), &account, 1_000_000_000_000u128.saturated_into());
         //Mint Native Asset
-        T::Currency::mint_into(account_clone(), 1_000_000_000_000);
+        T::Currency::mint_into(&account, 1_000_000_000_000u128.saturated_into());
         //Set Metadata
-        let metadata = AssetMetadata::new(decimal).unwrap();
+        let metadata = AssetMetadata::new(10).unwrap();
         <Metadata<T>>::insert(100, metadata);
         //Set Withdrawal Fee
-        <WithdrawalFees<T>>::insert(1, 1_000);
+        <WithdrawalFees<T>>::insert(network_id, 1_000);
         let benificary = vec![1;32];
-    }: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, benificary, true)
+    }: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, benificary, true, network_id)
+    verify {
+        let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
+        assert_eq!(ready_withdrawal.len(), 1);
+    }
 
     parachain_withdraw {
         let r in 1 .. 1000;
         //Create Asset
+        let asset_id: T::AssetId = 100u128.into();
+        let admin = account::<T::AccountId>("admin", 1, r);
+        let network_id = 1;
+        T::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into());
         //Mint Tokens
         let account = account::<T::AccountId>("alice", 1, r);
-        T::Assets::mint_into(100, account.clone(), 1_000_000_000_000);
+        T::Assets::mint_into(asset_id.into(), &account, 1_000_000_000_000u128.saturated_into());
         //Mint Native Asset
-        T::Currency::mint_into(account_clone(), 1_000_000_000_000);
+        T::Currency::mint_into(&account, 1_000_000_000_000u128.saturated_into());
         //Set Metadata
-        let metadata = AssetMetadata::new(decimal).unwrap();
+        let metadata = AssetMetadata::new(10).unwrap();
         <Metadata<T>>::insert(100, metadata);
         //Set Withdrawal Fee
-        <WithdrawalFees<T>>::insert(1, 1_000);
-        let benificary = vec![1;32];
-    }: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, benificary, true)
+        <WithdrawalFees<T>>::insert(network_id, 1_000);
+        let multilocation = MultiLocation { parents: 1, interior: Junctions::Here };
+        let benificary = VersionedMultiLocation::V3(multilocation);
+    }: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, Box::new(benificary), true)
+    verify {
+        let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
+        assert_eq!(ready_withdrawal.len(), 1);
+    }
 }
 
 fn create_deposit<T:Config>(recipient: T::AccountId) -> Vec<Deposit<T::AccountId>> {
-    T::Currency::mint_into()
     let mut pending_deposits = vec![];
     let asset_id = 100;
-    for i in 1 .. 10 {
+    for i in 1 .. 20 {
         let deposit: Deposit<T::AccountId> = Deposit{
             id: vec![],
             recipient: recipient.clone(),
@@ -114,3 +134,10 @@ fn create_deposit<T:Config>(recipient: T::AccountId) -> Vec<Deposit<T::AccountId
     }
     pending_deposits
 }
+
+#[cfg(test)]
+use frame_benchmarking::impl_benchmark_test_suite;
+use xcm::latest::{Junctions, MultiLocation};
+
+#[cfg(test)]
+impl_benchmark_test_suite!(TheaExecutor, crate::mock::new_test_ext(), crate::mock::Test);
