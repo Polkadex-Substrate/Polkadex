@@ -24,7 +24,7 @@ use parity_scale_codec::{Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::AccountId;
 use sc_network::PeerId;
-use sc_network_common::protocol::role::ObservedRole;
+use sc_network_common::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
 use std::{

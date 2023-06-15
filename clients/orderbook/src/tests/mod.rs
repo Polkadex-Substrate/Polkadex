@@ -42,11 +42,11 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_arithmetic::traits::SaturatedConversion;
 
-use sp_blockchain::{BlockStatus, HeaderBackend, Info};
+use sp_blockchain::HeaderBackend;
 use sp_core::{ecdsa::Public, Pair};
 use sp_keyring::AccountKeyring;
-use sp_keystore::CryptoStore;
-use sp_runtime::traits::{Header, NumberFor};
+use sp_keystore::Keystore;
+use sp_runtime::traits::Header;
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tracing::info_span;
 use tracing_futures::Instrument;
@@ -99,9 +99,9 @@ impl TestApi {
 				None => snapshot,
 				Some(mut stored_summary) => {
 					let signature = snapshot.aggregate_signature.unwrap();
-					let auth_index = snapshot.signed_auth_indexes().first().unwrap().clone();
+					let auth_index = *snapshot.signed_auth_indexes().first().unwrap();
 					// Verify the auth signature.
-					let signer: &AuthorityId = self.active.get(auth_index as usize).unwrap();
+					let signer: &AuthorityId = self.active.get(auth_index).unwrap();
 					assert!(signer.verify(&snapshot.sign_data(), &signature.into()));
 					// Aggregate signature
 					assert!(stored_summary.add_signature(signature).is_ok());
@@ -192,7 +192,7 @@ sp_api::mock_impl_runtime_apis! {
 		}
 
 		/// Return the ingress messages at the given block
-		fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
+		fn ingress_messages(_blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>> { self.inner.get_ingress_messages() }
 
 		/// Submits the snapshot to runtime
 		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()> {
@@ -215,7 +215,7 @@ sp_api::mock_impl_runtime_apis! {
 		}
 
 		/// Gets pending snapshot if any
-		fn pending_snapshot(auth: AuthorityId) -> Option<u64>{
+		fn pending_snapshot(_auth: AuthorityId) -> Option<u64>{
 			 // TODO: update this based on current implementation in pallet
 			todo!()
 		}
@@ -260,10 +260,7 @@ pub(crate) fn make_ob_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	keys.iter()
 		.map(|key| {
 			let seed = key.to_seed();
-			orderbook_primitives::crypto::Pair::from_string(&seed, None)
-				.unwrap()
-				.public()
-				.into()
+			orderbook_primitives::crypto::Pair::from_string(&seed, None).unwrap().public()
 		})
 		.collect()
 }
@@ -297,6 +294,10 @@ impl TestNetFactory for ObTestnet {
 
 	fn peers(&self) -> &Vec<Peer<PeerData, PeersClient>> {
 		&self.peers
+	}
+
+	fn peers_mut(&mut self) -> &mut Vec<Peer<Self::PeerData, Self::BlockImport>> {
+		self.peers.as_mut()
 	}
 
 	fn mut_peers<F: FnOnce(&mut Vec<Peer<PeerData, PeersClient>>)>(&mut self, closure: F) {
@@ -376,35 +377,24 @@ where
 		net.peers[peer_id].data.memory_db = Arc::new(RwLock::new(MemoryDB::default()));
 		net.peers[peer_id].data.working_state_root = Arc::new(RwLock::new([0; 32]));
 
-		let mut keystore = None;
+		let keystore = Arc::new(LocalKeystore::in_memory());
 
 		if is_validator {
 			// Generate the crypto material with test keys,
 			// we have to use file based keystore,
 			// in memory keystore doesn't seem to work here
-			keystore = Some(Arc::new(
-				LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
-			));
+			// keystore = Some(Arc::new(
+			// 	LocalKeystore::open(format!("keystore-{:?}", peer_id), None).unwrap(),
+			// ));
 			let (pair, _seed) =
 				orderbook_primitives::crypto::Pair::from_string_with_seed(&key.to_seed(), None)
 					.unwrap();
 			// Insert the key
 			keystore
-				.as_mut()
-				.unwrap()
-				.insert_unknown(
-					orderbook_primitives::KEY_TYPE,
-					&key.to_seed(),
-					pair.public().as_ref(),
-				)
-				.await
+				.insert(orderbook_primitives::KEY_TYPE, &key.to_seed(), pair.public().as_ref())
 				.unwrap();
 			// Check if the key is present or not
-			keystore
-				.as_ref()
-				.unwrap()
-				.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public())
-				.unwrap();
+			keystore.key_pair::<orderbook_primitives::crypto::Pair>(&pair.public()).unwrap();
 		}
 
 		let ob_params = crate::ObParams {
@@ -413,6 +403,7 @@ where
 			runtime: api,
 			keystore,
 			network: net.peers[peer_id].network_service().clone(),
+			sync: net.peers[peer_id].sync_service().clone(),
 			prometheus_registry: None,
 			protocol_name: "/ob/1".into(),
 			is_validator,
@@ -423,10 +414,10 @@ where
 		};
 
 		let gadget = if is_validator {
-			crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params)
+			crate::start_orderbook_gadget::<_, _, _, _, _, _>(ob_params)
 				.instrument(info_span!("val:", peer_id))
 		} else {
-			crate::start_orderbook_gadget::<_, _, _, _, _>(ob_params)
+			crate::start_orderbook_gadget::<_, _, _, _, _, _>(ob_params)
 				.instrument(info_span!("ful:", peer_id))
 		};
 

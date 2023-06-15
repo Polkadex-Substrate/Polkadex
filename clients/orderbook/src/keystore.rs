@@ -29,7 +29,7 @@ use sp_core::Pair;
 /// Key store definition which holds keys and performs messages signing operations and accessor to
 /// the public keys.
 pub struct OrderbookKeyStore {
-	keystore: Option<Arc<LocalKeystore>>,
+	keystore: Arc<LocalKeystore>,
 }
 
 impl OrderbookKeyStore {
@@ -38,7 +38,7 @@ impl OrderbookKeyStore {
 	/// # Parameters
 	///
 	/// * `keystore`: Local keystore from the keystore container.
-	pub fn new(keystore: Option<Arc<LocalKeystore>>) -> Self {
+	pub fn new(keystore: Arc<LocalKeystore>) -> Self {
 		Self { keystore }
 	}
 
@@ -48,19 +48,12 @@ impl OrderbookKeyStore {
 	///
 	/// * `active`: Identifier of the Orderbook authority.
 	pub fn get_local_key(&self, active: &[AuthorityId]) -> Result<AuthorityId, Error> {
-		match self.keystore.as_ref() {
-			None => {
-				warn!(target:"orderbook","📒 Keystore not available");
-				return Err(Error::Keystore("📒 Keystore not available in this context".to_string()))
-			},
-			Some(keystore) =>
-				for key in active {
-					if let Some(local_pair) =
-						keystore.key_pair::<orderbook_primitives::crypto::Pair>(key)?
-					{
-						return Ok(local_pair.public())
-					}
-				},
+		for key in active {
+			if let Some(local_pair) =
+				self.keystore.key_pair::<orderbook_primitives::crypto::Pair>(key)?
+			{
+				return Ok(local_pair.public())
+			}
 		}
 		warn!(target:"orderbook","📒 No BLS key found");
 		Err(Error::Keystore("📒 No BLS key found".to_string()))
@@ -77,19 +70,11 @@ impl OrderbookKeyStore {
 		public: &AuthorityId,
 		message: &[u8],
 	) -> Result<orderbook_primitives::crypto::AuthoritySignature, Error> {
-		match self.keystore.as_ref() {
+		match self.keystore.key_pair::<orderbook_primitives::crypto::Pair>(public)? {
+			Some(local_pair) => Ok(local_pair.sign(message)),
 			None => {
-				warn!(target:"orderbook","📒 Keystore not available");
-				Err(Error::Keystore("📒 Keystore not available in this context".to_string()))
-			},
-			Some(keystore) => {
-				match keystore.key_pair::<orderbook_primitives::crypto::Pair>(public)? {
-					Some(local_pair) => Ok(local_pair.sign(message)),
-					None => {
-						warn!(target:"orderbook","📒 No BLS key found");
-						Err(Error::Keystore("📒 No BLS key found".to_string()))
-					},
-				}
+				warn!(target:"orderbook","📒 No BLS key found");
+				Err(Error::Keystore("📒 No BLS key found".to_string()))
 			},
 		}
 	}

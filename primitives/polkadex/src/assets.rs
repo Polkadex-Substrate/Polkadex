@@ -16,7 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::Balance;
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::traits::{
+	tokens::{Fortitude, Precision, Preservation},
+	Get,
+};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::de::{Error, MapAccess, Unexpected, Visitor};
@@ -25,7 +30,67 @@ use serde::Deserializer;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize, Serializer};
 use sp_core::RuntimeDebug;
+use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::fmt::{Display, Formatter};
+
+/// Resolver trait for handling different types of assets for deposit and withdrawal operations
+pub trait Resolver<
+	AccountId,
+	Native: frame_support::traits::tokens::fungible::Mutate<AccountId>
+		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
+	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
+		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>,
+	NativeAssetId: Get<Others::AssetId>,
+>
+{
+	/// Deposit will mint new tokens if asset is non native and in case of native, will transfer
+	/// native tokens from `NativeLockingAccount` to `who`
+	fn resolver_deposit(
+		asset: Others::AssetId,
+		amount: Balance,
+		who: &AccountId,
+		locking_account: AccountId,
+	) -> Result<(), DispatchError> {
+		if asset == NativeAssetId::get() {
+			Native::transfer(
+				&locking_account,
+				who,
+				amount.saturated_into(),
+				Preservation::Preserve,
+			)?;
+		} else {
+			Others::mint_into(asset, who, amount.saturated_into())?;
+		}
+		Ok(())
+	}
+
+	/// Deposit will burn tokens if asset is non native and in case of native, will transfer
+	/// native tokens from `who` to `NativeLockingAccount`
+	fn resolver_withdraw(
+		asset: Others::AssetId,
+		amount: Balance,
+		who: &AccountId,
+		locking_account: AccountId,
+	) -> Result<(), DispatchError> {
+		if asset == NativeAssetId::get() {
+			Native::transfer(
+				who,
+				&locking_account,
+				amount.saturated_into(),
+				Preservation::Preserve,
+			)?;
+		} else {
+			Others::burn_from(
+				asset,
+				who,
+				amount.saturated_into(),
+				Precision::Exact,
+				Fortitude::Polite,
+			)?;
+		}
+		Ok(())
+	}
+}
 
 /// Enumerated asset on chain
 #[derive(

@@ -29,21 +29,34 @@
 
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
+pub use pallet::*;
 use parity_scale_codec::{Encode, MaxEncodedLen};
+use polkadex_primitives::utils::return_set_bits;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-
-pub use pallet::*;
-use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{
 	types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
 };
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+#[cfg(test)]
+mod fixtures;
 mod session;
+
+/// Export of auto-generated weights
+pub mod weights;
+
+pub trait TheaWeightInfo {
+	fn update_network_pref(b: u32) -> Weight;
+	fn incoming_message(b: u32) -> Weight;
+	fn send_thea_message(_b: u32) -> Weight;
+	fn update_incoming_nonce(_b: u32) -> Weight;
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -77,6 +90,9 @@ pub mod pallet {
 
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaIncomingExecutor;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: TheaWeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -177,7 +193,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Updates the network preference of a thea validator
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_network_pref(1))]
 		pub fn update_network_pref(
 			origin: OriginFor<T>,
 			authority: T::TheaId,
@@ -192,7 +208,7 @@ pub mod pallet {
 
 		/// Handles the verified incoming message
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::incoming_message(1))]
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
@@ -216,7 +232,7 @@ pub mod pallet {
 
 		/// Send some arbitrary data to the given network
 		#[pallet::call_index(2)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::send_thea_message(1))]
 		#[transactional]
 		pub fn send_thea_message(
 			origin: OriginFor<T>,
@@ -230,7 +246,7 @@ pub mod pallet {
 
 		/// A governance endpoint to update last processed nonce
 		#[pallet::call_index(3)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_incoming_nonce(1))]
 		#[transactional]
 		pub fn update_incoming_nonce(
 			origin: OriginFor<T>,

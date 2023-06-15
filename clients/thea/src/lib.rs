@@ -66,8 +66,8 @@ pub(crate) mod thea_protocol_name {
 /// Returns the configuration value to put in
 /// [`sc_network::config::NetworkConfiguration::extra_sets`].
 /// For standard protocol name see [`thea_protocol_name::standard_name`].
-pub fn thea_peers_set_config() -> sc_network_common::config::NonDefaultSetConfig {
-	let mut cfg = sc_network_common::config::NonDefaultSetConfig::new(standard_name(), 1024 * 1024);
+pub fn thea_peers_set_config() -> sc_network::config::NonDefaultSetConfig {
+	let mut cfg = sc_network::config::NonDefaultSetConfig::new(standard_name(), 1024 * 1024);
 
 	cfg.allow_non_reserved(25, 25);
 	cfg
@@ -108,10 +108,10 @@ use crate::{
 	thea_protocol_name::standard_name,
 	worker::TheaWorker,
 };
-use sc_network_gossip::Network as GossipNetwork;
+use sc_network_gossip::{Network as GossipNetwork, Syncing};
 
 /// Thea gadget initialization parameters.
-pub struct TheaParams<B, BE, C, N, R>
+pub struct TheaParams<B, BE, C, N, R, SO>
 where
 	B: Block,
 	BE: Backend<B>,
@@ -119,6 +119,7 @@ where
 	R: ProvideRuntimeApi<B>,
 	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	SO: SyncOracle + Syncing<B>,
 {
 	/// Thea client.
 	pub client: Arc<C>,
@@ -127,9 +128,11 @@ where
 	/// Client runtime.
 	pub runtime: Arc<R>,
 	/// Keystore.
-	pub keystore: Option<Arc<LocalKeystore>>,
+	pub keystore: Arc<LocalKeystore>,
 	/// Gossip network.
 	pub network: N,
+	/// Sync service
+	pub sync_oracle: Arc<SO>,
 	/// Prometheus metric registry.
 	pub prometheus_registry: Option<Registry>,
 	/// Boolean indicating if this node is a validator.
@@ -146,14 +149,15 @@ where
 /// Start the Thea gadget.
 ///
 /// This is a thin shim around running and awaiting a Thea worker.
-pub async fn start_thea_gadget<B, BE, C, N, R>(ob_params: TheaParams<B, BE, C, N, R>)
+pub async fn start_thea_gadget<B, BE, C, N, R, SO>(ob_params: TheaParams<B, BE, C, N, R, SO>)
 where
 	B: Block,
 	BE: Backend<B>,
 	C: Client<B, BE>,
 	R: ProvideRuntimeApi<B>,
 	R::Api: TheaApi<B>,
-	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
+	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	SO: Clone + Send + Sync + 'static + SyncOracle + Syncing<B>,
 {
 	let TheaParams {
 		client,
@@ -161,6 +165,7 @@ where
 		runtime,
 		keystore,
 		network,
+		sync_oracle,
 		prometheus_registry,
 		is_validator,
 		marker: _,
@@ -168,8 +173,6 @@ where
 		foreign_chain_url,
 		dummy_mode,
 	} = ob_params;
-
-	let sync_oracle = network.clone();
 
 	let metrics =
 		prometheus_registry.as_ref().map(metrics::Metrics::register).and_then(

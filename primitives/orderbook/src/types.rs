@@ -32,7 +32,6 @@ use sp_std::cmp::Ordering;
 use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use std::{
-	borrow::Borrow,
 	fmt::{Display, Formatter},
 	ops::{Mul, Rem},
 	str::FromStr,
@@ -96,7 +95,7 @@ impl Trade {
 	///
 	/// * `market`: Defines if order is a market order.
 	pub fn credit(&self, maker: bool) -> (AccountAsset, Decimal) {
-		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
+		let user = if maker { &self.maker } else { &self.taker };
 		let (base, quote) = (user.pair.base, user.pair.quote);
 		match user.side {
 			OrderSide::Ask => (
@@ -115,7 +114,7 @@ impl Trade {
 	///
 	/// * `market`: Defines if order is a market order.
 	pub fn debit(&self, maker: bool) -> (AccountAsset, Decimal) {
-		let user = if maker { self.maker.borrow() } else { self.taker.borrow() };
+		let user = if maker { &self.maker } else { &self.taker };
 		let (base, quote) = (user.pair.base, user.pair.quote);
 		match user.side {
 			OrderSide::Ask =>
@@ -130,9 +129,10 @@ impl Trade {
 
 #[cfg(feature = "std")]
 use chrono::Utc;
-#[cfg(feature = "std")]
-use libp2p::PeerId;
 use rust_decimal::prelude::FromPrimitive;
+#[cfg(feature = "std")]
+use sc_network::PeerId;
+use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
 impl Trade {
@@ -409,7 +409,7 @@ impl From<OrderStatus> for String {
 }
 
 /// Defines trading pair structure.
-#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq)]
+#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	/// Base asset identifier.

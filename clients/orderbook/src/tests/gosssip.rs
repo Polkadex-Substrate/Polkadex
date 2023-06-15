@@ -43,7 +43,7 @@ pub async fn test_orderbook_gossip() {
 	];
 
 	let active: Vec<AuthorityId> =
-		make_ob_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
+		make_ob_ids(&peers.iter().map(|(k, _)| *k).collect::<Vec<AccountKeyring>>());
 
 	let runtime = Arc::new(TestApi {
 		active,
@@ -89,14 +89,14 @@ pub async fn test_orderbook_gossip() {
 	let working_state_root = Arc::new(RwLock::new([0; 32]));
 
 	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
-	let (sender, receiver) = futures::channel::mpsc::unbounded();
+	let (_sender, receiver) = futures::channel::mpsc::unbounded();
 	// Now we add a new full node and see if it can catch up.
 	let worker_params = crate::worker::WorkerParams {
 		client: testnet.peers[fifth_node_index].client().as_client(),
 		backend: testnet.peers[fifth_node_index].client().as_backend(),
 		runtime: runtime.clone(),
-		sync_oracle: testnet.peers[fifth_node_index].network_service().clone(),
-		keystore: None,
+		sync_oracle: testnet.peers[fifth_node_index].sync_service().clone(),
+		keystore: Arc::new(sc_keystore::LocalKeystore::in_memory()),
 		network: testnet.peers[fifth_node_index].network_service().clone(),
 		protocol_name: "/ob/1".into(),
 		is_validator: false,
@@ -108,7 +108,7 @@ pub async fn test_orderbook_gossip() {
 	};
 	use futures::StreamExt;
 	use sc_client_api::BlockchainEvents;
-	let mut finality_stream_future =
+	let _finality_stream_future =
 		testnet.peers[5].client().as_client().finality_notification_stream().fuse();
 
 	let mut worker = crate::worker::ObWorker::<_, _, _, _, _, _>::new(worker_params);
@@ -146,5 +146,5 @@ fn create_ob_message_import_block(
 		version: 0,
 	};
 	msg.signature = pair.sign_prehashed(&msg.sign_data());
-	return msg
+	msg
 }
