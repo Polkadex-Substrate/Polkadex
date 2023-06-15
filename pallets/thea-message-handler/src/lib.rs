@@ -27,17 +27,19 @@
 
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
+pub use pallet::*;
 use parity_scale_codec::{Encode, MaxEncodedLen};
+use polkadex_primitives::utils::return_set_bits;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-
-pub use pallet::*;
-use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{types::Message, Network, ValidatorSet};
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
