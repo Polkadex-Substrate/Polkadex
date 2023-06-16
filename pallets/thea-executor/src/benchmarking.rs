@@ -18,22 +18,18 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
-use crate::Pallet as TheaExecutor;
-use parity_scale_codec::Decode;
+
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::{boxed::Box, vec, vec::Vec};
 
-use frame_benchmarking::v1::{account, benchmarks, whitelisted_caller, BenchmarkError};
-use frame_support::{
-	ensure,
-	traits::{
-		fungible::Mutate as NativeMutate,
-		fungibles::{Create, Inspect, Mutate},
-		EnsureOrigin, Get,
-	},
+use frame_benchmarking::v1::{account, benchmarks};
+use frame_support::traits::{
+	fungible::Mutate as NativeMutate,
+	fungibles::{Create, Inspect, Mutate},
+	Get,
 };
 use frame_system::RawOrigin;
-use sp_runtime::{traits::Bounded, SaturatedConversion};
+use sp_runtime::SaturatedConversion;
 use thea_primitives::types::{AssetMetadata, Deposit};
 use xcm::VersionedMultiLocation;
 
@@ -77,7 +73,7 @@ benchmarks! {
 		let asset_id: T::AssetId = 100u128.into();
 		let admin = account::<T::AccountId>("admin", 1, r);
 		let network_id = 1;
-		T::Currency::mint_into(&admin, 100_000_000_000_000_000_000u128.saturated_into());
+		T::Currency::mint_into(&admin, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
 		T::Assets::create(asset_id.into(), admin.clone(), true, 1u128.saturated_into()).unwrap();
 		let account = account::<T::AccountId>("alice", 1, r);
 		T::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
@@ -99,12 +95,12 @@ benchmarks! {
 		let asset_id: T::AssetId = 100u128.into();
 		let admin = account::<T::AccountId>("admin", 1, r);
 		let network_id = 1;
-		T::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into());
+		T::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into()).unwrap();
 		let pallet_acc = T::TheaPalletId::get().into_account_truncating();
 		T::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
 		let account = account::<T::AccountId>("alice", 1, r);
-		T::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into());
-		T::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into());
+		T::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		T::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
 		let metadata = AssetMetadata::new(10).unwrap();
 		<Metadata<T>>::insert(100, metadata);
 		<WithdrawalFees<T>>::insert(network_id, 1_000);
@@ -120,7 +116,7 @@ benchmarks! {
 fn create_deposit<T: Config>(recipient: T::AccountId) -> Vec<Deposit<T::AccountId>> {
 	let mut pending_deposits = vec![];
 	let asset_id = 100;
-	for i in 1..20 {
+	for _i in 1..20 {
 		let deposit: Deposit<T::AccountId> = Deposit {
 			id: vec![],
 			recipient: recipient.clone(),
