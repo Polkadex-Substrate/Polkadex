@@ -40,7 +40,7 @@ pub trait Resolver<
 		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
 	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
 		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>
-	    + frame_support::traits::tokens::fungibles::Create<AccountId>,
+		+ frame_support::traits::tokens::fungibles::Create<AccountId>,
 	AssetId: Into<Others::AssetId> + sp_std::cmp::PartialEq + Copy,
 	NativeAssetId: Get<AssetId>,
 >

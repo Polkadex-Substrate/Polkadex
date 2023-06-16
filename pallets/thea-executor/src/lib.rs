@@ -30,10 +30,10 @@ pub use pallet::*;
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
-mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+#[cfg(test)]
+mod mock;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -42,9 +42,8 @@ pub mod pallet {
 		log,
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
-		traits::{fungible::Mutate, tokens::Preservation},
+		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 	};
-	use frame_support::traits::fungibles::Inspect;
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::Resolver;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
@@ -69,10 +68,16 @@ pub mod pallet {
 			+ frame_support::traits::tokens::fungible::Inspect<Self::AccountId>;
 		/// Assets Pallet
 		type Assets: frame_support::traits::tokens::fungibles::Mutate<Self::AccountId>
-		    + frame_support::traits::tokens::fungibles::Create<Self::AccountId>
+			+ frame_support::traits::tokens::fungibles::Create<Self::AccountId>
 			+ frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>;
 		/// Asset Id
-		type AssetId: Member + Parameter + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId> + From<u128>;
+		type AssetId: Member
+			+ Parameter
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId>
+			+ From<u128>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Something that executes the payload
@@ -202,8 +207,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	{
+	impl<T: Config> Pallet<T> {
 		/// An example dispatch able that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::call_index(0)]
@@ -343,8 +347,7 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
-		) -> Result<(), DispatchError>
-		{
+		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
@@ -438,8 +441,7 @@ pub mod pallet {
 		pub fn execute_deposit(
 			deposit: Deposit<T::AccountId>,
 			recipient: &T::AccountId,
-		) -> Result<(), DispatchError>
-		{
+		) -> Result<(), DispatchError> {
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
