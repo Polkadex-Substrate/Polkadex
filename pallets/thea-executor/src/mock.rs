@@ -143,6 +143,7 @@ impl thea::Config for Test {
 	type Signature = thea_primitives::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
 
 parameter_types! {

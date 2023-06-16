@@ -95,6 +95,7 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
+pub mod migration;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1330,6 +1331,7 @@ impl thea::pallet::Config for Runtime {
 	type Signature = thea_primitives::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1440,8 +1442,11 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	Migrations,
 >;
 
+pub type Migrations = (migration::session_keys::MigrateToV5,);
+use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -1564,6 +1569,21 @@ impl_runtime_apis! {
 		/// Get last processed nonce for a given network
 		fn get_last_processed_nonce(network: thea_primitives::Network) -> u64{
 			Thea::get_last_processed_nonce(network)
+		}
+	}
+
+	impl rpc_assets_runtime_api::PolkadexAssetHandlerRuntimeApi<Block,AccountId,Hash> for Runtime {
+		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128> {
+			assets
+				.iter()
+				.map(|asset| {
+					if *asset != POLKADEX_NATIVE_ASSET_ID {
+					Assets::balance(*asset, &account_id).saturated_into()
+					}else{
+					Balances::balance(&account_id).saturated_into()
+				}
+				})
+				.collect()
 		}
 	}
 
@@ -1751,6 +1771,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
 			list_benchmark!(list, extra, liquidity, Liquidity);
 			list_benchmark!(list, extra, thea_executor, TheaExecutor);
+			list_benchmark!(list, extra, thea, Thea);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1785,7 +1806,9 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
 			add_benchmark!(params, batches, thea_executor, TheaExecutor);  //TheaExecutor: thea_executor
-			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+			add_benchmark!(params, batches, thea, Thea);
+
+      if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
 	}

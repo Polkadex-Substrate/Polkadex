@@ -56,7 +56,7 @@ pub async fn test_orderbook_snapshot() {
 	];
 
 	let active: Vec<AuthorityId> =
-		make_ob_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
+		make_ob_ids(&peers.iter().map(|(k, _)| *k).collect::<Vec<AccountKeyring>>());
 
 	let runtime = Arc::new(TestApi {
 		active,

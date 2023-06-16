@@ -448,7 +448,7 @@ pub mod pallet {
 				deposit.asset_id.into(),
 				// Convert the decimals config
 				deposit.amount_in_native_decimals(metadata),
-				&recipient,
+				recipient,
 				Self::thea_account(),
 				1u128,
 				Self::thea_account(),

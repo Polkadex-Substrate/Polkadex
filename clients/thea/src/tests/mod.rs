@@ -98,7 +98,7 @@ impl TestApi {
 		bitmap: Vec<u128>,
 		signature: AuthoritySignature,
 	) -> Result<(), ()> {
-		let last_nonce = self.incoming_nonce.read().get(&message.network).unwrap_or(&0).clone();
+		let last_nonce = *self.incoming_nonce.read().get(&message.network).unwrap_or(&0);
 		if last_nonce.saturating_add(1) != message.nonce {
 			return Ok(()) // Don't throw error here to mimic the behaviour of transaction
 			  // pool which ignores the the transaction if the nonce is wrong.
@@ -181,7 +181,7 @@ pub(crate) fn make_thea_ids(keys: &[AccountKeyring]) -> Vec<AuthorityId> {
 	keys.iter()
 		.map(|key| {
 			let seed = key.to_seed();
-			thea_primitives::crypto::Pair::from_string(&seed, None).unwrap().public().into()
+			thea_primitives::crypto::Pair::from_string(&seed, None).unwrap().public()
 		})
 		.collect()
 }
@@ -216,7 +216,7 @@ impl TheaTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::protocol_standard_name()],
+			notifications_protocols: vec!["/thea/1".into()],
 			is_authority: true,
 			..Default::default()
 		})
@@ -260,7 +260,7 @@ impl TestNetFactory for TheaTestnet {
 
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::protocol_standard_name()],
+			notifications_protocols: vec!["/thea/1".into()],
 			is_authority: false,
 			..Default::default()
 		})
@@ -301,6 +301,7 @@ where
 			runtime: api,
 			sync_oracle: net.peers[peer_id].sync_service().clone(),
 			keystore,
+			protocol_name: "/thea/1".into(),
 			network: net.peers[peer_id].network_service().clone(),
 			_marker: Default::default(),
 			is_validator,
@@ -363,6 +364,7 @@ where
 			runtime: api,
 			sync_oracle: net.peers[peer_id].sync_service().clone(),
 			keystore,
+			protocol_name: "/thea/1".into(),
 			network: net.peers[peer_id].network_service().clone(),
 			_marker: Default::default(),
 			is_validator,

@@ -810,7 +810,7 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bls-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
@@ -1131,9 +1131,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.3.3"
+version = "4.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca8f255e4b8027970e78db75e78831229c9815fdbfa67eb1a1b777a62e24b4a0"
+checksum = "80672091db20273a15cf9fdd4e47ed43b5091ec9841bf4c6145c9dfbbcae09ed"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1142,9 +1142,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.3.3"
+version = "4.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acd4f3c17c83b0ba34ffbc4f8bbd74f079413f747f84a6f89292f138057e36ab"
+checksum = "c1458a1df40e1e2afebb7ab60ce55c1fa8f431146205aa5f4887e0b111c27636"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1444,7 +1444,7 @@ dependencies = [
 name = "crowdloan-verifier"
 version = "0.1.0"
 dependencies = [
- "clap 4.3.3",
+ "clap 4.3.4",
  "csv",
  "pallet-rewards",
  "polkadex-primitives",
@@ -1604,9 +1604,9 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.95"
+version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "109308c20e8445959c2792e81871054c6a17e6976489a93d2769641a2ba5839c"
+checksum = "e88abab2f5abbe4c56e8f1fb431b784d710b709888f35755a160e62e33fe38e8"
 dependencies = [
  "cc",
  "cxxbridge-flags",
@@ -1616,9 +1616,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.95"
+version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daf4c6755cdf10798b97510e0e2b3edb9573032bd9379de8fffa59d68165494f"
+checksum = "5c0c11acd0e63bae27dcd2afced407063312771212b7a823b4fd72d633be30fb"
 dependencies = [
  "cc",
  "codespan-reporting",
@@ -1631,15 +1631,15 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.95"
+version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "882074421238e84fe3b4c65d0081de34e5b323bf64555d3e61991f76eb64a7bb"
+checksum = "8d3816ed957c008ccd4728485511e3d9aaf7db419aa321e3d2c5a2f3411e36c8"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.95"
+version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a076022ece33e7686fb76513518e219cca4fce5750a8ae6d1ce6c0f48fd1af9"
+checksum = "a26acccf6f445af85ea056362561a24ef56cdc15fcc685f03aec50b9c702cb6d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2441,7 +2441,7 @@ dependencies = [
  "Inflector",
  "array-bytes 4.2.0",
  "chrono",
- "clap 4.3.3",
+ "clap 4.3.4",
  "comfy-table",
  "frame-benchmarking",
  "frame-support",
@@ -2933,9 +2933,9 @@ dependencies = [
 
 [[package]]
 name = "gimli"
-version = "0.27.2"
+version = "0.27.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad0a93d233ebf96623465aad4046a8d3aa4da22d4f4beba5388838c8a434bbb4"
+checksum = "b6c80984affa11d98d1b88b66ac8853f143217b399d3c74116778ff8fdb4ed2e"
 dependencies = [
  "fallible-iterator",
  "indexmap",
@@ -4332,7 +4332,7 @@ checksum = "ef53942eb7bf7ff43a617b3e2c1c4a5ecf5944a7c1bc12d7ee39bbb15e5c1519"
 
 [[package]]
 name = "liquidity"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4875,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.0.0"
+version = "5.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -4927,6 +4927,7 @@ dependencies = [
  "parity-scale-codec",
  "pdex-migration",
  "polkadex-primitives",
+ "rpc-assets-runtime-api",
  "scale-info",
  "sp-api",
  "sp-authority-discovery",
@@ -5153,7 +5154,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "blst",
@@ -5214,7 +5215,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "bls-primitives",
@@ -5240,7 +5241,7 @@ dependencies = [
 
 [[package]]
 name = "orderbook-rpc"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "futures 0.3.28",
  "hex",
@@ -5711,7 +5712,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "5.0.0"
+version = "5.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -5802,7 +5803,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-rewards"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6373,7 +6374,7 @@ checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
 
 [[package]]
 name = "polkadex-client"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -6383,9 +6384,9 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.0.0"
+version = "5.1.0"
 dependencies = [
- "clap 4.3.3",
+ "clap 4.3.4",
  "frame-benchmarking-cli",
  "frame-support",
  "frame-system",
@@ -6408,6 +6409,7 @@ dependencies = [
  "polkadex-client",
  "polkadex-primitives",
  "reference-trie",
+ "rpc-assets",
  "sc-authority-discovery",
  "sc-basic-authorship",
  "sc-chain-spec",
@@ -6462,7 +6464,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "frame-support",
@@ -7188,6 +7190,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "rpc-assets"
+version = "0.1.0"
+dependencies = [
+ "jsonrpsee",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "rpc-assets-runtime-api",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-rpc",
+ "sp-runtime 7.0.0",
+]
+
+[[package]]
+name = "rpc-assets-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "sp-api",
+ "sp-core 7.0.0",
+ "sp-runtime 7.0.0",
+ "sp-std 5.0.0",
+]
+
+[[package]]
 name = "rtcp"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7341,9 +7370,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-native-certs"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0167bac7a9f490495f3c33013e7722b53cb087ecbe082fb0c6387c96f634ea50"
+checksum = "a9aace74cb666635c918e9c12bc0d348266037aa8eb599b5cba565709a8dff00"
 dependencies = [
  "openssl-probe",
  "rustls-pemfile",
@@ -7516,7 +7545,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.43#a2
 dependencies = [
  "array-bytes 4.2.0",
  "chrono",
- "clap 4.3.3",
+ "clap 4.3.4",
  "fdlimit",
  "futures 0.3.28",
  "libp2p-identity",
@@ -8353,7 +8382,7 @@ name = "sc-storage-monitor"
 version = "0.1.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.43#a2037bdedef0aa812017efee1d0fa63d4f5fcbae"
 dependencies = [
- "clap 4.3.3",
+ "clap 4.3.4",
  "fs4",
  "futures 0.3.28",
  "log",
@@ -10735,7 +10764,7 @@ dependencies = [
 
 [[package]]
 name = "thea"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -10758,7 +10787,7 @@ dependencies = [
 
 [[package]]
 name = "thea-client"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "bls-primitives",
@@ -10812,7 +10841,7 @@ dependencies = [
 
 [[package]]
 name = "thea-executor"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -10838,7 +10867,7 @@ dependencies = [
 
 [[package]]
 name = "thea-message-handler"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -10861,7 +10890,7 @@ dependencies = [
 
 [[package]]
 name = "thea-primitives"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bls-primitives",
  "frame-support",
@@ -11418,7 +11447,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.43#a2037bdedef0aa812017efee1d0fa63d4f5fcbae"
 dependencies = [
  "async-trait",
- "clap 4.3.3",
+ "clap 4.3.4",
  "frame-remote-externalities",
  "frame-try-runtime",
  "hex",
@@ -11670,11 +11699,10 @@ dependencies = [
 
 [[package]]
 name = "want"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ce8a968cb1cd110d136ff8b819a556d6fb6d919363c61534f6860c7eb172ba0"
+checksum = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
 dependencies = [
- "log",
  "try-lock",
 ]
 
@@ -12571,9 +12599,9 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 
 [[package]]
 name = "winnow"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61de7bac303dc551fe038e2b3cef0f571087a47571ea6e79a87692ac99b99699"
+checksum = "ca0ace3845f0d96209f0375e6d367e3eb87eb65d27d445bdc9f1843a26f39448"
 dependencies = [
  "memchr",
 ]

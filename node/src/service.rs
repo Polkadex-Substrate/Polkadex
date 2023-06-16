@@ -173,7 +173,7 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_native_or_wasm_executor(&config);
+	let executor = sc_service::new_native_or_wasm_executor(config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -199,9 +199,10 @@ pub fn new_partial(
 		client.clone(),
 	);
 
+	let arc_c = client.clone();
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
-		&(client.clone() as Arc<_>),
+		&(arc_c as Arc<_>),
 		select_chain.clone(),
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
@@ -347,7 +348,7 @@ pub fn new_full_base(
 ) -> Result<NewFullBase, ServiceError> {
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(&database_path);
+			let _ = std::fs::create_dir_all(database_path);
 			sc_sysinfo::gather_hwbench(Some(database_path))
 		}))
 		.flatten();
@@ -396,7 +397,13 @@ pub fn new_full_base(
 	));
 
 	// Thea
-	net_config.add_notification_protocol(thea_client::thea_peers_set_config());
+	let thea_protocol_name = thea_client::protocol_standard_name(
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		config.chain_spec.as_ref(),
+	);
+
+	net_config
+		.add_notification_protocol(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
@@ -643,6 +650,7 @@ pub fn new_full_base(
 		prometheus_registry,
 		marker: Default::default(),
 		is_validator: role.is_authority(),
+		protocol_name: thea_protocol_name,
 		chain_type,
 		foreign_chain_url,
 		dummy_mode: thea_dummy_mode,

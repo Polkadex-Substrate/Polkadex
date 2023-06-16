@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "5.0.0"
+version = "5.1.0"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -108,6 +108,7 @@ pallet-rewards = { path = "../pallets/rewards", default-features = false }
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
+rpc-assets-runtime-api = { path = "../rpc/assets/runtime-api", default-features = false }
 pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
@@ -175,6 +176,7 @@ std = [
   "polkadex-primitives/std",
   "pdex-migration/std",
   "pallet-ocex-lmp/std",
+  "rpc-assets-runtime-api/std",
   "pallet-rewards-runtime-api/std",
   "thea/std",
   "liquidity/std",

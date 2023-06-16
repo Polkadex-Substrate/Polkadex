@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-node"
-version = "5.0.0"
+version = "5.1.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2021"
@@ -28,6 +28,7 @@ itertools = "0.10.1"
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies
 node-polkadex-runtime = { path = "../runtime" }
+rpc-assets = { path = "../rpc/assets" }
 pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
 polkadex-client = { path = "../client" }
 orderbook = { path = "../clients/orderbook" }
