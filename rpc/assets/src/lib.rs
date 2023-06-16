@@ -26,11 +26,11 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::error::{CallError, ErrorObject},
 };
-pub use pallet_asset_handler_runtime_api::PolkadexAssetHandlerRuntimeApi;
 use parity_scale_codec::Codec;
+pub use rpc_assets_runtime_api::PolkadexAssetHandlerRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::traits::Block as BlockT;
 
 const RUNTIME_ERROR: i32 = 1;
 
@@ -93,11 +93,10 @@ where
 			.map(|asset_id| asset_id.parse::<u128>().map_err(runtime_error_into_rpc_err))
 			.collect();
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(at.unwrap_or_else(||
-		// If the block hash is not supplied assume the best block.
-		self.client.info().best_hash));
 
-		let runtime_api_result = api.account_balances(&at, assets?, account_id);
+		let at = if let Some(at) = at { at } else { self.client.info().best_hash };
+
+		let runtime_api_result = api.account_balances(at, assets?, account_id);
 		runtime_api_result
 			.map(|balances| balances.iter().map(|balance| balance.to_string()).collect())
 			.map_err(runtime_error_into_rpc_err)

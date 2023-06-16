@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "5.0.0"
+version = "5.1.0"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -73,7 +73,7 @@ sp-inherents = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
 sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
-pallet-randomness-collective-flip = { default-features = false, workspace = true }
+#pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
 #end added
 
@@ -91,8 +91,6 @@ orml-vesting = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 thea-primitives = { workspace = true, default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
-asset-handler = { path = "../pallets/asset-handler", default-features = false }
-chainbridge = { path = "../pallets/chainbridge", default-features = false }
 orderbook-primitives = { path = "../primitives/orderbook", default-features = false }
 
 # Orderbook 
@@ -102,11 +100,6 @@ pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 thea = { path = "../pallets/thea", default-features = false }
 thea-executor = { path = "../pallets/thea-executor", default-features = false }
 
-#swap
-pallet-amm = { path = "../pallets/swap", default-features = false }
-#router for swap
-router = { path = "../pallets/router", default-features = false }
-
 # Liquidity Pallet
 liquidity = { path = "../pallets/liquidity", default-features = false }
 
@@ -115,7 +108,7 @@ pallet-rewards = { path = "../pallets/rewards", default-features = false }
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
-pallet-asset-handler-runtime-api = { path = "../pallets/asset-handler/rpc/runtime-api", default-features = false }
+rpc-assets-runtime-api = { path = "../rpc/assets/runtime-api", default-features = false }
 pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
@@ -176,20 +169,16 @@ std = [
   "sp-staking/std",
   "sp-npos-elections/std",
   "frame-election-provider-support/std",
-  "pallet-randomness-collective-flip/std",
+  #"pallet-randomness-collective-flip/std",
   "pallet-assets/std",
   "frame-system-rpc-runtime-api/std",
   "orml-vesting/std",
   "polkadex-primitives/std",
   "pdex-migration/std",
-  "asset-handler/std",
-  "chainbridge/std",
   "pallet-ocex-lmp/std",
-  "pallet-asset-handler-runtime-api/std",
+  "rpc-assets-runtime-api/std",
   "pallet-rewards-runtime-api/std",
   "thea/std",
-  "pallet-amm/std",
-  "router/std",
   "liquidity/std",
   "pallet-rewards/std",
   "thea-executor/std",
@@ -205,14 +194,13 @@ runtime-benchmarks = [
   "sp-runtime/runtime-benchmarks",
   "hex-literal",
   "pallet-assets/runtime-benchmarks",
+  "pallet-collective/runtime-benchmarks",
   #our
   "pallet-ocex-lmp/runtime-benchmarks",
-  "asset-handler/runtime-benchmarks",
   "pdex-migration/runtime-benchmarks",
   "pallet-rewards/runtime-benchmarks",
   "liquidity/runtime-benchmarks",
   "thea/runtime-benchmarks",
-  "pallet-amm/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -249,17 +237,13 @@ try-runtime = [
   "pdex-migration/try-runtime",
   "pallet-democracy/try-runtime",
   "pallet-preimage/try-runtime",
-  "pallet-randomness-collective-flip/try-runtime",
+  #"pallet-randomness-collective-flip/try-runtime",
   "pallet-child-bounties/try-runtime",
   "pallet-assets/try-runtime",
   "pallet-ocex-lmp/try-runtime",
   "pallet-collective/try-runtime",
-  "chainbridge/try-runtime",
-  "asset-handler/try-runtime",
   "thea/try-runtime",
   "pallet-rewards/try-runtime",
   "liquidity/try-runtime",
-  "pallet-amm/try-runtime",
-  "router/try-runtime",
   "thea-executor/try-runtime",
 ]

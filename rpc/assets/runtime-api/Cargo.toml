@@ -1,5 +1,5 @@
 [package]
-name = "pallet-asset-handler-runtime-api"
+name = "rpc-assets-runtime-api"
 version = "0.1.0"
 edition = "2021"
 

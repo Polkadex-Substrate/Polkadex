@@ -30,6 +30,26 @@ use chrono::Utc;
 use futures::{channel::mpsc::UnboundedReceiver, StreamExt};
 use log::{debug, error, info, trace, warn};
 use memory_db::{HashKey, MemoryDB};
+use parity_scale_codec::{Codec, Decode, Encode};
+use parking_lot::RwLock;
+use primitive_types::H128;
+use reference_trie::{ExtensionLayout, RefHasher};
+use rust_decimal::Decimal;
+use sc_client_api::{Backend, FinalityNotification};
+use sc_keystore::LocalKeystore;
+use sc_network::PeerId;
+use sc_network_gossip::{GossipEngine, Network as GossipNetwork, Syncing};
+use sp_api::{BlockT, HeaderT, ProvideRuntimeApi};
+use sp_arithmetic::traits::SaturatedConversion;
+use sp_blockchain::HeaderBackend;
+use sp_consensus::SyncOracle;
+use sp_core::{blake2_128, offchain::OffchainStorage};
+use sp_runtime::{
+	generic::BlockId,
+	traits::{Block, Zero},
+};
+use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
+
 use orderbook_primitives::{
 	crypto::AuthorityId,
 	types::{
@@ -38,8 +58,6 @@ use orderbook_primitives::{
 	},
 	ObApi, SnapshotSummary, ValidatorSet,
 };
-use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::RwLock;
 use polkadex_primitives::{
 	ingress::IngressMessages,
 	ocex::TradingPairConfig,
@@ -47,22 +65,6 @@ use polkadex_primitives::{
 	withdrawal::Withdrawal,
 	AccountId, AssetId, BlockNumber,
 };
-use primitive_types::H128;
-use reference_trie::{ExtensionLayout, RefHasher};
-use rust_decimal::Decimal;
-use sc_client_api::{Backend, FinalityNotification};
-use sc_keystore::LocalKeystore;
-use sc_network::PeerId;
-use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
-use sp_api::ProvideRuntimeApi;
-use sp_arithmetic::traits::SaturatedConversion;
-use sp_consensus::SyncOracle;
-use sp_core::{blake2_128, offchain::OffchainStorage};
-use sp_runtime::{
-	generic::BlockId,
-	traits::{Block, Header, Zero},
-};
-use trie_db::{TrieDBMut, TrieDBMutBuilder, TrieMut};
 
 use crate::{
 	error::Error,
@@ -93,13 +95,13 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R> {
 	/// Client runtime.
 	pub runtime: Arc<R>,
 	/// Network service.
-	pub sync_oracle: SO,
+	pub sync_oracle: Arc<SO>,
 	/// Instance of Orderbook metrics exposed through Prometheus.
 	pub metrics: Option<Metrics>,
 	/// Indicates if this node is a validator.
 	pub is_validator: bool,
 	/// Local key store.
-	pub keystore: Option<Arc<LocalKeystore>>,
+	pub keystore: Arc<LocalKeystore>,
 	/// Submit message link.
 	pub message_sender_link: UnboundedReceiver<ObMessage>,
 	/// Gossip network.
@@ -118,7 +120,7 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	client: Arc<C>,
 	backend: Arc<BE>,
 	runtime: Arc<R>,
-	sync_oracle: SO,
+	sync_oracle: Arc<SO>,
 	is_validator: bool,
 	_network: Arc<N>,
 	/// Local key store.
@@ -164,7 +166,7 @@ where
 	C: Client<B, BE>,
 	R: ProvideRuntimeApi<B>,
 	R::Api: ObApi<B>,
-	SO: Send + Sync + Clone + 'static + SyncOracle,
+	SO: Send + Sync + Clone + 'static + SyncOracle + Syncing<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 {
 	/// Return a new Orderbook worker instance.
@@ -220,8 +222,13 @@ where
 			last_snapshot.clone(),
 			state_version.clone(),
 		));
-		let gossip_engine =
-			GossipEngine::new(network.clone(), protocol_name, gossip_validator, None);
+		let gossip_engine = GossipEngine::new(
+			network.clone(),
+			sync_oracle.clone(),
+			protocol_name,
+			gossip_validator,
+			None,
+		);
 
 		let keystore = OrderbookKeyStore::new(keystore);
 
@@ -263,18 +270,21 @@ where
 	///
 	/// * `bool`: A boolean indicating whether a snapshot should be generated.
 	pub fn should_generate_snapshot(&self) -> bool {
-		let at = BlockId::Number(self.last_finalized_block.saturated_into());
+		let at = match self.get_block_hash(self.last_finalized_block.saturated_into()) {
+			Ok(hash) => hash,
+			Err(_) => return false,
+		};
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
 		let (pending_withdrawals_interval, block_interval) = self
 			.runtime
 			.runtime_api()
-			.get_snapshot_generation_intervals(&at)
+			.get_snapshot_generation_intervals(at)
 			.expect("📒 Expected the snapshot runtime api to be available, qed.");
 
 		let last_accepted_worker_nonce: u64 = self
 			.runtime
 			.runtime_api()
-			.get_last_accepted_worker_nonce(&BlockId::Number(self.client.info().best_number))
+			.get_last_accepted_worker_nonce(self.client.info().best_hash)
 			.expect("📒Expected the snapshot runtime api to be available, qed.");
 		// Check if a snapshot should be generated based on the pending withdrawals interval and
 		// block interval
@@ -376,10 +386,10 @@ where
 		let mut working_state_root = self.working_state_root.write();
 		info!("📒Starting state root: {:?}", hex::encode(*working_state_root));
 		// Get the ingress messages for this block
-		let messages = self.runtime.runtime_api().ingress_messages(
-			&BlockId::number(self.client.info().finalized_number),
-			num.saturated_into(),
-		)?;
+		let messages = self
+			.runtime
+			.runtime_api()
+			.ingress_messages(self.client.info().finalized_hash, num.saturated_into())?;
 
 		{
 			let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
@@ -421,14 +431,14 @@ where
 	/// * `stid`: State change id required for the snapshot generation.
 	pub fn snapshot(&mut self, worker_nonce: u64, stid: u64) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Generating snapshot");
-		let at = BlockId::number(self.client.info().finalized_number);
+		let at = self.client.info().finalized_hash;
 		let next_snapshot_id = self
 			.runtime
 			.runtime_api()
-			.get_latest_snapshot(&at)?
+			.get_latest_snapshot(at)?
 			.snapshot_id
 			.saturating_add(1);
-		let active_set = self.runtime.runtime_api().validator_set(&at)?;
+		let active_set = self.runtime.runtime_api().validator_set(at)?;
 		if let Some(pending_snapshot) = self.pending_snapshot_summary.as_ref() {
 			if next_snapshot_id == pending_snapshot.snapshot_id {
 				// We don't need to do anything because we already submitted the snapshot.
@@ -436,7 +446,7 @@ where
 				let local_key = self.keystore.get_local_key(&active_set.validators[..])?;
 
 				if let Some(pending_snapshot_id) =
-					self.runtime.runtime_api().pending_snapshot(&at, local_key)?
+					self.runtime.runtime_api().pending_snapshot(at, local_key)?
 				{
 					if pending_snapshot.snapshot_id == pending_snapshot_id {
 						return Ok(())
@@ -469,10 +479,7 @@ where
 		if self
 			.runtime
 			.runtime_api()
-			.submit_snapshot(
-				&BlockId::number(self.client.info().finalized_number),
-				summary.clone(),
-			)?
+			.submit_snapshot(self.client.info().finalized_hash, summary.clone())?
 			.is_err()
 		{
 			error!(target:"orderbook","📒 Failed to submit snapshot to runtime");
@@ -658,8 +665,8 @@ where
 	#[cfg(test)]
 	pub fn get_offline_storage(&mut self, id: u64) -> Option<Vec<u8>> {
 		let offchain_storage = self.backend.offchain_storage().unwrap();
-		let result = offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode());
-		return result
+
+		offchain_storage.get(ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX, &id.encode())
 	}
 
 	/// Prepares and persists snapshot and worker nonce to the offchain storage and returns snapshot
@@ -814,10 +821,9 @@ where
 		// We forget about everything else from cache.
 		self.known_messages.clear();
 		info!(target:"orderbook","📒 OB messages cache cleared.");
-		let latest_summary = self
-			.runtime
-			.runtime_api()
-			.get_latest_snapshot(&BlockId::Number(self.last_finalized_block.saturated_into()))?;
+		let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
+			self.get_block_hash(self.last_finalized_block.saturated_into())?,
+		)?;
 		self.load_snapshot(&latest_summary)?;
 		*self.state_version.write() = latest_summary.state_version.saturating_add(1);
 		info!(target:"orderbook","📒 New state version is updated: version: {:?}",self.state_version.read());
@@ -927,9 +933,12 @@ where
 		if let Some(peer) = remote {
 			let mut chunks_we_have = vec![];
 			let mut highest_index = 0;
-			let at = BlockId::Number(self.last_finalized_block.saturated_into());
+			let at = match self.get_block_hash(self.last_finalized_block.saturated_into()) {
+				Ok(hash) => hash,
+				Err(_) => return,
+			};
 			if let Ok(Some(summary)) =
-				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
+				self.runtime.runtime_api().get_snapshot_by_id(at, *snapshot_id)
 			{
 				if let Some(offchain_storage) = self.backend.offchain_storage() {
 					let required_indexes: Vec<usize> = return_set_bits(bitmap);
@@ -1022,9 +1031,10 @@ where
 		info!(target: "orderbook", "📒 Request chunk: {:?}, {:?}, {:?}", snapshot_id, bitmap, remote);
 		if let Some(peer) = remote {
 			if let Some(offchian_storage) = self.backend.offchain_storage() {
-				let at = BlockId::Number(self.last_finalized_block.saturated_into());
-				if let Ok(Some(summary)) =
-					self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
+				if let Ok(Some(summary)) = self
+					.runtime
+					.runtime_api()
+					.get_snapshot_by_id(self.client.info().finalized_hash, *snapshot_id)
 				{
 					let chunk_indexes: Vec<usize> = return_set_bits(bitmap);
 					for index in chunk_indexes {
@@ -1070,37 +1080,38 @@ where
 	pub fn process_chunk(&mut self, snapshot_id: &u64, index: &usize, data: &[u8]) {
 		info!(target: "orderbook", "📒 Chunk snapshot: {:?} - {:?} - {:?}", snapshot_id, index, data.len());
 		if let Some(mut offchian_storage) = self.backend.offchain_storage() {
-			let at = BlockId::Number(self.client.info().finalized_number);
-			if let Ok(Some(summary)) =
-				self.runtime.runtime_api().get_snapshot_by_id(&at, *snapshot_id)
-			{
-				match summary.state_chunk_hashes.get(*index) {
-					None =>
-						warn!(target:"orderbook","📒 Invalid index received, index > length of state chunk hashes"),
-					Some(expected_hash) => {
-						let computed_hash: H128 = H128::from(blake2_128(data));
-						if *expected_hash == computed_hash {
-							// Store the data
-							offchian_storage.set(
-								ORDERBOOK_STATE_CHUNK_PREFIX,
-								expected_hash.0.as_ref(),
-								data,
-							);
-							info!(target: "orderbook", "📒 Chunk {:?} of snapshot: {:?} stored", computed_hash, snapshot_id);
-							// Update sync status map
-							self.sync_state_map
-								.entry(*index)
-								.and_modify(|status| {
-									*status = StateSyncStatus::Available;
-								})
-								.or_insert(StateSyncStatus::Available);
-						} else {
-							log::warn!(target:"orderbook","📒 Invalid chunk hash, dropping chunk...");
-						}
-					},
+			if let Ok(at) = self.get_block_hash(self.client.info().finalized_number) {
+				if let Ok(Some(summary)) =
+					self.runtime.runtime_api().get_snapshot_by_id(at, *snapshot_id)
+				{
+					match summary.state_chunk_hashes.get(*index) {
+						None =>
+							warn!(target:"orderbook","📒 Invalid index received, index > length of state chunk hashes"),
+						Some(expected_hash) => {
+							let computed_hash: H128 = H128::from(blake2_128(data));
+							if *expected_hash == computed_hash {
+								// Store the data
+								offchian_storage.set(
+									ORDERBOOK_STATE_CHUNK_PREFIX,
+									expected_hash.0.as_ref(),
+									data,
+								);
+								info!(target: "orderbook", "📒 Chunk {:?} of snapshot: {:?} stored", computed_hash, snapshot_id);
+								// Update sync status map
+								self.sync_state_map
+									.entry(*index)
+									.and_modify(|status| {
+										*status = StateSyncStatus::Available;
+									})
+									.or_insert(StateSyncStatus::Available);
+							} else {
+								log::warn!(target:"orderbook","📒 Invalid chunk hash, dropping chunk...");
+							}
+						},
+					}
+				} else {
+					log::error!(target:"orderbook","📒 Unable to read summary from runtime");
 				}
-			} else {
-				log::error!(target:"orderbook","📒 Unable to read summary from runtime");
 			}
 		} else {
 			log::error!(target:"orderbook","📒 Unable to get handle to offchain storage");
@@ -1139,13 +1150,30 @@ where
 		Ok(())
 	}
 
+	pub fn get_block_hash(
+		&self,
+		number: <<B as BlockT>::Header as HeaderT>::Number,
+	) -> Result<B::Hash, Error> {
+		self.backend
+			.blockchain()
+			.expect_block_hash_from_id(&BlockId::Number(number))
+			.map_err(|err| {
+				let err_msg = format!(
+					"Couldn't get hash for block #{:?} (error: {:?}), skipping report for equivocation",
+					number, err
+				);
+				Error::Backend(err_msg)
+			})
+	}
+
 	/// Updates local trie with all registered main account and proxies.
 	pub fn update_storage_with_genesis_data(&mut self) -> Result<(), Error> {
 		info!(target:"orderbook","📒 Updating storage with genesis data");
+
 		let data = self
 			.runtime
 			.runtime_api()
-			.get_all_accounts_and_proxies(&BlockId::number(self.client.info().finalized_number))?;
+			.get_all_accounts_and_proxies(self.client.info().finalized_hash)?;
 		let mut memory_db = self.memory_db.write();
 		let mut working_state_root = self.working_state_root.write();
 		let mut trie = Self::get_trie(&mut memory_db, &mut working_state_root);
@@ -1182,7 +1210,7 @@ where
 		let active_set = self
 			.runtime
 			.runtime_api()
-			.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+			.validator_set(self.get_block_hash(self.last_finalized_block.saturated_into())?)?
 			.validators;
 
 		if self.is_validator {
@@ -1205,7 +1233,7 @@ where
 		// We should not update latest summary if we are still syncing
 		if !self.state_is_syncing {
 			let latest_summary = self.runtime.runtime_api().get_latest_snapshot(
-				&BlockId::Number(self.last_finalized_block.saturated_into()),
+				self.get_block_hash(self.last_finalized_block.saturated_into())?,
 			)?;
 
 			// Check if its genesis then update storage with genesis data
@@ -1232,9 +1260,9 @@ where
 				self.known_messages.retain(|k, _| *k > last_worker_nonce);
 			}
 			if let Some(orderbook_operator_public_key) =
-				self.runtime.runtime_api().get_orderbook_opearator_key(&BlockId::number(
-					self.last_finalized_block.saturated_into(),
-				))? {
+				self.runtime.runtime_api().get_orderbook_opearator_key(
+					self.get_block_hash(self.last_finalized_block.saturated_into())?,
+				)? {
 				info!(target:"orderbook","📒 Orderbook operator public key found in runtime: {:?}",orderbook_operator_public_key);
 				self.orderbook_operator_public_key = Some(orderbook_operator_public_key);
 			} else {
@@ -1294,12 +1322,14 @@ where
 				let active_set = self
 					.runtime
 					.runtime_api()
-					.validator_set(&BlockId::number(self.last_finalized_block.saturated_into()))?
+					.validator_set(
+						self.get_block_hash(self.last_finalized_block.saturated_into())?,
+					)?
 					.validators;
 				if let Ok(signing_key) = self.keystore.get_local_key(&active_set) {
 					// 2. Check if the pending snapshot from previous set
 					if let Some(pending_snaphot) = self.runtime.runtime_api().pending_snapshot(
-						&BlockId::number(self.last_finalized_block.saturated_into()),
+						self.get_block_hash(self.last_finalized_block.saturated_into())?,
 						signing_key.clone(),
 					)? {
 						info!(target:"orderbook","📒 Pending snapshot found: {:?}",pending_snaphot);
@@ -1337,9 +1367,9 @@ where
 												.runtime
 												.runtime_api()
 												.submit_snapshot(
-													&BlockId::number(
-														self.last_finalized_block.into(),
-													),
+													self.get_block_hash(
+														self.last_finalized_block.saturated_into(),
+													)?,
 													summary.clone(),
 												)?
 												.is_err()
@@ -1397,13 +1427,47 @@ where
 	/// Wait for Orderbook runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
 		info!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
+
+		let mut gossip_messages = Box::pin(
+			self.gossip_engine
+				.messages_for(topic::<B>())
+				.filter_map(|notification| async move {
+					match GossipMessage::decode(&mut &notification.message[..]).ok() {
+						None => {
+							warn!(target: "orderbook", "📒 Gossip message decode failed: {:?}", notification);
+							None
+						},
+						Some(msg) => {
+							trace!(target: "orderbook", "📒 Got gossip message: {:?}", msg);
+							Some((msg, notification.sender))
+						},
+					}
+				})
+				.fuse(),
+		);
+
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
-		while let Some(notif) = finality_stream.next().await {
-			let at = BlockId::hash(notif.header.hash());
-			if self.runtime.runtime_api().validator_set(&at).ok().is_some() {
-				break
-			} else {
-				debug!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
+
+		loop {
+			let mut gossip_engine = &mut self.gossip_engine;
+			futures::select_biased! {
+				_ = gossip_engine => {
+					error!(target: "orderbook", "📒 Gossip engine has terminated.");
+					return;
+				}
+				finality = finality_stream.next() => {
+					if let Some(finality) = finality {
+						if self.runtime.runtime_api().validator_set(finality.header.hash()).ok().is_some() {
+								// Pallet is available break and exit
+								break
+						} else {
+							debug!(target: "orderbook", "📒 Waiting for orderbook pallet to become available...");
+						}
+					}
+				},
+				_ = gossip_messages.next() => {
+					// Just drop any messages before runtime upgrade
+				}
 			}
 		}
 	}
@@ -1473,17 +1537,18 @@ where
 		trie
 	}
 
-	/// Loads the latest trading pair configs from runtime.
+	/// Loads the latest finalized trading pair configs from runtime.
 	///
 	/// # Parameters
 	///
 	/// * `blk_num`: Block number.
-	pub fn load_trading_pair_configs(&mut self, blk_num: BlockNumber) -> Result<(), Error> {
+	pub fn load_trading_pair_configs(&mut self) -> Result<(), Error> {
 		info!(target: "orderbook", "📒 Loading trading pair configs from runtime...");
+
 		let tradingpairs = self
 			.runtime
 			.runtime_api()
-			.read_trading_pair_configs(&BlockId::Number(blk_num.saturated_into()))?;
+			.read_trading_pair_configs(self.client.info().finalized_hash)?;
 		info!(target: "orderbook","Loaded {:?} trading pairs", tradingpairs.len());
 		for (pair, config) in tradingpairs {
 			self.trading_pair_configs.insert(pair, config);
@@ -1509,7 +1574,7 @@ where
 		if let Ok(public_key) = self
 			.runtime
 			.runtime_api()
-			.get_orderbook_opearator_key(&BlockId::Number(self.client.info().finalized_number))
+			.get_orderbook_opearator_key(self.client.info().finalized_hash)
 		{
 			self.orderbook_operator_public_key = public_key;
 		}
@@ -1518,7 +1583,7 @@ where
 		let latest_summary = match self
 			.runtime
 			.runtime_api()
-			.get_latest_snapshot(&BlockId::Number(self.client.info().finalized_number))
+			.get_latest_snapshot(self.client.info().finalized_hash)
 		{
 			Ok(summary) => summary,
 			Err(err) => {
@@ -1542,9 +1607,7 @@ where
 			self.state_is_syncing = true;
 		}
 
-		if let Err(err) =
-			self.load_trading_pair_configs(self.client.info().finalized_number.saturated_into())
-		{
+		if let Err(err) = self.load_trading_pair_configs() {
 			error!(target:"orderbook","📒 Error while loading trading pair configs: {:?}",err);
 			return
 		}

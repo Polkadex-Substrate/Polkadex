@@ -1,5 +1,5 @@
 [package]
-name = "pallet-asset-handler-rpc"
+name = "rpc-assets"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,4 +12,4 @@ sp-blockchain = { workspace = true }
 sp-api = { workspace = true }
 sp-runtime = { workspace = true }
 polkadex-primitives = { workspace = true }
-pallet-asset-handler-runtime-api = { path = "runtime-api" }
+rpc-assets-runtime-api = { path = "runtime-api" }

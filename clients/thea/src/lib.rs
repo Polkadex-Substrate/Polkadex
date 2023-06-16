@@ -51,23 +51,33 @@ mod keystore;
 mod types;
 
 pub(crate) mod thea_protocol_name {
+	use sc_chain_spec::ChainSpec;
 
 	/// Protocol name.
 	pub(crate) const NAME: &str = "/thea/1";
 
-	/// Name of the notifications protocol used by Thea.
+	/// Name of the notifications protocol used by BEEFY.
 	///
-	/// Must be registered towards the networking in order for Thea to properly function.
-	pub fn standard_name() -> sc_network::ProtocolName {
-		sc_network::ProtocolName::Static(NAME)
+	/// Must be registered towards the networking in order for BEEFY to properly function.
+	pub fn standard_name<Hash: AsRef<[u8]>>(
+		genesis_hash: &Hash,
+		chain_spec: &dyn ChainSpec,
+	) -> sc_network::ProtocolName {
+		let chain_prefix = match chain_spec.fork_id() {
+			Some(fork_id) => format!("/{}/{}", hex::encode(genesis_hash), fork_id),
+			None => format!("/{}", hex::encode(genesis_hash)),
+		};
+		format!("{chain_prefix}{NAME}").into()
 	}
 }
 
 /// Returns the configuration value to put in
 /// [`sc_network::config::NetworkConfiguration::extra_sets`].
 /// For standard protocol name see [`thea_protocol_name::standard_name`].
-pub fn thea_peers_set_config() -> sc_network_common::config::NonDefaultSetConfig {
-	let mut cfg = sc_network_common::config::NonDefaultSetConfig::new(standard_name(), 1024 * 1024);
+pub fn thea_peers_set_config(
+	protocol_name: sc_network::ProtocolName,
+) -> sc_network::config::NonDefaultSetConfig {
+	let mut cfg = sc_network::config::NonDefaultSetConfig::new(protocol_name, 1024 * 1024);
 
 	cfg.allow_non_reserved(25, 25);
 	cfg
@@ -105,13 +115,12 @@ use crate::{
 		parachain::ParachainClient,
 		traits::{ForeignConnector, NoOpConnector},
 	},
-	thea_protocol_name::standard_name,
 	worker::TheaWorker,
 };
-use sc_network_gossip::Network as GossipNetwork;
+use sc_network_gossip::{Network as GossipNetwork, Syncing};
 
 /// Thea gadget initialization parameters.
-pub struct TheaParams<B, BE, C, N, R>
+pub struct TheaParams<B, BE, C, N, R, SO>
 where
 	B: Block,
 	BE: Backend<B>,
@@ -119,6 +128,7 @@ where
 	R: ProvideRuntimeApi<B>,
 	R::Api: TheaApi<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	SO: SyncOracle + Syncing<B>,
 {
 	/// Thea client.
 	pub client: Arc<C>,
@@ -127,14 +137,18 @@ where
 	/// Client runtime.
 	pub runtime: Arc<R>,
 	/// Keystore.
-	pub keystore: Option<Arc<LocalKeystore>>,
+	pub keystore: Arc<LocalKeystore>,
 	/// Gossip network.
 	pub network: N,
+	/// Sync service
+	pub sync_oracle: Arc<SO>,
 	/// Prometheus metric registry.
 	pub prometheus_registry: Option<Registry>,
 	/// Boolean indicating if this node is a validator.
 	pub is_validator: bool,
 	pub marker: PhantomData<B>,
+	/// Chain specific Thea protocol name. See [`thea_protocol_name::standard_name`].
+	pub protocol_name: sc_network::ProtocolName,
 	/// Defines the chain type our current deployment (Dev or production).
 	pub chain_type: ChainType,
 	/// Foreign Chain URL.
@@ -146,14 +160,15 @@ where
 /// Start the Thea gadget.
 ///
 /// This is a thin shim around running and awaiting a Thea worker.
-pub async fn start_thea_gadget<B, BE, C, N, R>(ob_params: TheaParams<B, BE, C, N, R>)
+pub async fn start_thea_gadget<B, BE, C, N, R, SO>(ob_params: TheaParams<B, BE, C, N, R, SO>)
 where
 	B: Block,
 	BE: Backend<B>,
 	C: Client<B, BE>,
 	R: ProvideRuntimeApi<B>,
 	R::Api: TheaApi<B>,
-	N: GossipNetwork<B> + Clone + Send + Sync + 'static + SyncOracle,
+	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
+	SO: Clone + Send + Sync + 'static + SyncOracle + Syncing<B>,
 {
 	let TheaParams {
 		client,
@@ -161,15 +176,15 @@ where
 		runtime,
 		keystore,
 		network,
+		sync_oracle,
 		prometheus_registry,
 		is_validator,
 		marker: _,
+		protocol_name,
 		chain_type,
 		foreign_chain_url,
 		dummy_mode,
 	} = ob_params;
-
-	let sync_oracle = network.clone();
 
 	let metrics =
 		prometheus_registry.as_ref().map(metrics::Metrics::register).and_then(
@@ -200,6 +215,7 @@ where
 		metrics,
 		_marker: Default::default(),
 		foreign_chain: foreign_connector,
+		protocol_name,
 	};
 
 	let worker = TheaWorker::<_, _, _, _, _, _, _>::new(worker_params).await;

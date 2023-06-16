@@ -23,7 +23,7 @@ use log::trace;
 use parity_scale_codec::Decode;
 use parking_lot::RwLock;
 use sc_network::PeerId;
-use sc_network_common::protocol::role::ObservedRole;
+use sc_network_common::role::ObservedRole;
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sp_runtime::traits::{Block, Hash, Header};
 use std::{
@@ -38,7 +38,7 @@ pub fn topic<B: Block>() -> B::Hash
 where
 	B: Block,
 {
-	<<B::Header as Header>::Hashing as Hash>::hash(b"/thea/1")
+	<<B::Header as Header>::Hashing as Hash>::hash(b"thea")
 }
 
 /// Thea gossip validator.

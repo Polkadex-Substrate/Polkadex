@@ -52,7 +52,7 @@ use blst::BLST_ERROR;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sha2::Sha256;
-use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, CryptoTypePublicPair, Derive};
+use sp_core::crypto::{ByteArray, CryptoType, CryptoTypeId, Derive, Ss58Codec};
 use sp_std::ops::{Add, Neg};
 
 #[cfg(feature = "std")]
@@ -249,12 +249,6 @@ impl CryptoType for Pair {
 	type Pair = Pair;
 }
 
-impl From<CryptoTypePublicPair> for Public {
-	fn from(value: CryptoTypePublicPair) -> Self {
-		Public::try_from(value.1.as_ref()).expect("Expected the public key to be 96 bytes")
-	}
-}
-
 impl ByteArray for Public {
 	const LEN: usize = 96;
 }
@@ -289,12 +283,6 @@ impl CryptoType for Public {
 	type Pair = Pair;
 }
 
-impl sp_core::crypto::Public for Public {
-	fn to_public_crypto_pair(&self) -> CryptoTypePublicPair {
-		CryptoTypePublicPair(CRYPTO_ID, self.0.to_vec())
-	}
-}
-
 impl AsRef<[u8]> for Signature {
 	fn as_ref(&self) -> &[u8] {
 		self.0.as_ref()
@@ -302,11 +290,21 @@ impl AsRef<[u8]> for Signature {
 }
 
 #[cfg(feature = "std")]
+impl std::str::FromStr for Public {
+	type Err = sp_core::crypto::PublicError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Self::from_ss58check(s)
+	}
+}
+use sp_core::crypto::Public as TraitPublic;
+impl TraitPublic for Public {}
+
+#[cfg(feature = "std")]
 impl sp_core::crypto::Pair for Pair {
 	type Public = Public;
 	type Seed = Seed;
 	type Signature = Signature;
-	type DeriveError = Error;
 
 	fn generate_with_phrase(password: Option<&str>) -> (Self, String, Self::Seed) {
 		let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
@@ -339,7 +337,7 @@ impl sp_core::crypto::Pair for Pair {
 		&self,
 		path: Iter,
 		seed: Option<Self::Seed>,
-	) -> Result<(Self, Option<Self::Seed>), Self::DeriveError> {
+	) -> Result<(Self, Option<Self::Seed>), sp_core::crypto::DeriveError> {
 		let mut master_key = self.secret.clone();
 		for junction in path {
 			let index_bytes = [
@@ -375,16 +373,6 @@ impl sp_core::crypto::Pair for Pair {
 
 	fn verify<M: AsRef<[u8]>>(sig: &Self::Signature, message: M, pubkey: &Self::Public) -> bool {
 		sig.verify(&[*pubkey], message.as_ref())
-	}
-
-	fn verify_weak<P: AsRef<[u8]>, M: AsRef<[u8]>>(sig: &[u8], message: M, pubkey: P) -> bool {
-		match Signature::try_from(sig) {
-			Ok(sig) => match Public::try_from(pubkey.as_ref()) {
-				Ok(pubk) => Self::verify(&sig, message, &pubk),
-				Err(_) => false,
-			},
-			Err(_) => false,
-		}
 	}
 
 	fn public(&self) -> Self::Public {

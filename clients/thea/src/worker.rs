@@ -21,21 +21,18 @@
 use std::{collections::BTreeMap, marker::PhantomData, ops::AddAssign, sync::Arc, time::Duration};
 
 use futures::StreamExt;
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 use parity_scale_codec::{Codec, Decode, Encode};
 use parking_lot::RwLock;
 use polkadex_primitives::utils::{prepare_bitmap, return_set_bits, set_bit_field};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_keystore::LocalKeystore;
 use sc_network::PeerId;
-use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
+use sc_network_gossip::{GossipEngine, Network as GossipNetwork, Syncing};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_consensus::SyncOracle;
-use sp_runtime::{
-	generic::BlockId,
-	traits::{Block, Header, Zero},
-};
+use sp_runtime::traits::{Block, Header};
 use thea_primitives::{
 	types::Message, AuthorityIndex, Network, TheaApi, MESSAGE_CACHE_DURATION_IN_SECS,
 	NATIVE_NETWORK,
@@ -49,7 +46,6 @@ use crate::{
 	keystore::TheaKeyStore,
 	metric_add, metric_inc,
 	metrics::Metrics,
-	thea_protocol_name,
 	types::GossipMessage,
 	Client,
 };
@@ -63,18 +59,20 @@ pub(crate) struct WorkerParams<B: Block, BE, C, SO, N, R, FC: ForeignConnector +
 	/// Client runtime.
 	pub runtime: Arc<R>,
 	/// Network service.
-	pub sync_oracle: SO,
+	pub sync_oracle: Arc<SO>,
 	/// Instance of Thea metrics exposed through Prometheus.
 	pub metrics: Option<Metrics>,
 	/// Indicates if this node is a validator.
 	pub is_validator: bool,
 	/// Gossip network.
 	pub network: N,
+	/// Chain specific Thea protocol name. See [`thea_protocol_name::standard_name`].
+	pub protocol_name: sc_network::ProtocolName,
 	pub _marker: PhantomData<B>,
 	/// Foreign chain connector.
 	pub foreign_chain: Arc<FC>,
 	/// Local key store.
-	pub(crate) keystore: Option<Arc<LocalKeystore>>,
+	pub(crate) keystore: Arc<LocalKeystore>,
 }
 
 /// A thea worker plays the thea protocol
@@ -86,7 +84,7 @@ pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?
 	// Payload to gossip message mapping
 	_backend: Arc<BE>,
 	runtime: Arc<R>,
-	sync_oracle: SO,
+	sync_oracle: Arc<SO>,
 	metrics: Option<Metrics>,
 	is_validator: bool,
 	_network: Arc<N>,
@@ -97,7 +95,6 @@ pub(crate) struct TheaWorker<B: Block, BE, C, SO, N, R, FC: ForeignConnector + ?
 	last_foreign_nonce_processed: Arc<RwLock<u64>>,
 	last_native_nonce_processed: Arc<RwLock<u64>>,
 	foreign_chain: Arc<FC>,
-	last_finalized_blk: BlockId<B>,
 }
 
 impl<B, BE, C, SO, N, R, FC> TheaWorker<B, BE, C, SO, N, R, FC>
@@ -107,7 +104,7 @@ where
 	C: Client<B, BE>,
 	R: ProvideRuntimeApi<B>,
 	R::Api: TheaApi<B>,
-	SO: Send + Sync + Clone + 'static + SyncOracle,
+	SO: Send + Sync + Clone + 'static + SyncOracle + Syncing<B>,
 	N: GossipNetwork<B> + Clone + Send + Sync + 'static,
 	FC: ForeignConnector + ?Sized,
 {
@@ -126,6 +123,7 @@ where
 			client,
 			backend,
 			runtime,
+			protocol_name,
 			foreign_chain,
 			keystore,
 			sync_oracle,
@@ -145,7 +143,8 @@ where
 		));
 		let gossip_engine = GossipEngine::new(
 			network.clone(),
-			thea_protocol_name::standard_name(),
+			sync_oracle.clone(),
+			protocol_name,
 			gossip_validator,
 			None,
 		);
@@ -165,7 +164,6 @@ where
 			last_foreign_nonce_processed: foreign_nonce,
 			last_native_nonce_processed: native_nonce,
 			foreign_chain,
-			last_finalized_blk: BlockId::number(Zero::zero()),
 		}
 	}
 
@@ -176,12 +174,12 @@ where
 	///
 	/// * `message`: Message to sign.
 	pub fn sign_message(&mut self, message: Message) -> Result<GossipMessage, Error> {
-		let network = self.thea_network.expect("Expected the network to be defined here.");
+		let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 		info!(target:"thea", "Serving network: {:?}", network);
 		let active = self
 			.runtime
 			.runtime_api()
-			.validator_set(&self.last_finalized_blk, network)?
+			.validator_set(self.client.info().finalized_hash, network)?
 			.ok_or(Error::ValidatorSetNotInitialized(network))?;
 
 		let signing_key = self.keystore.get_local_key(&active.validators)?;
@@ -207,12 +205,15 @@ where
 		if message.payload.network != NATIVE_NETWORK {
 			self.foreign_chain.check_message(&message.payload).await
 		} else {
-			let finalized_blk = self.last_finalized_blk;
 			let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 			let result = self
 				.runtime
 				.runtime_api()
-				.outgoing_messages(&finalized_blk, network, message.payload.nonce)?
+				.outgoing_messages(
+					self.client.info().finalized_hash,
+					network,
+					message.payload.nonce,
+				)?
 				.ok_or(Error::ErrorReadingTheaMessage)?;
 
 			Ok(result == message.payload)
@@ -283,7 +284,7 @@ where
 							} else {
 								info!(target:"thea", "🌉 Sending message to native runtime");
 								self.runtime.runtime_api().incoming_message(
-									&self.last_finalized_blk,
+									self.client.info().finalized_hash,
 									incoming_message.payload.clone(),
 									incoming_message.bitmap.clone(),
 									incoming_message.aggregate_signature.into(),
@@ -335,7 +336,7 @@ where
 						} else {
 							info!(target:"thea", "🌉 Sending message to native runtime");
 							self.runtime.runtime_api().incoming_message(
-								&self.last_finalized_blk,
+								self.client.info().finalized_hash,
 								incoming_message.payload.clone(),
 								incoming_message.bitmap.clone(),
 								incoming_message.aggregate_signature.into(),
@@ -378,8 +379,7 @@ where
 
 		info!(target: "thea", "🌉 Finality notification for blk: {:?}", notification.header.number());
 		let header = &notification.header;
-		let at = BlockId::hash(header.hash());
-		self.last_finalized_blk = at;
+		let at = header.hash();
 
 		// Proceed only if we are a validator
 		if !self.is_validator {
@@ -390,10 +390,10 @@ where
 			let active = self
 				.runtime
 				.runtime_api()
-				.full_validator_set(&at)?
+				.full_validator_set(at)?
 				.ok_or(Error::NoValidatorsFound)?;
 			let signing_key = self.keystore.get_local_key(active.validators())?;
-			let network = self.runtime.runtime_api().network(&at, signing_key)?;
+			let network = self.runtime.runtime_api().network(at, signing_key)?;
 
 			if network.is_none() {
 				log::error!(target:"thea","🌉 Thea network is not configured for this validator, please use the local rpc");
@@ -408,7 +408,7 @@ where
 		let last_foreign_nonce_processed: u64 = self
 			.runtime
 			.runtime_api()
-			.get_last_processed_nonce(&self.last_finalized_blk, network)?;
+			.get_last_processed_nonce(self.client.info().finalized_hash, network)?;
 
 		*self.last_foreign_nonce_processed.write() = last_foreign_nonce_processed;
 
@@ -419,7 +419,7 @@ where
 		let message =
 			self.runtime
 				.runtime_api()
-				.outgoing_messages(&at, network, next_nonce_to_process)?;
+				.outgoing_messages(at, network, next_nonce_to_process)?;
 
 		if let Some(message) = message {
 			info!(target:"thea", "🌉 Processing new message from Polkadex: nonce: {:?}, to_network: {:?}",message.nonce, message.network);
@@ -450,11 +450,11 @@ where
 
 	/// Provides the identity of the Orderbook authority.
 	pub fn get_local_auth_index(&self) -> Result<AuthorityIndex, Error> {
-		let network = self.thea_network.expect("🌉 Expected the thea network to be initialized");
+		let network = self.thea_network.ok_or(Error::NetworkNotConfigured)?;
 		let active = self
 			.runtime
 			.runtime_api()
-			.validator_set(&self.last_finalized_blk, network)?
+			.validator_set(self.client.info().finalized_hash, network)?
 			.ok_or(Error::ValidatorSetNotInitialized(network))?;
 
 		let signing_key = self.keystore.get_local_key(&active.validators)?;
@@ -479,13 +479,48 @@ where
 
 	/// Waits for Thea runtime pallet to be available.
 	pub(crate) async fn wait_for_runtime_pallet(&mut self) {
+		info!(target: "thea", "🌉 Waiting for Thea pallet to become available...");
+
+		let mut gossip_messages = Box::pin(
+			self.gossip_engine
+				.messages_for(topic::<B>())
+				.filter_map(|notification| async move {
+					match GossipMessage::decode(&mut &notification.message[..]).ok() {
+						None => {
+							warn!(target: "thea", "🌉 Gossip message decode failed: {:?}", notification);
+							None
+						},
+						Some(msg) => {
+							trace!(target: "thea", "🌉 Got gossip message: {:?}", msg);
+							Some((msg, notification.sender))
+						},
+					}
+				})
+				.fuse(),
+		);
+
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
-		while let Some(notif) = finality_stream.next().await {
-			let at = BlockId::hash(notif.header.hash());
-			if self.runtime.runtime_api().validator_set(&at, 0).ok().is_some() {
-				break
-			} else {
-				info!(target: "thea", "🌉 Waiting for thea pallet to become available...");
+
+		loop {
+			let mut gossip_engine = &mut self.gossip_engine;
+			futures::select_biased! {
+				_ = gossip_engine => {
+					error!(target: "thea", "🌉 Gossip engine has terminated.");
+					return;
+				}
+				finality = finality_stream.next() => {
+					if let Some(finality) = finality {
+						if self.runtime.runtime_api().validator_set(finality.header.hash(),0).ok().is_some() {
+								// Pallet is available break and exit
+								break
+						} else {
+							debug!(target: "thea", "🌉 Waiting for orderbook pallet to become available...");
+						}
+					}
+				},
+				_ = gossip_messages.next() => {
+					// Just drop any messages before runtime upgrade
+				}
 			}
 		}
 	}
@@ -515,7 +550,7 @@ where
 				let mut best_outgoing_nonce: u64 = self
 					.runtime
 					.runtime_api()
-					.get_last_processed_nonce(&self.last_finalized_blk, *network)?;
+					.get_last_processed_nonce(self.client.info().finalized_hash, *network)?;
 
 				// Get the last processed native nonce from foreign
 				let last_nonce = self.foreign_chain.last_processed_nonce_from_native().await?;

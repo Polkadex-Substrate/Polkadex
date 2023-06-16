@@ -87,21 +87,25 @@ impl system::Config for Test {
 pub const PDEX: Balance = 1_000_000_000_000;
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * PDEX;
+	pub const ExistentialDeposit: Balance = PDEX;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 	type Balance = Balance;
 	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
+	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
-	type WeightInfo = ();
+	type MaxHolds = ();
+	type MaxFreezes = ();
 }
 
 parameter_types! {
@@ -152,10 +156,10 @@ parameter_types! {
 impl rewards::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = RewardsPalletId;
-	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type NativeCurrency = Balances;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
+	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
