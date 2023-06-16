@@ -232,6 +232,21 @@ pub mod pallet {
 			<IncomingNonce<T>>::put(nonce);
 			Ok(())
 		}
+
+		/// A governance endpoint to update outgoing nonces
+		#[pallet::call_index(3)]
+		#[pallet::weight(Weight::default())]
+		#[transactional]
+		pub fn update_outgoing_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
+			ensure_root(origin)?;
+			let last_nonce = <OutgoingNonce<T>>::get();
+			// Nonce can only be changed forwards, already processed nonces should not be changed.
+			if last_nonce >= nonce {
+				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
+			}
+			<OutgoingNonce<T>>::put(nonce);
+			Ok(())
+		}
 	}
 }
 
