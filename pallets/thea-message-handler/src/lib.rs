@@ -27,17 +27,26 @@
 
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
+pub use pallet::*;
 use parity_scale_codec::{Encode, MaxEncodedLen};
+use polkadex_primitives::utils::return_set_bits;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-
-pub use pallet::*;
-use polkadex_primitives::utils::return_set_bits;
 use thea_primitives::{types::Message, Network, ValidatorSet};
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
+pub trait WeightInfo {
+	fn insert_authorities(_b: u32) -> Weight;
+	fn incoming_message() -> Weight;
+	fn update_incoming_nonce(_b: u32) -> Weight;
+}
+pub mod weights;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -69,6 +78,9 @@ pub mod pallet {
 
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaIncomingExecutor;
+
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -157,7 +169,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Inserts a new authority set using sudo
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::insert_authorities(1))]
 		#[transactional]
 		pub fn insert_authorities(
 			origin: OriginFor<T>,
@@ -172,7 +184,7 @@ pub mod pallet {
 
 		/// Handles the verified incoming message
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::incoming_message())]
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
@@ -220,7 +232,7 @@ pub mod pallet {
 
 		/// A governance endpoint to update last processed nonce
 		#[pallet::call_index(2)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_incoming_nonce(1))]
 		#[transactional]
 		pub fn update_incoming_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
