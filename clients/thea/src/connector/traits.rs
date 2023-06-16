@@ -74,7 +74,7 @@ impl ForeignConnector for NoOpConnector {
 	}
 
 	async fn check_message(&self, _: &Message) -> Result<bool, Error> {
-		Ok(false)
+		Ok(true)
 	}
 
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
@@ -82,6 +82,6 @@ impl ForeignConnector for NoOpConnector {
 	}
 
 	async fn check_thea_authority_initialization(&self) -> Result<bool, Error> {
-		Ok(false)
+		Ok(true)
 	}
 }

@@ -216,7 +216,7 @@ impl TheaTestnet {
 
 	pub(crate) fn add_authority_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::protocol_standard_name()],
+			notifications_protocols: vec!["/thea/1".into()],
 			is_authority: true,
 			..Default::default()
 		})
@@ -260,7 +260,7 @@ impl TestNetFactory for TheaTestnet {
 
 	fn add_full_peer(&mut self) {
 		self.add_full_peer_with_config(FullPeerConfig {
-			notifications_protocols: vec![crate::protocol_standard_name()],
+			notifications_protocols: vec!["/thea/1".into()],
 			is_authority: false,
 			..Default::default()
 		})
@@ -301,6 +301,7 @@ where
 			runtime: api,
 			sync_oracle: net.peers[peer_id].sync_service().clone(),
 			keystore,
+			protocol_name: "/thea/1".into(),
 			network: net.peers[peer_id].network_service().clone(),
 			_marker: Default::default(),
 			is_validator,
@@ -363,6 +364,7 @@ where
 			runtime: api,
 			sync_oracle: net.peers[peer_id].sync_service().clone(),
 			keystore,
+			protocol_name: "/thea/1".into(),
 			network: net.peers[peer_id].network_service().clone(),
 			_marker: Default::default(),
 			is_validator,
