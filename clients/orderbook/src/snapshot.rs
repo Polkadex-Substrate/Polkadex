@@ -96,10 +96,8 @@ mod tests {
 				TrieDBMutBuilder::new(&mut memory_db, &mut working_state_root).build();
 			println!("Empty state root: 0x{}", hex::encode(trie.root()));
 
-			assert!(register_main(&mut trie, alice_main.clone(), alice_proxy.clone()).is_ok());
-			assert!(
-				deposit(&mut trie, alice_main.clone(), asset_id.clone(), starting_balance).is_ok()
-			);
+			assert!(register_main(&mut trie, alice_main.clone(), alice_proxy).is_ok());
+			assert!(deposit(&mut trie, alice_main.clone(), asset_id, starting_balance).is_ok());
 
 			trie.commit();
 		}
@@ -133,6 +131,6 @@ mod tests {
 		assert_eq!(starting_balance, balance);
 		assert!(!trie.is_empty());
 
-		assert!(deposit(&mut trie, alice_main.clone(), asset_id.clone(), starting_balance).is_ok());
+		assert!(deposit(&mut trie, alice_main, asset_id, starting_balance).is_ok());
 	}
 }

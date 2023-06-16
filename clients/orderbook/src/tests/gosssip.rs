@@ -43,7 +43,7 @@ pub async fn test_orderbook_gossip() {
 	];
 
 	let active: Vec<AuthorityId> =
-		make_ob_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
+		make_ob_ids(&peers.iter().map(|(k, _)| *k).collect::<Vec<AccountKeyring>>());
 
 	let runtime = Arc::new(TestApi {
 		active,
@@ -146,5 +146,5 @@ fn create_ob_message_import_block(
 		version: 0,
 	};
 	msg.signature = pair.sign_prehashed(&msg.sign_data());
-	return msg
+	msg
 }

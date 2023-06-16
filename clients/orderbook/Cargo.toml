@@ -1,6 +1,6 @@
 [package]
 name = "orderbook"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 
 [dependencies]
@@ -23,7 +23,7 @@ trie-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "ma
 trie-root = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 reqwest = "0.11.14"
-tokio = { version = "1.26.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
 orderbook-primitives = { path = "../../primitives/orderbook" }
 bls-primitives = { workspace = true }
 polkadex-primitives = { path = "../../primitives/polkadex" }

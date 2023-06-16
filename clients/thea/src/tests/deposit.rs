@@ -117,7 +117,7 @@ pub async fn test_foreign_deposit() {
 		validator_set_len: 3,
 	};
 	let active: Vec<AuthorityId> =
-		make_thea_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
+		make_thea_ids(&peers.iter().map(|(k, _)| *k).collect::<Vec<AccountKeyring>>());
 
 	let runtime = Arc::new(TestApi {
 		authorities: BTreeMap::from([(

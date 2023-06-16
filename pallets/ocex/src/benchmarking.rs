@@ -411,6 +411,15 @@ benchmarks! {
 		let new_snapshot_interval_block = T::BlockNumber::decode(&mut 123u64.to_le_bytes().as_ref()).unwrap();
 		let call = Call::<T>::change_snapshot_interval_block{ new_snapshot_interval_block };
 	}: { call.dispatch_bypass_filter(origin)? }
+
+	whitelist_orderbook_operator {
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
+		let operator_public_key = sp_core::ecdsa::Public([u8::MAX; 33]);
+		let call = Call::<T>::whitelist_orderbook_operator { operator_public_key };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert!(<OrderbookOperatorPublicKey<T>>::get().unwrap() == operator_public_key);
+	}
 }
 
 #[cfg(test)]

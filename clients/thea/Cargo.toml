@@ -1,6 +1,6 @@
 [package]
 name = "thea-client"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 
 [dependencies]
@@ -14,8 +14,8 @@ chrono = "0.4.24"
 parking_lot = "0.12.1"
 serde = "1.0.152"
 serde_json = "1.0.94"
-tokio = "1.26.0"
-tokio-stream = { version = "0.1.12", features = ["time"] }
+tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
+tokio-stream = { version = "0.1.14", features = ["time"] }
 thea-primitives = { path = "../../primitives/thea" }
 bls-primitives = { workspace = true }
 polkadex-primitives = { path = "../../primitives/polkadex" }
@@ -23,7 +23,6 @@ subxt = { git = "https://github.com/paritytech/subxt.git", tag = "v0.29.0", feat
 prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 parity-scale-codec = { version = "3.2.2", features = ["derive"] }
 blst = { version = "0.3.10", default-features = false }
-
 
 sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
