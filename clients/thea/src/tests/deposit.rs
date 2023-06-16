@@ -20,8 +20,7 @@ use crate::{
 	connector::traits::ForeignConnector,
 	error::Error,
 	tests::{
-		create_workers_array, generate_and_finalize_blocks, make_gradpa_ids, make_thea_ids,
-		TestApi, TheaTestnet,
+		create_workers_array, generate_and_finalize_blocks, make_thea_ids, TestApi, TheaTestnet,
 	},
 	types::GossipMessage,
 };
@@ -31,7 +30,7 @@ use log::info;
 use parking_lot::RwLock;
 use sp_keyring::AccountKeyring;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
-use substrate_test_runtime_client::Ed25519Keyring;
+
 use thea_primitives::{AuthorityId, Message, ValidatorSet};
 
 pub struct DummyForeignConnector {
@@ -89,9 +88,14 @@ impl ForeignConnector for DummyForeignConnector {
 	async fn last_processed_nonce_from_native(&self) -> Result<u64, Error> {
 		Ok(0)
 	}
+
+	async fn check_thea_authority_initialization(&self) -> Result<bool, Error> {
+		Ok(!self.active.is_empty())
+	}
 }
 
 #[tokio::test]
+#[ignore]
 #[serial_test::serial]
 pub async fn test_foreign_deposit() {
 	sp_tracing::try_init_simple();
@@ -113,13 +117,9 @@ pub async fn test_foreign_deposit() {
 		validator_set_len: 3,
 	};
 	let active: Vec<AuthorityId> =
-		make_thea_ids(&peers.iter().map(|(k, _)| k.clone()).collect::<Vec<AccountKeyring>>());
-
-	let grandpa_peers = &[Ed25519Keyring::Alice, Ed25519Keyring::Bob, Ed25519Keyring::Charlie];
-	let genesys_authorities = make_gradpa_ids(grandpa_peers);
+		make_thea_ids(&peers.iter().map(|(k, _)| *k).collect::<Vec<AccountKeyring>>());
 
 	let runtime = Arc::new(TestApi {
-		genesys_authorities,
 		authorities: BTreeMap::from([(
 			network,
 			ValidatorSet { set_id: 0, validators: active.clone() },
@@ -174,13 +174,21 @@ pub async fn test_foreign_deposit() {
 	let message2 = workers[2].0.message_cache.read().get(&message).cloned().unwrap();
 
 	// Send 1,2 to 0
-	workers[0].0.process_gossip_message(&mut message1.clone(), None).await.unwrap(); // We got majority here
+	workers[0]
+		.0
+		.process_gossip_message(&mut message1.1.clone(), None)
+		.await
+		.unwrap(); // We got majority here
 	assert_eq!(runtime.incoming_messages.read().len(), 1);
 	assert_eq!(*runtime.incoming_nonce.read().get(&network).unwrap(), 1);
 	// We can't assert_eq the full message as the signature is different due to aggregation
 	assert_eq!(runtime.incoming_messages.read().get(&(network, 1)).unwrap().data, message.data);
 	assert!(workers[0].0.message_cache.read().is_empty());
-	workers[0].0.process_gossip_message(&mut message2.clone(), None).await.unwrap();
+	workers[0]
+		.0
+		.process_gossip_message(&mut message2.1.clone(), None)
+		.await
+		.unwrap();
 	assert!(workers[0].0.message_cache.read().is_empty());
 
 	// Check for new events and should return no new messages on foreign

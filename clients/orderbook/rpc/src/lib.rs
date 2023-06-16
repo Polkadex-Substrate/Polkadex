@@ -217,7 +217,7 @@ where
 		let last_snapshot_summary = self
 			.runtime
 			.runtime_api()
-			.get_latest_snapshot(&BlockId::number(self.client.info().finalized_number))
+			.get_latest_snapshot(self.client.info().finalized_hash)
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
 			})?;
@@ -231,9 +231,16 @@ where
 		let all_register_accounts = self
 			.runtime
 			.runtime_api()
-			.get_all_accounts_and_proxies(&BlockId::number(
-				last_snapshot_summary.last_processed_blk.saturated_into(),
-			))
+			.get_all_accounts_and_proxies(
+				self.backend
+					.blockchain()
+					.expect_block_hash_from_id(&BlockId::Number(
+						last_snapshot_summary.last_processed_blk.saturated_into(),
+					))
+					.map_err(|err| {
+						JsonRpseeError::Custom(err.to_string() + "failed to get hash for blk")
+					})?,
+			)
 			.map_err(|err| JsonRpseeError::Custom(err.to_string() + "failed to get accounts"))?;
 
 		info!(target:"orderbook-rpc","main accounts found: {:?}, Getting last finalized snapshot summary",all_register_accounts.len());
@@ -242,9 +249,16 @@ where
 		let allowlisted_asset_ids = self
 			.runtime
 			.runtime_api()
-			.get_allowlisted_assets(&BlockId::number(
-				last_snapshot_summary.last_processed_blk.saturated_into(),
-			))
+			.get_allowlisted_assets(
+				self.backend
+					.blockchain()
+					.expect_block_hash_from_id(&BlockId::Number(
+						last_snapshot_summary.last_processed_blk.saturated_into(),
+					))
+					.map_err(|err| {
+						JsonRpseeError::Custom(err.to_string() + "failed to get hash for blk")
+					})?,
+			)
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;
@@ -289,7 +303,7 @@ where
 		let summary = self
 			.runtime
 			.runtime_api()
-			.get_snapshot_by_id(&BlockId::number(self.client.info().finalized_number), snapshot_id)
+			.get_snapshot_by_id(self.client.info().finalized_hash, snapshot_id)
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get snapshot summary")
 			})?
@@ -318,7 +332,7 @@ where
 		let all_register_accounts = self
 			.runtime
 			.runtime_api()
-			.get_all_accounts_and_proxies(&BlockId::number(self.client.info().finalized_number))
+			.get_all_accounts_and_proxies(self.client.info().finalized_hash)
 			.map_err(|err| JsonRpseeError::Custom(err.to_string() + "failed to get accounts"))?;
 
 		info!(target:"orderbook-rpc","main accounts found: {:?}, Getting last finalized snapshot summary",all_register_accounts.len());
@@ -327,7 +341,7 @@ where
 		let allowlisted_asset_ids = self
 			.runtime
 			.runtime_api()
-			.get_allowlisted_assets(&BlockId::number(self.client.info().finalized_number))
+			.get_allowlisted_assets(self.client.info().finalized_hash)
 			.map_err(|err| {
 				JsonRpseeError::Custom(err.to_string() + "failed to get allow listed asset ids")
 			})?;

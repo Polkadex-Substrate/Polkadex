@@ -24,7 +24,7 @@ pub(crate) type GrandpaBlockNumber = u64;
 pub(crate) type TestLinkHalf =
 	LinkHalf<Block, PeersFullClient, LongestChain<substrate_test_runtime_client::Backend, Block>>;
 pub(crate) type GrandpaPeerData = Mutex<Option<TestLinkHalf>>;
-pub(crate) type GrandpaBlockImport = sc_finality_grandpa::GrandpaBlockImport<
+pub(crate) type GrandpaBlockImport = sc_consensus_grandpa::GrandpaBlockImport<
 	substrate_test_runtime_client::Backend,
 	Block,
 	PeersFullClient,
@@ -81,6 +81,10 @@ impl TestNetFactory for GrandpaTestnet {
 
 	fn peers(&self) -> &Vec<GrandpaPeer> {
 		&self.peers
+	}
+
+	fn peers_mut(&mut self) -> &mut Vec<Peer<Self::PeerData, Self::BlockImport>> {
+		self.peers.as_mut()
 	}
 
 	fn mut_peers<F: FnOnce(&mut Vec<GrandpaPeer>)>(&mut self, closure: F) {

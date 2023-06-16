@@ -34,7 +34,7 @@ use frame_system::EventRecord;
 use polkadex_primitives::{AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{bounded::BoundedBTreeSet, ByteArray, Pair};
-use sp_keystore::{testing::KeyStore, SyncCryptoStore};
+use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
@@ -1578,22 +1578,21 @@ fn withdrawal() {
 }
 
 // P.S. This was to apply a DDOS attack and see the response in the mock environment
-/* #[test]
-fn collect_fees_ddos(){
+#[ignore]
+#[test]
+fn collect_fees_ddos() {
 	let account_id = create_account_id();
-	new_test_ext().execute_with(||{
+	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
 		for x in 0..10000000 {
-			assert_ok!(
-				OCEX::collect_fees(
-					RuntimeOrigin::signed(account_id.clone().into()),
-					x,
-					account_id.clone().into()
-				)
-			);
+			assert_ok!(OCEX::collect_fees(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				x,
+				account_id.clone().into()
+			));
 		}
 	});
-} */
+}
 
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
@@ -1928,8 +1927,8 @@ fn create_asset_and_credit(asset_id: u128, account_id: AccountId32) {
 fn create_account_id() -> AccountId32 {
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = KeyStore::new();
-	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
+	let keystore = MemoryKeystore::new();
+	let account_id: AccountId32 = <(dyn Keystore + 'static)>::sr25519_generate_new(
 		&keystore,
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),
@@ -1944,8 +1943,8 @@ fn create_account_id() -> AccountId32 {
 fn create_proxy_account() -> AccountId32 {
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = KeyStore::new();
-	let account_id: AccountId32 = SyncCryptoStore::sr25519_generate_new(
+	let keystore = MemoryKeystore::new();
+	let account_id: AccountId32 = <(dyn Keystore + 'static)>::sr25519_generate_new(
 		&keystore,
 		KEY_TYPE,
 		Some(&format!("{}/hunter2", PHRASE)),
@@ -1961,8 +1960,8 @@ fn create_proxy_account() -> AccountId32 {
 fn create_public_key() -> sp_application_crypto::sr25519::Public {
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = KeyStore::new();
-	let account_id = SyncCryptoStore::sr25519_generate_new(
+	let keystore = MemoryKeystore::new();
+	let account_id = <(dyn Keystore + 'static)>::sr25519_generate_new(
 		&keystore,
 		KEY_TYPE,
 		Some(&format!("{}/hunter1", PHRASE)),

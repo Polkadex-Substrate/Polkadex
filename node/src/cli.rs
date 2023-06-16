@@ -34,6 +34,19 @@ pub struct Cli {
 	/// Thea Dummy mode starts the chain with dummy connector ( for local testing only )
 	#[arg(short, long, default_value_t = false)]
 	pub thea_dummy_mode: bool,
+	/// Disable automatic hardware benchmarks.
+	///
+	/// By default these benchmarks are automatically ran at startup and measure
+	/// the CPU speed, the memory bandwidth and the disk speed.
+	///
+	/// The results are then printed out in the logs, and also sent as part of
+	/// telemetry, if telemetry is enabled.
+	#[arg(long)]
+	pub no_hardware_benchmarks: bool,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -46,7 +59,7 @@ pub enum Subcommand {
 	// Inspect(node_inspect::cli::InspectCmd),
 	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[clap(subcommand)]
-	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+	Benchmark(Box<frame_benchmarking_cli::BenchmarkCmd>),
 
 	/// Try some command against runtime state.
 	#[cfg(feature = "try-runtime")]
@@ -58,7 +71,7 @@ pub enum Subcommand {
 
 	/// Key management cli utilities
 	#[clap(subcommand)]
-	Key(sc_cli::KeySubcommand),
+	Key(Box<sc_cli::KeySubcommand>),
 
 	/// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
 	Verify(sc_cli::VerifyCmd),

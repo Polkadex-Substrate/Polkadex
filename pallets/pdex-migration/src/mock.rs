@@ -84,15 +84,19 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 impl pallet_balances::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 	type Balance = Balance;
 	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
+	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
-	type WeightInfo = ();
+	type MaxHolds = ();
+	type MaxFreezes = ();
 }
 parameter_types! {
 	pub const LockPeriod: u64 = 201600;
@@ -107,6 +111,7 @@ impl pdex_migration::Config for Test {
 impl pallet_sudo::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.

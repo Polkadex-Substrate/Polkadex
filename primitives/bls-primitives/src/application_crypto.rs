@@ -31,9 +31,9 @@ pub mod app {
 
 	sp_application_crypto::app_crypto!(super, BLS);
 
-	impl sp_application_crypto::BoundToRuntimeAppPublic for Public {
-		type Public = Self;
-	}
+	// impl sp_application_crypto::BoundToRuntimeAppPublic for Public {
+	// 	type Public = Self;
+	// }
 }
 
 impl RuntimePublic for Public {
