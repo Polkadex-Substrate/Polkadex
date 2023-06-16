@@ -69,7 +69,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(account.clone()), 10)
 	verify {
 		let current_balance = T::Assets::balance(asset_id.into(), &account);
-		assert_eq!(current_balance, 1_000_000_000_000_000u128.saturated_into()); //TODO: Verify this value
+		assert_eq!(current_balance, 1_000_000_000_000_000u128.saturated_into());
 	}
 
 	withdraw {
