@@ -16,6 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-../target/release/polkadex-node --validator --base-path ./bootnode --ws-port=9943 \
+../target/release/polkadex-node --validator --base-path ./bootnode -lthea=trace -lorderbook=trace \
 --rpc-port=9944 --chain=../scripts/customSpecRaw.json \
---node-key=1f64f01767da8258fcb986bd68d6dff93dfcd49d0fc753cea27cf37ce91c3684
+--node-key=1f64f01767da8258fcb986bd68d6dff93dfcd49d0fc753cea27cf37ce91c3684 --thea-dummy-mode
