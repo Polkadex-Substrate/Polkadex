@@ -16,7 +16,7 @@ frame-benchmarking = { workspace = true, default-features = false, optional = tr
 sp-core = { workspace = true, default-features = false }
 bls-primitives = { workspace = true, default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
-
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"], optional = true }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -47,6 +47,7 @@ runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
+  "lazy_static",
 ]
 try-runtime = ["frame-support/try-runtime"]
 parachain = ["bls-primitives/parachain"]
