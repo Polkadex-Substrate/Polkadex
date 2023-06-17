@@ -244,7 +244,7 @@ After ensuring you have connected to your node, the easiest way to set session k
 If you are on a remote server, it is easier to run this command on the same machine (while the node is running with the default HTTP RPC port configured):
 
 ```
-curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9934
+curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9944
 ```
 
 The output will have a hex-encoded "result" field. The result is the concatenation of the four public keys. Save this result for a later step.
