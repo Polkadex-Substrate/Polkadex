@@ -213,7 +213,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/polkadex-node --chain=$HOME/customSpecRaw.json --name 'Validator-Tutorial'
+ExecStart=$HOME/polkadex-node --chain=$HOME/customSpecRaw.json --name 'Validator-Tutorial' --validator
 Restart=on-failure
 
 [Install]
@@ -241,10 +241,10 @@ After ensuring you have connected to your node, the easiest way to set session k
 
 #### Option 2: CLI
 
-If you are on a remote server, it is easier to run this command on the same machine (while the node is running with the default HTTP RPC port configured):
+If you are on a remote server, it is easier to run this command on the same machine (while the node is running with the default HTTP RPC port configured or the port you mentioned in --rpc-port flag):
 
 ```
-curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9933
+curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9944
 ```
 
 The output will have a hex-encoded "result" field. The result is the concatenation of the four public keys. Save this result for a later step.
