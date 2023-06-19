@@ -37,8 +37,8 @@ fn any_signature() -> <Test as Config>::Signature {
 fn set_200_validators() -> [Pair; 200] {
 	let mut validators = Vec::with_capacity(200);
 	for i in 0..200 {
-		validators[i] =
-			Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str())).0;
+		validators
+			.push(Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str())).0);
 	}
 	let mut bv: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
 		BoundedVec::with_max_capacity();
@@ -46,7 +46,7 @@ fn set_200_validators() -> [Pair; 200] {
 		.clone()
 		.into_iter()
 		.for_each(|v| bv.try_push(v.public().into()).unwrap());
-	<Authorities<Test>>::insert(1, 0, bv);
+	<Authorities<Test>>::insert(0, 0, bv);
 	validators
 		.try_into()
 		.unwrap_or_else(|_| panic!("Could not convert validators to array"))
@@ -78,5 +78,28 @@ fn test_update_network_pref_bad_origin() {
 fn test_update_network_pref_success() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Thea::update_network_pref(RuntimeOrigin::none(), any_id(), 0, any_signature()));
+	})
+}
+
+#[test]
+fn test_lots_of_incomming_messages_with_200_validators_ok() {
+	new_test_ext().execute_with(|| {
+		// 200 validators
+		let validators = set_200_validators();
+		let mut nonce = 1;
+		for v in validators {
+			//200 messages
+			for _ in 0..200 {
+				let message = message_for_nonce(nonce);
+				let signature = v.sign(&message.encode());
+				assert_ok!(Thea::incoming_message(
+					RuntimeOrigin::none(),
+					vec!(u128::MAX),
+					message,
+					signature.into()
+				));
+				nonce += 1;
+			}
+		}
 	})
 }
