@@ -93,7 +93,7 @@ benchmarks! {
 	}
 
 	update_incoming_nonce {
-		let b in 1 .. 50_000;
+		let b in 1 .. u32::MAX;
 		let network = 0;
 		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)
@@ -102,7 +102,7 @@ benchmarks! {
 	}
 
 	update_outgoing_nonce {
-		let b in 1 .. 50_000;
+		let b in 1 .. u32::MAX;
 		let network = 0;
 		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)

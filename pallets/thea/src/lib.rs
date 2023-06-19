@@ -56,6 +56,7 @@ pub trait TheaWeightInfo {
 	fn incoming_message(b: u32) -> Weight;
 	fn send_thea_message(_b: u32) -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
+	fn update_outgoing_nonce(_b: u32) -> Weight;
 }
 
 #[frame_support::pallet]
@@ -265,7 +266,7 @@ pub mod pallet {
 
 		/// A governance endpoint to update last processed nonce
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_incoming_nonce(1))] // TODO: @Ivan
+		#[pallet::weight(<T as Config>::WeightInfo::update_outgoing_nonce(1))]
 		#[transactional]
 		pub fn update_outgoing_nonce(
 			origin: OriginFor<T>,
