@@ -1353,6 +1353,17 @@ impl thea_executor::Config for Runtime {
 	type ParaId = ParaId;
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+impl thea_message_handler::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type TheaId = thea_primitives::AuthorityId;
+	type Signature = thea_primitives::AuthoritySignature;
+	type MaxAuthorities = MaxAuthorities;
+	type Executor = TheaExecutor;
+	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1399,7 +1410,59 @@ construct_runtime!(
 		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 39,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
-		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44
+		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44,
+		TheaMH: thea_message_handler::pallet::{Pallet, Call, Storage, Event<T>} = 45
+	}
+);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+construct_runtime!(
+	pub enum Runtime where
+		Block = Block,
+		NodeBlock = polkadex_primitives::Block,
+		UncheckedExtrinsic = UncheckedExtrinsic
+	{
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+		Utility: pallet_utility::{Pallet, Call, Event} = 1,
+		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 2,
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
+		Authorship: pallet_authorship::{Pallet, Storage} = 4,
+		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 6,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 7,
+		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 8,
+		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 9,
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
+		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 11,
+		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 12,
+		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 13,
+		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
+		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 15,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 16,
+		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 18,
+		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 19,
+		Offences: pallet_offences::{Pallet, Storage, Event} = 20,
+		Historical: pallet_session_historical::{Pallet} = 21,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 22,
+		Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 23,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 24,
+		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 25,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 26,
+		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
+		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
+		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
+		//RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
+		ChildBounties: pallet_child_bounties = 33,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
+		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 35,
+		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
+		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 39,
+		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
+		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
+		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44,
 	}
 );
 /// Digest item type.
@@ -1772,6 +1835,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, liquidity, Liquidity);
 			list_benchmark!(list, extra, thea_executor, TheaExecutor);
 			list_benchmark!(list, extra, thea, Thea);
+			list_benchmark!(list, extra, thea_message_handler, TheaMH);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1807,8 +1871,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, liquidity, Liquidity);
 			add_benchmark!(params, batches, thea_executor, TheaExecutor);  //TheaExecutor: thea_executor
 			add_benchmark!(params, batches, thea, Thea);
-
-	  if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+			add_benchmark!(params, batches, thea_message_handler, TheaMH);
+			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
 	}
