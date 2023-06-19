@@ -22,7 +22,10 @@ use crate::{mock::*, *};
 use bls_primitives::{Pair, Public, Signature};
 use frame_support::{assert_err, assert_noop, assert_ok, bounded_vec};
 use sp_core::Pair as CorePair;
-use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
+use sp_runtime::{
+	transaction_validity::InvalidTransaction, AccountId32, DispatchError::BadOrigin,
+	SaturatedConversion, TokenError,
+};
 
 const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 
@@ -81,8 +84,13 @@ fn test_update_network_pref_success() {
 	})
 }
 
+// following test does:
+// 1. creates and inserts 200 validators as authorities for network 0
+// 2. creates 200 messages signed by each of 200 validators in turn
+// 3. submits them sequentially
+// 4. validates runtime accepts it successfuly
 #[test]
-fn test_lots_of_incomming_messages_with_200_validators_ok() {
+fn test_lots_of_incoming_messages_with_200_validators_ok() {
 	new_test_ext().execute_with(|| {
 		// 200 validators
 		let validators = set_200_validators();
@@ -101,5 +109,83 @@ fn test_lots_of_incomming_messages_with_200_validators_ok() {
 				nonce += 1;
 			}
 		}
+	})
+}
+
+#[test]
+fn test_incoming_messages_bad_inputs() {
+	new_test_ext().execute_with(|| {
+		// set authorities
+		let auth = set_200_validators();
+		// bad origin (root)
+		assert_err!(
+			Thea::incoming_message(
+				RuntimeOrigin::root(),
+				vec!(u128::MAX),
+				message_for_nonce(1),
+				any_signature()
+			),
+			BadOrigin
+		);
+		// bad origin (some one signed)
+		let message = message_for_nonce(1);
+		let proper_sig = auth[0].sign(&message.encode());
+		assert_err!(
+			Thea::incoming_message(
+				RuntimeOrigin::signed(1),
+				vec!(u128::MAX),
+				message.clone(),
+				proper_sig.clone().into()
+			),
+			BadOrigin
+		);
+		// bad bitmap
+		assert_err!(
+			Thea::incoming_message(
+				RuntimeOrigin::signed(1),
+				vec!(0),
+				message.clone(),
+				proper_sig.into()
+			),
+			BadOrigin
+		);
+		// bad nonce (too big)
+		assert_err!(
+			Thea::incoming_message(
+				RuntimeOrigin::none(),
+				vec!(u128::MAX),
+				message_for_nonce(u64::MAX),
+				proper_sig.clone().into()
+			),
+			Error::<Test>::MessageNonce
+		);
+		// bad nonce (too small)
+		assert_err!(
+			Thea::incoming_message(
+				RuntimeOrigin::none(),
+				vec!(u128::MAX),
+				message_for_nonce(u64::MIN),
+				proper_sig.clone().into()
+			),
+			Error::<Test>::MessageNonce
+		);
+		// bad payload
+		let mut bad_message = message.clone();
+		bad_message.block_no = 1; // changing bit
+		assert!(Thea::incoming_message(
+			RuntimeOrigin::none(),
+			vec!(u128::MAX),
+			bad_message,
+			proper_sig.clone().into()
+		)
+		.is_err());
+		// bad signature
+		assert!(Thea::incoming_message(
+			RuntimeOrigin::none(),
+			vec!(u128::MAX),
+			message.clone(),
+			any_signature()
+		)
+		.is_err());
 	})
 }
