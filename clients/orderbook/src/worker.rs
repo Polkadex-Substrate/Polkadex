@@ -301,7 +301,7 @@ where
 			info!(target:"orderbook", "📒 Snapshot should be generated");
 			return true
 		} else {
-			info!(target:"orderbook","📒pending_withdrawals: {:?},\
+			trace!(target:"orderbook","📒pending_withdrawals: {:?},\
 			 last_processed_block_in_offchain_state: {:?},last_block_snapshot_generated: {:?} \
 			 last_accepted_worker_nonce: {:?}, latest_worker_nonce: {:?} ",
 				self.pending_withdrawals.len(),self.last_processed_block_in_offchain_state,
