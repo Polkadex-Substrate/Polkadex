@@ -272,7 +272,10 @@ where
 	pub fn should_generate_snapshot(&self) -> bool {
 		let at = match self.get_block_hash(self.last_finalized_block.saturated_into()) {
 			Ok(hash) => hash,
-			Err(_) => return false,
+			Err(err) => {
+				log::error!(target:"orderbook","Error fetching block hash: {:?}",err);
+				return false
+			},
 		};
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
 		let (pending_withdrawals_interval, block_interval) = self
