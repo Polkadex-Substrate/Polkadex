@@ -49,6 +49,8 @@ mod fixtures;
 #[cfg(test)]
 mod mock;
 mod session;
+#[cfg(test)]
+mod tests;
 
 /// Export of auto-generated weights
 pub mod weights;
