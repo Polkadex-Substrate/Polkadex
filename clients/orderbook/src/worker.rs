@@ -1237,7 +1237,8 @@ where
 			if let Err(err) = self.snapshot(latest_worker_nonce, self.latest_state_change_id) {
 				log::error!(target:"orderbook", "📒 Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
 			} else {
-				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
+				*self.last_block_snapshot_generated.write() =
+					self.last_processed_block_in_offchain_state;
 			}
 		}
 
