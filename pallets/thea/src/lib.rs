@@ -46,6 +46,8 @@ use thea_primitives::{
 mod benchmarking;
 #[cfg(test)]
 mod fixtures;
+#[cfg(test)]
+mod mock;
 mod session;
 
 /// Export of auto-generated weights
