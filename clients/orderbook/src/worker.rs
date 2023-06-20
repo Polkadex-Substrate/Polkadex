@@ -272,7 +272,10 @@ where
 	pub fn should_generate_snapshot(&self) -> bool {
 		let at = match self.get_block_hash(self.last_finalized_block.saturated_into()) {
 			Ok(hash) => hash,
-			Err(_) => return false,
+			Err(err) => {
+				log::error!(target:"orderbook","Error fetching block hash: {:?}",err);
+				return false
+			},
 		};
 		// Get the snapshot generation intervals from the runtime API for the last finalized block
 		let (pending_withdrawals_interval, block_interval) = self
@@ -297,6 +300,14 @@ where
 		{
 			info!(target:"orderbook", "📒 Snapshot should be generated");
 			return true
+		} else {
+			trace!(target:"orderbook","📒pending_withdrawals: {:?},\
+			 last_processed_block_in_offchain_state: {:?},last_block_snapshot_generated: {:?} \
+			 last_accepted_worker_nonce: {:?}, latest_worker_nonce: {:?} ",
+				self.pending_withdrawals.len(),self.last_processed_block_in_offchain_state,
+				self.last_block_snapshot_generated.read(),
+				last_accepted_worker_nonce,
+				self.latest_worker_nonce.read());
 		}
 		// If a snapshot should not be generated, return false
 		false
@@ -1226,7 +1237,8 @@ where
 			if let Err(err) = self.snapshot(latest_worker_nonce, self.latest_state_change_id) {
 				log::error!(target:"orderbook", "📒 Couldn't generate snapshot after reaching max blocks limit: {:?}",err);
 			} else {
-				*self.last_block_snapshot_generated.write() = self.last_finalized_block;
+				*self.last_block_snapshot_generated.write() =
+					self.last_processed_block_in_offchain_state;
 			}
 		}
 
