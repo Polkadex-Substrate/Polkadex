@@ -87,7 +87,7 @@ fn test_update_network_pref_success() {
 // 1. creates and inserts 200 validators as authorities for network 0
 // 2. creates 200 messages signed by each of 200 validators in turn
 // 3. submits them sequentially
-// 4. validates runtime accepts it successfuly
+// 4. validates runtime accepts it successfully
 #[test]
 fn test_lots_of_incoming_messages_with_200_validators_ok() {
 	new_test_ext().execute_with(|| {
