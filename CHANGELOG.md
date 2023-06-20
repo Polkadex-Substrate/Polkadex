@@ -12,6 +12,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [5.1.1] - 2023-06-26
+
+### Added
+
+- `thea-message-handler` pallet benchmarks and weights ([#804])
+- `update_outgoing_nonce` extrinsic in `thea-message-handler` pallet update outgoing nonce ([#805])
+- `update_outgoing_nonce` extrinsic in `thea` pallet to update last processed nonce ([#805])
+- `thea-executor` pallet benchmarks and weights ([#802])
+
+### Changed
+
+- `liquidity`, `pallet-ocex-lmp`, `pdex-migration`, `pallet-rewards`, `thea-message-handler`, `thea` pallets weights update ([#806])
+
+### Fixed
+
+- Snapshot generation bug ([#809])
+
 ## [5.0.0] - 2023-05-26
 
 ### Added
@@ -249,3 +266,8 @@ All notable changes to this project will be documented in this file.
 [#757]: https://github.com/Polkadex-Substrate/Polkadex/pull/757
 [#759]: https://github.com/Polkadex-Substrate/Polkadex/pull/759
 [#760]: https://github.com/Polkadex-Substrate/Polkadex/pull/760
+[#804]: https://github.com/Polkadex-Substrate/Polkadex/pull/804
+[#805]: https://github.com/Polkadex-Substrate/Polkadex/pull/805
+[#806]: https://github.com/Polkadex-Substrate/Polkadex/pull/806
+[#809]: https://github.com/Polkadex-Substrate/Polkadex/pull/809
+[#802]: https://github.com/Polkadex-Substrate/Polkadex/pull/802
