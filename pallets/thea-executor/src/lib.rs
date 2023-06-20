@@ -30,6 +30,8 @@ pub use pallet::*;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 mod mock;
 
@@ -40,7 +42,7 @@ pub mod pallet {
 		log,
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
-		traits::{fungible::Mutate, tokens::Preservation},
+		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 	};
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::Resolver;
@@ -66,13 +68,22 @@ pub mod pallet {
 			+ frame_support::traits::tokens::fungible::Inspect<Self::AccountId>;
 		/// Assets Pallet
 		type Assets: frame_support::traits::tokens::fungibles::Mutate<Self::AccountId>
+			+ frame_support::traits::tokens::fungibles::Create<Self::AccountId>
 			+ frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>;
+		/// Asset Id
+		type AssetId: Member
+			+ Parameter
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId>
+			+ From<u128>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaOutgoingExecutor;
 		/// Native Asset Id
-		type NativeAssetId: Get<<<Self as pallet::Config>::Assets as frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>>::AssetId>;
+		type NativeAssetId: Get<Self::AssetId>;
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<frame_support::PalletId>;
@@ -196,12 +207,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
-			<T as frame_system::Config>::AccountId,
-		>>::AssetId: From<u128>,
-	{
+	impl<T: Config> Pallet<T> {
 		/// An example dispatch able that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::call_index(0)]
@@ -235,7 +241,6 @@ pub mod pallet {
 			let mut deposits = <ApprovedDeposits<T>>::get(&user);
 			let length: u32 = deposits.len().saturated_into();
 			let length: u32 = if length <= num_deposits { length } else { num_deposits };
-
 			for _ in 0..length {
 				if let Some(deposit) = deposits.pop() {
 					if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
@@ -342,12 +347,7 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
-		) -> Result<(), DispatchError>
-		where
-			<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
-				<T as frame_system::Config>::AccountId,
-			>>::AssetId: From<u128>,
-		{
+		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
@@ -441,12 +441,7 @@ pub mod pallet {
 		pub fn execute_deposit(
 			deposit: Deposit<T::AccountId>,
 			recipient: &T::AccountId,
-		) -> Result<(), DispatchError>
-		where
-			<<T as Config>::Assets as frame_support::traits::fungibles::Inspect<
-				<T as frame_system::Config>::AccountId,
-			>>::AssetId: From<u128>,
-		{
+		) -> Result<(), DispatchError> {
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
@@ -456,6 +451,8 @@ pub mod pallet {
 				// Convert the decimals config
 				deposit.amount_in_native_decimals(metadata),
 				recipient,
+				Self::thea_account(),
+				1u128,
 				Self::thea_account(),
 			)?;
 
@@ -484,6 +481,7 @@ pub mod pallet {
 			T::AccountId,
 			T::Currency,
 			T::Assets,
+			T::AssetId,
 			T::NativeAssetId,
 		> for Pallet<T>
 	{

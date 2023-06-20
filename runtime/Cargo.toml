@@ -203,6 +203,7 @@ runtime-benchmarks = [
   "pallet-rewards/runtime-benchmarks",
   "liquidity/runtime-benchmarks",
   "thea/runtime-benchmarks",
+  "thea-executor/runtime-benchmarks",
   "thea-message-handler/runtime-benchmarks",
 ]
 
