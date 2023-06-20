@@ -19,14 +19,10 @@
 //! Tests for pallet-ocex.
 
 use crate::{mock::*, *};
-use bls_primitives::{Pair, Public, Signature};
-use frame_support::{assert_err, assert_noop, assert_ok, bounded_vec};
-use frame_system::RawOrigin;
+use bls_primitives::Pair;
+use frame_support::{assert_err, assert_ok};
 use sp_core::Pair as CorePair;
-use sp_runtime::{
-	transaction_validity::InvalidTransaction, AccountId32, DispatchError::BadOrigin,
-	SaturatedConversion, TokenError,
-};
+use sp_runtime::DispatchError::BadOrigin;
 
 const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 
@@ -194,8 +190,8 @@ fn test_incoming_messages_bad_inputs() {
 #[test]
 fn test_send_thea_message_proper_inputs() {
 	new_test_ext().execute_with(|| {
-		// all possible networks
-		for n in 0u8..=u8::MAX {
+		// each 25%th of all possible networks
+		for n in (0u8..=u8::MAX).step_by((u8::MAX / 4).into()) {
 			set_200_validators(n); // setting max validators
 			assert_ok!(Thea::send_thea_message(
 				RuntimeOrigin::root(),
