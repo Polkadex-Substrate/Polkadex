@@ -93,6 +93,7 @@ fn test_lots_of_incoming_messages_with_200_validators_ok() {
 	new_test_ext().execute_with(|| {
 		// 200 validators
 		let validators = set_200_validators(0);
+		assert_eq!(validators.len(), 200);
 		let mut nonce = 1;
 		for v in validators {
 			//200 messages
