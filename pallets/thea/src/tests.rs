@@ -30,6 +30,8 @@ use sp_runtime::{
 
 const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 
+const PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
+
 fn any_id() -> <Test as Config>::TheaId {
 	<Test as Config>::TheaId::decode(&mut [1u8; 96].as_ref()).unwrap()
 }
@@ -38,7 +40,7 @@ fn any_signature() -> <Test as Config>::Signature {
 	<Test as Config>::Signature::decode(&mut [1u8; 48].as_ref()).unwrap()
 }
 
-fn set_200_validators() -> [Pair; 200] {
+fn set_200_validators(network: u8) -> [Pair; 200] {
 	let mut validators = Vec::with_capacity(200);
 	for i in 0..200 {
 		validators
@@ -50,7 +52,7 @@ fn set_200_validators() -> [Pair; 200] {
 		.clone()
 		.into_iter()
 		.for_each(|v| bv.try_push(v.public().into()).unwrap());
-	<Authorities<Test>>::insert(0, 0, bv);
+	<Authorities<Test>>::insert(network, 0, bv);
 	validators
 		.try_into()
 		.unwrap_or_else(|_| panic!("Could not convert validators to array"))
@@ -94,7 +96,7 @@ fn test_update_network_pref_success() {
 fn test_lots_of_incoming_messages_with_200_validators_ok() {
 	new_test_ext().execute_with(|| {
 		// 200 validators
-		let validators = set_200_validators();
+		let validators = set_200_validators(0);
 		let mut nonce = 1;
 		for v in validators {
 			//200 messages
@@ -117,7 +119,7 @@ fn test_lots_of_incoming_messages_with_200_validators_ok() {
 fn test_incoming_messages_bad_inputs() {
 	new_test_ext().execute_with(|| {
 		// set authorities
-		let auth = set_200_validators();
+		let auth = set_200_validators(0);
 		// bad origin (root)
 		assert_err!(
 			Thea::incoming_message(
@@ -186,5 +188,21 @@ fn test_incoming_messages_bad_inputs() {
 			signature: any_signature(),
 		};
 		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_sig_call).is_err());
+	})
+}
+
+#[test]
+fn test_send_thea_message_proper_inputs() {
+	new_test_ext().execute_with(|| {
+		// all possible networks
+		for n in 0u8..=u8::MAX {
+			set_200_validators(n); // setting max validators
+			assert_ok!(Thea::send_thea_message(
+				RuntimeOrigin::root(),
+				// 10MB of u8::MAX payload
+				PAYLOAD.to_vec(),
+				n
+			));
+		}
 	})
 }
