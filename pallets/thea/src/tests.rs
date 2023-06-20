@@ -228,3 +228,83 @@ fn test_send_thea_message_bad_inputs() {
 		assert_eq!(<OutgoingMessages<Test>>::get(0, 1), None);
 	})
 }
+
+#[test]
+fn test_update_incoming_nonce_all() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_err!(Thea::update_incoming_nonce(RuntimeOrigin::none(), u64::MAX, 0), BadOrigin);
+		assert_err!(Thea::update_incoming_nonce(RuntimeOrigin::signed(1), u64::MAX, 0), BadOrigin);
+		assert_err!(
+			Thea::update_incoming_nonce(RuntimeOrigin::signed(u32::MAX.into()), u64::MAX, 0),
+			BadOrigin
+		);
+		assert_err!(
+			Thea::update_incoming_nonce(RuntimeOrigin::signed(u64::MAX), u64::MAX, 0),
+			BadOrigin
+		);
+		// equal or smaller shold fail
+		assert_err!(
+			Thea::update_incoming_nonce(RuntimeOrigin::root(), 0, 0),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
+		<IncomingNonce<Test>>::set(0, 2);
+		assert_err!(
+			Thea::update_incoming_nonce(RuntimeOrigin::root(), 1, 0),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
+		// overflow
+		<IncomingNonce<Test>>::set(0, u64::MAX);
+		assert_err!(
+			Thea::update_incoming_nonce(RuntimeOrigin::root(), 0, 0),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
+		// proper cases
+		<IncomingNonce<Test>>::set(0, 0);
+		assert_ok!(Thea::update_incoming_nonce(RuntimeOrigin::root(), 10, 0));
+		assert_ok!(Thea::update_incoming_nonce(RuntimeOrigin::root(), 100, 0));
+		assert_ok!(Thea::update_incoming_nonce(RuntimeOrigin::root(), 10_000, 0));
+		assert_ok!(Thea::update_incoming_nonce(RuntimeOrigin::root(), u32::MAX.into(), 0));
+		assert_ok!(Thea::update_incoming_nonce(RuntimeOrigin::root(), u64::MAX, 0));
+	})
+}
+
+#[test]
+fn test_update_outgoing_nonce_all() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_err!(Thea::update_outgoing_nonce(RuntimeOrigin::none(), u64::MAX, 0), BadOrigin);
+		assert_err!(Thea::update_outgoing_nonce(RuntimeOrigin::signed(1), u64::MAX, 0), BadOrigin);
+		assert_err!(
+			Thea::update_outgoing_nonce(RuntimeOrigin::signed(u32::MAX.into()), u64::MAX, 0),
+			BadOrigin
+		);
+		assert_err!(
+			Thea::update_outgoing_nonce(RuntimeOrigin::signed(u64::MAX), u64::MAX, 0),
+			BadOrigin
+		);
+		// equal or smaller shold fail
+		assert_err!(
+			Thea::update_outgoing_nonce(RuntimeOrigin::root(), 0, 0),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
+		<OutgoingNonce<Test>>::set(0, 2);
+		assert_err!(
+			Thea::update_outgoing_nonce(RuntimeOrigin::root(), 1, 0),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
+		// overflow
+		<IncomingNonce<Test>>::set(0, u64::MAX);
+		assert_err!(
+			Thea::update_outgoing_nonce(RuntimeOrigin::root(), 0, 0),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
+		// proper cases
+		<IncomingNonce<Test>>::set(0, 0);
+		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), 10, 0));
+		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), 100, 0));
+		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), 10_000, 0));
+		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), u32::MAX.into(), 0));
+		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), u64::MAX, 0));
+	})
+}
