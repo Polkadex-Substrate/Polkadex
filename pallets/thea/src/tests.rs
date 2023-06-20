@@ -21,6 +21,7 @@
 use crate::{mock::*, *};
 use bls_primitives::{Pair, Public, Signature};
 use frame_support::{assert_err, assert_noop, assert_ok, bounded_vec};
+use frame_system::RawOrigin;
 use sp_core::Pair as CorePair;
 use sp_runtime::{
 	transaction_validity::InvalidTransaction, AccountId32, DispatchError::BadOrigin,
@@ -172,20 +173,18 @@ fn test_incoming_messages_bad_inputs() {
 		// bad payload
 		let mut bad_message = message.clone();
 		bad_message.block_no = 1; // changing bit
-		assert!(Thea::incoming_message(
-			RuntimeOrigin::none(),
-			vec!(u128::MAX),
-			bad_message,
-			proper_sig.clone().into()
-		)
-		.is_err());
+		let bad_message_call = Call::<Test>::incoming_message {
+			bitmap: vec![u128::MAX],
+			payload: bad_message,
+			signature: proper_sig.clone().into(),
+		};
+		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err());
 		// bad signature
-		assert!(Thea::incoming_message(
-			RuntimeOrigin::none(),
-			vec!(u128::MAX),
-			message.clone(),
-			any_signature()
-		)
-		.is_err());
+		let bad_sig_call = Call::<Test>::incoming_message {
+			bitmap: vec![u128::MAX],
+			payload: message.clone(),
+			signature: any_signature(),
+		};
+		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_sig_call).is_err());
 	})
 }
