@@ -206,3 +206,29 @@ fn test_send_thea_message_proper_inputs() {
 		}
 	})
 }
+
+#[test]
+fn test_send_thea_message_bad_inputs() {
+	new_test_ext().execute_with(|| {
+		// bad origin
+		assert_err!(Thea::send_thea_message(RuntimeOrigin::none(), vec!(), 0), BadOrigin);
+		assert_err!(Thea::send_thea_message(RuntimeOrigin::signed(0), vec!(), 0), BadOrigin);
+		assert_err!(Thea::send_thea_message(RuntimeOrigin::signed(1), vec!(), 0), BadOrigin);
+		assert_err!(Thea::send_thea_message(RuntimeOrigin::signed(u64::MAX), vec!(), 0), BadOrigin);
+		// no authorities set for network
+		assert_err!(
+			Thea::send_thea_message(RuntimeOrigin::root(), vec!(), 0),
+			Error::<Test>::NoValidatorsFound(0)
+		);
+		assert_eq!(<OutgoingNonce<Test>>::get(0), 0);
+		assert_eq!(<OutgoingMessages<Test>>::get(0, 1), None);
+		// some massive payload
+		let size = 100 * 1024 * 1024; // 100MB
+		let mut a_lot = Vec::with_capacity(size);
+		for _ in 0..size {
+			a_lot.push(u8::MAX);
+		}
+		set_200_validators(0);
+		assert_err!(Thea::send_thea_message(RuntimeOrigin::root(), a_lot, 0), BadOrigin);
+	})
+}
