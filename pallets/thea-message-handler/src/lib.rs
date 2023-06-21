@@ -46,6 +46,7 @@ pub trait WeightInfo {
 	fn incoming_message() -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
 }
+
 pub mod weights;
 
 #[frame_support::pallet]
