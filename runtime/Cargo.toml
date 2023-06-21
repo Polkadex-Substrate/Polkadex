@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "5.1.0"
+version = "5.1.1"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -99,6 +99,7 @@ pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 # Thea
 thea = { path = "../pallets/thea", default-features = false }
 thea-executor = { path = "../pallets/thea-executor", default-features = false }
+thea-message-handler = { path = "../pallets/thea-message-handler", default-features = false, optional = true }
 
 # Liquidity Pallet
 liquidity = { path = "../pallets/liquidity", default-features = false }
@@ -184,6 +185,7 @@ std = [
   "thea-executor/std",
   "thea-primitives/std",
   "frame-try-runtime?/std",
+  "thea-message-handler?/std",
 ]
 runtime-benchmarks = [
   #theirs
@@ -201,6 +203,8 @@ runtime-benchmarks = [
   "pallet-rewards/runtime-benchmarks",
   "liquidity/runtime-benchmarks",
   "thea/runtime-benchmarks",
+  "thea-executor/runtime-benchmarks",
+  "thea-message-handler/runtime-benchmarks",
 ]
 
 try-runtime = [
