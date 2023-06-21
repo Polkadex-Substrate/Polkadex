@@ -2007,6 +2007,21 @@ fn test_change_snapshot_interval_block_full() {
 	})
 }
 
+#[test]
+fn test_set_exchange_state_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		// bad origins
+		assert_noop!(OCEX::set_exchange_state(RuntimeOrigin::none(), true), BadOrigin);
+		assert_noop!(OCEX::set_exchange_state(RuntimeOrigin::signed(a), true), BadOrigin);
+		assert_noop!(OCEX::set_exchange_state(RuntimeOrigin::signed(b), true), BadOrigin);
+		// proper case
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		let current = frame_system::Pallet::<Test>::current_block_number();
+		assert!(<crate::IngressMessages<Test>>::get(current).len() == 1);
+	})
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
