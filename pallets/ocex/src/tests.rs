@@ -317,6 +317,7 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 		);
 	});
 }
+
 #[test]
 fn test_register_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
@@ -1354,6 +1355,7 @@ fn collect_fees_unexpected_behaviour() {
 		);
 	});
 }
+
 #[test]
 fn test_collect_fees_decimal_overflow() {
 	let account_id = create_account_id();
@@ -1899,6 +1901,47 @@ pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 	});
 }
 
+#[test]
+fn test_remove_proxy_account_faulty_cases() {
+	let (main, proxy) = get_alice_accounts();
+	new_test_ext().execute_with(|| {
+		// bad origin
+		assert_noop!(OCEX::remove_proxy_account(RuntimeOrigin::root(), proxy.clone()), BadOrigin);
+		assert_noop!(OCEX::remove_proxy_account(RuntimeOrigin::none(), proxy.clone()), BadOrigin);
+		// exchange not operational
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			Error::<Test>::ExchangeNotOperational
+		);
+		// no main account registered
+		<ExchangeState<Test>>::set(true);
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			Error::<Test>::MainAccountNotFound
+		);
+		// minimum one proxy required
+		OCEX::register_main_account(RuntimeOrigin::signed(main.clone()), proxy.clone()).unwrap();
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			Error::<Test>::MinimumOneProxyRequired
+		);
+		// no proxy account found
+		<Accounts<Test>>::mutate(&main, |account_info| {
+			if let Some(a) = account_info {
+				a.proxies.pop();
+				a.proxies.try_push(main.clone()).unwrap();
+				a.proxies.try_push(main.clone()).unwrap();
+			} else {
+				panic!("failed to mutate Accounts")
+			}
+		});
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			Error::<Test>::ProxyNotFound
+		);
+	})
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
@@ -1952,21 +1995,6 @@ fn create_proxy_account() -> AccountId32 {
 	.expect("Unable to create sr25519 key pair")
 	.try_into()
 	.expect("Unable to convert to AccountId32");
-
-	return account_id
-}
-
-#[allow(dead_code)]
-fn create_public_key() -> sp_application_crypto::sr25519::Public {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = MemoryKeystore::new();
-	let account_id = <(dyn Keystore + 'static)>::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair");
 
 	return account_id
 }
