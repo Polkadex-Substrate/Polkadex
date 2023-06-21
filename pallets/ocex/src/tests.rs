@@ -1936,9 +1936,27 @@ fn test_remove_proxy_account_faulty_cases() {
 			}
 		});
 		assert_noop!(
-			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main), proxy,),
 			Error::<Test>::ProxyNotFound
 		);
+	})
+}
+
+#[test]
+fn test_remove_proxy_account_proper_case() {
+	let (main, proxy) = get_alice_accounts();
+	new_test_ext().execute_with(|| {
+		<ExchangeState<Test>>::set(true);
+		OCEX::register_main_account(RuntimeOrigin::signed(main.clone()), proxy.clone()).unwrap();
+		<Accounts<Test>>::mutate(&main, |account_info| {
+			if let Some(a) = account_info {
+				a.proxies.try_push(main.clone()).unwrap();
+				a.proxies.try_push(main.clone()).unwrap();
+			} else {
+				panic!("failed to mutate Accounts")
+			}
+		});
+		assert_ok!(OCEX::remove_proxy_account(RuntimeOrigin::signed(main), proxy));
 	})
 }
 
