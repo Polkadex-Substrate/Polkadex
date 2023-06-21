@@ -2022,6 +2022,27 @@ fn test_set_exchange_state_full() {
 	})
 }
 
+#[test]
+fn test_whitelist_orderbook_operator_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		let key = sp_core::ecdsa::Pair::generate().0.public();
+		// bad origins
+		assert_noop!(OCEX::whitelist_orderbook_operator(RuntimeOrigin::none(), key), BadOrigin);
+		assert_noop!(
+			OCEX::whitelist_orderbook_operator(RuntimeOrigin::signed(a.clone()), key),
+			BadOrigin
+		);
+		assert_noop!(
+			OCEX::whitelist_orderbook_operator(RuntimeOrigin::signed(b.clone()), key),
+			BadOrigin
+		);
+		// proper case
+		assert_ok!(OCEX::whitelist_orderbook_operator(RuntimeOrigin::root(), key));
+		assert_eq!(<OrderbookOperatorPublicKey<Test>>::get().unwrap(), key);
+	})
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
