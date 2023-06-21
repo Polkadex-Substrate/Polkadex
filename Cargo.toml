@@ -128,7 +128,7 @@ pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrat
 #pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
 pallet-election-provider-multi-phase = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
-orml-vesting = { git = "https://github.com/rakanalh/open-runtime-module-library.git", branch = "feature/update-polkadot-0.9.43", default-features = false }
+orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch = "polkadot-v0.9.43", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
