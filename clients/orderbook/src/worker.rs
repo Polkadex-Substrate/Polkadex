@@ -1702,7 +1702,7 @@ pub fn register_main(
 	main: AccountId,
 	proxy: AccountId,
 ) -> Result<(), Error> {
-	info!(target: "orderbook", "📒 Registering main account: {:?}", main);
+	debug!(target: "orderbook", "📒 Registering main account: {:?}", main);
 	if trie.contains(&main.encode())? {
 		warn!(target: "orderbook", "📒 Main account already registered: {:?}", main);
 		return Ok(())
@@ -1730,13 +1730,13 @@ pub fn add_proxy(
 	main: AccountId,
 	proxy: AccountId,
 ) -> Result<(), Error> {
-	info!(target: "orderbook", "📒Adding proxy account: {:?}", proxy);
+	debug!(target: "orderbook", "📒Adding proxy account: {:?}", proxy);
 	match trie.get(&main.encode())? {
 		Some(data) => {
-			info!(target: "orderbook", "📒 Main account found: {:?}", main);
+			debug!(target: "orderbook", "📒 Main account found: {:?}", main);
 			let mut account_info = AccountInfo::decode(&mut &data[..])?;
 			if account_info.proxies.contains(&proxy) {
-				warn!(target: "orderbook", "📒 Proxy account already registered: {:?}", proxy);
+				debug!(target: "orderbook", "📒 Proxy account already registered: {:?}", proxy);
 				return Ok(())
 			}
 			account_info.proxies.push(proxy);
