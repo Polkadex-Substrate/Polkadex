@@ -98,8 +98,8 @@ benchmarks! {
 	}
 }
 
-//#[cfg(test)]
-//use frame_benchmarking::impl_benchmark_test_suite;
-//
-//#[cfg(test)]
-//impl_benchmark_test_suite!(TheaMH, crate::mock::new_test_ext(), crate::mock::Test);
+#[cfg(test)]
+use frame_benchmarking::impl_benchmark_test_suite;
+
+#[cfg(test)]
+impl_benchmark_test_suite!(TheaMH, crate::mock::new_test_ext(), crate::mock::Test);

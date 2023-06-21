@@ -247,7 +247,7 @@ pub mod pallet {
 
 		/// A governance endpoint to update outgoing nonces
 		#[pallet::call_index(3)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_incoming_nonce(1))]
 		#[transactional]
 		pub fn update_outgoing_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
