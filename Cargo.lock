@@ -5282,7 +5282,7 @@ dependencies = [
 [[package]]
 name = "orml-vesting"
 version = "0.4.1-dev"
-source = "git+https://github.com/rakanalh/open-runtime-module-library.git?branch=feature/update-polkadot-0.9.43#73f248b213bcec73d6a33d90c846df6d30a1f4c9"
+source = "git+https://github.com/Polkadex-Substrate/open-runtime-module-library.git?branch=polkadot-v0.9.43#30b1ec3d11d61380cd457fb30f93bedce6a45f9b"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10792,6 +10792,7 @@ dependencies = [
  "sp-keystore 0.13.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
+ "thea-executor",
  "thea-primitives",
 ]
 
