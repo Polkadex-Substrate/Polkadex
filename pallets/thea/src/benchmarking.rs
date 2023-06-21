@@ -110,3 +110,9 @@ benchmarks! {
 		assert!(<OutgoingNonce::<T>>::get(network) == nonce);
 	}
 }
+
+#[cfg(test)]
+use frame_benchmarking::impl_benchmark_test_suite;
+
+#[cfg(test)]
+impl_benchmark_test_suite!(Thea, crate::mock::new_test_ext(), crate::mock::Test);
