@@ -1990,6 +1990,23 @@ fn test_change_pending_withdrawal_limit_full() {
 	})
 }
 
+#[test]
+fn test_change_snapshot_interval_block_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		// bad origins
+		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(a), 1), BadOrigin);
+		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(b), 1), BadOrigin);
+		// proper cases
+		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), 1));
+		// half max
+		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u32::MAX.into()));
+		// max
+		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u64::MAX));
+	})
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
