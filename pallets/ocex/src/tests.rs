@@ -1960,6 +1960,19 @@ fn test_remove_proxy_account_proper_case() {
 	})
 }
 
+#[test]
+fn test_set_snapshot_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		// bad origins
+		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::signed(a), 1), BadOrigin);
+		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::signed(b), 1), BadOrigin);
+		// proper cases
+		assert_ok!(OCEX::set_snapshot(RuntimeOrigin::root(), 1));
+	})
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
