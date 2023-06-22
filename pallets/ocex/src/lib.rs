@@ -937,30 +937,15 @@ pub mod pallet {
 						// Perform pop operation to ensure we do not leave any withdrawal left
 						// for a double spend
 						if let Some(withdrawal) = withdrawal_vector.pop() {
-							if let Some(converted_withdrawal) = withdrawal
-								.amount
-								.saturating_mul(Decimal::from(UNIT_BALANCE))
-								.to_u128()
-							{
-								if Self::transfer_asset(
-									&Self::get_pallet_account(),
-									&withdrawal.main_account,
-									converted_withdrawal.saturated_into(),
-									withdrawal.asset,
-								)
-								.is_ok()
-								{
-									processed_withdrawals.push(withdrawal.to_owned());
-								} else {
-									// Storing the failed withdrawals back into the storage item
-									failed_withdrawals.push(withdrawal.to_owned());
-									Self::deposit_event(Event::WithdrawalFailed(
-										withdrawal.to_owned(),
-									));
-								}
+							if Self::on_idle_withdrawal_processor(withdrawal.clone()) {
+								processed_withdrawals.push(withdrawal.to_owned());
 							} else {
-								return Err(Error::<T>::InvalidWithdrawalAmount)
+								// Storing the failed withdrawals back into the storage item
+								failed_withdrawals.push(withdrawal.to_owned());
+								Self::deposit_event(Event::WithdrawalFailed(withdrawal.to_owned()));
 							}
+						} else {
+							return Err(Error::<T>::InvalidWithdrawalAmount)
 						}
 					}
 					// Not removing key from BtreeMap so that failed withdrawals can still be
