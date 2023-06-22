@@ -313,7 +313,7 @@ pub mod pallet {
 					// Get mutable reference to the withdrawals vector
 					if let Some(account) = btree_map.clone().keys().nth(1) {
 						let mut accounts_to_clean = vec![];
-						if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
+						if let Some(withdrawal_vector) = btree_map.get_mut(account) {
 							if let Some(withdrawal) = withdrawal_vector.pop() {
 								if !Self::on_idle_withdrawal_processor(withdrawal.clone()) {
 									withdrawal_vector.push(withdrawal.clone());
@@ -1284,18 +1284,13 @@ pub mod pallet {
 			if let Some(converted_withdrawal) =
 				withdrawal.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
 			{
-				if Self::transfer_asset(
+				Self::transfer_asset(
 					&Self::get_pallet_account(),
 					&withdrawal.main_account,
 					converted_withdrawal.saturated_into(),
 					withdrawal.asset,
 				)
 				.is_ok()
-				{
-					true
-				} else {
-					false
-				}
 			} else {
 				false
 			}
