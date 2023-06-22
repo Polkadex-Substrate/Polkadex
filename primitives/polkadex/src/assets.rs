@@ -18,6 +18,7 @@
 
 use crate::Balance;
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::ensure;
 use frame_support::traits::{
 	tokens::{Fortitude, Precision, Preservation},
 	Get,
@@ -97,6 +98,24 @@ pub trait Resolver<
 		}
 		Ok(())
 	}
+
+	/// Create New Asset
+	fn resolve_create(asset: AssetId, admin: AccountId, min_balance: Balance) -> Result<(), DispatchError> {
+		ensure!(asset != NativeAssetId::get(), DispatchError::Other("Cannot create Native Asset"));
+		ensure!(!Others::asset_exists(asset.into()), DispatchError::Other("Asset already exists"));
+		Others::create(asset.into(), admin, true, min_balance.saturated_into())?;
+        Ok(())
+    }
+
+	///Transfer Asset
+	fn resolve_transfer(asset: AssetId, from: &AccountId, to: &AccountId, amount: Balance) -> Result<(), DispatchError> {
+		if asset == NativeAssetId::get() {
+			Native::transfer(from, to, amount.saturated_into(), Preservation::Preserve)?;
+		} else {
+			Others::transfer(asset.into(), from, to, amount.saturated_into(), Preservation::Preserve)?;
+		}
+		Ok(())
+    }
 }
 
 /// Enumerated asset on chain
