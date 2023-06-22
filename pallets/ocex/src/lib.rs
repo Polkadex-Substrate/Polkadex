@@ -304,19 +304,50 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// On idle, use the remaining weight to do clean up, remove all ingress messages that are
 		/// older than the block in the last accepted snapshot.
-		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
-			// TODO: We can do it after release, as an upgrade
+		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
+			let snapshot_id = <SnapshotNonce<T>>::get();
+			while remaining_weight.ref_time() >
+				<T as Config>::WeightInfo::claim_withdraw(1).ref_time()
+			{
+				<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
+					// Get mutable reference to the withdrawals vector
+					if let Some(account) = btree_map.clone().keys().nth(1) {
+						let mut accounts_to_clean = vec![];
+						if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
+							if let Some(withdrawal) = withdrawal_vector.pop() {
+								if !Self::on_idle_withdrawal_processor(withdrawal.clone()) {
+									withdrawal_vector.push(withdrawal.clone());
+									Self::deposit_event(Event::WithdrawalFailed(withdrawal));
+								}
+							} else {
+								// this user has no withdrawals left - remove from map
+								accounts_to_clean.push(account.clone());
+							}
+						}
+						for user in accounts_to_clean {
+							btree_map.remove(&user);
+						}
+					}
+					// we drain weight ALWAYS
+					remaining_weight = remaining_weight
+						.saturating_sub(<T as Config>::WeightInfo::claim_withdraw(1));
+				});
+			}
 			remaining_weight
 		}
 		/// What to do at the end of each block.
 		///
-		/// Clean IngressMessages
+		/// Clean OnCHainEvents
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
-			<OnChainEvents<T>>::kill();
-
-			Weight::default()
-				.saturating_add(T::DbWeight::get().reads(2))
-				.saturating_add(T::DbWeight::get().writes(2))
+			let len = <OnChainEvents<T>>::get().len();
+			if len > 0 {
+				<OnChainEvents<T>>::kill();
+				Weight::default()
+					.saturating_add(T::DbWeight::get().reads(1)) // we've read length
+					.saturating_add(T::DbWeight::get().writes(1)) // kill places None once into Value
+			} else {
+				Weight::zero().saturating_add(T::DbWeight::get().reads(1)) // justh length was read
+			}
 		}
 	}
 
@@ -1260,6 +1291,29 @@ pub mod pallet {
 				}
 			}
 			withdrawal_map
+		}
+
+		fn on_idle_withdrawal_processor(
+			withdrawal: Withdrawal<<T as frame_system::Config>::AccountId>,
+		) -> bool {
+			if let Some(converted_withdrawal) =
+				withdrawal.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
+			{
+				if Self::transfer_asset(
+					&Self::get_pallet_account(),
+					&withdrawal.main_account,
+					converted_withdrawal.saturated_into(),
+					withdrawal.asset,
+				)
+				.is_ok()
+				{
+					true
+				} else {
+					false
+				}
+			} else {
+				false
+			}
 		}
 	}
 
