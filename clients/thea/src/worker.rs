@@ -599,17 +599,6 @@ where
 		info!(target: "thea", "🌉 Thea worker started");
 		self.wait_for_runtime_pallet().await;
 
-		// Wait for blockchain sync to complete
-		while self.sync_oracle.is_major_syncing() {
-			info!(target: "thea", "🌉 Thea is not started waiting for blockchain to sync completely");
-			tokio::time::sleep(Duration::from_secs(12)).await;
-		}
-		// Wait for Thea authorities to initialize before starting thea
-		while !self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
-			info!(target: "thea", "🌉 Thea on hold, waiting for authority initialization on foreign chain");
-			tokio::time::sleep(Duration::from_secs(12)).await;
-		}
-
 		info!(target:"thea","🌉 Starting event streams...");
 		let mut gossip_messages = Box::pin(
 			self.gossip_engine
@@ -623,6 +612,35 @@ where
 				})
 				.fuse(),
 		);
+
+		// Wait for blockchain sync to complete
+		while self.sync_oracle.is_major_syncing() {
+			info!(target: "thea", "🌉 Thea is not started waiting for blockchain to sync completely");
+			tokio::time::sleep(Duration::from_secs(12)).await;
+		}
+
+		let interval = tokio::time::interval(Duration::from_secs(12));
+		let mut interval_stream = tokio_stream::wrappers::IntervalStream::new(interval).fuse();
+
+		// Wait for Thea authorities to initialize before starting thea
+		loop {
+			let mut gossip_engine = &mut self.gossip_engine;
+			futures::select_biased! {
+				_ = interval_stream.next() => {
+					if self.foreign_chain.check_thea_authority_initialization().await.unwrap_or(false) {
+						break
+					}
+				}
+				_ = gossip_engine => {
+					error!(target: "thea", "🌉 Gossip engine has terminated.");
+					return;
+				}
+				_ = gossip_messages.next() => {
+					// We need to drop gossip messages to avoid memory blowup
+				}
+			}
+		}
+
 		// finality events stream
 		debug!(target:"thea","🌉 Starting finality streams...");
 		let mut finality_stream = self.client.finality_notification_stream().fuse();
