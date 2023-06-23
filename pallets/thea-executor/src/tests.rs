@@ -313,4 +313,28 @@ fn test_parachain_withdraw_full() {
 }
 
 #[test]
-fn test_update_asset_metadata_full() {}
+fn test_update_asset_metadata_full() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_noop!(
+			TheaExecutor::update_asset_metadata(RuntimeOrigin::signed(1), 1, 1),
+			BadOrigin
+		);
+		assert_noop!(
+			TheaExecutor::update_asset_metadata(RuntimeOrigin::signed(u64::MAX), 1, 1),
+			BadOrigin
+		);
+		assert_noop!(TheaExecutor::update_asset_metadata(RuntimeOrigin::none(), 1, 1), BadOrigin);
+		// invalid decimal
+		assert_noop!(
+			TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), u128::MAX, u8::MIN),
+			Error::<Test>::InvalidDecimal
+		);
+		// proper cases
+		System::set_block_number(1);
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), 0, u8::MAX));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), u128::MAX, u8::MAX));
+		let md = AssetMetadata::new(u8::MAX).unwrap();
+		assert_last_event::<Test>(Event::<Test>::AssetMetadataSet(md).into());
+	})
+}
