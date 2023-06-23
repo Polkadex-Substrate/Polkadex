@@ -18,7 +18,7 @@
 
 use crate::{
 	mock::{new_test_ext, Assets, Test, *},
-	PendingWithdrawals, WithdrawalFees,
+	PendingWithdrawals, WithdrawalFees, *,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -26,8 +26,12 @@ use frame_support::{
 };
 use frame_system::EventRecord;
 use parity_scale_codec::Encode;
-use sp_runtime::traits::BadOrigin;
-use thea_primitives::types::{Deposit, Withdraw};
+use sp_runtime::{
+	traits::{AccountIdConversion, BadOrigin},
+	SaturatedConversion,
+};
+use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
+use xcm::{opaque::lts::Junctions, v3::MultiLocation, VersionedMultiLocation};
 
 fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
 	let events = frame_system::Pallet::<T>::events();
@@ -205,3 +209,108 @@ fn test_set_withdrawal_fee_full() {
 		assert_last_event::<Test>(crate::Event::<Test>::WithdrawalFeeSet(0, 0).into());
 	})
 }
+
+#[test]
+fn test_parachain_withdraw_full() {
+	new_test_ext().execute_with(|| {
+		// setup code
+		let asset_id: <Test as Config>::AssetId = 100u128.into();
+		let admin = 1u64;
+		let network_id = 1;
+		Balances::set_balance(&admin, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&admin,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+		.unwrap();
+		<Test as Config>::Assets::create(
+			RuntimeOrigin::signed(admin),
+			asset_id.into(),
+			admin,
+			1u128.saturated_into(),
+		)
+		.unwrap();
+		let pallet_acc = <Test as crate::Config>::TheaPalletId::get().into_account_truncating();
+		Balances::set_balance(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&pallet_acc,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+		.unwrap();
+		let account = 2u64;
+		Balances::set_balance(&account, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&account,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+		.unwrap();
+		Assets::mint_into(
+			asset_id.into(),
+			&account,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+		.unwrap();
+		<Test as Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into())
+			.unwrap();
+		Balances::set_balance(&account, 100_000_000_000_000u128.saturated_into());
+		let metadata = AssetMetadata::new(10).unwrap();
+		<Metadata<Test>>::insert(100, metadata);
+		<WithdrawalFees<Test>>::insert(network_id, 1_000);
+		let multilocation = MultiLocation { parents: 1, interior: Junctions::Here };
+		let beneficiary = Box::new(VersionedMultiLocation::V3(multilocation));
+		// bad origins
+		assert_noop!(
+			TheaExecutor::parachain_withdraw(
+				RuntimeOrigin::root(),
+				u128::MAX,
+				1_000_000_000,
+				beneficiary.clone(),
+				false
+			),
+			BadOrigin
+		);
+		assert_noop!(
+			TheaExecutor::parachain_withdraw(
+				RuntimeOrigin::none(),
+				u128::MAX,
+				1_000_000_000,
+				beneficiary.clone(),
+				false
+			),
+			BadOrigin
+		);
+		// asset not registered
+		assert_noop!(
+			TheaExecutor::parachain_withdraw(
+				RuntimeOrigin::signed(account),
+				u128::MAX,
+				1_000_000_000,
+				beneficiary.clone(),
+				false
+			),
+			Error::<Test>::AssetNotRegistered
+		);
+		// funds unavailable
+		assert_noop!(
+			TheaExecutor::parachain_withdraw(
+				RuntimeOrigin::signed(admin),
+				asset_id.into(),
+				1_000_000_000,
+				beneficiary.clone(),
+				false
+			),
+			sp_runtime::TokenError::FundsUnavailable
+		);
+		// proper case
+		assert_ok!(TheaExecutor::parachain_withdraw(
+			RuntimeOrigin::signed(account),
+			asset_id.into(),
+			1_000_000_000,
+			beneficiary.clone(),
+			false
+		));
+	})
+}
+
+#[test]
+fn test_update_asset_metadata_full() {}
