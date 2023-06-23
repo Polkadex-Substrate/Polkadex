@@ -18,15 +18,24 @@
 
 use crate::{
 	mock::{new_test_ext, Assets, Test, *},
-	PendingWithdrawals,
+	PendingWithdrawals, WithdrawalFees,
 };
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::{fungible::Mutate as FungibleMutate, fungibles::Mutate as FungiblesMutate},
 };
+use frame_system::EventRecord;
 use parity_scale_codec::Encode;
-
+use sp_runtime::traits::BadOrigin;
 use thea_primitives::types::{Deposit, Withdraw};
+
+fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
+	let events = frame_system::Pallet::<T>::events();
+	let system_event: <T as frame_system::Config>::RuntimeEvent = generic_event.into();
+	// compare to the last event record
+	let EventRecord { event, .. } = &events[events.len() - 1];
+	assert_eq!(event, &system_event);
+}
 
 #[test]
 fn test_withdraw_returns_ok() {
@@ -169,5 +178,30 @@ fn test_claim_deposit_returns_asset_not_registered() {
 			TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1),
 			crate::Error::<Test>::AssetNotRegistered
 		);
+	})
+}
+
+#[test]
+fn test_set_withdrawal_fee_full() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_noop!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::none(), 1, 1), BadOrigin);
+		assert!(<WithdrawalFees<Test>>::get(1).is_none());
+		assert_noop!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::signed(1), 1, 1), BadOrigin);
+		assert!(<WithdrawalFees<Test>>::get(1).is_none());
+		// proper origin
+		// max inputs
+		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), u8::MAX, u128::MAX));
+		assert_eq!(<WithdrawalFees<Test>>::get(u8::MAX).unwrap(), u128::MAX);
+		// half max inputs
+		assert_ok!(TheaExecutor::set_withdrawal_fee(
+			RuntimeOrigin::root(),
+			u8::MAX / 2,
+			u128::MAX / 2
+		));
+		// min inputs
+		System::set_block_number(1);
+		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 0, 0));
+		assert_last_event::<Test>(crate::Event::<Test>::WithdrawalFeeSet(0, 0).into());
 	})
 }
