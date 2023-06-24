@@ -317,6 +317,7 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 		);
 	});
 }
+
 #[test]
 fn test_register_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
@@ -1354,6 +1355,7 @@ fn collect_fees_unexpected_behaviour() {
 		);
 	});
 }
+
 #[test]
 fn test_collect_fees_decimal_overflow() {
 	let account_id = create_account_id();
@@ -1899,6 +1901,148 @@ pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
 	});
 }
 
+#[test]
+fn test_remove_proxy_account_faulty_cases() {
+	let (main, proxy) = get_alice_accounts();
+	new_test_ext().execute_with(|| {
+		// bad origin
+		assert_noop!(OCEX::remove_proxy_account(RuntimeOrigin::root(), proxy.clone()), BadOrigin);
+		assert_noop!(OCEX::remove_proxy_account(RuntimeOrigin::none(), proxy.clone()), BadOrigin);
+		// exchange not operational
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			Error::<Test>::ExchangeNotOperational
+		);
+		// no main account registered
+		<ExchangeState<Test>>::set(true);
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			Error::<Test>::MainAccountNotFound
+		);
+		// minimum one proxy required
+		OCEX::register_main_account(RuntimeOrigin::signed(main.clone()), proxy.clone()).unwrap();
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main.clone()), proxy.clone(),),
+			Error::<Test>::MinimumOneProxyRequired
+		);
+		// no proxy account found
+		<Accounts<Test>>::mutate(&main, |account_info| {
+			if let Some(a) = account_info {
+				a.proxies.pop();
+				a.proxies.try_push(main.clone()).unwrap();
+				a.proxies.try_push(main.clone()).unwrap();
+			} else {
+				panic!("failed to mutate Accounts")
+			}
+		});
+		assert_noop!(
+			OCEX::remove_proxy_account(RuntimeOrigin::signed(main), proxy,),
+			Error::<Test>::ProxyNotFound
+		);
+	})
+}
+
+#[test]
+fn test_remove_proxy_account_proper_case() {
+	let (main, proxy) = get_alice_accounts();
+	new_test_ext().execute_with(|| {
+		<ExchangeState<Test>>::set(true);
+		OCEX::register_main_account(RuntimeOrigin::signed(main.clone()), proxy.clone()).unwrap();
+		<Accounts<Test>>::mutate(&main, |account_info| {
+			if let Some(a) = account_info {
+				a.proxies.try_push(main.clone()).unwrap();
+				a.proxies.try_push(main.clone()).unwrap();
+			} else {
+				panic!("failed to mutate Accounts")
+			}
+		});
+		assert_ok!(OCEX::remove_proxy_account(RuntimeOrigin::signed(main), proxy));
+	})
+}
+
+#[test]
+fn test_set_snapshot_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		// bad origins
+		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::signed(a), 1), BadOrigin);
+		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::signed(b), 1), BadOrigin);
+		// proper cases
+		assert_ok!(OCEX::set_snapshot(RuntimeOrigin::root(), 1));
+	})
+}
+
+#[test]
+fn test_change_pending_withdrawal_limit_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		// bad origins
+		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::signed(a), 1), BadOrigin);
+		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::signed(b), 1), BadOrigin);
+		// proper cases
+		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), 1));
+		// half max
+		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), u32::MAX.into()));
+		// max
+		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), u64::MAX));
+	})
+}
+
+#[test]
+fn test_change_snapshot_interval_block_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		// bad origins
+		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(a), 1), BadOrigin);
+		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(b), 1), BadOrigin);
+		// proper cases
+		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), 1));
+		// half max
+		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u32::MAX.into()));
+		// max
+		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u64::MAX));
+	})
+}
+
+#[test]
+fn test_set_exchange_state_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		// bad origins
+		assert_noop!(OCEX::set_exchange_state(RuntimeOrigin::none(), true), BadOrigin);
+		assert_noop!(OCEX::set_exchange_state(RuntimeOrigin::signed(a), true), BadOrigin);
+		assert_noop!(OCEX::set_exchange_state(RuntimeOrigin::signed(b), true), BadOrigin);
+		// proper case
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		let current = frame_system::Pallet::<Test>::current_block_number();
+		assert!(<crate::IngressMessages<Test>>::get(current).len() == 1);
+	})
+}
+
+#[test]
+fn test_whitelist_orderbook_operator_full() {
+	new_test_ext().execute_with(|| {
+		let (a, b) = get_alice_accounts();
+		let key = sp_core::ecdsa::Pair::generate().0.public();
+		// bad origins
+		assert_noop!(OCEX::whitelist_orderbook_operator(RuntimeOrigin::none(), key), BadOrigin);
+		assert_noop!(
+			OCEX::whitelist_orderbook_operator(RuntimeOrigin::signed(a.clone()), key),
+			BadOrigin
+		);
+		assert_noop!(
+			OCEX::whitelist_orderbook_operator(RuntimeOrigin::signed(b.clone()), key),
+			BadOrigin
+		);
+		// proper case
+		assert_ok!(OCEX::whitelist_orderbook_operator(RuntimeOrigin::root(), key));
+		assert_eq!(<OrderbookOperatorPublicKey<Test>>::get().unwrap(), key);
+	})
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
@@ -1952,21 +2096,6 @@ fn create_proxy_account() -> AccountId32 {
 	.expect("Unable to create sr25519 key pair")
 	.try_into()
 	.expect("Unable to convert to AccountId32");
-
-	return account_id
-}
-
-#[allow(dead_code)]
-fn create_public_key() -> sp_application_crypto::sr25519::Public {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-	let keystore = MemoryKeystore::new();
-	let account_id = <(dyn Keystore + 'static)>::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE)),
-	)
-	.expect("Unable to create sr25519 key pair");
 
 	return account_id
 }
