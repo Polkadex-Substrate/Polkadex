@@ -302,8 +302,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		/// On idle, use the remaining weight to do clean up, remove all ingress messages that are
-		/// older than the block in the last accepted snapshot.
+		/// On idle, use the remaining weight to withdraw finalization
+		/// Automated (but much delayed) `claim_withdraw()` extrinsic
 		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
 			let snapshot_id = <SnapshotNonce<T>>::get();
 			while remaining_weight.ref_time() >
@@ -1278,6 +1278,8 @@ pub mod pallet {
 			withdrawal_map
 		}
 
+		/// Performs actual transfer of assets from pallet account to target destination
+		/// Used to finalize withdrawals in extrinsic or on_idle
 		fn on_idle_withdrawal_processor(
 			withdrawal: Withdrawal<<T as frame_system::Config>::AccountId>,
 		) -> bool {
