@@ -1351,6 +1351,7 @@ impl thea_executor::Config for Runtime {
 	type TheaPalletId = TheaPalletAccount;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
