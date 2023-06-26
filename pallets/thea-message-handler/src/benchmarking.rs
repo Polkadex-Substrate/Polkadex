@@ -29,18 +29,6 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
-lazy_static::lazy_static! {
-	static ref M: Message = Message {
-		block_no: u64::MAX,
-		nonce: 1,
-		data: [255u8; 576].into(), //10 MB
-		network: 0u8,
-		is_key_change: false,
-		validator_set_id: 0,
-		validator_set_len: 1,
-	};
-}
-
 benchmarks! {
 	insert_authorities {
 		let b in 0 .. u32::MAX;
@@ -69,6 +57,14 @@ benchmarks! {
 	}: _(RawOrigin::Root, b)
 	verify {
 		assert_eq!(b, <IncomingNonce<T>>::get());
+	}
+
+	update_outgoing_nonce {
+		let b in 1 .. u32::MAX;
+		let b = b as u64;
+	}: _(RawOrigin::Root, b)
+	verify {
+		assert_eq!(b, <OutgoingNonce<T>>::get());
 	}
 }
 

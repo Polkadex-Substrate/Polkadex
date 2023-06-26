@@ -19,6 +19,18 @@
 use crate::*;
 use frame_support::BoundedVec;
 
+lazy_static::lazy_static! {
+	pub(crate) static ref M: Message = Message {
+		block_no: u64::MAX,
+		nonce: 1,
+		data: [255u8; 576].into(), //10 MB
+		network: 0u8,
+		is_key_change: false,
+		validator_set_id: 0,
+		validator_set_len: 1,
+	};
+}
+
 pub(crate) const SIG: [u8; 48] = [
 	149, 78, 11, 39, 209, 149, 209, 101, 74, 132, 154, 96, 46, 218, 114, 207, 95, 52, 40, 70, 44,
 	13, 7, 236, 224, 87, 192, 58, 99, 125, 175, 25, 35, 186, 6, 53, 246, 152, 164, 191, 169, 212,
