@@ -76,4 +76,14 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+	fn update_outgoing_nonce(_b: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `76`
+		//  Estimated: `1561`
+		// Minimum execution time: 5_244_000 picoseconds.
+		Weight::from_parts(5_667_211, 0)
+			.saturating_add(Weight::from_parts(0, 1561))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
 }
