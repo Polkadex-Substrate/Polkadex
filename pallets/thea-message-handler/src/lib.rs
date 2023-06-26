@@ -40,10 +40,12 @@ use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub(crate) mod fixtures;
 #[cfg(test)]
 pub(crate) mod mock;
 #[cfg(test)]
-mod test;
+pub mod test;
 
 pub trait WeightInfo {
 	fn insert_authorities(_b: u32) -> Weight;

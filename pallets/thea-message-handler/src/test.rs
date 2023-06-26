@@ -17,8 +17,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	mock::{new_test_ext, Assets, Test, *},
-	PendingWithdrawals, WithdrawalFees, *,
+	fixtures::produce_authorities,
+	mock::{new_test_ext, Test, *},
+	pallet::*,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -31,7 +32,6 @@ use sp_runtime::{
 	SaturatedConversion,
 };
 use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
-use xcm::{opaque::lts::Junctions, v3::MultiLocation, VersionedMultiLocation};
 
 fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
 	let events = frame_system::Pallet::<T>::events();
@@ -42,6 +42,25 @@ fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::Runt
 }
 
 #[test]
-fn test_withdraw_returns_ok() {
-	new_test_ext().execute_with(|| {})
+fn test_insert_authorities_full() {
+	new_test_ext().execute_with(|| {
+		let authorities = produce_authorities::<Test>();
+		// bad origins
+		assert_noop!(
+			TheaHandler::insert_authorities(RuntimeOrigin::none(), authorities.clone(), 0),
+			BadOrigin
+		);
+		assert_noop!(
+			TheaHandler::insert_authorities(RuntimeOrigin::signed(1), authorities.clone(), 0),
+			BadOrigin
+		);
+		// proper case
+		assert_ok!(TheaHandler::insert_authorities(
+			RuntimeOrigin::root(),
+			authorities.clone(),
+			111
+		));
+		assert_eq!(<Authorities<Test>>::get(111), authorities);
+		assert_eq!(<ValidatorSetId<Test>>::get(), 111);
+	})
 }
