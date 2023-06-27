@@ -74,7 +74,7 @@ fn test_insert_authorities_full() {
 }
 
 #[test]
-fn test_incomming_message_full() {
+fn test_incoming_message_full() {
 	new_test_ext().execute_with(|| {
 		// bad origins
 		assert_noop!(
@@ -178,5 +178,47 @@ fn test_incomming_message_full() {
 		assert_eq!(<Authorities<Test>>::get(1).len(), 1);
 		// event validation
 		assert_last_event::<Test>(Event::<Test>::TheaMessageExecuted { message: vs }.into());
+	})
+}
+
+#[test]
+fn update_incoming_nonce_full() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_noop!(TheaHandler::update_incoming_nonce(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_noop!(TheaHandler::update_incoming_nonce(RuntimeOrigin::signed(1), 1), BadOrigin);
+		// ok cases
+		assert_ok!(TheaHandler::update_incoming_nonce(RuntimeOrigin::root(), 1));
+		assert_eq!(1, <IncomingNonce<Test>>::get());
+		assert_ok!(TheaHandler::update_incoming_nonce(RuntimeOrigin::root(), u64::MAX / 2));
+		assert_eq!(u64::MAX / 2, <IncomingNonce<Test>>::get());
+		assert_ok!(TheaHandler::update_incoming_nonce(RuntimeOrigin::root(), u64::MAX));
+		assert_eq!(u64::MAX, <IncomingNonce<Test>>::get());
+		// nonce already processed
+		assert_noop!(
+			TheaHandler::update_incoming_nonce(RuntimeOrigin::root(), u64::MAX),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
+	})
+}
+
+#[test]
+fn update_outgoing_nonce_full() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_noop!(TheaHandler::update_outgoing_nonce(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_noop!(TheaHandler::update_outgoing_nonce(RuntimeOrigin::signed(1), 1), BadOrigin);
+		// ok cases
+		assert_ok!(TheaHandler::update_outgoing_nonce(RuntimeOrigin::root(), 1));
+		assert_eq!(1, <OutgoingNonce<Test>>::get());
+		assert_ok!(TheaHandler::update_outgoing_nonce(RuntimeOrigin::root(), u64::MAX / 2));
+		assert_eq!(u64::MAX / 2, <OutgoingNonce<Test>>::get());
+		assert_ok!(TheaHandler::update_outgoing_nonce(RuntimeOrigin::root(), u64::MAX));
+		assert_eq!(u64::MAX, <OutgoingNonce<Test>>::get());
+		// nonce already processed
+		assert_noop!(
+			TheaHandler::update_outgoing_nonce(RuntimeOrigin::root(), u64::MAX),
+			Error::<Test>::NonceIsAlreadyProcessed
+		);
 	})
 }
