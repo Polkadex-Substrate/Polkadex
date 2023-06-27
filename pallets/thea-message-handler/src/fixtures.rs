@@ -20,12 +20,23 @@ use crate::*;
 use frame_support::BoundedVec;
 
 lazy_static::lazy_static! {
+	/// deposit message
 	pub(crate) static ref M: Message = Message {
 		block_no: u64::MAX,
 		nonce: 1,
-		data: [255u8; 576].into(), //10 MB
+		data: [255u8; 576].into(),
 		network: 0u8,
 		is_key_change: false,
+		validator_set_id: 0,
+		validator_set_len: 1,
+	};
+	/// keychange message invalid
+	pub(crate) static ref M_KC: Message = Message {
+		block_no: u64::MAX,
+		nonce: 1,
+		data: [255u8; 576].into(),
+		network: 0u8,
+		is_key_change: true,
 		validator_set_id: 0,
 		validator_set_len: 1,
 	};
