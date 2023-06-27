@@ -19,23 +19,13 @@
 use crate::{
 	fixtures::{produce_authorities, M, M_KC, SIG},
 	mock::{new_test_ext, Test, *},
-	pallet::*,
 	TransactionSource, *,
 };
-use frame_support::{
-	assert_noop, assert_ok,
-	traits::{fungible::Mutate as FungibleMutate, fungibles::Mutate as FungiblesMutate},
-};
+use frame_support::{assert_noop, assert_ok};
 use frame_system::EventRecord;
 use parity_scale_codec::{Decode, Encode};
-use sp_runtime::{
-	traits::{AccountIdConversion, BadOrigin},
-	SaturatedConversion,
-};
-use thea_primitives::{
-	types::{AssetMetadata, Deposit, Withdraw},
-	ValidatorSet,
-};
+use sp_runtime::traits::BadOrigin;
+use thea_primitives::ValidatorSet;
 
 fn get_valid_signature<T: Config>() -> T::Signature {
 	<T as crate::Config>::Signature::decode(&mut SIG.as_ref()).unwrap()
