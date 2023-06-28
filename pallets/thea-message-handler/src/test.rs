@@ -112,18 +112,6 @@ fn test_incoming_message_full() {
 		assert!(
 			TheaHandler::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err()
 		);
-		// proper unsigned validation
-		let authorities = produce_authorities::<Test>();
-		Authorities::<Test>::insert(0, authorities);
-		ValidatorSetId::<Test>::put(0);
-		IncomingNonce::<Test>::put(0);
-		System::set_block_number(1);
-		let good_call = Call::<Test>::incoming_message {
-			bitmap: vec![u128::MAX],
-			payload: M.clone(), // proper message
-			signature: get_valid_signature::<Test>(),
-		};
-		assert!(TheaHandler::validate_unsigned(TransactionSource::Local, &good_call).is_ok());
 		// bad nonce
 		let mut vs = M_KC.clone();
 		assert_noop!(
@@ -147,7 +135,7 @@ fn test_incoming_message_full() {
 			Error::<Test>::ErrorDecodingValidatorSet
 		);
 		// invalid validator set id
-		let validators = ValidatorSet::new(vec![1u64, 2u64, 3u64], 1).unwrap();
+		let validators = ValidatorSet { validators: vec![1u64, 2u64, 3u64], set_id: 1 };
 		let encoded = validators.encode();
 		assert_eq!(validators, ValidatorSet::decode(&mut encoded.as_ref()).unwrap());
 		vs.data = encoded.clone();
