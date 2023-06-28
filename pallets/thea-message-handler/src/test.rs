@@ -113,6 +113,11 @@ fn test_incoming_message_full() {
 			TheaHandler::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err()
 		);
 		// proper unsigned validation
+		let authorities = produce_authorities::<Test>();
+		Authorities::<Test>::insert(0, authorities);
+		ValidatorSetId::<Test>::put(0);
+		IncomingNonce::<Test>::put(0);
+		System::set_block_number(1);
 		let good_call = Call::<Test>::incoming_message {
 			bitmap: vec![u128::MAX],
 			payload: M.clone(), // proper message
