@@ -42,7 +42,7 @@ benchmarks! {
 
 	incoming_message {
 		let bitmap = vec!(u128::MAX);
-		let authorities = produce_authorities::<T>();
+		let _ = produce_authorities::<T>();
 		<ValidatorSetId<T>>::put(0);
 	}: _(RawOrigin::None, bitmap, M.clone(), <T as crate::Config>::Signature::decode(&mut SIG.as_ref()).unwrap())
 	verify {
