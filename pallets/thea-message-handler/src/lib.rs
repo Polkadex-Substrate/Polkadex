@@ -214,7 +214,7 @@ pub mod pallet {
 				T::Executor::execute_deposits(payload.network, payload.data.clone());
 			} else {
 				// Thea message related to key change
-				match ValidatorSet::decode(&mut &payload.data[..]) {
+				match ValidatorSet::decode(&mut payload.data.as_ref()) {
 					Err(_err) => return Err(Error::<T>::ErrorDecodingValidatorSet.into()),
 					Ok(validator_set) => {
 						ensure!(
