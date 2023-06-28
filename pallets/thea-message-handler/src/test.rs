@@ -135,11 +135,16 @@ fn test_incoming_message_full() {
 			Error::<Test>::ErrorDecodingValidatorSet
 		);
 		// invalid validator set id
-		let validators = ValidatorSet { validators: vec![1u64, 2u64, 3u64], set_id: 1 };
-		let encoded = validators.encode();
+		let mut aid: Vec<thea_primitives::AuthorityId> = Vec::with_capacity(3);
+		for u in 1..=3 {
+			aid.push(bls_primitives::Public([u as u8; 96]).into())
+		}
+		let validators = ValidatorSet { validators: aid, set_id: 1 };
+		let encoded = Encode::encode(&validators);
 		assert_eq!(validators, ValidatorSet::decode(&mut encoded.as_ref()).unwrap());
 		vs.data = encoded.clone();
 		assert_eq!(vs.data, encoded);
+		<ValidatorSetId<Test>>::set(3);
 		assert_noop!(
 			TheaHandler::incoming_message(
 				RuntimeOrigin::none(),
@@ -152,6 +157,7 @@ fn test_incoming_message_full() {
 		// proper validator set change
 		<ValidatorSetId<Test>>::set(0);
 		assert_eq!(<ValidatorSetId<Test>>::get(), 0);
+		System::set_block_number(1);
 		assert_ok!(TheaHandler::incoming_message(
 			RuntimeOrigin::none(),
 			vec!(u128::MAX),
@@ -159,7 +165,7 @@ fn test_incoming_message_full() {
 			get_valid_signature::<Test>()
 		));
 		// actually inserted
-		assert_eq!(<Authorities<Test>>::get(1).len(), 1);
+		assert_eq!(<Authorities<Test>>::get(1).len(), 3);
 		// event validation
 		assert_last_event::<Test>(Event::<Test>::TheaMessageExecuted { message: vs }.into());
 	})
