@@ -22,18 +22,27 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::pallet_prelude::Weight;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/reference/frame-pallets/>
 pub use pallet::*;
 
-#[cfg(test)]
-mod tests;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(test)]
 mod mock;
+#[cfg(test)]
+mod tests;
+pub mod weights;
+
+pub trait WeightInfo {
+	fn set_withdrawal_fee(_r: u32) -> Weight;
+	fn update_asset_metadata(_r: u32) -> Weight;
+	fn claim_deposit(r: u32) -> Weight;
+	fn withdraw(r: u32) -> Weight;
+	fn parachain_withdraw(_r: u32) -> Weight;
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -92,6 +101,8 @@ pub mod pallet {
 		type WithdrawalSize: Get<u32>;
 		/// Para Id
 		type ParaId: Get<u32>;
+		/// Type representing the weight of this pallet
+		type WeightInfo: WeightInfo;
 	}
 
 	/// Nonce used to generate randomness
@@ -211,7 +222,7 @@ pub mod pallet {
 		/// An example dispatch able that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -234,7 +245,7 @@ pub mod pallet {
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
 		/// (it's used to parametrise the weight of this extrinsic).
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 
@@ -271,7 +282,7 @@ pub mod pallet {
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
 		#[pallet::call_index(2)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::set_withdrawal_fee(1))]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -285,7 +296,7 @@ pub mod pallet {
 
 		/// Withdraws to parachain networks in Polkadot
 		#[pallet::call_index(3)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
 		pub fn parachain_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -313,7 +324,7 @@ pub mod pallet {
 		/// * `asset_id`: Asset Id.
 		/// * `metadata`: AssetMetadata.
 		#[pallet::call_index(4)]
-		#[pallet::weight(Weight::default())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_asset_metadata(1))]
 		pub fn update_asset_metadata(
 			origin: OriginFor<T>,
 			asset_id: u128,
