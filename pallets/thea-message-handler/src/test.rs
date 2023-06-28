@@ -139,6 +139,7 @@ fn test_incoming_message_full() {
 		let encoded = validators.encode();
 		assert_eq!(validators, ValidatorSet::decode(&mut encoded.as_ref()).unwrap());
 		vs.data = encoded.clone();
+		assert_eq!(vs.data, encoded);
 		assert_noop!(
 			TheaHandler::incoming_message(
 				RuntimeOrigin::none(),
