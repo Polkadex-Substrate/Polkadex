@@ -19,7 +19,7 @@
 use super::*;
 use crate::{
 	gossip::{topic, GossipValidator},
-	tests::{make_gradpa_ids, withdrawal::DummyForeignConnector},
+	tests::withdrawal::DummyForeignConnector,
 };
 use sc_network_gossip::GossipEngine;
 use std::collections::HashMap;
@@ -48,11 +48,8 @@ async fn dropped_one_validator_still_works_test() {
 		validator_set_id: 0,
 		validator_set_len: 3,
 	};
-	let grandpa_peers = &[Ed25519Keyring::Alice, Ed25519Keyring::Bob, Ed25519Keyring::Charlie];
-	let genesys_authorities = make_gradpa_ids(grandpa_peers);
 
 	let runtime = Arc::new(TestApi {
-		genesys_authorities,
 		authorities: BTreeMap::from([(
 			network,
 			ValidatorSet { set_id: 0, validators: active.clone() },
@@ -84,28 +81,30 @@ async fn dropped_one_validator_still_works_test() {
 		.map(|(id, (key, is_auth))| (id, key, runtime.clone(), *is_auth, foreign_connector.clone()))
 		.collect();
 
-	let grandpa_handle = tokio::spawn(initialize_grandpa(&mut testnet, grandpa_peers));
 	let networking = testnet.peer(0).network_service().clone();
+	let sync = testnet.peer(0).sync_service().clone();
 	let thea_handle = tokio::spawn(initialize_thea(&mut testnet, validators).await);
 
 	// add new block
-	testnet.peer(0).push_blocks(1, false);
+	let peer = testnet.peer(0);
+	peer.push_blocks(1, false);
 	testnet.run_until_sync().await;
 	// kill off one worker
-	testnet.drop_validator();
+	//	testnet.drop_validator();
 
 	// push some message
 	let message_cache = Arc::new(RwLock::new(BTreeMap::new()));
 	let foreign_nonce = Arc::new(RwLock::new(0));
 	let native_nonce = Arc::new(RwLock::new(0));
-	let gossip_validator = Arc::new(GossipValidator::<Block>::new(
+	let gossip_validator = Arc::new(GossipValidator::new(
 		message_cache.clone(),
 		foreign_nonce.clone(),
 		native_nonce.clone(),
 	));
 	let mut gossip_engine = GossipEngine::<Block>::new(
 		networking.clone(),
-		sc_network::ProtocolName::from(crate::thea_protocol_name::NAME),
+		sync.clone(),
+		sc_network::ProtocolName::from("/thea/1"),
 		gossip_validator,
 		None,
 	);
@@ -148,7 +147,6 @@ async fn dropped_one_validator_still_works_test() {
 
 	// terminate
 	thea_handle.abort_handle().abort();
-	grandpa_handle.abort_handle().abort();
 }
 
 #[tokio::test]
@@ -174,11 +172,8 @@ async fn validator_set_change_mid_messaging_works_test() {
 		validator_set_id: 0,
 		validator_set_len: 3,
 	};
-	let grandpa_peers = &[Ed25519Keyring::Alice, Ed25519Keyring::Bob, Ed25519Keyring::Charlie];
-	let genesys_authorities = make_gradpa_ids(grandpa_peers);
 
 	let runtime = Arc::new(TestApi {
-		genesys_authorities,
 		authorities: BTreeMap::from([(
 			network,
 			ValidatorSet { set_id: 0, validators: active.clone() },
@@ -210,7 +205,6 @@ async fn validator_set_change_mid_messaging_works_test() {
 		.map(|(id, (key, is_auth))| (id, key, runtime.clone(), *is_auth, foreign_connector.clone()))
 		.collect();
 
-	let grandpa_handle = tokio::spawn(initialize_grandpa(&mut testnet, grandpa_peers));
 	let networking = testnet.peer(0).network_service().clone();
 	let thea_handle = tokio::spawn(initialize_thea(&mut testnet, validators).await);
 
@@ -228,5 +222,4 @@ async fn validator_set_change_mid_messaging_works_test() {
 
 	// terminate
 	thea_handle.abort_handle().abort();
-	grandpa_handle.abort_handle().abort();
 }

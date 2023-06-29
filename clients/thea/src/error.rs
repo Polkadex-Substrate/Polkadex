@@ -47,6 +47,8 @@ pub enum Error {
 	BLSError(String),
 	#[error("No validators found on runtime")]
 	NoValidatorsFound,
+	#[error("Not in validator list")]
+	NotInValidatorList,
 }
 
 impl From<subxt::Error> for Error {

@@ -460,7 +460,11 @@ where
 		let signing_key = self.keystore.get_local_key(&active.validators)?;
 
 		// Unwrap is fine since we already know we are in that list
-		let index = active.validators.iter().position(|x| x == &signing_key).unwrap();
+		let index = active
+			.validators
+			.iter()
+			.position(|x| x == &signing_key)
+			.ok_or_else(|| Error::NotInValidatorList)?;
 		Ok(index.saturated_into())
 	}
 
@@ -654,10 +658,12 @@ where
 		loop {
 			let mut gossip_engine = &mut self.gossip_engine;
 			futures::select_biased! {
+				// Lifetime
 				_ = gossip_engine => {
 					error!(target: "thea", "🌉 Gossip engine has terminated.");
 					return;
 				}
+				// 12 seconds
 				finality = finality_stream.next() => {
 					if let Some(finality) = finality {
 						if let Err(err) = self.handle_finality_notification(&finality).await {
@@ -668,6 +674,13 @@ where
 						return
 					}
 				},
+				// <= 12 seconds?
+				_ = interval_stream.next() => {
+					if let Err(err) = self.try_process_foreign_chain_events().await {
+							error!(target: "thea", "🌉 Error fetching foreign chain events {:?}", err);
+						}
+				},
+				// all the time
 				gossip = gossip_messages.next() => {
 					if let Some((mut message,sender)) = gossip {
 						info!(target:"thea","🌉 Got new message via gossip : nonce: {:?}, signed: {:?}, threshold: {:?}",
@@ -682,11 +695,6 @@ where
 					} else {
 						return;
 					}
-				},
-				_ = interval_stream.next() => {
-					if let Err(err) = self.try_process_foreign_chain_events().await {
-							error!(target: "thea", "🌉 Error fetching foreign chain events {:?}", err);
-						}
 				},
 			}
 			debug!(target: "thea", "🌉Inner loop cycled");

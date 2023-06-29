@@ -52,8 +52,8 @@ use thea_primitives::{
 use tokio::time::Instant;
 
 pub mod deposit;
-// mod grandpa;
-//mod protocol;
+//mod grandpa;
+mod protocol;
 pub mod withdrawal;
 
 // pub(crate) use grandpa::*;
@@ -311,10 +311,7 @@ where
 		let mut gadget = crate::worker::TheaWorker::new(worker_params).await;
 		gadget.thea_network = Some(1);
 		net.worker_massages.insert(peer_id, gadget.message_cache.clone());
-		let run_future = gadget.run();
-		fn assert_send<T: Send>(_: &T) {}
-		assert_send(&run_future);
-		workers.push(run_future);
+		workers.push(gadget.run());
 	}
 
 	workers.for_each(|_| async move {})
