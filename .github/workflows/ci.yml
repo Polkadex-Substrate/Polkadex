@@ -59,7 +59,7 @@ jobs:
           default: true
           components: rustfmt, clippy
       - name: Install .toml files linter
-        run: cargo install taplo-cli --locked
+        run: cargo install taplo-cli
       - name: Checkout to the current branch
         uses: actions/checkout@v3
       - name: Cache Rust Dependencies
