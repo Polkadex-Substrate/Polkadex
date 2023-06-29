@@ -330,23 +330,33 @@ mod multiplier_tests {
 
 	#[test]
 	fn weight_to_fee_should_not_overflow_on_large_weights() {
-		let kb = Weight::from_parts(1024, 0);
-		let mb = 1024u64 * kb;
+		let kb_time = Weight::from_parts(1024, 0);
+		let kb_size = Weight::from_parts(0, 1024);
+		let mb_time = 1024u64 * kb_time;
 		let max_fm = Multiplier::saturating_from_integer(i128::MAX);
 
 		// check that for all values it can compute, correctly.
 		vec![
 			Weight::zero(),
+			// testcases ignoring proof size part of the weight.
 			Weight::from_parts(1, 0),
 			Weight::from_parts(10, 0),
 			Weight::from_parts(1000, 0),
-			kb,
-			10u64 * kb,
-			100u64 * kb,
-			mb,
-			10u64 * mb,
+			kb_time,
+			10u64 * kb_time,
+			100u64 * kb_time,
+			mb_time,
+			10u64 * mb_time,
 			Weight::from_parts(2147483647, 0),
 			Weight::from_parts(4294967295, 0),
+			// testcases ignoring ref time part of the weight.
+			Weight::from_parts(0, 100000000000),
+			1000000u64 * kb_size,
+			1000000000u64 * kb_size,
+			Weight::from_parts(0, 18014398509481983),
+			Weight::from_parts(0, 9223372036854775807),
+			// test cases with both parts of the weight.
+			BlockWeights::get().max_block / 1024,
 			BlockWeights::get().max_block / 2,
 			BlockWeights::get().max_block,
 			Weight::MAX / 2,
@@ -363,7 +373,14 @@ mod multiplier_tests {
 
 		// Some values that are all above the target and will cause an increase.
 		let t = target();
-		vec![t + Weight::from_parts(100, 0), t * 2, t * 4].into_iter().for_each(|i| {
+		vec![
+			t + Weight::from_parts(100, 0),
+			t + Weight::from_parts(0, t.proof_size() * 2),
+			t * 2,
+			t * 4,
+		]
+		.into_iter()
+		.for_each(|i| {
 			run_with_system_weight(i, || {
 				let fm = runtime_multiplier_update(max_fm);
 				// won't grow. The convert saturates everything.
