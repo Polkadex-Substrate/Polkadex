@@ -53,10 +53,9 @@ pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::Ke
 /// without affecting code restricted against the above listed crypto types.
 pub mod crypto {
 	use sp_application_crypto::app_crypto;
+	use sp_core::bls381;
 
-	use bls_primitives as BLS;
-
-	app_crypto!(BLS, crate::KEY_TYPE);
+	app_crypto!(bls381, crate::KEY_TYPE);
 
 	/// Identity of a Orderbook authority using BLS as its crypto.
 	pub type AuthorityId = Public;

@@ -9,7 +9,7 @@ substrate-bip39 = { version = "0.4.4", optional = true }
 tiny-bip39 = { version = "0.8.2", optional = true }
 sp-runtime-interface = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false, features = ["bls-experimental"] }
 sp-std = { workspace = true, default-features = false }
 sp-externalities = { workspace = true, default-features = false }
 serde_json = { version = "1.0.94", optional = true }

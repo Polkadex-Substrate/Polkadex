@@ -12,7 +12,7 @@ sp-runtime = { workspace = true, default-features = false }
 frame-support = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false, features = ["bls-experimental"] }
 xcm = { workspace = true, default-features = false }
 bls-primitives = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }

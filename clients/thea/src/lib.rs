@@ -29,10 +29,10 @@
 use prometheus::Registry;
 use sc_chain_spec::ChainType;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
-use sc_keystore::LocalKeystore;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
+use sp_keystore::KeystorePtr;
 use sp_runtime::traits::Block;
 use std::{marker::PhantomData, sync::Arc};
 use thea_primitives::TheaApi;
@@ -137,7 +137,7 @@ where
 	/// Client runtime.
 	pub runtime: Arc<R>,
 	/// Keystore.
-	pub keystore: Arc<LocalKeystore>,
+	pub keystore: KeystorePtr,
 	/// Gossip network.
 	pub network: N,
 	/// Sync service

@@ -20,15 +20,14 @@
 
 use crate::error::Error;
 use log::warn;
-use sc_keystore::LocalKeystore;
-use sp_core::Pair;
-use std::sync::Arc;
-use thea_primitives::crypto::{AuthorityId, AuthoritySignature};
+use sp_core::bls381::{Public, Signature};
+use sp_keystore::KeystorePtr;
+pub use thea_primitives::KEY_TYPE as TheaKeyType;
 
 /// Key store definition which holds keys and performs messages signing operations and accessor to
 /// the public keys.
 pub struct TheaKeyStore {
-	keystore: Arc<LocalKeystore>,
+	keystore: KeystorePtr,
 }
 
 impl TheaKeyStore {
@@ -37,7 +36,7 @@ impl TheaKeyStore {
 	/// # Parameters
 	///
 	/// * `keystore`: Local keystore from the keystore container.
-	pub fn new(keystore: Arc<LocalKeystore>) -> Self {
+	pub fn new(keystore: KeystorePtr) -> Self {
 		Self { keystore }
 	}
 
@@ -46,12 +45,15 @@ impl TheaKeyStore {
 	/// # Parameters
 	///
 	/// * `active`: Identifier of the Thea authority.
-	pub fn get_local_key(&self, active: &[AuthorityId]) -> Result<AuthorityId, Error> {
+	pub fn get_local_key(&self, active: &[Public]) -> Result<Public, Error> {
 		for key in active {
-			if let Some(local_pair) =
-				self.keystore.key_pair::<thea_primitives::crypto::Pair>(key)?
+			if let Some(local) = self
+				.keystore
+				.bls381_public_keys(TheaKeyType)
+				.iter()
+				.find(|stored| stored.eq(&key))
 			{
-				return Ok(local_pair.public())
+				return Ok(*key)
 			}
 		}
 		warn!(target:"thea","🌉 No BLS key found");
@@ -64,13 +66,10 @@ impl TheaKeyStore {
 	///
 	/// * `public`: Identifier of the Thea authority using BLS as its crypto.
 	/// * `message`: Message to sign.
-	pub fn sign(&self, public: &AuthorityId, message: &[u8]) -> Result<AuthoritySignature, Error> {
-		match self.keystore.key_pair::<thea_primitives::crypto::Pair>(public)? {
-			Some(local_pair) => Ok(local_pair.sign(message)),
-			None => {
-				warn!(target:"thea","🌉 No BLS key found");
-				Err(Error::Keystore("🌉 No BLS key found".to_string()))
-			},
-		}
+	pub fn sign(&self, public: &Public, message: &[u8]) -> Result<Signature, Error> {
+		self.keystore.bls381_sign(TheaKeyType, public, message)?.ok_or_else(|| {
+			warn!(target:"thea","🌉 No BLS key found for signing!");
+			Error::Keystore("🌉 No BLS key found".to_string())
+		})
 	}
 }

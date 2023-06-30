@@ -49,6 +49,8 @@ pub enum Error {
 	NoValidatorsFound,
 	#[error("Not in validator list")]
 	NotInValidatorList,
+	#[error(transparent)]
+	BlsError(#[from] sp_keystore::Error),
 }
 
 impl From<subxt::Error> for Error {

@@ -27,7 +27,6 @@ use polkadex_primitives::utils::return_set_bits;
 use sc_client_api::{BlockchainEvents, FinalityNotification};
 
 use sc_consensus_grandpa::GenesisAuthoritySetProvider;
-use sc_keystore::LocalKeystore;
 use sc_network::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_network_test::{
@@ -39,7 +38,7 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 
 use sp_core::{Pair, H256};
 use sp_keyring::AccountKeyring;
-use sp_keystore::Keystore;
+use sp_keystore::{testing::MemoryKeystore, Keystore, KeystorePtr};
 
 use std::{
 	collections::{BTreeMap, HashMap},
@@ -279,7 +278,7 @@ where
 {
 	let workers = FuturesUnordered::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		let keystore = Arc::new(LocalKeystore::in_memory());
+		let keystore = MemoryKeystore::new();
 
 		if is_validator {
 			// Generate the crypto material with test keys,
@@ -294,6 +293,8 @@ where
 			// Check if the key is present or not
 			keystore.key_pair::<thea_primitives::crypto::Pair>(&pair.public()).unwrap();
 		}
+
+		let keystore: KeystorePtr = keystore.into();
 
 		let worker_params = crate::worker::WorkerParams {
 			client: net.peers[peer_id].client().as_client(),
@@ -339,7 +340,7 @@ where
 {
 	let mut workers = Vec::new();
 	for (peer_id, key, api, is_validator, connector) in peers.into_iter() {
-		let keystore = Arc::new(LocalKeystore::in_memory());
+		let keystore = MemoryKeystore::new();
 
 		if is_validator {
 			// Generate the crypto material with test keys,
@@ -354,6 +355,8 @@ where
 			// Check if the key is present or not
 			keystore.key_pair::<thea_primitives::crypto::Pair>(&pair.public()).unwrap();
 		}
+
+		let keystore: KeystorePtr = keystore.into();
 
 		let worker_params = crate::worker::WorkerParams {
 			client: net.peers[peer_id].client().as_client(),
