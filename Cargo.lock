@@ -6394,7 +6394,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.1.1"
+version = "5.1.2"
 dependencies = [
  "clap 4.3.5",
  "frame-benchmarking-cli",
