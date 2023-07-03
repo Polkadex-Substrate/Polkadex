@@ -111,65 +111,66 @@ where
 		message: &GossipMessage,
 		peerid: PeerId,
 	) -> ValidationResult<B::Hash> {
-		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
-		// Discard if we already know this message
-		match message {
-			GossipMessage::ObMessage(msg) => {
-				let latest_worker_nonce = *self.latest_worker_nonce.read();
-				if (msg.worker_nonce > latest_worker_nonce &&
-					msg.version == *self.state_version.read()) ||
-					msg.reset
-				{
-					// It's a new message so we process it and keep it in our pool
-					ValidationResult::ProcessAndKeep(self.topic)
-				} else {
-					// We already saw this message, so discarding.
-					ValidationResult::Discard
-				}
-			},
-
-			GossipMessage::WantWorkerNonce(from, to, version) => {
-				// Discard all WantWorkerNonce requests
-				ValidationResult::Discard
-				// if from > to || *version < *self.state_version.read() {
-				// 	// Invalid request
-				// 	return ValidationResult::Discard
-				// }
-				// // Validators only process it if the request is for nonces after
-				// if *from >= self.last_snapshot.read().worker_nonce {
-				// 	ValidationResult::ProcessAndDiscard(self.topic)
-				// } else {
-				// 	ValidationResult::Discard
-				// }
-			},
-			GossipMessage::Want(snapshot_id, _) => {
-				// TODO: Currently enabled for all nodes
-				// if self.is_validator {
-				// 	// Only fullnodes will respond to this
-				// 	return ValidationResult::Discard
-				// }
-				// We only process the request for last snapshot
-				// Discard all WantWorkerNonce requests
-				ValidationResult::Discard
-				// if self.last_snapshot.read().snapshot_id == *snapshot_id {
-				// 	self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-				// 	ValidationResult::ProcessAndDiscard(self.topic)
-				// } else {
-				// 	ValidationResult::Discard
-				// }
-			},
-			_ => {
-				// Rest of the match patterns are directed messages so we assume that directed
-				// messages are only accessible to those recipient peers so we process and
-				// discard them and not propagate to others
-				if self.message_cache.read().contains_key(&(msg_hash, peerid)) {
-					ValidationResult::Discard
-				} else {
-					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndDiscard(self.topic)
-				}
-			},
-		}
+		return ValidationResult::Discard;
+		// let msg_hash = sp_core::hashing::blake2_128(&message.encode());
+		// // Discard if we already know this message
+		// match message {
+		// 	GossipMessage::ObMessage(msg) => {
+		// 		let latest_worker_nonce = *self.latest_worker_nonce.read();
+		// 		if (msg.worker_nonce > latest_worker_nonce &&
+		// 			msg.version == *self.state_version.read()) ||
+		// 			msg.reset
+		// 		{
+		// 			// It's a new message so we process it and keep it in our pool
+		// 			ValidationResult::ProcessAndKeep(self.topic)
+		// 		} else {
+		// 			// We already saw this message, so discarding.
+		// 			ValidationResult::Discard
+		// 		}
+		// 	},
+		//
+		// 	GossipMessage::WantWorkerNonce(from, to, version) => {
+		// 		// Discard all WantWorkerNonce requests
+		// 		ValidationResult::Discard
+		// 		// if from > to || *version < *self.state_version.read() {
+		// 		// 	// Invalid request
+		// 		// 	return ValidationResult::Discard
+		// 		// }
+		// 		// // Validators only process it if the request is for nonces after
+		// 		// if *from >= self.last_snapshot.read().worker_nonce {
+		// 		// 	ValidationResult::ProcessAndDiscard(self.topic)
+		// 		// } else {
+		// 		// 	ValidationResult::Discard
+		// 		// }
+		// 	},
+		// 	GossipMessage::Want(snapshot_id, _) => {
+		// 		// TODO: Currently enabled for all nodes
+		// 		// if self.is_validator {
+		// 		// 	// Only fullnodes will respond to this
+		// 		// 	return ValidationResult::Discard
+		// 		// }
+		// 		// We only process the request for last snapshot
+		// 		// Discard all WantWorkerNonce requests
+		// 		ValidationResult::Discard
+		// 		// if self.last_snapshot.read().snapshot_id == *snapshot_id {
+		// 		// 	self.message_cache.write().insert((msg_hash, peerid), Instant::now());
+		// 		// 	ValidationResult::ProcessAndDiscard(self.topic)
+		// 		// } else {
+		// 		// 	ValidationResult::Discard
+		// 		// }
+		// 	},
+		// 	_ => {
+		// 		// Rest of the match patterns are directed messages so we assume that directed
+		// 		// messages are only accessible to those recipient peers so we process and
+		// 		// discard them and not propagate to others
+		// 		if self.message_cache.read().contains_key(&(msg_hash, peerid)) {
+		// 			ValidationResult::Discard
+		// 		} else {
+		// 			self.message_cache.write().insert((msg_hash, peerid), Instant::now());
+		// 			ValidationResult::ProcessAndDiscard(self.topic)
+		// 		}
+		// 	},
+		// }
 	}
 
 	/// Defines if the message can be rebroadcasted.
