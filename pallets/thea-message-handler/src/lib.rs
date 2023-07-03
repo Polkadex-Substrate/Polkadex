@@ -40,11 +40,18 @@ use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub(crate) mod fixtures;
+#[cfg(test)]
+pub(crate) mod mock;
+#[cfg(test)]
+pub mod test;
 
 pub trait WeightInfo {
 	fn insert_authorities(_b: u32) -> Weight;
 	fn incoming_message() -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
+	fn update_outgoing_nonce(_b: u32) -> Weight;
 }
 
 pub mod weights;
@@ -207,7 +214,7 @@ pub mod pallet {
 				T::Executor::execute_deposits(payload.network, payload.data.clone());
 			} else {
 				// Thea message related to key change
-				match ValidatorSet::decode(&mut &payload.data[..]) {
+				match ValidatorSet::decode(&mut payload.data.as_ref()) {
 					Err(_err) => return Err(Error::<T>::ErrorDecodingValidatorSet.into()),
 					Ok(validator_set) => {
 						ensure!(
@@ -248,7 +255,7 @@ pub mod pallet {
 
 		/// A governance endpoint to update outgoing nonces
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_incoming_nonce(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::update_outgoing_nonce(1))]
 		#[transactional]
 		pub fn update_outgoing_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
