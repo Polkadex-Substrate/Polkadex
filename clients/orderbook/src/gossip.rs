@@ -129,16 +129,18 @@ where
 			},
 
 			GossipMessage::WantWorkerNonce(from, to, version) => {
-				if from > to || *version < *self.state_version.read() {
-					// Invalid request
-					return ValidationResult::Discard
-				}
-				// Validators only process it if the request is for nonces after
-				if *from >= self.last_snapshot.read().worker_nonce {
-					ValidationResult::ProcessAndDiscard(self.topic)
-				} else {
-					ValidationResult::Discard
-				}
+				// Discard all WantWorkerNonce requests
+				ValidationResult::Discard
+				// if from > to || *version < *self.state_version.read() {
+				// 	// Invalid request
+				// 	return ValidationResult::Discard
+				// }
+				// // Validators only process it if the request is for nonces after
+				// if *from >= self.last_snapshot.read().worker_nonce {
+				// 	ValidationResult::ProcessAndDiscard(self.topic)
+				// } else {
+				// 	ValidationResult::Discard
+				// }
 			},
 			GossipMessage::Want(snapshot_id, _) => {
 				// TODO: Currently enabled for all nodes
@@ -147,12 +149,14 @@ where
 				// 	return ValidationResult::Discard
 				// }
 				// We only process the request for last snapshot
-				if self.last_snapshot.read().snapshot_id == *snapshot_id {
-					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
-					ValidationResult::ProcessAndDiscard(self.topic)
-				} else {
-					ValidationResult::Discard
-				}
+				// Discard all WantWorkerNonce requests
+				ValidationResult::Discard
+				// if self.last_snapshot.read().snapshot_id == *snapshot_id {
+				// 	self.message_cache.write().insert((msg_hash, peerid), Instant::now());
+				// 	ValidationResult::ProcessAndDiscard(self.topic)
+				// } else {
+				// 	ValidationResult::Discard
+				// }
 			},
 			_ => {
 				// Rest of the match patterns are directed messages so we assume that directed
@@ -175,34 +179,35 @@ where
 	/// * `message`: Gossip message to rebroadcast.
 	/// * `peerid`: Identifier of a peer of the network.
 	pub fn rebroadcast_check(&self, message: &GossipMessage, peerid: PeerId) -> bool {
-		let mut cache = self.message_cache.write();
-		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
-
-		if self.message_expired_check(message) {
-			// Remove the message from cache when the message is expired.
-			cache.remove(&(msg_hash, peerid));
-			return false
-		}
-
-		let interval = match message {
-			GossipMessage::Want(_, _) => WANT_REBROADCAST_INTERVAL,
-			_ => REBROADCAST_INTERVAL,
-		};
-		match cache.get(&(msg_hash, peerid)) {
-			None => {
-				// Record the first rebroadcast of this message in cache
-				cache.insert((msg_hash, peerid), Instant::now());
-				true
-			},
-			Some(last_time) => {
-				let expired = Instant::now().sub(*last_time) > interval;
-				if expired {
-					// Remove the message from cache when the message is expired.
-					cache.remove(&(msg_hash, peerid));
-				}
-				expired
-			},
-		}
+		return false
+		// let mut cache = self.message_cache.write();
+		// let msg_hash = sp_core::hashing::blake2_128(&message.encode());
+		//
+		// if self.message_expired_check(message) {
+		// 	// Remove the message from cache when the message is expired.
+		// 	cache.remove(&(msg_hash, peerid));
+		// 	return false
+		// }
+		//
+		// let interval = match message {
+		// 	GossipMessage::Want(_, _) => WANT_REBROADCAST_INTERVAL,
+		// 	_ => REBROADCAST_INTERVAL,
+		// };
+		// match cache.get(&(msg_hash, peerid)) {
+		// 	None => {
+		// 		// Record the first rebroadcast of this message in cache
+		// 		cache.insert((msg_hash, peerid), Instant::now());
+		// 		true
+		// 	},
+		// 	Some(last_time) => {
+		// 		let expired = Instant::now().sub(*last_time) > interval;
+		// 		if expired {
+		// 			// Remove the message from cache when the message is expired.
+		// 			cache.remove(&(msg_hash, peerid));
+		// 		}
+		// 		expired
+		// 	},
+		// }
 	}
 
 	/// Returns true if the message is expired.
@@ -211,24 +216,25 @@ where
 	///
 	/// * `message`: Gossip message to check if it is expired.
 	pub fn message_expired_check(&self, message: &GossipMessage) -> bool {
-		match message {
-			GossipMessage::ObMessage(msg) if msg.reset =>
-				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
-					msg.version.saturating_add(1) != *self.state_version.read(),
-			GossipMessage::ObMessage(msg) if !msg.reset =>
-				msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
-					(msg.version < *self.state_version.read()),
-
-			GossipMessage::WantWorkerNonce(from, _, version) => {
-				// Validators only process it if the request is for nonces after
-				(*from < self.last_snapshot.read().worker_nonce) ||
-					(*version < *self.state_version.read())
-			},
-
-			GossipMessage::Want(snapshot_id, _) =>
-				*snapshot_id != self.last_snapshot.read().snapshot_id,
-			_ => false,
-		}
+		return true // to fix temporary problem
+		// match message {
+		// 	GossipMessage::ObMessage(msg) if msg.reset =>
+		// 		msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
+		// 			msg.version.saturating_add(1) != *self.state_version.read(),
+		// 	GossipMessage::ObMessage(msg) if !msg.reset =>
+		// 		msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
+		// 			(msg.version < *self.state_version.read()),
+		//
+		// 	GossipMessage::WantWorkerNonce(from, _, version) => {
+		// 		// Validators only process it if the request is for nonces after
+		// 		(*from < self.last_snapshot.read().worker_nonce) ||
+		// 			(*version < *self.state_version.read())
+		// 	},
+		//
+		// 	GossipMessage::Want(snapshot_id, _) =>
+		// 		*snapshot_id != self.last_snapshot.read().snapshot_id,
+		// 	_ => false,
+		// }
 	}
 }
 
