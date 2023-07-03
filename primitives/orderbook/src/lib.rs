@@ -25,7 +25,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::crypto::AuthorityId;
-use bls_primitives::{Public, Signature};
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig,
@@ -38,7 +37,10 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
-use sp_core::H256;
+use sp_core::{
+	bls381::{self, Public, Signature},
+	H256,
+};
 use sp_runtime::traits::IdentifyAccount;
 use sp_std::vec::Vec;
 
@@ -68,11 +70,10 @@ pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::Ke
 /// The current underlying crypto scheme used is BLS. This can be changed,
 /// without affecting code restricted against the above listed crypto types.
 pub mod crypto {
+	use super::bls381;
 	use sp_application_crypto::app_crypto;
 
-	use bls_primitives as BLS;
-
-	app_crypto!(BLS, crate::KEY_TYPE);
+	app_crypto!(bls381, crate::KEY_TYPE);
 
 	/// Identity of a Orderbook authority using BLS as its crypto.
 	pub type AuthorityId = Public;
@@ -177,7 +178,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	/// Aggregated signature.
-	pub aggregate_signature: Option<bls_primitives::Signature>,
+	pub aggregate_signature: Option<Signature>,
 	pub state_version: u16,
 }
 

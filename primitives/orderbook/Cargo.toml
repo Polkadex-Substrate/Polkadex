@@ -10,7 +10,7 @@ scale-info = { workspace = true }
 sp-api = { workspace = true }
 sp-io = { workspace = true }
 sp-application-crypto = { workspace = true }
-sp-core = { workspace = true }
+sp-core = { workspace = true, features = ["bls-experimental"] }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 polkadex-primitives = { workspace = true }
@@ -23,7 +23,6 @@ anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
 ], default-features = false }
-bls-primitives = { workspace = true, default-features = false }
 sc-network = { workspace = true, optional = true }
 
 
@@ -38,7 +37,6 @@ std = [
   "sc-network",
   "chrono",
   "rand",
-  "bls-primitives/std",
   "serde",
   "serde_with",
   "anyhow/std",

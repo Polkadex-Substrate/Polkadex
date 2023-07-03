@@ -14,7 +14,6 @@ polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
-bls-primitives = { workspace = true, default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"], optional = true }
 
@@ -29,7 +28,6 @@ sp-io = { workspace = true }
 default = ["std"]
 std = [
   "sp-application-crypto/std",
-  "bls-primitives/std",
   "thea-primitives/std",
   "parity-scale-codec/std",
   "scale-info/std",
@@ -50,4 +48,3 @@ runtime-benchmarks = [
   "lazy_static",
 ]
 try-runtime = ["frame-support/try-runtime"]
-parachain = ["bls-primitives/parachain"]

@@ -14,7 +14,6 @@ sp-application-crypto = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false, features = ["bls-experimental"] }
 xcm = { workspace = true, default-features = false }
-bls-primitives = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 hex = { version = "0.4", default-features = false }
 
@@ -27,7 +26,6 @@ std = [
   "sp-api/std",
   "sp-std/std",
   "sp-application-crypto/std",
-  "bls-primitives/std",
   "sp-io/std",
   "sp-core/std",
   "sp-std/std",

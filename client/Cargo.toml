@@ -7,4 +7,4 @@ edition = "2021"
 sc-executor = { workspace = true }
 node-polkadex-runtime = { path = "../runtime" }
 frame-benchmarking = { workspace = true }
-bls-primitives = { workspace = true }
+sp-keyring = { workspace = true }

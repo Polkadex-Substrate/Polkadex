@@ -5183,7 +5183,6 @@ dependencies = [
 name = "orderbook"
 version = "1.1.0"
 dependencies = [
- "bls-primitives",
  "blst",
  "chrono",
  "env_logger",
@@ -5245,7 +5244,6 @@ name = "orderbook-primitives"
 version = "1.1.0"
 dependencies = [
  "anyhow",
- "bls-primitives",
  "chrono",
  "log",
  "parity-scale-codec",
@@ -5741,7 +5739,6 @@ dependencies = [
 name = "pallet-ocex-lmp"
 version = "5.1.0"
 dependencies = [
- "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -6403,10 +6400,10 @@ checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
 name = "polkadex-client"
 version = "1.1.0"
 dependencies = [
- "bls-primitives",
  "frame-benchmarking",
  "node-polkadex-runtime",
  "sc-executor",
+ "sp-keyring",
 ]
 
 [[package]]
@@ -10794,7 +10791,6 @@ dependencies = [
 name = "thea"
 version = "1.1.0"
 dependencies = [
- "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -10819,8 +10815,6 @@ name = "thea-client"
 version = "1.1.0"
 dependencies = [
  "async-trait",
- "bls-primitives",
- "blst",
  "chrono",
  "futures 0.3.28",
  "hash256-std-hasher 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -10872,7 +10866,6 @@ dependencies = [
 name = "thea-executor"
 version = "1.1.0"
 dependencies = [
- "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -10898,7 +10891,6 @@ dependencies = [
 name = "thea-message-handler"
 version = "1.1.0"
 dependencies = [
- "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -10922,7 +10914,6 @@ dependencies = [
 name = "thea-primitives"
 version = "1.1.0"
 dependencies = [
- "bls-primitives",
  "frame-support",
  "hex",
  "parity-scale-codec",

@@ -32,6 +32,7 @@ use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
 pub use pallet::*;
 use parity_scale_codec::{Encode, MaxEncodedLen};
 use polkadex_primitives::utils::return_set_bits;
+use sp_core::bls381::{Public, Signature};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
@@ -82,13 +83,13 @@ pub mod pallet {
 			+ RuntimeAppPublic
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
-			+ Into<bls_primitives::Public>;
+			+ Into<Public>;
 
 		/// Authority Signature
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
 			+ Member
 			+ Parameter
-			+ Into<bls_primitives::Signature>;
+			+ Into<Signature>;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -322,7 +323,7 @@ impl<T: Config> Pallet<T> {
 			return Err(InvalidTransaction::Custom(2).into())
 		}
 
-		let mut signatories: Vec<bls_primitives::Public> = vec![];
+		let mut signatories: Vec<Public> = vec![];
 		for index in signed_auths_indexes {
 			match auths.get(index) {
 				None => return Err(InvalidTransaction::Custom(3).into()),
@@ -330,7 +331,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 		// Verify the aggregate signature.
-		let bls_signature: bls_primitives::Signature = signature.clone().into();
+		let bls_signature: Signature = signature.clone().into();
 		if !bls_signature.verify(&signatories, payload.encode().as_ref()) {
 			return Err(InvalidTransaction::BadSigner.into())
 		}
