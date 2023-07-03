@@ -369,19 +369,19 @@ impl<T: Config> Pallet<T> {
 		> {
 			let mut map = sp_std::collections::btree_map::BTreeMap::new();
 			for auth in list {
-				if let Some(network) = <NetworkPreference<T>>::get(auth) {
-					map.entry(network)
-						.and_modify(|list: &mut BoundedVec<T::TheaId, T::MaxAuthorities>| {
-							// Force push is fine as the subset of network will be less than
-							// or equal to max validators
-							list.force_push(auth.clone());
-						})
-						.or_insert(BoundedVec::truncate_from(sp_std::vec::Vec::from([
-							auth.clone()
-						])));
+				let network = if let Some(network) = <NetworkPreference<T>>::get(auth) {
+					network
 				} else {
 					// TODO: Make it an offence to not provide network as part of next release
-				}
+					1
+				};
+				map.entry(network)
+					.and_modify(|list: &mut BoundedVec<T::TheaId, T::MaxAuthorities>| {
+						// Force push is fine as the subset of network will be less than
+						// or equal to max validators
+						list.force_push(auth.clone());
+					})
+					.or_insert(BoundedVec::truncate_from(sp_std::vec::Vec::from([auth.clone()])));
 			}
 			map
 		};
@@ -432,7 +432,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn network(auth: T::TheaId) -> Option<Network> {
-		<NetworkPreference<T>>::get(auth)
+		// If the network pref is not explicit, then default to 1
+		Some(<NetworkPreference<T>>::get(auth).unwrap_or(1))
 	}
 
 	#[allow(clippy::result_unit_err)]
