@@ -31,10 +31,6 @@ pub mod session_keys {
 								babe: keys.babe,
 								im_online: keys.im_online,
 								authority_discovery: keys.authority_discovery,
-								orderbook: match [0u8; 96].as_ref().try_into() {
-									Ok(ob) => ob,
-									Err(_) => return None,
-								}, // Set empty public key
 								thea: match [0u8; 96].as_ref().try_into() {
 									Ok(thea) => thea,
 									Err(_) => return None,
@@ -61,10 +57,6 @@ pub mod session_keys {
 					babe: old_keys.babe,
 					im_online: old_keys.im_online,
 					authority_discovery: old_keys.authority_discovery,
-					orderbook: match [0u8; 96].as_ref().try_into() {
-						Ok(ob) => ob,
-						Err(_) => return None,
-					}, // Set empty public key
 					thea: match [0u8; 96].as_ref().try_into() {
 						Ok(thea) => thea,
 						Err(_) => return None,

@@ -70,10 +70,9 @@ pub(crate) fn session_keys(
 	babe: BabeId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
-	orderbook: orderbook_primitives::crypto::AuthorityId,
 	thea: thea_primitives::AuthorityId,
 ) -> SessionKeys {
-	SessionKeys { grandpa, babe, im_online, authority_discovery, orderbook, thea }
+	SessionKeys { grandpa, babe, im_online, authority_discovery, thea }
 }
 
 fn udon_testnet_config_genesis() -> GenesisConfig {
@@ -85,7 +84,6 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
-		orderbook_primitives::crypto::AuthorityId,
 		thea_primitives::AuthorityId,
 	)> = vec![];
 	for idx in 1..4 {
@@ -111,11 +109,6 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			None,
 		)
 		.unwrap();
-		let ob = orderbook_primitives::crypto::Pair::from_string(
-			&(seed.to_owned() + idx.to_string().as_str() + "//orderbook"),
-			None,
-		)
-		.unwrap();
 
 		let thea = thea_primitives::crypto::Pair::from_string(
 			&(seed.to_owned() + idx.to_string().as_str() + "//thea"),
@@ -130,7 +123,6 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 			BabeId::from(babe.public().into_account()),
 			ImOnlineId::from(imon.public().into_account()),
 			AuthorityDiscoveryId::from(audi.public().into_account()),
-			ob.public().into_account(),
 			thea.public().into_account(),
 		));
 	}
@@ -144,14 +136,8 @@ fn udon_testnet_config_genesis() -> GenesisConfig {
 
 	let enclave_developement_account: AccountId =
 		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
-	let orderbook_test_main_account: AccountId =
-		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
-	testnet_genesis(
-		initial_authorities,
-		vec![],
-		Some(vec![enclave_developement_account, orderbook_test_main_account]),
-		root_key,
-	)
+
+	testnet_genesis(initial_authorities, vec![], Some(vec![enclave_developement_account]), root_key)
 }
 
 /// Staging testnet config.
@@ -199,7 +185,6 @@ pub fn authority_keys_from_seed(
 	BabeId,
 	ImOnlineId,
 	AuthorityDiscoveryId,
-	orderbook_primitives::crypto::AuthorityId,
 	thea_primitives::AuthorityId,
 ) {
 	(
@@ -209,7 +194,6 @@ pub fn authority_keys_from_seed(
 		get_from_seed::<BabeId>(seed),
 		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
-		get_from_seed::<orderbook_primitives::crypto::AuthorityId>(seed),
 		get_from_seed::<thea_primitives::AuthorityId>(seed),
 	)
 }
@@ -218,12 +202,10 @@ fn development_config_genesis() -> GenesisConfig {
 	let enclave_developement_account: AccountId =
 		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
 
-	let orderbook_test_main_account: AccountId =
-		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
 	testnet_genesis(
 		vec![authority_keys_from_seed("Alice")],
 		vec![],
-		Some(vec![enclave_developement_account, orderbook_test_main_account]),
+		Some(vec![enclave_developement_account]),
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
 }
@@ -247,12 +229,10 @@ pub fn development_config() -> ChainSpec {
 fn soba_testnet_genesis() -> GenesisConfig {
 	let enclave_developement_account: AccountId =
 		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
-	let orderbook_test_main_account: AccountId =
-		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
 	testnet_genesis(
 		vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 		vec![],
-		Some(vec![enclave_developement_account, orderbook_test_main_account]),
+		Some(vec![enclave_developement_account]),
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
 }
@@ -281,7 +261,6 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
-		orderbook_primitives::crypto::AuthorityId,
 		thea_primitives::AuthorityId
 	)> = vec![
 		(
@@ -301,9 +280,6 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 			// 5EynamEisSmW3kUdGC7BSXQy1oR8rD1CWLjHh2LGz8bys3sg
 			hex!["80f461b74b90b4913e0354569e90c7cd11ca5dbce6e8b2a6fcbbe0761b877e06"]
 				.unchecked_into(),
-			// BLS - Orderbook
-			hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
-				.try_into().unwrap(),
 			// BLS - Thea
 			hex!["a479f6b92355f700a6d95ed1080ae28730465ebda1b3711b77b0d3be88966a2fddf975cf43ca3a49c245a53b548e32680f4530248b09cbc6ead4dd553c8c993254aaa05327f63b6f9d570dbaa05ebe5ddd25096c49b254d9f063f3c1914016ab"]
 				.try_into().unwrap(),
@@ -325,9 +301,6 @@ fn mainnet_genesis_constuctor() -> GenesisConfig {
 			// 5GC5FgdZbCYkMnZ2Ez8o2zztvkdR3qn1Zymknbi97vUsk2vV
 			hex!["b68fae03e44288bde5c66fd89893d943baf88b8cffb33aa7f1dedf0d4a86ad3c"]
 				.unchecked_into(),
-			// BLS - Orderbook
-			hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
-				.try_into().unwrap(),
 			// BLS - Thea
 			hex!["afd525535270070659d4dcde00075735d85e58f702786ebf7d882379117db0671d9ced3d199b41f29646817863133c310dd1be65b0ff0c7e1d2b846a1c5c29a63686dc65d1be48604e2d5128c1c3a80554e1d584f05869cd15ff4c0f040a8760"]
 				.try_into().unwrap(),
@@ -374,7 +347,6 @@ pub fn testnet_genesis(
 		BabeId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
-		orderbook_primitives::crypto::AuthorityId,
 		thea_primitives::AuthorityId,
 	)>,
 	_initial_nominators: Vec<AccountId>,
@@ -461,7 +433,6 @@ pub fn testnet_genesis(
 							x.4.clone(),
 							x.5.clone(),
 							x.6.clone(),
-							x.7.clone(),
 						),
 					)
 				})
