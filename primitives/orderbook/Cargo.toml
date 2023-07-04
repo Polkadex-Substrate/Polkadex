@@ -23,9 +23,7 @@ anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
 ], default-features = false }
-bls-primitives = { workspace = true, default-features = false }
 sc-network = { workspace = true, optional = true }
-
 
 [dev-dependencies]
 serde_json = "1.0.94"
@@ -38,7 +36,6 @@ std = [
   "sc-network",
   "chrono",
   "rand",
-  "bls-primitives/std",
   "serde",
   "serde_with",
   "anyhow/std",

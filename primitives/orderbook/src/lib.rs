@@ -25,13 +25,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::crypto::AuthorityId;
-use bls_primitives::{Public, Signature};
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
-	ocex::TradingPairConfig,
-	utils::{return_set_bits, set_bit_field},
-	withdrawal::Withdrawal,
-	AccountId, AssetId, BlockNumber,
+	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, BlockNumber,
 };
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
@@ -65,14 +61,13 @@ pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::Ke
 /// Your code should use the above types as concrete types for all crypto related
 /// functionality.
 ///
-/// The current underlying crypto scheme used is BLS. This can be changed,
+/// The current underlying crypto scheme used is sr25519. This can be changed,
 /// without affecting code restricted against the above listed crypto types.
 pub mod crypto {
 	use sp_application_crypto::app_crypto;
+	use sp_core::sr25519;
 
-	use bls_primitives as BLS;
-
-	app_crypto!(BLS, crate::KEY_TYPE);
+	app_crypto!(sr25519, crate::KEY_TYPE);
 
 	/// Identity of a Orderbook authority using BLS as its crypto.
 	pub type AuthorityId = Public;
@@ -89,9 +84,9 @@ impl IdentifyAccount for AuthorityId {
 }
 
 #[cfg(feature = "std")]
-impl TryFrom<[u8; 96]> for crypto::AuthorityId {
+impl TryFrom<[u8; 32]> for crypto::AuthorityId {
 	type Error = ();
-	fn try_from(value: [u8; 96]) -> Result<Self, Self::Error> {
+	fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
 		crypto::AuthorityId::from_slice(&value)
 	}
 }
@@ -172,12 +167,10 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub last_processed_blk: BlockNumber,
 	/// State chunk hashes.
 	pub state_chunk_hashes: Vec<H128>,
-	/// Bitmap.
-	pub bitflags: Vec<u128>,
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
-	/// Aggregated signature.
-	pub aggregate_signature: Option<bls_primitives::Signature>,
+	/// SGX report
+	pub report: Vec<u8>,
 	pub state_version: u16,
 }
 
@@ -186,32 +179,19 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 		Self {
 			validator_set_id: 0,
 			snapshot_id: 0,
-			state_root: Default::default(),
+			state_root: H256::default(),
 			worker_nonce: 0,
 			state_change_id: 0,
 			last_processed_blk: 0,
-			state_chunk_hashes: Vec::new(),
-			bitflags: Vec::new(),
-			withdrawals: Vec::new(),
-			aggregate_signature: None,
+			state_chunk_hashes: Vec::default(),
+			withdrawals: Vec::default(),
+			report: Vec::default(),
 			state_version: 0,
 		}
 	}
 }
 
 impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
-	/// Adds a new signature to the snapshot summary.
-	///
-	/// # Parameters
-	///
-	/// * `signature`: Signature to add.
-	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
-		let aggregate_signature = self.aggregate_signature.ok_or(signature)?;
-		self.aggregate_signature =
-			Some(aggregate_signature.add_signature(&signature).map_err(|_| signature)?);
-		Ok(())
-	}
-
 	/// Collects and returns the collection of fees fro for all withdrawals.
 	pub fn get_fees(&self) -> Vec<Fees> {
 		let mut fees = Vec::new();
@@ -221,25 +201,8 @@ impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 		fees
 	}
 
-	pub fn add_auth_index(&mut self, index: usize) {
-		set_bit_field(&mut self.bitflags, index);
-	}
-
-	/// Get set indexes.
-	pub fn signed_auth_indexes(&self) -> Vec<usize> {
-		return_set_bits(&self.bitflags)
-	}
-
-	/// Verifies the aggregate signature of the snapshot summary.
-	pub fn verify(&self, public_keys: Vec<Public>) -> bool {
-		let msg = self.sign_data();
-		match self.aggregate_signature {
-			None => false,
-			Some(sig) => sig.verify(&public_keys, msg.as_ref()),
-		}
-	}
-
 	/// Returns the data used for signing the snapshot summary.
+	#[deprecated]
 	pub fn sign_data(&self) -> [u8; 32] {
 		let data = (
 			self.snapshot_id,

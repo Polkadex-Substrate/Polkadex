@@ -125,6 +125,7 @@ pub mod pallet {
 		ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
+	use sgx_verify::{verify_ias_report, SgxStatus};
 	use sp_runtime::{
 		traits::{BlockNumberProvider, IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
@@ -1520,33 +1521,11 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			return InvalidTransaction::Custom(10).into()
 		}
 
-		// Get authority from active set
-		// index is zero because we are signing only with one authority
-		// when submitting snapshot
-		let auth_idx = match snapshot_summary.signed_auth_indexes().first() {
-			Some(idx) => *idx,
-			None => return InvalidTransaction::BadSigner.into(),
-		};
+		// verify SGX report
+		// error code 11 - invalid SGX report
+		let _report = verify_ias_report(&snapshot_summary.report)
+			.map_err(|_| InvalidTransaction::Custom(11).into())?;
 
-		let authority = match <Authorities<T>>::get(snapshot_summary.validator_set_id)
-			.validators()
-			.get(auth_idx)
-		{
-			Some(auth) => auth,
-			None => return InvalidTransaction::Custom(11).into(),
-		}
-		.clone();
-
-		// Verify Signature
-		match snapshot_summary.aggregate_signature {
-			None => return InvalidTransaction::Custom(12).into(),
-			Some(signature) => {
-				if !signature.verify(&[authority.into()], &snapshot_summary.sign_data()) {
-					return InvalidTransaction::Custom(13).into()
-				}
-			},
-		}
-		sp_runtime::print("Signature successfull");
 		valid_tx(snapshot_summary.clone())
 	}
 
