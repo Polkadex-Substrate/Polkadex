@@ -31,6 +31,7 @@ use std::{
 	collections::{BTreeSet, HashMap},
 	ops::Sub,
 	sync::Arc,
+	time::SystemTime,
 };
 use tokio::time::{Duration, Instant};
 
@@ -40,6 +41,9 @@ pub const REBROADCAST_INTERVAL: Duration = Duration::from_secs(3);
 /// Rebroadcast interval between messages emitting explicitly inquired by the consumer (e.g.
 /// worker).
 pub const WANT_REBROADCAST_INTERVAL: Duration = Duration::from_secs(3);
+
+/// Milliseconds minimal interval from one request for gap to another per peer
+pub const MINIMUM_SPAM_DETECTION_INTERVAL: u128 = 500;
 
 /// Gossip engine messages topic
 pub fn topic<B: Block>() -> B::Hash
@@ -65,6 +69,7 @@ where
 	latest_worker_nonce: Arc<RwLock<u64>>,
 	last_snapshot: Arc<RwLock<SnapshotSummary<AccountId>>>,
 	_is_validator: bool,
+	is_spammer: Arc<RwLock<HashMap<PeerId, SystemTime>>>,
 	pub(crate) fullnodes: Arc<RwLock<BTreeSet<PeerId>>>,
 	pub(crate) message_cache: Arc<RwLock<HashMap<([u8; 16], PeerId), Instant>>>,
 	pub state_version: Arc<RwLock<u16>>,
@@ -94,6 +99,7 @@ where
 			latest_worker_nonce,
 			fullnodes,
 			_is_validator: is_validator,
+			is_spammer: Arc::new(RwLock::new(HashMap::new())),
 			last_snapshot,
 			message_cache: Arc::new(RwLock::new(HashMap::new())),
 			state_version,
@@ -109,7 +115,7 @@ where
 	pub fn validate_message(
 		&self,
 		message: &GossipMessage,
-		peerid: PeerId,
+		peer_id: PeerId,
 	) -> ValidationResult<B::Hash> {
 		let msg_hash = sp_core::hashing::blake2_128(&message.encode());
 		// Discard if we already know this message
@@ -129,7 +135,8 @@ where
 			},
 
 			GossipMessage::WantWorkerNonce(from, to, version) => {
-				if from > to || *version < *self.state_version.read() {
+				if self.detect_spam(&peer_id) || from > to || *version < *self.state_version.read()
+				{
 					// Invalid request
 					return ValidationResult::Discard
 				}
@@ -147,8 +154,10 @@ where
 				// 	return ValidationResult::Discard
 				// }
 				// We only process the request for last snapshot
-				if self.last_snapshot.read().snapshot_id == *snapshot_id {
-					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
+				if self.detect_spam(&peer_id) ||
+					self.last_snapshot.read().snapshot_id != *snapshot_id
+				{
+					self.message_cache.write().insert((msg_hash, peer_id), Instant::now());
 					ValidationResult::ProcessAndDiscard(self.topic)
 				} else {
 					ValidationResult::Discard
@@ -158,10 +167,10 @@ where
 				// Rest of the match patterns are directed messages so we assume that directed
 				// messages are only accessible to those recipient peers so we process and
 				// discard them and not propagate to others
-				if self.message_cache.read().contains_key(&(msg_hash, peerid)) {
+				if self.message_cache.read().contains_key(&(msg_hash, peer_id)) {
 					ValidationResult::Discard
 				} else {
-					self.message_cache.write().insert((msg_hash, peerid), Instant::now());
+					self.message_cache.write().insert((msg_hash, peer_id), Instant::now());
 					ValidationResult::ProcessAndDiscard(self.topic)
 				}
 			},
@@ -229,6 +238,24 @@ where
 				*snapshot_id != self.last_snapshot.read().snapshot_id,
 			_ => false,
 		}
+	}
+
+	fn detect_spam(&self, peer_id: &PeerId) -> bool {
+		let now = SystemTime::now();
+		if let Some(previous_request) = self.is_spammer.read().get(peer_id) {
+			if now.duration_since(*previous_request).unwrap().as_millis() <
+				MINIMUM_SPAM_DETECTION_INTERVAL
+			{
+				// TODO: Process spammer - block? slice?
+				// update request time
+				self.is_spammer.write().insert(*peer_id, now);
+				// Drop message
+				return true
+			}
+		}
+		// update request time
+		self.is_spammer.write().insert(*peer_id, now);
+		false
 	}
 }
 
