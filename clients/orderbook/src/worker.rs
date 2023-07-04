@@ -23,7 +23,7 @@ use std::{
 	marker::PhantomData,
 	ops::Div,
 	sync::Arc,
-	time::Duration,
+	time::{Duration, SystemTime},
 };
 
 use chrono::Utc;
@@ -68,7 +68,7 @@ use polkadex_primitives::{
 
 use crate::{
 	error::Error,
-	gossip::{topic, GossipValidator},
+	gossip::{topic, GossipValidator, MINIMUM_SPAM_DETECTION_INTERVAL},
 	keystore::OrderbookKeyStore,
 	metric_add, metric_inc, metric_set,
 	metrics::Metrics,
@@ -157,6 +157,8 @@ pub(crate) struct ObWorker<B: Block, BE, C, SO, N, R> {
 	last_processed_block_in_offchain_state: BlockNumber,
 	// Version of current state
 	state_version: Arc<RwLock<u16>>,
+	// Marker to prevent network spamming
+	last_request: SystemTime,
 }
 
 impl<B, BE, C, SO, N, R> ObWorker<B, BE, C, SO, N, R>
@@ -260,6 +262,7 @@ where
 			pending_snapshot_summary: None,
 			last_processed_block_in_offchain_state: 0,
 			state_version,
+			last_request: SystemTime::now(),
 		}
 	}
 
@@ -568,7 +571,17 @@ where
 						*self.state_version.read(),
 					);
 
+					// if we've already sent message within last acceptable interval - wait for next
+					// slot
+					let spam_difference =
+						self.last_request.duration_since(SystemTime::now()).unwrap().as_millis();
+					if spam_difference > MINIMUM_SPAM_DETECTION_INTERVAL {
+						// FIXME: stabilize this cast
+						tokio::time::sleep(Duration::from_millis(spam_difference as u64)).await;
+					}
 					self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
+					// Update timer
+					self.last_request = SystemTime::now();
 					metric_inc!(self, ob_messages_sent);
 					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 				} else {
