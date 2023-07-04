@@ -200,21 +200,6 @@ impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 		}
 		fees
 	}
-
-	/// Returns the data used for signing the snapshot summary.
-	#[deprecated]
-	pub fn sign_data(&self) -> [u8; 32] {
-		let data = (
-			self.snapshot_id,
-			self.state_root,
-			self.state_change_id,
-			self.worker_nonce,
-			self.state_chunk_hashes.clone(),
-			self.withdrawals.clone(),
-		);
-
-		sp_io::hashing::blake2_256(&data.encode())
-	}
 }
 
 sp_api::decl_runtime_apis! {
@@ -236,9 +221,6 @@ sp_api::decl_runtime_apis! {
 		/// Submits the snapshot to runtime.
 		#[allow(clippy::result_unit_err)]
 		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()>;
-
-		/// Gets pending snapshot if any.
-		fn pending_snapshot(auth: AuthorityId) -> Option<u64>;
 
 		/// Returns all main account and corresponding proxies at this point in time.
 		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>;

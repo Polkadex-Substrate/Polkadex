@@ -36,10 +36,11 @@ use frame_support::{
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
 use pallet_timestamp as timestamp;
 use polkadex_primitives::assets::AssetId;
-use sp_core::H256;
+use sgx_verify::{verify_ias_report, SgxStatus};
+
 use sp_runtime::{
-	traits::{AccountIdConversion, UniqueSaturatedInto},
-	Percent, SaturatedConversion,
+	traits::{AccountIdConversion, CheckedSub, UniqueSaturatedInto},
+	SaturatedConversion,
 };
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -56,7 +57,7 @@ use orderbook_primitives::{
 	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
 	GENESIS_AUTHORITY_SET_ID,
 };
-use polkadex_primitives::{ocex::TradingPairConfig, utils::return_set_bits};
+use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
@@ -108,7 +109,6 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		pallet_prelude::*,
-		storage::Key,
 		traits::{
 			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
@@ -125,7 +125,6 @@ pub mod pallet {
 		ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sgx_verify::{verify_ias_report, SgxStatus};
 	use sp_runtime::{
 		traits::{BlockNumberProvider, IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
@@ -151,7 +150,8 @@ pub mod pallet {
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Entering validate unsigned....");
 			match call {
-				Call::submit_snapshot { summary } => Self::validate_snapshot(summary),
+				Call::submit_snapshot { working_summary } =>
+					Self::validate_snapshot(working_summary),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -1011,92 +1011,35 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
-			summary: SnapshotSummary<T::AccountId>,
+			working_summary: SnapshotSummary<T::AccountId>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
 			ensure!(
-				summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)),
+				working_summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)),
 				Error::<T>::SnapshotNonceError
 			);
-			let summary_hash = H256::from_slice(&summary.sign_data());
-			let working_summary = match <UnprocessedSnapshots<T>>::get((
-				summary.snapshot_id,
-				summary.validator_set_id,
-				summary_hash,
-			)) {
-				None => summary,
-				Some(mut stored_summary) => {
-					if let Some(signature) = summary.aggregate_signature {
-						// Aggregrate the signature
-						if stored_summary.add_signature(signature).is_err() {
-							return Err(Error::<T>::InvalidSignatureAggregation.into())
-						}
-						// update the bitfield
-						let auth_index = match summary.signed_auth_indexes().first() {
-							Some(index) => *index,
-							None => return Err(Error::<T>::SignerIndexNotFound.into()),
-						};
-						stored_summary.add_auth_index(auth_index.saturated_into());
-						stored_summary
-					} else {
-						return Err(Error::<T>::InvalidSnapshotState.into())
-					}
-				},
-			};
 			log::debug!(target:"ocex", "Checking Threshold requirement....");
-			// Check if we have enough signatures
-			let total_validators = <Authorities<T>>::get(working_summary.validator_set_id).len();
-			const MAJORITY: u8 = 67;
-			let p = Percent::from_percent(MAJORITY);
-			if working_summary.signed_auth_indexes().len() >= p * total_validators {
-				log::debug!(target:"ocex", "Got majority for working summary!");
-				// We don't need to verify signatures again as it is already verified inside
-				// validate unsigned closure
-				// Remove all the unprocessed snapshots with prefix snapshot_id
-				log::debug!(target:"ocex", "Starting to clear unprocessed snapshots for snapshot id: {:?}",working_summary.snapshot_id);
-				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
-					(working_summary.snapshot_id, working_summary.validator_set_id),
-					total_validators as u32,
-					None,
-				);
-				while result.maybe_cursor.is_some() {
-					log::debug!(target:"ocex", "Clearing prefix of working snapshot summary...");
-					result = <UnprocessedSnapshots<T>>::clear_prefix(
-						(working_summary.snapshot_id, working_summary.validator_set_id),
-						total_validators as u32,
-						Some(result.maybe_cursor.unwrap().as_ref()),
+			log::debug!(target:"ocex", "Creating withdrawal tree...");
+			let withdrawal_map = Self::create_withdrawal_tree(working_summary.withdrawals.clone());
+			if !working_summary.withdrawals.is_empty() {
+				<OnChainEvents<T>>::mutate(|onchain_events| {
+					onchain_events.push(
+						polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+							working_summary.snapshot_id,
+							working_summary.withdrawals.clone(),
+						),
 					);
-				}
-				log::debug!(target:"ocex", "Creating withdrawal tree...");
-				let withdrawal_map =
-					Self::create_withdrawal_tree(working_summary.withdrawals.clone());
-				if !working_summary.withdrawals.is_empty() {
-					<OnChainEvents<T>>::mutate(|onchain_events| {
-						onchain_events.push(
-							polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
-								working_summary.snapshot_id,
-								working_summary.withdrawals.clone(),
-							),
-						);
-					});
-				}
-				log::debug!(target:"ocex", "Storing snapshot summary data...");
-				// Update the snapshot nonce and move the summary to snapshots storage
-				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
-				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
-				// The unwrap below should not fail
-				<FeesCollected<T>>::insert(working_summary.snapshot_id, working_summary.get_fees());
-				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
-				log::debug!(target:"ocex", "Snapshot stored successfully");
-			} else {
-				log::debug!(target:"ocex", "Not enough signatories on this summary.");
-				// We still don't have enough signatures on this, so save it back.
-				<UnprocessedSnapshots<T>>::insert(
-					(working_summary.snapshot_id, working_summary.validator_set_id, summary_hash),
-					working_summary,
-				);
+				});
 			}
+			log::debug!(target:"ocex", "Storing snapshot summary data...");
+			// Update the snapshot nonce and move the summary to snapshots storage
+			<SnapshotNonce<T>>::put(working_summary.snapshot_id);
+			<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
+			// The unwrap below should not fail
+			<FeesCollected<T>>::insert(working_summary.snapshot_id, working_summary.get_fees());
+			<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
+			log::debug!(target:"ocex", "Snapshot stored successfully");
 			Ok(())
 		}
 
@@ -1393,21 +1336,6 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	// Unprocessed Snapshots storage ( snapshot id, summary_hash ) => SnapshotSummary
-	#[pallet::storage]
-	#[pallet::getter(fn unprocessed_snapshots)]
-	pub(super) type UnprocessedSnapshots<T: Config> = StorageNMap<
-		_,
-		// Snapshot id, snapshot hash, validator set id
-		(
-			Key<Blake2_128Concat, u64>,
-			Key<Blake2_128Concat, orderbook_primitives::ValidatorSetId>,
-			Key<Identity, H256>,
-		),
-		SnapshotSummary<T::AccountId>,
-		OptionQuery,
-	>;
-
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
@@ -1523,8 +1451,21 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 		// verify SGX report
 		// error code 11 - invalid SGX report
-		let _report = verify_ias_report(&snapshot_summary.report)
-			.map_err(|_| InvalidTransaction::Custom(11).into())?;
+		let report = verify_ias_report(&snapshot_summary.report)
+			.map_err(|_| InvalidTransaction::Custom(11))?;
+		// check if proper status
+		if (report.status != SgxStatus::Ok) | (report.status != SgxStatus::ConfigurationNeeded) {
+			return InvalidTransaction::Custom(12).into()
+		}
+		// check if report is fresh enough to consider it valid
+		let current_timestamp = <timestamp::Pallet<T>>::get();
+		if current_timestamp
+			.checked_sub(&T::Moment::saturated_from(report.timestamp))
+			.unwrap_or(current_timestamp) >=
+			<T as Config>::MsPerDay::get()
+		{
+			return InvalidTransaction::Custom(13).into()
+		}
 
 		valid_tx(snapshot_summary.clone())
 	}
@@ -1541,8 +1482,8 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	}
 
 	#[allow(clippy::result_unit_err)]
-	pub fn submit_snapshot_api(summary: SnapshotSummary<T::AccountId>) -> Result<(), ()> {
-		let call = Call::<T>::submit_snapshot { summary };
+	pub fn submit_snapshot_api(working_summary: SnapshotSummary<T::AccountId>) -> Result<(), ()> {
+		let call = Call::<T>::submit_snapshot { working_summary };
 		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
 	}
 
@@ -1559,33 +1500,6 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		} else {
 			Some(summary)
 		}
-	}
-
-	// Pending snapshot will return a snapshot nonce if the given authority is part of current set
-	// and they are yet to support a snapshot, else returns None
-	pub fn pending_snapshot(auth: AuthorityId) -> Option<u64> {
-		// Get the next snapshot number and
-		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
-		let current_set_id = <ValidatorSetId<T>>::get();
-		// Get the pending snapshot by number
-		let iter = <UnprocessedSnapshots<T>>::iter_prefix((next_nonce, current_set_id));
-		let mut pending_snapshot = Some(next_nonce);
-		for (_, summary) in iter {
-			let active = <Authorities<T>>::get(current_set_id);
-			match active.validators.binary_search(&auth) {
-				Err(_) => return None, /* If the auth is not part of active set, then do */
-				// nothing
-				Ok(index) => {
-					let set_indexes: Vec<usize> = return_set_bits(&summary.bitflags);
-					if set_indexes.contains(&index) {
-						// We already signed it so nothing is pending
-						// If bit is not set return Some() else None
-						pending_snapshot = None;
-					}
-				},
-			}
-		}
-		pending_snapshot
 	}
 
 	// Returns all main accounts and corresponding proxies for it at this point in time
