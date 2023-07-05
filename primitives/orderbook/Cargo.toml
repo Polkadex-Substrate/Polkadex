@@ -8,7 +8,6 @@ primitive-types = { version = "0.12.1", default-features = false, features = ["s
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
 sp-api = { workspace = true }
-sp-io = { workspace = true }
 sp-application-crypto = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }

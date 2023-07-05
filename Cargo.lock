@@ -5174,7 +5174,6 @@ dependencies = [
  "sp-api",
  "sp-application-crypto 7.0.0",
  "sp-core 7.0.0",
- "sp-io 7.0.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
 ]
@@ -6366,15 +6365,12 @@ version = "1.1.0"
 dependencies = [
  "anyhow",
  "frame-support",
- "frame-system",
  "parity-scale-codec",
  "pretty_assertions",
- "primitive-types",
  "rust_decimal",
  "scale-info",
  "serde",
  "serde_json",
- "sp-application-crypto 7.0.0",
  "sp-core 7.0.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
