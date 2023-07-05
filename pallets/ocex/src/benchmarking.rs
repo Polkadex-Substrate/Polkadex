@@ -276,7 +276,7 @@ benchmarks! {
 	submit_snapshot {
 		<ExchangeState<T>>::put(true);
 		let snapshot = SnapshotSummary::decode(&mut SNAPSHOT.as_ref()).unwrap();
-		let call = Call::<T>::submit_snapshot { summary: snapshot };
+		let call = Call::<T>::submit_snapshot { working_summary: snapshot };
 	}: { call.dispatch_bypass_filter(RawOrigin::None.into())? }
 	verify {
 		assert!(<Snapshots<T>>::contains_key(1));
