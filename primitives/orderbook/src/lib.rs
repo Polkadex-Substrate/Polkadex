@@ -165,6 +165,8 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	/// SGX report
 	pub report: Vec<u8>,
+	/// State Hash
+	pub state_hash: H256
 }
 
 impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
