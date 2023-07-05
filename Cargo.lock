@@ -5171,8 +5171,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
- "sp-api",
- "sp-application-crypto 7.0.0",
  "sp-core 7.0.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
