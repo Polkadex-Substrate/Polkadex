@@ -178,6 +178,7 @@ impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 			last_processed_blk: 0,
 			withdrawals: Vec::default(),
 			report: Vec::default(),
+			state_hash: Default::default(),
 		}
 	}
 }
