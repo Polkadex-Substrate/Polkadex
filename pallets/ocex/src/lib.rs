@@ -34,15 +34,26 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
+use orderbook_primitives::{
+	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
+	GENESIS_AUTHORITY_SET_ID,
+};
 use pallet_timestamp as timestamp;
-use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::{assets::AssetId, ocex::TradingPairConfig};
 use sgx_verify::{verify_ias_report, SgxStatus};
-
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::One;
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedSub, UniqueSaturatedInto},
 	SaturatedConversion,
 };
-use sp_std::prelude::*;
+use sp_std::{prelude::*, vec::Vec};
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+pub(crate) mod fixtures;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -52,20 +63,6 @@ mod mock;
 mod tests;
 
 pub mod weights;
-
-use orderbook_primitives::{
-	crypto::AuthorityId, types::TradingPair, SnapshotSummary, ValidatorSet,
-	GENESIS_AUTHORITY_SET_ID,
-};
-use polkadex_primitives::ocex::TradingPairConfig;
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::traits::One;
-use sp_std::vec::Vec;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
-#[cfg(feature = "runtime-benchmarks")]
-pub(crate) mod fixtures;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -1465,6 +1462,16 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			<T as Config>::MsPerDay::get()
 		{
 			return InvalidTransaction::Custom(13).into()
+		}
+		// check if operator is valid
+		if let Some(registered_operator) = <OrderbookOperatorPublicKey<T>>::get() {
+			if report.pubkey != registered_operator.as_ref() {
+				// same error - invalid operator
+				return InvalidTransaction::Custom(14).into()
+			}
+		} else {
+			// same error - invalid operator
+			return InvalidTransaction::Custom(14).into()
 		}
 
 		valid_tx(snapshot_summary.clone())
