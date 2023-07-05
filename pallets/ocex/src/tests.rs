@@ -24,13 +24,12 @@ use polkadex_primitives::{
 	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, UNIT_BALANCE,
 };
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use sp_core::H256;
 use sp_std::collections::btree_map::BTreeMap;
-
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
 use frame_system::EventRecord;
-
 use polkadex_primitives::{AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{bounded::BoundedBTreeSet, ByteArray, Pair};
@@ -66,39 +65,24 @@ fn test_ocex_submit_snapshot() {
 		6efb96d52ac19d84b43f289ad456127ea3d09af51cef4ff0776375c1ea0d2b6c42dd095119ff371e8d3d56f44eca23811d19298755dba7627fd61a3f0c9e").unwrap()).unwrap()
 	];
 
-	let signature: [u8; 48] = hex::decode(
-		"927d\
-		5700dfe641117ffa23fd553926a20b603d947200160f1f43b892cf007aa62bf4a9a8aaf067fdaa431b44ddaed596",
-	)
-	.unwrap()
-	.try_into()
-	.unwrap();
 	let snapshot1 = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
+		worker_nonce: 1104,
 		state_root: H256::from_slice(
 			&hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
 				.unwrap(),
 		),
-		worker_nonce: 1104,
 		state_change_id: 1104,
 		last_processed_blk: 1103,
 		state_chunk_hashes: vec![H128::from_slice(
 			&hex::decode("41320ec41a1f860d45685400b7060b01").unwrap(),
 		)],
-		bitflags: vec![42535295865117307932921825928971026432],
 		withdrawals: vec![],
-		aggregate_signature: Some(bls_primitives::Signature(signature)),
 		state_version: 0,
+		report: Vec::default(),
 	};
 
-	let signature: [u8; 48] = hex::decode(
-		"a92ba\
-		a06af18d2b96713ef62951562c9585af5fadb041ef1ff3279f2d75910fefd74f96dfed112f0c99354eea23a184e",
-	)
-	.unwrap()
-	.try_into()
-	.unwrap();
 	let snapshot2 = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
@@ -112,10 +96,9 @@ fn test_ocex_submit_snapshot() {
 		state_chunk_hashes: vec![H128::from_slice(
 			&hex::decode("41320ec41a1f860d45685400b7060b01").unwrap(),
 		)],
-		bitflags: vec![85070591730234615865843651857942052864],
 		withdrawals: vec![],
-		aggregate_signature: Some(bls_primitives::Signature(signature)),
 		state_version: 0,
+		report: Vec::default(),
 	};
 
 	new_test_ext().execute_with(|| {
@@ -1391,7 +1374,7 @@ fn collect_fees() {
 			initial_balance
 		);
 
-		let (mut snapshot, _public) = get_dummy_snapshot(1);
+		let mut snapshot = get_dummy_snapshot(1);
 
 		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
 
@@ -1599,7 +1582,7 @@ fn collect_fees_ddos() {
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
-		let (mut snapshot, _public) = get_dummy_snapshot(0);
+		let mut snapshot = get_dummy_snapshot(0);
 		snapshot.snapshot_id = 2; // Wrong nonce
 		assert_noop!(
 			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot),
@@ -1610,9 +1593,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 	});
 }
 
-fn get_dummy_snapshot(
-	withdrawals_len: usize,
-) -> (SnapshotSummary<AccountId>, bls_primitives::Public) {
+fn get_dummy_snapshot(withdrawals_len: usize) -> SnapshotSummary<AccountId> {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -1627,7 +1608,7 @@ fn get_dummy_snapshot(
 		})
 	}
 
-	let mut snapshot = SnapshotSummary {
+	SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 1,
 		state_root: Default::default(),
@@ -1635,21 +1616,16 @@ fn get_dummy_snapshot(
 		state_change_id: 1,
 		last_processed_blk: 1,
 		state_chunk_hashes: vec![],
-		bitflags: vec![1, 2],
 		withdrawals,
-		aggregate_signature: None,
 		state_version: 0,
-	};
-	let (pair, _seed) = bls_primitives::Pair::generate();
-	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
-
-	(snapshot, pair.public())
+		report: Vec::default(),
+	}
 }
 
 #[test]
 fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
-		let (snapshot, _public) = get_dummy_snapshot(1);
+		let snapshot = get_dummy_snapshot(1);
 		assert_noop!(OCEX::validate_snapshot(&snapshot), InvalidTransaction::Custom(11));
 	});
 }
@@ -1659,7 +1635,7 @@ fn test_submit_snapshot() {
 	let _account_id = create_account_id();
 	let mut t = new_test_ext();
 	t.execute_with(|| {
-		let (mut snapshot, _public) = get_dummy_snapshot(1);
+		let mut snapshot = get_dummy_snapshot(1);
 		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
 		let mut withdrawal_map = BTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
@@ -1727,7 +1703,7 @@ fn test_withdrawal() {
 			initial_balance
 		);
 
-		let (snapshot, _public) = get_dummy_snapshot(1);
+		let snapshot = get_dummy_snapshot(1);
 
 		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
 

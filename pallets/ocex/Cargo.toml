@@ -1,7 +1,7 @@
 [package]
 name = "pallet-ocex-lmp"
-version = "5.1.0"
-authors = ["Gautham J <gautham@polkadex.trade>"]
+version = "6.0.0"
+authors = ["Gautham J <gautham@polkadex.trade>", "Polkadex Core Dev Team <https://github.com/Polkadex-Substrate>"]
 edition = "2021"
 license = "GNU GPL v3"
 homepage = "https://polkadex.trade"
@@ -36,7 +36,6 @@ pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
-bls-primitives = { workspace = true, default-features = false }
 hex = "0.4.3"
 
 [features]
@@ -45,7 +44,6 @@ std = [
   "log/std",
   "sp-application-crypto/std",
   "orderbook-primitives/std",
-  "bls-primitives/std",
   "parity-scale-codec/std",
   "scale-info/std",
   "frame-support/std",
