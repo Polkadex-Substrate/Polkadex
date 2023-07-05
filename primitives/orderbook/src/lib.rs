@@ -153,40 +153,29 @@ pub struct Fees {
 /// Defines the structure of snapshot DTO.
 #[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq)]
 pub struct SnapshotSummary<AccountId: Clone + Codec> {
-	/// Validator set identifier.
-	pub validator_set_id: u64,
 	/// Snapshot identifier.
 	pub snapshot_id: u64,
-	/// Working state root.
-	pub state_root: H256,
 	/// Worker nonce.
 	pub worker_nonce: u64,
 	/// State change identifier.
 	pub state_change_id: u64,
 	/// Latest processed block number.
 	pub last_processed_blk: BlockNumber,
-	/// State chunk hashes.
-	pub state_chunk_hashes: Vec<H128>,
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	/// SGX report
 	pub report: Vec<u8>,
-	pub state_version: u16,
 }
 
 impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
 	fn default() -> Self {
 		Self {
-			validator_set_id: 0,
 			snapshot_id: 0,
-			state_root: H256::default(),
 			worker_nonce: 0,
 			state_change_id: 0,
 			last_processed_blk: 0,
-			state_chunk_hashes: Vec::default(),
 			withdrawals: Vec::default(),
 			report: Vec::default(),
-			state_version: 0,
 		}
 	}
 }
