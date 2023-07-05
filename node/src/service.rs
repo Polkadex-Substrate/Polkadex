@@ -21,16 +21,10 @@
 //! Service implementation. Specialized wrapper over substrate service.
 use crate::rpc as node_rpc;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
-use futures::{
-	channel::mpsc::{unbounded, UnboundedReceiver},
-	prelude::*,
-};
-use memory_db::{HashKey, MemoryDB};
+use futures::prelude::*;
 use node_polkadex_runtime::RuntimeApi;
-use parking_lot::RwLock;
 use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
-use reference_trie::RefHasher;
 use sc_client_api::BlockBackend;
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkEventStream, NetworkService};
@@ -151,14 +145,10 @@ pub fn new_partial(
 			),
 			sc_consensus_grandpa::SharedVoterState,
 			Option<Telemetry>,
-			Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
-			Arc<RwLock<[u8; 32]>>,
 		),
 	>,
 	ServiceError,
 > {
-	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
-	let working_state_root = Arc::new(RwLock::new([0; 32]));
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -254,9 +244,6 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.keystore();
 		let chain_spec = config.chain_spec.cloned_box();
-		let memory_db_cloned = memory_db.clone();
-		let working_state_root_cloned = working_state_root.clone();
-		let backend_cloned = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),
@@ -292,14 +279,7 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (
-			Box::new(rpc_extensions_builder),
-			import_setup,
-			rpc_setup,
-			telemetry,
-			memory_db,
-			working_state_root,
-		),
+		other: (Box::new(rpc_extensions_builder), import_setup, rpc_setup, telemetry),
 	})
 }
 
@@ -347,7 +327,7 @@ pub fn new_full_base(
 		select_chain,
 		transaction_pool,
 		// need to add all the parameters required here
-		other: (rpc_builder, import_setup, rpc_setup, mut telemetry, memory_db, working_state_root),
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
