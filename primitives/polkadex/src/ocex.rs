@@ -24,7 +24,7 @@ use frame_support::{traits::Get, BoundedVec};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use serde::{Deserialize, Serialize};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
@@ -90,7 +90,7 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 
 /// Trading pair configuration structure definition.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
 pub struct TradingPairConfig {
 	/// Base asset identifier.
 	pub base_asset: AssetId,
@@ -144,7 +144,7 @@ impl TradingPairConfig {
 
 /// Defines possible "onchain" events.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
 pub enum OnChainEvents<AccountId> {
 	/// Withdrawal claimed. (Snapshot id, Account id, Collection of withdrawals).
 	OrderBookWithdrawalClaimed(u64, AccountId, Vec<Withdrawal<AccountId>>),

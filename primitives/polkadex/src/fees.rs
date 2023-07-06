@@ -27,8 +27,7 @@ use serde::{Deserialize, Serialize};
 
 /// Defines structure of the fee configuration.
 #[derive(Copy, Clone, Encode, Decode, PartialEq, Debug, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
 pub struct FeeConfig {
 	/// Market fee fraction.
 	pub(crate) maker_fraction: Decimal,

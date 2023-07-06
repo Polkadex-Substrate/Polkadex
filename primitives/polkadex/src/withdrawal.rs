@@ -24,12 +24,12 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
 use crate::AccountId;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use serde::{Deserialize, Serialize};
 
 /// Defines withdrawal structure.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
 pub struct Withdrawal<AccountId> {
 	/// Main account identifier.
 	pub main_account: AccountId,
@@ -47,7 +47,7 @@ pub struct Withdrawal<AccountId> {
 
 /// Defines payload item structure collected in `Withdrawals` structure.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
 pub struct WithdrawalPayload {
 	/// Asset identifier.
 	pub asset_id: AssetId,
@@ -59,7 +59,7 @@ pub struct WithdrawalPayload {
 
 /// Withdrawals collection wrapper structure definition.
 #[derive(Encode, Decode, Debug, Clone, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
 pub struct Withdrawals {
 	/// Collection of withdrawals payloads.
 	pub withdrawals: sp_std::vec::Vec<WithdrawalPayload>,

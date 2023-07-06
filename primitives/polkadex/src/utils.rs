@@ -19,7 +19,7 @@
 //! This module contains common/reusable utilities functions which performs low level operations and
 //! could be reused in a different components.
 
-#[cfg(not(feature = "std"))]
+#[cfg(not(any(feature = "std", feature = "sgx")))]
 use sp_std::vec::Vec;
 
 fn bit_expression_value(bit_index: usize) -> u128 {
@@ -54,7 +54,7 @@ pub fn return_set_bits(input: &[u128]) -> Vec<usize> {
 }
 
 /// Calculates a bitmap based on provided indexes.
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub fn prepare_bitmap(indexes: &Vec<usize>, max_indexes: usize) -> Option<Vec<u128>> {
 	// Sanity check
 	for index in indexes {
