@@ -27,6 +27,7 @@ serde_json = "1.0.94"
 
 [features]
 default = ["std"]
+sgx = ["polkadex-primitives/sgx","sp-core/full_crypto"]
 std = [
   "log/std",
   "primitive-types/std",

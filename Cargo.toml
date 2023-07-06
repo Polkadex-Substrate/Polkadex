@@ -19,6 +19,13 @@
 [profile.release]
 panic = "unwind"
 
+
+[patch."https://github.com/paritytech/substrate.git"]
+frame-support = {path = "../substrate/frame/support"}
+sp-runtime = {path = "../substrate/primitives/runtime"}
+
+
+
 [workspace]
 resolver = "2"
 members = [
