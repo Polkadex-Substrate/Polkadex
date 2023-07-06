@@ -45,26 +45,10 @@ pub enum IngressMessages<AccountId> {
 	RemoveProxy(AccountId, AccountId),
 	/// Close Trading Pair.
 	CloseTradingPair(TradingPairConfig),
-	/// Resetting the balances of Account.
-	SetFreeReserveBalanceForAccounts(BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>),
 	/// Changing the exchange state in order-book.
 	SetExchangeState(bool),
 	/// Withdrawal from Chain to OrderBook.
 	DirectWithdrawal(AccountId, AssetId, Decimal, bool),
-}
-
-/// Defines the structure of handle balance data which used to set account balance.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
-#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
-pub struct HandleBalance<AccountId> {
-	/// Main account identifier.
-	pub main_account: AccountId,
-	/// Asset identifier.
-	pub asset_id: AssetId,
-	/// Operation fee.
-	pub free: u128,
-	/// Reserved amount.
-	pub reserve: u128,
 }
 
 /// Defines a limit of the account handle balance.

@@ -14,7 +14,7 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
-  "scale-codec",
+  "scale-codec", "serde"
 ], default-features = false }
 
 [dev-dependencies]
@@ -35,5 +35,5 @@ std = [
   "rust_decimal/serde",
 ]
 full_crypto = ['sp-core/full_crypto']
-sgx = ["frame-support/sgx","sp-runtime/sgx","sp-core/full_crypto","serde"]
+sgx = ["frame-support/sgx","sp-runtime/sgx","sp-runtime/serde", "sp-core/full_crypto","serde"]
 

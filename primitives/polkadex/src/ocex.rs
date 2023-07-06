@@ -32,7 +32,7 @@ use crate::{fees::FeeConfig, withdrawal::Withdrawal};
 
 /// Account related information structure definition required for users registration and storage.
 #[derive(Clone, Encode, Decode, TypeInfo, Debug)]
-#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AccountInfo<Account, ProxyLimit: Get<u32>> {
 	/// Main account.
 	pub main_account: Account,
