@@ -22,12 +22,13 @@ use codec::{Decode, Encode};
 use rust_decimal::{prelude::Zero, Decimal};
 use scale_info::TypeInfo;
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use serde::{Deserialize, Serialize};
 
 /// Defines structure of the fee configuration.
 #[derive(Copy, Clone, Encode, Decode, PartialEq, Debug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub struct FeeConfig {
 	/// Market fee fraction.
 	pub(crate) maker_fraction: Decimal,
