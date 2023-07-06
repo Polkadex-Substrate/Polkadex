@@ -36,7 +36,7 @@ pub use frame_support::storage::bounded_vec::BoundedVec;
 use codec::{Decode, Encode};
 use frame_support::traits::Get;
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use serde::{Deserialize, Serialize};
 use sp_runtime::{
 	generic,
@@ -94,7 +94,7 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// Defines a limit of the proxy accounts per main account.
 #[derive(Debug, Clone, Copy, PartialEq, TypeInfo, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(any(feature = "std", feature = "sgx"), derive(Serialize, Deserialize))]
 pub struct ProxyLimit;
 impl Get<u32> for ProxyLimit {
 	/// Accessor to the proxy accounts amount limit amount.

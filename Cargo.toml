@@ -21,8 +21,8 @@ panic = "unwind"
 
 
 [patch."https://github.com/paritytech/substrate.git"]
-frame-support = {path = "../substrate/frame/support"}
-sp-runtime = {path = "../substrate/primitives/runtime"}
+frame-support = {git = "https://github.com/Polkadex-Substrate/substrate-sgx", branch="fortanix-sgx-polkadot-v0.9.43"}
+sp-runtime = {git = "https://github.com/Polkadex-Substrate/substrate-sgx", branch="fortanix-sgx-polkadot-v0.9.43"}
 
 
 
