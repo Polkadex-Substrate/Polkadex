@@ -30,7 +30,7 @@ use sp_std::cmp::Ordering;
 
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use std::{
 	fmt::{Display, Formatter},
 	ops::{Mul, Rem},
@@ -42,6 +42,7 @@ pub type OrderId = H256;
 /// Defined account information required for the "Orderbook" client.
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountInfo {
 	/// Collection of the proxy accounts.
 	pub proxies: Vec<AccountId>,
@@ -50,6 +51,7 @@ pub struct AccountInfo {
 /// Defines account to asset map DTO to be used in the "Orderbook" client.
 #[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountAsset {
 	/// Main account identifier.
 	pub main: AccountId,
@@ -72,7 +74,8 @@ impl AccountAsset {
 /// Defines trade related structure DTO.
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "std")]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub struct Trade {
 	/// Market order.
 	pub maker: Order,
@@ -86,7 +89,7 @@ pub struct Trade {
 	pub time: i64,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Trade {
 	/// Depends on the trade side - calculates and provides price and asset information required for
 	/// further balances transfers.
@@ -134,7 +137,7 @@ use rust_decimal::prelude::FromPrimitive;
 use sc_network::PeerId;
 use scale_info::TypeInfo;
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Trade {
 	/// Constructor.
 	/// Creates a Trade with zero event_tag.
@@ -165,7 +168,7 @@ impl Trade {
 }
 
 /// Representation of gossip message possible variants.
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 #[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
 pub enum GossipMessage {
 	/// (From, to, state_version)
@@ -189,7 +192,8 @@ pub enum GossipMessage {
 /// Defines "Orderbook" message structure DTO.
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "std")]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub struct ObMessage {
 	/// State change identifier.
 	pub stid: u64,
@@ -203,7 +207,7 @@ pub struct ObMessage {
 	pub version: u16,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl ObMessage {
 	/// Verifies itself.
 	///
@@ -227,7 +231,7 @@ impl ObMessage {
 
 /// Definition of the synchronization statuse variants.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub enum StateSyncStatus {
 	/// Peer is not responding.
 	Unavailable,
@@ -242,7 +246,8 @@ pub enum StateSyncStatus {
 /// Defines user specific operations variants.
 #[derive(Clone, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "std")]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub enum UserActions {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
@@ -255,7 +260,7 @@ pub enum UserActions {
 
 /// Defines withdraw request DTO.
 #[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub struct WithdrawalRequest {
 	/// Signature.
 	pub signature: Signature,
@@ -267,7 +272,7 @@ pub struct WithdrawalRequest {
 	pub proxy: AccountId,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl WithdrawalRequest {
 	pub fn convert(
 		&self,
@@ -285,7 +290,7 @@ impl WithdrawalRequest {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl WithdrawalRequest {
 	/// Verifies request payload.
 	pub fn verify(&self) -> bool {
@@ -305,7 +310,7 @@ impl WithdrawalRequest {
 
 /// Withdraw payload requested by user.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub struct WithdrawPayloadCallByUser {
 	/// Asset identifier.
 	pub asset_id: AssetId,
@@ -318,6 +323,7 @@ pub struct WithdrawPayloadCallByUser {
 /// Defines possible order sides variants.
 #[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderSide {
 	/// Asking order side.
 	Ask,
@@ -335,7 +341,7 @@ impl OrderSide {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl TryFrom<String> for OrderSide {
 	type Error = anyhow::Error;
 
@@ -351,6 +357,7 @@ impl TryFrom<String> for OrderSide {
 /// Defines possible order types variants.
 #[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderType {
 	/// Order limit type.
 	LIMIT,
@@ -358,7 +365,7 @@ pub enum OrderType {
 	MARKET,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl TryFrom<String> for OrderType {
 	type Error = anyhow::Error;
 
@@ -374,6 +381,7 @@ impl TryFrom<String> for OrderType {
 /// Defines possible order statuses variants.
 #[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderStatus {
 	/// Order open.
 	OPEN,
@@ -383,7 +391,7 @@ pub enum OrderStatus {
 	CANCELLED,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl TryFrom<String> for OrderStatus {
 	type Error = anyhow::Error;
 
@@ -397,7 +405,7 @@ impl TryFrom<String> for OrderStatus {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl From<OrderStatus> for String {
 	fn from(value: OrderStatus) -> Self {
 		match value {
@@ -411,6 +419,7 @@ impl From<OrderStatus> for String {
 /// Defines trading pair structure.
 #[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	/// Base asset identifier.
 	pub base: AssetId,
@@ -418,7 +427,7 @@ pub struct TradingPair {
 	pub quote: AssetId,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl TryFrom<String> for TradingPair {
 	type Error = anyhow::Error;
 	fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -484,7 +493,7 @@ impl TradingPair {
 	}
 
 	/// Converts base asset identifier to the `String`.
-	#[cfg(feature = "std")]
+	#[cfg(any(feature = "std", feature = "sgx"))]
 	pub fn base_asset_str(&self) -> String {
 		match self.base {
 			AssetId::Polkadex => "PDEX".into(),
@@ -493,7 +502,7 @@ impl TradingPair {
 	}
 
 	/// Converts quote asset identifier to the `String`.
-	#[cfg(feature = "std")]
+	#[cfg(any(feature = "std", feature = "sgx"))]
 	pub fn quote_asset_str(&self) -> String {
 		match self.quote {
 			AssetId::Polkadex => "PDEX".into(),
@@ -502,13 +511,13 @@ impl TradingPair {
 	}
 
 	/// Normalizes base and quote assets to the market identifier.
-	#[cfg(feature = "std")]
+	#[cfg(any(feature = "std", feature = "sgx"))]
 	pub fn market_id(&self) -> String {
 		format!("{}/{}", self.base_asset_str(), self.quote_asset_str())
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Display for OrderSide {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
@@ -518,7 +527,7 @@ impl Display for OrderSide {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Display for TradingPair {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{:}-{:}", self.base, self.quote)
@@ -528,6 +537,7 @@ impl Display for TradingPair {
 /// Order structure definition.
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sgx", derive(serde::Serialize, serde::Deserialize))]
 pub struct Order {
 	/// State change identifier.
 	pub stid: u64,
@@ -567,7 +577,7 @@ pub struct Order {
 	pub signature: Signature,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Order {
 	/// Verifies provided trading pair configuration.
 	///
@@ -698,7 +708,7 @@ impl Ord for Order {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Order {
 	/// Computes the new avg_price and adds qty to filled_qty. If returned is false - then underflow
 	/// occurred during division.
@@ -764,7 +774,7 @@ impl Order {
 	}
 
 	// TODO: how to gate this only for testing
-	#[cfg(feature = "std")]
+	#[cfg(any(feature = "std", feature = "sgx"))]
 	pub fn random_order_for_testing(
 		pair: TradingPair,
 		side: OrderSide,
@@ -796,7 +806,7 @@ impl Order {
 }
 
 /// Defines order details structure DTO.
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub struct OrderDetails {
 	/// Payload of the order.
 	pub payload: OrderPayload,
@@ -806,7 +816,7 @@ pub struct OrderDetails {
 
 /// Defines payload of the order.
 #[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 pub struct OrderPayload {
 	/// Client order identifier.
 	pub client_order_id: H256,
@@ -832,7 +842,7 @@ pub struct OrderPayload {
 	pub timestamp: i64,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl From<Order> for OrderPayload {
 	fn from(value: Order) -> Self {
 		Self {
@@ -850,7 +860,7 @@ impl From<Order> for OrderPayload {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl TryFrom<OrderDetails> for Order {
 	type Error = anyhow::Error;
 	fn try_from(details: OrderDetails) -> Result<Self, anyhow::Error> {
@@ -914,7 +924,7 @@ impl TryFrom<OrderDetails> for Order {
 }
 
 /// Defines withdraw details DTO.
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Encode, Decode, Eq, PartialEq)]
 pub struct WithdrawalDetails {
 	/// Withdraw payload.

@@ -40,9 +40,6 @@ use sp_std::vec::Vec;
 pub mod constants;
 pub mod types;
 
-#[cfg(feature = "std")]
-pub mod recovery;
-
 /// Defines fees asset to amount map DTO.
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
 pub struct Fees {
