@@ -21,7 +21,6 @@ rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git",
   "scale-codec",
   "serde"
 ], default-features = false }
-sc-network = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.94"
@@ -32,7 +31,6 @@ sgx = ["polkadex-primitives/sgx","sp-core/full_crypto","serde","sp-runtime/serde
 std = [
   "log/std",
   "primitive-types/std",
-  "sc-network",
   "chrono",
   "rand",
   "serde",

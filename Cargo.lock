@@ -5200,7 +5200,6 @@ dependencies = [
  "primitive-types",
  "rand 0.8.5",
  "rust_decimal",
- "sc-network",
  "scale-info",
  "serde",
  "serde_json",
