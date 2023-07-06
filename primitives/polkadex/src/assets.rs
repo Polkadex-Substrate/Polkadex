@@ -26,11 +26,11 @@ use frame_support::{
 	},
 };
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use serde::de::{Error, MapAccess, Unexpected, Visitor};
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use serde::Deserializer;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use serde::{Deserialize, Serialize, Serializer};
 use sp_core::RuntimeDebug;
 use sp_runtime::{DispatchError, SaturatedConversion};
@@ -156,7 +156,7 @@ pub enum AssetId {
 	Polkadex,
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Serialize for AssetId {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
@@ -171,7 +171,7 @@ impl Serialize for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl<'de> Deserialize<'de> for AssetId {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
@@ -181,7 +181,7 @@ impl<'de> Deserialize<'de> for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl<'de> Visitor<'de> for AssetId {
 	type Value = Self;
 
@@ -221,7 +221,7 @@ impl<'de> Visitor<'de> for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl TryFrom<String> for AssetId {
 	type Error = anyhow::Error;
 
@@ -238,7 +238,7 @@ impl TryFrom<String> for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 impl Display for AssetId {
 	fn fmt(&self, f: &mut Formatter<'_>) -> sp_std::fmt::Result {
 		match self {

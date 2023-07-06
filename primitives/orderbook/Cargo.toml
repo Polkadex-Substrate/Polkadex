@@ -19,6 +19,7 @@ log = { workspace = true, default-features = false }
 anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
+  "serde"
 ], default-features = false }
 sc-network = { workspace = true, optional = true }
 
@@ -27,7 +28,7 @@ serde_json = "1.0.94"
 
 [features]
 default = ["std"]
-sgx = ["polkadex-primitives/sgx","sp-core/full_crypto","serde"]
+sgx = ["polkadex-primitives/sgx","sp-core/full_crypto","serde","sp-runtime/serde","chrono","sp-core/serde","rand"]
 std = [
   "log/std",
   "primitive-types/std",

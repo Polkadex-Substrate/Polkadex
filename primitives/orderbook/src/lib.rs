@@ -22,7 +22,7 @@
 //! components.
 
 #![feature(int_roundings)]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(any(feature = "std", feature = "sgx")), no_std)]
 
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{

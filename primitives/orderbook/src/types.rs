@@ -130,7 +130,7 @@ impl Trade {
 	}
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "sgx"))]
 use chrono::Utc;
 use rust_decimal::prelude::FromPrimitive;
 #[cfg(feature = "std")]
@@ -227,20 +227,6 @@ impl ObMessage {
 		cloned_self.signature = sp_core::ecdsa::Signature::default();
 		sp_core::hashing::keccak_256(&cloned_self.encode())
 	}
-}
-
-/// Definition of the synchronization statuse variants.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg(any(feature = "std", feature = "sgx"))]
-pub enum StateSyncStatus {
-	/// Peer is not responding.
-	Unavailable,
-	/// Synchronization is in progress and the chunk is not received yet.
-	/// Peer was requested for this chunk and currently in pending mode.
-	/// (Who is supposed to send us, when we requested)
-	InProgress(PeerId, i64),
-	/// This chunk already present.
-	Available,
 }
 
 /// Defines user specific operations variants.
@@ -800,7 +786,10 @@ impl Order {
 			quote_order_qty: Decimal::zero(),
 			timestamp: 1,
 			overall_unreserved_volume: Decimal::zero(),
-			signature: Signature::Sr25519(sp_core::sr25519::Signature::from_raw([0; 64])),
+			signature: Signature::Sr25519(
+				Decode::decode(&mut &sp_core::sr25519::Signature::from_raw([0; 64]).encode()[..])
+					.unwrap(),
+			),
 		}
 	}
 }
@@ -878,7 +867,7 @@ impl TryFrom<OrderDetails> for Order {
 										avg_filled_price: Decimal::zero(),
 										fee: Decimal::zero(),
 										filled_quantity: Decimal::zero(),
-										id: H256::random(),
+										id: H256::zero(),
 										status: OrderStatus::OPEN,
 										user: payload.user,
 										main_account: payload.main_account,

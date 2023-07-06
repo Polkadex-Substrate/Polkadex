@@ -35,5 +35,5 @@ std = [
   "rust_decimal/serde",
 ]
 full_crypto = ['sp-core/full_crypto']
-sgx = ["frame-support/sgx","sp-runtime/sgx","sp-core/full_crypto"]
+sgx = ["frame-support/sgx","sp-runtime/sgx","sp-core/full_crypto","serde"]
 
