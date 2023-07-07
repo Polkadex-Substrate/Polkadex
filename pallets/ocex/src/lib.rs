@@ -914,9 +914,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// This extrinsic will pause/resume the exchange according to flag.
-		/// If flag is set to false it will stop the exchange.
-		/// If flag is set to true it will resume the exchange.
+		/// This extrinsic will set the dispute period for snapshots
 		#[pallet::call_index(12)]
 		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
 		pub fn set_disputation_period(origin: OriginFor<T>, period: T::BlockNumber) -> DispatchResult {
