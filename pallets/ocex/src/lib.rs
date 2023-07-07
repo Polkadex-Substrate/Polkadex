@@ -87,9 +87,9 @@ pub mod sr25519 {
 mod benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
 pub(crate) mod fixtures;
+mod settlement;
 mod snapshot;
 mod validator;
-mod settlement;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -145,7 +145,7 @@ pub mod pallet {
 	use liquidity::LiquidityModifier;
 	use orderbook_primitives::{
 		crypto::AuthorityId,
-		types::{UserActions},
+		types::{UserActionBatch, UserActions},
 		Fees, SnapshotSummary,
 	};
 	use polkadex_primitives::{
@@ -1382,7 +1382,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn user_actions_batches)]
 	pub(super) type UserActionsBatches<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, Vec<UserActions>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, UserActionBatch<T::AccountId>, OptionQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
