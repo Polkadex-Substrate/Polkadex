@@ -209,7 +209,7 @@ pub struct ObMessage {
 pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub actions: Vec<UserActions<AccountId>>,
 	pub worker_nonce: u64,
-	pub stid: u64
+	pub stid: u64,
 }
 
 #[cfg(feature = "std")]
@@ -274,7 +274,7 @@ pub struct WithdrawalRequest<AccountId: Codec + Clone + TypeInfo> {
 	pub proxy: AccountId,
 }
 
-impl<AccountId: Clone+ Codec+ TypeInfo> WithdrawalRequest<AccountId> {
+impl<AccountId: Clone + Codec + TypeInfo> WithdrawalRequest<AccountId> {
 	pub fn convert(
 		&self,
 		stid: u64,
@@ -291,12 +291,12 @@ impl<AccountId: Clone+ Codec+ TypeInfo> WithdrawalRequest<AccountId> {
 	}
 }
 
-impl<AccountId: Codec + Clone+ TypeInfo> WithdrawalRequest<AccountId> {
+impl<AccountId: Codec + Clone + TypeInfo> WithdrawalRequest<AccountId> {
 	/// Verifies request payload.
 	pub fn verify(&self) -> bool {
 		let signer = match Decode::decode(&mut &self.proxy.encode()[..]) {
 			Ok(signer) => signer,
-			Err(_) => return false
+			Err(_) => return false,
 		};
 		self.signature.verify(self.payload.encode().as_ref(), &signer)
 	}
