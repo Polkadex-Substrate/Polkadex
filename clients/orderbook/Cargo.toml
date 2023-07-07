@@ -17,11 +17,11 @@ primitive-types = { version = "0.12.1", default-features = false, features = ["s
 serde_json = "1.0.94"
 blst = { version = "0.3.10", default-features = false }
 # Database stuff
-hash-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-trie-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-trie-root = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
+hash-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master", default-features = false }
+memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master", default-features = false  }
+trie-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" , default-features = false }
+trie-root = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master", default-features = false  }
+reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" , default-features = false }
 reqwest = "0.11.14"
 tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
 orderbook-primitives = { path = "../../primitives/orderbook" }

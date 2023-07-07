@@ -33,10 +33,13 @@ use frame_support::{
 	},
 	BoundedVec,
 };
+
 use frame_system::{ensure_signed, offchain::SubmitTransaction};
 use pallet_timestamp as timestamp;
+use parity_scale_codec::Encode;
 use polkadex_primitives::assets::AssetId;
-use sp_core::H256;
+use sp_application_crypto::RuntimeAppPublic;
+use sp_core::{crypto::KeyTypeId, H256};
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
 	Percent, SaturatedConversion,
@@ -60,11 +63,32 @@ use polkadex_primitives::{ocex::TradingPairConfig, utils::return_set_bits};
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
+pub const OCEX: KeyTypeId = KeyTypeId(*b"ocex");
+pub mod sr25519 {
+	mod app_sr25519 {
+		use super::super::OCEX;
+		use sp_application_crypto::{app_crypto, sr25519};
+		app_crypto!(sr25519, OCEX);
+	}
+
+	sp_application_crypto::with_pair! {
+		/// An OCEX keypair using sr25519 as its crypto.
+		pub type AuthorityPair = app_sr25519::Pair;
+	}
+
+	/// An OCEX signature using sr25519 as its crypto.
+	pub type AuthoritySignature = app_sr25519::Signature;
+
+	/// An OCEX identifier using sr25519 as its crypto.
+	pub type AuthorityId = app_sr25519::Public;
+}
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
 pub(crate) mod fixtures;
+mod snapshot;
+mod validator;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -106,6 +130,7 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use crate::validator::WORKER_STATUS;
 	use frame_support::{
 		pallet_prelude::*,
 		storage::Key,
@@ -117,7 +142,11 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{crypto::AuthorityId, Fees, SnapshotSummary};
+	use orderbook_primitives::{
+		crypto::AuthorityId,
+		types::{UserActions},
+		Fees, SnapshotSummary,
+	};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -125,7 +154,9 @@ pub mod pallet {
 		ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
+	use sp_application_crypto::RuntimeAppPublic;
 	use sp_runtime::{
+		offchain::storage::StorageValueRef,
 		traits::{BlockNumberProvider, IdentifyAccount, Verify},
 		BoundedBTreeSet, SaturatedConversion,
 	};
@@ -147,11 +178,12 @@ pub mod pallet {
 	impl<T: Config> frame_support::unsigned::ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
-		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Entering validate unsigned....");
-			match call {
-				Call::submit_snapshot { summary } => Self::validate_snapshot(summary),
-				_ => InvalidTransaction::Call.into(),
+			match (call, source) {
+				(Call::submit_snapshot { summary, signature }, TransactionSource::Local) =>
+					Self::validate_snapshot(summary, signature),
+				(_, _) => InvalidTransaction::Call.into(),
 			}
 		}
 	}
@@ -185,27 +217,13 @@ pub mod pallet {
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
-		type Public: Clone
-			+ PartialEq
-			+ IdentifyAccount<AccountId = Self::AccountId>
-			+ IdentifyAccount<AccountId = Self::AccountId>
-			+ Debug
-			+ parity_scale_codec::Codec
+		/// The identifier type for an authority.
+		type AuthorityId: Member
+			+ Parameter
+			+ RuntimeAppPublic
 			+ Ord
-			+ scale_info::TypeInfo;
-
-		/// A matching `Signature` type.
-		type Signature: Verify<Signer = Self::Public>
-			+ Clone
-			+ PartialEq
-			+ Debug
-			+ parity_scale_codec::Codec
-			+ scale_info::TypeInfo;
-
-		// declared number of milliseconds per day and is used to determine
-		// enclave's report validity time.
-		// standard 24h in ms = 86_400_000
-		type MsPerDay: Get<Self::Moment>;
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
@@ -348,6 +366,15 @@ pub mod pallet {
 			} else {
 				Weight::zero().saturating_add(T::DbWeight::get().reads(1)) // justh length was read
 			}
+		}
+
+		fn offchain_worker(block_number: T::BlockNumber) {
+			if let Err(err) = Self::run_on_chain_validation(block_number) {
+				log::error!(target:"offchain-ocex","Error while validating trade: {}",err)
+			}
+			// Set worker status to false
+			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
+			s_info.set(&false.encode());
 		}
 	}
 
@@ -1005,12 +1032,12 @@ pub mod pallet {
 		}
 
 		/// Submit Snapshot Summary
-		/// TODO: Better documentation
 		#[pallet::call_index(17)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
-			summary: SnapshotSummary<T::AccountId>,
+			summary: SnapshotSummary<T::AccountId, T::AuthorityId>,
+			signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
@@ -1018,84 +1045,15 @@ pub mod pallet {
 				summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)),
 				Error::<T>::SnapshotNonceError
 			);
-			let summary_hash = H256::from_slice(&summary.sign_data());
-			let working_summary = match <UnprocessedSnapshots<T>>::get((
-				summary.snapshot_id,
-				summary.validator_set_id,
-				summary_hash,
-			)) {
-				None => summary,
-				Some(mut stored_summary) => {
-					if let Some(signature) = summary.aggregate_signature {
-						// Aggregrate the signature
-						if stored_summary.add_signature(signature).is_err() {
-							return Err(Error::<T>::InvalidSignatureAggregation.into())
-						}
-						// update the bitfield
-						let auth_index = match summary.signed_auth_indexes().first() {
-							Some(index) => *index,
-							None => return Err(Error::<T>::SignerIndexNotFound.into()),
-						};
-						stored_summary.add_auth_index(auth_index.saturated_into());
-						stored_summary
-					} else {
-						return Err(Error::<T>::InvalidSnapshotState.into())
-					}
-				},
-			};
-			log::debug!(target:"ocex", "Checking Threshold requirement....");
-			// Check if we have enough signatures
-			let total_validators = <Authorities<T>>::get(working_summary.validator_set_id).len();
-			const MAJORITY: u8 = 67;
-			let p = Percent::from_percent(MAJORITY);
-			if working_summary.signed_auth_indexes().len() >= p * total_validators {
-				log::debug!(target:"ocex", "Got majority for working summary!");
-				// We don't need to verify signatures again as it is already verified inside
-				// validate unsigned closure
-				// Remove all the unprocessed snapshots with prefix snapshot_id
-				log::debug!(target:"ocex", "Starting to clear unprocessed snapshots for snapshot id: {:?}",working_summary.snapshot_id);
-				let mut result = <UnprocessedSnapshots<T>>::clear_prefix(
-					(working_summary.snapshot_id, working_summary.validator_set_id),
-					total_validators as u32,
-					None,
-				);
-				while result.maybe_cursor.is_some() {
-					log::debug!(target:"ocex", "Clearing prefix of working snapshot summary...");
-					result = <UnprocessedSnapshots<T>>::clear_prefix(
-						(working_summary.snapshot_id, working_summary.validator_set_id),
-						total_validators as u32,
-						Some(result.maybe_cursor.unwrap().as_ref()),
-					);
-				}
-				log::debug!(target:"ocex", "Creating withdrawal tree...");
-				let withdrawal_map =
-					Self::create_withdrawal_tree(working_summary.withdrawals.clone());
-				if !working_summary.withdrawals.is_empty() {
-					<OnChainEvents<T>>::mutate(|onchain_events| {
-						onchain_events.push(
-							polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
-								working_summary.snapshot_id,
-								working_summary.withdrawals.clone(),
-							),
-						);
-					});
-				}
-				log::debug!(target:"ocex", "Storing snapshot summary data...");
-				// Update the snapshot nonce and move the summary to snapshots storage
-				<SnapshotNonce<T>>::put(working_summary.snapshot_id);
-				<Withdrawals<T>>::insert(working_summary.snapshot_id, withdrawal_map);
-				// The unwrap below should not fail
-				<FeesCollected<T>>::insert(working_summary.snapshot_id, working_summary.get_fees());
-				<Snapshots<T>>::insert(working_summary.snapshot_id, working_summary);
-				log::debug!(target:"ocex", "Snapshot stored successfully");
-			} else {
-				log::debug!(target:"ocex", "Not enough signatories on this summary.");
-				// We still don't have enough signatures on this, so save it back.
-				<UnprocessedSnapshots<T>>::insert(
-					(working_summary.snapshot_id, working_summary.validator_set_id, summary_hash),
-					working_summary,
-				);
-			}
+
+			let withdrawal_map = Self::create_withdrawal_tree(summary.withdrawals.clone());
+			log::debug!(target:"ocex", "Storing snapshot summary data...");
+			// Update the snapshot nonce and move the summary to snapshots storage
+			<SnapshotNonce<T>>::put(summary.snapshot_id);
+			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
+			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
+			<Snapshots<T>>::insert(summary.snapshot_id, summary);
+			log::debug!(target:"ocex", "Snapshot stored successfully");
 			Ok(())
 		}
 
@@ -1403,15 +1361,27 @@ pub mod pallet {
 			Key<Blake2_128Concat, orderbook_primitives::ValidatorSetId>,
 			Key<Identity, H256>,
 		),
-		SnapshotSummary<T::AccountId>,
+		SnapshotSummary<T::AccountId, T::AuthorityId>,
 		OptionQuery,
 	>;
 
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
-	pub(super) type Snapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, ValueQuery>;
+	pub(super) type Snapshots<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		u64,
+		SnapshotSummary<T::AccountId, T::AuthorityId>,
+		OptionQuery,
+	>;
+
+	// UserActions Storage
+	// Key => snapshot nonce
+	#[pallet::storage]
+	#[pallet::getter(fn user_actions_batches)]
+	pub(super) type UserActionsBatches<T: Config> =
+		StorageMap<_, Blake2_128Concat, u64, Vec<UserActions>, ValueQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
@@ -1475,14 +1445,14 @@ pub mod pallet {
 		_,
 		Identity,
 		orderbook_primitives::ValidatorSetId,
-		ValidatorSet<AuthorityId>,
+		ValidatorSet<T::AuthorityId>,
 		ValueQuery,
 	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_next_authorities)]
 	pub(super) type NextAuthorities<T: Config> =
-		StorageValue<_, ValidatorSet<AuthorityId>, ValueQuery>;
+		StorageValue<_, ValidatorSet<T::AuthorityId>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn validator_set_id)]
@@ -1502,7 +1472,8 @@ pub mod pallet {
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
 	pub fn validate_snapshot(
-		snapshot_summary: &SnapshotSummary<T::AccountId>,
+		snapshot_summary: &SnapshotSummary<T::AccountId, T::AuthorityId>,
+		signature: &<T::AuthorityId as RuntimeAppPublic>::Signature,
 	) -> TransactionValidity {
 		let valid_tx = |provide| {
 			ValidTransaction::with_tag_prefix("orderbook")
@@ -1519,94 +1490,37 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		{
 			return InvalidTransaction::Custom(10).into()
 		}
-
-		// Get authority from active set
-		// index is zero because we are signing only with one authority
-		// when submitting snapshot
-		let auth_idx = match snapshot_summary.signed_auth_indexes().first() {
-			Some(idx) => *idx,
-			None => return InvalidTransaction::BadSigner.into(),
+		// Check if this validator was part of that authority set
+		match <Authorities<T>>::get(snapshot_summary.validator_set_id)
+			.validators()
+			.binary_search(&snapshot_summary.public)
+		{
+			Ok(auth) => auth,
+			Err(_) => return InvalidTransaction::Custom(11).into(),
 		};
 
-		let authority = match <Authorities<T>>::get(snapshot_summary.validator_set_id)
-			.validators()
-			.get(auth_idx)
-		{
-			Some(auth) => auth,
-			None => return InvalidTransaction::Custom(11).into(),
-		}
-		.clone();
-
+		let public_key = snapshot_summary.public.clone();
 		// Verify Signature
-		match snapshot_summary.aggregate_signature {
-			None => return InvalidTransaction::Custom(12).into(),
-			Some(signature) => {
-				if !signature.verify(&[authority.into()], &snapshot_summary.sign_data()) {
-					return InvalidTransaction::Custom(13).into()
-				}
-			},
+		if !public_key.verify(&snapshot_summary.encode(), &signature) {
+			return InvalidTransaction::Custom(13).into()
 		}
+
 		sp_runtime::print("Signature successfull");
 		valid_tx(snapshot_summary.clone())
 	}
 
-	pub fn validator_set() -> ValidatorSet<AuthorityId> {
+	pub fn validator_set() -> ValidatorSet<T::AuthorityId> {
 		let id = Self::validator_set_id();
 		<Authorities<T>>::get(id)
 	}
 
-	pub fn get_ingress_messages(
-		blk: T::BlockNumber,
-	) -> Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>> {
-		<IngressMessages<T>>::get(blk)
-	}
-
-	#[allow(clippy::result_unit_err)]
-	pub fn submit_snapshot_api(summary: SnapshotSummary<T::AccountId>) -> Result<(), ()> {
-		let call = Call::<T>::submit_snapshot { summary };
-		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-	}
-
-	pub fn get_latest_snapshot() -> SnapshotSummary<T::AccountId> {
+	pub fn get_latest_snapshot() -> Option<SnapshotSummary<T::AccountId, T::AuthorityId>> {
 		let last_nonce = <SnapshotNonce<T>>::get();
 		<Snapshots<T>>::get(last_nonce)
 	}
 
-	pub fn get_snapshot_by_id(nonce: u64) -> Option<SnapshotSummary<T::AccountId>> {
-		let summary = <Snapshots<T>>::get(nonce);
-
-		if summary == SnapshotSummary::default() {
-			None
-		} else {
-			Some(summary)
-		}
-	}
-
-	// Pending snapshot will return a snapshot nonce if the given authority is part of current set
-	// and they are yet to support a snapshot, else returns None
-	pub fn pending_snapshot(auth: AuthorityId) -> Option<u64> {
-		// Get the next snapshot number and
-		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
-		let current_set_id = <ValidatorSetId<T>>::get();
-		// Get the pending snapshot by number
-		let iter = <UnprocessedSnapshots<T>>::iter_prefix((next_nonce, current_set_id));
-		let mut pending_snapshot = Some(next_nonce);
-		for (_, summary) in iter {
-			let active = <Authorities<T>>::get(current_set_id);
-			match active.validators.binary_search(&auth) {
-				Err(_) => return None, /* If the auth is not part of active set, then do */
-				// nothing
-				Ok(index) => {
-					let set_indexes: Vec<usize> = return_set_bits(&summary.bitflags);
-					if set_indexes.contains(&index) {
-						// We already signed it so nothing is pending
-						// If bit is not set return Some() else None
-						pending_snapshot = None;
-					}
-				},
-			}
-		}
-		pending_snapshot
+	pub fn get_snapshot_by_id(nonce: u64) -> Option<SnapshotSummary<T::AccountId, T::AuthorityId>> {
+		<Snapshots<T>>::get(nonce)
 	}
 
 	// Returns all main accounts and corresponding proxies for it at this point in time
@@ -1622,20 +1536,6 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	/// `Vec<AssetId>`: A vector of allowlisted asset IDs.
 	pub fn get_allowlisted_assets() -> Vec<AssetId> {
 		<AllowlistedToken<T>>::get().iter().copied().collect::<Vec<AssetId>>()
-	}
-
-	pub fn get_snapshot_generation_intervals() -> (u64, T::BlockNumber) {
-		let pending_withdrawals_interval =
-			<PendingWithdrawalsAllowedPerSnapshot<T>>::get().unwrap_or(20);
-		let block_interval = <SnapshotIntervalBlock<T>>::get().unwrap_or(5u32.saturated_into());
-		(pending_withdrawals_interval, block_interval)
-	}
-
-	/// Returns the last processed stid from latest snapshot
-	pub fn get_last_accepted_worker_nonce() -> u64 {
-		let last_snapshot_nonce = <SnapshotNonce<T>>::get();
-		let last_snapshot = <Snapshots<T>>::get(last_snapshot_nonce);
-		last_snapshot.worker_nonce
 	}
 
 	/// Returns the AccountId to hold user funds, note this account has no private keys and
@@ -1683,11 +1583,11 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 }
 
 impl<T: Config> sp_application_crypto::BoundToRuntimeAppPublic for Pallet<T> {
-	type Public = orderbook_primitives::crypto::AuthorityId;
+	type Public = T::AuthorityId;
 }
 
 impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
-	type Key = orderbook_primitives::crypto::AuthorityId;
+	type Key = T::AuthorityId;
 
 	fn on_genesis_session<'a, I: 'a>(authorities: I)
 	where
