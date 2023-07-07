@@ -1281,9 +1281,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureSigned<AccountId>;
-	type Public = <Signature as traits::Verify>::Signer;
-	type Signature = Signature;
-	type MsPerDay = MsPerDay;
+	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
@@ -1554,58 +1552,6 @@ impl_runtime_apis! {
 
 		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
 			data.check_extrinsics(&block)
-		}
-	}
-
-	impl orderbook_primitives::ObApi<Block> for Runtime {
-		fn validator_set() -> orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>{
-			OCEX::validator_set()
-		}
-
-		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary<AccountId>{
-			OCEX::get_latest_snapshot()
-		}
-
-		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary<AccountId>>{
-			OCEX::get_snapshot_by_id(nonce)
-		}
-
-		fn ingress_messages(blk: BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>{
-			OCEX::get_ingress_messages(blk)
-		}
-
-		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary<AccountId>) -> Result<(),()> {
-			OCEX::submit_snapshot_api(summary)
-		}
-
-		fn pending_snapshot(auth: orderbook_primitives::crypto::AuthorityId) -> Option<u64> {
-			OCEX::pending_snapshot(auth)
-		}
-
-		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
-			OCEX::get_all_accounts_and_proxies()
-		}
-
-		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
-			OCEX::get_snapshot_generation_intervals()
-		}
-
-		fn get_last_accepted_worker_nonce () -> u64 {
-			OCEX::get_last_accepted_worker_nonce()
-		}
-
-
-		fn get_allowlisted_assets() -> Vec<AssetId> {
-			OCEX::get_allowlisted_assets()
-		}
-
-		fn read_trading_pair_configs() -> Vec<(orderbook_primitives::types::TradingPair, polkadex_primitives::ocex::TradingPairConfig)> {
-			OCEX::read_trading_pair_configs()
-		}
-
-
-		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>{
-			OCEX::get_orderbook_operator_public_key()
 		}
 	}
 

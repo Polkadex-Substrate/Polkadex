@@ -29,6 +29,8 @@ use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
 
 #[cfg(not(feature = "std"))]
+use sp_std::fmt::{Display, Formatter};
+#[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use std::{
@@ -70,9 +72,8 @@ impl AccountAsset {
 }
 
 /// Defines trade related structure DTO.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "std")]
 pub struct Trade {
 	/// Market order.
 	pub maker: Order,
@@ -86,7 +87,6 @@ pub struct Trade {
 	pub time: i64,
 }
 
-#[cfg(feature = "std")]
 impl Trade {
 	/// Depends on the trade side - calculates and provides price and asset information required for
 	/// further balances transfers.
@@ -134,7 +134,6 @@ use rust_decimal::prelude::FromPrimitive;
 use sc_network::PeerId;
 use scale_info::TypeInfo;
 
-#[cfg(feature = "std")]
 impl Trade {
 	/// Constructor.
 	/// Creates a Trade with zero event_tag.
@@ -145,6 +144,7 @@ impl Trade {
 	/// * `taker`: Taker order.
 	/// * `price`: Price of the trade.
 	/// * `amount`: Amount of the trade.
+	#[cfg(feature = "std")]
 	pub fn new(maker: Order, taker: Order, price: Decimal, amount: Decimal) -> Trade {
 		Self { maker, taker, price, amount, time: Utc::now().timestamp_millis() }
 	}
@@ -240,9 +240,8 @@ pub enum StateSyncStatus {
 }
 
 /// Defines user specific operations variants.
-#[derive(Clone, Debug, Encode, Decode)]
+#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "std")]
 pub enum UserActions {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
@@ -250,12 +249,11 @@ pub enum UserActions {
 	Withdraw(WithdrawalRequest),
 	/// Block import requested.
 	BlockImport(u32),
-	Reset,
 }
 
 /// Defines withdraw request DTO.
-#[derive(Clone, Debug, Decode, Encode, serde::Serialize, serde::Deserialize)]
-#[cfg(feature = "std")]
+#[derive(Clone, Debug, Decode, Encode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct WithdrawalRequest {
 	/// Signature.
 	pub signature: Signature,
@@ -267,7 +265,6 @@ pub struct WithdrawalRequest {
 	pub proxy: AccountId,
 }
 
-#[cfg(feature = "std")]
 impl WithdrawalRequest {
 	pub fn convert(
 		&self,
@@ -285,7 +282,6 @@ impl WithdrawalRequest {
 	}
 }
 
-#[cfg(feature = "std")]
 impl WithdrawalRequest {
 	/// Verifies request payload.
 	pub fn verify(&self) -> bool {
@@ -302,10 +298,17 @@ impl WithdrawalRequest {
 		Decimal::from_str(&self.payload.amount)
 	}
 }
+#[cfg(not(feature = "std"))]
+use core::{
+	ops::{Mul, Rem},
+	str::FromStr,
+};
+use parity_scale_codec::alloc::string::ToString;
+use scale_info::prelude::string::String;
 
 /// Withdraw payload requested by user.
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[cfg(feature = "std")]
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct WithdrawPayloadCallByUser {
 	/// Asset identifier.
 	pub asset_id: AssetId,
@@ -316,7 +319,7 @@ pub struct WithdrawPayloadCallByUser {
 }
 
 /// Defines possible order sides variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq)]
+#[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderSide {
 	/// Asking order side.
@@ -349,7 +352,7 @@ impl TryFrom<String> for OrderSide {
 }
 
 /// Defines possible order types variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq)]
+#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderType {
 	/// Order limit type.
@@ -372,7 +375,7 @@ impl TryFrom<String> for OrderType {
 }
 
 /// Defines possible order statuses variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq)]
+#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum OrderStatus {
 	/// Order open.
@@ -418,26 +421,25 @@ pub struct TradingPair {
 	pub quote: AssetId,
 }
 
-#[cfg(feature = "std")]
 impl TryFrom<String> for TradingPair {
-	type Error = anyhow::Error;
+	type Error = &'static str;
 	fn try_from(value: String) -> Result<Self, Self::Error> {
 		let assets: Vec<&str> = value.split('-').collect();
 		if assets.len() != 2 {
-			return Err(anyhow::Error::msg("Invalid String"))
+			return Err("Invalid String")
 		}
 
 		let base_asset = if assets[0] == String::from("PDEX").as_str() {
 			AssetId::Polkadex
 		} else {
-			let id = assets[0].parse::<u128>()?;
+			let id = assets[0].parse::<u128>().map_err(|_| "asset id parse error")?;
 			AssetId::Asset(id)
 		};
 
 		let quote_asset = if assets[1] == String::from("PDEX").as_str() {
 			AssetId::Polkadex
 		} else {
-			let id = assets[1].parse::<u128>()?;
+			let id = assets[1].parse::<u128>().map_err(|_| "asset id parse error")?;
 			AssetId::Asset(id)
 		};
 
@@ -508,9 +510,8 @@ impl TradingPair {
 	}
 }
 
-#[cfg(feature = "std")]
 impl Display for OrderSide {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
 		match self {
 			OrderSide::Ask => write!(f, "Ask"),
 			OrderSide::Bid => write!(f, "Bid"),
@@ -518,15 +519,14 @@ impl Display for OrderSide {
 	}
 }
 
-#[cfg(feature = "std")]
 impl Display for TradingPair {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
 		write!(f, "{:}-{:}", self.base, self.quote)
 	}
 }
 
 /// Order structure definition.
-#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Order {
 	/// State change identifier.
@@ -567,7 +567,6 @@ pub struct Order {
 	pub signature: Signature,
 }
 
-#[cfg(feature = "std")]
 impl Order {
 	/// Verifies provided trading pair configuration.
 	///
@@ -796,7 +795,6 @@ impl Order {
 }
 
 /// Defines order details structure DTO.
-#[cfg(feature = "std")]
 pub struct OrderDetails {
 	/// Payload of the order.
 	pub payload: OrderPayload,
@@ -805,8 +803,8 @@ pub struct OrderDetails {
 }
 
 /// Defines payload of the order.
-#[derive(Encode, Decode, Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[cfg(feature = "std")]
+#[derive(Encode, Decode, Clone, Debug)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct OrderPayload {
 	/// Client order identifier.
 	pub client_order_id: H256,
@@ -832,7 +830,6 @@ pub struct OrderPayload {
 	pub timestamp: i64,
 }
 
-#[cfg(feature = "std")]
 impl From<Order> for OrderPayload {
 	fn from(value: Order) -> Self {
 		Self {
@@ -849,11 +846,10 @@ impl From<Order> for OrderPayload {
 		}
 	}
 }
-
 #[cfg(feature = "std")]
 impl TryFrom<OrderDetails> for Order {
-	type Error = anyhow::Error;
-	fn try_from(details: OrderDetails) -> Result<Self, anyhow::Error> {
+	type Error = &'static str;
+	fn try_from(details: OrderDetails) -> Result<Self, Self::Error> {
 		let payload = details.payload;
 		if let Ok(qty) = payload.qty.parse::<f64>() {
 			if let Ok(price) = payload.price.parse::<f64>() {
@@ -883,39 +879,30 @@ impl TryFrom<OrderDetails> for Order {
 										signature: details.signature,
 									})
 								} else {
-									Err(anyhow::Error::msg(
-										"Not able to to parse trading pair".to_string(),
-									))
+									Err("Not able to to parse trading pair")
 								}
 							} else {
-								Err(anyhow::Error::msg(
-									"Quote order quantity couldn't be parsed to decimal"
-										.to_string(),
-								))
+								Err("Quote order quantity couldn't be parsed to decimal")
 							}
 						} else {
-							Err(anyhow::Error::msg(
-								"Quote order quantity couldn't be parsed".to_string(),
-							))
+							Err("Quote order quantity couldn't be parsed")
 						}
 					} else {
-						Err(anyhow::Error::msg(
-							"Price couldn't be converted to decimal".to_string(),
-						))
+						Err("Price couldn't be converted to decimal")
 					}
 				} else {
-					Err(anyhow::Error::msg("Qty couldn't be converted to decimal".to_string()))
+					Err("Qty couldn't be converted to decimal")
 				}
 			}
-			return Err(anyhow::Error::msg("Price couldn't be parsed".to_string()))
+			return Err("Price couldn't be parsed")
 		}
-		Err(anyhow::Error::msg(format!("Qty couldn't be parsed {}", payload.qty)))
+		Err("Qty could not be parsed")
 	}
 }
 
 /// Defines withdraw details DTO.
-#[cfg(feature = "std")]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Encode, Decode, Eq, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct WithdrawalDetails {
 	/// Withdraw payload.
 	pub payload: WithdrawPayloadCallByUser,

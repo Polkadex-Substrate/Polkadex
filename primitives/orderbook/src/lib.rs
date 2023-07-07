@@ -39,7 +39,7 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::ByteArray;
 use sp_core::H256;
-use sp_runtime::traits::IdentifyAccount;
+use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::vec::Vec;
 
 pub mod constants;
@@ -157,61 +157,26 @@ pub struct Fees {
 
 /// Defines the structure of snapshot DTO.
 #[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq)]
-pub struct SnapshotSummary<AccountId: Clone + Codec> {
+pub struct SnapshotSummary<AccountId: Clone + Codec, AuthorityId: Clone + Codec> {
 	/// Validator set identifier.
 	pub validator_set_id: u64,
 	/// Snapshot identifier.
 	pub snapshot_id: u64,
 	/// Working state root.
-	pub state_root: H256,
+	pub state_hash: H256,
 	/// Worker nonce.
 	pub worker_nonce: u64,
 	/// State change identifier.
 	pub state_change_id: u64,
 	/// Latest processed block number.
 	pub last_processed_blk: BlockNumber,
-	/// State chunk hashes.
-	pub state_chunk_hashes: Vec<H128>,
-	/// Bitmap.
-	pub bitflags: Vec<u128>,
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
-	/// Aggregated signature.
-	pub aggregate_signature: Option<bls_primitives::Signature>,
-	pub state_version: u16,
+	/// public key of validator
+	pub public: AuthorityId,
 }
 
-impl<AccountId: Clone + Codec> Default for SnapshotSummary<AccountId> {
-	fn default() -> Self {
-		Self {
-			validator_set_id: 0,
-			snapshot_id: 0,
-			state_root: Default::default(),
-			worker_nonce: 0,
-			state_change_id: 0,
-			last_processed_blk: 0,
-			state_chunk_hashes: Vec::new(),
-			bitflags: Vec::new(),
-			withdrawals: Vec::new(),
-			aggregate_signature: None,
-			state_version: 0,
-		}
-	}
-}
-
-impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
-	/// Adds a new signature to the snapshot summary.
-	///
-	/// # Parameters
-	///
-	/// * `signature`: Signature to add.
-	pub fn add_signature(&mut self, signature: Signature) -> Result<(), Signature> {
-		let aggregate_signature = self.aggregate_signature.ok_or(signature)?;
-		self.aggregate_signature =
-			Some(aggregate_signature.add_signature(&signature).map_err(|_| signature)?);
-		Ok(())
-	}
-
+impl<AccountId: Clone + Codec, AuthorityId: Clone + Codec> SnapshotSummary<AccountId, AuthorityId> {
 	/// Collects and returns the collection of fees fro for all withdrawals.
 	pub fn get_fees(&self) -> Vec<Fees> {
 		let mut fees = Vec::new();
@@ -219,80 +184,5 @@ impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 			fees.push(Fees { asset: withdrawal.asset, amount: withdrawal.fees });
 		}
 		fees
-	}
-
-	pub fn add_auth_index(&mut self, index: usize) {
-		set_bit_field(&mut self.bitflags, index);
-	}
-
-	/// Get set indexes.
-	pub fn signed_auth_indexes(&self) -> Vec<usize> {
-		return_set_bits(&self.bitflags)
-	}
-
-	/// Verifies the aggregate signature of the snapshot summary.
-	pub fn verify(&self, public_keys: Vec<Public>) -> bool {
-		let msg = self.sign_data();
-		match self.aggregate_signature {
-			None => false,
-			Some(sig) => sig.verify(&public_keys, msg.as_ref()),
-		}
-	}
-
-	/// Returns the data used for signing the snapshot summary.
-	pub fn sign_data(&self) -> [u8; 32] {
-		let data = (
-			self.snapshot_id,
-			self.state_root,
-			self.state_change_id,
-			self.worker_nonce,
-			self.state_chunk_hashes.clone(),
-			self.withdrawals.clone(),
-		);
-
-		sp_io::hashing::blake2_256(&data.encode())
-	}
-}
-
-sp_api::decl_runtime_apis! {
-	/// APIs necessary for Orderbook.
-	pub trait ObApi
-	{
-		/// Return the current active Orderbook validator set.
-		fn validator_set() -> ValidatorSet<crypto::AuthorityId>;
-
-		/// Returns the latest Snapshot Summary.
-		fn get_latest_snapshot() -> SnapshotSummary<AccountId>;
-
-		/// Returns the snapshot summary for given snapshot id.
-		fn get_snapshot_by_id(id: u64) -> Option<SnapshotSummary<AccountId>>;
-
-		/// Return the ingress messages at the given block.
-		fn ingress_messages(blk: polkadex_primitives::BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>;
-
-		/// Submits the snapshot to runtime.
-		#[allow(clippy::result_unit_err)]
-		fn submit_snapshot(summary: SnapshotSummary<AccountId>) -> Result<(), ()>;
-
-		/// Gets pending snapshot if any.
-		fn pending_snapshot(auth: AuthorityId) -> Option<u64>;
-
-		/// Returns all main account and corresponding proxies at this point in time.
-		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>;
-
-		/// Returns Public Key of Whitelisted Orderbook Operator.
-		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>;
-
-		/// Returns snapshot generation intervals.
-		fn get_snapshot_generation_intervals() -> (u64,BlockNumber);
-
-		/// Returns last processed stid from last snapshot.
-		fn get_last_accepted_worker_nonce() -> u64;
-
-		/// Get all allow listed assets.
-		fn get_allowlisted_assets() -> Vec<AssetId>;
-
-		/// Reads the current trading pair configs.
-		fn read_trading_pair_configs() -> Vec<(crate::types::TradingPair, TradingPairConfig)>;
 	}
 }
