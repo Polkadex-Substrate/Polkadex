@@ -130,8 +130,7 @@ impl Trade {
 #[cfg(feature = "std")]
 use chrono::Utc;
 use rust_decimal::prelude::FromPrimitive;
-#[cfg(feature = "std")]
-use sc_network::PeerId;
+
 use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
@@ -223,20 +222,6 @@ impl ObMessage {
 		cloned_self.signature = sp_core::ecdsa::Signature::default();
 		sp_core::hashing::keccak_256(&cloned_self.encode())
 	}
-}
-
-/// Definition of the synchronization statuse variants.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg(feature = "std")]
-pub enum StateSyncStatus {
-	/// Peer is not responding.
-	Unavailable,
-	/// Synchronization is in progress and the chunk is not received yet.
-	/// Peer was requested for this chunk and currently in pending mode.
-	/// (Who is supposed to send us, when we requested)
-	InProgress(PeerId, i64),
-	/// This chunk already present.
-	Available,
 }
 
 /// Defines user specific operations variants.
