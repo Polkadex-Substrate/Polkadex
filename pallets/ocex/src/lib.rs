@@ -88,6 +88,7 @@ pub mod sr25519 {
 mod benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
 pub(crate) mod fixtures;
+mod settlement;
 mod snapshot;
 mod validator;
 
@@ -143,7 +144,11 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{crypto::AuthorityId, types::UserActions, Fees, SnapshotSummary};
+	use orderbook_primitives::{
+		crypto::AuthorityId,
+		types::{UserActionBatch, UserActions},
+		Fees, SnapshotSummary,
+	};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -1051,7 +1056,7 @@ pub mod pallet {
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			summary: SnapshotSummary<T::AccountId, T::AuthorityId>,
-			signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
+			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
@@ -1398,7 +1403,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn user_actions_batches)]
 	pub(super) type UserActionsBatches<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, Vec<UserActions>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u64, UserActionBatch<T::AccountId>, OptionQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]

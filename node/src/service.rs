@@ -25,12 +25,10 @@ use futures::{
 	channel::mpsc::{unbounded, UnboundedReceiver},
 	prelude::*,
 };
-use memory_db::{HashKey, MemoryDB};
 use node_polkadex_runtime::RuntimeApi;
 use parking_lot::RwLock;
 use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
-use reference_trie::RefHasher;
 use sc_client_api::BlockBackend;
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkEventStream, NetworkService};
@@ -127,8 +125,6 @@ pub fn create_extrinsic(
 	)
 }
 use crate::cli::Cli;
-use orderbook_primitives::types::ObMessage;
-use orderbook_rpc::OrderbookDeps;
 use sc_network_common::sync::warp::WarpSyncParams;
 
 #[allow(clippy::type_complexity)]
@@ -153,15 +149,10 @@ pub fn new_partial(
 			),
 			sc_consensus_grandpa::SharedVoterState,
 			Option<Telemetry>,
-			UnboundedReceiver<ObMessage>,
-			Arc<RwLock<MemoryDB<RefHasher, HashKey<RefHasher>, Vec<u8>>>>,
-			Arc<RwLock<[u8; 32]>>,
 		),
 	>,
 	ServiceError,
 > {
-	let memory_db = Arc::new(RwLock::new(MemoryDB::default()));
-	let working_state_root = Arc::new(RwLock::new([0; 32]));
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -239,8 +230,6 @@ pub fn new_partial(
 
 	let import_setup = (block_import, grandpa_link, babe_link);
 
-	let (ob_messge_sink, ob_message_stream) = unbounded::<ObMessage>();
-
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, _babe_link) = &import_setup;
 
@@ -259,8 +248,6 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.keystore();
 		let chain_spec = config.chain_spec.cloned_box();
-		let memory_db_cloned = memory_db.clone();
-		let working_state_root_cloned = working_state_root.clone();
 		let backend_cloned = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
@@ -280,14 +267,6 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
-				orderbook: OrderbookDeps {
-					rpc_channel: ob_messge_sink.clone(),
-					memory_db: memory_db_cloned.clone(),
-					working_state_root: working_state_root_cloned.clone(),
-					client: client.clone(),
-					backend: backend_cloned.clone(),
-					runtime: client.clone(),
-				},
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)
@@ -305,15 +284,7 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (
-			Box::new(rpc_extensions_builder),
-			import_setup,
-			rpc_setup,
-			telemetry,
-			ob_message_stream,
-			memory_db,
-			working_state_root,
-		),
+		other: (Box::new(rpc_extensions_builder), import_setup, rpc_setup, telemetry),
 	})
 }
 
@@ -361,16 +332,7 @@ pub fn new_full_base(
 		select_chain,
 		transaction_pool,
 		// need to add all the parameters required here
-		other:
-			(
-				rpc_builder,
-				import_setup,
-				rpc_setup,
-				mut telemetry,
-				orderbook_stream,
-				memory_db,
-				working_state_root,
-			),
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
@@ -384,16 +346,6 @@ pub fn new_full_base(
 
 	net_config.add_notification_protocol(sc_consensus_grandpa::grandpa_peers_set_config(
 		grandpa_protocol_name.clone(),
-	));
-
-	// Orderbook
-	let orderbook_protocol_name = orderbook::protocol_standard_name(
-		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
-		config.chain_spec.as_ref(),
-	);
-
-	net_config.add_notification_protocol(orderbook::orderbook_peers_set_config(
-		orderbook_protocol_name.clone(),
 	));
 
 	// Thea
@@ -616,29 +568,6 @@ pub fn new_full_base(
 			sc_consensus_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
-
-	let ob_config = orderbook::ObParams {
-		client: client.clone(),
-		backend: backend.clone(),
-		runtime: client.clone(),
-		keystore: keystore_container.local_keystore(),
-		network: network.clone(),
-		sync: sync_service.clone(),
-		prometheus_registry: prometheus_registry.clone(),
-		protocol_name: orderbook_protocol_name,
-		marker: Default::default(),
-		is_validator: role.is_authority(),
-		message_sender_link: orderbook_stream,
-		memory_db,
-		working_state_root,
-	};
-
-	// Orderbook task
-	task_manager.spawn_handle().spawn_blocking(
-		"orderbook",
-		None,
-		orderbook::start_orderbook_gadget(ob_config),
-	);
 
 	let thea_config = thea_client::TheaParams {
 		client: client.clone(),
