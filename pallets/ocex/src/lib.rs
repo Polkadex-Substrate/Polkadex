@@ -914,6 +914,18 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// This extrinsic will pause/resume the exchange according to flag.
+		/// If flag is set to false it will stop the exchange.
+		/// If flag is set to true it will resume the exchange.
+		#[pallet::call_index(12)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
+		pub fn set_disputation_period(origin: OriginFor<T>, period: T::BlockNumber) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<DisputeInterval<T>>::put(period)?;
+			Self::deposit_event(Event::DisputePeriodUpdated(period));
+			Ok(())
+		}
+
 		/// Sends the changes required in balances for list of users with a particular asset.
 		#[pallet::call_index(13)]
 		#[pallet::weight(< T as Config >::WeightInfo::set_balances(1))]
@@ -1336,6 +1348,8 @@ pub mod pallet {
 		WithdrawalFailed(Withdrawal<T::AccountId>),
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
+		/// DisputePeriod has been updated
+		DisputePeriodUpdated(T::BlockNumber),
 		/// Withdraw Assets from Orderbook
 		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
 		/// Orderbook Operator Key Whitelisted
