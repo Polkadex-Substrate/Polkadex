@@ -204,7 +204,7 @@ pub struct ObMessage {
 }
 
 /// A batch of user actions
-#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub actions: Vec<UserActions<AccountId>>,
@@ -249,7 +249,7 @@ pub enum StateSyncStatus {
 }
 
 /// Defines user specific operations variants.
-#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
@@ -261,7 +261,7 @@ pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 }
 
 /// Defines withdraw request DTO.
-#[derive(Clone, Debug, Decode, Encode, TypeInfo)]
+#[derive(Clone, Debug, Decode, Encode, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct WithdrawalRequest<AccountId: Codec + Clone + TypeInfo> {
 	/// Signature.
