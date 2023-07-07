@@ -89,6 +89,7 @@ mod benchmarking;
 pub(crate) mod fixtures;
 mod snapshot;
 mod validator;
+mod settlement;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -1037,7 +1038,7 @@ pub mod pallet {
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			summary: SnapshotSummary<T::AccountId, T::AuthorityId>,
-			signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
+			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
