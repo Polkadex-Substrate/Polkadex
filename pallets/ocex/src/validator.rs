@@ -1,14 +1,19 @@
 use crate::{
 	pallet::{Accounts, SnapshotNonce, UserActionsBatches, ValidatorSetId},
+	settlement::process_trade,
 	snapshot::AccountsMap,
 	Call, Config, Error, Pallet,
 };
 use frame_system::offchain::{SendUnsignedTransaction, SignMessage, Signer, SubmitTransaction};
-use orderbook_primitives::{types::UserActions, SnapshotSummary};
-use parity_scale_codec::Encode;
+use orderbook_primitives::{
+	types::{Trade, UserActions, WithdrawalRequest},
+	SnapshotSummary,
+};
+use parity_scale_codec::{Decode, Encode};
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, BlockNumber};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::H256;
-use sp_runtime::offchain::storage::StorageValueRef;
+use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
 use sp_std::vec::Vec;
 
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -54,25 +59,39 @@ impl<T: Config> Pallet<T> {
 							// Check the next ObMessages to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 		// Load the next ObMessages
-		let actions = <UserActionsBatches<T>>::get(next_nonce);
-		if actions.is_empty() {
-			return Ok(())
-		}
+		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
+			None => return Ok(()),
+			Some(batch) => batch,
+		};
+
 		// Load the trie to memory
 		let s_info = StorageValueRef::persistent(&ACCOUNTS);
-		let accounts =
+		let mut accounts =
 			match s_info.get::<AccountsMap>().map_err(|err| "Unable to get accounts map")? {
 				None => AccountsMap::default(),
 				Some(acounts) => acounts,
 			};
 
+		if accounts.stid >= batch.stid {
+			return Err("Invalid stid")
+		}
+
+		if accounts.worker_nonce >= batch.worker_nonce {
+			return Err("Invalid worker nonce")
+		}
+
 		let mut withdrawals = Vec::new();
 		// Process Ob messages
-		for action in actions {
+		for action in batch.actions {
 			match action {
-				UserActions::Trade(trades) => {},
-				UserActions::Withdraw(request) => {},
-				UserActions::BlockImport(blk) => {},
+				UserActions::Trade(trades) => Self::trades(trades, &mut accounts)?,
+				UserActions::Withdraw(request) => {
+					let withdrawal =
+						Self::withdraw(request, &mut accounts, batch.stid, batch.worker_nonce)?;
+					withdrawals.push(withdrawal);
+				},
+				UserActions::BlockImport(blk) =>
+					Self::import_blk(blk.saturated_into(), &mut accounts)?,
 			}
 		}
 		// Create state hash.
@@ -86,9 +105,9 @@ impl<T: Config> Pallet<T> {
 					validator_set_id: <ValidatorSetId<T>>::get(),
 					snapshot_id: next_nonce,
 					state_hash,
-					worker_nonce: 0,
-					state_change_id: 0,
-					last_processed_blk: 0,
+					worker_nonce: batch.worker_nonce,
+					state_change_id: batch.stid,
+					last_processed_blk: accounts.last_block.saturated_into(),
 					withdrawals,
 					public: key.clone(),
 				};
@@ -102,5 +121,83 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(())
+	}
+
+	fn import_blk(blk: T::BlockNumber, state: &mut AccountsMap) -> Result<(), &'static str> {
+		if blk <= state.last_block.saturated_into() {
+			return Err("BlockOutofSequence")
+		}
+
+		let messages = Self::ingress_messages(blk);
+
+		for message in messages {
+			// We don't care about any other message
+			match message {
+				IngressMessages::Deposit(main, asset, amt) => {
+					let balances = state
+						.balances
+						.get_mut(&Decode::decode(&mut &main.encode()[..]).unwrap()) // this conversion will not fail
+						.ok_or("Main account not found")?;
+
+					balances
+						.entry(asset)
+						.and_modify(|total| {
+							*total = total.saturating_add(amt);
+						})
+						.or_insert(amt);
+				},
+				_ => {},
+			}
+		}
+
+		state.last_block = blk.saturated_into();
+
+		Ok(())
+	}
+
+	fn trades(trades: Vec<Trade>, state: &mut AccountsMap) -> Result<(), &'static str> {
+		for trade in trades {
+			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
+				.ok_or("TradingPairNotFound")?;
+			process_trade(state, trade, config)?
+		}
+
+		Ok(())
+	}
+
+	fn withdraw(
+		request: WithdrawalRequest<T::AccountId>,
+		state: &mut AccountsMap,
+		stid: u64,
+		worker_nonce: u64,
+	) -> Result<Withdrawal<T::AccountId>, &'static str> {
+		let amount = request.amount().map_err(|_| "decimal conversion error")?;
+		let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
+
+		if !account_info.proxies.contains(&request.proxy) {
+			// TODO: Check Race condition
+			return Err("Proxy not found")
+		}
+		if !request.verify() {
+			return Err("SignatureVerificationFailed")
+		}
+
+		let balances = state
+			.balances
+			.get_mut(&Decode::decode(&mut &request.main.encode()[..]).unwrap()) // This conversion will not fail
+			.ok_or("Main account not found")?;
+
+		let total = balances.get_mut(&request.asset()).ok_or("Asset Not found")?;
+
+		if *total < amount {
+			return Err("Insufficient Balance")
+		}
+
+		*total = total.saturating_sub(amount);
+
+		let withdrawal =
+			request.convert(stid, worker_nonce).map_err(|_| "Withdrawal conversion error")?;
+
+		Ok(withdrawal)
 	}
 }

@@ -19,7 +19,7 @@
 //! In this module defined "Orderbook" specific operations and types.
 
 use crate::constants::*;
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
@@ -196,11 +196,20 @@ pub struct ObMessage {
 	/// Worker nonce.
 	pub worker_nonce: u64,
 	/// Specific action.
-	pub action: UserActions,
+	pub action: UserActions<AccountId>,
 	/// Ecdsa signature.
 	pub signature: sp_core::ecdsa::Signature,
 	pub reset: bool,
 	pub version: u16,
+}
+
+/// A batch of user actions
+#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
+	pub actions: Vec<UserActions<AccountId>>,
+	pub worker_nonce: u64,
+	pub stid: u64,
 }
 
 #[cfg(feature = "std")]
@@ -242,11 +251,11 @@ pub enum StateSyncStatus {
 /// Defines user specific operations variants.
 #[derive(Clone, Debug, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub enum UserActions {
+pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
 	/// Withdraw operation requested.
-	Withdraw(WithdrawalRequest),
+	Withdraw(WithdrawalRequest<AccountId>),
 	/// Block import requested.
 	BlockImport(u32),
 }
@@ -254,7 +263,7 @@ pub enum UserActions {
 /// Defines withdraw request DTO.
 #[derive(Clone, Debug, Decode, Encode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct WithdrawalRequest {
+pub struct WithdrawalRequest<AccountId: Codec + Clone + TypeInfo> {
 	/// Signature.
 	pub signature: Signature,
 	/// Payload.
@@ -265,7 +274,7 @@ pub struct WithdrawalRequest {
 	pub proxy: AccountId,
 }
 
-impl WithdrawalRequest {
+impl<AccountId: Clone + Codec + TypeInfo> WithdrawalRequest<AccountId> {
 	pub fn convert(
 		&self,
 		stid: u64,
@@ -282,15 +291,19 @@ impl WithdrawalRequest {
 	}
 }
 
-impl WithdrawalRequest {
+impl<AccountId: Codec + Clone + TypeInfo> WithdrawalRequest<AccountId> {
 	/// Verifies request payload.
 	pub fn verify(&self) -> bool {
-		self.signature.verify(self.payload.encode().as_ref(), &self.proxy)
+		let signer = match Decode::decode(&mut &self.proxy.encode()[..]) {
+			Ok(signer) => signer,
+			Err(_) => return false,
+		};
+		self.signature.verify(self.payload.encode().as_ref(), &signer)
 	}
 
 	/// Instantiates `AccountAsset` DTO based on owning data.
-	pub fn account_asset(&self) -> AccountAsset {
-		AccountAsset { main: self.main.clone(), asset: self.payload.asset_id }
+	pub fn asset(&self) -> AssetId {
+		self.payload.asset_id
 	}
 
 	/// Tries to convert owning payload amount `String` value to `Decimal`.

@@ -17,13 +17,20 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::AccountInfo, AccountId, AssetId};
+use polkadex_primitives::{ocex::AccountInfo, AccountId, AssetId, BlockNumber};
 use rust_decimal::Decimal;
+use sp_runtime::traits::Zero;
 use sp_std::collections::btree_map::BTreeMap;
 
 // Accounts storage
 #[derive(Encode, Decode, PartialEq, Debug, Clone, Default)]
 pub struct AccountsMap {
+	/// Last block processed
+	pub last_block: BlockNumber,
+	/// Last processed worker nonce
+	pub worker_nonce: u64,
+	/// Last processed stid
+	pub stid: u64,
 	/// Snapshots map.
-	pub map: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
+	pub balances: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
 }
