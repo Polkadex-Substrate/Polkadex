@@ -914,16 +914,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// This extrinsic will set the dispute period for snapshots
-		#[pallet::call_index(12)]
-		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
-		pub fn set_disputation_period(origin: OriginFor<T>, period: T::BlockNumber) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<DisputeInterval<T>>::put(period)?;
-			Self::deposit_event(Event::DisputePeriodUpdated(period));
-			Ok(())
-		}
-
 		/// Sends the changes required in balances for list of users with a particular asset.
 		#[pallet::call_index(13)]
 		#[pallet::weight(< T as Config >::WeightInfo::set_balances(1))]
@@ -1099,6 +1089,17 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<OrderbookOperatorPublicKey<T>>::put(operator_public_key);
 			Self::deposit_event(Event::<T>::OrderbookOperatorKeyWhitelisted(operator_public_key));
+			Ok(())
+		}
+
+		/// This extrinsic will set the dispute period for snapshots
+		/// TODO: update weights
+		#[pallet::call_index(19)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
+		pub fn set_disputation_period(origin: OriginFor<T>, period: T::BlockNumber) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<DisputeInterval<T>>::put(period);
+			Self::deposit_event(Event::DisputePeriodUpdated(period));
 			Ok(())
 		}
 	}
